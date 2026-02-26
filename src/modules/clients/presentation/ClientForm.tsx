@@ -3,14 +3,11 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { Settings } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 
 import { useClientForm } from "./hooks/useClientForm";
 import { ClientHeader } from "./partials/ClientHeader";
 import { TabAddress } from "./partials/TabAddress";
 import { TabContact } from "./partials/TabContact";
-import { TabTax } from "./partials/TabTax";
 import { TabTax } from "./partials/TabTax";
 
 // Interfaces para props
