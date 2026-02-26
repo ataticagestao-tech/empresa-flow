@@ -50,13 +50,26 @@ export function useAdminUsers() {
     mutationFn: async ({
       userId,
       status,
+      reason,
     }: {
       userId: string;
       status: UserStatus;
+      reason?: string;
     }) => {
+      const reasonValue = status === "active" ? null : String(reason || "").trim();
+      if (status !== "active" && !reasonValue) {
+        throw new Error("Informe uma justificativa para alterar o status do usuário.");
+      }
+
       const { error } = await activeClient
         .from("profiles")
-        .update({ status, updated_at: new Date().toISOString() })
+        .update({
+          status,
+          status_reason: reasonValue,
+          status_updated_at: new Date().toISOString(),
+          status_updated_by: user?.id || null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", userId);
 
       if (error) throw error;
@@ -217,10 +230,21 @@ export function useAdminUsers() {
 
   // Deletar usuário (soft delete - muda status para 'deleted')
   const deleteUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
+    mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
+      const reasonValue = String(reason || "").trim();
+      if (!reasonValue) {
+        throw new Error("Informe uma justificativa para remover o usuário.");
+      }
+
       const { error } = await activeClient
         .from("profiles")
-        .update({ status: "deleted", updated_at: new Date().toISOString() })
+        .update({
+          status: "deleted",
+          status_reason: reasonValue,
+          status_updated_at: new Date().toISOString(),
+          status_updated_by: user?.id || null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", userId);
 
       if (error) throw error;
