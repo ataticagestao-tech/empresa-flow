@@ -10,7 +10,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
 import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import CompanyDashboard from "./pages/CompanyDashboard";
 import Financeiro from "./pages/Financeiro";
@@ -27,10 +26,7 @@ import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import ImportData from "./pages/ImportData";
 import Ajuda from "./pages/Ajuda";
-import AjudaFluxoCaixa from "./pages/AjudaFluxoCaixa";
 import CRM from "./pages/CRM";
-import WhatsApp from "./pages/WhatsApp";
-import Funcionarios from "./pages/Funcionarios";
 
 import ProdutosDepartamentos from "./pages/ProdutosDepartamentos";
 import Recibos from "./pages/Recibos";
@@ -109,12 +105,6 @@ const RootRedirect = () => {
     );
   }
 
-  // Verifica se é um redirecionamento de recuperação de senha (hash na URL)
-  const hash = window.location.hash;
-  if (hash && (hash.includes("type=recovery") || hash.includes("type=magiclink"))) {
-    return <Navigate to="/reset-password" replace />;
-  }
-
   return <Navigate to={user ? "/dashboard" : "/auth"} replace />;
 };
 
@@ -130,7 +120,6 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route element={<RequireAuth />}>
                   <Route path="/conta-bloqueada" element={<ContaBloqueada />} />
                   <Route element={<RequireActiveAccount />}>
@@ -150,12 +139,9 @@ const App = () => (
                     <Route path="/relatorios" element={<Relatorios />} />
                     <Route path="/relatorios/*" element={<Relatorios />} />
                     <Route path="/crm" element={<CRM />} />
-                    <Route path="/whatsapp" element={<WhatsApp />} />
-                    <Route path="/funcionarios" element={<Funcionarios />} />
                     <Route path="/recibos" element={<Recibos />} />
                     <Route path="/import-data" element={<ImportData />} />
                     <Route path="/ajuda" element={<Ajuda />} />
-                    <Route path="/ajuda/fluxo-caixa" element={<AjudaFluxoCaixa />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/operacional" element={<ProdutosDepartamentos />} />

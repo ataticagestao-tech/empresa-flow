@@ -10,7 +10,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
@@ -24,7 +23,6 @@ export function AppSidebar() {
   const { signOut } = useAuth();
   const { isSuperAdmin } = useAdmin();
   const { t } = useTranslation();
-  const { setOpenMobile } = useSidebar();
 
   const isActive = (url?: string) => (url ? location.pathname === url : false);
 
@@ -47,7 +45,6 @@ export function AppSidebar() {
       <SidebarHeader className="bg-[#1C3D5A] border-b border-[#1C3D5A]/50 p-4 flex justify-center">
         <Link
           to="/dashboard"
-          onClick={() => setOpenMobile(false)}
           className="group flex items-center gap-3"
           aria-label="Ir para o dashboard"
           title="Dashboard"
@@ -87,7 +84,7 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.titleKey}>
                     {item.url ? (
                       <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                        <Link to={item.url} onClick={() => setOpenMobile(false)}>
+                        <Link to={item.url}>
                           <item.icon />
                           <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                         </Link>
@@ -119,7 +116,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.titleKey}>
               {item.url ? (
                 <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                  <Link to={item.url} onClick={() => setOpenMobile(false)}>
+                  <Link to={item.url}>
                     <item.icon />
                     <span>{t(item.titleKey)}</span>
                   </Link>
