@@ -16,18 +16,13 @@ interface ClientFormProps {
     initialData?: any;
 }
 
-// Mock de CNAEs (Temporário se não estiver vindo de hook)
-const cnaeOptions = [
-    { code: "1234-5/67", description: "Outros" }
-];
-
 /**
  * Formulário Principal de Clientes (Refatorado - Modular Domain-Driven).
  * Atua como Orquestrador de UI, delegando lógica para hooks e subcomponentes.
  */
 export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
     // Hook que centraliza toda a lógica de estado e regras de negócio
-    const { form, onSubmit, handleCepBlur, handleCnpjLookup, isLoadingAddress, isLoadingCnpj } = useClientForm({ onSuccess, initialData });
+    const { form, onSubmit, handleCepBlur, handleCnpjLookup, isLoadingAddress, isLoadingCnpj, cnaeOptions } = useClientForm({ onSuccess, initialData });
 
     // Estado local apenas para controle visual de abas
     const [activeTab, setActiveTab] = useState("endereco");

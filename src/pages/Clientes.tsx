@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, MoreHorizontal, User } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
     Table,
@@ -151,6 +151,15 @@ export default function Clientes() {
         ).includes(needle);
     });
 
+    const clientsSurfaceCardClass =
+        "overflow-hidden border border-[#173B5B]/10 bg-[#123754] shadow-[0_20px_48px_rgba(18,55,84,0.18)] backdrop-blur-sm";
+    const clientsCardHeaderClass = "flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 border-b border-white/10 bg-[#123754] pb-6";
+    const clientsTableContainerClass = "rounded-none border-none bg-transparent shadow-none ring-0";
+    const clientsTableHeaderClass = "bg-white text-slate-900 [&_tr]:border-slate-200";
+    const clientsTableHeaderRowClass = "border-slate-200 bg-transparent hover:bg-transparent odd:!bg-white even:!bg-white";
+    const clientsTableEmptyRowClass = "border-white/5 odd:!bg-[#123754] even:!bg-[#123754] hover:!bg-[#123754]";
+    const clientsTableItemRowClass = "border-white/5 odd:!bg-[#123754] even:!bg-[#163E60] hover:!bg-[#1B486E] transition-colors group";
+
     return (
         <AppLayout title="Clientes">
             <div className="space-y-6 animate-in fade-in duration-500">
@@ -167,99 +176,99 @@ export default function Clientes() {
                     </Button>
                 </div>
 
-                <Card className="border-0 shadow-lg bg-white/50 backdrop-blur-sm">
-                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pb-6 border-b border-slate-100">
-                        <div className="text-sm font-medium text-slate-500">
-                            Total de {filteredClients?.length || 0} clientes
+                <Card className={clientsSurfaceCardClass}>
+                    <CardHeader className={clientsCardHeaderClass}>
+                        <div className="text-sm font-bold text-white">
+                            Total de <span className="font-extrabold text-white">{filteredClients?.length || 0}</span> clientes
                         </div>
                         <div className="relative w-full sm:w-80">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                                 placeholder="Buscar clientes..."
-                                className="pl-9 border-slate-200 focus:border-slate-400 focus:ring-slate-400/20 bg-white"
+                                className="border-slate-200 bg-white pl-9 text-slate-900 placeholder:text-slate-400 focus:border-slate-300 focus:ring-slate-300/20"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                     </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="rounded-md border border-slate-100 overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-slate-50/50">
-                                    <TableRow className="hover:bg-transparent border-slate-100">
+                    <CardContent className="p-0 bg-[#123754]">
+                        <div className="overflow-hidden bg-[#123754]">
+                            <Table className="bg-[#123754] text-white" containerClassName={clientsTableContainerClass}>
+                                <TableHeader className={clientsTableHeaderClass}>
+                                    <TableRow className={clientsTableHeaderRowClass}>
                                         <TableHead className="w-[80px]"></TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Razão Social / Nome</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">CPF/CNPJ</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Contato</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Categoria</TableHead>
+                                        <TableHead className="font-bold text-slate-900">Razão Social / Nome</TableHead>
+                                        <TableHead className="font-bold text-slate-900">CPF/CNPJ</TableHead>
+                                        <TableHead className="font-bold text-slate-900">Contato</TableHead>
+                                        <TableHead className="font-bold text-slate-900">Categoria</TableHead>
                                         <TableHead className="w-[80px] text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {!selectedCompany?.id ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                                        <TableRow className={clientsTableEmptyRowClass}>
+                                            <TableCell colSpan={6} className="h-24 text-center text-white/55">
                                                 Selecione uma empresa para visualizar os clientes.
                                             </TableCell>
                                         </TableRow>
                                     ) : isLoading ? (
-                                        <TableRow>
+                                        <TableRow className={clientsTableEmptyRowClass}>
                                             <TableCell colSpan={6} className="h-24 text-center">
-                                                <div className="flex items-center justify-center text-slate-500">
-                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-500 mr-2"></div>
+                                                <div className="flex items-center justify-center text-white/55">
+                                                    <div className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white/60"></div>
                                                     Carregando...
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                     ) : filteredClients?.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                        <TableRow className={clientsTableEmptyRowClass}>
+                                            <TableCell colSpan={6} className="h-32 text-center text-white/55">
                                                 Nenhum cliente encontrado.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredClients?.map((client) => (
-                                            <TableRow key={client.id} className="hover:bg-slate-50/50 transition-colors border-slate-100 group">
+                                            <TableRow key={client.id} className={clientsTableItemRowClass}>
                                                 <TableCell>
-                                                    <Avatar className="h-9 w-9 border border-slate-200">
-                                                        <AvatarFallback className="bg-slate-100 text-slate-500 font-medium">
+                                                    <Avatar className="h-9 w-9 border border-white/10">
+                                                        <AvatarFallback className="bg-white/10 text-white/80 font-medium">
                                                             {getInitials(client.razao_social)}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-medium text-slate-900">{client.razao_social}</div>
+                                                    <div className="font-medium text-white">{client.razao_social}</div>
                                                     {client.nome_fantasia && (
-                                                        <div className="text-xs text-slate-500">{client.nome_fantasia}</div>
+                                                        <div className="text-xs text-white/45">{client.nome_fantasia}</div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-slate-600 font-mono text-xs">
+                                                <TableCell className="font-mono text-xs text-white/70">
                                                     {client.cpf_cnpj
                                                         ? (client.cpf_cnpj.length > 11 ? maskCNPJ(client.cpf_cnpj) : maskCPF(client.cpf_cnpj))
                                                         : "-"
                                                     }
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex flex-col text-sm text-slate-600">
+                                                    <div className="flex flex-col text-sm text-white/75">
                                                         <span>{client.email}</span>
-                                                        <span className="text-xs text-slate-400">
+                                                        <span className="text-xs text-white/45">
                                                             {client.celular ? maskPhone(client.celular) : (client.telefone ? maskPhone(client.telefone) : "-")}
                                                         </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     {client.category ? (
-                                                        <Badge variant="outline" className="border-purple-200 text-purple-700 bg-purple-50">
+                                                        <Badge variant="outline" className="border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
                                                             {client.category.name}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-slate-400 text-xs">-</span>
+                                                        <span className="text-xs text-white/35">-</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Button variant="ghost" className="h-8 w-8 p-0 text-white/80 opacity-100 transition-opacity hover:bg-white/10 hover:text-white md:opacity-0 md:group-hover:opacity-100">
                                                                 <span className="sr-only">Abrir menu</span>
                                                                 <MoreHorizontal className="h-4 w-4" />
                                                             </Button>

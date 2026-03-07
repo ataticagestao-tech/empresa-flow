@@ -7,6 +7,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import jsonCompanies from "@/data/companies_import.json";
 import { Loader2, AlertCircle, Copy, RefreshCw } from "lucide-react";
 
+type ImportedCompany = Record<string, unknown> & {
+    cnpj?: string;
+    razao_social?: string;
+};
+
+const companiesToImport = jsonCompanies as ImportedCompany[];
+
 export default function ImportData() {
     const { activeClient, user } = useAuth();
     const [loading, setLoading] = useState(false);
@@ -73,8 +80,8 @@ export default function ImportData() {
         let errorCount = 0;
 
         const CHUNK_SIZE = 5;
-        for (let i = 0; i < jsonCompanies.length; i += CHUNK_SIZE) {
-            const chunk = jsonCompanies.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < companiesToImport.length; i += CHUNK_SIZE) {
+            const chunk = companiesToImport.slice(i, i + CHUNK_SIZE);
 
             await Promise.all(chunk.map(async (company) => {
                 try {
@@ -117,7 +124,7 @@ export default function ImportData() {
                 }
             }));
 
-            setProgress(Math.min(100, Math.round(((i + CHUNK_SIZE) / jsonCompanies.length) * 100)));
+            setProgress(Math.min(100, Math.round(((i + CHUNK_SIZE) / companiesToImport.length) * 100)));
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
@@ -128,10 +135,10 @@ export default function ImportData() {
 
     return (
         <AppLayout title="Importar Dados">
-            <div className="p-8 max-w-4xl mx-auto">
+            <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
                 <Card className="mb-6">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center justify-between">
+                        <CardTitle className="text-lg flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             Diagnóstico de Acesso
                             <Button variant="outline" size="sm" onClick={checkPermissions}>
                                 <RefreshCw className="w-4 h-4 mr-2" /> Verificar Novamente
@@ -141,7 +148,7 @@ export default function ImportData() {
                     <CardContent className="text-xs font-mono bg-slate-50 p-4 rounded-b-md">
                         {permissionCheck?.status === 'done' ? (
                             <div className="space-y-2">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <span className="font-bold text-slate-500">ID DO USUÁRIO:</span>
                                         <div className="bg-white border p-1 mt-1 break-all">{permissionCheck.userId}</div>
@@ -206,7 +213,7 @@ export default function ImportData() {
                         )}
 
                         <div className="flex items-center gap-4">
-                            <p>Pronto para importar {jsonCompanies.length} empresas.</p>
+                            <p>Pronto para importar {companiesToImport.length} empresas.</p>
                             <Button onClick={handleImport} disabled={loading} className="w-40">
                                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Iniciar Importação"}
                                 {loading && `${progress}%`}
