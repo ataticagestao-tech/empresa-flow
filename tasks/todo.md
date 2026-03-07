@@ -55,3 +55,9 @@
 - [x] Aplicar header azul, títulos de coluna em fundo branco e corpo da tabela em azul
 - [x] Validar com `npm run typecheck` e `npm run build`
 
+## Lint Cleanup (2026-03-07)
+- [x] Reproduzir os erros de `eslint` nos arquivos afetados
+- [x] Remover `@ts-ignore` do parser de CNPJ sem alterar comportamento
+- [x] Eliminar o warning de dependência no hook `useBankAccounts`
+- [x] Validar com `npx eslint`, `npx tsc --noEmit` e `npm run build`
+

@@ -1,19 +1,31 @@
+import * as pdfjsLib from 'pdfjs-dist';
+
+type PromiseWithResolversResult<T> = {
+    promise: Promise<T>;
+    resolve: (value: T | PromiseLike<T>) => void;
+    reject: (reason?: unknown) => void;
+};
+
+declare global {
+    interface PromiseConstructor {
+        withResolvers?<T>(): PromiseWithResolversResult<T>;
+    }
+}
 
 // Polyfill para Promise.withResolvers (Requisito do PDF.js v4+)
-// @ts-ignore
 if (typeof Promise.withResolvers === 'undefined') {
-    // @ts-ignore
-    Promise.withResolvers = function () {
-        let resolve, reject;
-        const promise = new Promise((res, rej) => {
+    Promise.withResolvers = function <T>() {
+        let resolve!: (value: T | PromiseLike<T>) => void;
+        let reject!: (reason?: unknown) => void;
+
+        const promise = new Promise<T>((res, rej) => {
             resolve = res;
             reject = rej;
         });
+
         return { promise, resolve, reject };
     };
 }
-
-import * as pdfjsLib from 'pdfjs-dist';
 
 // Usando worker estático copiado para /public/pdf.worker.min.js
 // Isso evita problemas de hash/MIME type no deploy do Vite e servidores que não suportam .mjs

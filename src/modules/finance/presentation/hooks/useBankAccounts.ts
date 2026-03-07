@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BankAccount } from "../../domain/schemas/bank-reconciliation.schema";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,7 +10,7 @@ export function useBankAccounts() {
     const [accounts, setAccounts] = useState<BankAccount[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    const fetchAccounts = async () => {
+    const fetchAccounts = useCallback(async () => {
         // Pega a primeira empresa do usuário (simplificação para este MVP)
         // Idealmente viria de um Contexto de Empresa Selecionada
         if (!session?.user?.id) return;
@@ -48,7 +47,7 @@ export function useBankAccounts() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [session?.user?.id, toast]);
 
     const createAccount = async (account: Omit<BankAccount, 'id' | 'company_id'>) => {
         // Novamente, busca o ID da empresa (idealmente viria de contexto)
@@ -74,7 +73,7 @@ export function useBankAccounts() {
             if (error) throw error;
 
             toast({ title: "Sucesso", description: "Conta bancária criada!" });
-            fetchAccounts();
+            void fetchAccounts();
 
         } catch (error: any) {
             toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -82,8 +81,8 @@ export function useBankAccounts() {
     };
 
     useEffect(() => {
-        fetchAccounts();
-    }, [session]);
+        void fetchAccounts();
+    }, [fetchAccounts]);
 
     return { accounts, isLoading, fetchAccounts, createAccount };
 }
