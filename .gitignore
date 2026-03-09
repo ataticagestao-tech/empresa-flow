@@ -26,6 +26,8 @@ dist-ssr
 # Environment files
 .env
 .env.*
+!.env.example
+.env*.local
 
 # Supabase local temp
 supabase/.temp
@@ -33,4 +35,25 @@ supabase/.temp
 # Arquivos locais de backup/modelos
 BECKAP/
 .vercel
-.env*.local
+
+# ===== SECURITY: Credential files =====
+temp_keys*.txt
+new_anon_key*.txt
+*_supabase.env
+vps_supabase.env
+login_result.json
+generate_keys.js
+generate_keys.cjs
+
+# ===== Binary archives (use releases instead) =====
+*.tar
+*.zip
+!*.tar.gz
+
+# ===== Build artifacts =====
+vite.config.ts.timestamp-*
+
+# ===== Dangerous scripts =====
+force_user.sql
+fix_authenticator.sql
+fix_auth_owner.sql
