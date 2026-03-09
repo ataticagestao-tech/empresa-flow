@@ -32,7 +32,6 @@ export function AppSidebar() {
     }
   };
 
-  // Filtrar grupos que têm pelo menos um item visível
   const visibleGroups = menuGroups.filter((group) => {
     const visibleItems = group.items.filter(
       (item) => !item.hidden && (!item.adminOnly || isSuperAdmin)
@@ -42,39 +41,31 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="bg-[#1C3D5A] border-b border-[#1C3D5A]/50 p-4 flex justify-center">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-5 flex justify-center">
         <Link
           to="/dashboard"
           className="group flex items-center gap-3"
           aria-label="Ir para o dashboard"
           title="Dashboard"
         >
-          <div className="relative grid place-items-center w-14 h-14 rounded-2xl border border-white/14 bg-white/7 shadow-[0_14px_34px_rgba(0,0,0,0.35)] overflow-visible">
-            {/* Halo colorido sutil (por trás) */}
-            <div
-              className="tatica-sidebar-halo pointer-events-none absolute -inset-3 rounded-[22px] blur-xl opacity-70"
-              aria-hidden="true"
-            />
-            {/* Vidro/shine */}
-            <div
-              className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/14 via-white/6 to-transparent"
-              aria-hidden="true"
-            />
+          <div className="relative grid place-items-center w-10 h-10 rounded-xl bg-primary/10 overflow-hidden">
             <img
               src={logoTatica}
               alt="Tática"
-              className="relative z-10 h-10 w-10 object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-[1.03]"
-              style={{ filter: "brightness(1.08) contrast(1.18)" }}
+              className="relative z-10 h-7 w-7 object-contain transition-transform duration-200 group-hover:scale-105"
             />
           </div>
+          <span className="text-sm font-semibold text-sidebar-accent-foreground tracking-wide group-data-[collapsible=icon]:hidden">
+            Tática Gestão
+          </span>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="scrollbar-thin">
+      <SidebarContent className="scrollbar-thin px-2 py-2">
         {visibleGroups.map((group) => (
           <SidebarGroup key={group.id}>
             {group.labelKey && (
-              <SidebarGroupLabel>
+              <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-wider text-sidebar-muted px-3 mb-1">
                 {group.isHardcodedLabel ? group.labelKey : t(group.labelKey)}
               </SidebarGroupLabel>
             )}
@@ -84,9 +75,9 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.titleKey}>
                     {item.url ? (
                       <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                        <Link to={item.url}>
-                          <item.icon />
-                          <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
+                        <Link to={item.url} className="rounded-lg transition-colors duration-150">
+                          <item.icon className="h-[18px] w-[18px]" />
+                          <span className="text-[13px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                         </Link>
                       </SidebarMenuButton>
                     ) : (
@@ -94,10 +85,10 @@ export function AppSidebar() {
                         type="button"
                         isActive={isActive(item.url)}
                         onClick={() => handleMenuAction(item)}
-                        className={item.action === "logout" ? "text-destructive hover:text-destructive" : ""}
+                        className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-destructive hover:text-destructive" : ""}`}
                       >
-                        <item.icon />
-                        <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
+                        <item.icon className="h-[18px] w-[18px]" />
+                        <span className="text-[13px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
@@ -108,7 +99,7 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border px-2 py-2">
         <SidebarMenu>
           {footerMenu
             .filter((item) => !item.hidden && (!item.adminOnly || isSuperAdmin))
@@ -116,9 +107,9 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.titleKey}>
               {item.url ? (
                 <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                  <Link to={item.url}>
-                    <item.icon />
-                    <span>{t(item.titleKey)}</span>
+                  <Link to={item.url} className="rounded-lg transition-colors duration-150">
+                    <item.icon className="h-[18px] w-[18px]" />
+                    <span className="text-[13px]">{t(item.titleKey)}</span>
                   </Link>
                 </SidebarMenuButton>
               ) : (
@@ -126,10 +117,10 @@ export function AppSidebar() {
                   type="button"
                   isActive={isActive(item.url)}
                   onClick={() => handleMenuAction(item)}
-                  className={item.action === "logout" ? "text-destructive hover:text-destructive" : ""}
+                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-destructive hover:text-destructive" : ""}`}
                 >
-                  <item.icon />
-                  <span>{t(item.titleKey)}</span>
+                  <item.icon className="h-[18px] w-[18px]" />
+                  <span className="text-[13px]">{t(item.titleKey)}</span>
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>
