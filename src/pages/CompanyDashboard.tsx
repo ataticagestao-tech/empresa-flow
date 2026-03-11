@@ -8,7 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
     Landmark, TrendingUp, TrendingDown, LineChart, DollarSign, Target,
     ShoppingBag, AlertTriangle, Users, PieChart, ArrowUpRight, ArrowDownRight,
-    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2, MoreHorizontal
+    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2, MoreHorizontal,
+    Building2, CreditCard, Wallet, ChevronDown, ChevronUp
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,6 +20,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinanceDashboard, type DashboardDateRange } from "@/modules/finance/presentation/hooks/useFinanceDashboard";
 import { useOperationalDashboard } from "@/modules/finance/presentation/hooks/useOperationalDashboard";
+import { useBankMovements } from "@/modules/finance/presentation/hooks/useBankMovements";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -102,6 +104,7 @@ const presets = [
 const TABS = [
     { id: "financeiro", label: "Financeiro", icon: BarChart2 },
     { id: "operacional", label: "Operacional", icon: Zap },
+    { id: "bancos", label: "Bancos", icon: Building2 },
     { id: "config", label: "Config", icon: Settings2 },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -133,6 +136,172 @@ function IconBadge({ icon: Icon, color = C.blue, bg = C.blueLight, size = 16 }: 
     );
 }
 
+/* ── Bank Account Card (expandable) ─────────────────────────── */
+function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
+    account: {
+        id: string; name: string; bank_name: string; agency: string;
+        account_number: string; current_balance: number; is_active: boolean;
+        totalIn: number; totalOut: number; net: number; movementCount: number;
+        movements: { id: string; date: string; amount: number; description: string; type: string }[];
+    };
+    isMobile: boolean;
+    fmt: (v: number) => string;
+    fmtCompact: (v: number) => string;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const recentMovements = account.movements.slice(0, 10);
+
+    return (
+        <div style={{
+            background: C.surface, borderRadius: 16, border: `1px solid ${C.borderLight}`,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
+            overflow: "hidden",
+        }}>
+            {/* Header */}
+            <button
+                onClick={() => setExpanded(!expanded)}
+                style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: 20, border: "none", background: "transparent", cursor: "pointer",
+                    textAlign: "left", fontFamily: FONT,
+                }}
+            >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{
+                        width: 40, height: 40, borderRadius: 12,
+                        background: C.blueLight, display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                        <Building2 size={18} strokeWidth={1.5} color={C.blue} />
+                    </div>
+                    <div>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{account.name}</p>
+                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>
+                            {account.bank_name}{account.agency ? ` - Ag ${account.agency}` : ""}{account.account_number ? ` / CC ${account.account_number}` : ""}
+                        </p>
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 12 : 32 }}>
+                    {!isMobile && (
+                        <>
+                            <div style={{ textAlign: "right" }}>
+                                <p style={{ fontSize: 11, color: C.textMuted }}>Entradas</p>
+                                <p style={{ fontSize: 14, fontWeight: 600, color: C.green, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(account.totalIn)}</p>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                                <p style={{ fontSize: 11, color: C.textMuted }}>Saidas</p>
+                                <p style={{ fontSize: 14, fontWeight: 600, color: C.red, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(account.totalOut)}</p>
+                            </div>
+                        </>
+                    )}
+                    <div style={{ textAlign: "right" }}>
+                        <p style={{ fontSize: 11, color: C.textMuted }}>Saldo</p>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: C.text1, fontVariantNumeric: "tabular-nums" }}>{fmt(account.current_balance)}</p>
+                    </div>
+                    {expanded ? <ChevronUp size={16} color={C.textMuted} /> : <ChevronDown size={16} color={C.textMuted} />}
+                </div>
+            </button>
+
+            {/* Expanded: stats + movements */}
+            {expanded && (
+                <div style={{ borderTop: `1px solid ${C.borderLight}` }}>
+                    {/* Quick stats on mobile */}
+                    {isMobile && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, borderBottom: `1px solid ${C.borderLight}` }}>
+                            {[
+                                { label: "Entradas", value: fmtCompact(account.totalIn), color: C.green },
+                                { label: "Saidas", value: fmtCompact(account.totalOut), color: C.red },
+                                { label: "Liquido", value: fmtCompact(account.net), color: account.net >= 0 ? C.green : C.red },
+                            ].map((s) => (
+                                <div key={s.label} style={{ padding: "12px 16px", textAlign: "center" }}>
+                                    <p style={{ fontSize: 11, color: C.textMuted }}>{s.label}</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Movement count + flow bar */}
+                    <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.borderLight}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: C.text2 }}>{account.movementCount} movimentacoes no periodo</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: account.net >= 0 ? C.green : C.red, fontVariantNumeric: "tabular-nums" }}>
+                                Liquido: {fmt(account.net)}
+                            </span>
+                        </div>
+                        {/* Stacked bar */}
+                        {(account.totalIn + account.totalOut) > 0 && (
+                            <div style={{ display: "flex", height: 6, borderRadius: 99, overflow: "hidden", background: C.borderLight }}>
+                                <div style={{ width: `${(account.totalIn / (account.totalIn + account.totalOut)) * 100}%`, background: C.green, borderRadius: "99px 0 0 99px" }} />
+                                <div style={{ width: `${(account.totalOut / (account.totalIn + account.totalOut)) * 100}%`, background: C.red, borderRadius: "0 99px 99px 0" }} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Recent movements list */}
+                    {recentMovements.length === 0 ? (
+                        <div style={{ padding: "24px 20px", textAlign: "center" }}>
+                            <p style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>Nenhuma movimentacao neste periodo</p>
+                        </div>
+                    ) : (
+                        <div>
+                            <div style={{ padding: "10px 20px", display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.borderLight}` }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Ultimas movimentacoes</span>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Valor</span>
+                            </div>
+                            {recentMovements.map((mov) => (
+                                <div
+                                    key={mov.id}
+                                    style={{
+                                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                                        padding: "10px 20px",
+                                        borderBottom: `1px solid ${C.borderLight}`,
+                                    }}
+                                >
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            background: mov.type === "credit" ? C.greenSoft : C.redSoft,
+                                        }}>
+                                            {mov.type === "credit"
+                                                ? <ArrowUpRight size={14} strokeWidth={2} color={C.green} />
+                                                : <ArrowDownRight size={14} strokeWidth={2} color={C.red} />
+                                            }
+                                        </div>
+                                        <div style={{ minWidth: 0 }}>
+                                            <p style={{ fontSize: 13, fontWeight: 500, color: C.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                                                {mov.description || "Sem descricao"}
+                                            </p>
+                                            <p style={{ fontSize: 11, color: C.textMuted }}>
+                                                {format(new Date(mov.date), "dd/MM/yyyy")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span style={{
+                                        fontSize: 14, fontWeight: 600, flexShrink: 0, marginLeft: 12,
+                                        color: mov.type === "credit" ? C.green : C.red,
+                                        fontVariantNumeric: "tabular-nums",
+                                    }}>
+                                        {mov.type === "credit" ? "+" : "-"}{fmt(mov.amount)}
+                                    </span>
+                                </div>
+                            ))}
+                            {account.movements.length > 10 && (
+                                <div style={{ padding: "12px 20px", textAlign: "center" }}>
+                                    <span style={{ fontSize: 12, color: C.blue, fontWeight: 500 }}>
+                                        + {account.movements.length - 10} movimentacoes
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 /* ════════════════════════════════════════════════════════════ */
 
 export default function CompanyDashboard() {
@@ -159,6 +328,7 @@ export default function CompanyDashboard() {
     const companyId = selectedCompany?.id || null;
     const { accountsBalance, receivablesSummary, payablesSummary, cashFlowData, dreSummary } = useFinanceDashboard(dateRange);
     const op = useOperationalDashboard(dateRange);
+    const bank = useBankMovements(dateRange);
 
     const chartData = useMemo(
         () => (cashFlowData || []).map((d: any) => ({ ...d, despesas_neg: -(d.despesas || 0) })),
@@ -733,6 +903,59 @@ export default function CompanyDashboard() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* ══════════════════════════════════════════════ */}
+                {/* TAB: BANCOS                                     */}
+                {/* ══════════════════════════════════════════════ */}
+                {activeTab === "bancos" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                        {/* Totals row */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
+                            gap: 16,
+                        }}>
+                            {[
+                                { label: "Saldo Total", value: fmt(bank.totalBalance), icon: Wallet, iconBg: C.blueLight, iconColor: C.blue },
+                                { label: "Entradas", value: fmt(bank.totalIn), icon: ArrowUpRight, iconBg: C.greenSoft, iconColor: C.green },
+                                { label: "Saidas", value: fmt(bank.totalOut), icon: ArrowDownRight, iconBg: C.redSoft, iconColor: C.red },
+                                { label: "Movimentacoes", value: String(bank.totalMovements), icon: CreditCard, iconBg: C.blueLight, iconColor: C.blue },
+                            ].map((kpi) => (
+                                <div key={kpi.label} style={cardStyle}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                        <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
+                                    </div>
+                                    <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>{kpi.label}</p>
+                                    <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                        {kpi.value}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Per-bank cards */}
+                        {bank.accounts.length === 0 ? (
+                            <div style={{ ...cardStyle, padding: 40, textAlign: "center" }}>
+                                <IconBadge icon={Building2} color={C.textMuted} bg={C.borderLight} size={24} />
+                                <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginTop: 16 }}>Nenhuma conta bancaria cadastrada</p>
+                                <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Cadastre contas em Financeiro &gt; Contas Bancarias</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                {bank.accountSummaries.map((acc) => (
+                                    <BankAccountCard
+                                        key={acc.id}
+                                        account={acc}
+                                        isMobile={isMobile}
+                                        fmt={fmt}
+                                        fmtCompact={fmtCompact}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
