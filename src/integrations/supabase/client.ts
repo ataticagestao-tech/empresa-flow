@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // Main Connection
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://lhkrxbhqagvuetoigqkl.supabase.co";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxoa3J4YmhxYWd2dWV0b2lncWtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NzQ0MjYsImV4cCI6MjA4MjQ1MDQyNn0.nhez87dpIOxo-pU16jH7oaXn44VTGO0CHAAA2-aSn5A";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://onobornmnzemgsduscug.supabase.co";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ub2Jvcm5tbnplbWdzZHVzY3VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyNzAxNDAsImV4cCI6MjA4Mzg0NjE0MH0.QzeFMCwDN-9ZVYm1GmaH9wOIPpfhTTjn_sMvS-PoHPw";
 
 // Secondary Connection (optional - falls back to main if not set)
 const SUPABASE_TATICA_URL = import.meta.env.VITE_SUPABASE_TATICA_URL || SUPABASE_URL;
