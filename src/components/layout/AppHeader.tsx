@@ -20,7 +20,7 @@ export function AppHeader({ title }: AppHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border/60 bg-background/80 backdrop-blur-md px-4">
+    <header className="sticky top-0 z-10 flex h-[60px] items-center gap-3 border-b border-border bg-white px-5">
       <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
 
       {location.pathname !== "/" && (
@@ -43,8 +43,8 @@ export function AppHeader({ title }: AppHeaderProps) {
         <CompanySelector />
 
         <div className="flex items-center">
-          <Avatar className="h-8 w-8 ring-2 ring-border/40 transition-shadow hover:ring-primary/30">
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+          <Avatar className="h-[30px] w-[30px]">
+            <AvatarFallback className="bg-primary text-white text-[11px] font-semibold tracking-wide">
               {user?.email ? getInitials(user.email) : "US"}
             </AvatarFallback>
           </Avatar>

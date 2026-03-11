@@ -3,12 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfDay, endOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
-export function useFinanceDashboard() {
+export interface DashboardDateRange {
+    from: Date;
+    to: Date;
+}
+
+export function useFinanceDashboard(dateRange?: DashboardDateRange) {
     const { selectedCompany } = useCompany();
 
-    // 1. Saldo Total em Bancos
+    const rangeStart = dateRange?.from ?? startOfMonth(new Date());
+    const rangeEnd = dateRange?.to ?? endOfMonth(new Date());
+    const rangeKey = `${format(rangeStart, 'yyyy-MM-dd')}_${format(rangeEnd, 'yyyy-MM-dd')}`;
+
+    // 1. Saldo Total em Bancos (sempre atual, não depende do filtro de data)
     const { data: accountsBalance } = useQuery({
         queryKey: ['dashboard_accounts_balance', selectedCompany?.id],
         queryFn: async () => {
@@ -23,18 +31,13 @@ export function useFinanceDashboard() {
         enabled: !!selectedCompany?.id
     });
 
-    // 2. Contas a Receber (Total Vencido, Hoje, Mês)
+    // 2. Contas a Receber filtradas pelo período
     const { data: receivablesSummary } = useQuery({
-        queryKey: ['dashboard_receivables', selectedCompany?.id],
+        queryKey: ['dashboard_receivables', selectedCompany?.id, rangeKey],
         queryFn: async () => {
-            if (!selectedCompany?.id) return { overdue: 0, today: 0, month: 0 };
+            if (!selectedCompany?.id) return { overdue: 0, today: 0, period: 0 };
             const today = new Date();
-            const startMonth = startOfMonth(today).toISOString();
-            const endMonth = endOfMonth(today).toISOString();
-            const startDay = startOfDay(today).toISOString();
-            const endDay = endOfDay(today).toISOString();
 
-            // Buscar todos pendentes
             const { data, error } = await supabase
                 .from('accounts_receivable')
                 .select('amount, due_date')
@@ -45,28 +48,27 @@ export function useFinanceDashboard() {
 
             let overdue = 0;
             let amountToday = 0;
-            let month = 0;
+            let period = 0;
 
             data.forEach((r: any) => {
                 const dueDate = new Date(r.due_date);
                 if (dueDate < startOfDay(today)) overdue += r.amount;
                 if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += r.amount;
-                if (dueDate >= startOfMonth(today) && dueDate <= endOfMonth(today)) month += r.amount;
+                if (dueDate >= startOfDay(rangeStart) && dueDate <= endOfDay(rangeEnd)) period += r.amount;
             });
 
-            return { overdue, today: amountToday, month };
+            return { overdue, today: amountToday, period };
         },
         enabled: !!selectedCompany?.id
     });
 
-    // 3. Contas a Pagar (Total Vencido, Hoje, Mês)
+    // 3. Contas a Pagar filtradas pelo período
     const { data: payablesSummary } = useQuery({
-        queryKey: ['dashboard_payables', selectedCompany?.id],
+        queryKey: ['dashboard_payables', selectedCompany?.id, rangeKey],
         queryFn: async () => {
-            if (!selectedCompany?.id) return { overdue: 0, today: 0, month: 0 };
+            if (!selectedCompany?.id) return { overdue: 0, today: 0, period: 0 };
             const today = new Date();
 
-            // Buscar todos pendentes
             const { data, error } = await supabase
                 .from('accounts_payable')
                 .select('amount, due_date')
@@ -77,50 +79,42 @@ export function useFinanceDashboard() {
 
             let overdue = 0;
             let amountToday = 0;
-            let month = 0;
+            let period = 0;
 
             data.forEach((p: any) => {
                 const dueDate = new Date(p.due_date);
                 if (dueDate < startOfDay(today)) overdue += p.amount;
                 if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += p.amount;
-                if (dueDate >= startOfMonth(today) && dueDate <= endOfMonth(today)) month += p.amount;
+                if (dueDate >= startOfDay(rangeStart) && dueDate <= endOfDay(rangeEnd)) period += p.amount;
             });
 
-            return { overdue, today: amountToday, month };
+            return { overdue, today: amountToday, period };
         },
         enabled: !!selectedCompany?.id
     });
 
-    // 4. Fluxo de Caixa Previsto (Gráfico)
+    // 4. Fluxo de Caixa Previsto (Gráfico) — usa o período selecionado
     const { data: cashFlowData } = useQuery({
-        queryKey: ['dashboard_cashflow', selectedCompany?.id],
+        queryKey: ['dashboard_cashflow', selectedCompany?.id, rangeKey],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
 
-            const today = new Date();
-            const days = eachDayOfInterval({
-                start: startOfMonth(today),
-                end: endOfMonth(today)
-            });
+            const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
 
-            // Buscar Recebimentos e Pagamentos do Mês (Pagos e Pendentes)
-            // Aqui simplificando para Previsto (Baseado em Vencimento)
             const { data: receivables } = await supabase
                 .from('accounts_receivable')
                 .select('amount, due_date')
                 .eq('company_id', selectedCompany.id)
-                .gte('due_date', startOfMonth(today).toISOString())
-                .lte('due_date', endOfMonth(today).toISOString());
+                .gte('due_date', rangeStart.toISOString())
+                .lte('due_date', rangeEnd.toISOString());
 
             const { data: payables } = await supabase
                 .from('accounts_payable')
                 .select('amount, due_date')
                 .eq('company_id', selectedCompany.id)
-                .gte('due_date', startOfMonth(today).toISOString())
-                .lte('due_date', endOfMonth(today).toISOString());
+                .gte('due_date', rangeStart.toISOString())
+                .lte('due_date', rangeEnd.toISOString());
 
-
-            // Buscar saldo inicial (Soma dos bancos hoje)
             const { data: bankData } = await supabase
                 .from('bank_accounts')
                 .select('current_balance')
@@ -154,16 +148,12 @@ export function useFinanceDashboard() {
         enabled: !!selectedCompany?.id
     });
 
-    // 5. Resumo DRE (Baseado em Transações Reais do Mês)
+    // 5. Resumo DRE — usa o período selecionado
     const { data: dreSummary } = useQuery({
-        queryKey: ['dashboard_dre', selectedCompany?.id],
+        queryKey: ['dashboard_dre', selectedCompany?.id, rangeKey],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            const today = new Date();
-            const start = startOfMonth(today).toISOString();
-            const end = endOfMonth(today).toISOString();
 
-            // Buscar transações com join no plano de contas
             const { data, error } = await supabase
                 .from('transactions')
                 .select(`
@@ -176,12 +166,11 @@ export function useFinanceDashboard() {
                     )
                 `)
                 .eq('company_id', selectedCompany.id)
-                .gte('date', start)
-                .lte('date', end);
+                .gte('date', rangeStart.toISOString())
+                .lte('date', rangeEnd.toISOString());
 
             if (error) throw error;
 
-            // Agrupar por dre_group
             const groups: Record<string, { name: string, total: number, order: number }> = {};
 
             data.forEach((t: any) => {
@@ -192,8 +181,6 @@ export function useFinanceDashboard() {
                     groups[groupName] = { name: groupName, total: 0, order };
                 }
 
-                // Crédito aumenta, Débito diminui (simplificado para DRE)
-                // Geralmente DRE mostra Receitas (+) e Custos/Despesas (-)
                 if (t.type === 'credit') groups[groupName].total += t.amount;
                 else groups[groupName].total -= t.amount;
             });

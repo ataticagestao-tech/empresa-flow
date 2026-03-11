@@ -3,118 +3,75 @@
 @tailwind utilities;
 
 /* Design System - Tática Gestão Empresarial
-   Estilo: Moderno Claro (Notion/Stripe)
-   Primary: Azul Escuro #2563EB
-   Cinzas frios e limpos
+   Estilo: Swiss Luxury Minimal
+   Primary: Navy #1C3D6B
+   Warm off-whites & refined borders
 */
 
 @layer base {
   :root {
-    /* Cores base - tema claro */
-    --background: 210 20% 98%;
-    --foreground: 220 14% 10%;
+    /* Backgrounds — warm off-white */
+    --background: 40 11% 96%;       /* #F7F6F3 */
+    --foreground: 0 0% 4%;          /* #0A0A0A */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 14% 10%;
+    --card: 0 0% 100%;              /* #FFFFFF */
+    --card-foreground: 0 0% 4%;     /* #0A0A0A */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 10%;
+    --popover-foreground: 0 0% 4%;
 
-    /* Primary - Azul Escuro */
-    --primary: 221 83% 53%;
+    /* Primary — Deep Navy */
+    --primary: 213 58% 27%;         /* #1C3D6B */
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 214 10% 95%;
-    --secondary-foreground: 220 14% 20%;
+    --secondary: 40 11% 96%;        /* #F7F6F3 */
+    --secondary-foreground: 0 0% 13%;  /* #222 */
 
-    --muted: 214 10% 95%;
-    --muted-foreground: 215 14% 46%;
+    --muted: 40 11% 96%;            /* #F7F6F3 */
+    --muted-foreground: 0 0% 33%;   /* #555 */
 
     /* Accent */
-    --accent: 214 10% 95%;
-    --accent-foreground: 221 83% 53%;
+    --accent: 40 11% 96%;
+    --accent-foreground: 213 58% 27%;
 
-    --destructive: 0 84% 60%;
+    /* Destructive — Deep Red */
+    --destructive: 9 72% 39%;       /* #A8311E */
     --destructive-foreground: 0 0% 100%;
 
-    /* Success */
-    --success: 160 84% 39%;
+    /* Success — Muted Green */
+    --success: 150 41% 30%;         /* #2E6E4C */
     --success-foreground: 0 0% 100%;
 
-    /* Warning */
-    --warning: 38 92% 50%;
+    /* Warning — Deep Amber */
+    --warning: 40 100% 27%;         /* #8A5E00 */
     --warning-foreground: 0 0% 100%;
 
     /* Info */
-    --info: 221 83% 53%;
+    --info: 213 58% 27%;
     --info-foreground: 0 0% 100%;
 
-    --border: 214 20% 90%;
-    --input: 214 20% 90%;
-    --ring: 221 83% 53%;
+    /* Borders — warm tones */
+    --border: 30 18% 89%;           /* #E8E3DC */
+    --input: 30 10% 82%;            /* #D8D3CC */
+    --ring: 213 58% 27%;
 
-    --radius: 0.625rem;
+    /* Extra surfaces */
+    --surface-2: 40 9% 98%;         /* #FAFAF8 */
+    --border-light: 30 14% 93%;     /* #F2EEE8 */
 
-    /* Sidebar - Clara e limpa */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 14% 30%;
-    --sidebar-primary: 221 83% 53%;
+    --radius: 0.75rem;
+
+    /* Sidebar — Dark & Elegant */
+    --sidebar-background: 60 4% 7%;           /* #111110 */
+    --sidebar-foreground: 30 4% 53%;           /* #8A8680 */
+    --sidebar-primary: 213 58% 27%;            /* #1C3D6B */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 214 15% 96%;
-    --sidebar-accent-foreground: 220 14% 10%;
-    --sidebar-border: 214 20% 92%;
-    --sidebar-ring: 221 83% 53%;
-    --sidebar-muted: 215 14% 55%;
-  }
-
-  .dark {
-    --background: 222 20% 7%;
-    --foreground: 210 20% 95%;
-
-    --card: 222 16% 10%;
-    --card-foreground: 210 20% 95%;
-
-    --popover: 222 16% 10%;
-    --popover-foreground: 210 20% 95%;
-
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 222 14% 16%;
-    --secondary-foreground: 210 20% 90%;
-
-    --muted: 222 14% 16%;
-    --muted-foreground: 215 14% 55%;
-
-    --accent: 222 14% 16%;
-    --accent-foreground: 221 83% 70%;
-
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 95%;
-
-    --success: 160 84% 30%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 40%;
-    --warning-foreground: 0 0% 100%;
-
-    --info: 221 83% 45%;
-    --info-foreground: 0 0% 100%;
-
-    --border: 222 14% 18%;
-    --input: 222 14% 18%;
-    --ring: 221 83% 53%;
-
-    --sidebar-background: 222 20% 8%;
-    --sidebar-foreground: 210 15% 70%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 14% 14%;
-    --sidebar-accent-foreground: 210 20% 95%;
-    --sidebar-border: 222 14% 15%;
-    --sidebar-ring: 221 83% 53%;
-    --sidebar-muted: 215 14% 45%;
+    --sidebar-accent: 0 0% 100% / 0.07;       /* rgba(255,255,255,0.07) */
+    --sidebar-accent-foreground: 30 14% 94%;   /* #F0EDE8 */
+    --sidebar-border: 45 5% 11%;               /* #1E1D1B */
+    --sidebar-ring: 213 58% 27%;
+    --sidebar-muted: 30 7% 23%;                /* #3D3A35 */
   }
 }
 
@@ -133,17 +90,35 @@
   .glass {
     @apply bg-card/80 backdrop-blur-md border border-border/50;
   }
+
+  /* KPI value — Instrument Serif for large numbers */
+  .kpi-value {
+    font-family: 'Instrument Serif', serif;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.6px;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Monetary values in tables */
+  .td-value {
+    font-family: 'Instrument Serif', serif;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @layer utilities {
+  /* Refined scrollbar — 4px, warm border color */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+    scrollbar-color: hsl(var(--border)) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 4px;
+    height: 4px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -151,11 +126,17 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.2);
-    border-radius: 9999px;
+    background-color: hsl(var(--border));
+    border-radius: 2px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--muted-foreground) / 0.4);
+    background-color: hsl(var(--muted-foreground));
   }
 }
+
+/* Global scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }

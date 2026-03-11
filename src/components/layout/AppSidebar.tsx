@@ -44,28 +44,28 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-5 flex justify-center">
         <Link
           to="/dashboard"
-          className="group flex items-center gap-3"
+          className="group flex items-center gap-2.5"
           aria-label="Ir para o dashboard"
           title="Dashboard"
         >
-          <div className="relative grid place-items-center w-10 h-10 rounded-xl bg-primary/10 overflow-hidden">
+          <div className="relative grid place-items-center w-7 h-7 rounded-md bg-primary overflow-hidden">
             <img
               src={logoTatica}
               alt="Tática"
-              className="relative z-10 h-7 w-7 object-contain transition-transform duration-200 group-hover:scale-105"
+              className="relative z-10 h-5 w-5 object-contain transition-transform duration-200 group-hover:scale-105"
             />
           </div>
-          <span className="text-sm font-semibold text-sidebar-accent-foreground tracking-wide group-data-[collapsible=icon]:hidden">
+          <span className="text-[13px] font-semibold text-sidebar-accent-foreground tracking-tight group-data-[collapsible=icon]:hidden">
             Tática Gestão
           </span>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="scrollbar-thin px-2 py-2">
+      <SidebarContent className="scrollbar-thin px-2.5 py-2">
         {visibleGroups.map((group) => (
           <SidebarGroup key={group.id}>
             {group.labelKey && (
-              <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-wider text-sidebar-muted px-3 mb-1">
+              <SidebarGroupLabel className="text-[9.5px] font-semibold uppercase tracking-[1px] text-sidebar-muted px-2 mb-1">
                 {group.isHardcodedLabel ? group.labelKey : t(group.labelKey)}
               </SidebarGroupLabel>
             )}
@@ -75,9 +75,9 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.titleKey}>
                     {item.url ? (
                       <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                        <Link to={item.url} className="rounded-lg transition-colors duration-150">
-                          <item.icon className="h-[18px] w-[18px]" />
-                          <span className="text-[13px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
+                        <Link to={item.url} className="rounded-md transition-colors duration-150">
+                          <item.icon className="h-[15px] w-[15px] opacity-75" />
+                          <span className="text-[12.5px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                         </Link>
                       </SidebarMenuButton>
                     ) : (
@@ -85,10 +85,10 @@ export function AppSidebar() {
                         type="button"
                         isActive={isActive(item.url)}
                         onClick={() => handleMenuAction(item)}
-                        className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-destructive hover:text-destructive" : ""}`}
+                        className={`rounded-md transition-colors duration-150 ${item.action === "logout" ? "text-[#8A3A2A] hover:text-[#D46A53] hover:bg-[rgba(168,49,30,0.1)]" : ""}`}
                       >
-                        <item.icon className="h-[18px] w-[18px]" />
-                        <span className="text-[13px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
+                        <item.icon className="h-[15px] w-[15px] opacity-75" />
+                        <span className="text-[12.5px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
@@ -99,7 +99,7 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border px-2 py-2">
+      <SidebarFooter className="border-t border-sidebar-border px-2.5 py-2">
         <SidebarMenu>
           {footerMenu
             .filter((item) => !item.hidden && (!item.adminOnly || isSuperAdmin))
@@ -107,9 +107,9 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.titleKey}>
               {item.url ? (
                 <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                  <Link to={item.url} className="rounded-lg transition-colors duration-150">
-                    <item.icon className="h-[18px] w-[18px]" />
-                    <span className="text-[13px]">{t(item.titleKey)}</span>
+                  <Link to={item.url} className="rounded-md transition-colors duration-150">
+                    <item.icon className="h-[15px] w-[15px] opacity-75" />
+                    <span className="text-[12.5px]">{t(item.titleKey)}</span>
                   </Link>
                 </SidebarMenuButton>
               ) : (
@@ -117,10 +117,10 @@ export function AppSidebar() {
                   type="button"
                   isActive={isActive(item.url)}
                   onClick={() => handleMenuAction(item)}
-                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-destructive hover:text-destructive" : ""}`}
+                  className={`rounded-md transition-colors duration-150 ${item.action === "logout" ? "text-[#8A3A2A] hover:text-[#D46A53] hover:bg-[rgba(168,49,30,0.1)]" : ""}`}
                 >
-                  <item.icon className="h-[18px] w-[18px]" />
-                  <span className="text-[13px]">{t(item.titleKey)}</span>
+                  <item.icon className="h-[15px] w-[15px] opacity-75" />
+                  <span className="text-[12.5px]">{t(item.titleKey)}</span>
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>

@@ -63,7 +63,7 @@ export default function Auth() {
 
   useEffect(() => { if (user && !loading) navigate("/dashboard"); }, [user, loading, navigate]);
 
-  if (loading) return (<div className="min-h-screen flex items-center justify-center bg-white"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-slate-500">Carregando...</span></div></div>);
+  if (loading) return (<div className="min-h-screen flex items-center justify-center bg-background"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Carregando...</span></div></div>);
   if (user) return <Navigate to="/dashboard" replace />;
 
   const handleForgotPassword = async () => {
@@ -104,57 +104,76 @@ export default function Auth() {
     } catch (e) { if (e instanceof z.ZodError) toast.error(e.errors[0].message); } finally { setIsLoading(false); }
   };
 
-  const ic = "bg-white border-slate-200 focus:border-primary focus:ring-primary/20 rounded-lg h-11 text-slate-900 placeholder:text-slate-400 transition-all duration-200";
+  const ic = "bg-white border-input focus:border-primary rounded-md h-11 text-foreground placeholder:text-muted-foreground transition-all duration-200";
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-white">
-      <div className="relative hidden lg:flex flex-col justify-between bg-slate-50 p-12 overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        <div className="relative z-10"><div className="flex items-center gap-3 mb-2"><div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><img src={logoTatica} alt="Logo" className="w-7 h-7 object-contain" /></div><span className="text-slate-900 font-semibold text-lg tracking-wide">Tatica Gestao</span></div></div>
-        <div className="relative z-10 space-y-8">
-          <div><h2 className="text-4xl font-bold text-slate-900 leading-tight mb-4">Gerencie seu negocio<br /><span className="text-primary">com inteligencia.</span></h2><p className="text-lg text-slate-500 max-w-md leading-relaxed">Plataforma completa para gestao financeira, clientes e operacoes da sua empresa.</p></div>
-          <div className="space-y-4">{features.map((f) => (<div key={f.title} className="flex items-start gap-4 p-4 rounded-xl bg-white/70 border border-slate-100 transition-all duration-200 hover:bg-white hover:shadow-sm"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><f.icon className="w-5 h-5 text-primary" /></div><div><h3 className="font-semibold text-slate-900 text-sm">{f.title}</h3><p className="text-slate-500 text-sm leading-relaxed">{f.description}</p></div></div>))}</div>
-        </div>
-        <div className="relative z-10"><p className="text-slate-400 text-sm">&copy; {new Date().getFullYear()} Tatica Gestao Empresarial</p></div>
-      </div>
-      <div className="flex items-center justify-center p-6 md:p-12">
+    <div className="min-h-screen flex bg-background">
+      {/* Left: Form */}
+      <div className="flex-1 flex items-center justify-center p-8 md:p-12">
         <div className="w-full max-w-[420px]">
           <div className="flex flex-col mb-8">
-            <div className="lg:hidden flex items-center gap-3 mb-8"><div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><img src={logoTatica} alt="Tatica" className="w-7 h-7 object-contain" /></div><span className="font-semibold text-lg text-slate-900">Tatica Gestao</span></div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-1">{isRecoveryFlow ? "Redefinir senha" : "Bem-vindo de volta"}</h1>
-            <p className="text-slate-500">{isRecoveryFlow ? "Defina uma senha segura." : "Faca login para acessar sua plataforma."}</p>
+            <div className="flex items-center gap-2.5 mb-9">
+              <div className="w-[34px] h-[34px] bg-primary rounded-md flex items-center justify-center">
+                <img src={logoTatica} alt="Tática" className="w-5 h-5 object-contain brightness-0 invert" />
+              </div>
+              <span className="font-semibold text-[15px] text-foreground tracking-tight">Tática Gestão</span>
+            </div>
+            <h1 className="text-[22px] font-semibold text-foreground tracking-tight mb-1.5">{isRecoveryFlow ? "Redefinir senha" : "Bem-vindo de volta"}</h1>
+            <p className="text-[13px] text-muted-foreground leading-relaxed">{isRecoveryFlow ? "Defina uma senha segura." : "Faça login para acessar sua plataforma."}</p>
           </div>
           {isRecoveryFlow ? (
             <form onSubmit={handleResetPassword} className="space-y-5">
-              <div className="space-y-2"><Label htmlFor="rp" className="text-slate-700 text-sm font-medium">Nova senha</Label><Input id="rp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required className={ic} /></div>
-              <div className="space-y-2"><Label htmlFor="rc" className="text-slate-700 text-sm font-medium">Confirmar senha</Label><Input id="rc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} required className={ic} /></div>
+              <div className="space-y-2"><Label htmlFor="rp" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Nova senha</Label><Input id="rp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required className={ic} /></div>
+              <div className="space-y-2"><Label htmlFor="rc" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="rc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} required className={ic} /></div>
               <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]" disabled={isLoading}>{isLoading ? "Atualizando..." : "Atualizar senha"}</Button>
             </form>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 p-1 bg-slate-100 rounded-lg h-11">
-                <TabsTrigger value="login" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 text-slate-500 font-medium text-sm transition-all">Entrar</TabsTrigger>
-                <TabsTrigger value="signup" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 text-slate-500 font-medium text-sm transition-all">Criar conta</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-lg h-10">
+                <TabsTrigger value="login" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12.5px] transition-all">Entrar</TabsTrigger>
+                <TabsTrigger value="signup" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12.5px] transition-all">Criar conta</TabsTrigger>
               </TabsList>
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2"><Label htmlFor="le" className="text-slate-700 text-sm font-medium">Email</Label><Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-slate-700 text-sm font-medium">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><Input id="lp" type="password" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="le" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Email</Label><Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><Input id="lp" type="password" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required className={ic} /></div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Entrando..." : "Entrar"}</Button>
                 </form>
               </TabsContent>
               <TabsContent value="signup">
                 <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2"><Label htmlFor="sn" className="text-slate-700 text-sm font-medium">Nome completo</Label><Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="se" className="text-slate-700 text-sm font-medium">Email</Label><Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sp" className="text-slate-700 text-sm font-medium">Senha</Label><Input id="sp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sc" className="text-slate-700 text-sm font-medium">Confirmar senha</Label><Input id="sc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sn" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Nome completo</Label><Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="se" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Email</Label><Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sp" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Senha</Label><Input id="sp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sc" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="sc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required className={ic} /></div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Criando conta..." : "Criar conta"}</Button>
                 </form>
               </TabsContent>
             </Tabs>
           )}
+        </div>
+      </div>
+
+      {/* Right: Dark Panel */}
+      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#111110] items-center justify-center p-14">
+        <div className="w-full">
+          <p className="text-[18px] font-medium text-white/85 leading-relaxed tracking-tight mb-8">
+            Gerencie seu negócio com inteligência. Plataforma completa para gestão financeira.
+          </p>
+          <div className="flex gap-8 flex-wrap">
+            <div>
+              <p className="font-serif text-[28px] font-semibold text-white tracking-tight">+200</p>
+              <p className="text-[11.5px] text-white/50 mt-0.5">Empresas geridas</p>
+            </div>
+            <div>
+              <p className="font-serif text-[28px] font-semibold text-white tracking-tight">99.9%</p>
+              <p className="text-[11.5px] text-white/50 mt-0.5">Uptime garantido</p>
+            </div>
+            <div>
+              <p className="font-serif text-[28px] font-semibold text-white tracking-tight">24/7</p>
+              <p className="text-[11.5px] text-white/50 mt-0.5">Suporte ativo</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

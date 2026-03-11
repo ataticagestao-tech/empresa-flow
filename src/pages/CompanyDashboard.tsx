@@ -1,65 +1,67 @@
 
-import { useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, CalendarDays } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    AreaChart,
-    Area,
-    LineChart,
-    Line,
-    ReferenceLine
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+    ResponsiveContainer, AreaChart, Area, ReferenceLine
 } from "recharts";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { useFinanceDashboard } from "@/modules/finance/presentation/hooks/useFinanceDashboard";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useFinanceDashboard, type DashboardDateRange } from "@/modules/finance/presentation/hooks/useFinanceDashboard";
+import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
+
+const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+const fmtCompact = (v: number) => new Intl.NumberFormat('pt-BR', { compactDisplay: "short", notation: "compact", currency: 'BRL', style: 'currency' }).format(v);
+
+const presets = [
+    { label: "Este mês", get: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
+    { label: "Mês passado", get: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
+    { label: "Últimos 3 meses", get: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
+    { label: "Este ano", get: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
+];
 
 export default function CompanyDashboard() {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
     const { user, activeClient, isUsingSecondary } = useAuth();
     const { companies } = useCompanies(user?.id);
     const { setSelectedCompany, selectedCompany } = useCompany();
 
-    // Sincroniza empresa selecionada via URL
+    const [dateRange, setDateRange] = useState<DashboardDateRange>({
+        from: startOfMonth(new Date()),
+        to: endOfMonth(new Date()),
+    });
+    const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({
+        from: dateRange.from,
+        to: dateRange.to,
+    });
+    const [activePreset, setActivePreset] = useState("Este mês");
+
     useEffect(() => {
         if (id && companies) {
             const company = companies.find(c => c.id === id);
-            if (company) {
-                setSelectedCompany(company);
-            }
+            if (company) setSelectedCompany(company);
         }
     }, [id, companies, setSelectedCompany]);
 
     const companyId = selectedCompany?.id || null;
 
-    // Hook novo de Dashboard Financeiro
     const {
-        accountsBalance,
-        receivablesSummary,
-        payablesSummary,
-        cashFlowData
-    } = useFinanceDashboard();
+        accountsBalance, receivablesSummary, payablesSummary, cashFlowData, dreSummary
+    } = useFinanceDashboard(dateRange);
 
     const activityProfileLabel = useMemo(() => {
         const p = selectedCompany?.activity_profile || "comercio";
@@ -68,10 +70,8 @@ export default function CompanyDashboard() {
         return "Comércio";
     }, [selectedCompany?.activity_profile]);
 
-    // Dados para gráfico (já vêm formatados do hook, mas garantindo array vazio)
     const chartData = cashFlowData || [];
 
-    // Settings (mantido do original para status de configuração)
     const { data: nfseSettings } = useQuery({
         queryKey: ["company_nfse_settings", companyId, isUsingSecondary],
         queryFn: async () => {
@@ -95,223 +95,213 @@ export default function CompanyDashboard() {
         return Boolean(provider && (ibge || city));
     }, [nfseSettings, selectedCompany?.enable_nfse]);
 
+    const handlePreset = (preset: typeof presets[number]) => {
+        const range = preset.get();
+        setDateRange(range);
+        setCalendarRange({ from: range.from, to: range.to });
+        setActivePreset(preset.label);
+    };
+
+    const handleCalendarSelect = (range: DateRange | undefined) => {
+        setCalendarRange(range);
+        if (range?.from && range?.to) {
+            setDateRange({ from: range.from, to: range.to });
+            setActivePreset("");
+        }
+    };
+
     if (!selectedCompany) {
         return (
-            <AppLayout title="Detalhes da Empresa">
+            <AppLayout title="Dashboard">
                 <div className="flex flex-col items-center justify-center h-full py-20">
-                    <div className="animate-spin h-8 w-8 border-4 border-emerald-600 border-t-transparent rounded-full mb-4"></div>
-                    <p className="text-slate-500">Carregando dados da empresa...</p>
+                    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mb-4" />
+                    <p className="text-muted-foreground text-sm">Carregando dados da empresa...</p>
                 </div>
             </AppLayout>
         );
     }
 
+    const totalReceivables = (receivablesSummary?.overdue || 0) + (receivablesSummary?.today || 0) + (receivablesSummary?.period || 0);
+    const totalPayables = (payablesSummary?.overdue || 0) + (payablesSummary?.today || 0) + (payablesSummary?.period || 0);
+    const projectedBalance = chartData[chartData.length - 1]?.saldo_acumulado || 0;
+    const dreTotal = dreSummary?.reduce((acc: number, curr: any) => acc + curr.total, 0) ?? 0;
+
+    const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} – ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
+
+    const kpis = [
+        { id: "balance", label: "Saldo Bancário", value: fmt(accountsBalance || 0), detail: "Conforme conciliação", icon: Wallet },
+        { id: "receivables", label: "A Receber", value: fmt(totalReceivables), detail: `Vencidos: ${fmtCompact(receivablesSummary?.overdue || 0)} · Hoje: ${fmtCompact(receivablesSummary?.today || 0)}`, icon: ArrowUpRight },
+        { id: "payables", label: "A Pagar", value: fmt(totalPayables), detail: `Vencidos: ${fmtCompact(payablesSummary?.overdue || 0)} · Hoje: ${fmtCompact(payablesSummary?.today || 0)}`, icon: ArrowDownRight },
+        { id: "projection", label: "Projeção (Fim do Período)", value: fmt(projectedBalance), detail: "Saldo estimado", icon: TrendingUp },
+    ];
+
     return (
-        <AppLayout title={`${selectedCompany.nome_fantasia || selectedCompany.razao_social} - Dashboard`}>
+        <AppLayout title={`${selectedCompany.nome_fantasia || selectedCompany.razao_social}`}>
             <div className="space-y-6 animate-fade-in">
-                <div className="flex justify-between items-center">
-                    <Button
-                        variant="ghost"
-                        className="pl-0 hover:bg-transparent hover:text-emerald-600"
-                        onClick={() => navigate('/dashboard')}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Lista
-                    </Button>
-                    <div className="flex gap-2">
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-600">
-                            {activityProfileLabel}
-                        </Badge>
-                        {selectedCompany.enable_nfse && <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50">NFS-e</Badge>}
+
+                {/* Page Header */}
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground tracking-tight">
+                            {selectedCompany.nome_fantasia || selectedCompany.razao_social}
+                        </h2>
+                        <p className="text-[12.5px] text-muted-foreground mt-0.5">
+                            Visão financeira consolidada
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Preset buttons */}
+                        <div className="flex gap-1.5">
+                            {presets.map((p) => (
+                                <Button
+                                    key={p.label}
+                                    variant={activePreset === p.label ? "default" : "secondary"}
+                                    size="sm"
+                                    className="text-[11.5px] h-8 px-3"
+                                    onClick={() => handlePreset(p)}
+                                >
+                                    {p.label}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Date range picker */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="secondary" size="sm" className="h-8 gap-1.5 text-[11.5px] px-3">
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                    {dateLabel}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                    mode="range"
+                                    selected={calendarRange}
+                                    onSelect={handleCalendarSelect}
+                                    numberOfMonths={2}
+                                    defaultMonth={dateRange.from}
+                                />
+                            </PopoverContent>
+                        </Popover>
+
+                        <div className="flex gap-1.5">
+                            <Badge variant="secondary">{activityProfileLabel}</Badge>
+                            {selectedCompany.enable_nfse && <Badge variant="success">NFS-e</Badge>}
+                        </div>
                     </div>
                 </div>
 
-                {/* KPIs */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-
-                    {/* Saldo em Banco */}
-                    <Card className="border-0 shadow-lg bg-white overflow-hidden relative group hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-500">Saldo Bancário (Atual)</CardTitle>
-                            <Wallet className="h-4 w-4 text-blue-400 group-hover:text-blue-600 transition-colors" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-slate-800">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(accountsBalance || 0)}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">Conforme conciliação</p>
-                        </CardContent>
-                    </Card>
-
-                    {/* A Receber */}
-                    <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-50 to-white border-l-4 border-l-emerald-500 hover:shadow-xl transition-all">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-emerald-700">A Receber (Pendentes)</CardTitle>
-                            <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-emerald-700">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((receivablesSummary?.overdue || 0) + (receivablesSummary?.today || 0) + (receivablesSummary?.month || 0))}
-                            </div>
-                            <div className="flex gap-2 mt-1 text-xs">
-                                <span className="text-red-600 font-medium">Vencidos: {new Intl.NumberFormat('pt-BR', { compactDisplay: "short", notation: "compact", currency: 'BRL', style: 'currency' }).format(receivablesSummary?.overdue || 0)}</span>
-                                <span className="text-emerald-600">Hoje: {new Intl.NumberFormat('pt-BR', { compactDisplay: "short", notation: "compact", currency: 'BRL', style: 'currency' }).format(receivablesSummary?.today || 0)}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* A Pagar */}
-                    <Card className="border-0 shadow-lg bg-gradient-to-br from-rose-50 to-white border-l-4 border-l-red-500 hover:shadow-xl transition-all">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-red-700">A Pagar (Pendentes)</CardTitle>
-                            <ArrowDownRight className="h-4 w-4 text-red-400" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-red-600">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((payablesSummary?.overdue || 0) + (payablesSummary?.today || 0) + (payablesSummary?.month || 0))}
-                            </div>
-                            <div className="flex gap-2 mt-1 text-xs">
-                                <span className="text-red-600 font-medium">Vencidos: {new Intl.NumberFormat('pt-BR', { compactDisplay: "short", notation: "compact", currency: 'BRL', style: 'currency' }).format(payablesSummary?.overdue || 0)}</span>
-                                <span className="text-slate-500">Hoje: {new Intl.NumberFormat('pt-BR', { compactDisplay: "short", notation: "compact", currency: 'BRL', style: 'currency' }).format(payablesSummary?.today || 0)}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Projeção (Saldo Final do Mês) */}
-                    <Card className="border-0 shadow-lg bg-white border-l-4 border-l-purple-500 hover:shadow-xl transition-all">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-500">Projeção (Fim do Mês)</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-purple-400" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className={`text-2xl font-bold ${(chartData[chartData.length - 1]?.saldo_acumulado || 0) >= 0 ? 'text-purple-700' : 'text-red-600'}`}>
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                    chartData[chartData.length - 1]?.saldo_acumulado || 0
-                                )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">Saldo Estimado</p>
-                        </CardContent>
-                    </Card>
+                {/* KPI Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    {kpis.map((kpi) => (
+                        <Card key={kpi.id}>
+                            <CardContent className="p-[22px]">
+                                <div className="flex items-start justify-between mb-3.5">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.8px] text-primary">{kpi.label}</p>
+                                    <kpi.icon className="h-[18px] w-[18px] text-muted-foreground opacity-60" />
+                                </div>
+                                <p className="kpi-value text-foreground">{kpi.value}</p>
+                                <p className="text-[11.5px] text-muted-foreground mt-1">{kpi.detail}</p>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
 
-                {/* Gráficos */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 h-[450px]">
-
-                    {/* Fluxo de Caixa Diário (Bars) */}
-                    <Card className="lg:col-span-2 border-0 shadow-xl bg-white/80 backdrop-blur">
+                {/* Charts */}
+                <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
+                    <Card>
                         <CardHeader>
-                            <CardTitle className="text-slate-800">Fluxo de Caixa Diário (Este Mês)</CardTitle>
-                            <CardDescription>Entradas e Saídas previstas dia a dia</CardDescription>
+                            <CardTitle className="text-[13px] font-bold tracking-tight">Fluxo de Caixa Diário</CardTitle>
+                            <CardDescription className="text-[11.5px]">Entradas e saídas previstas — {dateLabel}</CardDescription>
                         </CardHeader>
-                        <CardContent className="h-[350px]">
+                        <CardContent className="h-[340px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                                    <XAxis dataKey="date" fontSize={11} tickLine={false} axisLine={false} />
-                                    <YAxis
-                                        fontSize={11}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(val) => `R$${val / 1000}k`}
-                                    />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+                                    <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                                    <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `R$${val / 1000}k`} />
                                     <Tooltip
-                                        formatter={(value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value as number)}
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        formatter={(value) => fmt(value as number)}
+                                        contentStyle={{ borderRadius: '10px', border: '1px solid hsl(30 14% 93%)', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', fontSize: '12px' }}
                                     />
-                                    <ReferenceLine y={0} stroke="#000" strokeOpacity={0.1} />
-                                    <Bar dataKey="receitas" name="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                                    <Bar dataKey="despesas" name="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                    <ReferenceLine y={0} stroke="#0A0A0A" strokeOpacity={0.08} />
+                                    <Bar dataKey="receitas" name="Receitas" fill="#2E6E4C" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                                    <Bar dataKey="despesas" name="Despesas" fill="#A8311E" radius={[4, 4, 0, 0]} maxBarSize={36} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
 
-                    {/* Saldo Acumulado (Line) */}
-                    <Card className="border-0 shadow-xl bg-white/80 backdrop-blur">
+                    <Card>
                         <CardHeader>
-                            <CardTitle className="text-slate-800">Projeção de Saldo</CardTitle>
-                            <CardDescription>Evolução do Saldo Acumulado</CardDescription>
+                            <CardTitle className="text-[13px] font-bold tracking-tight">Projeção de Saldo</CardTitle>
+                            <CardDescription className="text-[11.5px]">Evolução do saldo acumulado</CardDescription>
                         </CardHeader>
-                        <CardContent className="h-[350px]">
+                        <CardContent className="h-[340px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#1C3D6B" stopOpacity={0.2} />
+                                            <stop offset="95%" stopColor="#1C3D6B" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
                                     <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={30} />
-                                    <YAxis
-                                        fontSize={10}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(val) => `${val >= 0 ? '' : '-'}${Math.abs(val) / 1000}k`}
-                                    />
+                                    <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val >= 0 ? '' : '-'}${Math.abs(val) / 1000}k`} />
                                     <Tooltip
-                                        formatter={(value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value as number)}
-                                        labelStyle={{ color: '#6b7280' }}
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        formatter={(value) => fmt(value as number)}
+                                        labelStyle={{ color: '#555' }}
+                                        contentStyle={{ borderRadius: '10px', border: '1px solid hsl(30 14% 93%)', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', fontSize: '12px' }}
                                     />
-                                    <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="saldo_acumulado"
-                                        name="Saldo Acumulado"
-                                        stroke="#8b5cf6"
-                                        strokeWidth={2}
-                                        fillOpacity={1}
-                                        fill="url(#colorSaldo)"
-                                    />
+                                    <ReferenceLine y={0} stroke="#555" strokeDasharray="3 3" />
+                                    <Area type="monotone" dataKey="saldo_acumulado" name="Saldo Acumulado" stroke="#1C3D6B" strokeWidth={2} fillOpacity={1} fill="url(#colorSaldo)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6 pb-12">
-                    <Card className="border-0 shadow-lg bg-white overflow-hidden">
-                        <CardHeader className="bg-slate-50 border-b">
-                            <CardTitle className="text-slate-800 flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-emerald-600" />
-                                Resultado do Mês (DRE)
+                {/* DRE + Config */}
+                <div className="grid md:grid-cols-2 gap-5 pb-8">
+                    <Card className="overflow-hidden">
+                        <CardHeader className="border-b border-border-light">
+                            <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-primary" />
+                                Resultado do Período (DRE)
                             </CardTitle>
-                            <CardDescription>Resumo baseado no Plano de Contas</CardDescription>
+                            <CardDescription className="text-[11.5px]">Resumo baseado no Plano de Contas</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table>
-                                <TableHeader className="bg-slate-50/50">
+                                <TableHeader>
                                     <TableRow>
-                                        <TableHead className="font-bold">Grupo/Categoria</TableHead>
-                                        <TableHead className="text-right font-bold">Valor</TableHead>
+                                        <TableHead>Grupo/Categoria</TableHead>
+                                        <TableHead className="text-right">Valor</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {(!dreSummary || dreSummary.length === 0) ? (
                                         <TableRow>
                                             <TableCell colSpan={2} className="text-center py-8 text-muted-foreground italic">
-                                                Nenhuma transação categorizada este mês.
+                                                Nenhuma transação categorizada neste período.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         dreSummary.map((group: any) => (
-                                            <TableRow key={group.name} className="hover:bg-slate-50 transition-colors">
-                                                <TableCell className="py-3 font-medium text-slate-700">
-                                                    {group.name}
-                                                </TableCell>
-                                                <TableCell className={`py-3 text-right font-bold ${group.total >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(group.total)}
+                                            <TableRow key={group.name}>
+                                                <TableCell className="py-3 font-medium text-foreground">{group.name}</TableCell>
+                                                <TableCell className={`py-3 text-right font-bold ${group.total >= 0 ? 'text-[#2E6E4C]' : 'text-destructive'}`}>
+                                                    {fmt(group.total)}
                                                 </TableCell>
                                             </TableRow>
                                         ))
                                     )}
                                     {dreSummary && dreSummary.length > 0 && (
-                                        <TableRow className="bg-slate-100/50">
-                                            <TableCell className="py-4 font-black text-slate-800">RESULTADO LÍQUIDO</TableCell>
-                                            <TableCell className={`py-4 text-right font-black ${dreSummary.reduce((acc: number, curr: any) => acc + curr.total, 0) >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                                    dreSummary.reduce((acc: number, curr: any) => acc + curr.total, 0)
-                                                )}
+                                        <TableRow className="bg-surface-2">
+                                            <TableCell className="py-4 font-black text-foreground">RESULTADO LÍQUIDO</TableCell>
+                                            <TableCell className={`py-4 text-right font-black ${dreTotal >= 0 ? 'text-[#2E6E4C]' : 'text-destructive'}`}>
+                                                {fmt(dreTotal)}
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -320,27 +310,27 @@ export default function CompanyDashboard() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-0 shadow-lg bg-white">
-                        <CardHeader className="bg-slate-50 border-b">
-                            <CardTitle className="text-slate-800">Status de Configuração</CardTitle>
+                    <Card>
+                        <CardHeader className="border-b border-border-light">
+                            <CardTitle className="text-[13px] font-bold tracking-tight">Status de Configuração</CardTitle>
                         </CardHeader>
-                        <CardContent className="pt-6">
+                        <CardContent className="pt-5">
                             <div className="flex flex-col gap-4">
-                                <div className="flex justify-between items-center py-2 border-b">
-                                    <span className="text-sm text-slate-600 font-medium">NFS-e Configurada</span>
-                                    <Badge variant={isNfseConfigured ? 'default' : 'secondary'} className={isNfseConfigured ? 'bg-green-100 text-green-700' : ''}>
+                                <div className="flex justify-between items-center py-2 border-b border-border-light">
+                                    <span className="text-[12.5px] text-foreground font-medium">NFS-e Configurada</span>
+                                    <Badge variant={isNfseConfigured ? 'success' : 'secondary'}>
                                         {isNfseConfigured ? 'Ativo' : 'Pendente'}
                                     </Badge>
                                 </div>
-                                <div className="flex justify-between items-center py-2 border-b">
-                                    <span className="text-sm text-slate-600 font-medium">Plano de Contas</span>
-                                    <Badge variant={dreSummary && dreSummary.length > 0 ? 'default' : 'secondary'} className={dreSummary && dreSummary.length > 0 ? 'bg-blue-100 text-blue-700' : ''}>
+                                <div className="flex justify-between items-center py-2 border-b border-border-light">
+                                    <span className="text-[12.5px] text-foreground font-medium">Plano de Contas</span>
+                                    <Badge variant={dreSummary && dreSummary.length > 0 ? 'info' : 'secondary'}>
                                         {dreSummary && dreSummary.length > 0 ? 'Em Uso' : 'Configurado'}
                                     </Badge>
                                 </div>
                                 <div className="flex justify-between items-center py-2">
-                                    <span className="text-sm text-slate-600 font-medium">Certificado Digital</span>
-                                    <Badge variant="outline" className="text-slate-400">Não Detectado</Badge>
+                                    <span className="text-[12.5px] text-foreground font-medium">Certificado Digital</span>
+                                    <Badge variant="secondary">Não Detectado</Badge>
                                 </div>
                             </div>
                         </CardContent>
