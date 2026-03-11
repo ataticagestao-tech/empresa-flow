@@ -2,76 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - Tática Gestão Empresarial
-   Estilo: Swiss Luxury Minimal
-   Primary: Navy #1C3D6B
-   Warm off-whites & refined borders
+/* Design System - Tatica Gestao Empresarial
+   Estilo: Premium SaaS Modern
+   Primary: Blue Electric #2563EB
+   White dominant + soft shadows
 */
 
 @layer base {
   :root {
-    /* Backgrounds — warm off-white */
-    --background: 40 11% 96%;       /* #F7F6F3 */
-    --foreground: 0 0% 4%;          /* #0A0A0A */
+    /* Backgrounds */
+    --background: 214 14% 95%;       /* #F0F2F5 */
+    --foreground: 222 47% 11%;       /* #0F172A */
 
     --card: 0 0% 100%;              /* #FFFFFF */
-    --card-foreground: 0 0% 4%;     /* #0A0A0A */
+    --card-foreground: 222 47% 11%;  /* #0F172A */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Primary — Deep Navy */
-    --primary: 213 58% 27%;         /* #1C3D6B */
+    /* Primary — Blue Electric */
+    --primary: 217 91% 60%;         /* #2563EB */
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 40 11% 96%;        /* #F7F6F3 */
-    --secondary-foreground: 0 0% 13%;  /* #222 */
+    --secondary: 214 32% 91%;       /* #E2E8F0 */
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 40 11% 96%;            /* #F7F6F3 */
-    --muted-foreground: 0 0% 33%;   /* #555 */
+    --muted: 210 40% 96%;           /* #F1F5F9 */
+    --muted-foreground: 215 16% 47%; /* #64748B */
 
     /* Accent */
-    --accent: 40 11% 96%;
-    --accent-foreground: 213 58% 27%;
+    --accent: 214 95% 93%;          /* #EFF6FF */
+    --accent-foreground: 217 91% 60%;
 
-    /* Destructive — Deep Red */
-    --destructive: 9 72% 39%;       /* #A8311E */
+    /* Destructive */
+    --destructive: 0 84% 60%;       /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
 
-    /* Success — Muted Green */
-    --success: 150 41% 30%;         /* #2E6E4C */
+    /* Success */
+    --success: 142 71% 45%;         /* #22C55E */
     --success-foreground: 0 0% 100%;
 
-    /* Warning — Deep Amber */
-    --warning: 40 100% 27%;         /* #8A5E00 */
+    /* Warning */
+    --warning: 38 92% 50%;          /* #F59E0B */
     --warning-foreground: 0 0% 100%;
 
     /* Info */
-    --info: 213 58% 27%;
+    --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    /* Borders — warm tones */
-    --border: 30 18% 89%;           /* #E8E3DC */
-    --input: 30 10% 82%;            /* #D8D3CC */
-    --ring: 213 58% 27%;
+    /* Borders */
+    --border: 214 32% 91%;          /* #E2E8F0 */
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
 
     /* Extra surfaces */
-    --surface-2: 40 9% 98%;         /* #FAFAF8 */
-    --border-light: 30 14% 93%;     /* #F2EEE8 */
+    --surface-2: 210 40% 98%;       /* #F8FAFC */
+    --border-light: 210 40% 96%;    /* #F1F5F9 */
 
-    --radius: 0.75rem;
+    --radius: 1rem;                 /* 16px base */
 
-    /* Sidebar — Dark & Elegant */
-    --sidebar-background: 60 4% 7%;           /* #111110 */
-    --sidebar-foreground: 30 4% 53%;           /* #8A8680 */
-    --sidebar-primary: 213 58% 27%;            /* #1C3D6B */
+    /* Sidebar — Dark */
+    --sidebar-background: 224 33% 16%;   /* #1A1F36 */
+    --sidebar-foreground: 215 20% 65%;   /* #94A3B8 */
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 100% / 0.07;       /* rgba(255,255,255,0.07) */
-    --sidebar-accent-foreground: 30 14% 94%;   /* #F0EDE8 */
-    --sidebar-border: 45 5% 11%;               /* #1E1D1B */
-    --sidebar-ring: 213 58% 27%;
-    --sidebar-muted: 30 7% 23%;                /* #3D3A35 */
+    --sidebar-accent: 217 91% 60% / 0.1;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 30% 20%;
+    --sidebar-ring: 217 91% 60%;
+    --sidebar-muted: 215 20% 65%;
   }
 }
 
@@ -82,6 +82,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -91,36 +92,34 @@
     @apply bg-card/80 backdrop-blur-md border border-border/50;
   }
 
-  /* KPI value — DM Serif Display for large monetary values */
+  /* KPI value — Inter bold for large numbers */
   .kpi-value {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: 'Inter', -apple-system, sans-serif;
     font-size: 28px;
-    font-weight: 400;
-    letter-spacing: -0.04em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
   }
 
   /* Monetary values in tables */
   .td-value {
-    font-family: 'DM Serif Display', Georgia, serif;
-    font-size: 15px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
 
-  /* Section titles — uppercase micro label */
+  /* Section titles */
   .section-title {
-    font-family: 'DM Sans', system-ui, sans-serif;
-    font-size: 11px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
     font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #6B6760;
+    color: #0F172A;
   }
 }
 
 @layer utilities {
-  /* Refined scrollbar — 4px, warm border color */
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
