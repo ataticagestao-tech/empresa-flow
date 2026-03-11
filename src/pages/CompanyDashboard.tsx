@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, CalendarDays } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, CalendarDays, BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -129,10 +129,10 @@ export default function CompanyDashboard() {
     const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} – ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
 
     const kpis = [
-        { id: "balance", label: "Saldo Bancário", value: fmt(accountsBalance || 0), detail: "Conforme conciliação", icon: Wallet },
-        { id: "receivables", label: "A Receber", value: fmt(totalReceivables), detail: `Vencidos: ${fmtCompact(receivablesSummary?.overdue || 0)} · Hoje: ${fmtCompact(receivablesSummary?.today || 0)}`, icon: ArrowUpRight },
-        { id: "payables", label: "A Pagar", value: fmt(totalPayables), detail: `Vencidos: ${fmtCompact(payablesSummary?.overdue || 0)} · Hoje: ${fmtCompact(payablesSummary?.today || 0)}`, icon: ArrowDownRight },
-        { id: "projection", label: "Projeção (Fim do Período)", value: fmt(projectedBalance), detail: "Saldo estimado", icon: TrendingUp },
+        { id: "balance", label: "Saldo Bancário", value: fmt(accountsBalance || 0), detail: "Conforme conciliação", icon: Wallet, color: "text-primary", iconBg: "bg-primary/10", iconColor: "text-primary", accent: "border-l-[3px] border-l-primary" },
+        { id: "receivables", label: "A Receber", value: fmt(totalReceivables), detail: `Vencidos: ${fmtCompact(receivablesSummary?.overdue || 0)} · Hoje: ${fmtCompact(receivablesSummary?.today || 0)}`, icon: ArrowUpRight, color: "text-[#2E6E4C]", iconBg: "bg-[#2E6E4C]/10", iconColor: "text-[#2E6E4C]", accent: "border-l-[3px] border-l-[#2E6E4C]" },
+        { id: "payables", label: "A Pagar", value: fmt(totalPayables), detail: `Vencidos: ${fmtCompact(payablesSummary?.overdue || 0)} · Hoje: ${fmtCompact(payablesSummary?.today || 0)}`, icon: ArrowDownRight, color: "text-[#A8311E]", iconBg: "bg-[#A8311E]/10", iconColor: "text-[#A8311E]", accent: "border-l-[3px] border-l-[#A8311E]" },
+        { id: "projection", label: "Projeção", value: fmt(projectedBalance), detail: "Saldo estimado fim do período", icon: TrendingUp, color: projectedBalance >= 0 ? "text-[#2E6E4C]" : "text-[#A8311E]", iconBg: "bg-[#8A5E00]/10", iconColor: "text-[#8A5E00]", accent: "border-l-[3px] border-l-[#8A5E00]" },
     ];
 
     return (
@@ -194,14 +194,16 @@ export default function CompanyDashboard() {
                 {/* KPI Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {kpis.map((kpi) => (
-                        <Card key={kpi.id}>
+                        <Card key={kpi.id} className={`${kpi.accent} hover:shadow-md transition-shadow duration-200`}>
                             <CardContent className="p-[22px]">
-                                <div className="flex items-start justify-between mb-3.5">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.8px] text-primary">{kpi.label}</p>
-                                    <kpi.icon className="h-[18px] w-[18px] text-muted-foreground opacity-60" />
+                                <div className="flex items-start justify-between mb-3">
+                                    <p className={`text-[11px] font-bold uppercase tracking-[0.8px] ${kpi.color}`}>{kpi.label}</p>
+                                    <div className={`rounded-lg p-1.5 ${kpi.iconBg}`}>
+                                        <kpi.icon className={`h-4 w-4 ${kpi.iconColor}`} />
+                                    </div>
                                 </div>
-                                <p className="kpi-value text-foreground">{kpi.value}</p>
-                                <p className="text-[11.5px] text-muted-foreground mt-1">{kpi.detail}</p>
+                                <p className={`kpi-value ${kpi.color}`}>{kpi.value}</p>
+                                <p className="text-[11.5px] text-muted-foreground mt-1.5">{kpi.detail}</p>
                             </CardContent>
                         </Card>
                     ))}
@@ -209,10 +211,17 @@ export default function CompanyDashboard() {
 
                 {/* Charts */}
                 <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-[13px] font-bold tracking-tight">Fluxo de Caixa Diário</CardTitle>
-                            <CardDescription className="text-[11.5px]">Entradas e saídas previstas — {dateLabel}</CardDescription>
+                    <Card className="overflow-hidden">
+                        <CardHeader className="bg-gradient-to-r from-primary/[0.03] to-transparent">
+                            <div className="flex items-center gap-2">
+                                <div className="rounded-md bg-primary/10 p-1.5">
+                                    <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-[13px] font-bold tracking-tight">Fluxo de Caixa Diário</CardTitle>
+                                    <CardDescription className="text-[11px]">Entradas e saídas previstas — {dateLabel}</CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent className="h-[340px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -232,10 +241,17 @@ export default function CompanyDashboard() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-[13px] font-bold tracking-tight">Projeção de Saldo</CardTitle>
-                            <CardDescription className="text-[11.5px]">Evolução do saldo acumulado</CardDescription>
+                    <Card className="overflow-hidden">
+                        <CardHeader className="bg-gradient-to-r from-[#1C3D6B]/[0.03] to-transparent">
+                            <div className="flex items-center gap-2">
+                                <div className="rounded-md bg-[#1C3D6B]/10 p-1.5">
+                                    <TrendingUp className="h-3.5 w-3.5 text-[#1C3D6B]" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-[13px] font-bold tracking-tight">Projeção de Saldo</CardTitle>
+                                    <CardDescription className="text-[11px]">Evolução do saldo acumulado</CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent className="h-[340px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -265,12 +281,16 @@ export default function CompanyDashboard() {
                 {/* DRE + Config */}
                 <div className="grid md:grid-cols-2 gap-5 pb-8">
                     <Card className="overflow-hidden">
-                        <CardHeader className="border-b border-border-light">
-                            <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-primary" />
-                                Resultado do Período (DRE)
-                            </CardTitle>
-                            <CardDescription className="text-[11.5px]">Resumo baseado no Plano de Contas</CardDescription>
+                        <CardHeader className="border-b border-border-light bg-gradient-to-r from-[#2E6E4C]/[0.03] to-transparent">
+                            <div className="flex items-center gap-2">
+                                <div className="rounded-md bg-[#2E6E4C]/10 p-1.5">
+                                    <TrendingUp className="h-3.5 w-3.5 text-[#2E6E4C]" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-[13px] font-bold tracking-tight">Resultado do Período (DRE)</CardTitle>
+                                    <CardDescription className="text-[11px]">Resumo baseado no Plano de Contas</CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent className="p-0">
                             <Table>
@@ -310,9 +330,14 @@ export default function CompanyDashboard() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="border-b border-border-light">
-                            <CardTitle className="text-[13px] font-bold tracking-tight">Status de Configuração</CardTitle>
+                    <Card className="overflow-hidden">
+                        <CardHeader className="border-b border-border-light bg-gradient-to-r from-primary/[0.03] to-transparent">
+                            <div className="flex items-center gap-2">
+                                <div className="rounded-md bg-primary/10 p-1.5">
+                                    <Wallet className="h-3.5 w-3.5 text-primary" />
+                                </div>
+                                <CardTitle className="text-[13px] font-bold tracking-tight">Status de Configuração</CardTitle>
+                            </div>
                         </CardHeader>
                         <CardContent className="pt-5">
                             <div className="flex flex-col gap-4">
