@@ -138,37 +138,37 @@ export default function ImportData() {
                             </Button>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs font-mono bg-slate-50 p-4 rounded-b-md">
+                    <CardContent className="text-xs font-mono bg-[#F8FAFC] p-4 rounded-b-md">
                         {permissionCheck?.status === 'done' ? (
                             <div className="space-y-2">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <span className="font-bold text-slate-500">ID DO USUÁRIO:</span>
+                                        <span className="font-bold text-muted-foreground">ID DO USUÁRIO:</span>
                                         <div className="bg-white border p-1 mt-1 break-all">{permissionCheck.userId}</div>
                                     </div>
                                     <div>
-                                        <span className="font-bold text-slate-500">PROJETO CONECTADO:</span>
+                                        <span className="font-bold text-muted-foreground">PROJETO CONECTADO:</span>
                                         <div className="bg-white border p-1 mt-1 break-all text-blue-600">{permissionCheck.projectUrl}</div>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <span className="font-bold text-slate-500">LEITURA DE COMPANIES:</span>
+                                    <span className="font-bold text-muted-foreground">LEITURA DE COMPANIES:</span>
                                     {permissionCheck.companyAccess ? (
                                         <span className="text-green-600 ml-2">OK</span>
                                     ) : (
-                                        <span className="text-red-600 ml-2">
+                                        <span className="text-[#EF4444] ml-2">
                                             ERRO{permissionCheck.companyError?.message ? ` (${permissionCheck.companyError.message})` : ""}
                                         </span>
                                     )}
                                 </div>
 
                                 <div>
-                                    <span className="font-bold text-slate-500">LEITURA DE USER_COMPANIES:</span>
+                                    <span className="font-bold text-muted-foreground">LEITURA DE USER_COMPANIES:</span>
                                     {permissionCheck.linkAccess ? (
                                         <span className="text-green-600 ml-2">OK</span>
                                     ) : (
-                                        <span className="text-red-600 ml-2">
+                                        <span className="text-[#EF4444] ml-2">
                                             ERRO{permissionCheck.linkError?.message ? ` (${permissionCheck.linkError.message})` : ""}
                                         </span>
                                     )}
@@ -217,7 +217,7 @@ export default function ImportData() {
                             <div className="text-green-600 font-bold">Importado e vinculado com sucesso: {summary.success}</div>
                         )}
 
-                        <div className="bg-slate-900 text-slate-50 p-4 rounded h-96 font-mono text-xs">
+                        <div className="bg-primary text-slate-50 p-4 rounded h-96 font-mono text-xs">
                             <ScrollArea className="h-full">
                                 {logs.map((l, i) => <div key={i} className="mb-1">{l}</div>)}
                             </ScrollArea>

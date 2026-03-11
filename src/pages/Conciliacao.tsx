@@ -95,11 +95,11 @@ export default function Conciliacao() {
             <div className="space-y-6 animate-in fade-in duration-500">
 
                 {/* Header e Seleção de Conta */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#E2E8F0] shadow-sm">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <Select value={selectedAccountId} onValueChange={handleAccountChange}>
-                                <SelectTrigger className="w-[280px] h-10 text-lg font-medium border-slate-300">
+                                <SelectTrigger className="w-[280px] h-10 text-lg font-medium border-[#E2E8F0]">
                                     <SelectValue placeholder="Selecione uma conta..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -111,7 +111,7 @@ export default function Conciliacao() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <p className="text-sm text-slate-500 ml-1">
+                        <p className="text-sm text-muted-foreground ml-1">
                             Selecione a conta para visualizar e importar extratos.
                         </p>
                     </div>
@@ -127,7 +127,7 @@ export default function Conciliacao() {
                         />
                         <Button
                             variant="outline"
-                            className="border-slate-300 text-slate-700"
+                            className="border-[#E2E8F0] text-muted-foreground"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={!selectedAccountId || uploadOFX.isPending}
                         >
@@ -138,22 +138,22 @@ export default function Conciliacao() {
                 </div>
 
                 {!selectedAccountId ? (
-                    <div className="flex flex-col items-center justify-center p-16 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center">
+                    <div className="flex flex-col items-center justify-center p-16 bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0] text-center">
                         <div className="bg-white p-4 rounded-full mb-4 shadow-sm">
-                            <ArrowLeft className="h-8 w-8 text-slate-400" />
+                            <ArrowLeft className="h-8 w-8 text-muted-foreground" />
                         </div>
-                        <h3 className="text-xl font-semibold text-slate-900 mb-2">Selecione uma conta acima</h3>
-                        <p className="text-slate-500 max-w-md">
+                        <h3 className="text-xl font-semibold text-foreground mb-2">Selecione uma conta acima</h3>
+                        <p className="text-muted-foreground max-w-md">
                             Para iniciar a conciliação, escolha qual conta bancária você deseja gerenciar no menu suspenso.
                         </p>
                     </div>
                 ) : (
                     <div className="grid gap-6">
-                        <Card className="border-slate-200">
+                        <Card className="border-[#E2E8F0]">
                             <CardHeader>
                                 <CardTitle className="flex justify-between items-center">
                                     <span>Transações do Extrato (Pendentes)</span>
-                                    <Badge variant="secondary" className="text-slate-600 bg-slate-100">
+                                    <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9]">
                                         {bankTransactions?.length || 0} itens
                                     </Badge>
                                 </CardTitle>
@@ -165,13 +165,13 @@ export default function Conciliacao() {
                                 {!bankTransactions?.length ? (
                                     <div className="text-center py-12">
                                         <Check className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
-                                        <h3 className="text-lg font-medium text-slate-900">Tudo em dia!</h3>
-                                        <p className="text-slate-500">Não há transações pendentes para conciliar nesta conta.</p>
+                                        <h3 className="text-lg font-medium text-foreground">Tudo em dia!</h3>
+                                        <p className="text-muted-foreground">Não há transações pendentes para conciliar nesta conta.</p>
                                     </div>
                                 ) : (
                                     <Table>
                                         <TableHeader>
-                                            <TableRow className="bg-slate-50">
+                                            <TableRow className="bg-[#F8FAFC]">
                                                 <TableHead>Data</TableHead>
                                                 <TableHead>Descrição Banco</TableHead>
                                                 <TableHead>Valor</TableHead>
@@ -185,16 +185,16 @@ export default function Conciliacao() {
                                                 const bestMatch = suggestions[0];
 
                                                 return (
-                                                    <TableRow key={bt.id} className="group hover:bg-slate-50 transition-colors">
-                                                        <TableCell className="font-medium text-slate-600">
+                                                    <TableRow key={bt.id} className="group hover:bg-[#F8FAFC] transition-colors">
+                                                        <TableCell className="font-medium text-muted-foreground">
                                                             {format(parseISO(bt.date), 'dd/MM')}
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="font-medium">{bt.description}</div>
-                                                            {bt.memo && <div className="text-xs text-slate-400">{bt.memo}</div>}
+                                                            {bt.memo && <div className="text-xs text-muted-foreground">{bt.memo}</div>}
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
                                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bt.amount)}
                                                             </span>
                                                         </TableCell>
@@ -205,10 +205,10 @@ export default function Conciliacao() {
                                                                         <Check className="h-3 w-3 mr-1" />
                                                                         {bestMatch.entity_name} - {bestMatch.description}
                                                                     </Badge>
-                                                                    <span className="text-[10px] text-slate-400">Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</span>
+                                                                    <span className="text-[10px] text-muted-foreground">Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</span>
                                                                 </div>
                                                             ) : (
-                                                                <span className="text-xs text-slate-400 italic">Sem match automático</span>
+                                                                <span className="text-xs text-muted-foreground italic">Sem match automático</span>
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right">
@@ -225,7 +225,7 @@ export default function Conciliacao() {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="h-8 border-slate-300"
+                                                                    className="h-8 border-[#E2E8F0]"
                                                                     onClick={() => {
                                                                         setSelectedBankTx(bt);
                                                                         setSearchTerm("");
@@ -258,19 +258,19 @@ export default function Conciliacao() {
 
                         {selectedBankTx && (
                             <div className="space-y-4">
-                                <div className="bg-slate-50 p-4 rounded-lg flex justify-between items-center border border-slate-100">
+                                <div className="bg-[#F8FAFC] p-4 rounded-lg flex justify-between items-center border border-[#F1F5F9]">
                                     <div>
-                                        <p className="font-semibold text-slate-800">{selectedBankTx.description}</p>
-                                        <p className="text-sm text-slate-500">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
+                                        <p className="font-semibold text-foreground">{selectedBankTx.description}</p>
+                                        <p className="text-sm text-muted-foreground">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
                                     </div>
-                                    <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                    <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedBankTx.amount)}
                                     </span>
                                 </div>
 
                                 <div className="space-y-2">
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             placeholder="Buscar lançamentos (descrição, valor, fornecedor)..."
                                             className="pl-9"
@@ -281,7 +281,7 @@ export default function Conciliacao() {
 
                                     <ScrollArea className="h-[300px] border rounded-md p-2">
                                         {!filteredSystemTransactions?.length && (
-                                            <div className="text-center py-8 text-slate-400 text-sm">
+                                            <div className="text-center py-8 text-muted-foreground text-sm">
                                                 Nenhum lançamento compatível encontrado.
                                             </div>
                                         )}
@@ -289,7 +289,7 @@ export default function Conciliacao() {
                                             {filteredSystemTransactions?.map((st) => (
                                                 <div
                                                     key={`${st.type}-${st.id}`}
-                                                    className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-md cursor-pointer border border-transparent hover:border-slate-200 transition-all"
+                                                    className="flex items-center justify-between p-3 hover:bg-[#F8FAFC] rounded-md cursor-pointer border border-transparent hover:border-[#E2E8F0] transition-all"
                                                     onClick={() => {
                                                         matchTransaction.mutate({ bankTx: selectedBankTx, sysTx: st });
                                                         setSelectedBankTx(null);
@@ -300,13 +300,13 @@ export default function Conciliacao() {
                                                             <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
                                                                 {st.type === 'payable' ? 'Pagar' : 'Receber'}
                                                             </Badge>
-                                                            <span className="font-medium text-slate-700">{st.description}</span>
+                                                            <span className="font-medium text-muted-foreground">{st.description}</span>
                                                         </div>
-                                                        <p className="text-xs text-slate-500 pl-1 mt-1">
+                                                        <p className="text-xs text-muted-foreground pl-1 mt-1">
                                                             {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
                                                         </p>
                                                     </div>
-                                                    <span className="font-bold text-slate-800">
+                                                    <span className="font-bold text-foreground">
                                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(st.amount)}
                                                     </span>
                                                 </div>

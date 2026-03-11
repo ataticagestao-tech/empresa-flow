@@ -156,110 +156,109 @@ export default function Clientes() {
             <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                        <h2 className="text-lg font-bold tracking-tight text-foreground">
                             Clientes
                         </h2>
-                        <p className="text-muted-foreground mt-1">Gerencie a base de clientes da sua empresa.</p>
+                        <p className="text-[12.5px] text-muted-foreground mt-0.5">Gerencie a base de clientes da sua empresa.</p>
                     </div>
-                    <Button onClick={handleNew} className="bg-slate-900 hover:bg-slate-800 shadow-sm transition-all hover:scale-105">
-                        <Plus className="mr-2 h-4 w-4" />
+                    <Button onClick={handleNew}>
+                        <Plus className="h-3.5 w-3.5" />
                         Novo Cliente
                     </Button>
                 </div>
 
-                <Card className="border-0 shadow-lg bg-white/50 backdrop-blur-sm">
-                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pb-6 border-b border-slate-100">
-                        <div className="text-sm font-medium text-slate-500">
+                <Card>
+                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 border-b border-[#F1F5F9]">
+                        <div className="text-[12.5px] font-medium text-muted-foreground">
                             Total de {filteredClients?.length || 0} clientes
                         </div>
-                        <div className="relative w-full sm:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <div className="relative w-full sm:w-72">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                             <Input
                                 placeholder="Buscar clientes..."
-                                className="pl-9 border-slate-200 focus:border-slate-400 focus:ring-slate-400/20 bg-white"
+                                className="pl-8 h-8 text-[12.5px]"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="rounded-md border border-slate-100 overflow-hidden">
                             <Table>
-                                <TableHeader className="bg-slate-50/50">
-                                    <TableRow className="hover:bg-transparent border-slate-100">
-                                        <TableHead className="w-[80px]"></TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Razão Social / Nome</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">CPF/CNPJ</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Contato</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Categoria</TableHead>
-                                        <TableHead className="w-[80px] text-right"></TableHead>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="w-[60px]"></TableHead>
+                                        <TableHead>Razão Social / Nome</TableHead>
+                                        <TableHead>CPF/CNPJ</TableHead>
+                                        <TableHead>Contato</TableHead>
+                                        <TableHead>Categoria</TableHead>
+                                        <TableHead className="w-[60px] text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {!selectedCompany?.id ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                                 Selecione uma empresa para visualizar os clientes.
                                             </TableCell>
                                         </TableRow>
                                     ) : isLoading ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-24 text-center">
-                                                <div className="flex items-center justify-center text-slate-500">
-                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-500 mr-2"></div>
+                                                <div className="flex items-center justify-center text-muted-foreground">
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2"></div>
                                                     Carregando...
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                     ) : filteredClients?.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                                                 Nenhum cliente encontrado.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredClients?.map((client) => (
-                                            <TableRow key={client.id} className="hover:bg-slate-50/50 transition-colors border-slate-100 group">
+                                            <TableRow key={client.id} className="group">
                                                 <TableCell>
-                                                    <Avatar className="h-9 w-9 border border-slate-200">
-                                                        <AvatarFallback className="bg-slate-100 text-slate-500 font-medium">
+                                                    <Avatar className="h-8 w-8 border border-[#E2E8F0]">
+                                                        <AvatarFallback className="bg-[#EFF6FF] text-[#2563EB] text-[11px] font-semibold">
                                                             {getInitials(client.razao_social)}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-medium text-slate-900">{client.razao_social}</div>
+                                                    <div className="font-semibold text-[12.5px] text-foreground">{client.razao_social}</div>
                                                     {client.nome_fantasia && (
-                                                        <div className="text-xs text-slate-500">{client.nome_fantasia}</div>
+                                                        <div className="text-[11px] text-muted-foreground mt-0.5">{client.nome_fantasia}</div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-slate-600 font-mono text-xs">
+                                                <TableCell className="text-muted-foreground font-mono text-[11.5px]">
                                                     {client.cpf_cnpj
                                                         ? (client.cpf_cnpj.length > 11 ? maskCNPJ(client.cpf_cnpj) : maskCPF(client.cpf_cnpj))
                                                         : "-"
                                                     }
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex flex-col text-sm text-slate-600">
+                                                    <div className="flex flex-col text-[12.5px] text-foreground">
                                                         <span>{client.email}</span>
-                                                        <span className="text-xs text-slate-400">
+                                                        <span className="text-[11px] text-muted-foreground">
                                                             {client.celular ? maskPhone(client.celular) : (client.telefone ? maskPhone(client.telefone) : "-")}
                                                         </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     {client.category ? (
-                                                        <Badge variant="outline" className="border-purple-200 text-purple-700 bg-purple-50">
+                                                        <Badge variant="default">
                                                             {client.category.name}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-slate-400 text-xs">-</span>
+                                                        <span className="text-muted-foreground text-[11px]">-</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <span className="sr-only">Abrir menu</span>
                                                                 <MoreHorizontal className="h-4 w-4" />
                                                             </Button>
@@ -267,11 +266,11 @@ export default function Clientes() {
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                             <DropdownMenuItem onClick={() => handleEdit(client)}>
-                                                                <Pencil className="mr-2 h-4 w-4 text-slate-500" />
+                                                                <Pencil className="mr-2 h-4 w-4 text-muted-foreground" />
                                                                 Editar
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => handleDelete(client)} className="text-red-600">
+                                                            <DropdownMenuItem onClick={() => handleDelete(client)} className="text-[#EF4444]">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Excluir
                                                             </DropdownMenuItem>
@@ -283,7 +282,6 @@ export default function Clientes() {
                                     )}
                                 </TableBody>
                             </Table>
-                        </div>
                     </CardContent>
                 </Card>
 

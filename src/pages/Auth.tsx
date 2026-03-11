@@ -154,24 +154,24 @@ export default function Auth() {
         </div>
       </div>
 
-      {/* Right: Dark Panel */}
-      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#111110] items-center justify-center p-14">
+      {/* Right: Blue Panel */}
+      <div className="hidden lg:flex w-[460px] shrink-0 bg-gradient-to-br from-[#1E40AF] to-[#2563EB] items-center justify-center p-14">
         <div className="w-full">
-          <p className="text-[18px] font-medium text-white/85 leading-relaxed tracking-tight mb-8">
+          <p className="text-[18px] font-medium text-white/90 leading-relaxed tracking-tight mb-8">
             Gerencie seu negócio com inteligência. Plataforma completa para gestão financeira.
           </p>
           <div className="flex gap-8 flex-wrap">
             <div>
-              <p className="font-serif text-[28px] font-semibold text-white tracking-tight">+200</p>
-              <p className="text-[11.5px] text-white/50 mt-0.5">Empresas geridas</p>
+              <p className="text-[28px] font-bold text-white tracking-tight">+200</p>
+              <p className="text-[11.5px] text-white/60 mt-0.5">Empresas geridas</p>
             </div>
             <div>
-              <p className="font-serif text-[28px] font-semibold text-white tracking-tight">99.9%</p>
-              <p className="text-[11.5px] text-white/50 mt-0.5">Uptime garantido</p>
+              <p className="text-[28px] font-bold text-white tracking-tight">99.9%</p>
+              <p className="text-[11.5px] text-white/60 mt-0.5">Uptime garantido</p>
             </div>
             <div>
-              <p className="font-serif text-[28px] font-semibold text-white tracking-tight">24/7</p>
-              <p className="text-[11.5px] text-white/50 mt-0.5">Suporte ativo</p>
+              <p className="text-[28px] font-bold text-white tracking-tight">24/7</p>
+              <p className="text-[11.5px] text-white/60 mt-0.5">Suporte ativo</p>
             </div>
           </div>
         </div>

@@ -20,8 +20,8 @@ export function AppHeader({ title }: AppHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-[60px] items-center gap-3 border-b border-border bg-white px-5">
-      <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-[#E2E8F0] bg-white px-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <SidebarTrigger className="text-[#94A3B8] hover:text-[#475569] transition-colors" />
 
       {location.pathname !== "/" && (
         <Button
@@ -29,25 +29,26 @@ export function AppHeader({ title }: AppHeaderProps) {
           size="icon"
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-[#94A3B8] hover:text-[#475569]"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
       )}
 
       {title && (
-        <h1 className="text-sm font-semibold text-foreground">{title}</h1>
+        <h1 className="text-[13px] font-semibold text-[#0F172A]">{title}</h1>
       )}
 
       <div className="ml-auto flex items-center gap-3">
         <CompanySelector />
 
-        <div className="flex items-center">
-          <Avatar className="h-[30px] w-[30px]">
-            <AvatarFallback className="bg-primary text-white text-[11px] font-semibold tracking-wide">
+        <div className="relative flex items-center">
+          <Avatar className="h-[32px] w-[32px]">
+            <AvatarFallback className="bg-[#2563EB] text-white text-[11px] font-semibold tracking-wide">
               {user?.email ? getInitials(user.email) : "US"}
             </AvatarFallback>
           </Avatar>
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-white" />
         </div>
       </div>
     </header>

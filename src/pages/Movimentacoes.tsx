@@ -129,7 +129,7 @@ export default function Movimentacoes() {
         <AppLayout title="Movimentações">
             <div className="space-y-6 animate-fade-in">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <h2 className="text-3xl font-bold tracking-tight text-gray-800">
+                    <h2 className="text-lg font-bold tracking-tight text-gray-800">
                         Extrato de Movimentações
                     </h2>
                     <div className="flex flex-wrap gap-2 items-center">
@@ -169,7 +169,7 @@ export default function Movimentacoes() {
                             <CardTitle className="text-sm font-medium text-gray-500">Saídas</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                            <div className="text-2xl font-bold text-[#EF4444] flex items-center gap-2">
                                 <ArrowDownCircle className="h-6 w-6" />
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalOut)}
                             </div>
@@ -180,7 +180,7 @@ export default function Movimentacoes() {
                             <CardTitle className="text-sm font-medium text-gray-500">Saldo do Período</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className={`text-2xl font-bold flex items-center gap-2 ${balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                            <div className={`text-2xl font-bold flex items-center gap-2 ${balance >= 0 ? 'text-blue-600' : 'text-[#EF4444]'}`}>
                                 {balance >= 0 ? <ArrowUpCircle className="h-6 w-6" /> : <ArrowDownCircle className="h-6 w-6" />}
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(balance))}
                             </div>
@@ -252,7 +252,7 @@ export default function Movimentacoes() {
                                             <TableCell className="text-muted-foreground text-sm">
                                                 {t.bank_account?.name}
                                             </TableCell>
-                                            <TableCell className={`text-right font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                            <TableCell className={`text-right font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-[#EF4444]'}`}>
                                                 {t.type === 'debit' ? '- ' : '+ '}
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(t.amount))}
                                             </TableCell>

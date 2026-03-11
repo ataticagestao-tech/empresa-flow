@@ -74,7 +74,7 @@ export default function Empresas() {
             <div className="w-full space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-800">Empresas</h2>
+                        <h2 className="text-lg font-bold tracking-tight text-foreground">Empresas</h2>
                         <p className="text-muted-foreground">
                             Gerencie as unidades de negócio cadastradas no seu ecossistema
                         </p>
@@ -107,8 +107,8 @@ export default function Empresas() {
                 </Dialog>
 
                 <Card className="w-full border-none shadow-xl rounded-xl overflow-hidden bg-white">
-                    <CardHeader className="bg-slate-50/70 border-b p-6">
-                        <CardTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 tracking-tight">
+                    <CardHeader className="bg-[#F8FAFC] border-b p-6">
+                        <CardTitle className="flex items-center gap-3 text-2xl font-black text-foreground tracking-tight">
                             <div className="p-2 bg-green-100 rounded-lg">
                                 <Building2 className="h-6 w-6 text-green-600" />
                             </div>
@@ -119,7 +119,7 @@ export default function Empresas() {
                         {isLoading ? (
                             <div className="text-center py-20 text-muted-foreground">
                                 <div className="animate-spin h-10 w-10 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                                <p className="font-bold text-slate-500">Sincronizando empresas...</p>
+                                <p className="font-bold text-muted-foreground">Sincronizando empresas...</p>
                             </div>
                         ) : companiesError ? (
                             <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-4">
@@ -138,38 +138,38 @@ export default function Empresas() {
                         ) : (
                             <div className="w-full overflow-x-auto">
                                 <Table>
-                                    <TableHeader className="bg-slate-50/50">
-                                        <TableRow className="border-b border-slate-100">
-                                            <TableHead className="font-black text-slate-600 text-xs uppercase p-6">Nome / Razão Social</TableHead>
-                                            <TableHead className="font-black text-slate-600 text-xs uppercase hidden md:table-cell">Documento</TableHead>
-                                            <TableHead className="font-black text-slate-600 text-xs uppercase hidden lg:table-cell">E-mail de Contato</TableHead>
-                                            <TableHead className="font-black text-slate-600 text-xs uppercase hidden xl:table-cell">Localização</TableHead>
-                                            <TableHead className="font-black text-slate-600 text-xs uppercase hidden lg:table-cell text-center">Plano de Contas</TableHead>
-                                            <TableHead className="font-black text-slate-600 text-xs uppercase text-center">Ações</TableHead>
+                                    <TableHeader className="bg-[#F8FAFC]">
+                                        <TableRow className="border-b border-[#F1F5F9]">
+                                            <TableHead className="font-black text-muted-foreground text-xs uppercase p-6">Nome / Razão Social</TableHead>
+                                            <TableHead className="font-black text-muted-foreground text-xs uppercase hidden md:table-cell">Documento</TableHead>
+                                            <TableHead className="font-black text-muted-foreground text-xs uppercase hidden lg:table-cell">E-mail de Contato</TableHead>
+                                            <TableHead className="font-black text-muted-foreground text-xs uppercase hidden xl:table-cell">Localização</TableHead>
+                                            <TableHead className="font-black text-muted-foreground text-xs uppercase hidden lg:table-cell text-center">Plano de Contas</TableHead>
+                                            <TableHead className="font-black text-muted-foreground text-xs uppercase text-center">Ações</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {companies.map((company) => (
-                                            <TableRow key={company.id} className="group hover:bg-slate-50/80 transition-all border-b border-slate-50">
+                                            <TableRow key={company.id} className="group hover:bg-[#F8FAFC]/80 transition-all border-b border-[#F8FAFC]">
                                                 <TableCell className="p-6">
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span className="font-bold text-slate-800 text-lg leading-tight group-hover:text-green-700 transition-colors">{company.razao_social}</span>
-                                                        <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">{company.nome_fantasia || "-"}</span>
+                                                        <span className="font-bold text-foreground text-lg leading-tight group-hover:text-green-700 transition-colors">{company.razao_social}</span>
+                                                        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{company.nome_fantasia || "-"}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell">
-                                                    <Badge variant="outline" className="font-mono text-[11px] bg-slate-50 text-slate-600 border-slate-200">
+                                                    <Badge variant="outline" className="font-mono text-[11px] bg-[#F8FAFC] text-muted-foreground border-[#E2E8F0]">
                                                         {company.cnpj ? maskCNPJ(company.cnpj) : "N/D"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="hidden lg:table-cell">
-                                                    <span className="text-sm text-slate-600 font-medium">{company.email || "-"}</span>
+                                                    <span className="text-sm text-muted-foreground font-medium">{company.email || "-"}</span>
                                                 </TableCell>
                                                 <TableCell className="hidden xl:table-cell">
                                                     <div className="flex items-center gap-1.5">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                                        <span className="text-sm text-slate-600 font-bold">{company.endereco_cidade || "-"}</span>
-                                                        <span className="text-xs text-slate-400 font-black uppercase">{company.endereco_estado || ""}</span>
+                                                        <span className="text-sm text-muted-foreground font-bold">{company.endereco_cidade || "-"}</span>
+                                                        <span className="text-xs text-muted-foreground font-black uppercase">{company.endereco_estado || ""}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="hidden lg:table-cell text-center">
@@ -179,7 +179,7 @@ export default function Empresas() {
                                                             Configurado
                                                         </Badge>
                                                     ) : (
-                                                        <Badge variant="outline" className="text-slate-400 border-slate-200 font-bold">
+                                                        <Badge variant="outline" className="text-muted-foreground border-[#E2E8F0] font-bold">
                                                             Não configurado
                                                         </Badge>
                                                     )}

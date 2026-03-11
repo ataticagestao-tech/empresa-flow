@@ -20,7 +20,7 @@ export function CompanyNfseTab() {
                     <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-white">
                         <div className="space-y-0.5">
                             <FormLabel className="text-base font-bold">Habilitar Emissão de NFS-e</FormLabel>
-                            <div className="text-sm text-slate-500">
+                            <div className="text-sm text-muted-foreground">
                                 Ativa a integração com a prefeitura para emissão de notas de serviço.
                             </div>
                         </div>

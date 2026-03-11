@@ -53,8 +53,8 @@ export default function CRM() {
             <div className="h-full flex flex-col space-y-4 animate-in fade-in">
                 <div className="flex justify-between items-center px-6 pt-4">
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Pipeline de Vendas</h2>
-                        <p className="text-slate-500">Gerencie suas negociações e acompanhe o progresso.</p>
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground">Pipeline de Vendas</h2>
+                        <p className="text-muted-foreground">Gerencie suas negociações e acompanhe o progresso.</p>
                     </div>
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
@@ -117,17 +117,17 @@ export default function CRM() {
                             const totalValue = stageOpps.reduce((acc, curr) => acc + (curr.value || 0), 0);
 
                             return (
-                                <div key={stage.id} className="flex flex-col w-80 bg-slate-100/50 rounded-xl border border-slate-200 shadow-sm max-h-full">
+                                <div key={stage.id} className="flex flex-col w-80 bg-[#F1F5F9] rounded-xl border border-[#E2E8F0] shadow-sm max-h-full">
                                     {/* Column Header */}
-                                    <div className="p-3 border-b border-slate-200 bg-white/50 rounded-t-xl backdrop-blur-sm sticky top-0 z-10">
+                                    <div className="p-3 border-b border-[#E2E8F0] rounded-t-xl sticky top-0 z-10">
                                         <div className="flex justify-between items-center mb-1">
-                                            <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wide flex items-center gap-2">
+                                            <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide flex items-center gap-2">
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color || '#cbd5e1' }} />
                                                 {stage.name}
                                             </h3>
-                                            <span className="text-xs text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{stageOpps.length}</span>
+                                            <span className="text-xs text-muted-foreground font-mono bg-[#F1F5F9] px-1.5 py-0.5 rounded">{stageOpps.length}</span>
                                         </div>
-                                        <div className="text-lg font-bold text-slate-900">
+                                        <div className="text-lg font-bold text-foreground">
                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}
                                         </div>
                                     </div>
@@ -136,10 +136,10 @@ export default function CRM() {
                                     <ScrollArea className="flex-1 p-2">
                                         <div className="space-y-2">
                                             {stageOpps.map(opp => (
-                                                <Card key={opp.id} className="cursor-pointer hover:shadow-md transition-shadow group bg-white border-slate-200">
+                                                <Card key={opp.id} className="cursor-pointer hover:shadow-md transition-shadow group bg-white border-[#E2E8F0]">
                                                     <CardContent className="p-3 space-y-2">
                                                         <div className="flex justify-between items-start">
-                                                            <h4 className="font-medium text-slate-800 leading-tight line-clamp-2 pr-2">
+                                                            <h4 className="font-medium text-foreground leading-tight line-clamp-2 pr-2">
                                                                 {opp.title}
                                                             </h4>
                                                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 -mr-2 -mt-1">
@@ -148,7 +148,7 @@ export default function CRM() {
                                                         </div>
 
                                                         {opp.client_name && (
-                                                            <div className="flex items-center text-xs text-slate-500">
+                                                            <div className="flex items-center text-xs text-muted-foreground">
                                                                 <User className="h-3 w-3 mr-1" />
                                                                 <span className="truncate">{opp.client_name}</span>
                                                             </div>
@@ -160,7 +160,7 @@ export default function CRM() {
                                                                 {new Intl.NumberFormat('pt-BR', { notation: "compact", maximumFractionDigits: 1 }).format(opp.value)}
                                                             </Badge>
                                                             {opp.expected_close_date && (
-                                                                <div className="flex items-center text-[10px] text-slate-400">
+                                                                <div className="flex items-center text-[10px] text-muted-foreground">
                                                                     <Calendar className="h-2.5 w-2.5 mr-1" />
                                                                     {format(new Date(opp.expected_close_date), 'dd/MMM')}
                                                                 </div>
@@ -169,7 +169,7 @@ export default function CRM() {
                                                     </CardContent>
 
                                                     {/* Quick Actions (Move Next) */}
-                                                    <CardFooter className="p-0 border-t bg-slate-50/50 hidden group-hover:flex">
+                                                    <CardFooter className="p-0 border-t bg-[#F8FAFC] hidden group-hover:flex">
                                                         {/* Logic to find next stage */}
                                                         {(() => {
                                                             const currentIdx = stages.findIndex(s => s.id === stage.id);
@@ -178,7 +178,7 @@ export default function CRM() {
                                                                 return (
                                                                     <Button
                                                                         variant="ghost"
-                                                                        className="w-full rounded-t-none h-8 text-xs text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                                                                        className="w-full rounded-t-none h-8 text-xs text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
                                                                         onClick={() => moveOpportunity.mutate({ oppId: opp.id, newStageId: nextStage.id })}
                                                                     >
                                                                         Mover para {nextStage.name} <ArrowRight className="ml-1 h-3 w-3" />

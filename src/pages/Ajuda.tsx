@@ -8,9 +8,9 @@ export default function Ajuda() {
         <AppLayout title="Ajuda e Manual">
             <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
                 <div className="flex items-center gap-2 mb-8">
-                    <Book className="h-8 w-8 text-slate-700" />
+                    <Book className="h-8 w-8 text-muted-foreground" />
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-800">Central de Ajuda</h2>
+                        <h2 className="text-lg font-bold tracking-tight text-foreground">Central de Ajuda</h2>
                         <p className="text-muted-foreground">Guia rápido para utilizar o Sistema Tática Flow.</p>
                     </div>
                 </div>

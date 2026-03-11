@@ -28,23 +28,23 @@ export function CompanyDocumentsTab({
     return (
         <div className="space-y-6">
             {/* Cartão CNPJ */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-green-50 rounded-lg">
                             <FileText className="w-5 h-5 text-green-600" />
                         </div>
                         <div>
-                            <div className="font-bold text-slate-800">Cartão CNPJ</div>
+                            <div className="font-bold text-foreground">Cartão CNPJ</div>
                             {hasCartao ? (
-                                <div className="text-sm text-slate-600">
+                                <div className="text-sm text-muted-foreground">
                                     {cartaoCnpjDoc?.file_name || cartaoCnpjFile?.name}
-                                    <span className="text-xs text-slate-400 ml-2">
+                                    <span className="text-xs text-muted-foreground ml-2">
                                         ({formatBytes(cartaoCnpjDoc?.file_size || cartaoCnpjFile?.size || 0)})
                                     </span>
                                 </div>
                             ) : (
-                                <div className="text-xs text-slate-400">Nenhum arquivo. PNG, JPG ou PDF.</div>
+                                <div className="text-xs text-muted-foreground">Nenhum arquivo. PNG, JPG ou PDF.</div>
                             )}
                         </div>
                     </div>
@@ -73,23 +73,23 @@ export function CompanyDocumentsTab({
             </div>
 
             {/* Certificado A1 */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 rounded-lg">
                             <FileText className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
-                            <div className="font-bold text-slate-800">Certificado Digital A1</div>
+                            <div className="font-bold text-foreground">Certificado Digital A1</div>
                             {hasCertificado ? (
-                                <div className="text-sm text-slate-600">
+                                <div className="text-sm text-muted-foreground">
                                     {certificadoA1Doc?.file_name || certificadoA1File?.name}
-                                    <span className="text-xs text-slate-400 ml-2">
+                                    <span className="text-xs text-muted-foreground ml-2">
                                         ({formatBytes(certificadoA1Doc?.file_size || certificadoA1File?.size || 0)})
                                     </span>
                                 </div>
                             ) : (
-                                <div className="text-xs text-slate-400">Nenhum arquivo. .pfx ou .p12</div>
+                                <div className="text-xs text-muted-foreground">Nenhum arquivo. .pfx ou .p12</div>
                             )}
                         </div>
                     </div>
@@ -117,7 +117,7 @@ export function CompanyDocumentsTab({
                 </div>
             </div>
 
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-muted-foreground">
                 * Os arquivos selecionados serão enviados ao salvar a empresa.
             </div>
         </div>

@@ -133,7 +133,7 @@ export default function ProdutosDepartamentos() {
         <AppLayout title="Operacional">
             <div className="space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-800">Operacional</h2>
+                    <h2 className="text-lg font-bold tracking-tight text-foreground">Operacional</h2>
                 </div>
 
                 <Tabs defaultValue="products" className="w-full" onValueChange={setActiveTab}>

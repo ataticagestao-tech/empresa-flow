@@ -241,7 +241,7 @@ export default function ImportacaoOmie() {
           </span>
         )}
         {errors > 0 && (
-          <span className="flex items-center gap-1 text-red-600">
+          <span className="flex items-center gap-1 text-[#EF4444]">
             <XCircle className="h-4 w-4" />
             {errors} erros
           </span>
@@ -254,7 +254,7 @@ export default function ImportacaoOmie() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Importação Omie</h1>
+          <h1 className="text-lg font-bold">Importação Omie</h1>
           <p className="text-muted-foreground">
             Importe dados do sistema Omie para o sistema Tática
           </p>

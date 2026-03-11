@@ -75,8 +75,8 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.titleKey}>
                     {item.url ? (
                       <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                        <Link to={item.url} className="rounded-md transition-colors duration-150">
-                          <item.icon className="h-[15px] w-[15px] opacity-75" />
+                        <Link to={item.url} className="rounded-lg transition-colors duration-150">
+                          <item.icon className="h-[15px] w-[15px] opacity-60" />
                           <span className="text-[12.5px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                         </Link>
                       </SidebarMenuButton>
@@ -85,9 +85,9 @@ export function AppSidebar() {
                         type="button"
                         isActive={isActive(item.url)}
                         onClick={() => handleMenuAction(item)}
-                        className={`rounded-md transition-colors duration-150 ${item.action === "logout" ? "text-[#8A3A2A] hover:text-[#D46A53] hover:bg-[rgba(168,49,30,0.1)]" : ""}`}
+                        className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2]" : ""}`}
                       >
-                        <item.icon className="h-[15px] w-[15px] opacity-75" />
+                        <item.icon className="h-[15px] w-[15px] opacity-60" />
                         <span className="text-[12.5px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                       </SidebarMenuButton>
                     )}
@@ -107,8 +107,8 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.titleKey}>
               {item.url ? (
                 <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                  <Link to={item.url} className="rounded-md transition-colors duration-150">
-                    <item.icon className="h-[15px] w-[15px] opacity-75" />
+                  <Link to={item.url} className="rounded-lg transition-colors duration-150">
+                    <item.icon className="h-[15px] w-[15px] opacity-60" />
                     <span className="text-[12.5px]">{t(item.titleKey)}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -117,9 +117,9 @@ export function AppSidebar() {
                   type="button"
                   isActive={isActive(item.url)}
                   onClick={() => handleMenuAction(item)}
-                  className={`rounded-md transition-colors duration-150 ${item.action === "logout" ? "text-[#8A3A2A] hover:text-[#D46A53] hover:bg-[rgba(168,49,30,0.1)]" : ""}`}
+                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2]" : ""}`}
                 >
-                  <item.icon className="h-[15px] w-[15px] opacity-75" />
+                  <item.icon className="h-[15px] w-[15px] opacity-60" />
                   <span className="text-[12.5px]">{t(item.titleKey)}</span>
                 </SidebarMenuButton>
               )}

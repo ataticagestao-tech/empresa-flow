@@ -62,14 +62,14 @@
 
     --radius: 1rem;                 /* 16px base */
 
-    /* Sidebar — Dark */
-    --sidebar-background: 224 33% 16%;   /* #1A1F36 */
-    --sidebar-foreground: 215 20% 65%;   /* #94A3B8 */
+    /* Sidebar — Light/White */
+    --sidebar-background: 0 0% 100%;       /* #FFFFFF */
+    --sidebar-foreground: 215 16% 47%;     /* #64748B */
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 91% 60% / 0.1;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 30% 20%;
+    --sidebar-accent: 214 95% 93%;         /* #EFF6FF */
+    --sidebar-accent-foreground: 222 47% 11%;  /* #0F172A */
+    --sidebar-border: 214 32% 91%;         /* #E2E8F0 */
     --sidebar-ring: 217 91% 60%;
     --sidebar-muted: 215 20% 65%;
   }

@@ -115,7 +115,7 @@ export default function ContasPagar() {
         const isOverdue = isBefore(due, today) && !isToday(due) && status === 'pending';
 
         if (status === 'paid') return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-0">Pago</Badge>;
-        if (status === 'cancelled') return <Badge variant="secondary" className="bg-slate-100 text-slate-600">Cancelado</Badge>;
+        if (status === 'cancelled') return <Badge variant="secondary" className="bg-[#F1F5F9] text-muted-foreground">Cancelado</Badge>;
         if (isOverdue) return <Badge variant="destructive" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 border-0">Atrasado</Badge>;
         if (isToday(due)) return <Badge className="bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 border-0">Vence Hoje</Badge>;
 
@@ -154,12 +154,12 @@ export default function ContasPagar() {
             <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                        <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                             Contas a Pagar
                         </h2>
                         <p className="text-muted-foreground mt-1">Gerencie seus pagamentos e compromissos financeiros.</p>
                     </div>
-                    <Button onClick={handleNew} className="bg-slate-900 hover:bg-slate-800 shadow-sm transition-all hover:scale-105">
+                    <Button onClick={handleNew} className="shadow-sm transition-all">
                         <Plus className="mr-2 h-4 w-4" />
                         Nova Conta
                     </Button>
@@ -172,7 +172,7 @@ export default function ContasPagar() {
                             <CardTitle className="text-lg font-medium text-red-100">Total a Pagar</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
+                            <div className="text-lg font-bold tracking-tight">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                                     bills?.filter(b => b.status === 'pending').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
                                 )}
@@ -189,7 +189,7 @@ export default function ContasPagar() {
                             <CardTitle className="text-lg font-medium text-emerald-100">Total Pago</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
+                            <div className="text-lg font-bold tracking-tight">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                                     bills?.filter(b => b.status === 'paid').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
                                 )}
@@ -206,7 +206,7 @@ export default function ContasPagar() {
                             <CardTitle className="text-lg font-medium text-orange-100">Total Vencido</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
+                            <div className="text-lg font-bold tracking-tight">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                                     bills?.filter(b => {
                                         if (b.status !== 'pending' || !b.due_date) return false;
@@ -228,9 +228,9 @@ export default function ContasPagar() {
                     </Card>
                 </div>
 
-                <Card className="border-0 shadow-lg bg-white/50 backdrop-blur-sm">
-                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pb-6 border-b border-slate-100">
-                        <div className="flex bg-slate-100/50 p-1 rounded-lg">
+                <Card className="border-0 shadow-lg">
+                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pb-6 border-b border-[#F1F5F9]">
+                        <div className="flex bg-[#F1F5F9]/50 p-1 rounded-lg">
                             {['all', 'pending', 'paid'].map((filter) => (
                                 <Button
                                     key={filter}
@@ -240,8 +240,8 @@ export default function ContasPagar() {
                                     className={cn(
                                         "rounded-md px-4 py-1.5 text-sm font-medium transition-all",
                                         statusFilter === filter
-                                            ? "bg-white text-slate-900 shadow-sm"
-                                            : "text-slate-500 hover:text-slate-900"
+                                            ? "bg-white text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     {filter === 'all' && 'Todas'}
@@ -251,25 +251,25 @@ export default function ContasPagar() {
                             ))}
                         </div>
                         <div className="relative w-full sm:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Buscar contas..."
-                                className="pl-9 border-slate-200 focus:border-slate-400 focus:ring-slate-400/20 bg-white"
+                                className="pl-9 border-[#E2E8F0] focus:border-primary focus:ring-primary/20 bg-white"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="rounded-md border border-slate-100 overflow-hidden">
+                        <div className="rounded-md border border-[#F1F5F9] overflow-hidden">
                             <Table>
-                                <TableHeader className="bg-slate-50/50">
-                                    <TableRow className="hover:bg-transparent border-slate-100">
-                                        <TableHead className="w-[120px] font-semibold text-slate-600">Status</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Descrição</TableHead>
-                                        <TableHead className="font-semibold text-slate-600">Fornecedor</TableHead>
-                                        <TableHead className="w-[120px] font-semibold text-slate-600 cursor-help" title="Data de Vencimento">Vencimento</TableHead>
-                                        <TableHead className="text-right font-semibold text-slate-600">Valor</TableHead>
+                                <TableHeader className="bg-[#F8FAFC]">
+                                    <TableRow className="hover:bg-transparent border-[#F1F5F9]">
+                                        <TableHead className="w-[120px] font-semibold text-muted-foreground">Status</TableHead>
+                                        <TableHead className="font-semibold text-muted-foreground">Descrição</TableHead>
+                                        <TableHead className="font-semibold text-muted-foreground">Fornecedor</TableHead>
+                                        <TableHead className="w-[120px] font-semibold text-muted-foreground cursor-help" title="Data de Vencimento">Vencimento</TableHead>
+                                        <TableHead className="text-right font-semibold text-muted-foreground">Valor</TableHead>
                                         <TableHead className="w-[80px] text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -277,15 +277,15 @@ export default function ContasPagar() {
                                     {isLoading ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-24 text-center">
-                                                <div className="flex items-center justify-center text-slate-500">
-                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-500 mr-2"></div>
+                                                <div className="flex items-center justify-center text-muted-foreground">
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2"></div>
                                                     Carregando...
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                     ) : filteredBills?.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                                                 Nenhuma conta encontrada.
                                             </TableCell>
                                         </TableRow>
@@ -293,34 +293,34 @@ export default function ContasPagar() {
                                         filteredBills?.map((bill) => (
                                             <TableRow
                                                 key={bill.id}
-                                                className="hover:bg-slate-50/50 transition-colors border-slate-100 group"
+                                                className="transition-colors border-[#F1F5F9] group"
                                             >
                                                 <TableCell>
                                                     {getStatusBadge(bill.status, bill.due_date)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-medium text-slate-900">{bill.description}</div>
-                                                    <div className="text-xs text-slate-500">{bill.category?.name}</div>
+                                                    <div className="font-medium text-foreground">{bill.description}</div>
+                                                    <div className="text-xs text-muted-foreground">{bill.category?.name}</div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Avatar className="h-6 w-6">
-                                                            <AvatarFallback className="text-[10px] bg-slate-100 text-slate-600">
+                                                            <AvatarFallback className="text-[10px] bg-[#F1F5F9] text-muted-foreground">
                                                                 {getInitials(bill.supplier?.razao_social || "?")}
                                                             </AvatarFallback>
                                                         </Avatar>
-                                                        <span className="text-sm text-slate-600 truncate max-w-[150px]" title={bill.supplier?.razao_social}>
+                                                        <span className="text-sm text-muted-foreground truncate max-w-[150px]" title={bill.supplier?.razao_social}>
                                                             {bill.supplier?.nome_fantasia || bill.supplier?.razao_social || "-"}
                                                         </span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-medium text-slate-600">
+                                                <TableCell className="font-medium text-muted-foreground">
                                                     {format(new Date(bill.due_date), "dd/MM/yyyy")}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <span className={cn(
                                                         "font-bold",
-                                                        bill.status === 'paid' ? "text-slate-700" : "text-slate-900"
+                                                        bill.status === 'paid' ? "text-muted-foreground" : "text-foreground"
                                                     )}>
                                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bill.amount)}
                                                     </span>
@@ -349,7 +349,7 @@ export default function ContasPagar() {
                                                                 </DropdownMenuItem>
                                                             )}
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => handleDelete(bill)} className="text-red-600">
+                                                            <DropdownMenuItem onClick={() => handleDelete(bill)} className="text-[#EF4444]">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Excluir
                                                             </DropdownMenuItem>

@@ -91,7 +91,7 @@ export default function Categorias() {
         <AppLayout title="Categorias">
             <div className="space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                    <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
                         <Tag className="h-8 w-8 text-primary" />
                         Categorias
                     </h2>

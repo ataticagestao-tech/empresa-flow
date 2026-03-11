@@ -31,8 +31,8 @@ export default function BankAccountsPage() {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-900">Contas Bancárias</h2>
-                    <p className="text-slate-500">Gerencie suas contas e faça conciliação bancária.</p>
+                    <h2 className="text-lg font-bold tracking-tight text-foreground">Contas Bancárias</h2>
+                    <p className="text-muted-foreground">Gerencie suas contas e faça conciliação bancária.</p>
                 </div>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
@@ -82,10 +82,10 @@ export default function BankAccountsPage() {
                 {isLoading && <p>Carregando contas...</p>}
 
                 {!isLoading && accounts.length === 0 && (
-                    <div className="col-span-full text-center py-12 bg-slate-50 rounded-lg border border-dashed">
-                        <Wallet className="h-12 w-12 mx-auto text-slate-300 mb-2" />
-                        <h3 className="text-lg font-medium text-slate-900">Nenhuma conta cadastrada</h3>
-                        <p className="text-slate-500">Cadastre uma conta bancária para começar a conciliação.</p>
+                    <div className="col-span-full text-center py-12 bg-[#F8FAFC] rounded-lg border border-dashed">
+                        <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <h3 className="text-lg font-medium text-foreground">Nenhuma conta cadastrada</h3>
+                        <p className="text-muted-foreground">Cadastre uma conta bancária para começar a conciliação.</p>
                     </div>
                 )}
 
@@ -106,8 +106,8 @@ export default function BankAccountsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="mt-2">
-                                <p className="text-sm text-slate-500 font-medium uppercase">Saldo Atual</p>
-                                <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                                <p className="text-sm text-muted-foreground font-medium uppercase">Saldo Atual</p>
+                                <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-foreground' : 'text-[#EF4444]'}`}>
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(account.current_balance)}
                                 </p>
                             </div>

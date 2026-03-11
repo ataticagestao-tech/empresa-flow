@@ -625,7 +625,7 @@ export default function Relatorios() {
         <AppLayout title="Relatórios">
             <div className="space-y-6 animate-fade-in">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                    <h2 className="text-3xl font-bold tracking-tight">Relatórios</h2>
+                    <h2 className="text-lg font-bold tracking-tight">Relatórios</h2>
                     <div className="flex flex-wrap items-center gap-2">
                         <Input
                             type="date"
@@ -805,7 +805,7 @@ export default function Relatorios() {
                                         <CardTitle className="text-sm font-medium text-muted-foreground">Contas a pagar (vencimento)</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                                        <div className="text-2xl font-bold text-[#EF4444] flex items-center gap-2">
                                             <ArrowDownCircle className="h-6 w-6" />
                                             {isLoadingArap ? "—" : formatCurrency(arapSummary.totalPayable)}
                                         </div>
@@ -819,7 +819,7 @@ export default function Relatorios() {
                                         <CardTitle className="text-sm font-medium text-muted-foreground">Saldo (AR - AP)</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className={cn("text-2xl font-bold flex items-center gap-2", arapSummary.net >= 0 ? "text-blue-600" : "text-red-600")}>
+                                        <div className={cn("text-2xl font-bold flex items-center gap-2", arapSummary.net >= 0 ? "text-blue-600" : "text-[#EF4444]")}>
                                             <TrendingUp className="h-6 w-6" />
                                             {isLoadingArap ? "—" : formatCurrency(arapSummary.net)}
                                         </div>
@@ -899,7 +899,7 @@ export default function Relatorios() {
                             <CardTitle className="text-sm font-medium text-muted-foreground">Despesas no período</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                            <div className="text-2xl font-bold text-[#EF4444] flex items-center gap-2">
                                 <ArrowDownCircle className="h-6 w-6" />
                                 {formatCurrency(summary.totalOut)}
                             </div>
@@ -911,7 +911,7 @@ export default function Relatorios() {
                         </CardHeader>
                         <CardContent>
                             <div
-                                className={`text-2xl font-bold flex items-center gap-2 ${summary.net >= 0 ? "text-blue-600" : "text-red-600"}`}
+                                className={`text-2xl font-bold flex items-center gap-2 ${summary.net >= 0 ? "text-blue-600" : "text-[#EF4444]"}`}
                             >
                                 <TrendingUp className="h-6 w-6" />
                                 {formatCurrency(summary.net)}
@@ -996,7 +996,7 @@ export default function Relatorios() {
                                 <CardTitle className="text-sm font-medium text-muted-foreground">Geração de caixa (no período)</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className={`text-2xl font-bold flex items-center gap-2 ${summary.net >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                                <div className={`text-2xl font-bold flex items-center gap-2 ${summary.net >= 0 ? "text-blue-600" : "text-[#EF4444]"}`}>
                                     <TrendingUp className="h-6 w-6" />
                                     {formatCurrency(summary.net)}
                                 </div>
@@ -1008,7 +1008,7 @@ export default function Relatorios() {
                                 <CardTitle className="text-sm font-medium text-muted-foreground">Inadimplência (AR atrasado)</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                                <div className="text-2xl font-bold text-[#EF4444] flex items-center gap-2">
                                     <AlertTriangle className="h-6 w-6" />
                                     {isLoadingDfcSummary ? "—" : formatCurrency(dfcSummary?.overdueReceivables ?? 0)}
                                 </div>

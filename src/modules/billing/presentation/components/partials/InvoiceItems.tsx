@@ -30,7 +30,7 @@ export function InvoiceItems({ form }: InvoiceItemsProps) {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-sm font-semibold text-slate-700">Itens / Serviços</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">Itens / Serviços</h3>
                 <Button type="button" size="sm" variant="outline" onClick={addItem} className="text-xs gap-1">
                     <Plus className="w-3 h-3" /> Adicionar Item
                 </Button>
@@ -38,7 +38,7 @@ export function InvoiceItems({ form }: InvoiceItemsProps) {
 
             <div className="border rounded-md overflow-hidden bg-white shadow-sm">
                 <Table>
-                    <TableHeader className="bg-slate-50">
+                    <TableHeader className="bg-[#F8FAFC]">
                         <TableRow>
                             <TableHead className="w-[40%]">Descrição</TableHead>
                             <TableHead className="w-[15%] text-right">Qtd</TableHead>
@@ -107,7 +107,7 @@ export function InvoiceItems({ form }: InvoiceItemsProps) {
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell className="text-right text-xs font-medium text-slate-600">
+                                    <TableCell className="text-right text-xs font-medium text-muted-foreground">
                                         {formatCurrency(total)}
                                     </TableCell>
                                     <TableCell>
@@ -127,7 +127,7 @@ export function InvoiceItems({ form }: InvoiceItemsProps) {
 
                         {fields.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs">
+                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-xs">
                                     Nenhum item adicionado à fatura.
                                 </TableCell>
                             </TableRow>

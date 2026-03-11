@@ -18,7 +18,7 @@ export function CompanyFiscalTab({ onCnpjFileSelect, onCnpjSearch, isSearching }
     const { control, getValues } = useFormContext<Company>();
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-[#E2E8F0]">
             {onCnpjFileSelect && (
                 <div className="col-span-2 mb-4 p-4 border border-dashed border-green-300 bg-green-50 rounded-lg flex items-center justify-between">
                     <div>

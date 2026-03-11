@@ -79,7 +79,7 @@ export default function Recibos() {
         <AppLayout title="Recibos">
             <div className="space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+                    <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                         <FileText className="h-8 w-8 text-green-600" />
                         Recibos
                     </h2>

@@ -36,11 +36,11 @@ export default function ContasBancarias() {
             <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                        <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                             <Landmark className="h-8 w-8 text-emerald-600" />
                             Contas Bancárias
                         </h2>
-                        <p className="text-slate-500">Gerencie suas contas e saldos.</p>
+                        <p className="text-muted-foreground">Gerencie suas contas e saldos.</p>
                     </div>
 
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -114,10 +114,10 @@ export default function ContasBancarias() {
                     )}
 
                     {!isLoading && accounts.length === 0 && (
-                        <div className="col-span-full text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <div className="col-span-full text-center py-12 bg-[#F8FAFC] rounded-lg border border-dashed border-[#E2E8F0]">
                             <Wallet className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                            <h3 className="text-lg font-medium text-slate-900">Nenhuma conta cadastrada</h3>
-                            <p className="text-slate-500 max-w-sm mx-auto mt-2">Cadastre sua primeira conta bancária para controlar seu saldo e fazer conciliações.</p>
+                            <h3 className="text-lg font-medium text-foreground">Nenhuma conta cadastrada</h3>
+                            <p className="text-muted-foreground max-w-sm mx-auto mt-2">Cadastre sua primeira conta bancária para controlar seu saldo e fazer conciliações.</p>
                             <Button variant="outline" className="mt-6 border-emerald-600 text-emerald-700 hover:bg-emerald-50" onClick={() => setIsDialogOpen(true)}>
                                 Cadastrar Agora
                             </Button>
@@ -129,11 +129,11 @@ export default function ContasBancarias() {
                             <CardHeader className="pb-2 relative">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
-                                        <CardTitle className="flex items-center text-lg font-bold text-slate-800">
+                                        <CardTitle className="flex items-center text-lg font-bold text-foreground">
                                             <Wallet className="mr-2 h-5 w-5 text-emerald-600" />
                                             {account.name}
                                         </CardTitle>
-                                        <CardDescription className="font-medium text-slate-500">
+                                        <CardDescription className="font-medium text-muted-foreground">
                                             {account.bank_name} • Ag: {account.agency || '-'} CC: {account.account_number || '-'}
                                         </CardDescription>
                                     </div>
@@ -147,7 +147,7 @@ export default function ContasBancarias() {
                                             <DropdownMenuItem>
                                                 <Pencil className="mr-2 h-4 w-4" /> Editar
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem className="text-red-600">
+                                            <DropdownMenuItem className="text-[#EF4444]">
                                                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -156,17 +156,17 @@ export default function ContasBancarias() {
                             </CardHeader>
                             <CardContent>
                                 <div className="mt-4">
-                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Saldo Atual</p>
+                                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Saldo Atual</p>
                                     <div className="flex items-baseline justify-between">
-                                        <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                                        <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-foreground' : 'text-[#EF4444]'}`}>
                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(account.current_balance || 0)}
                                         </p>
                                     </div>
 
-                                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+                                    <div className="mt-6 pt-4 border-t border-[#F1F5F9] flex justify-end">
                                         <Button
                                             size="sm"
-                                            className="bg-slate-900 text-white hover:bg-slate-800 w-full group-hover:bg-emerald-600 transition-colors"
+                                            className="bg-primary text-white hover:bg-[#1E40AF] w-full group-hover:bg-emerald-600 transition-colors"
                                             onClick={() => navigate(`/conciliacao?conta=${account.id}`)}
                                         >
                                             Conciliar Extrato <ArrowRight className="ml-2 h-4 w-4" />

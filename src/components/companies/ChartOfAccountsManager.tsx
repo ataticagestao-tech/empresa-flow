@@ -479,11 +479,11 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
 
             return (
                 <div key={account.id} className={`transition-all ml-${level * 6}`}>
-                    <div className="flex items-center gap-2 py-2 px-3 hover:bg-slate-50 rounded-lg group">
+                    <div className="flex items-center gap-2 py-2 px-3 hover:bg-[#F8FAFC] rounded-lg group">
                         {hasChildren ? (
                             <button
                                 onClick={() => toggleExpand(account.id)}
-                                className="p-1 hover:bg-slate-200 rounded"
+                                className="p-1 hover:bg-[#F1F5F9] rounded"
                             >
                                 {isExpanded ? (
                                     <ChevronDown className="w-4 h-4" />
@@ -495,7 +495,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                             <div className="w-6" />
                         )}
 
-                        <span className="font-mono text-sm text-slate-600 min-w-[100px]">{account.code}</span>
+                        <span className="font-mono text-sm text-muted-foreground min-w-[100px]">{account.code}</span>
                         <span className="flex-1 font-medium">{account.name}</span>
 
                         <Badge className={accountTypeColors[account.account_type]}>
@@ -537,7 +537,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDelete(account.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                className="h-8 w-8 p-0 text-[#EF4444] hover:text-red-700"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
@@ -551,7 +551,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
     };
 
     if (isLoading) {
-        return <div className="text-center py-8 text-slate-500">Carregando plano de contas...</div>;
+        return <div className="text-center py-8 text-muted-foreground">Carregando plano de contas...</div>;
     }
 
     return (
@@ -576,7 +576,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                     <Copy className="w-4 h-4" />
                                     Usar Template Padrão
                                 </div>
-                                <div className="text-sm text-slate-500 mt-1">
+                                <div className="text-sm text-muted-foreground mt-1">
                                     Criar plano de contas baseado no modelo padrão
                                 </div>
                             </div>
@@ -591,7 +591,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                     <Plus className="w-4 h-4" />
                                     Criar do Zero
                                 </div>
-                                <div className="text-sm text-slate-500 mt-1">
+                                <div className="text-sm text-muted-foreground mt-1">
                                     Criar um plano de contas personalizado desde o início
                                 </div>
                             </div>
@@ -612,12 +612,12 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                     <div className="space-y-4">
                         <div>
                             <Label htmlFor="file-upload" className="cursor-pointer">
-                                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-slate-400 transition-colors text-center">
-                                    <Upload className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-                                    <p className="text-sm text-slate-600">
+                                <div className="border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 hover:border-slate-400 transition-colors text-center">
+                                    <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                    <p className="text-sm text-muted-foreground">
                                         Clique para selecionar arquivos ou arraste aqui
                                     </p>
-                                    <p className="text-xs text-slate-400 mt-1">
+                                    <p className="text-xs text-muted-foreground mt-1">
                                         PDF, Excel, XML, imagens, etc.
                                     </p>
                                 </div>
@@ -643,12 +643,12 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                 {attachments.map(attachment => (
                                     <div
                                         key={attachment.id}
-                                        className="flex items-center gap-2 p-3 border rounded-lg hover:bg-slate-50"
+                                        className="flex items-center gap-2 p-3 border rounded-lg hover:bg-[#F8FAFC]"
                                     >
-                                        <FileText className="w-4 h-4 text-slate-400" />
+                                        <FileText className="w-4 h-4 text-muted-foreground" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium truncate">{attachment.file_name}</p>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-muted-foreground">
                                                 {(attachment.file_size / 1024).toFixed(2)} KB
                                             </p>
                                         </div>
@@ -663,7 +663,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                             size="sm"
                                             variant="ghost"
                                             onClick={() => handleDeleteAttachment(attachment.id, attachment.file_path)}
-                                            className="text-red-600 hover:text-red-700"
+                                            className="text-[#EF4444] hover:text-red-700"
                                         >
                                             <X className="w-4 h-4" />
                                         </Button>
@@ -679,7 +679,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-semibold">Plano de Contas</h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-muted-foreground">
                         {accounts.length} conta{accounts.length !== 1 ? 's' : ''} cadastrada{accounts.length !== 1 ? 's' : ''}
                     </p>
                 </div>
@@ -806,7 +806,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
             {/* Árvore de Contas */}
             <Card className="p-4">
                 {accounts.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 space-y-4">
+                    <div className="text-center py-8 text-muted-foreground space-y-4">
                         <p>Nenhuma conta cadastrada.</p>
                         <Button variant="outline" onClick={() => setShowInitDialog(true)}>
                             Inicializar com Template
