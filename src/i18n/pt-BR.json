@@ -1,0 +1,49 @@
+{
+  "menu": {
+    "dashboard": "Dashboard",
+    "companies": "Empresas",
+    "clients": "Clientes",
+    "suppliers": "Fornecedores",
+    "categories": "Categorias",
+    "bank_accounts": "Contas Bancárias",
+    "finance": "Financeiro",
+    "payables": "Contas a Pagar",
+    "receivables": "Contas a Receber",
+    "receipts": "Recibos",
+    "reconciliation": "Conciliação",
+    "operational": "Operacional",
+    "reports": "Relatórios",
+    "settings": "Configurações",
+    "help": "Ajuda",
+    "logout": "Sair"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Acompanhe os indicadores e gerencie suas empresas de forma centralizada.",
+    "tabs": {
+      "companies": "Empresas",
+      "products": "Produtos",
+      "payables": "Contas a Pagar",
+      "receivables": "Contas a Receber",
+      "clients": "Clientes",
+      "opportunities": "Oportunidades",
+      "departments": "Departamentos"
+    },
+    "companies_list_title": "Empresas Cadastradas",
+    "search_placeholder": "Buscar empresa por nome, CNPJ, cidade...",
+    "loading_companies": "Carregando empresas...",
+    "no_companies_found": "Nenhuma empresa encontrada",
+    "table": {
+      "company": "Empresa",
+      "cnpj": "CNPJ",
+      "revenue": "Faturamento",
+      "location": "Localização",
+      "contact": "Contato",
+      "action": "Ação",
+      "access": "Acessar"
+    }
+  },
+  "auth": {
+    "error_generic": "Erro ao carregar dados"
+  }
+}
