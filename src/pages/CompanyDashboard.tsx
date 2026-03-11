@@ -6,8 +6,9 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    Landmark, TrendingUp, TrendingDown, LineChart,
-    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2
+    Landmark, TrendingUp, TrendingDown, LineChart, DollarSign, Target,
+    ShoppingBag, AlertTriangle, Users, PieChart,
+    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2, ArrowUpRight, ArrowDownRight
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -17,6 +18,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFinanceDashboard, type DashboardDateRange } from "@/modules/finance/presentation/hooks/useFinanceDashboard";
+import { useOperationalDashboard } from "@/modules/finance/presentation/hooks/useOperationalDashboard";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -113,6 +115,8 @@ export default function CompanyDashboard() {
     const {
         accountsBalance, receivablesSummary, payablesSummary, cashFlowData, dreSummary
     } = useFinanceDashboard(dateRange);
+
+    const op = useOperationalDashboard(dateRange);
 
     const chartData = useMemo(
         () => (cashFlowData || []).map((d: any) => ({ ...d, despesas_neg: -(d.despesas || 0) })),
@@ -683,15 +687,280 @@ export default function CompanyDashboard() {
 
                 {/* ── Tab Content: Operacional ────────────────── */}
                 {activeTab === "operacional" && (
-                    <div style={{
-                        background: C.surface, borderRadius: 12,
-                        border: `1px solid ${C.border}`,
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                        padding: 40, textAlign: "center",
-                    }}>
-                        <Zap size={24} color={C.textMuted} style={{ margin: "0 auto 12px" }} />
-                        <p style={{ fontSize: 13, color: C.text2, fontWeight: 500 }}>Modulo Operacional</p>
-                        <p style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>Em desenvolvimento</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+                        {/* ── Operational KPIs ─────────────────────── */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
+                            gap: 16,
+                        }}>
+                            {[
+                                { label: "FATURAMENTO", value: fmt(op.revenue), icon: DollarSign, color: C.accent, detail: `${op.salesCount} transacoes no periodo` },
+                                { label: "TICKET MEDIO", value: fmt(op.avgTicket), icon: Target, color: C.accent, detail: "Valor medio por venda" },
+                                { label: "N. DE VENDAS", value: String(op.salesCount), icon: ShoppingBag, color: C.positive, detail: `Faturamento: ${fmtCompact(op.revenue)}` },
+                                { label: "MARGEM", value: `${op.margin.toFixed(1)}%`, icon: BarChart2, color: op.margin >= 0 ? C.positive : C.negative, detail: `Despesas: ${fmtCompact(op.expenses)}` },
+                            ].map((kpi) => (
+                                <div
+                                    key={kpi.label}
+                                    style={{
+                                        background: C.surface, borderRadius: 12,
+                                        border: `1px solid ${C.border}`,
+                                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                                        padding: 24, position: "relative", overflow: "hidden",
+                                    }}
+                                >
+                                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.color }} />
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                        <div>
+                                            <p style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", color: kpi.color, marginBottom: 8 }}>
+                                                {kpi.label}
+                                            </p>
+                                            <p style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: isMobile ? 22 : 28, fontWeight: 400, letterSpacing: "-0.04em", color: C.text1, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                                {kpi.value}
+                                            </p>
+                                            <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{kpi.detail}</p>
+                                        </div>
+                                        <kpi.icon size={18} color={kpi.color} style={{ opacity: 0.5, flexShrink: 0, marginTop: 2 }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* ── Inadimplencia + Delta ──────────────── */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                            gap: 16,
+                        }}>
+                            {/* Inadimplencia Card */}
+                            <div style={{
+                                background: C.surface, borderRadius: 12,
+                                border: `1px solid ${C.border}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                                padding: 24,
+                            }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                                    <AlertTriangle size={15} color={C.textMuted} />
+                                    <p className="section-title" style={{ margin: 0 }}>INADIMPLENCIA</p>
+                                </div>
+
+                                {/* Donut */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                                    <div style={{ position: "relative", width: 104, height: 104, flexShrink: 0 }}>
+                                        <svg viewBox="0 0 104 104" width={104} height={104}>
+                                            <circle cx="52" cy="52" r="42" fill="none" stroke={C.border} strokeWidth="12" />
+                                            <circle
+                                                cx="52" cy="52" r="42" fill="none"
+                                                stroke={op.defaultRate.rate > 20 ? C.negative : op.defaultRate.rate > 10 ? C.warning : C.positive}
+                                                strokeWidth="12"
+                                                strokeDasharray={`${(op.defaultRate.rate / 100) * 264} ${264 - (op.defaultRate.rate / 100) * 264}`}
+                                                strokeLinecap="round"
+                                                transform="rotate(-90 52 52)"
+                                            />
+                                        </svg>
+                                        <div style={{
+                                            position: "absolute", inset: 0,
+                                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                                        }}>
+                                            <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, color: C.text1 }}>
+                                                {op.defaultRate.rate.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                        <div>
+                                            <p style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>Titulos vencidos</p>
+                                            <p style={{ fontSize: 15, fontWeight: 600, color: C.negative }}>{op.defaultRate.overdueCount}</p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: 11, color: C.textMuted, marginBottom: 2 }}>Total de titulos</p>
+                                            <p style={{ fontSize: 15, fontWeight: 600, color: C.text1 }}>{op.defaultRate.totalCount}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Legend */}
+                                <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: 99, background: op.defaultRate.rate > 20 ? C.negative : op.defaultRate.rate > 10 ? C.warning : C.positive }} />
+                                        <span style={{ fontSize: 11, color: C.text2 }}>Inadimplente</span>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: 99, background: C.border }} />
+                                        <span style={{ fontSize: 11, color: C.text2 }}>Adimplente</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Margem visual breakdown */}
+                            <div style={{
+                                background: C.surface, borderRadius: 12,
+                                border: `1px solid ${C.border}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                                padding: 24,
+                            }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                                    <Activity size={15} color={C.textMuted} />
+                                    <p className="section-title" style={{ margin: 0 }}>RESUMO FINANCEIRO</p>
+                                </div>
+
+                                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                    {/* Revenue */}
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <ArrowUpRight size={14} color={C.positive} />
+                                            <span style={{ fontSize: 13, color: C.text1 }}>Receitas</span>
+                                        </div>
+                                        <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, color: C.positive, fontVariantNumeric: "tabular-nums" }}>
+                                            {fmt(op.revenue)}
+                                        </span>
+                                    </div>
+
+                                    {/* Expenses */}
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <ArrowDownRight size={14} color={C.negative} />
+                                            <span style={{ fontSize: 13, color: C.text1 }}>Despesas</span>
+                                        </div>
+                                        <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 15, color: C.negative, fontVariantNumeric: "tabular-nums" }}>
+                                            {fmt(op.expenses)}
+                                        </span>
+                                    </div>
+
+                                    <div style={{ height: 1, background: C.border }} />
+
+                                    {/* Result */}
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: C.text1 }}>RESULTADO</span>
+                                        <span style={{
+                                            fontFamily: "'DM Serif Display', Georgia, serif",
+                                            fontSize: 20,
+                                            color: (op.revenue - op.expenses) >= 0 ? C.positive : C.negative,
+                                            fontVariantNumeric: "tabular-nums",
+                                        }}>
+                                            {fmt(op.revenue - op.expenses)}
+                                        </span>
+                                    </div>
+
+                                    {/* Margin bar */}
+                                    <div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                            <span style={{ fontSize: 11, color: C.textMuted }}>Margem</span>
+                                            <span style={{ fontSize: 11, fontWeight: 600, color: op.margin >= 0 ? C.positive : C.negative }}>{op.margin.toFixed(1)}%</span>
+                                        </div>
+                                        <div style={{ height: 4, borderRadius: 99, background: C.border }}>
+                                            <div style={{
+                                                height: 4, borderRadius: 99,
+                                                background: op.margin >= 0 ? C.positive : C.negative,
+                                                width: `${Math.min(100, Math.max(0, op.margin))}%`,
+                                                transition: "width 0.4s ease",
+                                            }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Rankings: Top Clientes + Top Despesas ── */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                            gap: 16,
+                        }}>
+                            {/* Top Clientes */}
+                            <div style={{
+                                background: C.surface, borderRadius: 12,
+                                border: `1px solid ${C.border}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                                padding: 24,
+                            }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                                    <Users size={15} color={C.textMuted} />
+                                    <p className="section-title" style={{ margin: 0 }}>TOP CLIENTES</p>
+                                </div>
+
+                                {op.topClients.length === 0 ? (
+                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>
+                                        Nenhum dado no periodo
+                                    </p>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                        {op.topClients.map((client, idx) => {
+                                            const maxVal = op.topClients[0]?.total || 1;
+                                            const barOpacities = [1, 0.85, 0.7, 0.55, 0.4];
+                                            return (
+                                                <div key={client.name}>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                                                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                                                            <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 13, color: C.textMuted }}>{idx + 1}</span>
+                                                            <span style={{ fontSize: 13, color: C.text1, fontWeight: 500 }}>{client.name}</span>
+                                                        </div>
+                                                        <span style={{ fontSize: 12, color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(client.total)}</span>
+                                                    </div>
+                                                    <div style={{ height: 4, borderRadius: 99, background: C.border }}>
+                                                        <div style={{
+                                                            height: 4, borderRadius: 99,
+                                                            background: C.accent,
+                                                            opacity: barOpacities[idx] ?? 0.3,
+                                                            width: `${(client.total / maxVal) * 100}%`,
+                                                            transition: "width 0.4s ease",
+                                                        }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Top Despesas */}
+                            <div style={{
+                                background: C.surface, borderRadius: 12,
+                                border: `1px solid ${C.border}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                                padding: 24,
+                            }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                                    <PieChart size={15} color={C.textMuted} />
+                                    <p className="section-title" style={{ margin: 0 }}>TOP DESPESAS</p>
+                                </div>
+
+                                {op.topExpenses.length === 0 ? (
+                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>
+                                        Nenhum dado no periodo
+                                    </p>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                        {op.topExpenses.map((cat, idx) => {
+                                            const maxVal = op.topExpenses[0]?.total || 1;
+                                            const barOpacities = [1, 0.85, 0.7, 0.55, 0.4];
+                                            return (
+                                                <div key={cat.name}>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                                                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                                                            <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 13, color: C.textMuted }}>{idx + 1}</span>
+                                                            <span style={{ fontSize: 13, color: C.text1, fontWeight: 500 }}>{cat.name}</span>
+                                                        </div>
+                                                        <span style={{ fontSize: 12, color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(cat.total)}</span>
+                                                    </div>
+                                                    <div style={{ height: 4, borderRadius: 99, background: C.border }}>
+                                                        <div style={{
+                                                            height: 4, borderRadius: 99,
+                                                            background: C.negative,
+                                                            opacity: barOpacities[idx] ?? 0.3,
+                                                            width: `${(cat.total / maxVal) * 100}%`,
+                                                            transition: "width 0.4s ease",
+                                                        }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
 
