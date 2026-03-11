@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfDay, endOfDay } from "date-fns";
 
 export interface DashboardDateRange {
@@ -11,6 +11,8 @@ export interface DashboardDateRange {
 
 export function useFinanceDashboard(dateRange?: DashboardDateRange) {
     const { selectedCompany } = useCompany();
+    const { activeClient } = useAuth();
+    const db = activeClient as any;
 
     const rangeStart = dateRange?.from ?? startOfMonth(new Date());
     const rangeEnd = dateRange?.to ?? endOfMonth(new Date());
@@ -21,7 +23,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
         queryKey: ['dashboard_accounts_balance', selectedCompany?.id],
         queryFn: async () => {
             if (!selectedCompany?.id) return 0;
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from('bank_accounts')
                 .select('current_balance')
                 .eq('company_id', selectedCompany.id);
@@ -38,7 +40,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return { overdue: 0, today: 0, period: 0 };
             const today = new Date();
 
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from('accounts_receivable')
                 .select('amount, due_date')
                 .eq('company_id', selectedCompany.id)
@@ -69,7 +71,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return { overdue: 0, today: 0, period: 0 };
             const today = new Date();
 
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from('accounts_payable')
                 .select('amount, due_date')
                 .eq('company_id', selectedCompany.id)
@@ -101,21 +103,21 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
 
             const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
 
-            const { data: receivables } = await supabase
+            const { data: receivables } = await db
                 .from('accounts_receivable')
                 .select('amount, due_date')
                 .eq('company_id', selectedCompany.id)
                 .gte('due_date', rangeStart.toISOString())
                 .lte('due_date', rangeEnd.toISOString());
 
-            const { data: payables } = await supabase
+            const { data: payables } = await db
                 .from('accounts_payable')
                 .select('amount, due_date')
                 .eq('company_id', selectedCompany.id)
                 .gte('due_date', rangeStart.toISOString())
                 .lte('due_date', rangeEnd.toISOString());
 
-            const { data: bankData } = await supabase
+            const { data: bankData } = await db
                 .from('bank_accounts')
                 .select('current_balance')
                 .eq('company_id', selectedCompany.id);
@@ -154,7 +156,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
 
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from('transactions')
                 .select(`
                     amount,
