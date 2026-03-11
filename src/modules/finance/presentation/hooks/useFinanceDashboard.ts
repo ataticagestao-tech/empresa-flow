@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export interface DashboardDateRange {
     from: Date;
@@ -137,7 +138,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 currentBalance += dailyNet;
 
                 return {
-                    date: format(day, 'dd/MM'),
+                    date: format(day, "EEE d/MM", { locale: ptBR }),
                     receitas: rec,
                     despesas: pay,
                     saldo_do_dia: dailyNet,
