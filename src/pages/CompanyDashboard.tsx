@@ -213,7 +213,7 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* Charts */}
-                <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
+                <div className="grid gap-5 lg:grid-cols-1">
                     <Card className="overflow-hidden">
                         <CardHeader className="bg-gradient-to-r from-primary/[0.03] to-transparent">
                             <div className="flex items-center gap-2">
@@ -256,6 +256,10 @@ export default function CompanyDashboard() {
                         </CardContent>
                     </Card>
 
+                </div>
+
+                {/* Projeção + DRE + Config */}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 pb-8">
                     <Card className="overflow-hidden">
                         <CardHeader className="bg-gradient-to-r from-[#1C3D6B]/[0.03] to-transparent">
                             <div className="flex items-center gap-2">
@@ -268,7 +272,7 @@ export default function CompanyDashboard() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="h-[340px]">
+                        <CardContent className="h-[280px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                     <defs>
@@ -291,10 +295,6 @@ export default function CompanyDashboard() {
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
-                </div>
-
-                {/* DRE + Config */}
-                <div className="grid md:grid-cols-2 gap-5 pb-8">
                     <Card className="overflow-hidden">
                         <CardHeader className="border-b border-border-light bg-gradient-to-r from-[#2E6E4C]/[0.03] to-transparent">
                             <div className="flex items-center gap-2">
