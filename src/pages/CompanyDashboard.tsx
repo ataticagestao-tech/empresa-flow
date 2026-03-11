@@ -70,7 +70,10 @@ export default function CompanyDashboard() {
         return "Comércio";
     }, [selectedCompany?.activity_profile]);
 
-    const chartData = cashFlowData || [];
+    const chartData = (cashFlowData || []).map((d: any) => ({
+        ...d,
+        despesas_neg: -(d.despesas || 0),
+    }));
 
     const { data: nfseSettings } = useQuery({
         queryKey: ["company_nfse_settings", companyId, isUsingSecondary],
@@ -223,21 +226,33 @@ export default function CompanyDashboard() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="h-[340px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-                                    <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
-                                    <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `R$${val / 1000}k`} />
-                                    <Tooltip
-                                        formatter={(value) => fmt(value as number)}
-                                        contentStyle={{ borderRadius: '10px', border: '1px solid hsl(30 14% 93%)', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', fontSize: '12px' }}
-                                    />
-                                    <ReferenceLine y={0} stroke="#0A0A0A" strokeOpacity={0.08} />
-                                    <Bar dataKey="receitas" name="Receitas" fill="#2E6E4C" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                                    <Bar dataKey="despesas" name="Despesas" fill="#A8311E" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <CardContent>
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-sm bg-[#2E6E4C]" />
+                                    <span className="text-[11px] text-muted-foreground font-medium">Entradas</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-sm bg-[#A8311E]" />
+                                    <span className="text-[11px] text-muted-foreground font-medium">Saídas</span>
+                                </div>
+                            </div>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }} stackOffset="sign">
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
+                                        <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => { const abs = Math.abs(val); return abs >= 1000 ? `R$${(abs / 1000).toFixed(0)}k` : `R$${abs}`; }} />
+                                        <Tooltip
+                                            formatter={(value: number, name: string) => [fmt(Math.abs(value)), name === "despesas_neg" ? "Saídas" : "Entradas"]}
+                                            contentStyle={{ borderRadius: '10px', border: '1px solid hsl(30 14% 93%)', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', fontSize: '12px' }}
+                                        />
+                                        <ReferenceLine y={0} stroke="#0A0A0A" strokeOpacity={0.15} strokeWidth={1} />
+                                        <Bar dataKey="receitas" name="Entradas" fill="#2E6E4C" radius={[4, 4, 0, 0]} maxBarSize={32} stackId="flow" />
+                                        <Bar dataKey="despesas_neg" name="despesas_neg" fill="#A8311E" radius={[0, 0, 4, 4]} maxBarSize={32} stackId="flow" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
                         </CardContent>
                     </Card>
 
