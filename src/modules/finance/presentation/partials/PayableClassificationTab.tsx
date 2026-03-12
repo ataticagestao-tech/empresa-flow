@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useCategorySuggestion } from "../hooks/useCategorySuggestion";
+import { CategorySuggestions } from "../components/CategorySuggestions";
 
 interface PayableClassificationTabProps {
     form: UseFormReturn<AccountsPayable>;
@@ -30,6 +32,10 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
         },
         enabled: !!selectedCompany?.id
     });
+
+    // IA Sugestiva: analisa a descrição e sugere categorias
+    const description = form.watch("description") || "";
+    const { suggestions } = useCategorySuggestion(description, categories || [], "despesa");
 
     const { data: projects } = useQuery({
         queryKey: ["projects", selectedCompany?.id],
@@ -70,6 +76,11 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <CategorySuggestions
+                                suggestions={suggestions}
+                                onSelect={(id) => form.setValue("category_id", id)}
+                                currentValue={form.watch("category_id")}
+                            />
                             <FormMessage />
                         </FormItem>
                     )}

@@ -11,6 +11,8 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ClientSelect } from "@/modules/clients/presentation/components/ClientSelect";
+import { useCategorySuggestion } from "../hooks/useCategorySuggestion";
+import { CategorySuggestions } from "../components/CategorySuggestions";
 
 interface ReceivableMainTabProps {
     form: UseFormReturn<AccountsReceivable>;
@@ -19,6 +21,9 @@ interface ReceivableMainTabProps {
 }
 
 export function ReceivableMainTab({ form, categories, bankAccounts }: ReceivableMainTabProps) {
+    const description = form.watch("description") || "";
+    const { suggestions } = useCategorySuggestion(description, categories || [], "receita");
+
     return (
         <div className="space-y-4 pt-4">
             <FormField
@@ -116,6 +121,11 @@ export function ReceivableMainTab({ form, categories, bankAccounts }: Receivable
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <CategorySuggestions
+                                suggestions={suggestions}
+                                onSelect={(id) => form.setValue("category_id", id)}
+                                currentValue={form.watch("category_id")}
+                            />
                             <FormMessage />
                         </FormItem>
                     )}
