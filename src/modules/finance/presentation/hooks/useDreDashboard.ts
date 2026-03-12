@@ -15,13 +15,15 @@ export interface DreAccount {
     dre_group: string;
     dre_order: number;
     total: number;
+    parent_id: string | null;
+    children: DreAccount[];
 }
 
 export interface DreGroup {
     name: string;
     order: number;
     total: number;
-    accounts: DreAccount[];
+    accounts: DreAccount[]; // top-level subcategories (level 2) with nested children
 }
 
 export function useDreDashboard(dateRange?: DashboardDateRange) {
@@ -38,76 +40,95 @@ export function useDreDashboard(dateRange?: DashboardDateRange) {
         queryFn: async (): Promise<{ groups: DreGroup[]; grandTotal: number }> => {
             if (!selectedCompany?.id) return { groups: [], grandTotal: 0 };
 
-            // 1. Fetch all transactions with category details
+            // 1. Fetch ALL chart_of_accounts to build hierarchy
+            const { data: allAccounts, error: accErr } = await db
+                .from("chart_of_accounts")
+                .select("id, code, name, level, account_type, account_nature, is_analytical, is_synthetic, dre_group, dre_order, parent_id")
+                .eq("company_id", selectedCompany.id)
+                .order("code");
+
+            if (accErr) throw accErr;
+
+            // 2. Fetch transactions in period
             const { data: transactions, error: txErr } = await db
                 .from("transactions")
-                .select(`
-                    amount,
-                    type,
-                    category_id,
-                    category:chart_of_accounts (
-                        id,
-                        code,
-                        name,
-                        level,
-                        account_type,
-                        account_nature,
-                        is_analytical,
-                        dre_group,
-                        dre_order
-                    )
-                `)
+                .select("amount, type, category_id")
                 .eq("company_id", selectedCompany.id)
                 .gte("date", rangeStart.toISOString())
                 .lte("date", rangeEnd.toISOString());
 
             if (txErr) throw txErr;
 
-            // 2. Aggregate by individual account
-            const accountMap: Record<string, DreAccount> = {};
-
+            // 3. Aggregate totals by category_id (analytical accounts)
+            const totalsMap: Record<string, number> = {};
             (transactions || []).forEach((t: any) => {
-                const cat = t.category;
-                if (!cat) return;
-                const key = cat.id;
-                if (!accountMap[key]) {
-                    accountMap[key] = {
-                        id: cat.id,
-                        code: cat.code,
-                        name: cat.name,
-                        level: cat.level || 3,
-                        account_type: cat.account_type,
-                        account_nature: cat.account_nature,
-                        is_analytical: cat.is_analytical ?? true,
-                        dre_group: cat.dre_group || "Outros",
-                        dre_order: cat.dre_order || 99,
-                        total: 0,
-                    };
-                }
-                // credit adds, debit subtracts (for DRE perspective)
+                if (!t.category_id) return;
+                if (!totalsMap[t.category_id]) totalsMap[t.category_id] = 0;
                 if (t.type === "credit") {
-                    accountMap[key].total += Number(t.amount) || 0;
+                    totalsMap[t.category_id] += Number(t.amount) || 0;
                 } else {
-                    accountMap[key].total -= Number(t.amount) || 0;
+                    totalsMap[t.category_id] -= Number(t.amount) || 0;
                 }
             });
 
-            // 3. Group accounts by dre_group
+            // 4. Build full account tree with totals
+            const accountById: Record<string, DreAccount> = {};
+            (allAccounts || []).forEach((a: any) => {
+                accountById[a.id] = {
+                    id: a.id,
+                    code: a.code,
+                    name: a.name,
+                    level: a.level || 1,
+                    account_type: a.account_type,
+                    account_nature: a.account_nature,
+                    is_analytical: a.is_analytical ?? !a.is_synthetic,
+                    dre_group: a.dre_group || "Outros",
+                    dre_order: a.dre_order || 99,
+                    total: totalsMap[a.id] || 0,
+                    parent_id: a.parent_id || null,
+                    children: [],
+                };
+            });
+
+            // 5. Build parent-child relationships
+            Object.values(accountById).forEach((acc) => {
+                if (acc.parent_id && accountById[acc.parent_id]) {
+                    accountById[acc.parent_id].children.push(acc);
+                }
+            });
+
+            // 6. Roll up totals from children to parents (bottom-up)
+            // Sort by level descending so children are processed first
+            const sorted = Object.values(accountById).sort((a, b) => b.level - a.level);
+            for (const acc of sorted) {
+                if (acc.parent_id && accountById[acc.parent_id]) {
+                    accountById[acc.parent_id].total += acc.total;
+                }
+            }
+
+            // Sort children by code
+            Object.values(accountById).forEach((acc) => {
+                acc.children.sort((a, b) => a.code.localeCompare(b.code));
+            });
+
+            // 7. Group top-level accounts (level 1) by dre_group
+            const topLevel = Object.values(accountById).filter((a) => !a.parent_id || !accountById[a.parent_id]);
+
             const groupMap: Record<string, DreGroup> = {};
-            Object.values(accountMap).forEach((acc) => {
-                if (!groupMap[acc.dre_group]) {
-                    groupMap[acc.dre_group] = {
-                        name: acc.dre_group,
+            topLevel.forEach((acc) => {
+                const gName = acc.dre_group;
+                if (!groupMap[gName]) {
+                    groupMap[gName] = {
+                        name: gName,
                         order: acc.dre_order,
                         total: 0,
                         accounts: [],
                     };
                 }
-                groupMap[acc.dre_group].accounts.push(acc);
-                groupMap[acc.dre_group].total += acc.total;
+                groupMap[gName].accounts.push(acc);
+                groupMap[gName].total += acc.total;
             });
 
-            // Sort groups by order, accounts by code within each group
             const groups = Object.values(groupMap)
                 .sort((a, b) => a.order - b.order)
                 .map((g) => ({

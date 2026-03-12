@@ -944,13 +944,81 @@ export default function CompanyDashboard() {
                                             .reduce((s, g) => s + g.total, 0);
                                         const groupPct = totalRevenue > 0 ? (Math.abs(group.total) / totalRevenue) * 100 : 0;
 
+                                        // Recursive renderer for account hierarchy
+                                        const renderAccount = (acc: any, depth: number) => {
+                                            const accPct = totalRevenue > 0 ? (Math.abs(acc.total) / totalRevenue) * 100 : 0;
+                                            const hasChildren = acc.children && acc.children.length > 0;
+                                            const isSynthetic = hasChildren || !acc.is_analytical;
+                                            const indent = depth * (isMobile ? 10 : 16);
+
+                                            // Skip accounts with zero total and no children with totals
+                                            if (acc.total === 0 && !hasChildren) return null;
+                                            if (acc.total === 0 && hasChildren && acc.children.every((c: any) => c.total === 0)) return null;
+
+                                            return (
+                                                <div key={acc.id}>
+                                                    <div style={{
+                                                        display: "grid",
+                                                        gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
+                                                        gap: 8,
+                                                        padding: isSynthetic ? "10px 0 6px" : "7px 0",
+                                                        borderBottom: `1px solid ${C.borderLight}`,
+                                                        background: isSynthetic && depth === 0 ? C.borderLight + "30" : "transparent",
+                                                    }}>
+                                                        {!isMobile && (
+                                                            <span style={{
+                                                                fontSize: 12,
+                                                                color: isSynthetic ? C.text2 : C.textMuted,
+                                                                fontVariantNumeric: "tabular-nums",
+                                                                fontWeight: isSynthetic ? 600 : 500,
+                                                            }}>
+                                                                {acc.code}
+                                                            </span>
+                                                        )}
+                                                        <span style={{
+                                                            fontSize: isSynthetic ? 13 : 12.5,
+                                                            color: isSynthetic ? C.text1 : C.text2,
+                                                            fontWeight: isSynthetic ? 600 : 400,
+                                                            paddingLeft: isMobile ? indent + 4 : indent + 8,
+                                                        }}>
+                                                            {isMobile && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 6 }}>{acc.code}</span>}
+                                                            {acc.name}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: isSynthetic ? 13 : 12.5,
+                                                            fontWeight: isSynthetic ? 700 : 500,
+                                                            textAlign: "right",
+                                                            fontVariantNumeric: "tabular-nums",
+                                                            color: acc.total >= 0 ? C.green : C.red,
+                                                        }}>
+                                                            {fmt(acc.total)}
+                                                        </span>
+                                                        {!isMobile && (
+                                                            <span style={{
+                                                                fontSize: 12,
+                                                                fontWeight: isSynthetic ? 600 : 500,
+                                                                textAlign: "right",
+                                                                color: isSynthetic ? C.text2 : C.textMuted,
+                                                            }}>
+                                                                {accPct.toFixed(1)}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {hasChildren && acc.children
+                                                        .filter((c: any) => c.total !== 0)
+                                                        .map((child: any) => renderAccount(child, depth + 1))
+                                                    }
+                                                </div>
+                                            );
+                                        };
+
                                         return (
                                             <div key={group.name}>
                                                 {/* Group header row */}
                                                 <div style={{
                                                     display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
                                                     gap: 8, padding: "14px 0 8px",
-                                                    borderBottom: `1px solid ${C.borderLight}`,
+                                                    borderBottom: `2px solid ${C.border}`,
                                                     background: gi % 2 === 0 ? "transparent" : C.borderLight + "40",
                                                 }}>
                                                     {!isMobile && <span />}
@@ -970,41 +1038,8 @@ export default function CompanyDashboard() {
                                                     )}
                                                 </div>
 
-                                                {/* Individual accounts */}
-                                                {group.accounts.map((acc) => {
-                                                    const accPct = totalRevenue > 0 ? (Math.abs(acc.total) / totalRevenue) * 100 : 0;
-                                                    return (
-                                                        <div
-                                                            key={acc.id}
-                                                            style={{
-                                                                display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
-                                                                gap: 8, padding: "10px 0",
-                                                                borderBottom: `1px solid ${C.borderLight}`,
-                                                            }}
-                                                        >
-                                                            {!isMobile && (
-                                                                <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
-                                                                    {acc.code}
-                                                                </span>
-                                                            )}
-                                                            <span style={{ fontSize: 13, color: C.text1, fontWeight: 400, paddingLeft: isMobile ? 12 : 8 }}>
-                                                                {isMobile && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 6 }}>{acc.code}</span>}
-                                                                {acc.name}
-                                                            </span>
-                                                            <span style={{
-                                                                fontSize: 13, fontWeight: 600, textAlign: "right", fontVariantNumeric: "tabular-nums",
-                                                                color: acc.total >= 0 ? C.green : C.red,
-                                                            }}>
-                                                                {fmt(acc.total)}
-                                                            </span>
-                                                            {!isMobile && (
-                                                                <span style={{ fontSize: 12, fontWeight: 500, textAlign: "right", color: C.textMuted }}>
-                                                                    {accPct.toFixed(1)}%
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
+                                                {/* Hierarchical accounts */}
+                                                {group.accounts.map((acc) => renderAccount(acc, 0))}
                                             </div>
                                         );
                                     })}
