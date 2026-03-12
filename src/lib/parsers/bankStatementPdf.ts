@@ -87,14 +87,16 @@ export async function parseBankStatementPdf(file: File): Promise<BankStatementPa
             if (!isoDate) continue;
 
             const moneyMatches = [...seg.matchAll(moneyRe)];
-            if (moneyMatches.length < 2) continue;
+            if (moneyMatches.length < 1) continue;
 
-            const firstMoneyIndex = moneyMatches[0].index ?? -1;
-            const lastMoney = moneyMatches[moneyMatches.length - 1];
-            const lastMoneyRaw = lastMoney[0];
-            const amount = parseBrlCurrency(lastMoneyRaw);
+            // Primeiro valor = valor da transação; último = saldo (ignorar)
+            const firstMoney = moneyMatches[0];
+            const firstMoneyRaw = firstMoney[0];
+            const firstMoneyIndex = firstMoney.index ?? -1;
+            const amount = parseBrlCurrency(firstMoneyRaw);
             if (!amount || !Number.isFinite(amount)) continue;
 
+            // Descrição fica entre a data e o primeiro valor monetário
             const description = seg
                 .slice(dateMatch[0].length, firstMoneyIndex)
                 .replace(/\s+/g, " ")
