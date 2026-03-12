@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useFinanceDashboard, type DashboardDateRange } from "@/modules/finance/presentation/hooks/useFinanceDashboard";
 import { useOperationalDashboard } from "@/modules/finance/presentation/hooks/useOperationalDashboard";
 import { useBankMovements } from "@/modules/finance/presentation/hooks/useBankMovements";
+import { useRevenueDashboard } from "@/modules/finance/presentation/hooks/useRevenueDashboard";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -103,6 +104,7 @@ const presets = [
 /* ── Tab config ─────────────────────────────────────────────── */
 const TABS = [
     { id: "financeiro", label: "Financeiro", icon: BarChart2 },
+    { id: "receitas", label: "Receitas", icon: TrendingUp },
     { id: "operacional", label: "Operacional", icon: Zap },
     { id: "bancos", label: "Bancos", icon: Building2 },
     { id: "config", label: "Config", icon: Settings2 },
@@ -329,6 +331,7 @@ export default function CompanyDashboard() {
     const { accountsBalance, receivablesSummary, payablesSummary, cashFlowData, dreSummary } = useFinanceDashboard(dateRange);
     const op = useOperationalDashboard(dateRange);
     const bank = useBankMovements(dateRange);
+    const rev = useRevenueDashboard(dateRange);
 
     const chartData = useMemo(
         () => (cashFlowData || []).map((d: any) => ({ ...d, despesas_neg: -(d.despesas || 0) })),
@@ -720,6 +723,167 @@ export default function CompanyDashboard() {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ══════════════════════════════════════════════ */}
+                {/* TAB: RECEITAS                                    */}
+                {/* ══════════════════════════════════════════════ */}
+                {activeTab === "receitas" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                        {/* KPIs row */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr",
+                            gap: 16,
+                        }}>
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                    <IconBadge icon={DollarSign} color={C.green} bg={C.greenSoft} size={18} />
+                                </div>
+                                <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>Receita Total</p>
+                                <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                    {fmt(rev.totalRevenue)}
+                                </p>
+                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{dateLabel}</p>
+                            </div>
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                    <IconBadge icon={ShoppingBag} color={C.blue} bg={C.blueLight} size={18} />
+                                </div>
+                                <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>Transacoes</p>
+                                <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                    {rev.totalTransactions}
+                                </p>
+                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>Vendas no periodo</p>
+                            </div>
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                    <IconBadge icon={Target} color={C.blue} bg={C.blueLight} size={18} />
+                                </div>
+                                <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>Ticket Medio</p>
+                                <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                    {fmt(rev.totalTransactions > 0 ? rev.totalRevenue / rev.totalTransactions : 0)}
+                                </p>
+                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>Por transacao</p>
+                            </div>
+                        </div>
+
+                        {/* Row: Vendas por Servico + Forma de Pagamento */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                            gap: 16,
+                        }}>
+                            {/* Vendas por Servico */}
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                                    <IconBadge icon={PieChart} color={C.blue} bg={C.blueLight} size={16} />
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Vendas por Servico</p>
+                                </div>
+                                {rev.revenueByService.length === 0 ? (
+                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhuma receita no periodo</p>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                                        {/* Header */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 70px", gap: 8, padding: "0 0 10px", borderBottom: `1px solid ${C.borderLight}` }}>
+                                            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Servico</span>
+                                            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em", textAlign: "right" }}>Valor</span>
+                                            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em", textAlign: "right" }}>%</span>
+                                        </div>
+                                        {rev.revenueByService.map((s, i) => {
+                                            const barColors = [C.blue, C.blueVivid, C.blueDark, C.green, "#8B5CF6", "#EC4899", "#F59E0B", "#14B8A6"];
+                                            const barColor = barColors[i % barColors.length];
+                                            return (
+                                                <div key={s.name} style={{ display: "grid", gridTemplateColumns: "1fr 100px 70px", gap: 8, alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${C.borderLight}` }}>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <p style={{ fontSize: 13, fontWeight: 500, color: C.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{s.name}</p>
+                                                        <div style={{ height: 4, borderRadius: 99, background: C.borderLight, marginTop: 6, maxWidth: 160 }}>
+                                                            <div style={{ height: 4, borderRadius: 99, background: barColor, width: `${s.percentage}%`, transition: "width 0.4s ease" }} />
+                                                        </div>
+                                                    </div>
+                                                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text1, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(s.total)}</span>
+                                                    <span style={{ fontSize: 12, fontWeight: 600, color: C.blue, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{s.percentage.toFixed(1)}%</span>
+                                                </div>
+                                            );
+                                        })}
+                                        {/* Total row */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 70px", gap: 8, padding: "14px 0 0" }}>
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text1 }}>TOTAL</span>
+                                            <span style={{ fontSize: 14, fontWeight: 800, color: C.green, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(rev.totalRevenue)}</span>
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text1, textAlign: "right" }}>100%</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Forma de Pagamento */}
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                                    <IconBadge icon={CreditCard} color={C.green} bg={C.greenSoft} size={16} />
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Forma de Pagamento</p>
+                                </div>
+                                {rev.revenueByPaymentMethod.length === 0 ? (
+                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                                        {/* Stacked bar overview */}
+                                        <div style={{ display: "flex", height: 10, borderRadius: 99, overflow: "hidden", marginBottom: 20 }}>
+                                            {rev.revenueByPaymentMethod.map((pm, i) => {
+                                                const pmColors = [C.green, C.blue, "#8B5CF6", "#F59E0B", "#EC4899", C.red, "#14B8A6", "#6366F1"];
+                                                return (
+                                                    <div
+                                                        key={pm.method}
+                                                        style={{
+                                                            width: `${pm.percentage}%`,
+                                                            background: pmColors[i % pmColors.length],
+                                                            transition: "width 0.4s ease",
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                        {/* Items */}
+                                        {rev.revenueByPaymentMethod.map((pm, i) => {
+                                            const pmColors = [C.green, C.blue, "#8B5CF6", "#F59E0B", "#EC4899", C.red, "#14B8A6", "#6366F1"];
+                                            const dotColor = pmColors[i % pmColors.length];
+                                            return (
+                                                <div key={pm.method} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${C.borderLight}` }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                        <div style={{ width: 10, height: 10, borderRadius: 99, background: dotColor, flexShrink: 0 }} />
+                                                        <div>
+                                                            <p style={{ fontSize: 13, fontWeight: 500, color: C.text1 }}>{pm.method}</p>
+                                                            <p style={{ fontSize: 11, color: C.textMuted }}>{pm.count} transacao{pm.count !== 1 ? "es" : ""}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ textAlign: "right" }}>
+                                                        <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, fontVariantNumeric: "tabular-nums" }}>{fmt(pm.total)}</p>
+                                                        <p style={{ fontSize: 11, fontWeight: 600, color: dotColor }}>{pm.percentage.toFixed(1)}%</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Revenue chart (bar) */}
+                        <div style={cardStyle}>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Receitas no Periodo</p>
+                            <div style={{ height: chartHeight }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData.filter((d: any) => d.receitas > 0)} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="30%">
+                                        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={C.borderLight} />
+                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} dy={8} />
+                                        <YAxis tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={40} />
+                                        <Tooltip formatter={(v: number) => [fmt(v), "Receita"]} contentStyle={tooltipStyle} cursor={{ fill: "rgba(34,197,94,0.04)" }} />
+                                        <Bar dataKey="receitas" name="Receitas" fill={C.green} radius={[6, 6, 0, 0]} maxBarSize={28} />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
                     </div>
