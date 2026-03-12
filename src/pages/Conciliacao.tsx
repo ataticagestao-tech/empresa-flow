@@ -27,6 +27,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconciliation.schema";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -67,6 +69,7 @@ export default function Conciliacao() {
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
+    const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { activeClient } = useAuth();
@@ -913,17 +916,46 @@ export default function Conciliacao() {
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
-                                                    <Select value={newEntry.category_id || "none"}
-                                                        onValueChange={(val) => setNewEntry({ ...newEntry, category_id: val === "none" ? "" : val })}>
-                                                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="none">-- Nenhuma --</SelectItem>
-                                                            {chartCategories?.filter((c: any) => c.type === createType)
-                                                                .map((c: any) => (
-                                                                    <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
-                                                                ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="outline" role="combobox" aria-expanded={categoryPopoverOpen}
+                                                                className="w-full justify-between font-normal text-sm h-10">
+                                                                {newEntry.category_id
+                                                                    ? (() => {
+                                                                        const cat = chartCategories?.find((c: any) => c.id === newEntry.category_id);
+                                                                        return cat ? `${cat.code} - ${cat.name}` : "Selecione...";
+                                                                    })()
+                                                                    : "Selecione..."}
+                                                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                                            <Command>
+                                                                <CommandInput placeholder="Buscar categoria..." />
+                                                                <CommandList>
+                                                                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        <CommandItem
+                                                                            value="nenhuma"
+                                                                            onSelect={() => { setNewEntry({ ...newEntry, category_id: "" }); setCategoryPopoverOpen(false); }}>
+                                                                            <Check className={`mr-2 h-4 w-4 ${!newEntry.category_id ? "opacity-100" : "opacity-0"}`} />
+                                                                            -- Nenhuma --
+                                                                        </CommandItem>
+                                                                        {chartCategories?.filter((c: any) => c.type === createType)
+                                                                            .map((c: any) => (
+                                                                                <CommandItem
+                                                                                    key={c.id}
+                                                                                    value={`${c.code} ${c.name}`}
+                                                                                    onSelect={() => { setNewEntry({ ...newEntry, category_id: c.id }); setCategoryPopoverOpen(false); }}>
+                                                                                    <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
+                                                                                    {c.code} - {c.name}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                     <CategorySuggestions suggestions={createSuggestions}
                                                         onSelect={(id) => setNewEntry({ ...newEntry, category_id: id })}
                                                         currentValue={newEntry.category_id} />
