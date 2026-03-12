@@ -182,7 +182,12 @@ export default function Conciliacao() {
             if (error) return [];
             return (data || []).map((c: any) => ({
                 id: c.id, code: c.code, name: c.name,
-                type: c.type || (c.account_type === 'expense' ? 'despesa' : c.account_type === 'revenue' ? 'receita' : c.account_type),
+                type: c.type || (
+                    ['expense', 'cost'].includes(c.account_type) ? 'despesa'
+                    : c.account_type === 'revenue' && c.account_nature === 'debit' ? 'despesa'
+                    : c.account_type === 'revenue' ? 'receita'
+                    : c.account_type
+                ),
                 account_type: c.account_type,
                 account_nature: c.account_nature,
                 is_analytical: c.is_analytic === true || c.is_analytical === true,
@@ -202,11 +207,20 @@ export default function Conciliacao() {
     const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
 
     // Synthetic (parent) groups for "criar categoria" — filtered by createType
+    // Despesa includes: expense, cost, and revenue-debit (deduções)
     const parentGroups = useMemo(() => {
         if (!allChartAccounts) return [];
-        const typeFilter = createType === "despesa" ? "expense" : "revenue";
+        if (createType === "despesa") {
+            return allChartAccounts.filter((c: any) =>
+                c.is_synthetic && (
+                    c.account_type === 'expense' ||
+                    c.account_type === 'cost' ||
+                    (c.account_type === 'revenue' && c.account_nature === 'debit')
+                )
+            );
+        }
         return allChartAccounts.filter((c: any) =>
-            c.is_synthetic && c.account_type === typeFilter
+            c.is_synthetic && c.account_type === 'revenue' && c.account_nature === 'credit'
         );
     }, [allChartAccounts, createType]);
 
