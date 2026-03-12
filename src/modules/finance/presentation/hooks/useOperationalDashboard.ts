@@ -83,7 +83,7 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
                 .from('accounts_receivable')
-                .select('amount, client:clients(name)')
+                .select('amount, client:clients(razao_social)')
                 .eq('company_id', selectedCompany.id)
                 .gte('due_date', rangeStart.toISOString())
                 .lte('due_date', rangeEnd.toISOString());
@@ -91,7 +91,7 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
 
             const byClient: Record<string, number> = {};
             data.forEach((r: any) => {
-                const name = r.client?.name || 'Sem cliente';
+                const name = r.client?.razao_social || 'Sem cliente';
                 byClient[name] = (byClient[name] || 0) + (r.amount || 0);
             });
 

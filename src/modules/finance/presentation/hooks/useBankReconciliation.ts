@@ -78,7 +78,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             // Buscar Contas a Pagar Pendentes
             const { data: payables, error: payError } = await (activeClient as any)
                 .from('accounts_payable')
-                .select('id, description, amount, due_date, status, suppliers(nome)') // Ajustar relation name se necessário
+                .select('id, description, amount, due_date, status, suppliers(razao_social)')
                 .eq('company_id', companyId)
                 .eq('status', 'pending');
 
@@ -104,7 +104,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     amount: p.amount, // Negativo? Não, vamos tratar como valor absoluto e usar type
                     date: p.due_date,
                     status: p.status,
-                    entity_name: p.suppliers?.nome || 'Fornecedor avulso',
+                    entity_name: p.suppliers?.razao_social || 'Fornecedor avulso',
                     original_table_id: p.id
                 });
             });

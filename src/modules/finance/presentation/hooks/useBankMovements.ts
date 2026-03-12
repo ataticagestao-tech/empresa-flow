@@ -8,9 +8,9 @@ import type { DashboardDateRange } from "./useFinanceDashboard";
 export interface BankAccount {
     id: string;
     name: string;
-    bank_name: string;
-    agency: string;
-    account_number: string;
+    banco: string;
+    agencia: string;
+    conta: string;
     current_balance: number;
     is_active: boolean;
 }
@@ -40,7 +40,7 @@ export function useBankMovements(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
                 .from("bank_accounts")
-                .select("id, name, bank_name, agency, account_number, current_balance, is_active")
+                .select("id, name, banco, agencia, conta, current_balance, is_active")
                 .eq("company_id", selectedCompany.id)
                 .order("name");
             if (error) throw error;
