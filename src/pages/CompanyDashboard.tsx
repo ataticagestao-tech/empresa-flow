@@ -9,7 +9,7 @@ import {
     Landmark, TrendingUp, TrendingDown, LineChart, DollarSign, Target,
     ShoppingBag, AlertTriangle, Users, PieChart, ArrowUpRight, ArrowDownRight,
     CalendarDays, BarChart2, Zap, Activity, Clock, Settings2, MoreHorizontal,
-    Building2, CreditCard, Wallet, ChevronDown, ChevronUp
+    Building2, CreditCard, Wallet, ChevronDown, ChevronUp, FileText
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -22,6 +22,7 @@ import { useFinanceDashboard, type DashboardDateRange } from "@/modules/finance/
 import { useOperationalDashboard } from "@/modules/finance/presentation/hooks/useOperationalDashboard";
 import { useBankMovements } from "@/modules/finance/presentation/hooks/useBankMovements";
 import { useRevenueDashboard } from "@/modules/finance/presentation/hooks/useRevenueDashboard";
+import { useDreDashboard } from "@/modules/finance/presentation/hooks/useDreDashboard";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -105,6 +106,7 @@ const presets = [
 const TABS = [
     { id: "financeiro", label: "Financeiro", icon: BarChart2 },
     { id: "receitas", label: "Receitas", icon: TrendingUp },
+    { id: "dre", label: "DRE", icon: FileText },
     { id: "operacional", label: "Operacional", icon: Zap },
     { id: "bancos", label: "Bancos", icon: Building2 },
     { id: "config", label: "Config", icon: Settings2 },
@@ -332,6 +334,7 @@ export default function CompanyDashboard() {
     const op = useOperationalDashboard(dateRange);
     const bank = useBankMovements(dateRange);
     const rev = useRevenueDashboard(dateRange);
+    const dre = useDreDashboard(dateRange);
 
     const chartData = useMemo(
         () => (cashFlowData || []).map((d: any) => ({ ...d, despesas_neg: -(d.despesas || 0) })),
@@ -885,6 +888,152 @@ export default function CompanyDashboard() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ══════════════════════════════════════════════ */}
+                {/* TAB: DRE                                         */}
+                {/* ══════════════════════════════════════════════ */}
+                {activeTab === "dre" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                        {/* DRE Header Card */}
+                        <div style={{ ...darkCardStyle, display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+                            <div>
+                                <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em" }}>Demonstracao do Resultado</p>
+                                <p style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>{dateLabel}</p>
+                            </div>
+                            <div style={{ textAlign: isMobile ? "left" : "right" }}>
+                                <p style={{ fontSize: 11, color: "#64748B" }}>Resultado Liquido</p>
+                                <p style={{
+                                    fontSize: isMobile ? 28 : 36, fontWeight: 800,
+                                    color: dre.grandTotal >= 0 ? C.green : C.red,
+                                    letterSpacing: "-0.03em", lineHeight: 1, fontVariantNumeric: "tabular-nums",
+                                }}>
+                                    {fmt(dre.grandTotal)}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* DRE Table */}
+                        <div style={cardStyle}>
+                            {dre.groups.length === 0 ? (
+                                <div style={{ textAlign: "center", padding: "48px 0" }}>
+                                    <FileText size={32} strokeWidth={1.5} color={C.textMuted} style={{ margin: "0 auto 12px" }} />
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Nenhuma transacao categorizada</p>
+                                    <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Categorize transacoes na conciliacao para visualizar o DRE.</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: "flex", flexDirection: "column" }}>
+                                    {/* Table header */}
+                                    <div style={{
+                                        display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
+                                        gap: 8, padding: "0 0 12px",
+                                        borderBottom: `2px solid ${C.border}`,
+                                    }}>
+                                        {!isMobile && <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Codigo</span>}
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Conta</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em", textAlign: "right" }}>Valor</span>
+                                        {!isMobile && <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em", textAlign: "right" }}>%</span>}
+                                    </div>
+
+                                    {dre.groups.map((group, gi) => {
+                                        const totalRevenue = dre.groups
+                                            .filter((g) => g.total > 0)
+                                            .reduce((s, g) => s + g.total, 0);
+                                        const groupPct = totalRevenue > 0 ? (Math.abs(group.total) / totalRevenue) * 100 : 0;
+
+                                        return (
+                                            <div key={group.name}>
+                                                {/* Group header row */}
+                                                <div style={{
+                                                    display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
+                                                    gap: 8, padding: "14px 0 8px",
+                                                    borderBottom: `1px solid ${C.borderLight}`,
+                                                    background: gi % 2 === 0 ? "transparent" : C.borderLight + "40",
+                                                }}>
+                                                    {!isMobile && <span />}
+                                                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>
+                                                        {group.name}
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: 14, fontWeight: 700, textAlign: "right", fontVariantNumeric: "tabular-nums",
+                                                        color: group.total >= 0 ? C.green : C.red,
+                                                    }}>
+                                                        {fmt(group.total)}
+                                                    </span>
+                                                    {!isMobile && (
+                                                        <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right", color: C.text2 }}>
+                                                            {groupPct.toFixed(1)}%
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Individual accounts */}
+                                                {group.accounts.map((acc) => {
+                                                    const accPct = totalRevenue > 0 ? (Math.abs(acc.total) / totalRevenue) * 100 : 0;
+                                                    return (
+                                                        <div
+                                                            key={acc.id}
+                                                            style={{
+                                                                display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
+                                                                gap: 8, padding: "10px 0",
+                                                                borderBottom: `1px solid ${C.borderLight}`,
+                                                            }}
+                                                        >
+                                                            {!isMobile && (
+                                                                <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
+                                                                    {acc.code}
+                                                                </span>
+                                                            )}
+                                                            <span style={{ fontSize: 13, color: C.text1, fontWeight: 400, paddingLeft: isMobile ? 12 : 8 }}>
+                                                                {isMobile && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 6 }}>{acc.code}</span>}
+                                                                {acc.name}
+                                                            </span>
+                                                            <span style={{
+                                                                fontSize: 13, fontWeight: 600, textAlign: "right", fontVariantNumeric: "tabular-nums",
+                                                                color: acc.total >= 0 ? C.green : C.red,
+                                                            }}>
+                                                                {fmt(acc.total)}
+                                                            </span>
+                                                            {!isMobile && (
+                                                                <span style={{ fontSize: 12, fontWeight: 500, textAlign: "right", color: C.textMuted }}>
+                                                                    {accPct.toFixed(1)}%
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Grand Total */}
+                                    <div style={{
+                                        display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
+                                        gap: 8, padding: "16px 0 4px",
+                                        borderTop: `2px solid ${C.border}`,
+                                        marginTop: 4,
+                                    }}>
+                                        {!isMobile && <span />}
+                                        <span style={{ fontSize: 14, fontWeight: 800, color: C.text1, textTransform: "uppercase" as const }}>
+                                            Resultado Liquido
+                                        </span>
+                                        <span style={{
+                                            fontSize: 18, fontWeight: 800, textAlign: "right", fontVariantNumeric: "tabular-nums",
+                                            color: dre.grandTotal >= 0 ? C.green : C.red,
+                                        }}>
+                                            {fmt(dre.grandTotal)}
+                                        </span>
+                                        {!isMobile && (
+                                            <span style={{ fontSize: 13, fontWeight: 700, textAlign: "right", color: C.text1 }}>
+                                                100%
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
