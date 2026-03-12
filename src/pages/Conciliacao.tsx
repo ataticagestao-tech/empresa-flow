@@ -105,7 +105,7 @@ export default function Conciliacao() {
                                 <SelectContent>
                                     {accounts.map(acc => (
                                         <SelectItem key={acc.id} value={acc.id || ""}>
-                                            {acc.name} - {acc.bank_name}
+                                            {acc.name} - {acc.banco}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

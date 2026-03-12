@@ -19,16 +19,16 @@ export default function ContasBancarias() {
     // Form State simples para criação
     const [newAccount, setNewAccount] = useState({
         name: "",
-        bank_name: "",
+        banco: "",
         initial_balance: 0,
-        agency: "",
-        account_number: ""
+        agencia: "",
+        conta: ""
     });
 
     const handleCreate = async () => {
         await createAccount(newAccount);
         setIsDialogOpen(false);
-        setNewAccount({ name: "", bank_name: "", initial_balance: 0, agency: "", account_number: "" });
+        setNewAccount({ name: "", banco: "", initial_balance: 0, agencia: "", conta: "" });
     };
 
     return (
@@ -66,8 +66,8 @@ export default function ContasBancarias() {
                                     <Label>Instituição Financeira</Label>
                                     <Input
                                         placeholder="Ex: Itaú"
-                                        value={newAccount.bank_name}
-                                        onChange={e => setNewAccount({ ...newAccount, bank_name: e.target.value })}
+                                        value={newAccount.banco}
+                                        onChange={e => setNewAccount({ ...newAccount, banco: e.target.value })}
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -75,16 +75,16 @@ export default function ContasBancarias() {
                                         <Label>Agência</Label>
                                         <Input
                                             placeholder="0000"
-                                            value={newAccount.agency}
-                                            onChange={e => setNewAccount({ ...newAccount, agency: e.target.value })}
+                                            value={newAccount.agencia}
+                                            onChange={e => setNewAccount({ ...newAccount, agencia: e.target.value })}
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Número da Conta</Label>
                                         <Input
                                             placeholder="00000-0"
-                                            value={newAccount.account_number}
-                                            onChange={e => setNewAccount({ ...newAccount, account_number: e.target.value })}
+                                            value={newAccount.conta}
+                                            onChange={e => setNewAccount({ ...newAccount, conta: e.target.value })}
                                         />
                                     </div>
                                 </div>
@@ -134,7 +134,7 @@ export default function ContasBancarias() {
                                             {account.name}
                                         </CardTitle>
                                         <CardDescription className="font-medium text-muted-foreground">
-                                            {account.bank_name} • Ag: {account.agency || '-'} CC: {account.account_number || '-'}
+                                            {account.banco} • Ag: {account.agencia || '-'} CC: {account.conta || '-'}
                                         </CardDescription>
                                     </div>
                                     <DropdownMenu>

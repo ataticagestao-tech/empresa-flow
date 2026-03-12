@@ -139,8 +139,8 @@ function IconBadge({ icon: Icon, color = C.blue, bg = C.blueLight, size = 16 }: 
 /* ── Bank Account Card (expandable) ─────────────────────────── */
 function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
     account: {
-        id: string; name: string; bank_name: string; agency: string;
-        account_number: string; current_balance: number; is_active: boolean;
+        id: string; name: string; banco: string; agencia: string;
+        conta: string; current_balance: number; is_active: boolean;
         totalIn: number; totalOut: number; net: number; movementCount: number;
         movements: { id: string; date: string; amount: number; description: string; type: string }[];
     };
@@ -176,7 +176,7 @@ function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
                     <div>
                         <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{account.name}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>
-                            {account.bank_name}{account.agency ? ` - Ag ${account.agency}` : ""}{account.account_number ? ` / CC ${account.account_number}` : ""}
+                            {account.banco}{account.agencia ? ` - Ag ${account.agencia}` : ""}{account.conta ? ` / CC ${account.conta}` : ""}
                         </p>
                     </div>
                 </div>

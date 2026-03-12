@@ -17,14 +17,14 @@ export default function BankAccountsPage() {
     // Form State simples para criação
     const [newAccount, setNewAccount] = useState({
         name: "",
-        bank_name: "",
+        banco: "",
         initial_balance: 0
     });
 
     const handleCreate = async () => {
         await createAccount(newAccount);
         setIsDialogOpen(false);
-        setNewAccount({ name: "", bank_name: "", initial_balance: 0 });
+        setNewAccount({ name: "", banco: "", initial_balance: 0 });
     };
 
     return (
@@ -57,8 +57,8 @@ export default function BankAccountsPage() {
                                 <Label>Instituição Financeira</Label>
                                 <Input
                                     placeholder="Ex: Itaú"
-                                    value={newAccount.bank_name}
-                                    onChange={e => setNewAccount({ ...newAccount, bank_name: e.target.value })}
+                                    value={newAccount.banco}
+                                    onChange={e => setNewAccount({ ...newAccount, banco: e.target.value })}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -102,7 +102,7 @@ export default function BankAccountsPage() {
                                 <Wallet className="mr-2 h-5 w-5 text-emerald-600" />
                                 {account.name}
                             </CardTitle>
-                            <CardDescription>{account.bank_name}</CardDescription>
+                            <CardDescription>{account.banco}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="mt-2">
