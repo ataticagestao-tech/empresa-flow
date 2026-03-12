@@ -18,7 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import {
     Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
-    Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles
+    Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
+    DollarSign, Clock, Bot
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,30 @@ export default function Conciliacao() {
     } = useConciliationEngine(selectedAccountId, bankTransactions, systemTransactions);
 
     const { seedDefaultRules, rulesCount: defaultRulesCount } = useDefaultConciliationRules();
+
+    // Faturamento conciliado vs a conciliar
+    const { data: reconciledTx } = useQuery({
+        queryKey: ["reconciled_transactions", selectedAccountId],
+        queryFn: async () => {
+            if (!selectedAccountId) return [];
+            const { data, error } = await (activeClient as any)
+                .from("bank_transactions")
+                .select("id, amount, status")
+                .eq("bank_account_id", selectedAccountId)
+                .eq("status", "reconciled");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedAccountId,
+    });
+
+    const billingStats = useMemo(() => {
+        const conciliado = (reconciledTx || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
+        const aConciliar = (bankTransactions || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
+        const withAiSupport = suggestions.filter(s => s.score > 0).length;
+        const aiPercent = suggestions.length > 0 ? Math.round((withAiSupport / suggestions.length) * 100) : 0;
+        return { conciliado, aConciliar, withAiSupport, aiPercent, totalPending: suggestions.length };
+    }, [reconciledTx, bankTransactions, suggestions]);
 
     // Build lookup: bankTxId -> suggestion
     const suggestionMap = useMemo(() => {
@@ -473,6 +498,64 @@ export default function Conciliacao() {
                                 </CardContent>
                             )}
                         </Card>
+
+                        {/* Faturamento Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Card className="border-[#E2E8F0]">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento Conciliado</p>
+                                            <p className="text-2xl font-bold text-emerald-600 mt-1">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.conciliado)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {reconciledTx?.length || 0} transações reconciliadas
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                            <DollarSign className="h-6 w-6 text-emerald-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-[#E2E8F0]">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento a Conciliar</p>
+                                            <p className="text-2xl font-bold text-amber-600 mt-1">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.aConciliar)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {billingStats.totalPending} transações pendentes
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                                            <Clock className="h-6 w-6 text-amber-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-[#E2E8F0]">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suporte IA</p>
+                                            <p className="text-2xl font-bold text-purple-600 mt-1">
+                                                {billingStats.aiPercent}%
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {billingStats.withAiSupport} de {billingStats.totalPending} com sugestão automática
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                                            <Bot className="h-6 w-6 text-purple-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
 
                         {/* Score Summary Cards */}
                         {scoreSummary.total > 0 && (
