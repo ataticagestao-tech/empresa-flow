@@ -337,10 +337,91 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         onError: (err: any) => toast({ title: "Erro na conciliação", description: err.message, variant: "destructive" })
     });
 
+    // Query: Histórico de importações com período
+    const { data: importHistory } = useQuery({
+        queryKey: ['import_history', bankAccountId],
+        queryFn: async () => {
+            if (!bankAccountId) return [];
+
+            // Buscar todas as transações (não só pendentes) para calcular períodos
+            const { data: allTx, error: txError } = await (activeClient as any)
+                .from('bank_transactions')
+                .select('id, date, statement_file_id, source, created_at')
+                .eq('bank_account_id', bankAccountId)
+                .order('created_at', { ascending: false });
+
+            if (txError) throw txError;
+
+            // Agrupar por statement_file_id (PDF) ou por lote de OFX (mesmo created_at aprox)
+            const groups = new Map<string, {
+                key: string;
+                source: string;
+                file_name?: string;
+                imported_at: string;
+                min_date: string;
+                max_date: string;
+                count: number;
+                statement_file_id?: string;
+            }>();
+
+            for (const tx of (allTx || [])) {
+                let groupKey: string;
+
+                if (tx.statement_file_id) {
+                    groupKey = tx.statement_file_id;
+                } else {
+                    // Para OFX sem statement_file_id, agrupar por data de criação (truncada ao minuto)
+                    const createdMinute = tx.created_at?.substring(0, 16) || 'unknown';
+                    groupKey = `ofx_${createdMinute}`;
+                }
+
+                const existing = groups.get(groupKey);
+                if (existing) {
+                    existing.count++;
+                    if (tx.date < existing.min_date) existing.min_date = tx.date;
+                    if (tx.date > existing.max_date) existing.max_date = tx.date;
+                } else {
+                    groups.set(groupKey, {
+                        key: groupKey,
+                        source: tx.source || 'ofx',
+                        imported_at: tx.created_at,
+                        min_date: tx.date,
+                        max_date: tx.date,
+                        count: 1,
+                        statement_file_id: tx.statement_file_id || undefined,
+                    });
+                }
+            }
+
+            // Enriquecer com dados do statement_files (nome do arquivo, etc)
+            const result = Array.from(groups.values());
+
+            if (statementFiles) {
+                const fileMap = new Map(statementFiles.map((f: any) => [f.id, f]));
+                for (const item of result) {
+                    if (item.statement_file_id) {
+                        const file = fileMap.get(item.statement_file_id) as any;
+                        if (file) {
+                            item.file_name = file.file_name;
+                            item.imported_at = file.created_at;
+                        }
+                    }
+                }
+            }
+
+            // Ordenar por data de importação (mais recente primeiro)
+            result.sort((a, b) => new Date(b.imported_at).getTime() - new Date(a.imported_at).getTime());
+
+            return result;
+        },
+        enabled: !!bankAccountId,
+    });
+
     return {
         bankTransactions,
         statementFiles,
         systemTransactions,
+        importHistory,
         isLoading: isLoadingBankTx || isLoadingSystemTx,
         uploadOFX,
         uploadPDF,

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Check, AlertCircle, RefreshCw, ArrowLeft, Search, Filter } from "lucide-react";
+import { Upload, Check, AlertCircle, RefreshCw, ArrowLeft, Search, Filter, FileText, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,6 +36,7 @@ export default function Conciliacao() {
     const {
         bankTransactions,
         systemTransactions,
+        importHistory,
         isLoading,
         uploadOFX,
         matchTransaction
@@ -44,6 +45,7 @@ export default function Conciliacao() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedBankTx, setSelectedBankTx] = useState<BankTransaction | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [showImportHistory, setShowImportHistory] = useState(true);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -149,6 +151,79 @@ export default function Conciliacao() {
                     </div>
                 ) : (
                     <div className="grid gap-6">
+
+                        {/* Painel de Histórico de Importações */}
+                        <Card className="border-[#E2E8F0]">
+                            <CardHeader className="pb-3">
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowImportHistory(!showImportHistory)}>
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <FileText className="h-5 w-5 text-primary" />
+                                        Histórico de Importações
+                                        <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9] ml-2">
+                                            {importHistory?.length || 0}
+                                        </Badge>
+                                    </CardTitle>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                        {showImportHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                                <CardDescription>
+                                    Quando cada importação foi realizada e o período das transações.
+                                </CardDescription>
+                            </CardHeader>
+                            {showImportHistory && (
+                                <CardContent className="pt-0">
+                                    {!importHistory?.length ? (
+                                        <div className="text-center py-6 text-muted-foreground text-sm">
+                                            Nenhuma importação registrada para esta conta.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {importHistory.map((imp) => (
+                                                <div
+                                                    key={imp.key}
+                                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-white transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${imp.source === 'pdf' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                            <FileText className="h-4 w-4" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-foreground">
+                                                                {imp.file_name || `Importação ${imp.source.toUpperCase()}`}
+                                                            </p>
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <Calendar className="h-3 w-3" />
+                                                                Importado em {format(parseISO(imp.imported_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 sm:gap-4 ml-12 sm:ml-0">
+                                                        <div className="text-right">
+                                                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Período</p>
+                                                            <p className="text-sm font-medium text-foreground">
+                                                                {format(parseISO(imp.min_date), 'dd/MM/yy')} — {format(parseISO(imp.max_date), 'dd/MM/yy')}
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Transações</p>
+                                                            <p className="text-sm font-bold text-foreground">{imp.count}</p>
+                                                        </div>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`text-[10px] uppercase font-semibold ${imp.source === 'pdf' ? 'border-red-200 text-red-600 bg-red-50' : 'border-blue-200 text-blue-600 bg-blue-50'}`}
+                                                        >
+                                                            {imp.source}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            )}
+                        </Card>
+
                         <Card className="border-[#E2E8F0]">
                             <CardHeader>
                                 <CardTitle className="flex justify-between items-center">
