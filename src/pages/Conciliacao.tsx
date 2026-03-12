@@ -35,6 +35,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategorySuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
+import { useAiRecategorization } from "@/modules/finance/presentation/hooks/useAiRecategorization";
 
 function ScoreBadge({ score }: { score: number }) {
     if (score >= 85) return (
@@ -324,6 +325,9 @@ export default function Conciliacao() {
     const { suggestions: createSuggestions } = useCategorySuggestion(
         createDescription, chartCategories || [], createType as "receita" | "despesa"
     );
+
+    // AI recategorization for reconciled batches
+    const aiRecat = useAiRecategorization(chartCategories || []);
 
     // ============================================================
     // HANDLERS
@@ -816,85 +820,158 @@ export default function Conciliacao() {
                                                                     Carregando transações...
                                                                 </div>
                                                             ) : (
-                                                                <Table>
-                                                                    <TableHeader>
-                                                                        <TableRow>
-                                                                            <TableHead className="text-xs">Data</TableHead>
-                                                                            <TableHead className="text-xs">Descrição</TableHead>
-                                                                            <TableHead className="text-xs text-right">Valor</TableHead>
-                                                                            <TableHead className="text-xs">Status</TableHead>
-                                                                            <TableHead className="text-xs">Categoria</TableHead>
-                                                                            <TableHead className="text-xs w-[60px]"></TableHead>
-                                                                        </TableRow>
-                                                                    </TableHeader>
-                                                                    <TableBody>
-                                                                        {expandedBatchTx.map((tx: any) => {
-                                                                            const catAccount = chartCategories?.find((c: any) => c.id === tx.category_id);
-                                                                            const isEditingThis = editingCategoryTxId === tx.id;
-                                                                            const isReconciled = tx.status === "reconciled";
-                                                                            return (
-                                                                                <TableRow key={tx.id}>
-                                                                                    <TableCell className="text-xs whitespace-nowrap">
-                                                                                        {tx.date ? format(parseISO(tx.date), "dd/MM/yy") : "—"}
-                                                                                    </TableCell>
-                                                                                    <TableCell className="text-xs max-w-[200px] truncate" title={tx.description}>
-                                                                                        {tx.description || tx.memo || "—"}
-                                                                                    </TableCell>
-                                                                                    <TableCell className={`text-xs text-right font-medium whitespace-nowrap ${Number(tx.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                                                                        {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                                                                    </TableCell>
-                                                                                    <TableCell>
-                                                                                        <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
-                                                                                            {isReconciled ? "Conciliado" : "Pendente"}
-                                                                                        </Badge>
-                                                                                    </TableCell>
-                                                                                    <TableCell className="text-xs">
-                                                                                        {isEditingThis ? (
-                                                                                            <Select
-                                                                                                value={tx.category_id || ""}
-                                                                                                onValueChange={(val) => {
-                                                                                                    if (tx.linked_table && tx.linked_id) {
-                                                                                                        updateLinkedCategory(tx.linked_table, tx.linked_id, val);
-                                                                                                    }
-                                                                                                }}
-                                                                                            >
-                                                                                                <SelectTrigger className="h-7 text-xs w-[180px]">
-                                                                                                    <SelectValue placeholder="Selecione..." />
-                                                                                                </SelectTrigger>
-                                                                                                <SelectContent>
-                                                                                                    <ScrollArea className="h-[200px]">
-                                                                                                        {(chartCategories || []).map((cat: any) => (
-                                                                                                            <SelectItem key={cat.id} value={cat.id} className="text-xs">
-                                                                                                                {cat.code} — {cat.name}
-                                                                                                            </SelectItem>
-                                                                                                        ))}
-                                                                                                    </ScrollArea>
-                                                                                                </SelectContent>
-                                                                                            </Select>
-                                                                                        ) : (
-                                                                                            <span className="text-muted-foreground">
-                                                                                                {catAccount ? `${catAccount.code} — ${catAccount.name}` : "Sem categoria"}
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </TableCell>
-                                                                                    <TableCell>
-                                                                                        {isReconciled && tx.linked_id && (
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="sm"
-                                                                                                className="h-7 w-7 p-0"
-                                                                                                onClick={() => setEditingCategoryTxId(isEditingThis ? null : tx.id)}
-                                                                                                title="Editar categoria"
-                                                                                            >
-                                                                                                <BookOpen className="h-3.5 w-3.5" />
-                                                                                            </Button>
-                                                                                        )}
-                                                                                    </TableCell>
-                                                                                </TableRow>
-                                                                            );
-                                                                        })}
-                                                                    </TableBody>
-                                                                </Table>
+                                                                <>
+                                                                    {/* Batch-level AI button */}
+                                                                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAFBFC] border-b border-[#E2E8F0]">
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {expandedBatchTx.filter((t: any) => t.status === "reconciled").length} transações conciliadas
+                                                                        </span>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            className="h-7 text-xs gap-1.5 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700 hover:from-amber-100 hover:to-orange-100 hover:border-amber-300"
+                                                                            onClick={() => aiRecat.suggestForBatch(expandedBatchTx)}
+                                                                            disabled={aiRecat.processing}
+                                                                        >
+                                                                            <Bot className="h-3.5 w-3.5" />
+                                                                            {aiRecat.processing ? "Analisando..." : "Recategorizar com IA"}
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    <Table>
+                                                                        <TableHeader>
+                                                                            <TableRow>
+                                                                                <TableHead className="text-xs">Data</TableHead>
+                                                                                <TableHead className="text-xs">Descrição</TableHead>
+                                                                                <TableHead className="text-xs text-right">Valor</TableHead>
+                                                                                <TableHead className="text-xs">Status</TableHead>
+                                                                                <TableHead className="text-xs">Categoria</TableHead>
+                                                                                <TableHead className="text-xs w-[80px]"></TableHead>
+                                                                            </TableRow>
+                                                                        </TableHeader>
+                                                                        <TableBody>
+                                                                            {expandedBatchTx.map((tx: any) => {
+                                                                                const catAccount = chartCategories?.find((c: any) => c.id === tx.category_id);
+                                                                                const isEditingThis = editingCategoryTxId === tx.id;
+                                                                                const isReconciled = tx.status === "reconciled";
+                                                                                const aiResult = aiRecat.results[tx.id];
+                                                                                return (
+                                                                                    <TableRow key={tx.id} className="group">
+                                                                                        <TableCell className="text-xs whitespace-nowrap">
+                                                                                            {tx.date ? format(parseISO(tx.date), "dd/MM/yy") : "—"}
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs max-w-[200px]">
+                                                                                            <div className="truncate" title={tx.description}>
+                                                                                                {tx.description || tx.memo || "—"}
+                                                                                            </div>
+                                                                                            {/* AI suggestions inline */}
+                                                                                            {aiResult && aiResult.suggestions.length > 0 && (
+                                                                                                <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                                                                                                    <span className="flex items-center gap-0.5 text-[9px] font-semibold text-amber-600 uppercase tracking-wider">
+                                                                                                        <Sparkles className="h-2.5 w-2.5" />
+                                                                                                        IA:
+                                                                                                    </span>
+                                                                                                    {aiResult.suggestions.map((s) => (
+                                                                                                        <Badge
+                                                                                                            key={s.account.id}
+                                                                                                            variant="outline"
+                                                                                                            className={`cursor-pointer text-[10px] font-medium transition-all hover:scale-105 ${
+                                                                                                                tx.category_id === s.account.id
+                                                                                                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                                                                                                    : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                                                                                                            }`}
+                                                                                                            title={`${s.reason} (score: ${s.score})`}
+                                                                                                            onClick={() => {
+                                                                                                                if (tx.linked_table && tx.linked_id) {
+                                                                                                                    updateLinkedCategory(tx.linked_table, tx.linked_id, s.account.id);
+                                                                                                                }
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            {s.account.code} {s.account.name}
+                                                                                                        </Badge>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </TableCell>
+                                                                                        <TableCell className={`text-xs text-right font-medium whitespace-nowrap ${Number(tx.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                                            {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                                        </TableCell>
+                                                                                        <TableCell>
+                                                                                            <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
+                                                                                                {isReconciled ? "Conciliado" : "Pendente"}
+                                                                                            </Badge>
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs">
+                                                                                            {isEditingThis ? (
+                                                                                                <Select
+                                                                                                    value={tx.category_id || ""}
+                                                                                                    onValueChange={(val) => {
+                                                                                                        if (tx.linked_table && tx.linked_id) {
+                                                                                                            updateLinkedCategory(tx.linked_table, tx.linked_id, val);
+                                                                                                        }
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <SelectTrigger className="h-7 text-xs w-[180px]">
+                                                                                                        <SelectValue placeholder="Selecione..." />
+                                                                                                    </SelectTrigger>
+                                                                                                    <SelectContent>
+                                                                                                        <ScrollArea className="h-[200px]">
+                                                                                                            {(chartCategories || []).map((cat: any) => (
+                                                                                                                <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                                                                                                                    {cat.code} — {cat.name}
+                                                                                                                </SelectItem>
+                                                                                                            ))}
+                                                                                                        </ScrollArea>
+                                                                                                    </SelectContent>
+                                                                                                </Select>
+                                                                                            ) : (
+                                                                                                <span className="text-muted-foreground">
+                                                                                                    {catAccount ? `${catAccount.code} — ${catAccount.name}` : "Sem categoria"}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </TableCell>
+                                                                                        <TableCell>
+                                                                                            <div className="flex items-center gap-1">
+                                                                                                {isReconciled && tx.linked_id && (
+                                                                                                    <>
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="sm"
+                                                                                                            className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                                                                            onClick={() => {
+                                                                                                                aiRecat.suggestForBatch([{
+                                                                                                                    id: tx.id,
+                                                                                                                    description: tx.description || tx.memo || "",
+                                                                                                                    amount: Number(tx.amount),
+                                                                                                                    date: tx.date,
+                                                                                                                    linked_table: tx.linked_table,
+                                                                                                                    linked_id: tx.linked_id,
+                                                                                                                    status: tx.status,
+                                                                                                                }]);
+                                                                                                            }}
+                                                                                                            title="Sugerir categoria com IA"
+                                                                                                        >
+                                                                                                            <Bot className="h-3.5 w-3.5" />
+                                                                                                        </Button>
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="sm"
+                                                                                                            className="h-7 w-7 p-0"
+                                                                                                            onClick={() => setEditingCategoryTxId(isEditingThis ? null : tx.id)}
+                                                                                                            title="Editar categoria manualmente"
+                                                                                                        >
+                                                                                                            <BookOpen className="h-3.5 w-3.5" />
+                                                                                                        </Button>
+                                                                                                    </>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </TableCell>
+                                                                                    </TableRow>
+                                                                                );
+                                                                            })}
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                </>
                                                             )}
                                                         </div>
                                                     )}
