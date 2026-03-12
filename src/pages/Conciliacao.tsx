@@ -1,8 +1,9 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { useBankReconciliation, SystemTransaction } from "@/modules/finance/presentation/hooks/useBankReconciliation";
+import { useConciliationEngine, MatchSuggestion } from "@/modules/finance/presentation/hooks/useConciliationEngine";
 import { useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,31 +14,67 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Check, AlertCircle, RefreshCw, ArrowLeft, Search, Filter, FileText, Calendar, ChevronDown, ChevronUp, Plus, Sparkles } from "lucide-react";
+import {
+    Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
+    Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
+    Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconciliation.schema";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCategorySuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
+
+function ScoreBadge({ score }: { score: number }) {
+    if (score >= 85) return (
+        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1">
+            <Zap className="h-3 w-3" /> {score}%
+        </Badge>
+    );
+    if (score >= 50) return (
+        <Badge className="bg-amber-100 text-amber-700 border-amber-200 gap-1">
+            <Eye className="h-3 w-3" /> {score}%
+        </Badge>
+    );
+    if (score > 0) return (
+        <Badge className="bg-slate-100 text-slate-500 border-slate-200 gap-1">
+            <HelpCircle className="h-3 w-3" /> {score}%
+        </Badge>
+    );
+    return null;
+}
 
 export default function Conciliacao() {
     const [searchParams, setSearchParams] = useSearchParams();
     const accountIdFromUrl = searchParams.get("conta") || "";
-
-    // Se não tiver conta na URL, usa estado local para o dropdown
     const [selectedAccountId, setSelectedAccountId] = useState(accountIdFromUrl);
+    const [selectedBankTx, setSelectedBankTx] = useState<BankTransaction | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showImportHistory, setShowImportHistory] = useState(false);
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [showRulesPanel, setShowRulesPanel] = useState(false);
+    const [newEntry, setNewEntry] = useState({ description: "", category_id: "" });
+    const [isCreating, setIsCreating] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Sincroniza URL se mudar no state
+    const { activeClient } = useAuth();
+    const { selectedCompany } = useCompany();
+    const { toast } = useToast();
+
     const handleAccountChange = (val: string) => {
         setSelectedAccountId(val);
         setSearchParams({ conta: val });
+        setSelectedIds(new Set());
     };
 
     const { accounts } = useBankAccounts();
@@ -45,27 +82,42 @@ export default function Conciliacao() {
         bankTransactions,
         systemTransactions,
         importHistory,
-        isLoading,
         uploadOFX,
         matchTransaction
     } = useBankReconciliation(selectedAccountId);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [selectedBankTx, setSelectedBankTx] = useState<BankTransaction | null>(null);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [showImportHistory, setShowImportHistory] = useState(true);
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const [newEntry, setNewEntry] = useState({ description: "", category_id: "" });
-    const [isCreating, setIsCreating] = useState(false);
+    const {
+        suggestions,
+        rules,
+        scoreSummary,
+        learnRule,
+        createRule,
+        deleteRule,
+    } = useConciliationEngine(selectedAccountId, bankTransactions, systemTransactions);
 
-    const { activeClient } = useAuth();
-    const { selectedCompany } = useCompany();
-    const { toast } = useToast();
-    const queryClient = useQueryClient();
+    // Build lookup: bankTxId -> suggestion
+    const suggestionMap = useMemo(() => {
+        const map = new Map<string, MatchSuggestion>();
+        suggestions.forEach(s => map.set(s.bankTransaction.id, s));
+        return map;
+    }, [suggestions]);
 
-    // Categorias para IA sugestiva no formulário de criação
-    // Nota: DB pode ter 'type' ou 'account_type', 'is_analytic' ou 'is_analytical'
-    // Busca tudo e filtra no JS para evitar 400 por colunas inexistentes
+    // Filtered by score bucket
+    const filteredBankTransactions = useMemo(() => {
+        if (!bankTransactions) return [];
+        if (scoreFilter === "all") return bankTransactions;
+
+        return bankTransactions.filter(bt => {
+            const s = suggestionMap.get(bt.id);
+            if (!s) return scoreFilter === "review";
+            if (scoreFilter === "auto") return s.score >= 85;
+            if (scoreFilter === "suggested") return s.score >= 50 && s.score < 85;
+            if (scoreFilter === "review") return s.score < 50;
+            return true;
+        });
+    }, [bankTransactions, scoreFilter, suggestionMap]);
+
+    // Categories for create form
     const { data: chartCategories } = useQuery({
         queryKey: ["chart_of_accounts_all", selectedCompany?.id],
         queryFn: async () => {
@@ -75,38 +127,40 @@ export default function Conciliacao() {
                 .select("*")
                 .eq("company_id", selectedCompany.id)
                 .order("code");
-
-            if (error) {
-                console.error("Erro ao buscar plano de contas:", error);
-                return [];
-            }
-
-            // Normalizar: aceitar tanto 'type' quanto 'account_type'
+            if (error) return [];
             return (data || [])
                 .filter((c: any) => c.is_analytic === true || c.is_analytical === true)
                 .map((c: any) => ({
-                    id: c.id,
-                    code: c.code,
-                    name: c.name,
+                    id: c.id, code: c.code, name: c.name,
                     type: c.type || (c.account_type === 'expense' ? 'despesa' : c.account_type === 'revenue' ? 'receita' : c.account_type),
                 }));
         },
         enabled: !!selectedCompany?.id
     });
 
-    // IA sugestiva: determina tipo pela transação bancária selecionada
     const createDescription = showCreateForm ? (newEntry.description || selectedBankTx?.description || "") : "";
     const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
     const { suggestions: createSuggestions } = useCategorySuggestion(
-        createDescription,
-        chartCategories || [],
-        createType as "receita" | "despesa"
+        createDescription, chartCategories || [], createType as "receita" | "despesa"
     );
 
-    // Criar novo lançamento e conciliar
+    // ============================================================
+    // HANDLERS
+    // ============================================================
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadOFX.mutate(file);
+    };
+
+    const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
+        matchTransaction.mutate({ bankTx: bt, sysTx });
+        // MEMORIZAÇÃO IMEDIATA: aprender regra
+        learnRule.mutate({ bankTx: bt, sysTx });
+    };
+
     const handleCreateAndReconcile = async () => {
         if (!selectedBankTx || !selectedCompany?.id) return;
-
         const isExpense = selectedBankTx.amount < 0;
         const table = isExpense ? "accounts_payable" : "accounts_receivable";
         const description = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
@@ -114,11 +168,9 @@ export default function Conciliacao() {
 
         setIsCreating(true);
         try {
-            // 1. Criar o lançamento
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
-                description,
-                amount,
+                description, amount,
                 due_date: selectedBankTx.date,
                 status: "pending",
             };
@@ -127,14 +179,10 @@ export default function Conciliacao() {
             }
 
             const { data: created, error: createError } = await (activeClient as any)
-                .from(table)
-                .insert(payload)
-                .select("id, description, amount, due_date, status")
-                .single();
-
+                .from(table).insert(payload)
+                .select("id, description, amount, due_date, status").single();
             if (createError) throw createError;
 
-            // 2. Conciliar com a transação bancária
             const sysTx: SystemTransaction = {
                 id: created.id,
                 type: isExpense ? "payable" : "receivable",
@@ -147,12 +195,13 @@ export default function Conciliacao() {
             };
 
             matchTransaction.mutate({ bankTx: selectedBankTx, sysTx });
+            // MEMORIZAÇÃO IMEDIATA
+            learnRule.mutate({ bankTx: selectedBankTx, sysTx });
 
             toast({ title: "Sucesso", description: `${isExpense ? "Despesa" : "Receita"} criada e conciliada!` });
             setSelectedBankTx(null);
             setShowCreateForm(false);
             setNewEntry({ description: "", category_id: "" });
-
         } catch (err: any) {
             toast({ title: "Erro", description: err.message, variant: "destructive" });
         } finally {
@@ -160,56 +209,85 @@ export default function Conciliacao() {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) uploadOFX.mutate(file);
-    };
+    // Batch approval: conciliar todos selecionados com score >= 85
+    const handleBatchApprove = async () => {
+        const toApprove = Array.from(selectedIds)
+            .map(id => suggestionMap.get(id))
+            .filter((s): s is MatchSuggestion => !!s && !!s.systemTransaction && s.score >= 85);
 
-    // Helper: Encontra sugestões
-    const getSuggestions = (bt: BankTransaction) => {
-        if (!systemTransactions) return [];
-        return systemTransactions.filter(st => {
-            // Regra 1: Valor exato
-            // OFX: Débito é negativo (ex: -100). Contas a Pagar é positivo (100).
-            // OFX: Crédito é positivo (ex: 100). Contas a Receber é positivo (100).
+        if (toApprove.length === 0) {
+            toast({ title: "Nenhum item elegível", description: "Só é possível aprovar sugestões com confiança >= 85%.", variant: "destructive" });
+            return;
+        }
 
-            let amountMatch = false;
+        let success = 0;
+        let failed = 0;
 
-            if (st.type === 'payable') {
-                // Pagamento: BT deve ser negativo e o valor absoluto igual
-                amountMatch = (bt.amount < 0) && (Math.abs(bt.amount) === Number(st.amount));
-            } else {
-                // Recebimento: BT positivo e valor igual
-                amountMatch = (bt.amount > 0) && (Math.abs(bt.amount) === Number(st.amount));
+        for (const suggestion of toApprove) {
+            try {
+                await matchTransaction.mutateAsync({
+                    bankTx: suggestion.bankTransaction,
+                    sysTx: suggestion.systemTransaction!,
+                });
+                // Aprender regra
+                learnRule.mutate({
+                    bankTx: suggestion.bankTransaction,
+                    sysTx: suggestion.systemTransaction!,
+                });
+                success++;
+            } catch {
+                failed++;
             }
+        }
 
-            return amountMatch;
+        setSelectedIds(new Set());
+        toast({
+            title: "Aprovação em lote",
+            description: `${success} conciliado(s)${failed > 0 ? `, ${failed} falha(s)` : ""}`,
         });
     };
 
-    // Helper: Filtrar transações do sistema na busca manual
+    const handleSelectHighConfidence = () => {
+        const highConf = suggestions
+            .filter(s => s.score >= 85 && s.systemTransaction)
+            .map(s => s.bankTransaction.id);
+        setSelectedIds(new Set(highConf));
+    };
+
+    const toggleSelect = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        setSelectedIds(next);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredBankTransactions.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredBankTransactions.map(bt => bt.id)));
+        }
+    };
+
+    // Filtered system transactions for manual search
     const filteredSystemTransactions = systemTransactions?.filter(st => {
         const needle = searchTerm.toLowerCase();
         const matchesSearch = st.description.toLowerCase().includes(needle) ||
             st.entity_name?.toLowerCase().includes(needle) ||
             String(st.amount).includes(needle);
-
-        // Se estamos conciliando uma transação bancária específica, filtrar por tipo compatível
         if (selectedBankTx) {
-            // Se BT < 0 (Saída), só mostrar Payables
-            // Se BT > 0 (Entrada), só mostrar Receivables
             const compatibleType = selectedBankTx.amount < 0 ? 'payable' : 'receivable';
             return matchesSearch && st.type === compatibleType;
         }
-
         return matchesSearch;
     });
+
+    const formatBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
     return (
         <AppLayout title="Conciliação Bancária">
             <div className="space-y-6 animate-in fade-in duration-500">
 
-                {/* Header e Seleção de Conta */}
+                {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#E2E8F0] shadow-sm">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -219,9 +297,7 @@ export default function Conciliacao() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {accounts.map(acc => (
-                                        <SelectItem key={acc.id} value={acc.id || ""}>
-                                            {acc.name} - {acc.banco}
-                                        </SelectItem>
+                                        <SelectItem key={acc.id} value={acc.id || ""}>{acc.name} - {acc.banco}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -230,22 +306,17 @@ export default function Conciliacao() {
                             Selecione a conta para visualizar e importar extratos.
                         </p>
                     </div>
-
                     <div className="flex items-center gap-3">
-                        <input
-                            type="file"
-                            accept=".ofx"
-                            className="hidden"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            disabled={!selectedAccountId || uploadOFX.isPending}
-                        />
-                        <Button
-                            variant="outline"
-                            className="border-[#E2E8F0] text-muted-foreground"
+                        <input type="file" accept=".ofx" className="hidden" ref={fileInputRef}
+                            onChange={handleFileChange} disabled={!selectedAccountId || uploadOFX.isPending} />
+                        <Button variant="outline" className="border-[#E2E8F0]"
+                            onClick={() => setShowRulesPanel(!showRulesPanel)}>
+                            <Brain className="mr-2 h-4 w-4" />
+                            Regras ({rules.length})
+                        </Button>
+                        <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={!selectedAccountId || uploadOFX.isPending}
-                        >
+                            disabled={!selectedAccountId || uploadOFX.isPending}>
                             {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                             Importar OFX
                         </Button>
@@ -259,13 +330,73 @@ export default function Conciliacao() {
                         </div>
                         <h3 className="text-xl font-semibold text-foreground mb-2">Selecione uma conta acima</h3>
                         <p className="text-muted-foreground max-w-md">
-                            Para iniciar a conciliação, escolha qual conta bancária você deseja gerenciar no menu suspenso.
+                            Para iniciar a conciliação, escolha qual conta bancária você deseja gerenciar.
                         </p>
                     </div>
                 ) : (
                     <div className="grid gap-6">
 
-                        {/* Painel de Histórico de Importações */}
+                        {/* Painel de Regras Aprendidas */}
+                        {showRulesPanel && (
+                            <Card className="border-[#E2E8F0]">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Brain className="h-5 w-5 text-purple-600" />
+                                        Regras de Conciliação Memorizadas
+                                        <Badge variant="secondary" className="ml-2">{rules.length}</Badge>
+                                    </CardTitle>
+                                    <CardDescription>
+                                        O sistema aprende automaticamente quando você concilia manualmente. Regras são aplicadas nas próximas importações.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {rules.length === 0 ? (
+                                        <div className="text-center py-6 text-muted-foreground text-sm">
+                                            <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                            Nenhuma regra ainda. Concilie transações manualmente e o sistema irá memorizar os padrões.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                            {rules.map(rule => (
+                                                <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-white transition-colors">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            {rule.is_auto_learned ? (
+                                                                <Badge variant="outline" className="text-[10px] border-purple-200 text-purple-600 bg-purple-50">
+                                                                    <Sparkles className="h-3 w-3 mr-0.5" /> Auto
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-600 bg-blue-50">
+                                                                    Manual
+                                                                </Badge>
+                                                            )}
+                                                            <span className="font-medium text-sm truncate">{rule.name}</span>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Quando descrição <strong>{rule.condition_operator === "contains" ? "contém" : rule.condition_operator}</strong> "{rule.condition_value}"
+                                                            {rule.action_description && <> → {rule.action_description}</>}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 ml-4">
+                                                        <div className="text-right">
+                                                            <p className="text-xs text-muted-foreground">Usada</p>
+                                                            <p className="text-sm font-bold">{rule.times_applied}x</p>
+                                                        </div>
+                                                        <Badge className="bg-emerald-100 text-emerald-700">{rule.confidence}%</Badge>
+                                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-400 hover:text-red-600"
+                                                            onClick={() => deleteRule.mutate(rule.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Histórico de Importações (colapsado por padrão) */}
                         <Card className="border-[#E2E8F0]">
                             <CardHeader className="pb-3">
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowImportHistory(!showImportHistory)}>
@@ -280,9 +411,6 @@ export default function Conciliacao() {
                                         {showImportHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                     </Button>
                                 </div>
-                                <CardDescription>
-                                    Quando cada importação foi realizada e o período das transações.
-                                </CardDescription>
                             </CardHeader>
                             {showImportHistory && (
                                 <CardContent className="pt-0">
@@ -293,41 +421,31 @@ export default function Conciliacao() {
                                     ) : (
                                         <div className="space-y-2">
                                             {importHistory.map((imp) => (
-                                                <div
-                                                    key={imp.key}
-                                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-white transition-colors"
-                                                >
+                                                <div key={imp.key}
+                                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${imp.source === 'pdf' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
                                                             <FileText className="h-4 w-4" />
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-medium text-foreground">
-                                                                Importação {imp.source.toUpperCase()}
-                                                            </p>
+                                                            <p className="text-sm font-medium">{imp.source.toUpperCase()}</p>
                                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                                 <Calendar className="h-3 w-3" />
-                                                                Importado em {format(parseISO(imp.imported_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                                                {format(parseISO(imp.imported_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-3 sm:gap-4 ml-12 sm:ml-0">
+                                                    <div className="flex items-center gap-4 ml-12 sm:ml-0">
                                                         <div className="text-right">
-                                                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Período</p>
-                                                            <p className="text-sm font-medium text-foreground">
+                                                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Período</p>
+                                                            <p className="text-sm font-medium">
                                                                 {format(parseISO(imp.min_date), 'dd/MM/yy')} — {format(parseISO(imp.max_date), 'dd/MM/yy')}
                                                             </p>
                                                         </div>
                                                         <div className="text-right">
-                                                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Transações</p>
-                                                            <p className="text-sm font-bold text-foreground">{imp.count}</p>
+                                                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
+                                                            <p className="text-sm font-bold">{imp.count}</p>
                                                         </div>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={`text-[10px] uppercase font-semibold ${imp.source === 'pdf' ? 'border-red-200 text-red-600 bg-red-50' : 'border-blue-200 text-blue-600 bg-blue-50'}`}
-                                                        >
-                                                            {imp.source}
-                                                        </Badge>
                                                     </div>
                                                 </div>
                                             ))}
@@ -337,44 +455,149 @@ export default function Conciliacao() {
                             )}
                         </Card>
 
+                        {/* Score Summary Cards */}
+                        {scoreSummary.total > 0 && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "auto" ? "ring-2 ring-emerald-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter(scoreFilter === "auto" ? "all" : "auto")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                            <Zap className="h-5 w-5 text-emerald-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-emerald-600">{scoreSummary.auto}</p>
+                                            <p className="text-xs text-muted-foreground">Auto-conciliar</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "suggested" ? "ring-2 ring-amber-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter(scoreFilter === "suggested" ? "all" : "suggested")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                                            <Eye className="h-5 w-5 text-amber-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-amber-600">{scoreSummary.suggested}</p>
+                                            <p className="text-xs text-muted-foreground">Sugeridos</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "review" ? "ring-2 ring-slate-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter(scoreFilter === "review" ? "all" : "review")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                            <HelpCircle className="h-5 w-5 text-slate-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-slate-600">{scoreSummary.review}</p>
+                                            <p className="text-xs text-muted-foreground">Revisar</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "all" ? "ring-2 ring-blue-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter("all")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                            <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-blue-600">{scoreSummary.total}</p>
+                                            <p className="text-xs text-muted-foreground">Total pendentes</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Transactions Table */}
                         <Card className="border-[#E2E8F0]">
                             <CardHeader>
-                                <CardTitle className="flex justify-between items-center">
-                                    <span>Transações do Extrato (Pendentes)</span>
-                                    <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9]">
-                                        {bankTransactions?.length || 0} itens
-                                    </Badge>
-                                </CardTitle>
-                                <CardDescription>
-                                    Itens importados do banco que ainda não foram vinculados ao sistema.
-                                </CardDescription>
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2">
+                                            Transações do Extrato (Pendentes)
+                                            <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9]">
+                                                {filteredBankTransactions.length} itens
+                                            </Badge>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Itens importados do banco pendentes de conciliação.
+                                        </CardDescription>
+                                    </div>
+                                    {selectedIds.size > 0 && (
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-sm py-1">
+                                                {selectedIds.size} selecionado(s)
+                                            </Badge>
+                                            <Button size="sm" variant="outline" onClick={handleSelectHighConfidence}
+                                                className="gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                                                <Zap className="h-3.5 w-3.5" />
+                                                Selecionar Alta Confiança
+                                            </Button>
+                                            <Button size="sm" onClick={handleBatchApprove}
+                                                className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                                <CheckSquare className="h-3.5 w-3.5" />
+                                                Aprovar Selecionados
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {selectedIds.size === 0 && scoreSummary.auto > 0 && (
+                                        <Button size="sm" variant="outline" onClick={handleSelectHighConfidence}
+                                            className="gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                                            <Zap className="h-3.5 w-3.5" />
+                                            Selecionar Alta Confiança ({scoreSummary.auto})
+                                        </Button>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent>
-                                {!bankTransactions?.length ? (
+                                {!filteredBankTransactions.length ? (
                                     <div className="text-center py-12">
                                         <Check className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
                                         <h3 className="text-lg font-medium text-foreground">Tudo em dia!</h3>
-                                        <p className="text-muted-foreground">Não há transações pendentes para conciliar nesta conta.</p>
+                                        <p className="text-muted-foreground">Não há transações pendentes para conciliar.</p>
                                     </div>
                                 ) : (
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="bg-[#F8FAFC]">
-                                                <TableHead>Data</TableHead>
+                                                <TableHead className="w-10">
+                                                    <Checkbox
+                                                        checked={selectedIds.size === filteredBankTransactions.length && filteredBankTransactions.length > 0}
+                                                        onCheckedChange={toggleSelectAll}
+                                                    />
+                                                </TableHead>
+                                                <TableHead className="w-20">Data</TableHead>
                                                 <TableHead>Descrição Banco</TableHead>
-                                                <TableHead>Valor</TableHead>
-                                                <TableHead>Sugestão do Sistema</TableHead>
-                                                <TableHead className="text-right">Ações</TableHead>
+                                                <TableHead className="w-28">Valor</TableHead>
+                                                <TableHead>Sugestão IA</TableHead>
+                                                <TableHead className="w-16 text-center">Score</TableHead>
+                                                <TableHead className="text-right w-32">Ações</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {bankTransactions.map((bt) => {
-                                                const suggestions = getSuggestions(bt);
-                                                const bestMatch = suggestions[0];
+                                            {filteredBankTransactions.map((bt) => {
+                                                const suggestion = suggestionMap.get(bt.id);
+                                                const bestMatch = suggestion?.systemTransaction;
+                                                const score = suggestion?.score || 0;
 
                                                 return (
                                                     <TableRow key={bt.id} className="group hover:bg-[#F8FAFC] transition-colors">
-                                                        <TableCell className="font-medium text-muted-foreground">
+                                                        <TableCell>
+                                                            <Checkbox
+                                                                checked={selectedIds.has(bt.id)}
+                                                                onCheckedChange={() => toggleSelect(bt.id)}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="font-medium text-muted-foreground whitespace-nowrap">
                                                             {format(parseISO(bt.date), 'dd/MM')}
                                                         </TableCell>
                                                         <TableCell>
@@ -383,42 +606,47 @@ export default function Conciliacao() {
                                                         </TableCell>
                                                         <TableCell>
                                                             <span className={`font-bold ${bt.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
-                                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bt.amount)}
+                                                                {formatBRL(bt.amount)}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
                                                             {bestMatch ? (
                                                                 <div className="flex flex-col gap-1 items-start">
-                                                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 cursor-pointer" onClick={() => matchTransaction.mutate({ bankTx: bt, sysTx: bestMatch })}>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={`cursor-pointer ${score >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : score >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
+                                                                        onClick={() => handleMatch(bt, bestMatch)}
+                                                                    >
                                                                         <Check className="h-3 w-3 mr-1" />
                                                                         {bestMatch.entity_name} - {bestMatch.description}
                                                                     </Badge>
-                                                                    <span className="text-[10px] text-muted-foreground">Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</span>
+                                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                                        {suggestion?.method === "rule" && <><Sparkles className="h-3 w-3 text-purple-500" /> {suggestion.ruleName}</>}
+                                                                        {suggestion?.method !== "rule" && <>Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</>}
+                                                                    </span>
+                                                                </div>
+                                                            ) : suggestion?.method === "rule" && suggestion?.label ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Sparkles className="h-3 w-3 text-purple-500" />
+                                                                    <span className="text-xs text-purple-600">{suggestion.label}</span>
                                                                 </div>
                                                             ) : (
-                                                                <span className="text-xs text-muted-foreground italic">Sem match automático</span>
+                                                                <span className="text-xs text-muted-foreground italic">Sem sugestão</span>
                                                             )}
                                                         </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <ScoreBadge score={score} />
+                                                        </TableCell>
                                                         <TableCell className="text-right">
-                                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 {bestMatch && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                        onClick={() => matchTransaction.mutate({ bankTx: bt, sysTx: bestMatch })}
-                                                                    >
+                                                                    <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                        onClick={() => handleMatch(bt, bestMatch)}>
                                                                         Aceitar
                                                                     </Button>
                                                                 )}
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-8 border-[#E2E8F0]"
-                                                                    onClick={() => {
-                                                                        setSelectedBankTx(bt);
-                                                                        setSearchTerm("");
-                                                                    }}
-                                                                >
+                                                                <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"
+                                                                    onClick={() => { setSelectedBankTx(bt); setSearchTerm(""); }}>
                                                                     Buscar
                                                                 </Button>
                                                             </div>
@@ -436,18 +664,12 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) {
-                        setSelectedBankTx(null);
-                        setShowCreateForm(false);
-                        setNewEntry({ description: "", category_id: "" });
-                    }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setNewEntry({ description: "", category_id: "" }); }
                 }}>
                     <DialogContent className="max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>Conciliar Manualmente</DialogTitle>
-                            <DialogDescription>
-                                Selecione um lançamento existente ou crie um novo para vincular.
-                            </DialogDescription>
+                            <DialogDescription>Selecione um lançamento existente ou crie um novo.</DialogDescription>
                         </DialogHeader>
 
                         {selectedBankTx && (
@@ -460,7 +682,7 @@ export default function Conciliacao() {
                                     </div>
                                     <div className="text-right">
                                         <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedBankTx.amount)}
+                                            {formatBRL(selectedBankTx.amount)}
                                         </span>
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                             {selectedBankTx.amount < 0 ? "Saída → Conta a Pagar" : "Entrada → Conta a Receber"}
@@ -468,20 +690,20 @@ export default function Conciliacao() {
                                     </div>
                                 </div>
 
+                                {/* Aviso de memorização */}
+                                <div className="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 p-2 rounded-md border border-purple-100">
+                                    <Brain className="h-4 w-4 flex-shrink-0" />
+                                    <span>O sistema irá <strong>memorizar</strong> este padrão para sugerir automaticamente na próxima vez.</span>
+                                </div>
+
                                 {!showCreateForm ? (
                                     <>
-                                        {/* Busca de lançamentos existentes */}
                                         <div className="space-y-2">
                                             <div className="relative">
                                                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    placeholder="Buscar lançamentos (descrição, valor, fornecedor)..."
-                                                    className="pl-9"
-                                                    value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                                />
+                                                <Input placeholder="Buscar lançamentos..." className="pl-9"
+                                                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                             </div>
-
                                             <ScrollArea className="h-[250px] border rounded-md p-2">
                                                 {!filteredSystemTransactions?.length && (
                                                     <div className="text-center py-8 text-muted-foreground text-sm">
@@ -490,14 +712,12 @@ export default function Conciliacao() {
                                                 )}
                                                 <div className="space-y-1">
                                                     {filteredSystemTransactions?.map((st) => (
-                                                        <div
-                                                            key={`${st.type}-${st.id}`}
+                                                        <div key={`${st.type}-${st.id}`}
                                                             className="flex items-center justify-between p-3 hover:bg-[#F8FAFC] rounded-md cursor-pointer border border-transparent hover:border-[#E2E8F0] transition-all"
                                                             onClick={() => {
-                                                                matchTransaction.mutate({ bankTx: selectedBankTx, sysTx: st });
+                                                                handleMatch(selectedBankTx, st);
                                                                 setSelectedBankTx(null);
-                                                            }}
-                                                        >
+                                                            }}>
                                                             <div>
                                                                 <div className="flex items-center gap-2">
                                                                     <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
@@ -509,35 +729,22 @@ export default function Conciliacao() {
                                                                     {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
                                                                 </p>
                                                             </div>
-                                                            <span className="font-bold text-foreground">
-                                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(st.amount)}
-                                                            </span>
+                                                            <span className="font-bold text-foreground">{formatBRL(st.amount)}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </ScrollArea>
                                         </div>
-
-                                        {/* Separador + Botão Criar Novo */}
                                         <Separator />
-                                        <Button
-                                            variant="outline"
-                                            className="w-full border-dashed border-2 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 h-11"
-                                            onClick={() => {
-                                                setShowCreateForm(true);
-                                                setNewEntry({
-                                                    description: selectedBankTx.description || "",
-                                                    category_id: "",
-                                                });
-                                            }}
-                                        >
+                                        <Button variant="outline"
+                                            className="w-full border-dashed border-2 border-primary/30 text-primary hover:bg-primary/5 h-11"
+                                            onClick={() => { setShowCreateForm(true); setNewEntry({ description: selectedBankTx.description || "", category_id: "" }); }}>
                                             <Plus className="mr-2 h-4 w-4" />
                                             Criar {selectedBankTx.amount < 0 ? "Nova Despesa" : "Nova Receita"} e Conciliar
                                         </Button>
                                     </>
                                 ) : (
                                     <>
-                                        {/* Formulário de criação inline */}
                                         <div className="space-y-4 p-4 border border-primary/20 rounded-lg bg-primary/[0.02]">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <div className={`h-7 w-7 rounded-md flex items-center justify-center ${selectedBankTx.amount < 0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -547,85 +754,51 @@ export default function Conciliacao() {
                                                     Criar {selectedBankTx.amount < 0 ? "Conta a Pagar" : "Conta a Receber"}
                                                 </h4>
                                             </div>
-
                                             <div className="space-y-3">
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs font-medium">Descrição</Label>
-                                                    <Input
-                                                        value={newEntry.description}
+                                                    <Input value={newEntry.description}
                                                         onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
-                                                        placeholder="Descrição do lançamento"
-                                                    />
+                                                        placeholder="Descrição do lançamento" />
                                                 </div>
-
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1.5">
                                                         <Label className="text-xs font-medium">Valor</Label>
-                                                        <Input
-                                                            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(selectedBankTx.amount))}
-                                                            disabled
-                                                            className="bg-muted font-bold"
-                                                        />
+                                                        <Input value={formatBRL(Math.abs(selectedBankTx.amount))} disabled className="bg-muted font-bold" />
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <Label className="text-xs font-medium">Data</Label>
-                                                        <Input
-                                                            value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')}
-                                                            disabled
-                                                            className="bg-muted"
-                                                        />
+                                                        <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted" />
                                                     </div>
                                                 </div>
-
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
-                                                    <Select
-                                                        value={newEntry.category_id || "none"}
-                                                        onValueChange={(val) => setNewEntry({ ...newEntry, category_id: val === "none" ? "" : val })}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecione..." />
-                                                        </SelectTrigger>
+                                                    <Select value={newEntry.category_id || "none"}
+                                                        onValueChange={(val) => setNewEntry({ ...newEntry, category_id: val === "none" ? "" : val })}>
+                                                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="none">-- Nenhuma --</SelectItem>
-                                                            {chartCategories
-                                                                ?.filter((c: any) => c.type === createType)
+                                                            {chartCategories?.filter((c: any) => c.type === createType)
                                                                 .map((c: any) => (
                                                                     <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
-                                                                ))
-                                                            }
+                                                                ))}
                                                         </SelectContent>
                                                     </Select>
-                                                    <CategorySuggestions
-                                                        suggestions={createSuggestions}
+                                                    <CategorySuggestions suggestions={createSuggestions}
                                                         onSelect={(id) => setNewEntry({ ...newEntry, category_id: id })}
-                                                        currentValue={newEntry.category_id}
-                                                    />
+                                                        currentValue={newEntry.category_id} />
                                                 </div>
                                             </div>
                                         </div>
-
                                         <div className="flex gap-2">
-                                            <Button
-                                                variant="outline"
-                                                className="flex-1"
-                                                onClick={() => {
-                                                    setShowCreateForm(false);
-                                                    setNewEntry({ description: "", category_id: "" });
-                                                }}
-                                            >
+                                            <Button variant="outline" className="flex-1"
+                                                onClick={() => { setShowCreateForm(false); setNewEntry({ description: "", category_id: "" }); }}>
                                                 Voltar
                                             </Button>
-                                            <Button
-                                                className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                            <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                                                 onClick={handleCreateAndReconcile}
-                                                disabled={isCreating || !newEntry.description}
-                                            >
-                                                {isCreating ? (
-                                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Check className="mr-2 h-4 w-4" />
-                                                )}
+                                                disabled={isCreating || !newEntry.description}>
+                                                {isCreating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                                                 Criar e Conciliar
                                             </Button>
                                         </div>
@@ -639,4 +812,3 @@ export default function Conciliacao() {
         </AppLayout>
     );
 }
-
