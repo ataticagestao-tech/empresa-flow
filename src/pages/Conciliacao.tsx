@@ -1029,33 +1029,34 @@ export default function Conciliacao() {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <Command className="rounded-md border">
-                                                            <CommandInput placeholder="Buscar categoria..." />
-                                                            <CommandList className="max-h-[180px]">
-                                                                <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-                                                                <CommandGroup>
-                                                                    {chartCategories?.filter((c: any) => c.type === createType)
-                                                                        .map((c: any) => (
-                                                                            <CommandItem
-                                                                                key={c.id}
-                                                                                value={`${c.code} ${c.name}`}
-                                                                                onSelect={() => setNewEntry({ ...newEntry, category_id: c.id })}>
-                                                                                <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
-                                                                                {c.code} - {c.name}
-                                                                            </CommandItem>
-                                                                        ))}
-                                                                </CommandGroup>
-                                                                <CommandGroup>
-                                                                    <CommandItem
-                                                                        value="__criar_categoria__"
-                                                                        onSelect={() => setShowNewCategory(true)}
-                                                                        className="text-primary font-medium">
-                                                                        <Plus className="mr-2 h-4 w-4" />
-                                                                        Criar nova categoria no plano de contas
-                                                                    </CommandItem>
-                                                                </CommandGroup>
-                                                            </CommandList>
-                                                        </Command>
+                                                        <>
+                                                            <Command className="rounded-md border">
+                                                                <CommandInput placeholder="Buscar categoria..." />
+                                                                <CommandList className="max-h-[180px]">
+                                                                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {chartCategories?.filter((c: any) => c.type === createType)
+                                                                            .map((c: any) => (
+                                                                                <CommandItem
+                                                                                    key={c.id}
+                                                                                    value={`${c.code} ${c.name}`}
+                                                                                    onSelect={() => setNewEntry({ ...newEntry, category_id: c.id })}>
+                                                                                    <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
+                                                                                    {c.code} - {c.name}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="w-full mt-2 border-dashed border-primary/40 text-primary hover:bg-primary/5 gap-2"
+                                                                onClick={() => setShowNewCategory(true)}>
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                Criar nova categoria no plano de contas
+                                                            </Button>
+                                                        </>
                                                     )}
                                                     <CategorySuggestions suggestions={createSuggestions}
                                                         onSelect={(id) => setNewEntry({ ...newEntry, category_id: id })}
