@@ -106,7 +106,7 @@ export default function Conciliacao() {
             if (!selectedAccountId) return [];
             const { data, error } = await (activeClient as any)
                 .from("bank_transactions")
-                .select("id, amount, status")
+                .select("id, amount, status, date")
                 .eq("bank_account_id", selectedAccountId)
                 .eq("status", "reconciled");
             if (error) return [];
@@ -120,7 +120,25 @@ export default function Conciliacao() {
         const aConciliar = (bankTransactions || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
         const withAiSupport = suggestions.filter(s => s.score > 0).length;
         const aiPercent = suggestions.length > 0 ? Math.round((withAiSupport / suggestions.length) * 100) : 0;
-        return { conciliado, aConciliar, withAiSupport, aiPercent, totalPending: suggestions.length };
+
+        // Período: min/max date de todas as transações (pendentes + reconciliadas)
+        const allDates: string[] = [
+            ...(bankTransactions || []).map((t: any) => t.date).filter(Boolean),
+            ...(reconciledTx || []).map((t: any) => t.date).filter(Boolean),
+        ];
+        let periodoLabel = "";
+        if (allDates.length > 0) {
+            const sorted = allDates.sort();
+            const minDate = sorted[0];
+            const maxDate = sorted[sorted.length - 1];
+            try {
+                const fmtMin = format(parseISO(minDate), "dd/MM/yyyy", { locale: ptBR });
+                const fmtMax = format(parseISO(maxDate), "dd/MM/yyyy", { locale: ptBR });
+                periodoLabel = fmtMin === fmtMax ? fmtMin : `${fmtMin} — ${fmtMax}`;
+            } catch { periodoLabel = ""; }
+        }
+
+        return { conciliado, aConciliar, withAiSupport, aiPercent, totalPending: suggestions.length, periodoLabel };
     }, [reconciledTx, bankTransactions, suggestions]);
 
     // Build lookup: bankTxId -> suggestion
@@ -377,6 +395,12 @@ export default function Conciliacao() {
                                             <p className="text-xs text-muted-foreground mt-1">
                                                 {reconciledTx?.length || 0} transações reconciliadas
                                             </p>
+                                            {billingStats.periodoLabel && (
+                                                <p className="text-xs text-emerald-600/80 mt-1 flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    Período: {billingStats.periodoLabel}
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
                                             <DollarSign className="h-6 w-6 text-emerald-600" />
