@@ -17,18 +17,23 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
 
-    // Queries
+    // Queries — busca todas as contas e filtra no JS para compatibilidade
     const { data: categories } = useQuery({
         queryKey: ["chart_of_accounts", selectedCompany?.id, 'despesa'],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            const { data } = await activeClient
+            const { data, error } = await activeClient
                 .from("chart_of_accounts")
                 .select("*")
                 .eq("company_id", selectedCompany.id)
-                .eq("type", 'despesa')
                 .order('code');
-            return data || [];
+            if (error) return [];
+            return (data || [])
+                .filter((c: any) => {
+                    const isDespesa = c.type === 'despesa' || c.account_type === 'expense';
+                    const isAnalytic = c.is_analytic === true || c.is_analytical === true;
+                    return isDespesa && isAnalytic;
+                });
         },
         enabled: !!selectedCompany?.id
     });

@@ -13,74 +13,101 @@ interface ScoredCategory {
     reason: string;
 }
 
-// Mapa de palavras-chave -> categorias do plano de contas (por código)
-// Cada entrada mapeia termos comuns em descrições financeiras para o código correspondente
-const KEYWORD_MAP: Record<string, string[]> = {
-    // 1.01 Receita de Vendas
-    "1.01": ["venda", "vendas", "mercadoria", "produto", "loja", "comercio", "comércio", "nf", "nota fiscal", "faturamento", "receita venda"],
-    // 1.02 Receita de Serviços
-    "1.02": ["serviço", "servico", "servicos", "serviços", "consultoria", "assessoria", "honorário", "honorarios", "prestação", "prestacao", "nfse", "comissão", "comissao", "royalties"],
-    // 2.01.01 Aluguel e Condomínio
-    "2.01.01": ["aluguel", "aluguéis", "alugueis", "condomínio", "condominio", "locação", "locacao", "imóvel", "imovel", "sala", "galpão", "galpao", "iptu"],
-    // 2.01.02 Energia Elétrica
-    "2.01.02": ["energia", "elétrica", "eletrica", "luz", "cemig", "cpfl", "enel", "eletropaulo", "copel", "celesc", "energisa", "equatorial", "neoenergia", "kwh"],
-    // 2.01.03 Internet e Telefone
-    "2.01.03": ["internet", "telefone", "telefonia", "celular", "plano", "fibra", "banda larga", "wi-fi", "wifi", "vivo", "claro", "tim", "oi", "net", "algar", "totvs"],
-    // 2.02.01 Salários e Ordenados
-    "2.02.01": ["salário", "salario", "salarios", "salários", "folha", "pagamento funcionário", "funcionario", "encargos", "fgts", "inss", "férias", "ferias", "13o", "décimo", "decimo", "rescisão", "rescisao", "vale transporte", "vale refeição", "vt", "vr", "va", "benefício", "beneficio", "holerite"],
-    // 2.02.02 Pró-Labore
-    "2.02.02": ["pró-labore", "pro-labore", "prolabore", "pro labore", "retirada sócio", "retirada socio", "sócio", "socio", "distribuição lucros", "distribuicao lucros", "dividendos"],
-    // 2.03.01 Tarifas Bancárias
-    "2.03.01": ["tarifa", "tarifas", "ted", "doc", "pix taxa", "manutenção conta", "manutencao conta", "anuidade", "taxa bancária", "taxa bancaria", "iof", "cesta serviços", "cesta servicos", "extrato", "custódia", "custodia"],
-    // 2.03.02 Juros Passivos
-    "2.03.02": ["juros", "mora", "multa atraso", "encargos financeiros", "financiamento", "empréstimo", "emprestimo", "parcela banco", "cdc", "spread"],
-};
-
-// Sinônimos adicionais para termos genéricos
-const GENERIC_EXPENSE_KEYWORDS: Record<string, string> = {
-    "material": "2.01.01",
-    "escritório": "2.01.01",
-    "escritorio": "2.01.01",
-    "manutenção": "2.01.01",
-    "manutencao": "2.01.01",
-    "limpeza": "2.01.01",
-    "contador": "2.01.01",
-    "contabilidade": "2.01.01",
-    "software": "2.01.03",
-    "sistema": "2.01.03",
-    "licença": "2.01.03",
-    "licenca": "2.01.03",
-    "assinatura": "2.01.03",
-    "hospedagem": "2.01.03",
-    "domínio": "2.01.03",
-    "dominio": "2.01.03",
-    "marketing": "2.01.01",
-    "publicidade": "2.01.01",
-    "propaganda": "2.01.01",
-    "google": "2.01.03",
-    "meta": "2.01.03",
-    "facebook": "2.01.03",
-    "combustível": "2.01.01",
-    "combustivel": "2.01.01",
-    "gasolina": "2.01.01",
-    "uber": "2.01.01",
-    "pedágio": "2.01.01",
-    "pedagio": "2.01.01",
-    "viagem": "2.01.01",
-    "alimentação": "2.01.01",
-    "alimentacao": "2.01.01",
-    "refeição": "2.01.01",
-    "refeicao": "2.01.01",
-    "seguro": "2.01.01",
-    "correios": "2.01.01",
-    "frete": "2.01.01",
-    "transporte": "2.01.01",
-    "água": "2.01.02",
-    "agua": "2.01.02",
-    "saneamento": "2.01.02",
-    "gás": "2.01.02",
-    "gas": "2.01.02",
-};
+// Mapa de palavras-chave da descrição -> fragmentos do NOME da categoria
+// Independente de código, funciona com qualquer plano de contas
+const KEYWORD_TO_CATEGORY_NAME: Array<{ keywords: string[]; categoryNameFragments: string[] }> = [
+    // Receitas
+    {
+        keywords: ["venda", "vendas", "mercadoria", "produto", "loja", "comercio", "nf", "nota fiscal", "faturamento"],
+        categoryNameFragments: ["receita de vendas", "venda", "vendas"],
+    },
+    {
+        keywords: ["serviço", "servico", "servicos", "consultoria", "assessoria", "honorário", "honorarios", "prestação", "nfse", "comissão", "royalties"],
+        categoryNameFragments: ["receita de serviço", "serviço", "servico"],
+    },
+    // Despesas Administrativas
+    {
+        keywords: ["aluguel", "aluguéis", "condomínio", "condominio", "locação", "iptu", "imóvel"],
+        categoryNameFragments: ["aluguel", "condomínio", "condominio", "locação"],
+    },
+    {
+        keywords: ["energia", "elétrica", "eletrica", "luz", "cemig", "cpfl", "enel", "eletropaulo", "copel", "celesc", "energisa", "kwh"],
+        categoryNameFragments: ["energia", "luz"],
+    },
+    {
+        keywords: ["água", "agua", "saneamento", "gás", "gas"],
+        categoryNameFragments: ["água", "agua", "luz", "telefone"],
+    },
+    {
+        keywords: ["internet", "telefone", "telefonia", "celular", "fibra", "banda larga", "wifi", "vivo", "claro", "tim"],
+        categoryNameFragments: ["internet", "telefone", "telefonia"],
+    },
+    {
+        keywords: ["software", "sistema", "licença", "assinatura", "hospedagem", "domínio", "google", "totvs"],
+        categoryNameFragments: ["internet", "telefone", "terceiro"],
+    },
+    // Pessoal
+    {
+        keywords: ["salário", "salario", "folha", "funcionário", "funcionario", "encargos", "fgts", "inss", "férias", "13o", "rescisão", "vale transporte", "vt", "vr", "va", "benefício", "holerite"],
+        categoryNameFragments: ["salário", "salario", "encargo", "pessoal", "ordenado"],
+    },
+    {
+        keywords: ["pró-labore", "pro-labore", "prolabore", "pro labore", "retirada sócio", "sócio", "dividendos"],
+        categoryNameFragments: ["pró-labore", "pro-labore", "prolabore", "pro labore"],
+    },
+    // Financeiras
+    {
+        keywords: ["tarifa", "tarifas", "ted", "doc", "taxa bancária", "iof", "anuidade", "cesta serviço", "custódia"],
+        categoryNameFragments: ["tarifa", "bancária", "bancaria", "despesas bancárias"],
+    },
+    {
+        keywords: ["juros", "mora", "multa atraso", "encargos financeiros", "financiamento", "empréstimo", "cdc", "spread"],
+        categoryNameFragments: ["juros", "financeira"],
+    },
+    // Comerciais
+    {
+        keywords: ["marketing", "publicidade", "propaganda", "facebook", "meta", "google ads", "anúncio"],
+        categoryNameFragments: ["propaganda", "marketing", "comercial"],
+    },
+    {
+        keywords: ["frete", "correios", "transporte", "entrega", "carreto"],
+        categoryNameFragments: ["frete", "carreto", "transporte"],
+    },
+    {
+        keywords: ["comissão", "comissao", "comissões"],
+        categoryNameFragments: ["comissão", "comissao", "comissões"],
+    },
+    // Veículos e viagens
+    {
+        keywords: ["combustível", "combustivel", "gasolina", "uber", "pedágio", "viagem", "veículo"],
+        categoryNameFragments: ["veículo", "veiculo", "combustível"],
+    },
+    // Manutenção
+    {
+        keywords: ["manutenção", "manutencao", "reparo", "conserto"],
+        categoryNameFragments: ["manutenção", "manutencao", "reparo"],
+    },
+    // Materiais
+    {
+        keywords: ["material", "escritório", "escritorio", "limpeza", "papel", "toner"],
+        categoryNameFragments: ["material", "escritório", "escritorio"],
+    },
+    // Contabilidade
+    {
+        keywords: ["contador", "contabilidade", "contábil"],
+        categoryNameFragments: ["terceiro", "serviço", "contábil"],
+    },
+    // Seguros
+    {
+        keywords: ["seguro", "apólice", "sinistro"],
+        categoryNameFragments: ["seguro"],
+    },
+    // Juros recebidos / receitas financeiras
+    {
+        keywords: ["rendimento", "aplicação", "resgate", "cdb", "lci", "lca", "juros recebidos"],
+        categoryNameFragments: ["rendimento", "aplicação", "juros recebidos", "receita financeira"],
+    },
+];
 
 function normalize(text: string): string {
     return text
@@ -92,22 +119,36 @@ function normalize(text: string): string {
         .trim();
 }
 
-function scoreCategory(description: string, code: string, keywords: string[]): { score: number; matched: string[] } {
-    const normalizedDesc = normalize(description);
-    const matched: string[] = [];
-    let score = 0;
+function findMatchingCategory(
+    categoryNameFragments: string[],
+    categories: ChartAccount[],
+    filterType?: "receita" | "despesa"
+): ChartAccount | undefined {
+    const normalizedFragments = categoryNameFragments.map(normalize);
 
-    for (const kw of keywords) {
-        const normalizedKw = normalize(kw);
-        if (normalizedDesc.includes(normalizedKw)) {
-            // Longer keyword matches are worth more
-            const kwScore = normalizedKw.length >= 6 ? 3 : normalizedKw.length >= 4 ? 2 : 1;
-            score += kwScore;
-            matched.push(kw);
+    // Procurar a categoria cujo nome contém algum dos fragmentos
+    let bestMatch: ChartAccount | undefined;
+    let bestScore = 0;
+
+    for (const cat of categories) {
+        if (filterType && cat.type !== filterType) continue;
+
+        const normalizedName = normalize(cat.name);
+        let score = 0;
+
+        for (const frag of normalizedFragments) {
+            if (normalizedName.includes(frag)) {
+                score += frag.length;
+            }
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = cat;
         }
     }
 
-    return { score, matched };
+    return bestMatch;
 }
 
 export function useCategorySuggestion(
@@ -119,53 +160,39 @@ export function useCategorySuggestion(
         if (!description || description.length < 3 || !categories?.length) return [];
 
         const normalizedDesc = normalize(description);
-        const scored: ScoredCategory[] = [];
+        const scored = new Map<string, ScoredCategory>();
 
-        // Build a code -> account map
-        const codeMap = new Map<string, ChartAccount>();
-        for (const cat of categories) {
-            codeMap.set(cat.code, cat);
-        }
+        // 1. Score por mapa de keywords -> nome da categoria
+        for (const rule of KEYWORD_TO_CATEGORY_NAME) {
+            let matchedKeywords: string[] = [];
+            let keywordScore = 0;
 
-        // Score by keyword map
-        for (const [code, keywords] of Object.entries(KEYWORD_MAP)) {
-            const account = codeMap.get(code);
-            if (!account) continue;
-            if (filterType && account.type !== filterType) continue;
+            for (const kw of rule.keywords) {
+                const normalizedKw = normalize(kw);
+                if (normalizedDesc.includes(normalizedKw)) {
+                    keywordScore += normalizedKw.length >= 6 ? 3 : normalizedKw.length >= 4 ? 2 : 1;
+                    matchedKeywords.push(kw);
+                }
+            }
 
-            const { score, matched } = scoreCategory(description, code, keywords);
-            if (score > 0) {
-                scored.push({
-                    account,
-                    score,
-                    reason: matched.slice(0, 2).join(", "),
-                });
+            if (keywordScore > 0) {
+                const account = findMatchingCategory(rule.categoryNameFragments, categories, filterType);
+                if (account) {
+                    const existing = scored.get(account.id);
+                    if (existing) {
+                        existing.score += keywordScore;
+                    } else {
+                        scored.set(account.id, {
+                            account,
+                            score: keywordScore,
+                            reason: matchedKeywords.slice(0, 2).join(", "),
+                        });
+                    }
+                }
             }
         }
 
-        // Score by generic keywords
-        for (const [keyword, code] of Object.entries(GENERIC_EXPENSE_KEYWORDS)) {
-            const normalizedKw = normalize(keyword);
-            if (!normalizedDesc.includes(normalizedKw)) continue;
-
-            const account = codeMap.get(code);
-            if (!account) continue;
-            if (filterType && account.type !== filterType) continue;
-
-            // Add score or boost existing
-            const existing = scored.find(s => s.account.id === account.id);
-            if (existing) {
-                existing.score += 1;
-            } else {
-                scored.push({
-                    account,
-                    score: 1,
-                    reason: keyword,
-                });
-            }
-        }
-
-        // Score by direct name similarity (fuzzy match against category name)
+        // 2. Score por similaridade direta com nome da categoria
         for (const cat of categories) {
             if (filterType && cat.type !== filterType) continue;
 
@@ -183,11 +210,11 @@ export function useCategorySuggestion(
             }
 
             if (nameScore > 0) {
-                const existing = scored.find(s => s.account.id === cat.id);
+                const existing = scored.get(cat.id);
                 if (existing) {
                     existing.score += nameScore;
                 } else {
-                    scored.push({
+                    scored.set(cat.id, {
                         account: cat,
                         score: nameScore,
                         reason: matchedWords.slice(0, 2).join(", "),
@@ -197,8 +224,9 @@ export function useCategorySuggestion(
         }
 
         // Sort by score descending, take top 3
-        scored.sort((a, b) => b.score - a.score);
-        return scored.slice(0, 3);
+        const result = Array.from(scored.values());
+        result.sort((a, b) => b.score - a.score);
+        return result.slice(0, 3);
     }, [description, categories, filterType]);
 
     return { suggestions };

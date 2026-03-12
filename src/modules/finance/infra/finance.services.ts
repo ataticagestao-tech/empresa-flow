@@ -11,12 +11,11 @@ export class FinanceService {
      * Agrupado para reduzir chamadas dispersas na UI.
      */
     async getFormDependencies(companyId: string) {
-        const [categories, bankAccounts, projects, departments] = await Promise.all([
+        const [categoriesRaw, bankAccounts, projects, departments] = await Promise.all([
             this.supabase
                 .from("chart_of_accounts")
-                .select("id, name, code")
+                .select("*")
                 .eq("company_id", companyId)
-                .eq("is_analytic", true)
                 .order("code"),
 
             this.supabase
@@ -35,8 +34,13 @@ export class FinanceService {
                 .eq("company_id", companyId)
         ]);
 
+        // Filtrar analíticas no JS (compatível com is_analytic e is_analytical)
+        const categories = (categoriesRaw.data || []).filter(
+            (c: any) => c.is_analytic === true || c.is_analytical === true
+        );
+
         return {
-            categories: categories.data || [],
+            categories,
             bankAccounts: bankAccounts.data || [],
             projects: projects.data || [],
             departments: departments.data || []

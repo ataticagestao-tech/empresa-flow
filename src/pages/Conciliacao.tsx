@@ -64,17 +64,32 @@ export default function Conciliacao() {
     const queryClient = useQueryClient();
 
     // Categorias para IA sugestiva no formulário de criação
+    // Nota: DB pode ter 'type' ou 'account_type', 'is_analytic' ou 'is_analytical'
+    // Busca tudo e filtra no JS para evitar 400 por colunas inexistentes
     const { data: chartCategories } = useQuery({
         queryKey: ["chart_of_accounts_all", selectedCompany?.id],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            const { data } = await (activeClient as any)
+            const { data, error } = await (activeClient as any)
                 .from("chart_of_accounts")
-                .select("id, name, code, type")
+                .select("*")
                 .eq("company_id", selectedCompany.id)
-                .eq("is_analytic", true)
                 .order("code");
-            return data || [];
+
+            if (error) {
+                console.error("Erro ao buscar plano de contas:", error);
+                return [];
+            }
+
+            // Normalizar: aceitar tanto 'type' quanto 'account_type'
+            return (data || [])
+                .filter((c: any) => c.is_analytic === true || c.is_analytical === true)
+                .map((c: any) => ({
+                    id: c.id,
+                    code: c.code,
+                    name: c.name,
+                    type: c.type || (c.account_type === 'expense' ? 'despesa' : c.account_type === 'revenue' ? 'receita' : c.account_type),
+                }));
         },
         enabled: !!selectedCompany?.id
     });
