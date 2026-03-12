@@ -916,46 +916,38 @@ export default function Conciliacao() {
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
-                                                    <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="outline" role="combobox" aria-expanded={categoryPopoverOpen}
-                                                                className="w-full justify-between font-normal text-sm h-10">
-                                                                {newEntry.category_id
-                                                                    ? (() => {
-                                                                        const cat = chartCategories?.find((c: any) => c.id === newEntry.category_id);
-                                                                        return cat ? `${cat.code} - ${cat.name}` : "Selecione...";
-                                                                    })()
-                                                                    : "Selecione..."}
-                                                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    {newEntry.category_id && (
+                                                        <div className="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/50">
+                                                            <span className="text-sm font-medium">
+                                                                {(() => {
+                                                                    const cat = chartCategories?.find((c: any) => c.id === newEntry.category_id);
+                                                                    return cat ? `${cat.code} - ${cat.name}` : "";
+                                                                })()}
+                                                            </span>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600"
+                                                                onClick={() => setNewEntry({ ...newEntry, category_id: "" })}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                                            <Command>
-                                                                <CommandInput placeholder="Buscar categoria..." />
-                                                                <CommandList>
-                                                                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-                                                                    <CommandGroup>
+                                                        </div>
+                                                    )}
+                                                    <Command className="rounded-md border">
+                                                        <CommandInput placeholder="Buscar categoria..." />
+                                                        <CommandList className="max-h-[180px]">
+                                                            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {chartCategories?.filter((c: any) => c.type === createType)
+                                                                    .map((c: any) => (
                                                                         <CommandItem
-                                                                            value="nenhuma"
-                                                                            onSelect={() => { setNewEntry({ ...newEntry, category_id: "" }); setCategoryPopoverOpen(false); }}>
-                                                                            <Check className={`mr-2 h-4 w-4 ${!newEntry.category_id ? "opacity-100" : "opacity-0"}`} />
-                                                                            -- Nenhuma --
+                                                                            key={c.id}
+                                                                            value={`${c.code} ${c.name}`}
+                                                                            onSelect={() => setNewEntry({ ...newEntry, category_id: c.id })}>
+                                                                            <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
+                                                                            {c.code} - {c.name}
                                                                         </CommandItem>
-                                                                        {chartCategories?.filter((c: any) => c.type === createType)
-                                                                            .map((c: any) => (
-                                                                                <CommandItem
-                                                                                    key={c.id}
-                                                                                    value={`${c.code} ${c.name}`}
-                                                                                    onSelect={() => { setNewEntry({ ...newEntry, category_id: c.id }); setCategoryPopoverOpen(false); }}>
-                                                                                    <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
-                                                                                    {c.code} - {c.name}
-                                                                                </CommandItem>
-                                                                            ))}
-                                                                    </CommandGroup>
-                                                                </CommandList>
-                                                            </Command>
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                                    ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
                                                     <CategorySuggestions suggestions={createSuggestions}
                                                         onSelect={(id) => setNewEntry({ ...newEntry, category_id: id })}
                                                         currentValue={newEntry.category_id} />
