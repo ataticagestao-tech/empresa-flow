@@ -198,6 +198,12 @@ export default function Conciliacao() {
 
         toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
         queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] });
+        // Invalidar dashboard para refletir a mudança de categoria
+        queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_dre_detailed"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_service"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_payment"] });
+        queryClient.invalidateQueries({ queryKey: ["historical_categorized_tx"] });
         setEditingCategoryTxId(null);
     };
 

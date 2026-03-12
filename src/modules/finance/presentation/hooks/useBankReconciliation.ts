@@ -333,6 +333,18 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['system_pending_transactions'] });
             queryClient.invalidateQueries({ queryKey: ['bank_reconciliation_matches'] });
+            queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['import_history'] });
+            // Invalidar todas as queries do dashboard para refletir a conciliação
+            queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_receivables'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_payables'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_revenue_by_service'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_revenue_by_payment'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard_dre_detailed'] });
+            queryClient.invalidateQueries({ queryKey: ['historical_categorized_tx'] });
         },
         onError: (err: any) => toast({ title: "Erro na conciliação", description: err.message, variant: "destructive" })
     });
