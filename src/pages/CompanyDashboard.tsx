@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState, useCallback, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useCallback, useSyncExternalStore, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompanies } from "@/hooks/useCompanies";
@@ -9,7 +9,7 @@ import {
     Landmark, TrendingUp, TrendingDown, LineChart, DollarSign, Target,
     ShoppingBag, AlertTriangle, Users, PieChart, ArrowUpRight, ArrowDownRight,
     CalendarDays, BarChart2, Zap, Activity, Clock, Settings2, MoreHorizontal,
-    Building2, CreditCard, Wallet, ChevronDown, ChevronUp, FileText
+    Building2, CreditCard, Wallet, ChevronDown, ChevronUp, FileText, Download
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -434,9 +434,57 @@ export default function CompanyDashboard() {
         { id: "custofixo",     label: "Custo Fixo",           value: fmt(custoFixo),         icon: Target,       iconBg: "#FEF3C7",   iconColor: "#D97706", detail: `${custoFixoPct}% do faturamento` },
     ];
 
+    const dashboardRef = useRef<HTMLDivElement>(null);
+    const [exporting, setExporting] = useState(false);
+
+    const handleExportPDF = async () => {
+        if (!dashboardRef.current) return;
+        setExporting(true);
+        try {
+            const html2canvas = (await import("html2canvas")).default;
+            const { jsPDF } = await import("jspdf");
+
+            const element = dashboardRef.current;
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: C.bgBase,
+                logging: false,
+            });
+
+            const imgData = canvas.toDataURL("image/png");
+            const imgWidth = 210; // A4 width in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            const pdf = new jsPDF("p", "mm", "a4");
+            let yOffset = 0;
+            const pageHeight = 297; // A4 height in mm
+
+            // If content fits in one page
+            if (imgHeight <= pageHeight) {
+                pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+            } else {
+                // Multi-page
+                while (yOffset < imgHeight) {
+                    if (yOffset > 0) pdf.addPage();
+                    pdf.addImage(imgData, "PNG", 0, -yOffset, imgWidth, imgHeight);
+                    yOffset += pageHeight;
+                }
+            }
+
+            const companyName = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "empresa";
+            const fileName = `${companyName.replace(/\s+/g, "_")}_${activeTab}_${format(dateRange.from, "yyyy-MM-dd")}_${format(dateRange.to, "yyyy-MM-dd")}.pdf`;
+            pdf.save(fileName);
+        } catch (err) {
+            console.error("Erro ao gerar PDF:", err);
+        } finally {
+            setExporting(false);
+        }
+    };
+
     return (
         <AppLayout title={`${selectedCompany.nome_fantasia || selectedCompany.razao_social}`}>
-            <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONT }}>
+            <div ref={dashboardRef} className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONT }}>
 
                 {/* ── Page Header ─────────────────────────────── */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
@@ -485,6 +533,24 @@ export default function CompanyDashboard() {
                                 <Calendar mode="range" selected={calendarRange} onSelect={handleCalendarSelect} numberOfMonths={isMobile ? 1 : 2} defaultMonth={dateRange.from} />
                             </PopoverContent>
                         </Popover>
+
+                        {/* PDF Export */}
+                        <button
+                            onClick={handleExportPDF}
+                            disabled={exporting}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "6px 12px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
+                                borderRadius: 10, border: `1px solid ${C.border}`,
+                                background: C.surface, color: C.text2, cursor: exporting ? "wait" : "pointer",
+                                opacity: exporting ? 0.6 : 1,
+                                transition: "all 0.15s ease",
+                            }}
+                            title="Baixar PDF"
+                        >
+                            <Download size={14} strokeWidth={1.5} color={C.textMuted} />
+                            {exporting ? "Gerando..." : "PDF"}
+                        </button>
                     </div>
                 </div>
 
