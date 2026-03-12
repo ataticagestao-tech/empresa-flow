@@ -72,6 +72,8 @@ export default function Conciliacao() {
     const [newCatName, setNewCatName] = useState("");
     const [isCreatingCategory, setIsCreatingCategory] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [expandedBatchKey, setExpandedBatchKey] = useState<string | null>(null);
+    const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
 
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
@@ -120,6 +122,83 @@ export default function Conciliacao() {
         },
         enabled: !!selectedAccountId,
     });
+
+    // Query: fetch full details of a batch when expanded
+    const { data: expandedBatchTx } = useQuery({
+        queryKey: ["batch_details", expandedBatchKey],
+        queryFn: async () => {
+            if (!expandedBatchKey) return [];
+            const batch = importHistory?.find((b: any) => b.key === expandedBatchKey);
+            if (!batch?.tx_ids?.length) return [];
+
+            // Fetch bank_transactions with full details
+            const { data: txs, error } = await (activeClient as any)
+                .from("bank_transactions")
+                .select("id, date, amount, description, memo, status, reconciled_payable_id, reconciled_receivable_id")
+                .in("id", batch.tx_ids)
+                .order("date", { ascending: true });
+            if (error) throw error;
+
+            // For reconciled ones, fetch category from accounts_payable/receivable
+            const payableIds = (txs || []).map((t: any) => t.reconciled_payable_id).filter(Boolean);
+            const receivableIds = (txs || []).map((t: any) => t.reconciled_receivable_id).filter(Boolean);
+
+            let payableMap: Record<string, any> = {};
+            let receivableMap: Record<string, any> = {};
+
+            if (payableIds.length > 0) {
+                const { data: payables } = await (activeClient as any)
+                    .from("accounts_payable")
+                    .select("id, category_id, description")
+                    .in("id", payableIds);
+                (payables || []).forEach((p: any) => { payableMap[p.id] = p; });
+            }
+            if (receivableIds.length > 0) {
+                const { data: receivables } = await (activeClient as any)
+                    .from("accounts_receivable")
+                    .select("id, category_id, description")
+                    .in("id", receivableIds);
+                (receivables || []).forEach((r: any) => { receivableMap[r.id] = r; });
+            }
+
+            return (txs || []).map((t: any) => {
+                const linked = t.reconciled_payable_id
+                    ? payableMap[t.reconciled_payable_id]
+                    : t.reconciled_receivable_id
+                        ? receivableMap[t.reconciled_receivable_id]
+                        : null;
+                return {
+                    ...t,
+                    linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
+                    linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
+                    category_id: linked?.category_id || null,
+                };
+            });
+        },
+        enabled: !!expandedBatchKey && !!importHistory,
+    });
+
+    // Mutation: update category on linked payable/receivable
+    const updateLinkedCategory = async (linkedTable: string, linkedId: string, newCategoryId: string) => {
+        const { error } = await (activeClient as any)
+            .from(linkedTable)
+            .update({ category_id: newCategoryId })
+            .eq("id", linkedId);
+        if (error) {
+            toast({ title: "Erro", description: "Não foi possível atualizar a categoria.", variant: "destructive" });
+            return;
+        }
+        // Also update the transaction record if it exists
+        const txField = linkedTable === "accounts_payable" ? "related_payable_id" : "related_receivable_id";
+        await (activeClient as any)
+            .from("transactions")
+            .update({ category_id: newCategoryId })
+            .eq(txField, linkedId);
+
+        toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
+        queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] });
+        setEditingCategoryTxId(null);
+    };
 
     const billingStats = useMemo(() => {
         const conciliado = (reconciledTx || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
@@ -673,48 +752,155 @@ export default function Conciliacao() {
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
-                                            {importHistory.map((imp) => (
-                                                <div key={imp.key}
-                                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${imp.source === 'pdf' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                                                            <FileText className="h-4 w-4" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium">{imp.source.toUpperCase()}</p>
-                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                <Calendar className="h-3 w-3" />
-                                                                {format(parseISO(imp.imported_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                            {importHistory.map((imp) => {
+                                                const isExpanded = expandedBatchKey === imp.key;
+                                                return (
+                                                <div key={imp.key} className="rounded-lg border border-[#E2E8F0] overflow-hidden">
+                                                    <div
+                                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#F8FAFC] cursor-pointer hover:bg-[#F1F5F9] transition-colors"
+                                                        onClick={() => setExpandedBatchKey(isExpanded ? null : imp.key)}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${imp.source === 'pdf' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                                <FileText className="h-4 w-4" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium">{imp.source.toUpperCase()}</p>
+                                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                    <Calendar className="h-3 w-3" />
+                                                                    {format(parseISO(imp.imported_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-4 ml-12 sm:ml-0">
-                                                        <div className="text-right">
-                                                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Período</p>
-                                                            <p className="text-sm font-medium">
-                                                                {format(parseISO(imp.min_date), 'dd/MM/yy')} — {format(parseISO(imp.max_date), 'dd/MM/yy')}
-                                                            </p>
+                                                        <div className="flex items-center gap-4 ml-12 sm:ml-0">
+                                                            <div className="text-right">
+                                                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Período</p>
+                                                                <p className="text-sm font-medium">
+                                                                    {format(parseISO(imp.min_date), 'dd/MM/yy')} — {format(parseISO(imp.max_date), 'dd/MM/yy')}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
+                                                                <p className="text-sm font-bold">{imp.count}</p>
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0"
+                                                                onClick={(e) => { e.stopPropagation(); }}
+                                                            >
+                                                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm(`Excluir ${imp.count} transações deste extrato?`)) {
+                                                                        deleteImportBatch.mutate(imp.tx_ids);
+                                                                    }
+                                                                }}
+                                                                disabled={deleteImportBatch.isPending}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
-                                                            <p className="text-sm font-bold">{imp.count}</p>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                                                            onClick={() => {
-                                                                if (confirm(`Excluir ${imp.count} transações deste extrato?`)) {
-                                                                    deleteImportBatch.mutate(imp.tx_ids);
-                                                                }
-                                                            }}
-                                                            disabled={deleteImportBatch.isPending}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
                                                     </div>
+
+                                                    {/* Expanded: transaction details */}
+                                                    {isExpanded && (
+                                                        <div className="border-t border-[#E2E8F0] bg-white">
+                                                            {!expandedBatchTx?.length ? (
+                                                                <div className="text-center py-6 text-muted-foreground text-sm">
+                                                                    Carregando transações...
+                                                                </div>
+                                                            ) : (
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead className="text-xs">Data</TableHead>
+                                                                            <TableHead className="text-xs">Descrição</TableHead>
+                                                                            <TableHead className="text-xs text-right">Valor</TableHead>
+                                                                            <TableHead className="text-xs">Status</TableHead>
+                                                                            <TableHead className="text-xs">Categoria</TableHead>
+                                                                            <TableHead className="text-xs w-[60px]"></TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {expandedBatchTx.map((tx: any) => {
+                                                                            const catAccount = chartCategories?.find((c: any) => c.id === tx.category_id);
+                                                                            const isEditingThis = editingCategoryTxId === tx.id;
+                                                                            const isReconciled = tx.status === "reconciled";
+                                                                            return (
+                                                                                <TableRow key={tx.id}>
+                                                                                    <TableCell className="text-xs whitespace-nowrap">
+                                                                                        {tx.date ? format(parseISO(tx.date), "dd/MM/yy") : "—"}
+                                                                                    </TableCell>
+                                                                                    <TableCell className="text-xs max-w-[200px] truncate" title={tx.description}>
+                                                                                        {tx.description || tx.memo || "—"}
+                                                                                    </TableCell>
+                                                                                    <TableCell className={`text-xs text-right font-medium whitespace-nowrap ${Number(tx.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                                        {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                                    </TableCell>
+                                                                                    <TableCell>
+                                                                                        <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
+                                                                                            {isReconciled ? "Conciliado" : "Pendente"}
+                                                                                        </Badge>
+                                                                                    </TableCell>
+                                                                                    <TableCell className="text-xs">
+                                                                                        {isEditingThis ? (
+                                                                                            <Select
+                                                                                                value={tx.category_id || ""}
+                                                                                                onValueChange={(val) => {
+                                                                                                    if (tx.linked_table && tx.linked_id) {
+                                                                                                        updateLinkedCategory(tx.linked_table, tx.linked_id, val);
+                                                                                                    }
+                                                                                                }}
+                                                                                            >
+                                                                                                <SelectTrigger className="h-7 text-xs w-[180px]">
+                                                                                                    <SelectValue placeholder="Selecione..." />
+                                                                                                </SelectTrigger>
+                                                                                                <SelectContent>
+                                                                                                    <ScrollArea className="h-[200px]">
+                                                                                                        {(chartCategories || []).map((cat: any) => (
+                                                                                                            <SelectItem key={cat.id} value={cat.id} className="text-xs">
+                                                                                                                {cat.code} — {cat.name}
+                                                                                                            </SelectItem>
+                                                                                                        ))}
+                                                                                                    </ScrollArea>
+                                                                                                </SelectContent>
+                                                                                            </Select>
+                                                                                        ) : (
+                                                                                            <span className="text-muted-foreground">
+                                                                                                {catAccount ? `${catAccount.code} — ${catAccount.name}` : "Sem categoria"}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </TableCell>
+                                                                                    <TableCell>
+                                                                                        {isReconciled && tx.linked_id && (
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="sm"
+                                                                                                className="h-7 w-7 p-0"
+                                                                                                onClick={() => setEditingCategoryTxId(isEditingThis ? null : tx.id)}
+                                                                                                title="Editar categoria"
+                                                                                            >
+                                                                                                <BookOpen className="h-3.5 w-3.5" />
+                                                                                            </Button>
+                                                                                        )}
+                                                                                    </TableCell>
+                                                                                </TableRow>
+                                                                            );
+                                                                        })}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </CardContent>
