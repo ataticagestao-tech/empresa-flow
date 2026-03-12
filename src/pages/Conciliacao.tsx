@@ -880,7 +880,7 @@ export default function Conciliacao() {
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
                     if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }
                 }}>
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Conciliar Manualmente</DialogTitle>
                             <DialogDescription>Selecione um lançamento existente ou crie um novo.</DialogDescription>
@@ -986,7 +986,18 @@ export default function Conciliacao() {
                                                     </div>
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
+                                                        {!showNewCategory && (
+                                                            <button
+                                                                type="button"
+                                                                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                                                                onClick={() => setShowNewCategory(true)}>
+                                                                <Plus className="h-3 w-3" />
+                                                                Criar categoria
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     {newEntry.category_id && (
                                                         <div className="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/50">
                                                             <span className="text-sm font-medium">
@@ -1031,15 +1042,6 @@ export default function Conciliacao() {
                                                     ) : (
                                                         <Command className="rounded-md border">
                                                             <CommandInput placeholder="Buscar categoria..." />
-                                                            <div className="border-b px-2 py-1.5">
-                                                                <button
-                                                                    type="button"
-                                                                    className="flex items-center gap-2 w-full rounded-sm px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
-                                                                    onClick={() => setShowNewCategory(true)}>
-                                                                    <Plus className="h-3.5 w-3.5" />
-                                                                    Criar nova categoria no plano de contas
-                                                                </button>
-                                                            </div>
                                                             <CommandList className="max-h-[150px]">
                                                                 <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
                                                                 <CommandGroup>
