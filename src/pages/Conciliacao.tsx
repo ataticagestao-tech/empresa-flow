@@ -261,10 +261,10 @@ export default function Conciliacao() {
     const handleBatchApprove = async () => {
         const toApprove = Array.from(selectedIds)
             .map(id => suggestionMap.get(id))
-            .filter((s): s is MatchSuggestion => !!s && !!s.systemTransaction && s.score >= 85);
+            .filter((s): s is MatchSuggestion => !!s && !!s.systemTransaction);
 
         if (toApprove.length === 0) {
-            toast({ title: "Nenhum item elegível", description: "Só é possível aprovar sugestões com confiança >= 85%.", variant: "destructive" });
+            toast({ title: "Nenhum item elegível", description: "Selecione transações que tenham sugestão de lançamento.", variant: "destructive" });
             return;
         }
 
