@@ -69,7 +69,6 @@ export default function Conciliacao() {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
     const [showNewCategory, setShowNewCategory] = useState(false);
-    const [newCatCode, setNewCatCode] = useState("");
     const [newCatName, setNewCatName] = useState("");
     const [isCreatingCategory, setIsCreatingCategory] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -170,8 +169,8 @@ export default function Conciliacao() {
         });
     }, [bankTransactions, scoreFilter, suggestionMap]);
 
-    // Categories for create form
-    const { data: chartCategories } = useQuery({
+    // Categories for create form — all accounts (analytical + synthetic)
+    const { data: allChartAccounts } = useQuery({
         queryKey: ["chart_of_accounts_all", selectedCompany?.id],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
@@ -181,15 +180,50 @@ export default function Conciliacao() {
                 .eq("company_id", selectedCompany.id)
                 .order("code");
             if (error) return [];
-            return (data || [])
-                .filter((c: any) => c.is_analytic === true || c.is_analytical === true)
-                .map((c: any) => ({
-                    id: c.id, code: c.code, name: c.name,
-                    type: c.type || (c.account_type === 'expense' ? 'despesa' : c.account_type === 'revenue' ? 'receita' : c.account_type),
-                }));
+            return (data || []).map((c: any) => ({
+                id: c.id, code: c.code, name: c.name,
+                type: c.type || (c.account_type === 'expense' ? 'despesa' : c.account_type === 'revenue' ? 'receita' : c.account_type),
+                account_type: c.account_type,
+                account_nature: c.account_nature,
+                is_analytical: c.is_analytic === true || c.is_analytical === true,
+                is_synthetic: !c.is_analytic && !c.is_analytical,
+                parent_id: c.parent_id,
+            }));
         },
         enabled: !!selectedCompany?.id
     });
+
+    // Analytical accounts (for category picker)
+    const chartCategories = useMemo(() =>
+        (allChartAccounts || []).filter((c: any) => c.is_analytical),
+    [allChartAccounts]);
+
+    // Synthetic (parent) groups for "criar categoria" — filtered by createType
+    const parentGroups = useMemo(() => {
+        if (!allChartAccounts) return [];
+        const typeFilter = createType === "despesa" ? "expense" : "revenue";
+        return allChartAccounts.filter((c: any) =>
+            c.is_synthetic && c.account_type === typeFilter
+        );
+    }, [allChartAccounts, createType]);
+
+    // Auto-generate next available code under selected parent group
+    const [selectedParentId, setSelectedParentId] = useState("");
+    const nextCatCode = useMemo(() => {
+        if (!selectedParentId || !allChartAccounts) return "";
+        const parent = allChartAccounts.find((c: any) => c.id === selectedParentId);
+        if (!parent) return "";
+        const prefix = parent.code + ".";
+        const existing = allChartAccounts
+            .filter((c: any) => c.code.startsWith(prefix) && c.code.split(".").length === parent.code.split(".").length + 1)
+            .map((c: any) => {
+                const lastPart = c.code.substring(prefix.length);
+                return parseInt(lastPart, 10);
+            })
+            .filter((n: number) => !isNaN(n));
+        const nextNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+        return `${prefix}${String(nextNum).padStart(2, "0")}`;
+    }, [selectedParentId, allChartAccounts]);
 
     const createDescription = showCreateForm ? (newEntry.description || selectedBankTx?.description || "") : "";
     const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
@@ -361,33 +395,36 @@ export default function Conciliacao() {
     };
 
     const handleCreateCategory = async () => {
-        if (!newCatCode.trim() || !newCatName.trim() || !selectedCompany?.id) return;
+        if (!nextCatCode || !newCatName.trim() || !selectedCompany?.id || !selectedParentId) return;
         setIsCreatingCategory(true);
         try {
-            const accountType = createType === "despesa" ? "expense" : "revenue";
-            const accountNature = createType === "despesa" ? "debit" : "credit";
+            const parent = allChartAccounts?.find((c: any) => c.id === selectedParentId);
+            const accountType = parent?.account_type || (createType === "despesa" ? "expense" : "revenue");
+            const accountNature = parent?.account_nature || (createType === "despesa" ? "debit" : "credit");
+            const parentLevel = parent?.code.split(".").length || 1;
             const { data, error } = await (activeClient as any)
                 .from("chart_of_accounts")
                 .insert({
                     company_id: selectedCompany.id,
-                    code: newCatCode.trim(),
+                    code: nextCatCode,
                     name: newCatName.trim(),
                     account_type: accountType,
                     account_nature: accountNature,
                     is_analytical: true,
                     is_synthetic: false,
                     status: "active",
-                    level: 2,
+                    level: parentLevel + 1,
+                    parent_id: selectedParentId,
                 })
                 .select("id")
                 .single();
             if (error) throw error;
-            toast({ title: "Categoria criada", description: `${newCatCode.trim()} - ${newCatName.trim()}` });
+            toast({ title: "Categoria criada", description: `${nextCatCode} - ${newCatName.trim()}` });
             queryClient.invalidateQueries({ queryKey: ["chart_of_accounts_all"] });
             queryClient.invalidateQueries({ queryKey: ["chart_accounts_analytical"] });
             setNewEntry({ ...newEntry, category_id: data.id });
             setShowNewCategory(false);
-            setNewCatCode("");
+            setSelectedParentId("");
             setNewCatName("");
         } catch (err: any) {
             toast({ title: "Erro ao criar categoria", description: err.message, variant: "destructive" });
@@ -878,7 +915,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }
                 }}>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
@@ -1013,29 +1050,47 @@ export default function Conciliacao() {
                                                         </div>
                                                     )}
                                                     {showNewCategory ? (
-                                                        <div className="rounded-md border p-3 space-y-2 bg-muted/30">
-                                                            <p className="text-xs font-semibold text-primary">Nova Categoria</p>
-                                                            <div className="grid grid-cols-[80px_1fr] gap-2">
-                                                                <Input placeholder="Código" value={newCatCode}
-                                                                    onChange={e => setNewCatCode(e.target.value)}
-                                                                    className="text-xs h-8" />
-                                                                <Input placeholder="Nome da categoria" value={newCatName}
-                                                                    onChange={e => setNewCatName(e.target.value)}
-                                                                    className="text-xs h-8" />
-                                                            </div>
-                                                            <p className="text-[10px] text-muted-foreground">
-                                                                Tipo: {createType === "despesa" ? "Despesa" : "Receita"} (definido automaticamente)
+                                                        <div className="rounded-md border p-3 space-y-3 bg-blue-50/50">
+                                                            <p className="text-xs font-semibold text-primary flex items-center gap-1">
+                                                                <Plus className="h-3 w-3" /> Nova Categoria
                                                             </p>
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Grupo (conta pai)</Label>
+                                                                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                        <SelectValue placeholder="Selecione o grupo..." />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {parentGroups.map((g: any) => (
+                                                                            <SelectItem key={g.id} value={g.id} className="text-xs">
+                                                                                {g.code} - {g.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            {selectedParentId && (
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                                        Código (automático): <span className="text-primary font-bold">{nextCatCode}</span>
+                                                                    </Label>
+                                                                    <Input placeholder="Nome da nova categoria"
+                                                                        value={newCatName}
+                                                                        onChange={e => setNewCatName(e.target.value)}
+                                                                        className="text-xs h-8"
+                                                                        autoFocus />
+                                                                </div>
+                                                            )}
                                                             <div className="flex gap-2">
                                                                 <Button variant="outline" size="sm" className="h-7 text-xs flex-1"
-                                                                    onClick={() => { setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); }}>
+                                                                    onClick={() => { setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); }}>
                                                                     Cancelar
                                                                 </Button>
                                                                 <Button size="sm" className="h-7 text-xs flex-1 bg-primary text-white"
                                                                     onClick={handleCreateCategory}
-                                                                    disabled={isCreatingCategory || !newCatCode.trim() || !newCatName.trim()}>
+                                                                    disabled={isCreatingCategory || !selectedParentId || !nextCatCode || !newCatName.trim()}>
                                                                     {isCreatingCategory ? <RefreshCw className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
-                                                                    Criar
+                                                                    Criar {nextCatCode}
                                                                 </Button>
                                                             </div>
                                                         </div>
@@ -1067,7 +1122,7 @@ export default function Conciliacao() {
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" className="flex-1"
-                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }}>
+                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }}>
                                                 Voltar
                                             </Button>
                                             <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
