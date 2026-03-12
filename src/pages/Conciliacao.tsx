@@ -32,7 +32,7 @@ import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconcili
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategorySuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
 
@@ -68,11 +68,16 @@ export default function Conciliacao() {
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
+    const [showNewCategory, setShowNewCategory] = useState(false);
+    const [newCatCode, setNewCatCode] = useState("");
+    const [newCatName, setNewCatName] = useState("");
+    const [isCreatingCategory, setIsCreatingCategory] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const { toast } = useToast();
+    const queryClient = useQueryClient();
 
     const handleAccountChange = (val: string) => {
         setSelectedAccountId(val);
@@ -352,6 +357,42 @@ export default function Conciliacao() {
             setSelectedIds(new Set());
         } else {
             setSelectedIds(new Set(filteredBankTransactions.map(bt => bt.id)));
+        }
+    };
+
+    const handleCreateCategory = async () => {
+        if (!newCatCode.trim() || !newCatName.trim() || !selectedCompany?.id) return;
+        setIsCreatingCategory(true);
+        try {
+            const accountType = createType === "despesa" ? "expense" : "revenue";
+            const accountNature = createType === "despesa" ? "debit" : "credit";
+            const { data, error } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .insert({
+                    company_id: selectedCompany.id,
+                    code: newCatCode.trim(),
+                    name: newCatName.trim(),
+                    account_type: accountType,
+                    account_nature: accountNature,
+                    is_analytical: true,
+                    is_synthetic: false,
+                    status: "active",
+                    level: 2,
+                })
+                .select("id")
+                .single();
+            if (error) throw error;
+            toast({ title: "Categoria criada", description: `${newCatCode.trim()} - ${newCatName.trim()}` });
+            queryClient.invalidateQueries({ queryKey: ["chart_of_accounts_all"] });
+            queryClient.invalidateQueries({ queryKey: ["chart_accounts_analytical"] });
+            setNewEntry({ ...newEntry, category_id: data.id });
+            setShowNewCategory(false);
+            setNewCatCode("");
+            setNewCatName("");
+        } catch (err: any) {
+            toast({ title: "Erro ao criar categoria", description: err.message, variant: "destructive" });
+        } finally {
+            setIsCreatingCategory(false);
         }
     };
 
@@ -837,7 +878,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setNewEntry({ description: "", category_id: "" }); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }
                 }}>
                     <DialogContent className="max-w-2xl">
                         <DialogHeader>
@@ -960,24 +1001,62 @@ export default function Conciliacao() {
                                                             </Button>
                                                         </div>
                                                     )}
-                                                    <Command className="rounded-md border">
-                                                        <CommandInput placeholder="Buscar categoria..." />
-                                                        <CommandList className="max-h-[180px]">
-                                                            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {chartCategories?.filter((c: any) => c.type === createType)
-                                                                    .map((c: any) => (
-                                                                        <CommandItem
-                                                                            key={c.id}
-                                                                            value={`${c.code} ${c.name}`}
-                                                                            onSelect={() => setNewEntry({ ...newEntry, category_id: c.id })}>
-                                                                            <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
-                                                                            {c.code} - {c.name}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
+                                                    {showNewCategory ? (
+                                                        <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+                                                            <p className="text-xs font-semibold text-primary">Nova Categoria</p>
+                                                            <div className="grid grid-cols-[80px_1fr] gap-2">
+                                                                <Input placeholder="Código" value={newCatCode}
+                                                                    onChange={e => setNewCatCode(e.target.value)}
+                                                                    className="text-xs h-8" />
+                                                                <Input placeholder="Nome da categoria" value={newCatName}
+                                                                    onChange={e => setNewCatName(e.target.value)}
+                                                                    className="text-xs h-8" />
+                                                            </div>
+                                                            <p className="text-[10px] text-muted-foreground">
+                                                                Tipo: {createType === "despesa" ? "Despesa" : "Receita"} (definido automaticamente)
+                                                            </p>
+                                                            <div className="flex gap-2">
+                                                                <Button variant="outline" size="sm" className="h-7 text-xs flex-1"
+                                                                    onClick={() => { setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); }}>
+                                                                    Cancelar
+                                                                </Button>
+                                                                <Button size="sm" className="h-7 text-xs flex-1 bg-primary text-white"
+                                                                    onClick={handleCreateCategory}
+                                                                    disabled={isCreatingCategory || !newCatCode.trim() || !newCatName.trim()}>
+                                                                    {isCreatingCategory ? <RefreshCw className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
+                                                                    Criar
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Command className="rounded-md border">
+                                                            <CommandInput placeholder="Buscar categoria..." />
+                                                            <CommandList className="max-h-[180px]">
+                                                                <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {chartCategories?.filter((c: any) => c.type === createType)
+                                                                        .map((c: any) => (
+                                                                            <CommandItem
+                                                                                key={c.id}
+                                                                                value={`${c.code} ${c.name}`}
+                                                                                onSelect={() => setNewEntry({ ...newEntry, category_id: c.id })}>
+                                                                                <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
+                                                                                {c.code} - {c.name}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                </CommandGroup>
+                                                                <CommandGroup>
+                                                                    <CommandItem
+                                                                        value="__criar_categoria__"
+                                                                        onSelect={() => setShowNewCategory(true)}
+                                                                        className="text-primary font-medium">
+                                                                        <Plus className="mr-2 h-4 w-4" />
+                                                                        Criar nova categoria no plano de contas
+                                                                    </CommandItem>
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    )}
                                                     <CategorySuggestions suggestions={createSuggestions}
                                                         onSelect={(id) => setNewEntry({ ...newEntry, category_id: id })}
                                                         currentValue={newEntry.category_id} />
@@ -986,7 +1065,7 @@ export default function Conciliacao() {
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" className="flex-1"
-                                                onClick={() => { setShowCreateForm(false); setNewEntry({ description: "", category_id: "" }); }}>
+                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setNewCatCode(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }}>
                                                 Voltar
                                             </Button>
                                             <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
