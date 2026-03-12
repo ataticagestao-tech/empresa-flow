@@ -192,29 +192,48 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
         }
     };
 
-    const initializeFromTemplate = async () => {
+    // Buscar templates disponíveis
+    const [availableTemplates, setAvailableTemplates] = useState<{ id: string; name: string; description: string; industry: string }[]>([]);
+
+    useEffect(() => {
+        const loadTemplates = async () => {
+            const { data } = await activeClient
+                .from('account_templates')
+                .select('id, name, description, industry')
+                .order('is_default', { ascending: false });
+            setAvailableTemplates(data || []);
+        };
+        loadTemplates();
+    }, [activeClient]);
+
+    const initializeFromTemplate = async (templateId?: string) => {
         try {
             setIsLoading(true);
             toast.info('Criando plano de contas...', { duration: 2000 });
 
-            // Buscar template padrão
-            const { data: template, error: templateError } = await activeClient
-                .from('account_templates')
-                .select('id')
-                .eq('is_default', true)
-                .limit(1)
-                .maybeSingle();
+            let selectedTemplateId = templateId;
 
-            if (templateError || !template) {
-                toast.error('Template padrão não encontrado');
-                return;
+            if (!selectedTemplateId) {
+                // Fallback: buscar template padrão
+                const { data: template, error: templateError } = await activeClient
+                    .from('account_templates')
+                    .select('id')
+                    .eq('is_default', true)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (templateError || !template) {
+                    toast.error('Template padrão não encontrado');
+                    return;
+                }
+                selectedTemplateId = template.id;
             }
 
             // Buscar itens do template
             const { data: items, error: itemsError } = await activeClient
                 .from('account_template_items')
                 .select('*')
-                .eq('template_id', template.id)
+                .eq('template_id', selectedTemplateId)
                 .order('level')
                 .order('code');
 
@@ -609,21 +628,41 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
-                        <Button
-                            onClick={initializeFromTemplate}
-                            className="w-full justify-start h-auto py-4 px-4"
-                            variant="outline"
-                        >
-                            <div className="text-left">
-                                <div className="font-semibold flex items-center gap-2">
-                                    <Copy className="w-4 h-4" />
-                                    Usar Template Padrão
+                        {availableTemplates.map(tmpl => (
+                            <Button
+                                key={tmpl.id}
+                                onClick={() => initializeFromTemplate(tmpl.id)}
+                                className="w-full justify-start h-auto py-4 px-4"
+                                variant="outline"
+                            >
+                                <div className="text-left">
+                                    <div className="font-semibold flex items-center gap-2">
+                                        <Copy className="w-4 h-4" />
+                                        {tmpl.name}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground mt-1">
+                                        {tmpl.description || `Setor: ${tmpl.industry || 'Geral'}`}
+                                    </div>
                                 </div>
-                                <div className="text-sm text-muted-foreground mt-1">
-                                    Criar plano de contas baseado no modelo padrão
+                            </Button>
+                        ))}
+                        {availableTemplates.length === 0 && (
+                            <Button
+                                onClick={() => initializeFromTemplate()}
+                                className="w-full justify-start h-auto py-4 px-4"
+                                variant="outline"
+                            >
+                                <div className="text-left">
+                                    <div className="font-semibold flex items-center gap-2">
+                                        <Copy className="w-4 h-4" />
+                                        Usar Template Padrão
+                                    </div>
+                                    <div className="text-sm text-muted-foreground mt-1">
+                                        Criar plano de contas baseado no modelo padrão
+                                    </div>
                                 </div>
-                            </div>
-                        </Button>
+                            </Button>
+                        )}
                         <Button
                             onClick={startFromScratch}
                             className="w-full justify-start h-auto py-4 px-4"

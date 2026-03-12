@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { useBankReconciliation, SystemTransaction } from "@/modules/finance/presentation/hooks/useBankReconciliation";
 import { useConciliationEngine, MatchSuggestion } from "@/modules/finance/presentation/hooks/useConciliationEngine";
+import { useDefaultConciliationRules } from "@/modules/finance/presentation/hooks/useDefaultConciliationRules";
 import { useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -94,6 +95,8 @@ export default function Conciliacao() {
         createRule,
         deleteRule,
     } = useConciliationEngine(selectedAccountId, bankTransactions, systemTransactions);
+
+    const { seedDefaultRules, rulesCount: defaultRulesCount } = useDefaultConciliationRules();
 
     // Build lookup: bankTxId -> suggestion
     const suggestionMap = useMemo(() => {
@@ -350,10 +353,26 @@ export default function Conciliacao() {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
+                                    {/* Botão para aplicar regras padrão */}
+                                    <div className="flex items-center justify-between mb-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+                                        <div className="flex items-center gap-2 text-sm text-blue-700">
+                                            <Zap className="h-4 w-4" />
+                                            <span><strong>{defaultRulesCount}</strong> regras padrão disponíveis (keywords da clínica)</span>
+                                        </div>
+                                        <Button size="sm" variant="outline"
+                                            className="border-blue-200 text-blue-700 hover:bg-blue-100"
+                                            onClick={() => seedDefaultRules.mutate()}
+                                            disabled={seedDefaultRules.isPending}
+                                        >
+                                            {seedDefaultRules.isPending ? <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                                            Aplicar Regras Padrão
+                                        </Button>
+                                    </div>
+
                                     {rules.length === 0 ? (
                                         <div className="text-center py-6 text-muted-foreground text-sm">
                                             <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                            Nenhuma regra ainda. Concilie transações manualmente e o sistema irá memorizar os padrões.
+                                            Nenhuma regra ainda. Aplique as regras padrão ou concilie manualmente para o sistema memorizar.
                                         </div>
                                     ) : (
                                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
