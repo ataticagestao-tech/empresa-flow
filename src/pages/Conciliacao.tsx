@@ -364,6 +364,64 @@ export default function Conciliacao() {
                 ) : (
                     <div className="grid gap-6">
 
+                        {/* Faturamento Cards — sempre visíveis no topo */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Card className="border-emerald-200 bg-emerald-50/50">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento Conciliado</p>
+                                            <p className="text-2xl font-bold text-emerald-600 mt-1">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.conciliado)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {reconciledTx?.length || 0} transações reconciliadas
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                            <DollarSign className="h-6 w-6 text-emerald-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-amber-200 bg-amber-50/50">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento a Conciliar</p>
+                                            <p className="text-2xl font-bold text-amber-600 mt-1">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.aConciliar)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {billingStats.totalPending} transações pendentes
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                                            <Clock className="h-6 w-6 text-amber-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-purple-200 bg-purple-50/50">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suporte IA</p>
+                                            <p className="text-2xl font-bold text-purple-600 mt-1">
+                                                {billingStats.aiPercent}%
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {billingStats.withAiSupport} de {billingStats.totalPending} com sugestão automática
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                                            <Bot className="h-6 w-6 text-purple-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
                         {/* Painel de Regras Aprendidas */}
                         {showRulesPanel && (
                             <Card className="border-[#E2E8F0]">
@@ -498,64 +556,6 @@ export default function Conciliacao() {
                                 </CardContent>
                             )}
                         </Card>
-
-                        {/* Faturamento Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="border-[#E2E8F0]">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento Conciliado</p>
-                                            <p className="text-2xl font-bold text-emerald-600 mt-1">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.conciliado)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {reconciledTx?.length || 0} transações reconciliadas
-                                            </p>
-                                        </div>
-                                        <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                            <DollarSign className="h-6 w-6 text-emerald-600" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-[#E2E8F0]">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento a Conciliar</p>
-                                            <p className="text-2xl font-bold text-amber-600 mt-1">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.aConciliar)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {billingStats.totalPending} transações pendentes
-                                            </p>
-                                        </div>
-                                        <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                                            <Clock className="h-6 w-6 text-amber-600" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-[#E2E8F0]">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suporte IA</p>
-                                            <p className="text-2xl font-bold text-purple-600 mt-1">
-                                                {billingStats.aiPercent}%
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {billingStats.withAiSupport} de {billingStats.totalPending} com sugestão automática
-                                            </p>
-                                        </div>
-                                        <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                                            <Bot className="h-6 w-6 text-purple-600" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
 
                         {/* Score Summary Cards */}
                         {scoreSummary.total > 0 && (
