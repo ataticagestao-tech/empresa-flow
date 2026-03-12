@@ -198,6 +198,9 @@ export default function Conciliacao() {
         (allChartAccounts || []).filter((c: any) => c.is_analytical),
     [allChartAccounts]);
 
+    const createDescription = showCreateForm ? (newEntry.description || selectedBankTx?.description || "") : "";
+    const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
+
     // Synthetic (parent) groups for "criar categoria" — filtered by createType
     const parentGroups = useMemo(() => {
         if (!allChartAccounts) return [];
@@ -225,8 +228,6 @@ export default function Conciliacao() {
         return `${prefix}${String(nextNum).padStart(2, "0")}`;
     }, [selectedParentId, allChartAccounts]);
 
-    const createDescription = showCreateForm ? (newEntry.description || selectedBankTx?.description || "") : "";
-    const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
     const { suggestions: createSuggestions } = useCategorySuggestion(
         createDescription, chartCategories || [], createType as "receita" | "despesa"
     );
