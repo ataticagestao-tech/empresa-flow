@@ -77,26 +77,42 @@ export function useAiRecategorization(categories: ChartAccount[]) {
     const [processing, setProcessing] = useState(false);
     const [results, setResults] = useState<Record<string, TxAiResult>>({});
 
-    // Fetch ALL historical transactions with their categories for this company
+    // Fetch ALL transactions (past + future) with their categories for this company
     const { data: historicalTx } = useQuery({
         queryKey: ["historical_categorized_tx", selectedCompany?.id],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            const { data, error } = await db
-                .from("transactions")
-                .select(`
-                    id, description, amount, date, type,
-                    category_id,
-                    category:chart_of_accounts (
-                        id, code, name, account_type, account_nature
-                    )
-                `)
-                .eq("company_id", selectedCompany.id)
-                .not("category_id", "is", null)
-                .order("date", { ascending: false })
-                .limit(2000);
-            if (error) return [];
-            return data || [];
+
+            // Buscar todos os lançamentos categorizados (passados e futuros)
+            // Paginar em blocos de 1000 para não estourar limite do Supabase
+            let allData: any[] = [];
+            let from = 0;
+            const pageSize = 1000;
+
+            while (true) {
+                const { data, error } = await db
+                    .from("transactions")
+                    .select(`
+                        id, description, amount, date, type,
+                        category_id,
+                        category:chart_of_accounts (
+                            id, code, name, account_type, account_nature
+                        )
+                    `)
+                    .eq("company_id", selectedCompany.id)
+                    .not("category_id", "is", null)
+                    .order("date")
+                    .range(from, from + pageSize - 1);
+
+                if (error) break;
+                if (!data?.length) break;
+
+                allData = allData.concat(data);
+                if (data.length < pageSize) break; // última página
+                from += pageSize;
+            }
+
+            return allData;
         },
         enabled: !!selectedCompany?.id,
         staleTime: 5 * 60 * 1000, // cache 5 min
