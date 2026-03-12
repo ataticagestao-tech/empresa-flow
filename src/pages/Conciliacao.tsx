@@ -85,7 +85,8 @@ export default function Conciliacao() {
         systemTransactions,
         importHistory,
         uploadOFX,
-        matchTransaction
+        matchTransaction,
+        deleteImportBatch
     } = useBankReconciliation(selectedAccountId);
 
     const {
@@ -572,6 +573,19 @@ export default function Conciliacao() {
                                                             <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
                                                             <p className="text-sm font-bold">{imp.count}</p>
                                                         </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                                            onClick={() => {
+                                                                if (confirm(`Excluir ${imp.count} transações deste extrato?`)) {
+                                                                    deleteImportBatch.mutate(imp.tx_ids);
+                                                                }
+                                                            }}
+                                                            disabled={deleteImportBatch.isPending}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             ))}

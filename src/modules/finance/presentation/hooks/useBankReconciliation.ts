@@ -362,6 +362,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 min_date: string;
                 max_date: string;
                 count: number;
+                tx_ids: string[];
             }>();
 
             for (const tx of allTx) {
@@ -375,6 +376,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 const existing = groups.get(groupKey);
                 if (existing) {
                     existing.count++;
+                    existing.tx_ids.push(tx.id);
                     if (tx.date < existing.min_date) existing.min_date = tx.date;
                     if (tx.date > existing.max_date) existing.max_date = tx.date;
                 } else {
@@ -385,6 +387,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                         min_date: tx.date,
                         max_date: tx.date,
                         count: 1,
+                        tx_ids: [tx.id],
                     });
                 }
             }
@@ -399,6 +402,33 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         enabled: !!bankAccountId,
     });
 
+    // Mutation: Deletar lote de importação
+    const deleteImportBatch = useMutation({
+        mutationFn: async (txIds: string[]) => {
+            if (!txIds.length) throw new Error("Nenhuma transação para deletar");
+
+            // Deletar em batches de 50 (limite do Supabase IN filter)
+            const batchSize = 50;
+            for (let i = 0; i < txIds.length; i += batchSize) {
+                const batch = txIds.slice(i, i + batchSize);
+                const { error } = await (activeClient as any)
+                    .from('bank_transactions')
+                    .delete()
+                    .in('id', batch);
+                if (error) throw error;
+            }
+
+            return txIds.length;
+        },
+        onSuccess: (count) => {
+            toast({ title: "Extrato excluído", description: `${count} transações removidas.` });
+            queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
+            queryClient.invalidateQueries({ queryKey: ['import_history'] });
+            queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
+        },
+        onError: (err: any) => toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" })
+    });
+
     return {
         bankTransactions,
         statementFiles,
@@ -407,6 +437,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         isLoading: isLoadingBankTx || isLoadingSystemTx,
         uploadOFX,
         uploadPDF,
-        matchTransaction
+        matchTransaction,
+        deleteImportBatch
     };
 }
