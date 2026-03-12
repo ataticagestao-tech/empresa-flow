@@ -841,12 +841,12 @@ export default function Conciliacao() {
                                                                     <Table>
                                                                         <TableHeader>
                                                                             <TableRow>
+                                                                                <TableHead className="text-xs w-[70px]"></TableHead>
                                                                                 <TableHead className="text-xs">Data</TableHead>
                                                                                 <TableHead className="text-xs">Descrição</TableHead>
                                                                                 <TableHead className="text-xs text-right">Valor</TableHead>
                                                                                 <TableHead className="text-xs">Status</TableHead>
                                                                                 <TableHead className="text-xs">Categoria</TableHead>
-                                                                                <TableHead className="text-xs w-[80px]"></TableHead>
                                                                             </TableRow>
                                                                         </TableHeader>
                                                                         <TableBody>
@@ -856,82 +856,10 @@ export default function Conciliacao() {
                                                                                 const isReconciled = tx.status === "reconciled";
                                                                                 const aiResult = aiRecat.results[tx.id];
                                                                                 return (
-                                                                                    <TableRow key={tx.id} className="group">
-                                                                                        <TableCell className="text-xs whitespace-nowrap">
-                                                                                            {tx.date ? format(parseISO(tx.date), "dd/MM/yy") : "—"}
-                                                                                        </TableCell>
-                                                                                        <TableCell className="text-xs max-w-[200px]">
-                                                                                            <div className="truncate" title={tx.description}>
-                                                                                                {tx.description || tx.memo || "—"}
-                                                                                            </div>
-                                                                                            {/* AI suggestions inline */}
-                                                                                            {aiResult && aiResult.suggestions.length > 0 && (
-                                                                                                <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                                                                                                    <span className="flex items-center gap-0.5 text-[9px] font-semibold text-amber-600 uppercase tracking-wider">
-                                                                                                        <Sparkles className="h-2.5 w-2.5" />
-                                                                                                        IA:
-                                                                                                    </span>
-                                                                                                    {aiResult.suggestions.map((s) => (
-                                                                                                        <Badge
-                                                                                                            key={s.account.id}
-                                                                                                            variant="outline"
-                                                                                                            className={`cursor-pointer text-[10px] font-medium transition-all hover:scale-105 ${
-                                                                                                                tx.category_id === s.account.id
-                                                                                                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                                                                                                    : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
-                                                                                                            }`}
-                                                                                                            title={`${s.reason} (score: ${s.score})`}
-                                                                                                            onClick={() => {
-                                                                                                                if (tx.linked_table && tx.linked_id) {
-                                                                                                                    updateLinkedCategory(tx.linked_table, tx.linked_id, s.account.id);
-                                                                                                                }
-                                                                                                            }}
-                                                                                                        >
-                                                                                                            {s.account.code} {s.account.name}
-                                                                                                        </Badge>
-                                                                                                    ))}
-                                                                                                </div>
-                                                                                            )}
-                                                                                        </TableCell>
-                                                                                        <TableCell className={`text-xs text-right font-medium whitespace-nowrap ${Number(tx.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                                                                            {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                                                                        </TableCell>
-                                                                                        <TableCell>
-                                                                                            <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
-                                                                                                {isReconciled ? "Conciliado" : "Pendente"}
-                                                                                            </Badge>
-                                                                                        </TableCell>
-                                                                                        <TableCell className="text-xs">
-                                                                                            {isEditingThis ? (
-                                                                                                <Select
-                                                                                                    value={tx.category_id || ""}
-                                                                                                    onValueChange={(val) => {
-                                                                                                        if (tx.linked_table && tx.linked_id) {
-                                                                                                            updateLinkedCategory(tx.linked_table, tx.linked_id, val);
-                                                                                                        }
-                                                                                                    }}
-                                                                                                >
-                                                                                                    <SelectTrigger className="h-7 text-xs w-[180px]">
-                                                                                                        <SelectValue placeholder="Selecione..." />
-                                                                                                    </SelectTrigger>
-                                                                                                    <SelectContent>
-                                                                                                        <ScrollArea className="h-[200px]">
-                                                                                                            {(chartCategories || []).map((cat: any) => (
-                                                                                                                <SelectItem key={cat.id} value={cat.id} className="text-xs">
-                                                                                                                    {cat.code} — {cat.name}
-                                                                                                                </SelectItem>
-                                                                                                            ))}
-                                                                                                        </ScrollArea>
-                                                                                                    </SelectContent>
-                                                                                                </Select>
-                                                                                            ) : (
-                                                                                                <span className="text-muted-foreground">
-                                                                                                    {catAccount ? `${catAccount.code} — ${catAccount.name}` : "Sem categoria"}
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </TableCell>
-                                                                                        <TableCell>
-                                                                                            <div className="flex items-center gap-1">
+                                                                                    <TableRow key={tx.id} className="group align-top">
+                                                                                        {/* Ações à ESQUERDA */}
+                                                                                        <TableCell className="py-2">
+                                                                                            <div className="flex items-center gap-0.5">
                                                                                                 {isReconciled && tx.linked_id && (
                                                                                                     <>
                                                                                                         <Button
@@ -965,6 +893,86 @@ export default function Conciliacao() {
                                                                                                     </>
                                                                                                 )}
                                                                                             </div>
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs whitespace-nowrap py-2">
+                                                                                            {tx.date ? format(parseISO(tx.date), "dd/MM/yy") : "—"}
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs py-2">
+                                                                                            <div className="whitespace-normal break-words text-[12px] leading-snug">
+                                                                                                {tx.description || tx.memo || "—"}
+                                                                                            </div>
+                                                                                            {/* AI suggestions inline */}
+                                                                                            {aiResult && aiResult.suggestions.length > 0 && (
+                                                                                                <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                                                                                                    <span className="flex items-center gap-0.5 text-[9px] font-semibold text-amber-600 uppercase tracking-wider">
+                                                                                                        <Sparkles className="h-2.5 w-2.5" />
+                                                                                                        IA:
+                                                                                                    </span>
+                                                                                                    {aiResult.suggestions.map((s) => (
+                                                                                                        <Badge
+                                                                                                            key={s.account.id}
+                                                                                                            variant="outline"
+                                                                                                            className={`cursor-pointer text-[10px] font-medium transition-all hover:scale-105 ${
+                                                                                                                tx.category_id === s.account.id
+                                                                                                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                                                                                                    : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                                                                                                            }`}
+                                                                                                            title={`${s.reason} (score: ${s.score})`}
+                                                                                                            onClick={() => {
+                                                                                                                if (tx.linked_table && tx.linked_id) {
+                                                                                                                    updateLinkedCategory(tx.linked_table, tx.linked_id, s.account.id);
+                                                                                                                }
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            {s.account.code} {s.account.name}
+                                                                                                        </Badge>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </TableCell>
+                                                                                        <TableCell className={`text-xs text-right font-medium whitespace-nowrap py-2 ${Number(tx.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                                            {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                                        </TableCell>
+                                                                                        <TableCell className="py-2">
+                                                                                            <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
+                                                                                                {isReconciled ? "Conciliado" : "Pendente"}
+                                                                                            </Badge>
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs py-2">
+                                                                                            {isEditingThis ? (
+                                                                                                <div className="relative">
+                                                                                                    <Command className="rounded-lg border shadow-md" shouldFilter={true}>
+                                                                                                        <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                                                                                                        <CommandList>
+                                                                                                            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada</CommandEmpty>
+                                                                                                            <CommandGroup className="max-h-[200px] overflow-y-auto">
+                                                                                                                {(chartCategories || []).map((cat: any) => (
+                                                                                                                    <CommandItem
+                                                                                                                        key={cat.id}
+                                                                                                                        value={`${cat.code} ${cat.name}`}
+                                                                                                                        onSelect={() => {
+                                                                                                                            if (tx.linked_table && tx.linked_id) {
+                                                                                                                                updateLinkedCategory(tx.linked_table, tx.linked_id, cat.id);
+                                                                                                                            }
+                                                                                                                        }}
+                                                                                                                        className="text-xs cursor-pointer"
+                                                                                                                    >
+                                                                                                                        <span className="font-medium text-muted-foreground mr-1.5">{cat.code}</span>
+                                                                                                                        <span>{cat.name}</span>
+                                                                                                                        {tx.category_id === cat.id && (
+                                                                                                                            <Check className="ml-auto h-3 w-3 text-emerald-600" />
+                                                                                                                        )}
+                                                                                                                    </CommandItem>
+                                                                                                                ))}
+                                                                                                            </CommandGroup>
+                                                                                                        </CommandList>
+                                                                                                    </Command>
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <span className="text-muted-foreground whitespace-normal text-[11.5px] leading-snug">
+                                                                                                    {catAccount ? `${catAccount.code} — ${catAccount.name}` : "Sem categoria"}
+                                                                                                </span>
+                                                                                            )}
                                                                                         </TableCell>
                                                                                     </TableRow>
                                                                                 );
