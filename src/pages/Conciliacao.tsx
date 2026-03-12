@@ -190,7 +190,7 @@ export default function Conciliacao() {
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-medium text-foreground">
-                                                                {imp.file_name || `Importação ${imp.source.toUpperCase()}`}
+                                                                Importação {imp.source.toUpperCase()}
                                                             </p>
                                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                                 <Calendar className="h-3 w-3" />

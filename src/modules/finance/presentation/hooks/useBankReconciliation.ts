@@ -338,42 +338,39 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
     });
 
     // Query: Histórico de importações com período
+    // Colunas reais da tabela: id, bank_account_id, company_id, date, amount, description, memo, fit_id, status, created_at, updated_at
     const { data: importHistory } = useQuery({
         queryKey: ['import_history', bankAccountId],
         queryFn: async () => {
             if (!bankAccountId) return [];
 
-            // Buscar todas as transações (não só pendentes) para calcular períodos
+            // Buscar todas as transações para calcular períodos (só colunas que existem)
             const { data: allTx, error: txError } = await (activeClient as any)
                 .from('bank_transactions')
-                .select('id, date, statement_file_id, source, created_at')
+                .select('id, date, created_at, fit_id')
                 .eq('bank_account_id', bankAccountId)
                 .order('created_at', { ascending: false });
 
             if (txError) throw txError;
+            if (!allTx?.length) return [];
 
-            // Agrupar por statement_file_id (PDF) ou por lote de OFX (mesmo created_at aprox)
+            // Agrupar por lote de importação (created_at truncado ao minuto)
             const groups = new Map<string, {
                 key: string;
                 source: string;
-                file_name?: string;
                 imported_at: string;
                 min_date: string;
                 max_date: string;
                 count: number;
-                statement_file_id?: string;
             }>();
 
-            for (const tx of (allTx || [])) {
-                let groupKey: string;
+            for (const tx of allTx) {
+                // Agrupar por created_at truncado ao minuto (transações importadas juntas)
+                const createdMinute = tx.created_at?.substring(0, 16) || 'unknown';
+                const groupKey = `import_${createdMinute}`;
 
-                if (tx.statement_file_id) {
-                    groupKey = tx.statement_file_id;
-                } else {
-                    // Para OFX sem statement_file_id, agrupar por data de criação (truncada ao minuto)
-                    const createdMinute = tx.created_at?.substring(0, 16) || 'unknown';
-                    groupKey = `ofx_${createdMinute}`;
-                }
+                // Detectar source pelo fit_id: pdf_ prefix = PDF, senão OFX
+                const source = tx.fit_id?.startsWith('pdf_') ? 'pdf' : 'ofx';
 
                 const existing = groups.get(groupKey);
                 if (existing) {
@@ -383,31 +380,16 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 } else {
                     groups.set(groupKey, {
                         key: groupKey,
-                        source: tx.source || 'ofx',
+                        source,
                         imported_at: tx.created_at,
                         min_date: tx.date,
                         max_date: tx.date,
                         count: 1,
-                        statement_file_id: tx.statement_file_id || undefined,
                     });
                 }
             }
 
-            // Enriquecer com dados do statement_files (nome do arquivo, etc)
             const result = Array.from(groups.values());
-
-            if (statementFiles) {
-                const fileMap = new Map(statementFiles.map((f: any) => [f.id, f]));
-                for (const item of result) {
-                    if (item.statement_file_id) {
-                        const file = fileMap.get(item.statement_file_id) as any;
-                        if (file) {
-                            item.file_name = file.file_name;
-                            item.imported_at = file.created_at;
-                        }
-                    }
-                }
-            }
 
             // Ordenar por data de importação (mais recente primeiro)
             result.sort((a, b) => new Date(b.imported_at).getTime() - new Date(a.imported_at).getTime());
