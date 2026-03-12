@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
     Plus, Trash2, Edit2, ChevronRight, ChevronDown,
-    FileText, Upload, Download, X, Copy
+    FileText, Upload, Download, X, Copy, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -122,12 +122,27 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
             setIsLoading(true);
             const { data, error } = await activeClient
                 .from('chart_of_accounts')
-                .select('id, code, name, description, account_type, account_nature, level, parent_id, is_analytic, show_in_dre, dre_group, dre_order, company_id')
+                .select('*')
                 .eq('company_id', companyId)
                 .order('code');
 
             if (error) throw error;
-            setAccounts(data || []);
+            // Map DB columns (is_analytical) to component interface (is_analytic)
+            const mapped = (data || []).map((row: any) => ({
+                id: row.id,
+                code: row.code,
+                name: row.name,
+                description: row.description,
+                account_type: row.account_type,
+                account_nature: row.account_nature,
+                level: row.level,
+                parent_id: row.parent_id,
+                is_analytic: row.is_analytical ?? row.is_analytic ?? false,
+                show_in_dre: row.show_in_dre ?? false,
+                dre_group: row.dre_group,
+                dre_order: row.dre_order,
+            }));
+            setAccounts(mapped);
         } catch (error: any) {
             toast.error('Erro ao carregar plano de contas: ' + error.message);
         } finally {
@@ -226,20 +241,24 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                 const levelItems = itemsByLevel[level] || [];
                 if (levelItems.length === 0) continue;
 
-                const accountsToCreate = levelItems.map(item => ({
-                    company_id: companyId,
-                    code: item.code,
-                    name: item.name,
-                    description: item.description,
-                    account_type: item.account_type as ChartOfAccountType,
-                    account_nature: item.account_nature as ChartOfAccountNature,
-                    level: item.level,
-                    parent_id: item.parent_code ? codeToIdMap.get(item.parent_code) || null : null,
-                    is_analytic: item.is_analytic,
-                    show_in_dre: item.show_in_dre,
-                    dre_group: item.dre_group,
-                    dre_order: item.dre_order,
-                }));
+                const accountsToCreate = levelItems.map(item => {
+                    const isAnalytical = item.is_analytical ?? item.is_analytic ?? true;
+                    return {
+                        company_id: companyId,
+                        code: item.code,
+                        name: item.name,
+                        description: item.description,
+                        account_type: item.account_type as ChartOfAccountType,
+                        account_nature: item.account_nature as ChartOfAccountNature,
+                        level: item.level,
+                        parent_id: item.parent_code ? codeToIdMap.get(item.parent_code) || null : null,
+                        is_analytical: isAnalytical,
+                        is_synthetic: !isAnalytical,
+                        show_in_dre: item.show_in_dre,
+                        dre_group: item.dre_group,
+                        dre_order: item.dre_order,
+                    };
+                });
 
                 const { data: created, error } = await activeClient
                     .from('chart_of_accounts')
@@ -276,9 +295,12 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
         e.preventDefault();
 
         try {
+            const { is_analytic, ...rest } = formData;
             const payload = {
-                ...formData,
+                ...rest,
                 company_id: companyId,
+                is_analytical: is_analytic,
+                is_synthetic: !is_analytic,
                 level: formData.parent_id
                     ? (accounts.find(a => a.id === formData.parent_id)?.level || 0) + 1
                     : 1,
@@ -412,6 +434,27 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
         }
     };
 
+    const handleResetAndReimport = async () => {
+        if (!confirm('Tem certeza? Isso vai APAGAR todas as contas atuais e recriar a partir do template padrão.')) return;
+
+        try {
+            setIsLoading(true);
+            // Delete all existing accounts for this company
+            const { error: deleteError } = await activeClient
+                .from('chart_of_accounts')
+                .delete()
+                .eq('company_id', companyId);
+
+            if (deleteError) throw deleteError;
+
+            // Reinitialize from template
+            await initializeFromTemplate();
+        } catch (error: any) {
+            toast.error('Erro ao reinicializar: ' + error.message);
+            setIsLoading(false);
+        }
+    };
+
     const handleEdit = (account: ChartOfAccount) => {
         setEditingAccount(account);
         setFormData({
@@ -419,10 +462,10 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
             name: account.name,
             description: account.description || '',
             account_type: account.account_type as ChartOfAccountType,
-            account_nature: account.account_nature,
+            account_nature: account.account_nature || 'debit',
             parent_id: account.parent_id,
-            is_analytic: account.is_analytic,
-            show_in_dre: account.show_in_dre,
+            is_analytic: account.is_analytic ?? false,
+            show_in_dre: account.show_in_dre ?? false,
             dre_group: account.dre_group || '',
             dre_order: account.dre_order || 0,
         });
@@ -502,9 +545,9 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                             {accountTypeLabels[account.account_type]}
                         </Badge>
 
-                        {account.is_analytic && (
-                            <Badge variant="outline" className="text-xs">Analítica</Badge>
-                        )}
+                        <Badge variant="outline" className={`text-xs ${account.is_analytic ? 'border-green-300 text-green-700' : 'border-slate-300 text-slate-500'}`}>
+                            {account.is_analytic ? 'Analítica' : 'Sintética'}
+                        </Badge>
 
                         <div className="opacity-0 group-hover:opacity-100 flex gap-1">
                             <Button
@@ -683,10 +726,16 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                         {accounts.length} conta{accounts.length !== 1 ? 's' : ''} cadastrada{accounts.length !== 1 ? 's' : ''}
                     </p>
                 </div>
-                <Button onClick={() => setShowForm(!showForm)} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Nova Categoria
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleResetAndReimport} className="gap-2">
+                        <RefreshCw className="w-4 h-4" />
+                        Reinicializar Template
+                    </Button>
+                    <Button onClick={() => setShowForm(!showForm)} className="gap-2">
+                        <Plus className="w-4 h-4" />
+                        Nova Categoria
+                    </Button>
+                </div>
             </div>
 
             {/* Formulário */}
