@@ -1,38 +1,25 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { BankAccount } from "../../domain/schemas/bank-reconciliation.schema";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
 export function useBankAccounts() {
-    const { session } = useAuth();
+    const { selectedCompany } = useCompany();
+    const { activeClient } = useAuth();
     const { toast } = useToast();
-    const [accounts, setAccounts] = useState<BankAccount[]>([]);
+    const [accounts, setAccounts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     const fetchAccounts = async () => {
-        // Pega a primeira empresa do usuário (simplificação para este MVP)
-        // Idealmente viria de um Contexto de Empresa Selecionada
-        if (!session?.user?.id) return;
+        if (!selectedCompany?.id || !activeClient) return;
 
         setIsLoading(true);
         try {
-            // Busca empresa do usuário
-            const { data: companies } = await supabase
-                .from('companies')
-                .select('id')
-                .eq('owner_id', session.user.id)
-                .limit(1);
-
-            if (!companies || companies.length === 0) return;
-
-            const companyId = companies[0].id;
-
-            const { data, error } = await supabase
+            const { data, error } = await (activeClient as any)
                 .from('bank_accounts')
                 .select('*')
-                .eq('company_id', companyId)
+                .eq('company_id', selectedCompany.id)
                 .order('name');
 
             if (error) throw error;
@@ -50,25 +37,18 @@ export function useBankAccounts() {
         }
     };
 
-    const createAccount = async (account: Omit<BankAccount, 'id' | 'company_id'>) => {
-        // Novamente, busca o ID da empresa (idealmente viria de contexto)
-        const { data: companies } = await supabase
-            .from('companies')
-            .select('id')
-            .eq('owner_id', session?.user?.id)
-            .limit(1);
-
-        if (!companies?.length) {
-            toast({ title: "Erro", description: "Nenhuma empresa encontrada.", variant: "destructive" });
+    const createAccount = async (account: Record<string, any>) => {
+        if (!selectedCompany?.id || !activeClient) {
+            toast({ title: "Erro", description: "Nenhuma empresa selecionada.", variant: "destructive" });
             return;
         }
 
         try {
-            const { error } = await supabase
+            const { error } = await (activeClient as any)
                 .from('bank_accounts')
                 .insert([{
                     ...account,
-                    company_id: companies[0].id
+                    company_id: selectedCompany.id
                 }]);
 
             if (error) throw error;
@@ -83,7 +63,7 @@ export function useBankAccounts() {
 
     useEffect(() => {
         fetchAccounts();
-    }, [session]);
+    }, [selectedCompany?.id, activeClient]);
 
     return { accounts, isLoading, fetchAccounts, createAccount };
 }
