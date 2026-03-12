@@ -27,7 +27,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconciliation.schema";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,7 +68,6 @@ export default function Conciliacao() {
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
-    const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { activeClient } = useAuth();
@@ -205,8 +203,8 @@ export default function Conciliacao() {
 
     const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
         matchTransaction.mutate({ bankTx: bt, sysTx });
-        // MEMORIZAÇÃO IMEDIATA: aprender regra
-        learnRule.mutate({ bankTx: bt, sysTx });
+        // MEMORIZAÇÃO IMEDIATA: aprender regra com beneficiário
+        learnRule.mutate({ bankTx: bt });
     };
 
     const handleCreateAndReconcile = async () => {
@@ -245,8 +243,8 @@ export default function Conciliacao() {
             };
 
             matchTransaction.mutate({ bankTx: selectedBankTx, sysTx });
-            // MEMORIZAÇÃO IMEDIATA
-            learnRule.mutate({ bankTx: selectedBankTx, sysTx });
+            // MEMORIZAÇÃO IMEDIATA: beneficiário → categoria selecionada
+            learnRule.mutate({ bankTx: selectedBankTx, categoryId: newEntry.category_id || undefined });
 
             toast({ title: "Sucesso", description: `${isExpense ? "Despesa" : "Receita"} criada e conciliada!` });
             setSelectedBankTx(null);
@@ -279,10 +277,10 @@ export default function Conciliacao() {
                     bankTx: suggestion.bankTransaction,
                     sysTx: suggestion.systemTransaction!,
                 });
-                // Aprender regra
+                // Aprender regra com conta sugerida
                 learnRule.mutate({
                     bankTx: suggestion.bankTransaction,
-                    sysTx: suggestion.systemTransaction!,
+                    categoryId: suggestion.accountId,
                 });
                 success++;
             } catch {
@@ -487,39 +485,32 @@ export default function Conciliacao() {
                                         </div>
                                     ) : (
                                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                                            {rules.map(rule => (
+                                            {rules.map(rule => {
+                                                const kws = (rule.palavras_chave || []).join(", ");
+                                                const confiancaScore = rule.confianca === "Alta" ? 95 : rule.confianca === "Média" ? 70 : 50;
+                                                return (
                                                 <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-white transition-colors">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            {rule.is_auto_learned ? (
-                                                                <Badge variant="outline" className="text-[10px] border-purple-200 text-purple-600 bg-purple-50">
-                                                                    <Sparkles className="h-3 w-3 mr-0.5" /> Auto
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-600 bg-blue-50">
-                                                                    Manual
-                                                                </Badge>
-                                                            )}
-                                                            <span className="font-medium text-sm truncate">{rule.name}</span>
+                                                            <Badge variant="outline" className={`text-[10px] ${rule.acao === "auto-conciliar" ? "border-emerald-200 text-emerald-600 bg-emerald-50" : "border-amber-200 text-amber-600 bg-amber-50"}`}>
+                                                                {rule.acao === "auto-conciliar" ? "Auto" : "Sugerir"}
+                                                            </Badge>
+                                                            <span className="font-medium text-sm truncate">{kws}</span>
                                                         </div>
                                                         <p className="text-xs text-muted-foreground mt-1">
-                                                            Quando descrição <strong>{rule.condition_operator === "contains" ? "contém" : rule.condition_operator}</strong> "{rule.condition_value}"
-                                                            {rule.action_description && <> → {rule.action_description}</>}
+                                                            Keywords: <strong>{kws}</strong>
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-3 ml-4">
-                                                        <div className="text-right">
-                                                            <p className="text-xs text-muted-foreground">Usada</p>
-                                                            <p className="text-sm font-bold">{rule.times_applied}x</p>
-                                                        </div>
-                                                        <Badge className="bg-emerald-100 text-emerald-700">{rule.confidence}%</Badge>
+                                                        <Badge className="bg-emerald-100 text-emerald-700">{confiancaScore}%</Badge>
                                                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-400 hover:text-red-600"
                                                             onClick={() => deleteRule.mutate(rule.id)}>
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </div>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </CardContent>

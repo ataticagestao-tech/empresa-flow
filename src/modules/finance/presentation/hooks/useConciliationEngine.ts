@@ -6,28 +6,27 @@ import { SystemTransaction } from "./useBankReconciliation";
 import { useMemo } from "react";
 
 // ============================================================
-// TIPOS
+// TIPOS — schema real da tabela conciliation_rules
 // ============================================================
 
 export interface ConciliationRule {
     id: string;
     company_id: string;
-    condition_field: string;
-    condition_operator: string;
-    condition_value: string;
-    condition_field_2?: string;
-    condition_operator_2?: string;
-    condition_value_2?: string;
-    action_type: string;
-    action_value?: string;
-    action_description?: string;
+    account_id: string | null;
+    palavras_chave: string[];
+    confianca: "Alta" | "Média" | "Baixa";
+    acao: "auto-conciliar" | "sugerir";
+    recorrencia?: string;
+    ativa: boolean;
+    criada_em?: string;
+}
+
+export interface ChartAccount {
+    id: string;
+    code: string;
     name: string;
-    confidence: number;
-    times_applied: number;
-    last_applied_at?: string;
-    is_active: boolean;
-    is_auto_learned: boolean;
-    source_description?: string;
+    account_type: string;
+    account_nature: string;
 }
 
 export interface MatchSuggestion {
@@ -37,10 +36,15 @@ export interface MatchSuggestion {
     method: string;          // 'rule', 'exact_amount_date', 'exact_amount', 'fuzzy', 'none'
     ruleId?: string;
     ruleName?: string;
+    accountId?: string;      // chart_of_accounts id sugerido pela regra
+    accountCode?: string;
+    accountName?: string;
     label: string;           // Display label
 }
 
 export type ScoreBucket = "auto" | "suggested" | "review" | "total";
+
+const CONFIANCA_MAP: Record<string, number> = { "Alta": 95, "Média": 70, "Baixa": 50 };
 
 // ============================================================
 // HELPERS
@@ -48,100 +52,69 @@ export type ScoreBucket = "auto" | "suggested" | "review" | "total";
 
 function normalizeText(text: string): string {
     return (text || "")
-        .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9\s]/g, "")
+        .toUpperCase()
         .trim();
 }
 
-function textContains(haystack: string, needle: string): boolean {
-    return normalizeText(haystack).includes(normalizeText(needle));
+/** Extract beneficiary name from bank description.
+ *  Patterns: "... / NOME DO BENEFICIARIO )" or "... / NOME DO BENEFICIARIO"
+ */
+function extractBeneficiary(description: string): string | null {
+    // Try to find text after the last "/"
+    const slashIdx = description.lastIndexOf("/");
+    if (slashIdx === -1) return null;
+
+    let name = description.substring(slashIdx + 1)
+        .replace(/\s*\)\s*$/, "")  // remove trailing ")"
+        .trim();
+
+    // Skip if too short or looks like a doc reference
+    if (name.length < 4) return null;
+    if (/^\d+$/.test(name)) return null;
+
+    return name;
 }
 
-function textEquals(a: string, b: string): boolean {
-    return normalizeText(a) === normalizeText(b);
-}
+/** Extract meaningful keywords from bank description for matching */
+function extractKeywordsForRule(description: string): string[] {
+    const keywords: string[] = [];
 
-function textStartsWith(haystack: string, needle: string): boolean {
-    return normalizeText(haystack).startsWith(normalizeText(needle));
-}
-
-function evaluateCondition(
-    bt: BankTransaction,
-    field: string,
-    operator: string,
-    value: string
-): boolean {
-    let fieldValue = "";
-    if (field === "description") fieldValue = bt.description || "";
-    else if (field === "memo") fieldValue = bt.memo || "";
-    else if (field === "amount") fieldValue = String(Math.abs(bt.amount));
-
-    switch (operator) {
-        case "contains": return textContains(fieldValue, value);
-        case "equals": return textEquals(fieldValue, value);
-        case "starts_with": return textStartsWith(fieldValue, value);
-        case "regex":
-            try { return new RegExp(value, "i").test(fieldValue); }
-            catch { return false; }
-        default: return false;
+    // 1. Beneficiary name (most important)
+    const beneficiary = extractBeneficiary(description);
+    if (beneficiary) {
+        keywords.push(normalizeText(beneficiary));
     }
-}
 
-/** Extract meaningful keywords from a bank description */
-function extractKeywords(description: string): string[] {
+    // 2. Key identifier words from the description
     const normalized = normalizeText(description);
-    // Remove common bank noise words
-    const noise = new Set([
-        "pix", "ted", "doc", "tef", "deb", "cred", "pgto", "pag", "rec",
-        "transf", "transferencia", "pagamento", "recebimento", "compra",
-        "debito", "credito", "automatico", "conta", "banco", "ag", "cc",
-        "de", "da", "do", "em", "para", "com", "por", "ao", "a", "o",
-        "no", "na", "nos", "nas", "um", "uma", "uns", "ref", "nf", "nr",
-    ]);
 
-    return normalized
-        .split(/\s+/)
-        .filter(w => w.length > 2 && !noise.has(w) && !/^\d+$/.test(w));
-}
+    // Known patterns to extract
+    const identifiers = [
+        "STONE", "DOMCRED", "DOMDEB", "MARKETPLACE", "PRONTOVET",
+        "PROAMBIENTAL", "PRO AMBIENTAL", "UNIMED", "REAL CONTABILIDADE",
+        "TATICA GESTAO", "RD STATION", "OMIE",
+    ];
 
-/** Fuzzy similarity score between two strings (0-100) */
-function similarityScore(a: string, b: string): number {
-    const na = normalizeText(a);
-    const nb = normalizeText(b);
-    if (na === nb) return 100;
-    if (!na || !nb) return 0;
+    for (const id of identifiers) {
+        if (normalized.includes(id) && !keywords.some(k => k.includes(id))) {
+            keywords.push(id);
+        }
+    }
 
-    // Keyword overlap
-    const kwA = new Set(extractKeywords(a));
-    const kwB = new Set(extractKeywords(b));
-    if (kwA.size === 0 || kwB.size === 0) return 0;
-
-    let overlap = 0;
-    kwA.forEach(kw => { if (kwB.has(kw)) overlap++; });
-
-    const jaccardBase = kwA.size + kwB.size - overlap;
-    if (jaccardBase === 0) return 0;
-    return Math.round((overlap / jaccardBase) * 100);
-}
-
-/** Check if dates are within N business days */
-function datesWithinDays(d1: string, d2: string, days: number): boolean {
-    const t1 = new Date(d1).getTime();
-    const t2 = new Date(d2).getTime();
-    const diffDays = Math.abs(t1 - t2) / (1000 * 60 * 60 * 24);
-    return diffDays <= days;
+    return keywords;
 }
 
 // ============================================================
-// MOTOR DE MATCHING EM CAMADAS
+// MOTOR DE MATCHING — usa palavras_chave (OR logic, case-insensitive)
 // ============================================================
 
 function runMatchingEngine(
     bt: BankTransaction,
     systemTxs: SystemTransaction[],
-    rules: ConciliationRule[]
+    rules: ConciliationRule[],
+    accountMap: Map<string, ChartAccount>,
 ): MatchSuggestion {
     const base: MatchSuggestion = {
         bankTransaction: bt,
@@ -151,59 +124,43 @@ function runMatchingEngine(
         label: "Sem sugestão",
     };
 
+    const descNorm = normalizeText(`${bt.description || ""} ${bt.memo || ""}`);
+    const absAmount = Math.abs(bt.amount);
+
     // Filter compatible system transactions by type
     const compatibleType = bt.amount < 0 ? "payable" : "receivable";
     const candidates = systemTxs.filter(st => st.type === compatibleType);
-    const absAmount = Math.abs(bt.amount);
 
-    // ===== CAMADA 0: Regras salvas (confiança da regra) =====
+    // ===== CAMADA 0: Regras de palavras-chave (conciliation_rules) =====
     for (const rule of rules) {
-        if (!rule.is_active) continue;
+        if (!rule.ativa) continue;
+        const keywords = rule.palavras_chave || [];
+        const hit = keywords.some(kw => descNorm.includes(normalizeText(kw)));
+        if (!hit) continue;
 
-        let match1 = evaluateCondition(bt, rule.condition_field, rule.condition_operator, rule.condition_value);
-        if (!match1) continue;
+        // Regra bateu!
+        const confiancaScore = CONFIANCA_MAP[rule.confianca] || 50;
+        const account = rule.account_id ? accountMap.get(rule.account_id) : null;
+        const accountLabel = account ? `${account.code} ${account.name}` : "";
 
-        // Condição secundária (se existir)
-        if (rule.condition_field_2 && rule.condition_operator_2 && rule.condition_value_2) {
-            const match2 = evaluateCondition(bt, rule.condition_field_2, rule.condition_operator_2, rule.condition_value_2);
-            if (!match2) continue;
-        }
-
-        // Regra bateu! Procurar melhor candidato do sistema
-        // Se a regra aponta para um lançamento específico, usar esse
-        if (rule.action_type === "category" || rule.action_type === "create_payable" || rule.action_type === "create_receivable") {
-            return {
-                ...base,
-                score: rule.confidence,
-                method: "rule",
-                ruleId: rule.id,
-                ruleName: rule.name,
-                label: `Regra: ${rule.name}`,
-            };
-        }
-
-        // Tentar encontrar candidato por valor
+        // Try to find matching system transaction by amount
         const ruleCandidate = candidates.find(st => Math.abs(Number(st.amount) - absAmount) < 0.01);
-        if (ruleCandidate) {
-            return {
-                ...base,
-                systemTransaction: ruleCandidate,
-                score: rule.confidence,
-                method: "rule",
-                ruleId: rule.id,
-                ruleName: rule.name,
-                label: `Regra: ${rule.name} → ${ruleCandidate.entity_name} - ${ruleCandidate.description}`,
-            };
-        }
 
-        // Regra bateu mas sem candidato — ainda reportar
         return {
             ...base,
-            score: Math.min(rule.confidence, 70),
+            systemTransaction: ruleCandidate || null,
+            score: confiancaScore,
             method: "rule",
             ruleId: rule.id,
-            ruleName: rule.name,
-            label: `Regra: ${rule.name} (sem lançamento compatível)`,
+            ruleName: accountLabel || keywords.join(", "),
+            accountId: rule.account_id || undefined,
+            accountCode: account?.code,
+            accountName: account?.name,
+            label: ruleCandidate
+                ? `${ruleCandidate.entity_name} - ${ruleCandidate.description}`
+                : accountLabel
+                    ? `IA: ${accountLabel}`
+                    : `Regra: ${keywords.join(", ")}`,
         };
     }
 
@@ -222,7 +179,8 @@ function runMatchingEngine(
 
     // ===== CAMADA 2: Valor exato + data ±3 dias (80%) =====
     for (const st of candidates) {
-        if (Math.abs(Number(st.amount) - absAmount) < 0.01 && datesWithinDays(st.date, bt.date, 3)) {
+        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
+        if (Math.abs(Number(st.amount) - absAmount) < 0.01 && diffDays <= 3) {
             return {
                 ...base,
                 systemTransaction: st,
@@ -235,7 +193,8 @@ function runMatchingEngine(
 
     // ===== CAMADA 3: Valor exato + data ±7 dias (70%) =====
     for (const st of candidates) {
-        if (Math.abs(Number(st.amount) - absAmount) < 0.01 && datesWithinDays(st.date, bt.date, 7)) {
+        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
+        if (Math.abs(Number(st.amount) - absAmount) < 0.01 && diffDays <= 7) {
             return {
                 ...base,
                 systemTransaction: st,
@@ -244,35 +203,6 @@ function runMatchingEngine(
                 label: `${st.entity_name} - ${st.description}`,
             };
         }
-    }
-
-    // ===== CAMADA 4: Fuzzy description match + valor próximo (50-65%) =====
-    let bestFuzzy: { st: SystemTransaction; score: number } | null = null;
-
-    for (const st of candidates) {
-        const amountDiff = Math.abs(Number(st.amount) - absAmount) / absAmount;
-        if (amountDiff > 0.05) continue; // Valor deve estar dentro de 5%
-
-        const descSim = similarityScore(bt.description || "", st.description || "");
-        const entitySim = similarityScore(bt.description || "", st.entity_name || "");
-        const sim = Math.max(descSim, entitySim);
-
-        if (sim >= 30) {
-            const fuzzyScore = Math.min(65, 40 + Math.round(sim * 0.25));
-            if (!bestFuzzy || fuzzyScore > bestFuzzy.score) {
-                bestFuzzy = { st, score: fuzzyScore };
-            }
-        }
-    }
-
-    if (bestFuzzy) {
-        return {
-            ...base,
-            systemTransaction: bestFuzzy.st,
-            score: bestFuzzy.score,
-            method: "fuzzy",
-            label: `${bestFuzzy.st.entity_name} - ${bestFuzzy.st.description}`,
-        };
     }
 
     // ===== SEM MATCH =====
@@ -293,17 +223,16 @@ export function useConciliationEngine(
     const queryClient = useQueryClient();
     const companyId = selectedCompany?.id;
 
-    // Buscar regras de conciliação
+    // Buscar regras de conciliação (schema real)
     const { data: rules } = useQuery({
         queryKey: ["conciliation_rules", companyId],
         queryFn: async () => {
             if (!companyId) return [];
             const { data, error } = await (activeClient as any)
                 .from("conciliation_rules")
-                .select("*")
+                .select("id,company_id,account_id,palavras_chave,confianca,acao,recorrencia,ativa")
                 .eq("company_id", companyId)
-                .eq("is_active", true)
-                .order("times_applied", { ascending: false });
+                .eq("ativa", true);
             if (error) {
                 console.error("Error fetching conciliation rules:", error);
                 return [];
@@ -313,14 +242,38 @@ export function useConciliationEngine(
         enabled: !!companyId,
     });
 
+    // Buscar contas analíticas para exibir nomes nas sugestões
+    const { data: chartAccounts } = useQuery({
+        queryKey: ["chart_accounts_analytical", companyId],
+        queryFn: async () => {
+            if (!companyId) return [];
+            const { data, error } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .select("id,code,name,account_type,account_nature")
+                .eq("company_id", companyId)
+                .eq("status", "active")
+                .eq("is_analytical", true)
+                .order("code", { ascending: true });
+            if (error) return [];
+            return (data || []) as ChartAccount[];
+        },
+        enabled: !!companyId,
+    });
+
+    const accountMap = useMemo(() => {
+        const map = new Map<string, ChartAccount>();
+        (chartAccounts || []).forEach(a => map.set(a.id, a));
+        return map;
+    }, [chartAccounts]);
+
     // Executar motor de matching para todas as transações pendentes
     const suggestions: MatchSuggestion[] = useMemo(() => {
-        if (!bankTransactions?.length || !systemTransactions) return [];
+        if (!bankTransactions?.length) return [];
 
         return bankTransactions.map(bt =>
-            runMatchingEngine(bt, systemTransactions, rules || [])
+            runMatchingEngine(bt, systemTransactions || [], rules || [], accountMap)
         );
-    }, [bankTransactions, systemTransactions, rules]);
+    }, [bankTransactions, systemTransactions, rules, accountMap]);
 
     // Score summary
     const scoreSummary = useMemo(() => {
@@ -331,73 +284,51 @@ export function useConciliationEngine(
     }, [suggestions]);
 
     // ============================================================
-    // MEMORIZAÇÃO IMEDIATA: Aprender regra quando user concilia manualmente
+    // MEMORIZAÇÃO: Aprender regra quando user concilia manualmente
+    // Extrai o nome do beneficiário da descrição e associa à conta
     // ============================================================
     const learnRule = useMutation({
         mutationFn: async ({
             bankTx,
             sysTx,
+            categoryId,
         }: {
             bankTx: BankTransaction;
-            sysTx: SystemTransaction;
+            sysTx?: SystemTransaction;
+            categoryId?: string;
         }) => {
             if (!companyId) return;
 
             const description = bankTx.description || "";
-            const keywords = extractKeywords(description);
+            const keywords = extractKeywordsForRule(description);
 
-            // Não criar regra se descrição é genérica demais
+            // Não criar regra se não conseguimos extrair keywords
             if (keywords.length === 0) return;
 
-            // Construir condição: usar as 2-3 keywords mais significativas
-            const keyCondition = keywords.slice(0, 3).join(" ");
+            // Normalizar keywords para comparação
+            const normalizedKws = keywords.map(k => normalizeText(k));
 
-            // Verificar se já existe regra similar
+            // Verificar se já existe regra com keywords similares
             const existingRules = rules || [];
-            const alreadyExists = existingRules.some(r =>
-                r.condition_field === "description" &&
-                r.condition_operator === "contains" &&
-                normalizeText(r.condition_value) === normalizeText(keyCondition)
-            );
+            const alreadyExists = existingRules.some(r => {
+                const ruleKws = (r.palavras_chave || []).map(k => normalizeText(k));
+                return normalizedKws.some(nk => ruleKws.some(rk => rk.includes(nk) || nk.includes(rk)));
+            });
 
-            if (alreadyExists) {
-                // Incrementar uso da regra existente
-                const existing = existingRules.find(r =>
-                    r.condition_field === "description" &&
-                    r.condition_operator === "contains" &&
-                    normalizeText(r.condition_value) === normalizeText(keyCondition)
-                );
-                if (existing) {
-                    await (activeClient as any)
-                        .from("conciliation_rules")
-                        .update({
-                            times_applied: (existing.times_applied || 0) + 1,
-                            last_applied_at: new Date().toISOString(),
-                        })
-                        .eq("id", existing.id);
-                }
-                return;
-            }
+            if (alreadyExists) return;
 
-            // Criar nova regra auto-aprendida
-            const ruleName = `Auto: ${description.substring(0, 50)}`;
+            // Determinar account_id: prioridade para categoryId explícito
+            const accountId = categoryId || null;
+
             const { error } = await (activeClient as any)
                 .from("conciliation_rules")
                 .insert({
                     company_id: companyId,
-                    condition_field: "description",
-                    condition_operator: "contains",
-                    condition_value: keyCondition,
-                    action_type: sysTx.type === "payable" ? "create_payable" : "create_receivable",
-                    action_value: sysTx.id,
-                    action_description: sysTx.description,
-                    name: ruleName,
-                    confidence: 90,
-                    times_applied: 1,
-                    last_applied_at: new Date().toISOString(),
-                    is_active: true,
-                    is_auto_learned: true,
-                    source_description: description,
+                    account_id: accountId,
+                    palavras_chave: normalizedKws,
+                    confianca: "Alta",
+                    acao: "sugerir",
+                    ativa: true,
                 });
 
             if (error) {
@@ -409,55 +340,20 @@ export function useConciliationEngine(
         },
     });
 
-    // Aprovar em lote (só score >= 85)
-    const batchApprove = useMutation({
-        mutationFn: async (selectedIds: string[]) => {
-            const toApprove = suggestions.filter(
-                s => selectedIds.includes(s.bankTransaction.id) && s.systemTransaction && s.score >= 85
-            );
-
-            const results: { success: number; failed: number } = { success: 0, failed: 0 };
-
-            for (const suggestion of toApprove) {
-                try {
-                    // Update rule usage
-                    if (suggestion.ruleId) {
-                        await (activeClient as any)
-                            .from("conciliation_rules")
-                            .update({
-                                times_applied: (rules?.find(r => r.id === suggestion.ruleId)?.times_applied || 0) + 1,
-                                last_applied_at: new Date().toISOString(),
-                            })
-                            .eq("id", suggestion.ruleId);
-                    }
-                    results.success++;
-                } catch {
-                    results.failed++;
-                }
-            }
-
-            return results;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
-            queryClient.invalidateQueries({ queryKey: ["system_pending_transactions"] });
-            queryClient.invalidateQueries({ queryKey: ["conciliation_rules"] });
-        },
-    });
-
     // Criar regra manual
     const createRule = useMutation({
-        mutationFn: async (rule: Partial<ConciliationRule>) => {
+        mutationFn: async (rule: { palavras_chave: string[]; account_id?: string; confianca?: string; acao?: string }) => {
             if (!companyId) throw new Error("Empresa não selecionada");
 
             const { error } = await (activeClient as any)
                 .from("conciliation_rules")
                 .insert({
-                    ...rule,
                     company_id: companyId,
-                    is_active: true,
-                    is_auto_learned: false,
-                    times_applied: 0,
+                    account_id: rule.account_id || null,
+                    palavras_chave: rule.palavras_chave,
+                    confianca: rule.confianca || "Alta",
+                    acao: rule.acao || "sugerir",
+                    ativa: true,
                 });
 
             if (error) throw error;
@@ -484,9 +380,10 @@ export function useConciliationEngine(
     return {
         suggestions,
         rules: rules || [],
+        chartAccounts: chartAccounts || [],
+        accountMap,
         scoreSummary,
         learnRule,
-        batchApprove,
         createRule,
         deleteRule,
     };
