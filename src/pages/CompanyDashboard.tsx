@@ -399,11 +399,39 @@ export default function CompanyDashboard() {
     const chartHeight = isMobile ? 160 : isTablet ? 200 : 240;
 
     /* ── KPI data ──────────────────────────────────────────── */
+    // Faturamento = total de receitas no período
+    const faturamento = rev.totalRevenue || 0;
+
+    // Recebimentos por forma de pagamento
+    const recebimentosByMethod = rev.revenueByPaymentMethod || [];
+    const recebimentoDetail = recebimentosByMethod.length > 0
+        ? recebimentosByMethod.map((m) => `${m.method}: ${fmtCompact(m.total)}`).join(" · ")
+        : "Nenhum recebimento";
+    const totalRecebimentos = recebimentosByMethod.reduce((s, m) => s + m.total, 0);
+
+    // Despesas e Custos = soma dos grupos DRE com total negativo (CSP + Despesas + Deduções)
+    const despesasECustos = Math.abs(
+        dre.groups
+            .filter((g) => g.total < 0)
+            .reduce((s, g) => s + g.total, 0)
+    );
+
+    // Custo Fixo = grupo "Despesas Operacionais" ou "Despesas Administrativas" (despesas que não são CSP/Deduções)
+    const custoFixo = Math.abs(
+        dre.groups
+            .filter((g) => {
+                const name = g.name.toLowerCase();
+                return name.includes("despesa") && !name.includes("dedu");
+            })
+            .reduce((s, g) => s + g.total, 0)
+    );
+    const custoFixoPct = faturamento > 0 ? ((custoFixo / faturamento) * 100).toFixed(1) : "0.0";
+
     const kpis = [
-        { id: "balance",     label: "Saldo Bancario",  value: fmt(accountsBalance || 0),    icon: Landmark,     iconBg: C.blueLight, iconColor: C.blue,  detail: "Conciliado" },
-        { id: "receivables", label: "A Receber",        value: fmt(totalReceivables),         icon: TrendingUp,   iconBg: C.greenSoft, iconColor: C.green, detail: `Vencidos: ${fmtCompact(receivablesSummary?.overdue || 0)}` },
-        { id: "payables",    label: "A Pagar",          value: fmt(totalPayables),            icon: TrendingDown,  iconBg: C.redSoft,   iconColor: C.red,   detail: `Vencidos: ${fmtCompact(payablesSummary?.overdue || 0)}` },
-        { id: "projection",  label: "Projecao",         value: fmt(projectedBalance),         icon: LineChart,    iconBg: C.blueLight, iconColor: C.blue,  detail: "Fim do periodo" },
+        { id: "faturamento",   label: "Faturamento",          value: fmt(faturamento),       icon: TrendingUp,   iconBg: C.greenSoft, iconColor: C.green, detail: `${rev.totalTransactions || 0} transações no período` },
+        { id: "recebimentos",  label: "Recebimentos",         value: fmt(totalRecebimentos), icon: CreditCard,   iconBg: C.blueLight, iconColor: C.blue,  detail: recebimentoDetail },
+        { id: "despesas",      label: "Despesas e Custos",    value: fmt(despesasECustos),   icon: TrendingDown,  iconBg: C.redSoft,   iconColor: C.red,   detail: `${dre.groups.filter(g => g.total < 0).length} grupo(s) no período` },
+        { id: "custofixo",     label: "Custo Fixo",           value: fmt(custoFixo),         icon: Target,       iconBg: "#FEF3C7",   iconColor: "#D97706", detail: `${custoFixoPct}% do faturamento` },
     ];
 
     return (
