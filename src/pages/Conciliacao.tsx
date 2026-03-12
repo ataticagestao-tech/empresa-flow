@@ -257,14 +257,14 @@ export default function Conciliacao() {
         }
     };
 
-    // Batch approval: conciliar todos selecionados com score >= 85
+    // Batch approval: conciliar selecionados (com sysTx existente OU criando lançamento via sugestão IA)
     const handleBatchApprove = async () => {
         const toApprove = Array.from(selectedIds)
             .map(id => suggestionMap.get(id))
-            .filter((s): s is MatchSuggestion => !!s && !!s.systemTransaction);
+            .filter((s): s is MatchSuggestion => !!s && (!!s.systemTransaction || s.score > 0));
 
         if (toApprove.length === 0) {
-            toast({ title: "Nenhum item elegível", description: "Selecione transações que tenham sugestão de lançamento.", variant: "destructive" });
+            toast({ title: "Nenhum item elegível", description: "Selecione transações que tenham sugestão.", variant: "destructive" });
             return;
         }
 
@@ -273,10 +273,49 @@ export default function Conciliacao() {
 
         for (const suggestion of toApprove) {
             try {
-                await matchTransaction.mutateAsync({
-                    bankTx: suggestion.bankTransaction,
-                    sysTx: suggestion.systemTransaction!,
-                });
+                const bt = suggestion.bankTransaction;
+
+                if (suggestion.systemTransaction) {
+                    // Caso 1: Já tem lançamento do sistema → conciliar direto
+                    await matchTransaction.mutateAsync({
+                        bankTx: bt,
+                        sysTx: suggestion.systemTransaction,
+                    });
+                } else {
+                    // Caso 2: Sugestão IA (categoria) → criar lançamento + conciliar
+                    const isExpense = bt.amount < 0;
+                    const table = isExpense ? "accounts_payable" : "accounts_receivable";
+
+                    const payload: Record<string, any> = {
+                        company_id: selectedCompany?.id,
+                        description: bt.description || "Lançamento via conciliação IA",
+                        amount: Math.abs(bt.amount),
+                        due_date: bt.date,
+                        status: "pending",
+                    };
+                    if (suggestion.accountId) {
+                        payload.category_id = suggestion.accountId;
+                    }
+
+                    const { data: created, error: createError } = await (activeClient as any)
+                        .from(table).insert(payload)
+                        .select("id, description, amount, due_date, status").single();
+                    if (createError) throw createError;
+
+                    const sysTx: SystemTransaction = {
+                        id: created.id,
+                        type: isExpense ? "payable" : "receivable",
+                        description: created.description,
+                        amount: created.amount,
+                        date: created.due_date,
+                        status: created.status,
+                        entity_name: "Criado via conciliação IA",
+                        original_table_id: created.id,
+                    };
+
+                    await matchTransaction.mutateAsync({ bankTx: bt, sysTx });
+                }
+
                 // Aprender regra com conta sugerida
                 learnRule.mutate({
                     bankTx: suggestion.bankTransaction,
@@ -297,7 +336,7 @@ export default function Conciliacao() {
 
     const handleSelectHighConfidence = () => {
         const highConf = suggestions
-            .filter(s => s.score >= 85 && s.systemTransaction)
+            .filter(s => s.score >= 85)
             .map(s => s.bankTransaction.id);
         setSelectedIds(new Set(highConf));
     };
