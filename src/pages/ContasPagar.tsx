@@ -185,19 +185,25 @@ export default function ContasPagar() {
         };
     }, [filteredBills]);
 
-    // ── Chart: group by month for better readability ──
+    // ── Chart: smart grouping (by day if ≤2 months, otherwise by month) ──
     const chartData = useMemo(() => {
         if (!filteredBills.length) return [];
 
-        // Group by month
-        const months = new Map<string, { label: string; pending: number; paid: number; overdue: number }>();
+        // Detect date span to decide grouping
+        const dates = filteredBills.filter(b => b.due_date).map(b => parseISO(b.due_date));
+        const minDate = dates.reduce((a, b) => (a < b ? a : b));
+        const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+        const spanMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + maxDate.getMonth() - minDate.getMonth();
+        const groupByDay = spanMonths <= 2;
+
+        const buckets = new Map<string, { label: string; pending: number; paid: number; overdue: number }>();
         filteredBills.forEach(b => {
             if (!b.due_date) return;
             const d = parseISO(b.due_date);
-            const key = format(d, "yyyy-MM");
-            const label = format(d, "MMM yy", { locale: ptBR });
-            if (!months.has(key)) months.set(key, { label, pending: 0, paid: 0, overdue: 0 });
-            const entry = months.get(key)!;
+            const key = groupByDay ? format(d, "yyyy-MM-dd") : format(d, "yyyy-MM");
+            const label = groupByDay ? format(d, "dd MMM", { locale: ptBR }) : format(d, "MMM yy", { locale: ptBR });
+            if (!buckets.has(key)) buckets.set(key, { label, pending: 0, paid: 0, overdue: 0 });
+            const entry = buckets.get(key)!;
             const amount = Number(b.amount);
             if (b.status === "paid") {
                 entry.paid += amount;
@@ -211,7 +217,7 @@ export default function ContasPagar() {
         });
 
         let acc = 0;
-        return Array.from(months.entries())
+        return Array.from(buckets.entries())
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([, vals]) => {
                 const total = vals.pending + vals.paid + vals.overdue;
