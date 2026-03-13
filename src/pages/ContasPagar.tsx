@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal,
     CalendarDays, TrendingDown, CheckCircle2, AlertTriangle, X,
-    Download, FileText, FileSpreadsheet, Sparkles
+    Download, FileText, FileSpreadsheet, Sparkles, ChevronRight
 } from "lucide-react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
@@ -81,6 +81,7 @@ export default function ContasPagar() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [methodFilter, setMethodFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
+    const [aiOpen, setAiOpen] = useState(false);
 
     const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
 
@@ -521,132 +522,142 @@ export default function ContasPagar() {
         <AppLayout title="Contas a Pagar">
             <div className="animate-fade-in" style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
 
-                {/* ════════ TOP ROW: AI (left) + HEADER (right) ════════ */}
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16 }}>
-
-                    {/* ── AI ANALYSIS (left) ── */}
-                    {aiAnalysis ? (
-                        <div style={{
-                            background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
-                            padding: "20px 22px", display: "flex", flexDirection: "column",
-                        }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
-                                <Sparkles size={16} strokeWidth={1.5} color={T.primary} />
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira</p>
-                                    <p style={{ fontSize: 10, color: "#000", opacity: 0.5 }}>Selic {SELIC}% a.a. | IPCA {IPCA_12M}% | CDI {CDI_MENSAL.toFixed(2)}%/mes | {aiAnalysis.billCount} lancamentos | Ticket medio {fmt(aiAnalysis.avgTicket)}</p>
-                                </div>
-                                <div style={{
-                                    padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" as const,
-                                    background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                    color: "#fff",
-                                }}>
-                                    {aiAnalysis.hasOverdue ? "ATENCAO" : aiAnalysis.paidPct >= 80 ? "SAUDAVEL" : "MODERADO"}
-                                </div>
-                            </div>
-
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, overflow: "auto" }} className="scrollbar-thin">
-                                {aiAnalysis.insights.map((item, i) => (
-                                    <div key={i} style={{
-                                        padding: "10px 12px",
-                                        borderRadius: 8,
-                                        borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
-                                        background: item.type === "danger" ? `${T.red}06` : item.type === "warning" ? `${T.amber}06` : "transparent",
-                                    }}>
-                                        <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>{item.title}</p>
-                                        <p style={{ fontSize: 11.5, color: "#000", lineHeight: 1.6, opacity: 0.85 }}>{item.text}</p>
-                                    </div>
-                                ))}
-                            </div>
+                {/* ════════ HEADER BAR ════════ */}
+                <div style={{
+                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                    padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    gap: 12, flexWrap: "wrap",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: T.redLt, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <TrendingDown size={20} strokeWidth={1.5} color={T.red} />
                         </div>
-                    ) : (
-                        <div />
-                    )}
+                        <div>
+                            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", lineHeight: 1.2 }}>Contas a Pagar</h2>
+                            <p style={{ fontSize: 12, color: "#000", opacity: 0.45 }}>{filteredBills.length} contas no periodo</p>
+                        </div>
+                    </div>
 
-                    {/* ── HEADER + ACTIONS (right) ── */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {/* Title card */}
-                        <div style={{
-                            background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
-                            padding: "20px", display: "flex", alignItems: "center", gap: 12,
-                        }}>
-                            <div style={{ width: 40, height: 40, borderRadius: 10, background: T.redLt, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <TrendingDown size={20} strokeWidth={1.5} color={T.red} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", lineHeight: 1.2 }}>Contas a Pagar</h2>
-                                <p style={{ fontSize: 12, color: "#000", opacity: 0.45 }}>{filteredBills.length} contas no periodo</p>
-                            </div>
-                            <button onClick={handleNew} style={{
-                                display: "flex", alignItems: "center", gap: 6, padding: "8px 18px",
-                                borderRadius: 8, border: "none", background: T.primary, color: "#fff",
-                                cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", background: T.hover, borderRadius: 8, padding: 2, gap: 1 }}>
+                            {presets.map((p) => (
+                                <button key={p.label} onClick={() => handlePreset(p)} style={{
+                                    padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11,
+                                    fontWeight: activePreset === p.label ? 600 : 400, fontFamily: FONT,
+                                    background: activePreset === p.label ? T.card : "transparent",
+                                    color: activePreset === p.label ? "#000" : T.text3, cursor: "pointer",
+                                    boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                                }}>{p.label}</button>
+                            ))}
+                        </div>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button style={{
+                                    display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
+                                    fontSize: 11, fontWeight: 500, fontFamily: FONT, borderRadius: 6,
+                                    border: `1px solid ${T.border}`, background: T.card, color: "#000", cursor: "pointer",
+                                }}>
+                                    <CalendarDays size={12} strokeWidth={1.5} color={T.primary} />
+                                    {dateLabel}
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
+                            </PopoverContent>
+                        </Popover>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button style={{
+                                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                                    borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: "#000",
+                                    cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 500,
+                                }}>
+                                    <Download size={14} strokeWidth={1.5} color={T.primary} />
+                                    Exportar
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[180px]">
+                                <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
+                                    <FileText className="h-4 w-4" style={{ color: T.red }} />
+                                    <span>Baixar PDF</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
+                                    <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
+                                    <span>Baixar Excel</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        {/* AI toggle */}
+                        {aiAnalysis && (
+                            <button onClick={() => setAiOpen(!aiOpen)} style={{
+                                display: "flex", alignItems: "center", gap: 6, padding: "6px 14px",
+                                borderRadius: 8, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+                                background: aiOpen ? T.primary : aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                color: "#fff", transition: "all 0.2s ease",
                             }}>
-                                <Plus size={14} strokeWidth={2} />
-                                Nova Conta
+                                <Sparkles size={14} strokeWidth={1.5} />
+                                Analise
+                                <ChevronRight size={14} strokeWidth={2} style={{
+                                    transform: aiOpen ? "rotate(90deg)" : "rotate(0deg)",
+                                    transition: "transform 0.2s ease",
+                                }} />
+                            </button>
+                        )}
+                        <button onClick={handleNew} style={{
+                            display: "flex", alignItems: "center", gap: 6, padding: "6px 16px",
+                            borderRadius: 8, border: "none", background: T.primary, color: "#fff",
+                            cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+                        }}>
+                            <Plus size={14} strokeWidth={2} />
+                            Nova Conta
+                        </button>
+                    </div>
+                </div>
+
+                {/* ════════ AI PANEL (collapsible) ════════ */}
+                {aiOpen && aiAnalysis && (
+                    <div style={{
+                        background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                        padding: "20px 22px", animation: "fadeIn 0.2s ease",
+                    }}>
+                        <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
+                            <Sparkles size={16} strokeWidth={1.5} color={T.primary} />
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira</p>
+                                <p style={{ fontSize: 10, color: "#000", opacity: 0.5 }}>Selic {SELIC}% a.a. | IPCA {IPCA_12M}% | CDI {CDI_MENSAL.toFixed(2)}%/mes | {aiAnalysis.billCount} lancamentos | Ticket medio {fmt(aiAnalysis.avgTicket)}</p>
+                            </div>
+                            <div style={{
+                                padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" as const,
+                                background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                color: "#fff",
+                            }}>
+                                {aiAnalysis.hasOverdue ? "ATENCAO" : aiAnalysis.paidPct >= 80 ? "SAUDAVEL" : "MODERADO"}
+                            </div>
+                            <button onClick={() => setAiOpen(false)} style={{
+                                width: 28, height: 28, borderRadius: 6, border: "none", background: T.hover,
+                                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                            }}>
+                                <X size={14} strokeWidth={2} color={T.text2} />
                             </button>
                         </div>
 
-                        {/* Filters + actions */}
-                        <div style={{
-                            background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
-                            padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10,
-                        }}>
-                            <div style={{ display: "flex", background: T.hover, borderRadius: 8, padding: 2, gap: 1 }}>
-                                {presets.map((p) => (
-                                    <button key={p.label} onClick={() => handlePreset(p)} style={{
-                                        padding: "5px 10px", borderRadius: 6, border: "none", fontSize: 11, flex: 1,
-                                        fontWeight: activePreset === p.label ? 600 : 400, fontFamily: FONT,
-                                        background: activePreset === p.label ? T.card : "transparent",
-                                        color: activePreset === p.label ? "#000" : T.text3, cursor: "pointer",
-                                        boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                                    }}>{p.label}</button>
-                                ))}
-                            </div>
-                            <div style={{ display: "flex", gap: 6 }}>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button style={{
-                                            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", flex: 1,
-                                            fontSize: 11, fontWeight: 500, fontFamily: FONT, borderRadius: 6,
-                                            border: `1px solid ${T.border}`, background: T.card, color: "#000", cursor: "pointer",
-                                        }}>
-                                            <CalendarDays size={12} strokeWidth={1.5} color={T.primary} />
-                                            {dateLabel}
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="end">
-                                        <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
-                                    </PopoverContent>
-                                </Popover>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button style={{
-                                            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-                                            borderRadius: 6, border: `1px solid ${T.border}`, background: T.card, color: "#000",
-                                            cursor: "pointer", fontFamily: FONT, fontSize: 11, fontWeight: 500,
-                                        }}>
-                                            <Download size={13} strokeWidth={1.5} color={T.primary} />
-                                            Exportar
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-[180px]">
-                                        <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
-                                            <FileText className="h-4 w-4" style={{ color: T.red }} />
-                                            <span>Baixar PDF</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
-                                            <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
-                                            <span>Baixar Excel</span>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 8 }}>
+                            {aiAnalysis.insights.map((item, i) => (
+                                <div key={i} style={{
+                                    padding: "10px 12px", borderRadius: 8,
+                                    borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
+                                    background: item.type === "danger" ? `${T.red}06` : item.type === "warning" ? `${T.amber}06` : "transparent",
+                                }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>{item.title}</p>
+                                    <p style={{ fontSize: 11.5, color: "#000", lineHeight: 1.6, opacity: 0.85 }}>{item.text}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* ════════ SUMMARY STRIP ════════ */}
                 <div style={{
