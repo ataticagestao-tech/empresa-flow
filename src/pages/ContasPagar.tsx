@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import {
     format, isBefore, isToday, parseISO, startOfDay, endOfDay,
-    startOfMonth, endOfMonth, subMonths, startOfYear, eachDayOfInterval,
+    startOfMonth, endOfMonth, subMonths, startOfYear,
     isAfter
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,10 +47,6 @@ const T = {
 } as const;
 const FONT = "var(--font-base)";
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-const fmtShort = (v: number) => {
-    if (v >= 1000) return `R$ ${(v / 1000).toFixed(1)}k`;
-    return fmt(v);
-};
 
 const presets = [
     { label: "Este mes", get: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
@@ -261,7 +257,11 @@ export default function ContasPagar() {
         return [...top, { name: "Outros", value: rest }];
     }, [filteredBills]);
 
-    // ── AI Analysis ──
+    // ── AI Analysis with market context ──
+    const SELIC = 14.25; // Taxa Selic vigente (mar/2026)
+    const IPCA_12M = 5.06; // IPCA acumulado 12 meses
+    const CDI_MENSAL = SELIC / 12;
+
     const aiAnalysis = useMemo(() => {
         if (!filteredBills.length) return null;
         const total = filteredBills.reduce((s, b) => s + Number(b.amount), 0);
@@ -283,57 +283,90 @@ export default function ContasPagar() {
         const topCat = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1])[0];
         const topCatPct = topCat && total > 0 ? ((topCat[1] / total) * 100).toFixed(1) : "0";
 
-        // Top supplier
+        // Top suppliers
         const supMap = new Map<string, number>();
         filteredBills.forEach(b => {
             const sup = b.supplier?.nome_fantasia || b.supplier?.razao_social || "Sem fornecedor";
             supMap.set(sup, (supMap.get(sup) || 0) + Number(b.amount));
         });
-        const topSup = Array.from(supMap.entries()).sort((a, b) => b[1] - a[1])[0];
-
-        // Concentration risk: top 3 suppliers
         const topSuppliers = Array.from(supMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
         const top3Total = topSuppliers.reduce((s, [, v]) => s + v, 0);
         const top3Pct = total > 0 ? ((top3Total / total) * 100).toFixed(0) : "0";
 
-        const insights: string[] = [];
+        // Cost of delay: overdue bills accumulate interest at ~2% per month (market average)
+        const overdueInterestMonth = overdueTotal * 0.02;
 
-        // Payment execution
+        const insights: { icon: string; title: string; text: string; type: "success" | "warning" | "danger" | "info" }[] = [];
+
+        // 1. Execution summary
         if (Number(paidPct) >= 90) {
-            insights.push(`Excelente execucao financeira: ${paidPct}% das contas ja foram pagas (${fmt(paidTotal)} de ${fmt(total)}).`);
+            insights.push({
+                icon: "📊", title: "Execucao Financeira",
+                text: `${paidPct}% das obrigacoes foram liquidadas — ${fmt(paidTotal)} de ${fmt(total)}. Performance acima da media de mercado para PMEs (70-80%). Com a Selic a ${SELIC}% a.a., manter pagamentos em dia evita custos de ${CDI_MENSAL.toFixed(2)}% ao mes sobre saldos em atraso.`,
+                type: "success",
+            });
         } else if (Number(paidPct) >= 60) {
-            insights.push(`Boa execucao: ${paidPct}% das contas foram pagas. Restam ${fmt(pendingTotal)} em aberto.`);
+            insights.push({
+                icon: "📊", title: "Execucao Financeira",
+                text: `${paidPct}% das contas pagas (${fmt(paidTotal)}). Restam ${fmt(pendingTotal)} em aberto. No cenario atual com Selic a ${SELIC}% a.a. e IPCA a ${IPCA_12M}%, atrasos geram custo efetivo de ~2% ao mes entre juros e multas. Priorize a quitacao.`,
+                type: "warning",
+            });
         } else {
-            insights.push(`Atencao: apenas ${paidPct}% das contas foram pagas. ${fmt(pendingTotal)} permanecem em aberto.`);
+            insights.push({
+                icon: "📊", title: "Execucao Financeira — Alerta",
+                text: `Apenas ${paidPct}% das contas liquidadas. ${fmt(pendingTotal)} em aberto representam risco de caixa. Com juros de mercado a ${SELIC}% a.a. (Selic), cada mes de atraso custa aproximadamente ${fmt(pendingTotal * 0.02)} em encargos. Recomenda-se priorizar as contas de maior valor.`,
+                type: "danger",
+            });
         }
 
-        // Overdue
+        // 2. Overdue risk
         if (overdue.length > 0) {
-            insights.push(`⚠ ${overdue.length} conta${overdue.length > 1 ? "s" : ""} vencida${overdue.length > 1 ? "s" : ""} totalizando ${fmt(overdueTotal)}. Priorize a regularizacao para evitar juros e multas.`);
+            insights.push({
+                icon: "⚠️", title: `${overdue.length} Conta${overdue.length > 1 ? "s" : ""} Vencida${overdue.length > 1 ? "s" : ""}`,
+                text: `Total em atraso: ${fmt(overdueTotal)}. Estimativa de custo mensal com juros e multas: ${fmt(overdueInterestMonth)} (base ~2% a.m.). Com a Selic a ${SELIC}%, renegociar dividas pode ser mais caro que liquidar. Priorize para evitar protestos e restricoes de credito.`,
+                type: "danger",
+            });
         } else if (pending.length === 0) {
-            insights.push(`Nenhuma conta pendente ou vencida no periodo. Fluxo de caixa sob controle.`);
+            insights.push({
+                icon: "✅", title: "Fluxo de Caixa Sob Controle",
+                text: `Nenhuma conta pendente ou vencida no periodo. Isso coloca a empresa em posicao favoravel para negociar prazos maiores com fornecedores e obter descontos por antecipacao — pratica que pode gerar economia de 2-5% sobre o valor das compras.`,
+                type: "success",
+            });
         }
 
-        // Top category
+        // 3. Category concentration
         if (topCat && topCat[0] !== "Sem categoria") {
-            insights.push(`A maior concentracao de despesa esta em "${topCat[0]}", representando ${topCatPct}% do total (${fmt(topCat[1])}).`);
+            insights.push({
+                icon: "🏷️", title: "Concentracao por Categoria",
+                text: `"${topCat[0]}" concentra ${topCatPct}% das despesas (${fmt(topCat[1])}). ${Number(topCatPct) > 40 ? "Alta concentracao em uma unica categoria aumenta a vulnerabilidade a reajustes. Avalie alternativas ou contratos de longo prazo para travar precos, especialmente com IPCA a " + IPCA_12M + "% nos ultimos 12 meses." : "Distribuicao equilibrada entre categorias indica boa diversificacao dos custos operacionais."}`,
+                type: Number(topCatPct) > 40 ? "warning" : "info",
+            });
         }
 
-        // Concentration risk
-        if (Number(top3Pct) >= 70 && topSuppliers.length >= 3) {
-            insights.push(`Risco de concentracao: os 3 maiores fornecedores representam ${top3Pct}% dos pagamentos. Considere diversificar fornecedores.`);
+        // 4. Supplier concentration
+        if (Number(top3Pct) >= 60 && topSuppliers.length >= 3) {
+            insights.push({
+                icon: "🏢", title: "Risco de Concentracao de Fornecedores",
+                text: `Os 3 maiores fornecedores representam ${top3Pct}% dos pagamentos: ${topSuppliers.map(([n, v]) => `${n} (${fmt(v)})`).join(", ")}. Concentracao acima de 60% e considerada risco operacional. Diversificar reduz exposicao a aumentos de preco e problemas de fornecimento.`,
+                type: "warning",
+            });
         }
 
-        // Average ticket
-        insights.push(`Ticket medio por conta: ${fmt(avgTicket)}. Total de ${filteredBills.length} lancamentos no periodo.`);
+        // 5. Market context
+        insights.push({
+            icon: "📈", title: "Contexto de Mercado",
+            text: `Selic: ${SELIC}% a.a. | IPCA 12m: ${IPCA_12M}% | CDI mensal: ~${CDI_MENSAL.toFixed(2)}%. Com juros elevados, antecipar pagamentos com desconto e mais vantajoso que manter saldo em aplicacoes. Cada R$ 10.000 antecipados com 3% de desconto equivalem a ${fmt(300)} de economia — acima do rendimento de ${fmt(10000 * CDI_MENSAL / 100)} no CDI mensal.`,
+            type: "info",
+        });
 
-        // Uncategorized
-        const uncategorized = filteredBills.filter(b => !b.category?.name);
-        if (uncategorized.length > 5) {
-            insights.push(`${uncategorized.length} contas sem categoria definida. Categorize para melhor visibilidade dos gastos.`);
-        }
+        // 6. Ticket and volume
+        insights.push({
+            icon: "🎯", title: "Resumo Operacional",
+            text: `${filteredBills.length} lancamentos no periodo. Ticket medio: ${fmt(avgTicket)}.${filteredBills.filter(b => !b.category?.name).length > 5 ? ` Atencao: ${filteredBills.filter(b => !b.category?.name).length} contas sem categoria — categorize para maior controle e precisao nas analises.` : ""}`,
+            type: "info",
+        });
 
-        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0 };
+        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total };
     }, [filteredBills]);
 
     // Handlers
@@ -556,6 +589,60 @@ export default function ContasPagar() {
                         </button>
                     </div>
                 </div>
+
+                {/* ════════ AI ANALYSIS ════════ */}
+                {aiAnalysis && (
+                    <div style={{
+                        background: `linear-gradient(135deg, #f8f9fb 0%, ${T.primaryLt} 100%)`,
+                        borderRadius: 14, border: `1px solid ${T.border}`, padding: "20px 24px",
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                            <div style={{
+                                width: 32, height: 32, borderRadius: 8, background: T.primary,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                                <Sparkles size={16} strokeWidth={1.5} color="#fff" />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira</p>
+                                <p style={{ fontSize: 10, color: T.text3 }}>Dados do periodo • Selic {SELIC}% a.a. • IPCA {IPCA_12M}%</p>
+                            </div>
+                            <div style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "4px 12px", borderRadius: 20,
+                                background: aiAnalysis.hasOverdue ? T.redLt : aiAnalysis.paidPct >= 80 ? T.greenLt : T.amberLt,
+                            }}>
+                                <div style={{
+                                    width: 8, height: 8, borderRadius: 99,
+                                    background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                }} />
+                                <span style={{
+                                    fontSize: 11, fontWeight: 600,
+                                    color: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                }}>
+                                    {aiAnalysis.hasOverdue ? "Requer atencao" : aiAnalysis.paidPct >= 80 ? "Saudavel" : "Moderado"}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 10 }}>
+                            {aiAnalysis.insights.map((item, i) => (
+                                <div key={i} style={{
+                                    display: "flex", gap: 10, padding: "12px 14px",
+                                    background: "rgba(255,255,255,0.8)", borderRadius: 10,
+                                    border: `1px solid ${item.type === "danger" ? T.red + "30" : item.type === "warning" ? T.amber + "30" : item.type === "success" ? T.green + "30" : T.border + "60"}`,
+                                    borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
+                                }}>
+                                    <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
+                                    <div>
+                                        <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 3 }}>{item.title}</p>
+                                        <p style={{ fontSize: 11, color: T.text2, lineHeight: 1.55 }}>{item.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* ════════ SUMMARY STRIP ════════ */}
                 <div style={{
@@ -896,63 +983,6 @@ export default function ContasPagar() {
                         </TableBody>
                     </Table>
                 </div>
-
-                {/* ════════ AI ANALYSIS ════════ */}
-                {aiAnalysis && (
-                    <div style={{
-                        background: `linear-gradient(135deg, ${T.primaryLt} 0%, #f0f4ff 50%, ${T.card} 100%)`,
-                        borderRadius: 14, border: `1px solid ${T.border}`, padding: 24,
-                    }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                            <div style={{
-                                width: 36, height: 36, borderRadius: 10, background: T.primary,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                            }}>
-                                <Sparkles size={18} strokeWidth={1.5} color="#fff" />
-                            </div>
-                            <div>
-                                <p style={{ fontSize: 14, fontWeight: 700, color: "#000" }}>Analise Inteligente</p>
-                                <p style={{ fontSize: 11, color: T.text3 }}>Avaliacao automatica do periodo filtrado</p>
-                            </div>
-                            {/* Health indicator */}
-                            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                                <div style={{
-                                    width: 10, height: 10, borderRadius: 99,
-                                    background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                }} />
-                                <span style={{
-                                    fontSize: 11, fontWeight: 600,
-                                    color: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                }}>
-                                    {aiAnalysis.hasOverdue ? "Requer atencao" : aiAnalysis.paidPct >= 80 ? "Saudavel" : "Moderado"}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            {aiAnalysis.insights.map((insight, i) => (
-                                <div key={i} style={{
-                                    display: "flex", gap: 10, padding: "10px 14px",
-                                    background: "rgba(255,255,255,0.7)", borderRadius: 10,
-                                    border: `1px solid ${T.border}40`,
-                                }}>
-                                    <div style={{
-                                        width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                                        background: i === 0 ? `${T.primary}15` : insight.startsWith("⚠") ? `${T.red}12` : `${T.border}60`,
-                                        display: "flex", alignItems: "center", justifyContent: "center",
-                                        fontSize: 10, fontWeight: 700,
-                                        color: i === 0 ? T.primary : insight.startsWith("⚠") ? T.red : T.text3,
-                                    }}>
-                                        {i + 1}
-                                    </div>
-                                    <p style={{ fontSize: 12, color: T.text1, lineHeight: 1.5 }}>
-                                        {insight}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 {/* Modals */}
                 <AccountsPayableSheet isOpen={isSheetOpen} onClose={() => { setIsSheetOpen(false); setEditingItem(undefined); }} dataToEdit={editingItem} />
