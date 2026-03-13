@@ -27,36 +27,37 @@ import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-f
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
-/* ── Design Tokens ─────────────────────────────────────────── */
+/* ── Design Tokens (aligned with tokens.css) ──────────────── */
 const C = {
-    bgBase:     "#F0F2F5",
-    surface:    "#FFFFFF",
+    bgBase:     "#f8f9fb",
+    surface:    "#ffffff",
     darkCard:   "#1A1F36",
-    blue:       "#2563EB",
-    blueLight:  "#EFF6FF",
-    blueVivid:  "#3B82F6",
-    blueDark:   "#1E40AF",
-    green:      "#22C55E",
-    greenSoft:  "#DCFCE7",
-    red:        "#EF4444",
-    redSoft:    "#FEE2E2",
-    text1:      "#0F172A",
+    blue:       "#3b5bdb",
+    blueLight:  "#eef2ff",
+    blueVivid:  "#3b5bdb",
+    blueDark:   "#1e3a8a",
+    green:      "#2e7d32",
+    greenSoft:  "#e8f5e9",
+    red:        "#c62828",
+    redSoft:    "#fde8e8",
+    amber:      "#f57f17",
+    amberSoft:  "#fff8e1",
+    text1:      "#0f172a",
     text2:      "#475569",
-    textMuted:  "#94A3B8",
-    border:     "#E2E8F0",
-    borderLight:"#F1F5F9",
+    textMuted:  "#94a3b8",
+    border:     "#e2e8f0",
+    borderLight:"#f1f5f9",
 } as const;
 
-const FONT = "'Inter', -apple-system, sans-serif";
+const FONT = "var(--font-base)";
 
 /* ── Card base styles ──────────────────────────────────────── */
 const cardStyle = {
     background: C.surface,
-    borderRadius: 16,
-    padding: 20,
-    border: `1px solid ${C.borderLight}`,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
-    transition: "box-shadow 0.2s ease, transform 0.2s ease",
+    borderRadius: 12,
+    padding: 16,
+    border: `0.5px solid ${C.border}`,
+    transition: "background 0.15s ease",
 } as const;
 
 const darkCardStyle = {
@@ -428,10 +429,10 @@ export default function CompanyDashboard() {
     const custoFixoPct = faturamento > 0 ? ((custoFixo / faturamento) * 100).toFixed(1) : "0.0";
 
     const kpis = [
-        { id: "faturamento",   label: "Faturamento",          value: fmt(faturamento),       icon: TrendingUp,   iconBg: C.greenSoft, iconColor: C.green, detail: `${rev.totalTransactions || 0} transações no período` },
-        { id: "recebimentos",  label: "Recebimentos",         value: fmt(totalRecebimentos), icon: CreditCard,   iconBg: C.blueLight, iconColor: C.blue,  detail: recebimentoDetail },
+        { id: "faturamento",   label: "Faturamento",          value: fmt(faturamento),       icon: TrendingUp,   iconBg: C.blueLight, iconColor: C.blue, detail: `${rev.totalTransactions || 0} transações no período` },
+        { id: "recebimentos",  label: "Recebimentos",         value: fmt(totalRecebimentos), icon: CreditCard,   iconBg: C.greenSoft, iconColor: C.green,  detail: recebimentoDetail },
         { id: "despesas",      label: "Despesas e Custos",    value: fmt(despesasECustos),   icon: TrendingDown,  iconBg: C.redSoft,   iconColor: C.red,   detail: `${dre.groups.filter(g => g.total < 0).length} grupo(s) no período` },
-        { id: "custofixo",     label: "Custo Fixo",           value: fmt(custoFixo),         icon: Target,       iconBg: "#FEF3C7",   iconColor: "#D97706", detail: `${custoFixoPct}% do faturamento` },
+        { id: "custofixo",     label: "Custo Fixo",           value: fmt(custoFixo),         icon: Target,       iconBg: C.amberSoft, iconColor: C.amber, detail: `${custoFixoPct}% do faturamento` },
     ];
 
     const dashboardRef = useRef<HTMLDivElement>(null);

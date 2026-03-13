@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* ── Primária ───────────────────────────── */
+  --color-primary:        #3b5bdb;
+  --color-primary-light:  #eef2ff;
+  --color-primary-mid:    #bac8ff;
+  --color-primary-dark:   #1e3a8a;
+
+  /* ── Neutros ────────────────────────────── */
+  --color-bg-page:        #f8f9fb;
+  --color-bg-card:        #ffffff;
+  --color-bg-hover:       #f1f5f9;
+  --color-border:         #e2e8f0;
+  --color-border-strong:  #cbd5e1;
+  --color-text-primary:   #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary:  #94a3b8;
+
+  /* ── Semânticas financeiras ─────────────── */
+  --color-receita:        #2e7d32;
+  --color-receita-light:  #e8f5e9;
+  --color-despesa:        #c62828;
+  --color-despesa-light:  #fde8e8;
+  --color-custo:          #f57f17;
+  --color-custo-light:    #fff8e1;
+  --color-neutro:         #3b5bdb;
+  --color-neutro-light:   #eef2ff;
+
+  /* ── Border radius ─────────────────────── */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-pill: 9999px;
+
+  /* ── Spacing scale ─────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+
+  /* ── Fontes ─────────────────────────────── */
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-base:    'Inter', -apple-system, system-ui, sans-serif;
+}

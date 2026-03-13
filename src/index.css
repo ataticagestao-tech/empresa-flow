@@ -1,76 +1,78 @@
+@import './styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - Tatica Gestao Empresarial
-   Estilo: Premium SaaS Modern
-   Primary: Blue Electric #2563EB
-   White dominant + soft shadows
+/* Design System - Gestap / Tatica Gestao Empresarial
+   Estilo: Swiss Luxury Minimal
+   Primary: #3b5bdb
+   White dominant + fine borders (0.5px)
 */
 
 @layer base {
   :root {
     /* Backgrounds */
-    --background: 214 14% 95%;       /* #F0F2F5 */
-    --foreground: 222 47% 11%;       /* #0F172A */
+    --background: 225 14% 97%;       /* #f8f9fb */
+    --foreground: 222 47% 11%;       /* #0f172a */
 
-    --card: 0 0% 100%;              /* #FFFFFF */
-    --card-foreground: 222 47% 11%;  /* #0F172A */
+    --card: 0 0% 100%;              /* #ffffff */
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary — Blue Electric */
-    --primary: 217 91% 60%;         /* #2563EB */
+    /* Primary — #3b5bdb */
+    --primary: 228 66% 55%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 214 32% 91%;       /* #E2E8F0 */
+    --secondary: 214 32% 91%;       /* #e2e8f0 */
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96%;           /* #F1F5F9 */
-    --muted-foreground: 215 16% 47%; /* #64748B */
+    --muted: 210 40% 96%;           /* #f1f5f9 */
+    --muted-foreground: 215 16% 47%;
 
     /* Accent */
-    --accent: 214 95% 93%;          /* #EFF6FF */
-    --accent-foreground: 217 91% 60%;
+    --accent: 226 100% 97%;         /* #eef2ff */
+    --accent-foreground: 228 66% 55%;
 
-    /* Destructive */
-    --destructive: 0 84% 60%;       /* #EF4444 */
+    /* Destructive — #c62828 */
+    --destructive: 0 66% 47%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success */
-    --success: 142 71% 45%;         /* #22C55E */
+    /* Success — #2e7d32 */
+    --success: 123 46% 34%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning */
-    --warning: 38 92% 50%;          /* #F59E0B */
+    /* Warning — #f57f17 */
+    --warning: 33 92% 53%;
     --warning-foreground: 0 0% 100%;
 
     /* Info */
-    --info: 217 91% 60%;
+    --info: 228 66% 55%;
     --info-foreground: 0 0% 100%;
 
     /* Borders */
-    --border: 214 32% 91%;          /* #E2E8F0 */
+    --border: 214 32% 91%;          /* #e2e8f0 */
     --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --ring: 228 66% 55%;
 
     /* Extra surfaces */
-    --surface-2: 210 40% 98%;       /* #F8FAFC */
-    --border-light: 210 40% 96%;    /* #F1F5F9 */
+    --surface-2: 210 40% 98%;
+    --border-light: 210 40% 96%;
 
-    --radius: 1rem;                 /* 16px base */
+    --radius: 0.75rem;              /* 12px base */
 
     /* Sidebar — Light/White */
-    --sidebar-background: 0 0% 100%;       /* #FFFFFF */
-    --sidebar-foreground: 215 16% 47%;     /* #64748B */
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-primary: 228 66% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 214 95% 93%;         /* #EFF6FF */
-    --sidebar-accent-foreground: 222 47% 11%;  /* #0F172A */
-    --sidebar-border: 214 32% 91%;         /* #E2E8F0 */
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 226 100% 97%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 228 66% 55%;
     --sidebar-muted: 215 20% 65%;
   }
 }
@@ -82,7 +84,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-family: var(--font-base);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -92,19 +94,20 @@
     @apply bg-card/80 backdrop-blur-md border border-border/50;
   }
 
-  /* KPI value — Inter bold for large numbers */
+  /* KPI value — Inter 600 for large numbers */
   .kpi-value {
-    font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-base);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
+    color: var(--color-text-primary);
   }
 
   /* Monetary values in tables */
   .td-value {
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--font-base);
     font-size: 14px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -112,10 +115,130 @@
 
   /* Section titles */
   .section-title {
-    font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 14px;
+    font-family: var(--font-base);
+    font-size: 18px;
     font-weight: 600;
-    color: #0F172A;
+    color: var(--color-text-primary);
+  }
+
+  /* Labels (uppercase small) */
+  .label-upper {
+    font-family: var(--font-base);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-tertiary);
+  }
+
+  /* Display font for company/client names */
+  .display-name {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+
+  /* Status badges */
+  .badge-receita {
+    background: var(--color-receita-light);
+    color: var(--color-receita);
+    border-radius: var(--radius-pill);
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .badge-despesa {
+    background: var(--color-despesa-light);
+    color: var(--color-despesa);
+    border-radius: var(--radius-pill);
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .badge-custo {
+    background: var(--color-custo-light);
+    color: var(--color-custo);
+    border-radius: var(--radius-pill);
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .badge-neutro {
+    background: var(--color-neutro-light);
+    color: var(--color-neutro);
+    border-radius: var(--radius-pill);
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Card style */
+  .card-gestap {
+    background: var(--color-bg-card);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+  }
+
+  /* Button styles */
+  .btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-family: var(--font-base);
+    font-weight: 500;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+
+  .btn-secondary {
+    background: var(--color-bg-hover);
+    color: var(--color-text-primary);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-family: var(--font-base);
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .btn-secondary:hover { background: var(--color-border); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-primary);
+    border: 0.5px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-family: var(--font-base);
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .btn-danger {
+    background: var(--color-despesa-light);
+    color: var(--color-despesa);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    font-family: var(--font-base);
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
   }
 }
 
