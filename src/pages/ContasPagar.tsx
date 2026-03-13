@@ -93,14 +93,22 @@ export default function ContasPagar() {
         queryKey: ["accounts_payable", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            const { data, error } = await activeClient
+            // Try with joins first
+            const { data, error } = await (activeClient as any)
                 .from("accounts_payable")
                 .select(`*, supplier:suppliers(razao_social, nome_fantasia), category:categories(name)`)
                 .eq("company_id", selectedCompany.id)
-                .order("due_date", { ascending: true })
-                .range(0, 9999);
-            if (error) throw error;
-            return data as unknown as AccountsPayable[];
+                .order("due_date", { ascending: true });
+            if (!error && data) return data as AccountsPayable[];
+            // Fallback: query without joins
+            console.warn("accounts_payable join query failed, falling back:", error?.message);
+            const { data: fallback, error: err2 } = await (activeClient as any)
+                .from("accounts_payable")
+                .select("*")
+                .eq("company_id", selectedCompany.id)
+                .order("due_date", { ascending: true });
+            if (err2) { console.error("accounts_payable fallback error:", err2); return []; }
+            return (fallback || []) as AccountsPayable[];
         },
         enabled: !!selectedCompany?.id,
     });
