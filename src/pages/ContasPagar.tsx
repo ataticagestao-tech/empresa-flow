@@ -93,35 +93,37 @@ export default function ContasPagar() {
         queryKey: ["accounts_payable", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            // Try with joins first
-            const { data, error } = await (activeClient as any)
-                .from("accounts_payable")
-                .select(`*, supplier:suppliers(razao_social, nome_fantasia), category:categories(name)`)
-                .eq("company_id", selectedCompany.id)
-                .order("due_date", { ascending: true });
-            if (!error && data) return data as AccountsPayable[];
-            // Fallback: query without joins, then hydrate categories/suppliers
-            console.warn("accounts_payable join failed, using fallback:", error?.message);
-            const { data: fallback } = await (activeClient as any)
+            const { data: rows, error } = await (activeClient as any)
                 .from("accounts_payable")
                 .select("*")
                 .eq("company_id", selectedCompany.id)
                 .order("due_date", { ascending: true });
-            if (!fallback) return [];
-            // Hydrate categories
-            const catIds = [...new Set(fallback.map((b: any) => b.category_id).filter(Boolean))];
-            const supIds = [...new Set(fallback.map((b: any) => b.supplier_id).filter(Boolean))];
+            if (error || !rows) { console.error("accounts_payable error:", error); return []; }
+
+            // Hydrate categories and suppliers
+            const catIds = [...new Set(rows.map((b: any) => b.category_id).filter(Boolean))] as string[];
+            const supIds = [...new Set(rows.map((b: any) => b.supplier_id).filter(Boolean))] as string[];
             const catMap: Record<string, string> = {};
             const supMap: Record<string, { razao_social: string; nome_fantasia?: string }> = {};
+
             if (catIds.length) {
-                const { data: cats } = await (activeClient as any).from("categories").select("id, name").in("id", catIds);
-                (cats || []).forEach((c: any) => { catMap[c.id] = c.name; });
+                const { data: cats } = await (activeClient as any)
+                    .from("chart_of_accounts").select("id, name").in("id", catIds);
+                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
+                // Also try categories table
+                if (!cats || cats.length === 0) {
+                    const { data: cats2 } = await (activeClient as any)
+                        .from("categories").select("id, name").in("id", catIds);
+                    if (cats2) cats2.forEach((c: any) => { catMap[c.id] = c.name; });
+                }
             }
             if (supIds.length) {
-                const { data: sups } = await (activeClient as any).from("suppliers").select("id, razao_social, nome_fantasia").in("id", supIds);
-                (sups || []).forEach((s: any) => { supMap[s.id] = { razao_social: s.razao_social, nome_fantasia: s.nome_fantasia }; });
+                const { data: sups } = await (activeClient as any)
+                    .from("suppliers").select("id, razao_social, nome_fantasia").in("id", supIds);
+                if (sups) sups.forEach((s: any) => { supMap[s.id] = { razao_social: s.razao_social, nome_fantasia: s.nome_fantasia }; });
             }
-            return fallback.map((b: any) => ({
+
+            return rows.map((b: any) => ({
                 ...b,
                 category: b.category_id && catMap[b.category_id] ? { name: catMap[b.category_id] } : undefined,
                 supplier: b.supplier_id && supMap[b.supplier_id] ? supMap[b.supplier_id] : undefined,
