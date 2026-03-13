@@ -1,391 +1,992 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal,
+    CalendarDays, TrendingUp, CheckCircle2, AlertTriangle, X,
+    Download, FileText, FileSpreadsheet, Sparkles, ChevronRight
+} from "lucide-react";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccountsReceivableSheet } from "@/components/finance/AccountsReceivableSheet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { format, isBefore, isToday, parseISO, startOfDay } from "date-fns";
-import { AccountsReceivable } from "@/types/finance";
-import { Badge } from "@/components/ui/badge";
-import { logDeletion } from "@/lib/audit";
-
-import { PaymentModal } from "@/components/transactions/PaymentModal";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+    format, isBefore, isToday, parseISO, startOfDay, endOfDay,
+    startOfMonth, endOfMonth, subMonths, startOfYear,
+    isAfter
+} from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { AccountsReceivable } from "@/types/finance";
+import { logDeletion } from "@/lib/audit";
+import { PaymentModal } from "@/components/transactions/PaymentModal";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    Area, AreaChart, Line, PieChart, Pie, Cell
+} from "recharts";
+import type { DateRange } from "react-day-picker";
+
+/* ── Tokens ────────────────────────────────────── */
+const T = {
+    primary: "#3b5bdb", primaryLt: "#eef2ff",
+    green: "#2e7d32", greenLt: "#e8f5e9",
+    red: "#c62828", redLt: "#fde8e8",
+    amber: "#f57f17", amberLt: "#fff8e1",
+    text1: "#0f172a", text2: "#475569", text3: "#94a3b8",
+    bg: "#f8f9fb", card: "#ffffff", border: "#e2e8f0", hover: "#f1f5f9",
+} as const;
+const FONT = "var(--font-base)";
+const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const presets = [
+    { label: "Este mes", get: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
+    { label: "Mes passado", get: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
+    { label: "3 meses", get: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
+    { label: "Este ano", get: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
+];
+
+const PM_LABELS: Record<string, string> = {
+    pix: "Pix", boleto: "Boleto", transfer: "Transferencia", cash: "Dinheiro", card: "Cartao", other: "Outro",
+};
+
+const tooltipStyle = {
+    backgroundColor: "#1e293b", color: "#fff", borderRadius: 8, border: "none",
+    padding: "10px 14px", fontSize: 12, fontFamily: FONT, boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+} as const;
 
 export default function ContasReceber() {
     const { selectedCompany } = useCompany();
     const { activeClient, isUsingSecondary, user } = useAuth();
     const queryClient = useQueryClient();
+
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<AccountsReceivable | undefined>(undefined);
+    const [editingItem, setEditingItem] = useState<AccountsReceivable | undefined>();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentItem, setPaymentItem] = useState<AccountsReceivable | null>(null);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState<string>("all");
 
-    const normalizeSearch = (value: unknown) =>
-        String(value ?? "")
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .trim();
+    // Filters — default to Este ano
+    const [dateRange, setDateRange] = useState(() => presets[3].get());
+    const [activePreset, setActivePreset] = useState("Este ano");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [methodFilter, setMethodFilter] = useState("all");
+    const [categoryFilter, setCategoryFilter] = useState("all");
+    const [aiOpen, setAiOpen] = useState(false);
+
+    const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
+
+    const handlePreset = (p: typeof presets[0]) => { setActivePreset(p.label); setDateRange(p.get()); };
+    const handleCalendarSelect = (range: DateRange | undefined) => {
+        if (range?.from) { setActivePreset(""); setDateRange({ from: range.from, to: range.to || range.from }); }
+    };
 
     const { data: bills, isLoading, refetch } = useQuery({
         queryKey: ["accounts_receivable", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
-            const { data, error } = await activeClient
+            const { data: rows, error } = await (activeClient as any)
                 .from("accounts_receivable")
-                .select(`
-            *,
-            client:clients(razao_social, nome_fantasia),
-            category:categories(name)
-        `)
+                .select("*")
                 .eq("company_id", selectedCompany.id)
-                .order("due_date", { ascending: true }).range(0, 9999);
+                .order("due_date", { ascending: true });
+            if (error || !rows) { console.error("accounts_receivable error:", error); return []; }
 
-            if (error) throw error;
-            return data as unknown as AccountsReceivable[];
+            // Hydrate categories and clients
+            const catIds = [...new Set(rows.map((b: any) => b.category_id).filter(Boolean))] as string[];
+            const cliIds = [...new Set(rows.map((b: any) => b.client_id).filter(Boolean))] as string[];
+            const catMap: Record<string, string> = {};
+            const cliMap: Record<string, { razao_social: string; nome_fantasia?: string }> = {};
+
+            if (catIds.length) {
+                const { data: cats } = await (activeClient as any)
+                    .from("chart_of_accounts").select("id, name").in("id", catIds);
+                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
+                if (!cats || cats.length === 0) {
+                    const { data: cats2 } = await (activeClient as any)
+                        .from("categories").select("id, name").in("id", catIds);
+                    if (cats2) cats2.forEach((c: any) => { catMap[c.id] = c.name; });
+                }
+            }
+            if (cliIds.length) {
+                const { data: clis } = await (activeClient as any)
+                    .from("clients").select("id, razao_social, nome_fantasia").in("id", cliIds);
+                if (clis) clis.forEach((c: any) => { cliMap[c.id] = { razao_social: c.razao_social, nome_fantasia: c.nome_fantasia }; });
+            }
+
+            return rows.map((b: any) => ({
+                ...b,
+                category: b.category_id && catMap[b.category_id] ? { name: catMap[b.category_id] } : undefined,
+                client: b.client_id && cliMap[b.client_id] ? cliMap[b.client_id] : undefined,
+            })) as AccountsReceivable[];
         },
         enabled: !!selectedCompany?.id,
     });
 
-    const handleEdit = (item: AccountsReceivable) => {
-        setEditingItem(item);
-        setIsSheetOpen(true);
-    };
+    const normalizeSearch = (value: unknown) =>
+        String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-    const handleNew = () => {
-        setEditingItem(undefined);
-        setIsSheetOpen(true);
-    };
+    // ── Filter ──
+    const filteredBills = useMemo(() => {
+        if (!bills) return [];
+        const rangeStart = startOfDay(dateRange.from);
+        const rangeEnd = endOfDay(dateRange.to);
 
-    const filteredBills = bills?.filter(bill => {
-        const needle = normalizeSearch(searchTerm);
-        const formattedDueDate = bill.due_date ? format(new Date(bill.due_date), "dd/MM/yyyy") : "";
-        const formattedAmount = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(bill.amount);
-        const matchesSearch = !needle
-            ? true
-            : normalizeSearch(
-                [
-                    formattedDueDate,
-                    bill.description,
-                    bill.client?.razao_social,
-                    bill.client?.nome_fantasia,
-                    bill.amount,
-                    formattedAmount,
-                    bill.category?.name,
-                    bill.status,
-                ]
-                    .filter(Boolean)
-                    .join(" "),
-            ).includes(needle);
+        return bills.filter((bill) => {
+            if (bill.due_date) {
+                const due = parseISO(bill.due_date);
+                if (isBefore(due, rangeStart) || isAfter(due, rangeEnd)) return false;
+            }
+            if (statusFilter !== "all") {
+                if (statusFilter === "overdue") {
+                    if (bill.status !== "pending") return false;
+                    if (!isBefore(startOfDay(parseISO(bill.due_date)), startOfDay(new Date()))) return false;
+                } else if (bill.status !== statusFilter) return false;
+            }
+            if (methodFilter !== "all" && bill.payment_method !== methodFilter) return false;
+            if (categoryFilter !== "all") {
+                const catName = bill.category?.name || "Sem categoria";
+                if (catName !== categoryFilter) return false;
+            }
+            if (searchTerm.trim()) {
+                const needle = normalizeSearch(searchTerm);
+                const haystack = normalizeSearch([
+                    bill.description, bill.client?.razao_social, bill.client?.nome_fantasia,
+                    bill.category?.name, fmt(bill.amount),
+                    bill.due_date ? format(parseISO(bill.due_date), "dd/MM/yyyy") : "",
+                ].filter(Boolean).join(" "));
+                if (!haystack.includes(needle)) return false;
+            }
+            return true;
+        });
+    }, [bills, dateRange, statusFilter, methodFilter, categoryFilter, searchTerm]);
 
-        const matchesStatus = statusFilter === 'all' || bill.status === statusFilter;
+    // ── KPIs ──
+    const stats = useMemo(() => {
+        const pending = filteredBills.filter(b => b.status === "pending");
+        const paid = filteredBills.filter(b => b.status === "paid");
+        const overdue = pending.filter(b => isBefore(startOfDay(parseISO(b.due_date)), startOfDay(new Date())));
+        return {
+            pendingTotal: pending.reduce((s, b) => s + Number(b.amount), 0),
+            pendingCount: pending.length,
+            paidTotal: paid.reduce((s, b) => s + Number(b.amount), 0),
+            paidCount: paid.length,
+            overdueTotal: overdue.reduce((s, b) => s + Number(b.amount), 0),
+            overdueCount: overdue.length,
+        };
+    }, [filteredBills]);
 
-        return matchesSearch && matchesStatus;
-    });
+    // ── Chart: smart grouping ──
+    const chartData = useMemo(() => {
+        if (!filteredBills.length) return [];
+        const dates = filteredBills.filter(b => b.due_date).map(b => parseISO(b.due_date));
+        const minDate = dates.reduce((a, b) => (a < b ? a : b));
+        const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+        const spanMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + maxDate.getMonth() - minDate.getMonth();
+        const groupByDay = spanMonths <= 2;
 
-    const getStatusBadge = (status: string, dueDate: string) => {
-        const today = new Date();
-        const due = new Date(dueDate);
-        const isOverdue = isBefore(due, today) && !isToday(due) && status === 'pending';
+        const buckets = new Map<string, { label: string; pending: number; paid: number; overdue: number }>();
+        filteredBills.forEach(b => {
+            if (!b.due_date) return;
+            const d = parseISO(b.due_date);
+            const key = groupByDay ? format(d, "yyyy-MM-dd") : format(d, "yyyy-MM");
+            const label = groupByDay ? format(d, "dd MMM", { locale: ptBR }) : format(d, "MMM yy", { locale: ptBR });
+            if (!buckets.has(key)) buckets.set(key, { label, pending: 0, paid: 0, overdue: 0 });
+            const entry = buckets.get(key)!;
+            const amount = Number(b.amount);
+            if (b.status === "paid") {
+                entry.paid += amount;
+            } else if (b.status === "pending") {
+                if (isBefore(startOfDay(d), startOfDay(new Date()))) {
+                    entry.overdue += amount;
+                } else {
+                    entry.pending += amount;
+                }
+            }
+        });
 
-        if (status === 'paid') return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-0">Recebido</Badge>;
-        if (status === 'cancelled') return <Badge variant="secondary" className="bg-[#F1F5F9] text-muted-foreground">Cancelado</Badge>;
-        if (isOverdue) return <Badge variant="destructive" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 border-0">Atrasado</Badge>;
-        if (isToday(due)) return <Badge className="bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 border-0">Vence Hoje</Badge>;
+        let acc = 0;
+        return Array.from(buckets.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([, vals]) => {
+                const total = vals.pending + vals.paid + vals.overdue;
+                acc += total;
+                return { ...vals, total, acumulado: acc };
+            });
+    }, [filteredBills]);
 
-        return <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">A Receber</Badge>;
-    };
+    // ── Unique categories for filter ──
+    const uniqueCategories = useMemo(() => {
+        if (!bills) return [];
+        const set = new Set<string>();
+        bills.forEach(b => { set.add(b.category?.name || "Sem categoria"); });
+        return Array.from(set).sort();
+    }, [bills]);
 
-    const handleDelete = async (bill: AccountsReceivable) => {
-        const ok = window.confirm(`Excluir o recebimento "${bill.description}"?`);
-        if (!ok) return;
-        const { error } = await activeClient.from("accounts_receivable").delete().eq("id", bill.id);
-        if (!error) {
-            refetch();
-            if (user?.id) {
-                await logDeletion(activeClient, {
-                    userId: user.id,
-                    companyId: selectedCompany?.id || null,
-                    entity: "accounts_receivable",
-                    entityId: bill.id,
-                    payload: { description: bill.description, amount: bill.amount },
+    // ── Pie: received bills grouped by category ──
+    const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c", "#4f46e5", "#059669"];
+    const categoryPieData = useMemo(() => {
+        const paid = filteredBills.filter(b => b.status === "paid");
+        const map = new Map<string, number>();
+        paid.forEach(b => {
+            const cat = b.category?.name || "Sem categoria";
+            map.set(cat, (map.get(cat) || 0) + Number(b.amount));
+        });
+        const sorted = Array.from(map.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+        if (sorted.length <= 8) return sorted;
+        const top = sorted.slice(0, 7);
+        const rest = sorted.slice(7).reduce((s, d) => s + d.value, 0);
+        return [...top, { name: "Outros", value: rest }];
+    }, [filteredBills]);
+
+    // ── AI Analysis with market context ──
+    const SELIC = 14.25;
+    const IPCA_12M = 5.06;
+    const CDI_MENSAL = SELIC / 12;
+
+    const aiAnalysis = useMemo(() => {
+        if (!filteredBills.length) return null;
+        const total = filteredBills.reduce((s, b) => s + Number(b.amount), 0);
+        const paid = filteredBills.filter(b => b.status === "paid");
+        const pending = filteredBills.filter(b => b.status === "pending");
+        const overdue = pending.filter(b => isBefore(startOfDay(parseISO(b.due_date)), startOfDay(new Date())));
+        const paidTotal = paid.reduce((s, b) => s + Number(b.amount), 0);
+        const pendingTotal = pending.reduce((s, b) => s + Number(b.amount), 0);
+        const overdueTotal = overdue.reduce((s, b) => s + Number(b.amount), 0);
+        const paidPct = total > 0 ? ((paidTotal / total) * 100).toFixed(1) : "0";
+        const avgTicket = filteredBills.length > 0 ? total / filteredBills.length : 0;
+
+        // Top category
+        const catMap = new Map<string, number>();
+        filteredBills.forEach(b => {
+            const cat = b.category?.name || "Sem categoria";
+            catMap.set(cat, (catMap.get(cat) || 0) + Number(b.amount));
+        });
+        const topCat = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1])[0];
+        const topCatPct = topCat && total > 0 ? ((topCat[1] / total) * 100).toFixed(1) : "0";
+
+        // Top clients
+        const cliMap = new Map<string, number>();
+        filteredBills.forEach(b => {
+            const cli = b.client?.nome_fantasia || b.client?.razao_social || "Sem cliente";
+            cliMap.set(cli, (cliMap.get(cli) || 0) + Number(b.amount));
+        });
+        const topClients = Array.from(cliMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        const top3Total = topClients.reduce((s, [, v]) => s + v, 0);
+        const top3Pct = total > 0 ? ((top3Total / total) * 100).toFixed(0) : "0";
+
+        // Cost of delay
+        const overdueInterestMonth = overdueTotal * 0.02;
+
+        const insights: { title: string; text: string; type: "success" | "warning" | "danger" | "info" }[] = [];
+
+        // 1. Execution
+        if (Number(paidPct) >= 90) {
+            insights.push({
+                title: "Recebimento eficiente",
+                text: `${paidPct}% dos recebimentos confirmados (${fmt(paidTotal)} de ${fmt(total)}). Taxa de conversao acima da media de PMEs no Brasil, que oscila entre 70% e 80% segundo o Sebrae. Com Selic a ${SELIC}% a.a., capital recebido e reinvestido no CDI rende ${CDI_MENSAL.toFixed(2)}% ao mes. Manter essa eficiencia maximiza o fluxo de caixa disponivel.`,
+                type: "success",
+            });
+        } else if (Number(paidPct) >= 60) {
+            insights.push({
+                title: "Taxa de recebimento abaixo do ideal",
+                text: `Apenas ${paidPct}% dos valores foram recebidos. ${fmt(pendingTotal)} permanecem em aberto. Com Selic a ${SELIC}% a.a. e inflacao (IPCA) a ${IPCA_12M}%, cada mes sem receber equivale a uma perda de poder de compra de aproximadamente ${fmt(pendingTotal * IPCA_12M / 1200)} alem do custo de oportunidade de ${fmt(pendingTotal * CDI_MENSAL / 100)} em rendimentos CDI.`,
+                type: "warning",
+            });
+        } else {
+            insights.push({
+                title: "Taxa de recebimento critica",
+                text: `Somente ${paidPct}% dos valores recebidos. ${fmt(pendingTotal)} em aberto representam risco direto ao fluxo de caixa. Com a Selic a ${SELIC}% a.a., o custo de oportunidade mensal e de ${fmt(pendingTotal * CDI_MENSAL / 100)}. Alem disso, inadimplencia prolongada aumenta risco de perdas definitivas. Acao imediata: intensificar cobranca e considerar protesto ou negociacao.`,
+                type: "danger",
+            });
+        }
+
+        // 2. Overdue
+        if (overdue.length > 0) {
+            insights.push({
+                title: `Inadimplencia: ${overdue.length} recebimento${overdue.length > 1 ? "s" : ""} vencido${overdue.length > 1 ? "s" : ""}`,
+                text: `Total vencido: ${fmt(overdueTotal)}. Custo de oportunidade estimado: ${fmt(overdueInterestMonth)}/mes (base CDI ${CDI_MENSAL.toFixed(2)}%). Alem do custo financeiro, recebimentos atrasados comprometem o capital de giro e podem exigir recorrencia a linhas de credito com juros superiores a 2% ao mes. Prioridade: cobrar os maiores valores e avaliar protesto para devedores contumazes.`,
+                type: "danger",
+            });
+        } else if (pending.length === 0) {
+            insights.push({
+                title: "Sem pendencias no periodo",
+                text: `Todos os recebimentos foram confirmados. Empresa esta com fluxo de caixa positivo, podendo: (1) antecipar pagamentos a fornecedores com desconto de 2% a 5%, (2) aplicar excedentes no CDI a ${CDI_MENSAL.toFixed(2)}%/mes, (3) investir em expansao com recurso proprio, evitando financiamento a juros elevados.`,
+                type: "success",
+            });
+        }
+
+        // 3. Category
+        if (topCat && topCat[0] !== "Sem categoria") {
+            if (Number(topCatPct) > 40) {
+                insights.push({
+                    title: `Concentracao excessiva: ${topCat[0]} (${topCatPct}%)`,
+                    text: `A categoria "${topCat[0]}" representa ${topCatPct}% da receita (${fmt(topCat[1])}). Concentracao acima de 40% em uma unica fonte de receita aumenta vulnerabilidade. Com IPCA a ${IPCA_12M}% nos ultimos 12 meses, recomenda-se: (1) diversificar fontes de receita, (2) negociar contratos de longo prazo para garantir previsibilidade, (3) avaliar novos segmentos de mercado.`,
+                    type: "warning",
+                });
+            } else {
+                insights.push({
+                    title: `Principal categoria: ${topCat[0]} (${topCatPct}%)`,
+                    text: `Distribuicao de receitas esta equilibrada. "${topCat[0]}" e a maior, com ${topCatPct}% do total. Manter diversificacao abaixo de 40% por categoria reduz o impacto de oscilacoes setoriais. Monitorar mensalmente para identificar tendencias.`,
+                    type: "info",
                 });
             }
         }
+
+        // 4. Clients
+        if (Number(top3Pct) >= 60 && topClients.length >= 3) {
+            insights.push({
+                title: `Dependencia de clientes: ${top3Pct}% em 3 empresas`,
+                text: `${topClients.map(([n, v]) => `${n}: ${fmt(v)}`).join(" / ")}. Concentracao acima de 60% em tres clientes configura risco comercial. Se qualquer um atrasar pagamentos ou encerrar contrato, o impacto no caixa sera de ${fmt(top3Total * 0.33)}. Recomendacao: ampliar base de clientes e diversificar carteira.`,
+                type: "warning",
+            });
+        }
+
+        // 5. Market
+        insights.push({
+            title: "Cenario macroeconomico",
+            text: `Selic: ${SELIC}% a.a. (juros elevados). IPCA acumulado 12 meses: ${IPCA_12M}%. CDI mensal: ${CDI_MENSAL.toFixed(2)}%. Impacto pratico: cada R$ 10.000 nao recebido gera perda de oportunidade de ${fmt(10000 * CDI_MENSAL / 100)}/mes em rendimentos. Alem disso, a inflacao corroi o valor real dos recebimentos atrasados em ${fmt(10000 * IPCA_12M / 1200)}/mes. Conclusao: intensificar cobranca e aplicar recursos recebidos imediatamente.`,
+            type: "info",
+        });
+
+        // 6. Uncategorized
+        const uncatCount = filteredBills.filter(b => !b.category?.name).length;
+        if (uncatCount > 3) {
+            insights.push({
+                title: `${uncatCount} recebimentos sem categoria`,
+                text: `${((uncatCount / filteredBills.length) * 100).toFixed(0)}% dos lancamentos estao sem classificacao. Isso compromete a qualidade das analises por categoria, impede a identificacao das principais fontes de receita e dificulta o planejamento orcamentario. Categorize esses lancamentos para obter uma visao precisa da composicao da receita.`,
+                type: "danger",
+            });
+        }
+
+        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total, avgTicket, billCount: filteredBills.length };
+    }, [filteredBills]);
+
+    // Handlers
+    const handleEdit = (item: AccountsReceivable) => { setEditingItem(item); setIsSheetOpen(true); };
+    const handleNew = () => { setEditingItem(undefined); setIsSheetOpen(true); };
+    const handleDelete = async (bill: AccountsReceivable) => {
+        if (!window.confirm(`Excluir "${bill.description}"?`)) return;
+        const { error } = await activeClient.from("accounts_receivable").delete().eq("id", bill.id);
+        if (!error) {
+            refetch();
+            if (user?.id) await logDeletion(activeClient, {
+                userId: user.id, companyId: selectedCompany?.id || null,
+                entity: "accounts_receivable", entityId: bill.id,
+                payload: { description: bill.description, amount: bill.amount },
+            });
+        }
     };
 
-    const getInitials = (name: string) => {
-        return name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase();
+    const getStatus = (status: string, dueDate: string) => {
+        const today = startOfDay(new Date());
+        const due = startOfDay(parseISO(dueDate));
+        if (status === "paid") return { label: "Recebido", bg: T.greenLt, color: T.green };
+        if (status === "cancelled") return { label: "Cancelado", bg: T.hover, color: T.text3 };
+        if (isBefore(due, today) && !isToday(due)) return { label: "Atrasado", bg: T.redLt, color: T.red };
+        if (isToday(due)) return { label: "Vence Hoje", bg: T.amberLt, color: T.amber };
+        return { label: "A Receber", bg: T.primaryLt, color: T.primary };
+    };
+
+    // ── Export helpers ──
+    const buildExportRows = () => filteredBills.map(b => ({
+        Status: getStatus(b.status, b.due_date).label,
+        Descricao: b.description,
+        Cliente: b.client?.nome_fantasia || b.client?.razao_social || "-",
+        Categoria: b.category?.name || "-",
+        Vencimento: b.due_date ? format(parseISO(b.due_date), "dd/MM/yyyy") : "-",
+        "Forma Pgto.": b.payment_method ? PM_LABELS[b.payment_method] || b.payment_method : "-",
+        Valor: Number(b.amount),
+    }));
+
+    const exportPDF = () => {
+        const rows = buildExportRows();
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const empresa = selectedCompany?.razao_social || "Empresa";
+        const periodo = dateLabel;
+
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Contas a Receber", 14, 18);
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(`${empresa}  |  Periodo: ${periodo}  |  Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 25);
+
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`A Receber: ${fmt(stats.pendingTotal)}   |   Recebido: ${fmt(stats.paidTotal)}   |   Vencido: ${fmt(stats.overdueTotal)}`, 14, 33);
+
+        const cols = ["Status", "Descricao", "Cliente", "Categoria", "Vencimento", "Forma Pgto.", "Valor"];
+        const colWidths = [22, 80, 50, 40, 26, 26, 28];
+        const startY = 40;
+        const rowH = 7;
+        const pageW = doc.internal.pageSize.getWidth();
+
+        doc.setFillColor(241, 245, 249);
+        doc.rect(14, startY, pageW - 28, rowH, "F");
+        doc.setFontSize(7.5);
+        doc.setTextColor(100);
+        let xOff = 14;
+        cols.forEach((col, i) => {
+            doc.text(col.toUpperCase(), xOff + 2, startY + 5);
+            xOff += colWidths[i];
+        });
+
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        let y = startY + rowH;
+        rows.forEach((row, idx) => {
+            if (y > doc.internal.pageSize.getHeight() - 15) {
+                doc.addPage();
+                y = 15;
+            }
+            if (idx % 2 === 0) {
+                doc.setFillColor(248, 249, 251);
+                doc.rect(14, y, pageW - 28, rowH, "F");
+            }
+            xOff = 14;
+            cols.forEach((col, i) => {
+                let val = String(col === "Valor" ? fmt(row[col]) : row[col as keyof typeof row]);
+                const maxChars = Math.floor(colWidths[i] / 1.8);
+                if (val.length > maxChars) val = val.substring(0, maxChars - 1) + "...";
+                doc.text(val, xOff + 2, y + 5);
+                xOff += colWidths[i];
+            });
+            y += rowH;
+        });
+
+        const totalPages = doc.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+            doc.setPage(p);
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(`Pagina ${p} de ${totalPages}`, pageW - 30, doc.internal.pageSize.getHeight() - 8);
+        }
+
+        doc.save(`contas-a-receber_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    };
+
+    const exportExcel = () => {
+        const rows = buildExportRows();
+        const ws = XLSX.utils.json_to_sheet(rows.map(r => ({ ...r, Valor: r.Valor })));
+        ws["!cols"] = [
+            { wch: 12 }, { wch: 50 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 15 },
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Contas a Receber");
+
+        const summaryData = [
+            { Resumo: "Empresa", Valor: selectedCompany?.razao_social || "" },
+            { Resumo: "Periodo", Valor: dateLabel },
+            { Resumo: "Total A Receber", Valor: stats.pendingTotal },
+            { Resumo: "Total Recebido", Valor: stats.paidTotal },
+            { Resumo: "Total Vencido", Valor: stats.overdueTotal },
+            { Resumo: "Qtd. Recebimentos", Valor: filteredBills.length },
+        ];
+        const ws2 = XLSX.utils.json_to_sheet(summaryData);
+        ws2["!cols"] = [{ wch: 18 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, ws2, "Resumo");
+
+        XLSX.writeFile(wb, `contas-a-receber_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
     };
 
     return (
         <AppLayout title="Contas a Receber">
-            <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-                            Contas a Receber
-                        </h2>
-                        <p className="text-muted-foreground mt-1">Gerencie seus recebimentos e faturamento.</p>
+            <div className="animate-fade-in" style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+
+                {/* ════════ HEADER BAR ════════ */}
+                <div style={{
+                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                    padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    gap: 12, flexWrap: "wrap",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: T.greenLt, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <TrendingUp size={20} strokeWidth={1.5} color={T.green} />
+                        </div>
+                        <div>
+                            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", lineHeight: 1.2 }}>Contas a Receber</h2>
+                            <p style={{ fontSize: 12, color: "#000", opacity: 0.45 }}>{filteredBills.length} recebimentos no periodo</p>
+                        </div>
                     </div>
-                    <Button onClick={handleNew} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Novo Recebimento
-                    </Button>
-                </div>
 
-                <div className="grid gap-6 md:grid-cols-3">
-                    <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white overflow-hidden relative">
-                        <div className="absolute right-0 top-0 h-full w-32 bg-white/10 skew-x-12 translate-x-16"></div>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg font-medium text-blue-100">Total a Receber</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                    bills?.filter(b => b.status === 'pending').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
-                                )}
-                            </div>
-                            <p className="text-xs text-blue-100 mt-1">
-                                {bills?.filter(b => b.status === 'pending').length || 0} recebimentos pendentes
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white overflow-hidden relative">
-                        <div className="absolute right-0 top-0 h-full w-32 bg-white/10 skew-x-12 translate-x-16"></div>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg font-medium text-emerald-100">Total Recebido</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                    bills?.filter(b => b.status === 'paid').reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
-                                )}
-                            </div>
-                            <p className="text-xs text-emerald-100 mt-1">
-                                {bills?.filter(b => b.status === 'paid').length || 0} recebimentos confirmados
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-amber-600 text-white overflow-hidden relative">
-                        <div className="absolute right-0 top-0 h-full w-32 bg-white/10 skew-x-12 translate-x-16"></div>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg font-medium text-orange-100">Total Vencido</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                    bills?.filter(b => {
-                                        if (b.status !== 'pending' || !b.due_date) return false;
-                                        const due = startOfDay(parseISO(b.due_date));
-                                        const today = startOfDay(new Date());
-                                        return isBefore(due, today);
-                                    }).reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
-                                )}
-                            </div>
-                            <p className="text-xs text-orange-100 mt-1">
-                                {bills?.filter(b => {
-                                    if (b.status !== 'pending') return false;
-                                    const due = new Date(b.due_date);
-                                    const today = new Date();
-                                    return isBefore(due, today) && !isToday(due);
-                                }).length || 0} cobranças atrasadas
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <Card className="border-0 shadow-lg ">
-                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pb-6 border-b border-[#F1F5F9]">
-                        <div className="flex bg-[#F1F5F9]/50 p-1 rounded-lg">
-                            {['all', 'pending', 'paid'].map((filter) => (
-                                <Button
-                                    key={filter}
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setStatusFilter(filter)}
-                                    className={cn(
-                                        "rounded-md px-4 py-1.5 text-sm font-medium transition-all",
-                                        statusFilter === filter
-                                            ? "bg-white text-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {filter === 'all' && 'Todas'}
-                                    {filter === 'pending' && 'A Receber'}
-                                    {filter === 'paid' && 'Recebidas'}
-                                </Button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", background: T.hover, borderRadius: 8, padding: 2, gap: 1 }}>
+                            {presets.map((p) => (
+                                <button key={p.label} onClick={() => handlePreset(p)} style={{
+                                    padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11,
+                                    fontWeight: activePreset === p.label ? 600 : 400, fontFamily: FONT,
+                                    background: activePreset === p.label ? T.card : "transparent",
+                                    color: activePreset === p.label ? "#000" : T.text3, cursor: "pointer",
+                                    boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                                }}>{p.label}</button>
                             ))}
                         </div>
-                        <div className="relative w-full sm:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar recebimentos..."
-                                className="pl-9 border-[#E2E8F0] focus:border-slate-400 focus:ring-slate-400/20 bg-white"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button style={{
+                                    display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
+                                    fontSize: 11, fontWeight: 500, fontFamily: FONT, borderRadius: 6,
+                                    border: `1px solid ${T.border}`, background: T.card, color: "#000", cursor: "pointer",
+                                }}>
+                                    <CalendarDays size={12} strokeWidth={1.5} color={T.primary} />
+                                    {dateLabel}
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
+                            </PopoverContent>
+                        </Popover>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button style={{
+                                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                                    borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: "#000",
+                                    cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 500,
+                                }}>
+                                    <Download size={14} strokeWidth={1.5} color={T.primary} />
+                                    Exportar
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[180px]">
+                                <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
+                                    <FileText className="h-4 w-4" style={{ color: T.red }} />
+                                    <span>Baixar PDF</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
+                                    <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
+                                    <span>Baixar Excel</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        {/* AI toggle */}
+                        {aiAnalysis && (
+                            <button onClick={() => setAiOpen(!aiOpen)} style={{
+                                display: "flex", alignItems: "center", gap: 6, padding: "6px 14px",
+                                borderRadius: 8, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+                                background: aiOpen ? T.primary : aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                color: "#fff", transition: "all 0.2s ease",
+                            }}>
+                                <Sparkles size={14} strokeWidth={1.5} />
+                                Analise
+                                <ChevronRight size={14} strokeWidth={2} style={{
+                                    transform: aiOpen ? "rotate(90deg)" : "rotate(0deg)",
+                                    transition: "transform 0.2s ease",
+                                }} />
+                            </button>
+                        )}
+                        <button onClick={handleNew} style={{
+                            display: "flex", alignItems: "center", gap: 6, padding: "6px 16px",
+                            borderRadius: 8, border: "none", background: T.green, color: "#fff",
+                            cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+                        }}>
+                            <Plus size={14} strokeWidth={2} />
+                            Novo Recebimento
+                        </button>
+                    </div>
+                </div>
+
+                {/* ════════ AI PANEL (collapsible) ════════ */}
+                {aiOpen && aiAnalysis && (
+                    <div style={{
+                        background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                        padding: "20px 22px", animation: "fadeIn 0.2s ease",
+                    }}>
+                        <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
+                            <Sparkles size={16} strokeWidth={1.5} color={T.primary} />
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira — Recebimentos</p>
+                                <p style={{ fontSize: 10, color: "#000", opacity: 0.5 }}>Selic {SELIC}% a.a. | IPCA {IPCA_12M}% | CDI {CDI_MENSAL.toFixed(2)}%/mes | {aiAnalysis.billCount} lancamentos | Ticket medio {fmt(aiAnalysis.avgTicket)}</p>
+                            </div>
+                            <div style={{
+                                padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" as const,
+                                background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                color: "#fff",
+                            }}>
+                                {aiAnalysis.hasOverdue ? "ATENCAO" : aiAnalysis.paidPct >= 80 ? "SAUDAVEL" : "MODERADO"}
+                            </div>
+                            <button onClick={() => setAiOpen(false)} style={{
+                                width: 28, height: 28, borderRadius: 6, border: "none", background: T.hover,
+                                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                            }}>
+                                <X size={14} strokeWidth={2} color={T.text2} />
+                            </button>
                         </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="rounded-md border border-[#F1F5F9] overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-[#F8FAFC]">
-                                    <TableRow className="hover:bg-transparent border-[#F1F5F9]">
-                                        <TableHead className="w-[120px] font-semibold text-muted-foreground">Status</TableHead>
-                                        <TableHead className="font-semibold text-muted-foreground">Descrição</TableHead>
-                                        <TableHead className="font-semibold text-muted-foreground">Cliente</TableHead>
-                                        <TableHead className="w-[120px] font-semibold text-muted-foreground cursor-help" title="Data de Vencimento">Vencimento</TableHead>
-                                        <TableHead className="text-right font-semibold text-muted-foreground">Valor</TableHead>
-                                        <TableHead className="w-[80px] text-right"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isLoading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">
-                                                <div className="flex items-center justify-center text-muted-foreground">
-                                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2"></div>
-                                                    Carregando...
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : filteredBills?.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                                                Nenhum recebimento encontrado.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        filteredBills?.map((bill) => (
-                                            <TableRow
-                                                key={bill.id}
-                                                className="transition-colors border-[#F1F5F9] group"
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 8 }}>
+                            {aiAnalysis.insights.map((item, i) => (
+                                <div key={i} style={{
+                                    padding: "10px 12px", borderRadius: 8,
+                                    borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
+                                    background: item.type === "danger" ? `${T.red}06` : item.type === "warning" ? `${T.amber}06` : "transparent",
+                                }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>{item.title}</p>
+                                    <p style={{ fontSize: 11.5, color: "#000", lineHeight: 1.6, opacity: 0.85 }}>{item.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ════════ SUMMARY STRIP ════════ */}
+                <div style={{
+                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 0,
+                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden",
+                }}>
+                    {[
+                        { label: "A Receber", value: stats.pendingTotal, count: stats.pendingCount, color: T.primary, icon: TrendingUp },
+                        { label: "Recebido", value: stats.paidTotal, count: stats.paidCount, color: T.green, icon: CheckCircle2 },
+                        { label: "Vencido", value: stats.overdueTotal, count: stats.overdueCount, color: T.red, icon: AlertTriangle },
+                    ].map((item, i, arr) => (
+                        <div key={item.label} style={{
+                            padding: "18px 24px",
+                            borderRight: i < arr.length - 1 ? `1px solid ${T.border}` : "none",
+                            display: "flex", alignItems: "center", gap: 14,
+                        }}>
+                            <div style={{
+                                width: 42, height: 42, borderRadius: 10,
+                                background: `${item.color}12`,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                                <item.icon size={20} strokeWidth={1.5} color={item.color} />
+                            </div>
+                            <div>
+                                <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: T.text3, marginBottom: 2 }}>{item.label}</p>
+                                <p style={{ fontSize: 20, fontWeight: 700, color: "#000", fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(item.value)}</p>
+                                <p style={{ fontSize: 11, color: item.color, fontWeight: 600, marginTop: 2 }}>{item.count} recebimento{item.count !== 1 ? "s" : ""}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* ════════ CHARTS ROW ════════ */}
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 16 }}>
+
+                    {/* ── Area Chart: Fluxo ── */}
+                    <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                            <p style={{ fontSize: 15, fontWeight: 700, color: "#000" }}>Fluxo de Recebimentos</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                {[
+                                    { label: "A Receber", color: T.primary },
+                                    { label: "Recebido", color: T.green },
+                                    { label: "Atrasado", color: T.red },
+                                    { label: "Acumulado", color: T.amber },
+                                ].map((l) => (
+                                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: T.text2 }}>{l.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {chartData.length === 0 ? (
+                            <div style={{ textAlign: "center", padding: "48px 0", color: T.text3 }}>
+                                <TrendingUp size={36} strokeWidth={1} color={T.border} style={{ margin: "0 auto 12px" }} />
+                                <p style={{ fontSize: 14, fontWeight: 600, color: T.text1 }}>Sem dados no periodo</p>
+                                <p style={{ fontSize: 12, color: T.text3, marginTop: 4 }}>Selecione outro periodo ou cadastre recebimentos</p>
+                            </div>
+                        ) : (
+                            <div style={{ height: 300 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="gradRecPaid" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={T.green} stopOpacity={0.25} />
+                                                <stop offset="100%" stopColor={T.green} stopOpacity={0.02} />
+                                            </linearGradient>
+                                            <linearGradient id="gradRecPending" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={T.primary} stopOpacity={0.2} />
+                                                <stop offset="100%" stopColor={T.primary} stopOpacity={0.02} />
+                                            </linearGradient>
+                                            <linearGradient id="gradRecOverdue" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={T.red} stopOpacity={0.2} />
+                                                <stop offset="100%" stopColor={T.red} stopOpacity={0.02} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={`${T.border}80`} />
+                                        <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} dy={8} />
+                                        <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={48} />
+                                        <Tooltip
+                                            formatter={(v: number, n: string) => [fmt(v), n === "paid" ? "Recebido" : n === "pending" ? "A Receber" : n === "overdue" ? "Atrasado" : "Acumulado"]}
+                                            contentStyle={tooltipStyle}
+                                            cursor={{ stroke: T.text3, strokeDasharray: "4 4" }}
+                                        />
+                                        <Area type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} fill="url(#gradRecPaid)" dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.green, stroke: T.card, strokeWidth: 2 }} />
+                                        <Area type="monotone" dataKey="pending" name="pending" stroke={T.primary} strokeWidth={2.5} fill="url(#gradRecPending)" dot={{ r: 4, fill: T.card, stroke: T.primary, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.primary, stroke: T.card, strokeWidth: 2 }} />
+                                        <Area type="monotone" dataKey="overdue" name="overdue" stroke={T.red} strokeWidth={2.5} fill="url(#gradRecOverdue)" dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.red, stroke: T.card, strokeWidth: 2 }} />
+                                        <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.amber} strokeWidth={2} strokeDasharray="8 4" dot={false} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── Pie Chart: Recebimentos por Categoria ── */}
+                    <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24, display: "flex", flexDirection: "column" }}>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: "#000", marginBottom: 16 }}>Recebimentos por Categoria</p>
+
+                        {categoryPieData.length === 0 ? (
+                            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: T.text3 }}>
+                                <p style={{ fontSize: 13 }}>Sem recebimentos no periodo</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ height: 220, position: "relative" }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={categoryPieData}
+                                                cx="50%" cy="50%"
+                                                innerRadius={55} outerRadius={90}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                stroke="none"
                                             >
-                                                <TableCell>
-                                                    {getStatusBadge(bill.status, bill.due_date)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="font-medium text-foreground">{bill.description}</div>
-                                                    <div className="text-xs text-muted-foreground">{bill.category?.name}</div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-6 w-6">
-                                                            <AvatarFallback className="text-[10px] bg-[#F1F5F9] text-muted-foreground">
-                                                                {getInitials(bill.client?.razao_social || "?")}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <span className="text-sm text-muted-foreground truncate max-w-[150px]" title={bill.client?.razao_social}>
-                                                            {bill.client?.nome_fantasia || bill.client?.razao_social || "-"}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="font-medium text-muted-foreground">
-                                                    {format(new Date(bill.due_date), "dd/MM/yyyy")}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <span className={cn(
-                                                        "font-bold",
-                                                        bill.status === 'paid' ? "text-emerald-700" : "text-foreground"
-                                                    )}>
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bill.amount)}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <span className="sr-only">Abrir menu</span>
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-[160px]">
-                                                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                                            <DropdownMenuItem onClick={() => handleEdit(bill)}>
-                                                                <Pencil className="mr-2 h-4 w-4 text-emerald-500" />
-                                                                Editar
-                                                            </DropdownMenuItem>
-                                                            {bill.status === 'pending' && (
-                                                                <DropdownMenuItem onClick={() => {
-                                                                    setPaymentItem(bill);
-                                                                    setIsPaymentModalOpen(true);
-                                                                }}>
-                                                                    <DollarSign className="mr-2 h-4 w-4 text-emerald-600" />
-                                                                    Receber
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => handleDelete(bill)} className="text-[#EF4444]">
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Excluir
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                                {categoryPieData.map((_, i) => (
+                                                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(v: number, name: string) => [fmt(v), name]}
+                                                contentStyle={tooltipStyle}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div style={{
+                                        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+                                        textAlign: "center", pointerEvents: "none",
+                                    }}>
+                                        <p style={{ fontSize: 16, fontWeight: 700, color: "#000", lineHeight: 1.1 }}>
+                                            {fmt(categoryPieData.reduce((s, d) => s + d.value, 0))}
+                                        </p>
+                                        <p style={{ fontSize: 9, color: T.text3, marginTop: 2 }}>Total recebido</p>
+                                    </div>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 12, overflow: "auto", maxHeight: 140 }} className="scrollbar-thin">
+                                    {categoryPieData.map((item, i) => {
+                                        const total = categoryPieData.reduce((s, d) => s + d.value, 0);
+                                        const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+                                        return (
+                                            <div key={item.name} style={{
+                                                display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", borderRadius: 6,
+                                                cursor: "pointer", transition: "background 0.15s",
+                                            }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.background = T.hover; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                                                onClick={() => setCategoryFilter(categoryFilter === item.name ? "all" : item.name)}
+                                            >
+                                                <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                                                <span style={{ fontSize: 11, color: T.text1, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, fontWeight: 500 }}>{item.name}</span>
+                                                <span style={{ fontSize: 11, fontWeight: 700, color: T.text1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{pct}%</span>
+                                                <span style={{ fontSize: 10, color: T.text3, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{fmt(item.value)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* ════════ FILTER + TABLE ════════ */}
+                <div style={{
+                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden",
+                }}>
+                    {/* Filter bar */}
+                    <div style={{
+                        padding: "14px 20px", borderBottom: `1px solid ${T.border}`,
+                        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+                    }}>
+                        <div style={{ display: "flex", background: T.hover, borderRadius: 6, padding: 2, gap: 1 }}>
+                            {[
+                                { key: "all", label: "Todos", count: filteredBills.length },
+                                { key: "pending", label: "A Receber", count: stats.pendingCount },
+                                { key: "paid", label: "Recebidos", count: stats.paidCount },
+                                { key: "overdue", label: "Atrasados", count: stats.overdueCount },
+                            ].map((f) => (
+                                <button key={f.key} onClick={() => setStatusFilter(f.key)} style={{
+                                    padding: "4px 10px", borderRadius: 4, border: "none", fontSize: 11,
+                                    fontWeight: statusFilter === f.key ? 600 : 400, fontFamily: FONT,
+                                    background: statusFilter === f.key ? T.card : "transparent",
+                                    color: statusFilter === f.key ? "#000" : T.text3, cursor: "pointer",
+                                    boxShadow: statusFilter === f.key ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                                    display: "flex", alignItems: "center", gap: 4,
+                                }}>
+                                    {f.label}
+                                    <span style={{
+                                        fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 4,
+                                        background: statusFilter === f.key ? T.primaryLt : "transparent",
+                                        color: statusFilter === f.key ? T.primary : T.text3,
+                                    }}>{f.count}</span>
+                                </button>
+                            ))}
                         </div>
-                    </CardContent>
-                </Card>
 
-                <AccountsReceivableSheet
-                    isOpen={isSheetOpen}
-                    onClose={() => {
-                        setIsSheetOpen(false);
-                        setEditingItem(undefined);
-                    }}
-                    dataToEdit={editingItem}
-                />
+                        <div style={{
+                            display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 180,
+                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`, background: T.card,
+                        }}>
+                            <Search size={13} strokeWidth={1.5} color={T.text3} />
+                            <input
+                                type="text" placeholder="Buscar descricao, cliente, valor..."
+                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{ border: "none", outline: "none", background: "transparent", fontSize: 11, fontFamily: FONT, color: T.text1, width: "100%" }}
+                            />
+                            {searchTerm && <button onClick={() => setSearchTerm("")} style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}><X size={12} color={T.text3} /></button>}
+                        </div>
 
+                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{
+                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`,
+                            background: T.card, fontSize: 11, fontFamily: FONT, color: T.text1, cursor: "pointer",
+                            maxWidth: 160,
+                        }}>
+                            <option value="all">Categoria</option>
+                            {uniqueCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+
+                        <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} style={{
+                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`,
+                            background: T.card, fontSize: 11, fontFamily: FONT, color: T.text1, cursor: "pointer",
+                        }}>
+                            <option value="all">Forma pgto.</option>
+                            {Object.entries(PM_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Table */}
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent" style={{ borderBottom: `1px solid ${T.border}` }}>
+                                {["Status", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", ""].map((h, i) => (
+                                    <TableHead
+                                        key={h || i}
+                                        className={i === 2 ? "hidden md:table-cell" : i === 3 ? "hidden lg:table-cell" : ""}
+                                        style={{
+                                            padding: "10px 16px", fontSize: 10, fontWeight: 700,
+                                            color: T.text3, textTransform: "uppercase" as const, letterSpacing: "0.06em",
+                                            textAlign: i === 5 ? "right" : "left",
+                                            ...(i === 6 ? { width: 50 } : {}),
+                                        }}
+                                    >{h}</TableHead>
+                                ))}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} style={{ textAlign: "center", padding: "40px 0" }}>
+                                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: T.text3 }}>
+                                            <div style={{ width: 18, height: 18, border: `2px solid ${T.border}`, borderTopColor: T.primary, borderRadius: 99, animation: "spin 0.8s linear infinite" }} />
+                                            <span style={{ fontSize: 12 }}>Carregando...</span>
+                                        </div>
+                                        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredBills.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} style={{ textAlign: "center", padding: "48px 0" }}>
+                                        <TrendingUp size={28} strokeWidth={1} color={T.border} style={{ margin: "0 auto 8px" }} />
+                                        <p style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Nenhum recebimento encontrado</p>
+                                        <p style={{ fontSize: 11, color: T.text3, marginTop: 4 }}>Ajuste os filtros ou cadastre um novo recebimento</p>
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredBills.map((bill) => {
+                                const st = getStatus(bill.status, bill.due_date);
+                                return (
+                                    <TableRow key={bill.id} className="group" style={{ borderBottom: `1px solid ${T.hover}` }}>
+                                        <TableCell style={{ padding: "12px 16px" }}>
+                                            <span style={{
+                                                display: "inline-flex", alignItems: "center", gap: 5,
+                                                padding: "2px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600,
+                                                background: st.bg, color: st.color,
+                                            }}>
+                                                <div style={{ width: 5, height: 5, borderRadius: 99, background: st.color }} />
+                                                {st.label}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell style={{ padding: "12px 16px" }}>
+                                            <p style={{ fontSize: 13, fontWeight: 600, color: "#000", lineHeight: 1.3 }}>{bill.description}</p>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell" style={{ padding: "12px 16px" }}>
+                                            <span style={{ fontSize: 12, color: T.text2 }}>{bill.client?.nome_fantasia || bill.client?.razao_social || "-"}</span>
+                                        </TableCell>
+                                        <TableCell className="hidden lg:table-cell" style={{ padding: "12px 16px" }}>
+                                            <span style={{
+                                                fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
+                                                background: T.primaryLt, color: T.primary,
+                                            }}>
+                                                {bill.category?.name || "-"}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell style={{ padding: "12px 16px" }}>
+                                            <span style={{ fontSize: 12, fontWeight: 500, color: T.text1, fontVariantNumeric: "tabular-nums" }}>
+                                                {format(parseISO(bill.due_date), "dd/MM/yyyy")}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell style={{ padding: "12px 16px", textAlign: "right" }}>
+                                            <span style={{
+                                                fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                                                color: bill.status === "paid" ? T.green : "#000",
+                                            }}>{fmt(bill.amount)}</span>
+                                        </TableCell>
+                                        <TableCell style={{ padding: "12px 8px" }}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-[150px]">
+                                                    <DropdownMenuLabel style={{ fontSize: 11 }}>Acoes</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => handleEdit(bill)}>
+                                                        <Pencil className="mr-2 h-3.5 w-3.5" style={{ color: T.primary }} /> Editar
+                                                    </DropdownMenuItem>
+                                                    {bill.status === "pending" && (
+                                                        <DropdownMenuItem onClick={() => { setPaymentItem(bill); setIsPaymentModalOpen(true); }}>
+                                                            <DollarSign className="mr-2 h-3.5 w-3.5" style={{ color: T.green }} /> Receber
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleDelete(bill)} style={{ color: T.red }}>
+                                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                {/* Modals */}
+                <AccountsReceivableSheet isOpen={isSheetOpen} onClose={() => { setIsSheetOpen(false); setEditingItem(undefined); }} dataToEdit={editingItem} />
                 {paymentItem && (
                     <PaymentModal
                         isOpen={isPaymentModalOpen}
-                        onClose={() => {
-                            setIsPaymentModalOpen(false);
-                            setPaymentItem(null);
-                        }}
+                        onClose={() => { setIsPaymentModalOpen(false); setPaymentItem(null); }}
                         accountingId={paymentItem.id}
                         type="receivable"
                         initialAmount={paymentItem.amount}
                         description={`Recebimento: ${paymentItem.description}`}
                         onSuccess={() => {
-                            if (!selectedCompany?.id) return;
                             queryClient.invalidateQueries({ queryKey: ["accounts_receivable"] });
                             queryClient.invalidateQueries({ queryKey: ["transactions"] });
                             queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
@@ -394,6 +995,7 @@ export default function ContasReceber() {
                         }}
                     />
                 )}
+                <div style={{ height: 20 }} />
             </div>
         </AppLayout>
     );
