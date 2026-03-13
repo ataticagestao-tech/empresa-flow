@@ -428,7 +428,7 @@ export default function ContasPagar() {
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent" style={{ borderBottom: `1px solid ${T.border}` }}>
-                                {["Status", "Descricao", "Fornecedor", "Forma Pgto.", "Vencimento", "Valor", ""].map((h, i) => (
+                                {["Status", "Descricao", "Fornecedor", "Categoria", "Vencimento", "Valor", ""].map((h, i) => (
                                     <TableHead
                                         key={h || i}
                                         className={i === 2 ? "hidden md:table-cell" : i === 3 ? "hidden lg:table-cell" : ""}
@@ -477,17 +477,16 @@ export default function ContasPagar() {
                                         </TableCell>
                                         <TableCell style={{ padding: "12px 16px" }}>
                                             <p style={{ fontSize: 13, fontWeight: 600, color: "#000", lineHeight: 1.3 }}>{bill.description}</p>
-                                            {bill.category?.name && <p style={{ fontSize: 10, color: T.text3, marginTop: 1 }}>{bill.category.name}</p>}
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell" style={{ padding: "12px 16px" }}>
                                             <span style={{ fontSize: 12, color: T.text2 }}>{bill.supplier?.nome_fantasia || bill.supplier?.razao_social || "-"}</span>
                                         </TableCell>
                                         <TableCell className="hidden lg:table-cell" style={{ padding: "12px 16px" }}>
                                             <span style={{
-                                                fontSize: 10, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
-                                                background: T.hover, color: T.text2,
+                                                fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
+                                                background: T.primaryLt, color: T.primary,
                                             }}>
-                                                {bill.payment_method ? PM_LABELS[bill.payment_method] || bill.payment_method : "-"}
+                                                {bill.category?.name || "-"}
                                             </span>
                                         </TableCell>
                                         <TableCell style={{ padding: "12px 16px" }}>
