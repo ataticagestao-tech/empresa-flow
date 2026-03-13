@@ -70,7 +70,7 @@ export function BotaoPagarComRecibo({
         doc.text(tipo === "payable" ? "COMPROVANTE DE PAGAMENTO" : "COMPROVANTE DE RECEBIMENTO", w / 2, 18, { align: "center" });
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(selectedCompany?.name || "Empresa", w / 2, 28, { align: "center" });
+        doc.text(selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa", w / 2, 28, { align: "center" });
         doc.text(`Emitido em ${format(agora, "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}`, w / 2, 34, { align: "center" });
 
         // Body
@@ -152,10 +152,31 @@ export function BotaoPagarComRecibo({
 
             // Generate PDF receipt
             const doc = gerarReciboPDF();
-            doc.save(`comprovante_${descricao.replace(/\s+/g, "_").substring(0, 30)}_${format(new Date(), "ddMMyyyy")}.pdf`);
+            const nomeArquivo = `comprovante_${descricao.replace(/\s+/g, "_").substring(0, 30)}_${format(new Date(), "ddMMyyyy")}.pdf`;
+            doc.save(nomeArquivo);
+
+            // Send email if checked
+            if (enviarEmail && email.trim()) {
+                try {
+                    const pdfBase64 = doc.output("datauristring").split(",")[1];
+                    const corpo = `Prezado(a) ${fornecedorOuCliente || ""},\n\nConfirmamos o ${tipo === "payable" ? "pagamento" : "recebimento"} referente a "${descricao}" no valor de ${fmt(valor)}, realizado em ${format(new Date(), "dd/MM/yyyy")}.\n\nAtenciosamente,\n${selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Tatica Gestao"}`;
+
+                    await activeClient.functions.invoke("enviar-recibo-email", {
+                        body: {
+                            destinatario: email.trim(),
+                            assunto: `Comprovante de ${tipo === "payable" ? "Pagamento" : "Recebimento"} - ${descricao}`,
+                            corpo,
+                            pdfBase64,
+                            nomeArquivo,
+                        },
+                    });
+                } catch (emailErr) {
+                    console.warn("Email nao enviado:", emailErr);
+                }
+            }
 
             setModal(false);
-            setResultado({ ok: true, msg: "Pagamento confirmado e comprovante gerado!" });
+            setResultado({ ok: true, msg: enviarEmail && email.trim() ? "Pagamento confirmado, comprovante gerado e email enviado!" : "Pagamento confirmado e comprovante gerado!" });
 
             // Invalidate queries
             queryClient.invalidateQueries({ queryKey: ["accounts_payable"] });
