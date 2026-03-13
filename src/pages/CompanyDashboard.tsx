@@ -87,12 +87,12 @@ function useWindowWidth() {
 const tooltipStyle = {
     backgroundColor: C.text1,
     color: "#fff",
-    borderRadius: 10,
+    borderRadius: 8,
     border: "none",
     padding: "8px 14px",
     fontSize: 12,
     fontFamily: FONT,
-    boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
 } as const;
 
 /* ── Date Presets ───────────────────────────────────────────── */
@@ -120,12 +120,12 @@ function DeltaBadge({ value, label }: { value: number; label?: string }) {
     return (
         <span style={{
             display: "inline-flex", alignItems: "center", gap: 3,
-            padding: "3px 8px", borderRadius: 20,
-            fontSize: 11, fontWeight: 600, fontFamily: FONT,
+            padding: "2px 10px", borderRadius: 9999,
+            fontSize: 11, fontWeight: 500, fontFamily: FONT,
             background: isPositive ? C.greenSoft : C.redSoft,
-            color: isPositive ? "#16A34A" : "#DC2626",
+            color: isPositive ? C.green : C.red,
         }}>
-            {isPositive ? <ArrowUpRight size={12} strokeWidth={2} /> : <ArrowDownRight size={12} strokeWidth={2} />}
+            {isPositive ? <ArrowUpRight size={12} strokeWidth={1.5} /> : <ArrowDownRight size={12} strokeWidth={1.5} />}
             {fmtPct(value)}
             {label && <span style={{ fontWeight: 400, marginLeft: 2 }}>{label}</span>}
         </span>
@@ -135,8 +135,8 @@ function DeltaBadge({ value, label }: { value: number; label?: string }) {
 /* ── Icon Badge ─────────────────────────────────────────────── */
 function IconBadge({ icon: Icon, color = C.blue, bg = C.blueLight, size = 16 }: { icon: any; color?: string; bg?: string; size?: number }) {
     return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size + 16, height: size + 16, borderRadius: 10, background: bg }}>
-            <Icon size={size} strokeWidth={1.5} color={color} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size + 14, height: size + 14, borderRadius: 8, background: bg }}>
+            <Icon size={size} strokeWidth={1.2} color={color} />
         </div>
     );
 }
@@ -158,8 +158,7 @@ function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
 
     return (
         <div style={{
-            background: C.surface, borderRadius: 16, border: `1px solid ${C.borderLight}`,
-            boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
+            background: C.surface, borderRadius: 12, border: `0.5px solid ${C.border}`,
             overflow: "hidden",
         }}>
             {/* Header */}
@@ -167,16 +166,16 @@ function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
                 onClick={() => setExpanded(!expanded)}
                 style={{
                     width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: 20, border: "none", background: "transparent", cursor: "pointer",
+                    padding: 16, border: "none", background: "transparent", cursor: "pointer",
                     textAlign: "left", fontFamily: FONT,
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{
-                        width: 40, height: 40, borderRadius: 12,
+                        width: 36, height: 36, borderRadius: 8,
                         background: C.blueLight, display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                        <Building2 size={18} strokeWidth={1.5} color={C.blue} />
+                        <Building2 size={18} strokeWidth={1.2} color={C.blue} />
                     </div>
                     <div>
                         <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{account.name}</p>
@@ -490,8 +489,8 @@ export default function CompanyDashboard() {
                 {/* ── Page Header ─────────────────────────────── */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
                     <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em" }}>
-                            {selectedCompany.nome_fantasia || selectedCompany.razao_social}
+                        <h2 style={{ fontSize: 24, fontWeight: 400, color: C.text1, letterSpacing: "0.02em", fontFamily: "'Bebas Neue', sans-serif" }}>
+                            {(selectedCompany.nome_fantasia || selectedCompany.razao_social).toUpperCase()}
                         </h2>
                         <p style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>Visao financeira consolidada</p>
                     </div>
@@ -523,10 +522,10 @@ export default function CompanyDashboard() {
                                 <button style={{
                                     display: "flex", alignItems: "center", gap: 6,
                                     padding: "6px 12px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
-                                    borderRadius: 10, border: `1px solid ${C.border}`,
+                                    borderRadius: 8, border: `0.5px solid ${C.border}`,
                                     background: C.surface, color: C.text2, cursor: "pointer",
                                 }}>
-                                    <CalendarDays size={14} strokeWidth={1.5} color={C.textMuted} />
+                                    <CalendarDays size={14} strokeWidth={1.2} color={C.textMuted} />
                                     {dateLabel}
                                 </button>
                             </PopoverTrigger>
@@ -542,7 +541,7 @@ export default function CompanyDashboard() {
                             style={{
                                 display: "flex", alignItems: "center", gap: 6,
                                 padding: "6px 12px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
-                                borderRadius: 10, border: `1px solid ${C.border}`,
+                                borderRadius: 8, border: `0.5px solid ${C.border}`,
                                 background: C.surface, color: C.text2, cursor: exporting ? "wait" : "pointer",
                                 opacity: exporting ? 0.6 : 1,
                                 transition: "all 0.15s ease",
@@ -559,25 +558,25 @@ export default function CompanyDashboard() {
                 <div style={{
                     display: "grid",
                     gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
-                    gap: 16,
+                    gap: 12,
                 }}>
                     {kpis.map((kpi) => (
                         <div key={kpi.id} style={cardStyle}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                                <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
-                                <MoreHorizontal size={16} strokeWidth={1.5} color={C.textMuted} style={{ cursor: "pointer" }} />
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                                <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={16} />
+                                <MoreHorizontal size={14} strokeWidth={1.2} color={C.textMuted} style={{ cursor: "pointer" }} />
                             </div>
-                            <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>{kpi.label}</p>
-                            <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                            <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.textMuted, marginBottom: 4 }}>{kpi.label}</p>
+                            <p style={{ fontSize: 22, fontWeight: 600, color: C.text1, letterSpacing: "-0.01em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
                                 {kpi.value}
                             </p>
-                            <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{kpi.detail}</p>
+                            <p style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>{kpi.detail}</p>
                         </div>
                     ))}
                 </div>
 
-                {/* ── Tab Bar ─────────────────────────────────── */}
-                <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, gap: 0 }}>
+                {/* ── Tab Bar (pill style) ─────────────────────── */}
+                <div style={{ display: "flex", background: C.borderLight, borderRadius: 8, padding: 3, gap: 2 }}>
                     {TABS.map((tab) => {
                         const isActive = activeTab === tab.id;
                         const TabIcon = tab.icon;
@@ -586,17 +585,17 @@ export default function CompanyDashboard() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 style={{
-                                    display: "flex", alignItems: "center", gap: 8,
-                                    padding: "12px 24px", border: "none",
-                                    fontSize: 13, fontWeight: isActive ? 600 : 400, fontFamily: FONT,
-                                    color: isActive ? C.blue : C.textMuted,
-                                    background: "transparent", cursor: "pointer",
-                                    borderBottom: isActive ? `2px solid ${C.blue}` : "2px solid transparent",
+                                    display: "flex", alignItems: "center", gap: 6,
+                                    padding: "6px 14px", border: "none", borderRadius: 6,
+                                    fontSize: 12, fontWeight: isActive ? 500 : 400, fontFamily: FONT,
+                                    color: isActive ? C.text1 : C.textMuted,
+                                    background: isActive ? C.surface : "transparent",
+                                    boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                                    cursor: "pointer",
                                     transition: "all 0.15s ease",
-                                    marginBottom: -1,
                                 }}
                             >
-                                <TabIcon size={14} strokeWidth={1.5} />
+                                <TabIcon size={14} strokeWidth={1.2} />
                                 {(!isMobile || isActive) && <span>{tab.label}</span>}
                             </button>
                         );
@@ -619,7 +618,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                                     <div>
-                                        <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Fluxo de Caixa</p>
+                                        <p style={{ fontSize: 18, fontWeight: 600, color: C.text1 }}>Fluxo de Caixa</p>
                                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{dateLabel}</p>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -689,7 +688,7 @@ export default function CompanyDashboard() {
                         }}>
                             {/* Projecao de Saldo — Area Chart */}
                             <div style={cardStyle}>
-                                <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Saldo Acumulado</p>
+                                <p style={{ fontSize: 16, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Saldo Acumulado</p>
                                 <div style={{ height: chartHeight }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
@@ -712,7 +711,7 @@ export default function CompanyDashboard() {
 
                             {/* DRE */}
                             <div style={cardStyle}>
-                                <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Resultado (DRE)</p>
+                                <p style={{ fontSize: 16, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Resultado (DRE)</p>
 
                                 {(!dreSummary || dreSummary.length === 0) ? (
                                     <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "40px 0", fontStyle: "italic" }}>
@@ -971,7 +970,7 @@ export default function CompanyDashboard() {
 
                         {/* Revenue chart (bar) */}
                         <div style={cardStyle}>
-                            <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Receitas no Periodo</p>
+                            <p style={{ fontSize: 16, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Receitas no Periodo</p>
                             <div style={{ height: chartHeight }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData.filter((d: any) => d.receitas > 0)} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="30%">
