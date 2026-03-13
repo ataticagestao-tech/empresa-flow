@@ -356,7 +356,7 @@ export default function ContasPagar() {
                 </div>
 
                 {/* ════════ CHARTS ROW ════════ */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 16 }}>
 
                     {/* ── Area Chart: Fluxo ── */}
                     <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24 }}>
