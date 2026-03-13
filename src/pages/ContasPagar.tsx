@@ -24,6 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { AccountsPayable } from "@/types/finance";
 import { logDeletion } from "@/lib/audit";
 import { PaymentModal } from "@/components/transactions/PaymentModal";
+import { BotaoPagarComRecibo } from "@/components/finance/BotaoPagarComRecibo";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -981,9 +982,25 @@ export default function ContasPagar() {
                                                         <Pencil className="mr-2 h-3.5 w-3.5" style={{ color: T.primary }} /> Editar
                                                     </DropdownMenuItem>
                                                     {bill.status === "pending" && (
-                                                        <DropdownMenuItem onClick={() => { setPaymentItem(bill); setIsPaymentModalOpen(true); }}>
-                                                            <DollarSign className="mr-2 h-3.5 w-3.5" style={{ color: T.green }} /> Baixar
-                                                        </DropdownMenuItem>
+                                                        <>
+                                                            <DropdownMenuItem onClick={() => { setPaymentItem(bill); setIsPaymentModalOpen(true); }}>
+                                                                <DollarSign className="mr-2 h-3.5 w-3.5" style={{ color: T.green }} /> Baixar
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem asChild onSelect={e => e.preventDefault()}>
+                                                                <div style={{ padding: 0 }}>
+                                                                    <BotaoPagarComRecibo
+                                                                        contaId={bill.id}
+                                                                        tipo="payable"
+                                                                        descricao={bill.description}
+                                                                        valor={Number(bill.amount)}
+                                                                        fornecedorOuCliente={bill.supplier?.nome_fantasia || bill.supplier?.razao_social}
+                                                                        vencimento={bill.due_date}
+                                                                        categoria={bill.category?.name}
+                                                                        onSuccess={() => refetch()}
+                                                                    />
+                                                                </div>
+                                                            </DropdownMenuItem>
+                                                        </>
                                                     )}
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem onClick={() => handleDelete(bill)} style={{ color: T.red }}>
