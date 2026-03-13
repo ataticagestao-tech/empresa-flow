@@ -29,7 +29,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Line, LineChart
+    Area, AreaChart, Line
 } from "recharts";
 import type { DateRange } from "react-day-picker";
 
@@ -363,22 +363,36 @@ export default function ContasPagar() {
                             <p style={{ fontSize: 12, color: T.text3, marginTop: 4 }}>Selecione outro periodo ou cadastre contas</p>
                         </div>
                     ) : (
-                        <div style={{ height: 280 }}>
+                        <div style={{ height: 300 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={T.hover} />
+                                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="gradPaid" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={T.green} stopOpacity={0.25} />
+                                            <stop offset="100%" stopColor={T.green} stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={T.red} stopOpacity={0.2} />
+                                            <stop offset="100%" stopColor={T.red} stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradOverdue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={T.amber} stopOpacity={0.2} />
+                                            <stop offset="100%" stopColor={T.amber} stopOpacity={0.02} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={`${T.border}80`} />
                                     <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} dy={8} />
-                                    <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={44} />
+                                    <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={48} />
                                     <Tooltip
                                         formatter={(v: number, n: string) => [fmt(v), n === "paid" ? "Pago" : n === "pending" ? "A Pagar" : n === "overdue" ? "Atrasado" : "Acumulado"]}
                                         contentStyle={tooltipStyle}
-                                        cursor={{ strokeDasharray: "4 4", stroke: T.text3 }}
+                                        cursor={{ stroke: T.text3, strokeDasharray: "4 4" }}
                                     />
-                                    <Line type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                                    <Line type="monotone" dataKey="pending" name="pending" stroke={T.red} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                                    <Line type="monotone" dataKey="overdue" name="overdue" stroke={T.amber} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.amber, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                                    <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.primary} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-                                </LineChart>
+                                    <Area type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} fill="url(#gradPaid)" dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.green, stroke: T.card, strokeWidth: 2 }} />
+                                    <Area type="monotone" dataKey="pending" name="pending" stroke={T.red} strokeWidth={2.5} fill="url(#gradPending)" dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.red, stroke: T.card, strokeWidth: 2 }} />
+                                    <Area type="monotone" dataKey="overdue" name="overdue" stroke={T.amber} strokeWidth={2.5} fill="url(#gradOverdue)" dot={{ r: 4, fill: T.card, stroke: T.amber, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.amber, stroke: T.card, strokeWidth: 2 }} />
+                                    <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.primary} strokeWidth={2} strokeDasharray="8 4" dot={false} />
+                                </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     )}
