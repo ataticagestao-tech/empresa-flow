@@ -28,8 +28,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Line, ComposedChart
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    Line, LineChart
 } from "recharts";
 import type { DateRange } from "react-day-picker";
 
@@ -100,15 +100,32 @@ export default function ContasPagar() {
                 .eq("company_id", selectedCompany.id)
                 .order("due_date", { ascending: true });
             if (!error && data) return data as AccountsPayable[];
-            // Fallback: query without joins
-            console.warn("accounts_payable join query failed, falling back:", error?.message);
-            const { data: fallback, error: err2 } = await (activeClient as any)
+            // Fallback: query without joins, then hydrate categories/suppliers
+            console.warn("accounts_payable join failed, using fallback:", error?.message);
+            const { data: fallback } = await (activeClient as any)
                 .from("accounts_payable")
                 .select("*")
                 .eq("company_id", selectedCompany.id)
                 .order("due_date", { ascending: true });
-            if (err2) { console.error("accounts_payable fallback error:", err2); return []; }
-            return (fallback || []) as AccountsPayable[];
+            if (!fallback) return [];
+            // Hydrate categories
+            const catIds = [...new Set(fallback.map((b: any) => b.category_id).filter(Boolean))];
+            const supIds = [...new Set(fallback.map((b: any) => b.supplier_id).filter(Boolean))];
+            const catMap: Record<string, string> = {};
+            const supMap: Record<string, { razao_social: string; nome_fantasia?: string }> = {};
+            if (catIds.length) {
+                const { data: cats } = await (activeClient as any).from("categories").select("id, name").in("id", catIds);
+                (cats || []).forEach((c: any) => { catMap[c.id] = c.name; });
+            }
+            if (supIds.length) {
+                const { data: sups } = await (activeClient as any).from("suppliers").select("id, razao_social, nome_fantasia").in("id", supIds);
+                (sups || []).forEach((s: any) => { supMap[s.id] = { razao_social: s.razao_social, nome_fantasia: s.nome_fantasia }; });
+            }
+            return fallback.map((b: any) => ({
+                ...b,
+                category: b.category_id && catMap[b.category_id] ? { name: catMap[b.category_id] } : undefined,
+                supplier: b.supplier_id && supMap[b.supplier_id] ? supMap[b.supplier_id] : undefined,
+            })) as AccountsPayable[];
         },
         enabled: !!selectedCompany?.id,
     });
@@ -346,20 +363,20 @@ export default function ContasPagar() {
                     ) : (
                         <div style={{ height: 280 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="25%">
+                                <LineChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={T.hover} />
                                     <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} dy={8} />
                                     <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={44} />
                                     <Tooltip
-                                        formatter={(v: number, n: string) => [fmt(v), n === "pending" ? "A Pagar" : n === "paid" ? "Pago" : n === "overdue" ? "Atrasado" : "Acumulado"]}
+                                        formatter={(v: number, n: string) => [fmt(v), n === "paid" ? "Pago" : n === "pending" ? "A Pagar" : n === "overdue" ? "Atrasado" : "Acumulado"]}
                                         contentStyle={tooltipStyle}
-                                        cursor={{ fill: "rgba(0,0,0,0.03)" }}
+                                        cursor={{ strokeDasharray: "4 4", stroke: T.text3 }}
                                     />
-                                    <Bar dataKey="paid" name="paid" fill={T.green} radius={[4, 4, 0, 0]} maxBarSize={28} stackId="stack" />
-                                    <Bar dataKey="pending" name="pending" fill={T.primary} radius={[0, 0, 0, 0]} maxBarSize={28} stackId="stack" />
-                                    <Bar dataKey="overdue" name="overdue" fill={T.amber} radius={[4, 4, 0, 0]} maxBarSize={28} stackId="stack" />
-                                    <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.red} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                                </ComposedChart>
+                                    <Line type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                                    <Line type="monotone" dataKey="pending" name="pending" stroke={T.red} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                                    <Line type="monotone" dataKey="overdue" name="overdue" stroke={T.amber} strokeWidth={2.5} dot={{ r: 4, fill: T.card, stroke: T.amber, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                                    <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.primary} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                                </LineChart>
                             </ResponsiveContainer>
                         </div>
                     )}
