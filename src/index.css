@@ -13,14 +13,14 @@
 @layer base {
   :root {
     /* Backgrounds */
-    --background: 40 18% 95%;        /* #f7f5f0 */
-    --foreground: 222 47% 11%;       /* #0f172a */
+    --background: 220 20% 14%;       /* #1c2333 — azul escuro */
+    --foreground: 0 0% 0%;           /* #000000 */
 
     --card: 0 0% 100%;              /* #ffffff */
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 0%;      /* #000000 */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 0%;   /* #000000 */
 
     /* Primary — #3b5bdb */
     --primary: 228 66% 55%;
@@ -28,10 +28,10 @@
 
     /* Secondary */
     --secondary: 214 32% 91%;       /* #e2e8f0 */
-    --secondary-foreground: 222 47% 11%;
+    --secondary-foreground: 0 0% 0%;
 
     --muted: 210 40% 96%;           /* #f1f5f9 */
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 0 0% 20%;   /* #333 — preto suave */
 
     /* Accent */
     --accent: 226 100% 97%;         /* #eef2ff */
@@ -66,14 +66,14 @@
 
     /* Sidebar — Light/White */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 16% 47%;
+    --sidebar-foreground: 0 0% 20%;  /* preto suave */
     --sidebar-primary: 228 66% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 226 100% 97%;
-    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-accent-foreground: 0 0% 0%;
     --sidebar-border: 214 32% 91%;
     --sidebar-ring: 228 66% 55%;
-    --sidebar-muted: 215 20% 65%;
+    --sidebar-muted: 0 0% 30%;      /* preto suave */
   }
 }
 
@@ -86,8 +86,8 @@
     @apply text-foreground antialiased;
     font-family: var(--font-base);
     font-feature-settings: "rlig" 1, "calt" 1;
-    background-color: #f7f5f0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Cdefs%3E%3Cpattern id='sketch' x='0' y='0' width='600' height='400' patternUnits='userSpaceOnUse'%3E%3Crect width='600' height='400' fill='%23f7f5f0'/%3E%3Cpath d='M-10 340 Q80 310 160 328 Q240 345 320 312 Q400 280 480 298 Q550 312 610 295' fill='none' stroke='%230d1b2a' stroke-width='0.8' stroke-linecap='round' opacity='0.055'/%3E%3Cpath d='M-10 358 Q90 326 170 344 Q250 360 330 328 Q410 296 490 314 Q555 326 615 310' fill='none' stroke='%230d1b2a' stroke-width='0.5' stroke-linecap='round' opacity='0.035'/%3E%3Cpath d='M-10 72 Q90 38 180 60 Q270 82 360 48 Q440 20 520 42 Q575 56 615 40' fill='none' stroke='%23c9a84c' stroke-width='1' stroke-linecap='round' opacity='0.16'/%3E%3Cpath d='M-10 195 Q110 172 210 194 Q310 215 400 182 Q480 154 560 172 Q595 180 615 168' fill='none' stroke='%230d1b2a' stroke-width='0.6' stroke-linecap='round' opacity='0.045'/%3E%3Cpath d='M38 108 Q48 100 56 106' fill='none' stroke='%23c9a84c' stroke-width='1.1' stroke-linecap='round' opacity='0.2'/%3E%3Cpath d='M40 116 Q52 110 62 115' fill='none' stroke='%23c9a84c' stroke-width='0.7' stroke-linecap='round' opacity='0.13'/%3E%3Cpath d='M528 258 Q538 250 548 256 Q556 262 564 254' fill='none' stroke='%23c9a84c' stroke-width='1.1' stroke-linecap='round' opacity='0.2'/%3E%3Cpath d='M530 268 Q543 262 554 267' fill='none' stroke='%230d1b2a' stroke-width='0.6' stroke-linecap='round' opacity='0.07'/%3E%3Cpath d='M55 365 L72 365' fill='none' stroke='%23c9a84c' stroke-width='0.8' stroke-linecap='round' stroke-dasharray='3 5' opacity='0.18'/%3E%3Cpath d='M57 372 L78 372' fill='none' stroke='%23c9a84c' stroke-width='0.6' stroke-linecap='round' stroke-dasharray='2 6' opacity='0.12'/%3E%3Cpath d='M380 22 Q440 8 510 18 Q560 24 610 14' fill='none' stroke='%230d1b2a' stroke-width='0.4' stroke-linecap='round' opacity='0.04'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='600' height='400' fill='url(%23sketch)'/%3E%3C/svg%3E");
+    background-color: #1c2333;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Cdefs%3E%3Cpattern id='sketch' x='0' y='0' width='600' height='400' patternUnits='userSpaceOnUse'%3E%3Crect width='600' height='400' fill='%231c2333'/%3E%3Cpath d='M-10 340 Q80 310 160 328 Q240 345 320 312 Q400 280 480 298 Q550 312 610 295' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-linecap='round' opacity='0.04'/%3E%3Cpath d='M-10 358 Q90 326 170 344 Q250 360 330 328 Q410 296 490 314 Q555 326 615 310' fill='none' stroke='%23ffffff' stroke-width='0.5' stroke-linecap='round' opacity='0.025'/%3E%3Cpath d='M-10 72 Q90 38 180 60 Q270 82 360 48 Q440 20 520 42 Q575 56 615 40' fill='none' stroke='%23c9a84c' stroke-width='1' stroke-linecap='round' opacity='0.12'/%3E%3Cpath d='M-10 195 Q110 172 210 194 Q310 215 400 182 Q480 154 560 172 Q595 180 615 168' fill='none' stroke='%23ffffff' stroke-width='0.6' stroke-linecap='round' opacity='0.03'/%3E%3Cpath d='M38 108 Q48 100 56 106' fill='none' stroke='%23c9a84c' stroke-width='1.1' stroke-linecap='round' opacity='0.15'/%3E%3Cpath d='M40 116 Q52 110 62 115' fill='none' stroke='%23c9a84c' stroke-width='0.7' stroke-linecap='round' opacity='0.1'/%3E%3Cpath d='M528 258 Q538 250 548 256 Q556 262 564 254' fill='none' stroke='%23c9a84c' stroke-width='1.1' stroke-linecap='round' opacity='0.15'/%3E%3Cpath d='M530 268 Q543 262 554 267' fill='none' stroke='%23ffffff' stroke-width='0.6' stroke-linecap='round' opacity='0.04'/%3E%3Cpath d='M55 365 L72 365' fill='none' stroke='%23c9a84c' stroke-width='0.8' stroke-linecap='round' stroke-dasharray='3 5' opacity='0.14'/%3E%3Cpath d='M57 372 L78 372' fill='none' stroke='%23c9a84c' stroke-width='0.6' stroke-linecap='round' stroke-dasharray='2 6' opacity='0.09'/%3E%3Cpath d='M380 22 Q440 8 510 18 Q560 24 610 14' fill='none' stroke='%23ffffff' stroke-width='0.4' stroke-linecap='round' opacity='0.03'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='600' height='400' fill='url(%23sketch)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 600px 400px;
   }
