@@ -29,7 +29,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Area, AreaChart, Line
+    Area, AreaChart, Line, PieChart, Pie, Cell
 } from "recharts";
 import type { DateRange } from "react-day-picker";
 
@@ -226,6 +226,20 @@ export default function ContasPagar() {
             });
     }, [filteredBills]);
 
+    // ── Pie: paid bills grouped by category ──
+    const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c", "#4f46e5", "#059669"];
+    const categoryPieData = useMemo(() => {
+        const paid = filteredBills.filter(b => b.status === "paid");
+        const map = new Map<string, number>();
+        paid.forEach(b => {
+            const cat = b.category?.name || "Sem categoria";
+            map.set(cat, (map.get(cat) || 0) + Number(b.amount));
+        });
+        return Array.from(map.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [filteredBills]);
+
     // Handlers
     const handleEdit = (item: AccountsPayable) => { setEditingItem(item); setIsSheetOpen(true); };
     const handleNew = () => { setEditingItem(undefined); setIsSheetOpen(true); };
@@ -341,67 +355,120 @@ export default function ContasPagar() {
                     ))}
                 </div>
 
-                {/* ════════ CHART ════════ */}
-                <div style={{
-                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24,
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                        <p style={{ fontSize: 15, fontWeight: 700, color: "#000" }}>Fluxo de Pagamentos</p>
-                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                            {[
-                                { label: "A Pagar", color: T.red },
-                                { label: "Pago", color: T.green },
-                                { label: "Atrasado", color: T.amber },
-                                { label: "Acumulado", color: T.primary },
-                            ].map((l) => (
-                                <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                    <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
-                                    <span style={{ fontSize: 11, fontWeight: 500, color: T.text2 }}>{l.label}</span>
-                                </div>
-                            ))}
+                {/* ════════ CHARTS ROW ════════ */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 16 }}>
+
+                    {/* ── Area Chart: Fluxo ── */}
+                    <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                            <p style={{ fontSize: 15, fontWeight: 700, color: "#000" }}>Fluxo de Pagamentos</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                {[
+                                    { label: "A Pagar", color: T.red },
+                                    { label: "Pago", color: T.green },
+                                    { label: "Atrasado", color: T.amber },
+                                    { label: "Acumulado", color: T.primary },
+                                ].map((l) => (
+                                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: T.text2 }}>{l.label}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
+
+                        {chartData.length === 0 ? (
+                            <div style={{ textAlign: "center", padding: "48px 0", color: T.text3 }}>
+                                <TrendingDown size={36} strokeWidth={1} color={T.border} style={{ margin: "0 auto 12px" }} />
+                                <p style={{ fontSize: 14, fontWeight: 600, color: T.text1 }}>Sem dados no periodo</p>
+                                <p style={{ fontSize: 12, color: T.text3, marginTop: 4 }}>Selecione outro periodo ou cadastre contas</p>
+                            </div>
+                        ) : (
+                            <div style={{ height: 300 }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="gradPaid" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={T.green} stopOpacity={0.25} />
+                                                <stop offset="100%" stopColor={T.green} stopOpacity={0.02} />
+                                            </linearGradient>
+                                            <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={T.red} stopOpacity={0.2} />
+                                                <stop offset="100%" stopColor={T.red} stopOpacity={0.02} />
+                                            </linearGradient>
+                                            <linearGradient id="gradOverdue" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={T.amber} stopOpacity={0.2} />
+                                                <stop offset="100%" stopColor={T.amber} stopOpacity={0.02} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={`${T.border}80`} />
+                                        <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} dy={8} />
+                                        <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={48} />
+                                        <Tooltip
+                                            formatter={(v: number, n: string) => [fmt(v), n === "paid" ? "Pago" : n === "pending" ? "A Pagar" : n === "overdue" ? "Atrasado" : "Acumulado"]}
+                                            contentStyle={tooltipStyle}
+                                            cursor={{ stroke: T.text3, strokeDasharray: "4 4" }}
+                                        />
+                                        <Area type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} fill="url(#gradPaid)" dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.green, stroke: T.card, strokeWidth: 2 }} />
+                                        <Area type="monotone" dataKey="pending" name="pending" stroke={T.red} strokeWidth={2.5} fill="url(#gradPending)" dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.red, stroke: T.card, strokeWidth: 2 }} />
+                                        <Area type="monotone" dataKey="overdue" name="overdue" stroke={T.amber} strokeWidth={2.5} fill="url(#gradOverdue)" dot={{ r: 4, fill: T.card, stroke: T.amber, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.amber, stroke: T.card, strokeWidth: 2 }} />
+                                        <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.primary} strokeWidth={2} strokeDasharray="8 4" dot={false} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
-                    {chartData.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "48px 0", color: T.text3 }}>
-                            <TrendingDown size={36} strokeWidth={1} color={T.border} style={{ margin: "0 auto 12px" }} />
-                            <p style={{ fontSize: 14, fontWeight: 600, color: T.text1 }}>Sem dados no periodo</p>
-                            <p style={{ fontSize: 12, color: T.text3, marginTop: 4 }}>Selecione outro periodo ou cadastre contas</p>
-                        </div>
-                    ) : (
-                        <div style={{ height: 300 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="gradPaid" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor={T.green} stopOpacity={0.25} />
-                                            <stop offset="100%" stopColor={T.green} stopOpacity={0.02} />
-                                        </linearGradient>
-                                        <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor={T.red} stopOpacity={0.2} />
-                                            <stop offset="100%" stopColor={T.red} stopOpacity={0.02} />
-                                        </linearGradient>
-                                        <linearGradient id="gradOverdue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor={T.amber} stopOpacity={0.2} />
-                                            <stop offset="100%" stopColor={T.amber} stopOpacity={0.02} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={`${T.border}80`} />
-                                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} dy={8} />
-                                    <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={48} />
-                                    <Tooltip
-                                        formatter={(v: number, n: string) => [fmt(v), n === "paid" ? "Pago" : n === "pending" ? "A Pagar" : n === "overdue" ? "Atrasado" : "Acumulado"]}
-                                        contentStyle={tooltipStyle}
-                                        cursor={{ stroke: T.text3, strokeDasharray: "4 4" }}
-                                    />
-                                    <Area type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} fill="url(#gradPaid)" dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.green, stroke: T.card, strokeWidth: 2 }} />
-                                    <Area type="monotone" dataKey="pending" name="pending" stroke={T.red} strokeWidth={2.5} fill="url(#gradPending)" dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.red, stroke: T.card, strokeWidth: 2 }} />
-                                    <Area type="monotone" dataKey="overdue" name="overdue" stroke={T.amber} strokeWidth={2.5} fill="url(#gradOverdue)" dot={{ r: 4, fill: T.card, stroke: T.amber, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.amber, stroke: T.card, strokeWidth: 2 }} />
-                                    <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.primary} strokeWidth={2} strokeDasharray="8 4" dot={false} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
+                    {/* ── Pie Chart: Pagamentos por Categoria ── */}
+                    <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24, display: "flex", flexDirection: "column" }}>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: "#000", marginBottom: 16 }}>Pagamentos por Categoria</p>
+
+                        {categoryPieData.length === 0 ? (
+                            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: T.text3 }}>
+                                <p style={{ fontSize: 13 }}>Sem pagamentos no periodo</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ height: 200 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={categoryPieData}
+                                                cx="50%" cy="50%"
+                                                innerRadius={50} outerRadius={85}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                stroke="none"
+                                            >
+                                                {categoryPieData.map((_, i) => (
+                                                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(v: number) => fmt(v)}
+                                                contentStyle={tooltipStyle}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                {/* Legend */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, overflow: "auto", maxHeight: 120 }}>
+                                    {categoryPieData.map((item, i) => {
+                                        const total = categoryPieData.reduce((s, d) => s + d.value, 0);
+                                        const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+                                        return (
+                                            <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <div style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                                                <span style={{ fontSize: 11, color: T.text2, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{item.name}</span>
+                                                <span style={{ fontSize: 11, fontWeight: 600, color: T.text1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{pct}%</span>
+                                                <span style={{ fontSize: 10, color: T.text3, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{fmt(item.value)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* ════════ FILTER + TABLE ════════ */}
