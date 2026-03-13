@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal,
     CalendarDays, TrendingDown, CheckCircle2, AlertTriangle, X,
-    Download, FileText, FileSpreadsheet
+    Download, FileText, FileSpreadsheet, Sparkles
 } from "lucide-react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
@@ -84,6 +84,7 @@ export default function ContasPagar() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [methodFilter, setMethodFilter] = useState("all");
+    const [categoryFilter, setCategoryFilter] = useState("all");
 
     const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
 
@@ -159,6 +160,11 @@ export default function ContasPagar() {
             }
             // Payment method
             if (methodFilter !== "all" && bill.payment_method !== methodFilter) return false;
+            // Category
+            if (categoryFilter !== "all") {
+                const catName = bill.category?.name || "Sem categoria";
+                if (catName !== categoryFilter) return false;
+            }
             // Search
             if (searchTerm.trim()) {
                 const needle = normalizeSearch(searchTerm);
@@ -171,7 +177,7 @@ export default function ContasPagar() {
             }
             return true;
         });
-    }, [bills, dateRange, statusFilter, methodFilter, searchTerm]);
+    }, [bills, dateRange, statusFilter, methodFilter, categoryFilter, searchTerm]);
 
     // ── KPIs ──
     const stats = useMemo(() => {
@@ -229,7 +235,15 @@ export default function ContasPagar() {
             });
     }, [filteredBills]);
 
-    // ── Pie: paid bills grouped by category ──
+    // ── Unique categories for filter ──
+    const uniqueCategories = useMemo(() => {
+        if (!bills) return [];
+        const set = new Set<string>();
+        bills.forEach(b => { set.add(b.category?.name || "Sem categoria"); });
+        return Array.from(set).sort();
+    }, [bills]);
+
+    // ── Pie: paid bills grouped by category (top 8 + "Outros") ──
     const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c", "#4f46e5", "#059669"];
     const categoryPieData = useMemo(() => {
         const paid = filteredBills.filter(b => b.status === "paid");
@@ -238,9 +252,88 @@ export default function ContasPagar() {
             const cat = b.category?.name || "Sem categoria";
             map.set(cat, (map.get(cat) || 0) + Number(b.amount));
         });
-        return Array.from(map.entries())
+        const sorted = Array.from(map.entries())
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
+        if (sorted.length <= 8) return sorted;
+        const top = sorted.slice(0, 7);
+        const rest = sorted.slice(7).reduce((s, d) => s + d.value, 0);
+        return [...top, { name: "Outros", value: rest }];
+    }, [filteredBills]);
+
+    // ── AI Analysis ──
+    const aiAnalysis = useMemo(() => {
+        if (!filteredBills.length) return null;
+        const total = filteredBills.reduce((s, b) => s + Number(b.amount), 0);
+        const paid = filteredBills.filter(b => b.status === "paid");
+        const pending = filteredBills.filter(b => b.status === "pending");
+        const overdue = pending.filter(b => isBefore(startOfDay(parseISO(b.due_date)), startOfDay(new Date())));
+        const paidTotal = paid.reduce((s, b) => s + Number(b.amount), 0);
+        const pendingTotal = pending.reduce((s, b) => s + Number(b.amount), 0);
+        const overdueTotal = overdue.reduce((s, b) => s + Number(b.amount), 0);
+        const paidPct = total > 0 ? ((paidTotal / total) * 100).toFixed(1) : "0";
+        const avgTicket = filteredBills.length > 0 ? total / filteredBills.length : 0;
+
+        // Top category
+        const catMap = new Map<string, number>();
+        filteredBills.forEach(b => {
+            const cat = b.category?.name || "Sem categoria";
+            catMap.set(cat, (catMap.get(cat) || 0) + Number(b.amount));
+        });
+        const topCat = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1])[0];
+        const topCatPct = topCat && total > 0 ? ((topCat[1] / total) * 100).toFixed(1) : "0";
+
+        // Top supplier
+        const supMap = new Map<string, number>();
+        filteredBills.forEach(b => {
+            const sup = b.supplier?.nome_fantasia || b.supplier?.razao_social || "Sem fornecedor";
+            supMap.set(sup, (supMap.get(sup) || 0) + Number(b.amount));
+        });
+        const topSup = Array.from(supMap.entries()).sort((a, b) => b[1] - a[1])[0];
+
+        // Concentration risk: top 3 suppliers
+        const topSuppliers = Array.from(supMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        const top3Total = topSuppliers.reduce((s, [, v]) => s + v, 0);
+        const top3Pct = total > 0 ? ((top3Total / total) * 100).toFixed(0) : "0";
+
+        const insights: string[] = [];
+
+        // Payment execution
+        if (Number(paidPct) >= 90) {
+            insights.push(`Excelente execucao financeira: ${paidPct}% das contas ja foram pagas (${fmt(paidTotal)} de ${fmt(total)}).`);
+        } else if (Number(paidPct) >= 60) {
+            insights.push(`Boa execucao: ${paidPct}% das contas foram pagas. Restam ${fmt(pendingTotal)} em aberto.`);
+        } else {
+            insights.push(`Atencao: apenas ${paidPct}% das contas foram pagas. ${fmt(pendingTotal)} permanecem em aberto.`);
+        }
+
+        // Overdue
+        if (overdue.length > 0) {
+            insights.push(`⚠ ${overdue.length} conta${overdue.length > 1 ? "s" : ""} vencida${overdue.length > 1 ? "s" : ""} totalizando ${fmt(overdueTotal)}. Priorize a regularizacao para evitar juros e multas.`);
+        } else if (pending.length === 0) {
+            insights.push(`Nenhuma conta pendente ou vencida no periodo. Fluxo de caixa sob controle.`);
+        }
+
+        // Top category
+        if (topCat && topCat[0] !== "Sem categoria") {
+            insights.push(`A maior concentracao de despesa esta em "${topCat[0]}", representando ${topCatPct}% do total (${fmt(topCat[1])}).`);
+        }
+
+        // Concentration risk
+        if (Number(top3Pct) >= 70 && topSuppliers.length >= 3) {
+            insights.push(`Risco de concentracao: os 3 maiores fornecedores representam ${top3Pct}% dos pagamentos. Considere diversificar fornecedores.`);
+        }
+
+        // Average ticket
+        insights.push(`Ticket medio por conta: ${fmt(avgTicket)}. Total de ${filteredBills.length} lancamentos no periodo.`);
+
+        // Uncategorized
+        const uncategorized = filteredBills.filter(b => !b.category?.name);
+        if (uncategorized.length > 5) {
+            insights.push(`${uncategorized.length} contas sem categoria definida. Categorize para melhor visibilidade dos gastos.`);
+        }
+
+        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0 };
     }, [filteredBills]);
 
     // Handlers
@@ -569,13 +662,13 @@ export default function ContasPagar() {
                             </div>
                         ) : (
                             <>
-                                <div style={{ height: 200 }}>
+                                <div style={{ height: 220, position: "relative" }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie
                                                 data={categoryPieData}
                                                 cx="50%" cy="50%"
-                                                innerRadius={50} outerRadius={85}
+                                                innerRadius={55} outerRadius={90}
                                                 paddingAngle={2}
                                                 dataKey="value"
                                                 stroke="none"
@@ -585,22 +678,39 @@ export default function ContasPagar() {
                                                 ))}
                                             </Pie>
                                             <Tooltip
-                                                formatter={(v: number) => fmt(v)}
+                                                formatter={(v: number, name: string) => [fmt(v), name]}
                                                 contentStyle={tooltipStyle}
                                             />
                                         </PieChart>
                                     </ResponsiveContainer>
+                                    {/* Center label */}
+                                    <div style={{
+                                        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+                                        textAlign: "center", pointerEvents: "none",
+                                    }}>
+                                        <p style={{ fontSize: 16, fontWeight: 700, color: "#000", lineHeight: 1.1 }}>
+                                            {fmt(categoryPieData.reduce((s, d) => s + d.value, 0))}
+                                        </p>
+                                        <p style={{ fontSize: 9, color: T.text3, marginTop: 2 }}>Total pago</p>
+                                    </div>
                                 </div>
-                                {/* Legend */}
-                                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, overflow: "auto", maxHeight: 120 }}>
+                                {/* Legend — scrollable list */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 12, overflow: "auto", maxHeight: 140 }} className="scrollbar-thin">
                                     {categoryPieData.map((item, i) => {
                                         const total = categoryPieData.reduce((s, d) => s + d.value, 0);
                                         const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
                                         return (
-                                            <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                <div style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
-                                                <span style={{ fontSize: 11, color: T.text2, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{item.name}</span>
-                                                <span style={{ fontSize: 11, fontWeight: 600, color: T.text1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{pct}%</span>
+                                            <div key={item.name} style={{
+                                                display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", borderRadius: 6,
+                                                cursor: "pointer", transition: "background 0.15s",
+                                            }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.background = T.hover; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                                                onClick={() => setCategoryFilter(categoryFilter === item.name ? "all" : item.name)}
+                                            >
+                                                <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                                                <span style={{ fontSize: 11, color: T.text1, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, fontWeight: 500 }}>{item.name}</span>
+                                                <span style={{ fontSize: 11, fontWeight: 700, color: T.text1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{pct}%</span>
                                                 <span style={{ fontSize: 10, color: T.text3, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{fmt(item.value)}</span>
                                             </div>
                                         );
@@ -659,6 +769,16 @@ export default function ContasPagar() {
                             />
                             {searchTerm && <button onClick={() => setSearchTerm("")} style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}><X size={12} color={T.text3} /></button>}
                         </div>
+
+                        {/* Category filter */}
+                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{
+                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`,
+                            background: T.card, fontSize: 11, fontFamily: FONT, color: T.text1, cursor: "pointer",
+                            maxWidth: 160,
+                        }}>
+                            <option value="all">Categoria</option>
+                            {uniqueCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
 
                         {/* Payment method */}
                         <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} style={{
@@ -776,6 +896,63 @@ export default function ContasPagar() {
                         </TableBody>
                     </Table>
                 </div>
+
+                {/* ════════ AI ANALYSIS ════════ */}
+                {aiAnalysis && (
+                    <div style={{
+                        background: `linear-gradient(135deg, ${T.primaryLt} 0%, #f0f4ff 50%, ${T.card} 100%)`,
+                        borderRadius: 14, border: `1px solid ${T.border}`, padding: 24,
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                            <div style={{
+                                width: 36, height: 36, borderRadius: 10, background: T.primary,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                                <Sparkles size={18} strokeWidth={1.5} color="#fff" />
+                            </div>
+                            <div>
+                                <p style={{ fontSize: 14, fontWeight: 700, color: "#000" }}>Analise Inteligente</p>
+                                <p style={{ fontSize: 11, color: T.text3 }}>Avaliacao automatica do periodo filtrado</p>
+                            </div>
+                            {/* Health indicator */}
+                            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{
+                                    width: 10, height: 10, borderRadius: 99,
+                                    background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                }} />
+                                <span style={{
+                                    fontSize: 11, fontWeight: 600,
+                                    color: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                }}>
+                                    {aiAnalysis.hasOverdue ? "Requer atencao" : aiAnalysis.paidPct >= 80 ? "Saudavel" : "Moderado"}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {aiAnalysis.insights.map((insight, i) => (
+                                <div key={i} style={{
+                                    display: "flex", gap: 10, padding: "10px 14px",
+                                    background: "rgba(255,255,255,0.7)", borderRadius: 10,
+                                    border: `1px solid ${T.border}40`,
+                                }}>
+                                    <div style={{
+                                        width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
+                                        background: i === 0 ? `${T.primary}15` : insight.startsWith("⚠") ? `${T.red}12` : `${T.border}60`,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        fontSize: 10, fontWeight: 700,
+                                        color: i === 0 ? T.primary : insight.startsWith("⚠") ? T.red : T.text3,
+                                    }}>
+                                        {i + 1}
+                                    </div>
+                                    <p style={{ fontSize: 12, color: T.text1, lineHeight: 1.5 }}>
+                                        {insight}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Modals */}
                 <AccountsPayableSheet isOpen={isSheetOpen} onClose={() => { setIsSheetOpen(false); setEditingItem(undefined); }} dataToEdit={editingItem} />
