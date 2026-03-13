@@ -296,77 +296,88 @@ export default function ContasPagar() {
         // Cost of delay: overdue bills accumulate interest at ~2% per month (market average)
         const overdueInterestMonth = overdueTotal * 0.02;
 
-        const insights: { icon: string; title: string; text: string; type: "success" | "warning" | "danger" | "info" }[] = [];
+        const insights: { title: string; text: string; type: "success" | "warning" | "danger" | "info" }[] = [];
 
-        // 1. Execution summary
+        // 1. Execution
         if (Number(paidPct) >= 90) {
             insights.push({
-                icon: "📊", title: "Execucao Financeira",
-                text: `${paidPct}% das obrigacoes foram liquidadas — ${fmt(paidTotal)} de ${fmt(total)}. Performance acima da media de mercado para PMEs (70-80%). Com a Selic a ${SELIC}% a.a., manter pagamentos em dia evita custos de ${CDI_MENSAL.toFixed(2)}% ao mes sobre saldos em atraso.`,
+                title: "Execucao financeira",
+                text: `${paidPct}% das obrigacoes liquidadas (${fmt(paidTotal)} de ${fmt(total)}). Performance acima da media de PMEs no Brasil, que gira entre 70% e 80% segundo o Sebrae. Manter esse ritmo reduz exposicao a encargos moratarios, que no cenario atual equivalem a ${CDI_MENSAL.toFixed(2)}% ao mes (base Selic ${SELIC}% a.a.).`,
                 type: "success",
             });
         } else if (Number(paidPct) >= 60) {
             insights.push({
-                icon: "📊", title: "Execucao Financeira",
-                text: `${paidPct}% das contas pagas (${fmt(paidTotal)}). Restam ${fmt(pendingTotal)} em aberto. No cenario atual com Selic a ${SELIC}% a.a. e IPCA a ${IPCA_12M}%, atrasos geram custo efetivo de ~2% ao mes entre juros e multas. Priorize a quitacao.`,
+                title: "Execucao financeira abaixo do ideal",
+                text: `Apenas ${paidPct}% das contas foram pagas. ${fmt(pendingTotal)} permanecem em aberto. Com Selic a ${SELIC}% a.a. e inflacao (IPCA) a ${IPCA_12M}%, cada mes de inadimplencia custa aproximadamente 2% sobre o saldo devedor entre juros, multa e correcao. Isso significa um custo estimado de ${fmt(pendingTotal * 0.02)} por mes se nada for pago.`,
                 type: "warning",
             });
         } else {
             insights.push({
-                icon: "📊", title: "Execucao Financeira — Alerta",
-                text: `Apenas ${paidPct}% das contas liquidadas. ${fmt(pendingTotal)} em aberto representam risco de caixa. Com juros de mercado a ${SELIC}% a.a. (Selic), cada mes de atraso custa aproximadamente ${fmt(pendingTotal * 0.02)} em encargos. Recomenda-se priorizar as contas de maior valor.`,
+                title: "Execucao financeira critica",
+                text: `Somente ${paidPct}% das contas liquidadas. ${fmt(pendingTotal)} em aberto representam risco direto ao fluxo de caixa. Com a Selic a ${SELIC}% a.a., o custo mensal estimado da inadimplencia e de ${fmt(pendingTotal * 0.02)}. Alem dos encargos, ha risco de protesto, restricao cadastral e perda de poder de negociacao com fornecedores. Acao imediata necessaria.`,
                 type: "danger",
             });
         }
 
-        // 2. Overdue risk
+        // 2. Overdue
         if (overdue.length > 0) {
             insights.push({
-                icon: "⚠️", title: `${overdue.length} Conta${overdue.length > 1 ? "s" : ""} Vencida${overdue.length > 1 ? "s" : ""}`,
-                text: `Total em atraso: ${fmt(overdueTotal)}. Estimativa de custo mensal com juros e multas: ${fmt(overdueInterestMonth)} (base ~2% a.m.). Com a Selic a ${SELIC}%, renegociar dividas pode ser mais caro que liquidar. Priorize para evitar protestos e restricoes de credito.`,
+                title: `Inadimplencia: ${overdue.length} conta${overdue.length > 1 ? "s" : ""} vencida${overdue.length > 1 ? "s" : ""}`,
+                text: `Total vencido: ${fmt(overdueTotal)}. Custo estimado de permanencia em atraso: ${fmt(overdueInterestMonth)}/mes (juros mora de 1% + multa de 2% no primeiro mes, alem de correcao monetaria). Com a taxa basica a ${SELIC}%, renegociar divida com instituicao financeira sai mais caro do que liquidar com recurso proprio. Prioridade: quitar as de maior valor para reduzir exposicao.`,
                 type: "danger",
             });
         } else if (pending.length === 0) {
             insights.push({
-                icon: "✅", title: "Fluxo de Caixa Sob Controle",
-                text: `Nenhuma conta pendente ou vencida no periodo. Isso coloca a empresa em posicao favoravel para negociar prazos maiores com fornecedores e obter descontos por antecipacao — pratica que pode gerar economia de 2-5% sobre o valor das compras.`,
+                title: "Sem pendencias no periodo",
+                text: `Todas as obrigacoes foram liquidadas. Empresa esta em posicao de forca para negociar: solicitar descontos de 2% a 5% por antecipacao de pagamento ou alongar prazos sem custo adicional. No cenario atual de juros elevados, fornecedores tendem a aceitar antecipacao com desconto.`,
                 type: "success",
             });
         }
 
-        // 3. Category concentration
+        // 3. Category
         if (topCat && topCat[0] !== "Sem categoria") {
-            insights.push({
-                icon: "🏷️", title: "Concentracao por Categoria",
-                text: `"${topCat[0]}" concentra ${topCatPct}% das despesas (${fmt(topCat[1])}). ${Number(topCatPct) > 40 ? "Alta concentracao em uma unica categoria aumenta a vulnerabilidade a reajustes. Avalie alternativas ou contratos de longo prazo para travar precos, especialmente com IPCA a " + IPCA_12M + "% nos ultimos 12 meses." : "Distribuicao equilibrada entre categorias indica boa diversificacao dos custos operacionais."}`,
-                type: Number(topCatPct) > 40 ? "warning" : "info",
-            });
+            if (Number(topCatPct) > 40) {
+                insights.push({
+                    title: `Concentracao excessiva: ${topCat[0]} (${topCatPct}%)`,
+                    text: `A categoria "${topCat[0]}" absorve ${topCatPct}% do total de pagamentos (${fmt(topCat[1])}). Concentracao acima de 40% em uma unica linha de custo aumenta a vulnerabilidade a reajustes. Com IPCA a ${IPCA_12M}% nos ultimos 12 meses, recomenda-se: (1) buscar fornecedores alternativos, (2) negociar contratos de longo prazo com indice de reajuste travado, (3) avaliar se ha ineficiencia operacional nessa categoria.`,
+                    type: "warning",
+                });
+            } else {
+                insights.push({
+                    title: `Principal categoria: ${topCat[0]} (${topCatPct}%)`,
+                    text: `Distribuicao entre categorias esta equilibrada. "${topCat[0]}" e a maior, com ${topCatPct}% do total. Manter diversificacao abaixo de 40% por categoria reduz o impacto de reajustes setoriais. Monitorar mensalmente para identificar tendencias de concentracao.`,
+                    type: "info",
+                });
+            }
         }
 
-        // 4. Supplier concentration
+        // 4. Suppliers
         if (Number(top3Pct) >= 60 && topSuppliers.length >= 3) {
             insights.push({
-                icon: "🏢", title: "Risco de Concentracao de Fornecedores",
-                text: `Os 3 maiores fornecedores representam ${top3Pct}% dos pagamentos: ${topSuppliers.map(([n, v]) => `${n} (${fmt(v)})`).join(", ")}. Concentracao acima de 60% e considerada risco operacional. Diversificar reduz exposicao a aumentos de preco e problemas de fornecimento.`,
+                title: `Dependencia de fornecedores: ${top3Pct}% em 3 empresas`,
+                text: `${topSuppliers.map(([n, v]) => `${n}: ${fmt(v)}`).join(" / ")}. Concentracao acima de 60% em tres fornecedores configura risco operacional. Se qualquer um reajustar precos em 10%, o impacto no caixa sera de ${fmt(top3Total * 0.10)}. Recomendacao: mapear fornecedores alternativos e distribuir volume de compras.`,
                 type: "warning",
             });
         }
 
-        // 5. Market context
+        // 5. Market
         insights.push({
-            icon: "📈", title: "Contexto de Mercado",
-            text: `Selic: ${SELIC}% a.a. | IPCA 12m: ${IPCA_12M}% | CDI mensal: ~${CDI_MENSAL.toFixed(2)}%. Com juros elevados, antecipar pagamentos com desconto e mais vantajoso que manter saldo em aplicacoes. Cada R$ 10.000 antecipados com 3% de desconto equivalem a ${fmt(300)} de economia — acima do rendimento de ${fmt(10000 * CDI_MENSAL / 100)} no CDI mensal.`,
+            title: "Cenario macroeconomico",
+            text: `Selic: ${SELIC}% a.a. (juros elevados). IPCA acumulado 12 meses: ${IPCA_12M}%. CDI mensal: ${CDI_MENSAL.toFixed(2)}%. Impacto pratico: cada R$ 10.000 em atraso gera custo de ${fmt(10000 * 0.02)}/mes. Por outro lado, antecipar pagamentos com desconto de 3% gera economia de R$ 300 por R$ 10.000 — rendimento superior ao CDI mensal de ${fmt(10000 * CDI_MENSAL / 100)}. Conclusao: priorizar antecipacao com desconto e liquidar atrasos antes de investir excedentes.`,
             type: "info",
         });
 
-        // 6. Ticket and volume
-        insights.push({
-            icon: "🎯", title: "Resumo Operacional",
-            text: `${filteredBills.length} lancamentos no periodo. Ticket medio: ${fmt(avgTicket)}.${filteredBills.filter(b => !b.category?.name).length > 5 ? ` Atencao: ${filteredBills.filter(b => !b.category?.name).length} contas sem categoria — categorize para maior controle e precisao nas analises.` : ""}`,
-            type: "info",
-        });
+        // 6. Uncategorized
+        const uncatCount = filteredBills.filter(b => !b.category?.name).length;
+        if (uncatCount > 3) {
+            insights.push({
+                title: `${uncatCount} contas sem categoria`,
+                text: `${((uncatCount / filteredBills.length) * 100).toFixed(0)}% dos lancamentos estao sem classificacao. Isso compromete a qualidade das analises por categoria, impede a identificacao de gargalos de custo e dificulta o planejamento orcamentario. Categorize esses lancamentos para obter uma visao precisa da composicao dos gastos.`,
+                type: "danger",
+            });
+        }
 
-        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total };
+        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total, avgTicket, billCount: filteredBills.length };
     }, [filteredBills]);
 
     // Handlers
@@ -510,139 +521,132 @@ export default function ContasPagar() {
         <AppLayout title="Contas a Pagar">
             <div className="animate-fade-in" style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
 
-                {/* ════════ HEADER BAR ════════ */}
-                <div style={{
-                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
-                    padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    gap: 12, flexWrap: "wrap",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: T.redLt, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <TrendingDown size={20} strokeWidth={1.5} color={T.red} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", lineHeight: 1.2 }}>Contas a Pagar</h2>
-                            <p style={{ fontSize: 12, color: T.text3 }}>{filteredBills.length} contas no periodo</p>
-                        </div>
-                    </div>
+                {/* ════════ TOP ROW: AI (left) + HEADER (right) ════════ */}
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16 }}>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ display: "flex", background: T.hover, borderRadius: 8, padding: 2, gap: 1 }}>
-                            {presets.map((p) => (
-                                <button key={p.label} onClick={() => handlePreset(p)} style={{
-                                    padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11,
-                                    fontWeight: activePreset === p.label ? 600 : 400, fontFamily: FONT,
-                                    background: activePreset === p.label ? T.card : "transparent",
-                                    color: activePreset === p.label ? "#000" : T.text3, cursor: "pointer",
-                                    boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                                }}>{p.label}</button>
-                            ))}
-                        </div>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button style={{
-                                    display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
-                                    fontSize: 11, fontWeight: 500, fontFamily: FONT, borderRadius: 6,
-                                    border: `1px solid ${T.border}`, background: T.card, color: T.text1, cursor: "pointer",
-                                }}>
-                                    <CalendarDays size={12} strokeWidth={1.5} color={T.primary} />
-                                    {dateLabel}
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
-                            </PopoverContent>
-                        </Popover>
-                        {/* Download dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button style={{
-                                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-                                    borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: T.text1,
-                                    cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 500,
-                                }}>
-                                    <Download size={14} strokeWidth={1.5} color={T.primary} />
-                                    Exportar
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-[180px]">
-                                <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
-                                    <FileText className="h-4 w-4" style={{ color: T.red }} />
-                                    <span>Baixar PDF</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
-                                    <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
-                                    <span>Baixar Excel</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <button onClick={handleNew} style={{
-                            display: "flex", alignItems: "center", gap: 6, padding: "6px 16px",
-                            borderRadius: 8, border: "none", background: T.primary, color: "#fff",
-                            cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+                    {/* ── AI ANALYSIS (left) ── */}
+                    {aiAnalysis ? (
+                        <div style={{
+                            background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                            padding: "20px 22px", display: "flex", flexDirection: "column",
                         }}>
-                            <Plus size={14} strokeWidth={2} />
-                            Nova Conta
-                        </button>
-                    </div>
-                </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
+                                <Sparkles size={16} strokeWidth={1.5} color={T.primary} />
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira</p>
+                                    <p style={{ fontSize: 10, color: "#000", opacity: 0.5 }}>Selic {SELIC}% a.a. | IPCA {IPCA_12M}% | CDI {CDI_MENSAL.toFixed(2)}%/mes | {aiAnalysis.billCount} lancamentos | Ticket medio {fmt(aiAnalysis.avgTicket)}</p>
+                                </div>
+                                <div style={{
+                                    padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" as const,
+                                    background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
+                                    color: "#fff",
+                                }}>
+                                    {aiAnalysis.hasOverdue ? "ATENCAO" : aiAnalysis.paidPct >= 80 ? "SAUDAVEL" : "MODERADO"}
+                                </div>
+                            </div>
 
-                {/* ════════ AI ANALYSIS ════════ */}
-                {aiAnalysis && (
-                    <div style={{
-                        background: `linear-gradient(135deg, #f8f9fb 0%, ${T.primaryLt} 100%)`,
-                        borderRadius: 14, border: `1px solid ${T.border}`, padding: "20px 24px",
-                    }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                            <div style={{
-                                width: 32, height: 32, borderRadius: 8, background: T.primary,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                            }}>
-                                <Sparkles size={16} strokeWidth={1.5} color="#fff" />
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, overflow: "auto" }} className="scrollbar-thin">
+                                {aiAnalysis.insights.map((item, i) => (
+                                    <div key={i} style={{
+                                        padding: "10px 12px",
+                                        borderRadius: 8,
+                                        borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
+                                        background: item.type === "danger" ? `${T.red}06` : item.type === "warning" ? `${T.amber}06` : "transparent",
+                                    }}>
+                                        <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>{item.title}</p>
+                                        <p style={{ fontSize: 11.5, color: "#000", lineHeight: 1.6, opacity: 0.85 }}>{item.text}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div />
+                    )}
+
+                    {/* ── HEADER + ACTIONS (right) ── */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {/* Title card */}
+                        <div style={{
+                            background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                            padding: "20px", display: "flex", alignItems: "center", gap: 12,
+                        }}>
+                            <div style={{ width: 40, height: 40, borderRadius: 10, background: T.redLt, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <TrendingDown size={20} strokeWidth={1.5} color={T.red} />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira</p>
-                                <p style={{ fontSize: 10, color: T.text3 }}>Dados do periodo • Selic {SELIC}% a.a. • IPCA {IPCA_12M}%</p>
+                                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", lineHeight: 1.2 }}>Contas a Pagar</h2>
+                                <p style={{ fontSize: 12, color: "#000", opacity: 0.45 }}>{filteredBills.length} contas no periodo</p>
                             </div>
-                            <div style={{
-                                display: "flex", alignItems: "center", gap: 6,
-                                padding: "4px 12px", borderRadius: 20,
-                                background: aiAnalysis.hasOverdue ? T.redLt : aiAnalysis.paidPct >= 80 ? T.greenLt : T.amberLt,
+                            <button onClick={handleNew} style={{
+                                display: "flex", alignItems: "center", gap: 6, padding: "8px 18px",
+                                borderRadius: 8, border: "none", background: T.primary, color: "#fff",
+                                cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
                             }}>
-                                <div style={{
-                                    width: 8, height: 8, borderRadius: 99,
-                                    background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                }} />
-                                <span style={{
-                                    fontSize: 11, fontWeight: 600,
-                                    color: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                }}>
-                                    {aiAnalysis.hasOverdue ? "Requer atencao" : aiAnalysis.paidPct >= 80 ? "Saudavel" : "Moderado"}
-                                </span>
-                            </div>
+                                <Plus size={14} strokeWidth={2} />
+                                Nova Conta
+                            </button>
                         </div>
 
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 10 }}>
-                            {aiAnalysis.insights.map((item, i) => (
-                                <div key={i} style={{
-                                    display: "flex", gap: 10, padding: "12px 14px",
-                                    background: "rgba(255,255,255,0.8)", borderRadius: 10,
-                                    border: `1px solid ${item.type === "danger" ? T.red + "30" : item.type === "warning" ? T.amber + "30" : item.type === "success" ? T.green + "30" : T.border + "60"}`,
-                                    borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
-                                }}>
-                                    <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
-                                    <div>
-                                        <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 3 }}>{item.title}</p>
-                                        <p style={{ fontSize: 11, color: T.text2, lineHeight: 1.55 }}>{item.text}</p>
-                                    </div>
-                                </div>
-                            ))}
+                        {/* Filters + actions */}
+                        <div style={{
+                            background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
+                            padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10,
+                        }}>
+                            <div style={{ display: "flex", background: T.hover, borderRadius: 8, padding: 2, gap: 1 }}>
+                                {presets.map((p) => (
+                                    <button key={p.label} onClick={() => handlePreset(p)} style={{
+                                        padding: "5px 10px", borderRadius: 6, border: "none", fontSize: 11, flex: 1,
+                                        fontWeight: activePreset === p.label ? 600 : 400, fontFamily: FONT,
+                                        background: activePreset === p.label ? T.card : "transparent",
+                                        color: activePreset === p.label ? "#000" : T.text3, cursor: "pointer",
+                                        boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                                    }}>{p.label}</button>
+                                ))}
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button style={{
+                                            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", flex: 1,
+                                            fontSize: 11, fontWeight: 500, fontFamily: FONT, borderRadius: 6,
+                                            border: `1px solid ${T.border}`, background: T.card, color: "#000", cursor: "pointer",
+                                        }}>
+                                            <CalendarDays size={12} strokeWidth={1.5} color={T.primary} />
+                                            {dateLabel}
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                        <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
+                                    </PopoverContent>
+                                </Popover>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button style={{
+                                            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                                            borderRadius: 6, border: `1px solid ${T.border}`, background: T.card, color: "#000",
+                                            cursor: "pointer", fontFamily: FONT, fontSize: 11, fontWeight: 500,
+                                        }}>
+                                            <Download size={13} strokeWidth={1.5} color={T.primary} />
+                                            Exportar
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-[180px]">
+                                        <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
+                                            <FileText className="h-4 w-4" style={{ color: T.red }} />
+                                            <span>Baixar PDF</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
+                                            <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
+                                            <span>Baixar Excel</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* ════════ SUMMARY STRIP ════════ */}
                 <div style={{
