@@ -3,8 +3,11 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal,
-    CalendarDays, TrendingDown, CheckCircle2, AlertTriangle, X
+    CalendarDays, TrendingDown, CheckCircle2, AlertTriangle, X,
+    Download, FileText, FileSpreadsheet
 } from "lucide-react";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -266,6 +269,117 @@ export default function ContasPagar() {
         return { label: "A Pagar", bg: T.primaryLt, color: T.primary };
     };
 
+    // ── Export helpers ──
+    const buildExportRows = () => filteredBills.map(b => ({
+        Status: getStatus(b.status, b.due_date).label,
+        Descricao: b.description,
+        Fornecedor: b.supplier?.nome_fantasia || b.supplier?.razao_social || "-",
+        Categoria: b.category?.name || "-",
+        Vencimento: b.due_date ? format(parseISO(b.due_date), "dd/MM/yyyy") : "-",
+        "Forma Pgto.": b.payment_method ? PM_LABELS[b.payment_method] || b.payment_method : "-",
+        Valor: Number(b.amount),
+    }));
+
+    const exportPDF = () => {
+        const rows = buildExportRows();
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const empresa = selectedCompany?.razao_social || "Empresa";
+        const periodo = dateLabel;
+
+        // Header
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Contas a Pagar", 14, 18);
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(`${empresa}  |  Periodo: ${periodo}  |  Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 25);
+
+        // Summary
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`A Pagar: ${fmt(stats.pendingTotal)}   |   Pago: ${fmt(stats.paidTotal)}   |   Vencido: ${fmt(stats.overdueTotal)}`, 14, 33);
+
+        // Table
+        const cols = ["Status", "Descricao", "Fornecedor", "Categoria", "Vencimento", "Forma Pgto.", "Valor"];
+        const colWidths = [22, 80, 50, 40, 26, 26, 28];
+        const startY = 40;
+        const rowH = 7;
+        const pageW = doc.internal.pageSize.getWidth();
+
+        // Header row
+        doc.setFillColor(241, 245, 249);
+        doc.rect(14, startY, pageW - 28, rowH, "F");
+        doc.setFontSize(7.5);
+        doc.setTextColor(100);
+        let xOff = 14;
+        cols.forEach((col, i) => {
+            doc.text(col.toUpperCase(), xOff + 2, startY + 5);
+            xOff += colWidths[i];
+        });
+
+        // Data rows
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        let y = startY + rowH;
+        rows.forEach((row, idx) => {
+            if (y > doc.internal.pageSize.getHeight() - 15) {
+                doc.addPage();
+                y = 15;
+            }
+            if (idx % 2 === 0) {
+                doc.setFillColor(248, 249, 251);
+                doc.rect(14, y, pageW - 28, rowH, "F");
+            }
+            xOff = 14;
+            cols.forEach((col, i) => {
+                let val = String(col === "Valor" ? fmt(row[col]) : row[col as keyof typeof row]);
+                // Truncate long text
+                const maxChars = Math.floor(colWidths[i] / 1.8);
+                if (val.length > maxChars) val = val.substring(0, maxChars - 1) + "…";
+                doc.text(val, xOff + 2, y + 5);
+                xOff += colWidths[i];
+            });
+            y += rowH;
+        });
+
+        // Footer
+        const totalPages = doc.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+            doc.setPage(p);
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            doc.text(`Pagina ${p} de ${totalPages}`, pageW - 30, doc.internal.pageSize.getHeight() - 8);
+        }
+
+        doc.save(`contas-a-pagar_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    };
+
+    const exportExcel = () => {
+        const rows = buildExportRows();
+        const ws = XLSX.utils.json_to_sheet(rows.map(r => ({ ...r, Valor: r.Valor })));
+        // Set column widths
+        ws["!cols"] = [
+            { wch: 12 }, { wch: 50 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 15 },
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Contas a Pagar");
+
+        // Summary sheet
+        const summaryData = [
+            { Resumo: "Empresa", Valor: selectedCompany?.razao_social || "" },
+            { Resumo: "Periodo", Valor: dateLabel },
+            { Resumo: "Total A Pagar", Valor: stats.pendingTotal },
+            { Resumo: "Total Pago", Valor: stats.paidTotal },
+            { Resumo: "Total Vencido", Valor: stats.overdueTotal },
+            { Resumo: "Qtd. Contas", Valor: filteredBills.length },
+        ];
+        const ws2 = XLSX.utils.json_to_sheet(summaryData);
+        ws2["!cols"] = [{ wch: 18 }, { wch: 30 }];
+        XLSX.utils.book_append_sheet(wb, ws2, "Resumo");
+
+        XLSX.writeFile(wb, `contas-a-pagar_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    };
+
     return (
         <AppLayout title="Contas a Pagar">
             <div className="animate-fade-in" style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -313,6 +427,32 @@ export default function ContasPagar() {
                                 <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
                             </PopoverContent>
                         </Popover>
+                        {/* Download dropdown */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button style={{
+                                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                                    borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: T.text1,
+                                    cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 500,
+                                }}>
+                                    <Download size={14} strokeWidth={1.5} color={T.primary} />
+                                    Exportar
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[180px]">
+                                <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
+                                    <FileText className="h-4 w-4" style={{ color: T.red }} />
+                                    <span>Baixar PDF</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
+                                    <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
+                                    <span>Baixar Excel</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
                         <button onClick={handleNew} style={{
                             display: "flex", alignItems: "center", gap: 6, padding: "6px 16px",
                             borderRadius: 8, border: "none", background: T.primary, color: "#fff",
