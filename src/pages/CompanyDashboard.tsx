@@ -6,15 +6,17 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    Landmark, TrendingUp, TrendingDown, LineChart, DollarSign, Target,
-    ShoppingBag, AlertTriangle, Users, PieChart, ArrowUpRight, ArrowDownRight,
-    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2, MoreHorizontal,
-    Building2, CreditCard, Wallet, ChevronDown, ChevronUp, FileText, Download
+    TrendingUp, TrendingDown, DollarSign, Target,
+    ShoppingBag, AlertTriangle, Users, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight,
+    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2,
+    Building2, CreditCard, Wallet, ChevronDown, ChevronUp, FileText, Download,
+    Bell, Receipt
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, AreaChart, Area, ReferenceLine
+    ResponsiveContainer, AreaChart, Area, ReferenceLine,
+    PieChart as RechartsPie, Pie, Cell
 } from "recharts";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -51,12 +53,15 @@ const C = {
 
 const FONT = "var(--font-base)";
 
+/* ── Pie chart colors ─────────────────────────────────────── */
+const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#8B5CF6", "#EC4899", "#14B8A6", "#6366F1"];
+
 /* ── Card base styles ──────────────────────────────────────── */
 const cardStyle = {
     background: C.surface,
-    borderRadius: 12,
-    padding: 16,
-    border: `0.5px solid ${C.border}`,
+    borderRadius: 14,
+    padding: 20,
+    border: `1px solid ${C.border}`,
     transition: "background 0.15s ease",
 } as const;
 
@@ -133,10 +138,10 @@ function DeltaBadge({ value, label }: { value: number; label?: string }) {
 }
 
 /* ── Icon Badge ─────────────────────────────────────────────── */
-function IconBadge({ icon: Icon, color = C.blue, bg = C.blueLight, size = 16 }: { icon: any; color?: string; bg?: string; size?: number }) {
+function IconBadge({ icon: Icon, color = C.blue, bg = C.blueLight, size = 18 }: { icon: any; color?: string; bg?: string; size?: number }) {
     return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size + 14, height: size + 14, borderRadius: 8, background: bg }}>
-            <Icon size={size} strokeWidth={1.2} color={color} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size + 18, height: size + 18, borderRadius: 10, background: bg }}>
+            <Icon size={size} strokeWidth={1.5} color={color} />
         </div>
     );
 }
@@ -178,7 +183,7 @@ function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
                         <Building2 size={18} strokeWidth={1.2} color={C.blue} />
                     </div>
                     <div>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{account.name}</p>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>{account.name}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>
                             {account.banco}{account.agencia ? ` - Ag ${account.agencia}` : ""}{account.conta ? ` / CC ${account.conta}` : ""}
                         </p>
@@ -487,9 +492,9 @@ export default function CompanyDashboard() {
             <div ref={dashboardRef} className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONT }}>
 
                 {/* ── Page Header ─────────────────────────────── */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
                     <div>
-                        <h2 style={{ fontSize: 24, fontWeight: 400, color: C.text1, letterSpacing: "0.02em", fontFamily: "'Bebas Neue', sans-serif" }}>
+                        <h2 style={{ fontSize: 28, fontWeight: 400, color: "#000", letterSpacing: "0.02em", fontFamily: "'Bebas Neue', sans-serif" }}>
                             {(selectedCompany.nome_fantasia || selectedCompany.razao_social).toUpperCase()}
                         </h2>
                         <p style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>Visao financeira consolidada</p>
@@ -503,12 +508,12 @@ export default function CompanyDashboard() {
                                     key={p.label}
                                     onClick={() => handlePreset(p)}
                                     style={{
-                                        padding: "5px 12px", borderRadius: 8, border: "none",
-                                        fontSize: 12, fontWeight: activePreset === p.label ? 500 : 400,
+                                        padding: "6px 14px", borderRadius: 8, border: "none",
+                                        fontSize: 12, fontWeight: activePreset === p.label ? 600 : 400,
                                         fontFamily: FONT, cursor: "pointer",
                                         background: activePreset === p.label ? C.surface : "transparent",
-                                        color: activePreset === p.label ? C.text1 : C.textMuted,
-                                        boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                                        color: activePreset === p.label ? "#000" : C.textMuted,
+                                        boxShadow: activePreset === p.label ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
                                         transition: "all 0.15s ease",
                                     }}
                                 >
@@ -521,11 +526,11 @@ export default function CompanyDashboard() {
                             <PopoverTrigger asChild>
                                 <button style={{
                                     display: "flex", alignItems: "center", gap: 6,
-                                    padding: "6px 12px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
-                                    borderRadius: 8, border: `0.5px solid ${C.border}`,
-                                    background: C.surface, color: C.text2, cursor: "pointer",
+                                    padding: "7px 14px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
+                                    borderRadius: 8, border: `1px solid ${C.border}`,
+                                    background: C.surface, color: C.text1, cursor: "pointer",
                                 }}>
-                                    <CalendarDays size={14} strokeWidth={1.2} color={C.textMuted} />
+                                    <CalendarDays size={14} strokeWidth={1.5} color={C.blue} />
                                     {dateLabel}
                                 </button>
                             </PopoverTrigger>
@@ -534,49 +539,88 @@ export default function CompanyDashboard() {
                             </PopoverContent>
                         </Popover>
 
+                        {/* Notifications */}
+                        <button
+                            style={{
+                                position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
+                                width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`,
+                                background: C.surface, cursor: "pointer",
+                            }}
+                            title="Notificacoes"
+                        >
+                            <Bell size={16} strokeWidth={1.5} color={C.text1} />
+                            {(payablesSummary?.overdue > 0 || receivablesSummary?.overdue > 0) && (
+                                <div style={{
+                                    position: "absolute", top: -3, right: -3,
+                                    width: 10, height: 10, borderRadius: 99,
+                                    background: C.red, border: `2px solid ${C.surface}`,
+                                }} />
+                            )}
+                        </button>
+
                         {/* PDF Export */}
                         <button
                             onClick={handleExportPDF}
                             disabled={exporting}
                             style={{
                                 display: "flex", alignItems: "center", gap: 6,
-                                padding: "6px 12px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
-                                borderRadius: 8, border: `0.5px solid ${C.border}`,
-                                background: C.surface, color: C.text2, cursor: exporting ? "wait" : "pointer",
+                                padding: "7px 14px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
+                                borderRadius: 8, border: `1px solid ${C.border}`,
+                                background: C.surface, color: C.text1, cursor: exporting ? "wait" : "pointer",
                                 opacity: exporting ? 0.6 : 1,
                                 transition: "all 0.15s ease",
                             }}
                             title="Baixar PDF"
                         >
-                            <Download size={14} strokeWidth={1.5} color={C.textMuted} />
+                            <Download size={14} strokeWidth={1.5} color={C.blue} />
                             {exporting ? "Gerando..." : "PDF"}
                         </button>
                     </div>
                 </div>
 
-                {/* ── KPI Cards ───────────────────────────────── */}
+                {/* ── Notifications Banner ─────────────────────── */}
+                {(payablesSummary?.overdue > 0 || receivablesSummary?.overdue > 0) && (
+                    <div style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: "12px 20px",
+                        background: "#FFF7ED", border: `1px solid #FED7AA`, borderRadius: 12,
+                    }}>
+                        <AlertTriangle size={18} strokeWidth={1.8} color={C.amber} />
+                        <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#000" }}>Atencao: contas vencidas</p>
+                            <p style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>
+                                {payablesSummary?.overdue > 0 && <span style={{ marginRight: 16 }}>A Pagar: <strong style={{ color: C.red }}>{fmt(payablesSummary.overdue)}</strong></span>}
+                                {receivablesSummary?.overdue > 0 && <span>A Receber: <strong style={{ color: C.red }}>{fmt(receivablesSummary.overdue)}</strong></span>}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── KPI Cards (colored left border) ─────────── */}
                 <div style={{
                     display: "grid",
                     gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
-                    gap: 12,
+                    gap: 14,
                 }}>
                     {kpis.map((kpi) => (
-                        <div key={kpi.id} style={cardStyle}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                                <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={16} />
-                                <MoreHorizontal size={14} strokeWidth={1.2} color={C.textMuted} style={{ cursor: "pointer" }} />
+                        <div key={kpi.id} style={{
+                            ...cardStyle,
+                            borderLeft: `4px solid ${kpi.iconColor}`,
+                            paddingLeft: 18,
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                                <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
                             </div>
-                            <p style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.textMuted, marginBottom: 4 }}>{kpi.label}</p>
-                            <p style={{ fontSize: 22, fontWeight: 600, color: C.text1, letterSpacing: "-0.01em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
+                            <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
                                 {kpi.value}
                             </p>
-                            <p style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>{kpi.detail}</p>
+                            <p style={{ fontSize: 12, color: C.text2, marginTop: 8, fontWeight: 500 }}>{kpi.detail}</p>
                         </div>
                     ))}
                 </div>
 
                 {/* ── Tab Bar (pill style) ─────────────────────── */}
-                <div style={{ display: "flex", background: C.borderLight, borderRadius: 8, padding: 3, gap: 2 }}>
+                <div style={{ display: "flex", background: C.borderLight, borderRadius: 10, padding: 4, gap: 2 }}>
                     {TABS.map((tab) => {
                         const isActive = activeTab === tab.id;
                         const TabIcon = tab.icon;
@@ -586,16 +630,16 @@ export default function CompanyDashboard() {
                                 onClick={() => setActiveTab(tab.id)}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 6,
-                                    padding: "6px 14px", border: "none", borderRadius: 6,
-                                    fontSize: 12, fontWeight: isActive ? 500 : 400, fontFamily: FONT,
-                                    color: isActive ? C.text1 : C.textMuted,
+                                    padding: "8px 16px", border: "none", borderRadius: 8,
+                                    fontSize: 13, fontWeight: isActive ? 600 : 400, fontFamily: FONT,
+                                    color: isActive ? "#000" : C.textMuted,
                                     background: isActive ? C.surface : "transparent",
-                                    boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                                    boxShadow: isActive ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
                                     cursor: "pointer",
                                     transition: "all 0.15s ease",
                                 }}
                             >
-                                <TabIcon size={14} strokeWidth={1.2} />
+                                <TabIcon size={15} strokeWidth={isActive ? 1.8 : 1.3} />
                                 {(!isMobile || isActive) && <span>{tab.label}</span>}
                             </button>
                         );
@@ -618,7 +662,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                                     <div>
-                                        <p style={{ fontSize: 18, fontWeight: 600, color: C.text1 }}>Fluxo de Caixa</p>
+                                        <p style={{ fontSize: 18, fontWeight: 700, color: "#000" }}>Fluxo de Caixa</p>
                                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{dateLabel}</p>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -688,7 +732,7 @@ export default function CompanyDashboard() {
                         }}>
                             {/* Projecao de Saldo — Area Chart */}
                             <div style={cardStyle}>
-                                <p style={{ fontSize: 16, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Saldo Acumulado</p>
+                                <p style={{ fontSize: 16, fontWeight: 700, color: "#000", marginBottom: 16 }}>Saldo Acumulado</p>
                                 <div style={{ height: chartHeight }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
@@ -711,7 +755,7 @@ export default function CompanyDashboard() {
 
                             {/* DRE */}
                             <div style={cardStyle}>
-                                <p style={{ fontSize: 16, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Resultado (DRE)</p>
+                                <p style={{ fontSize: 16, fontWeight: 700, color: "#000", marginBottom: 16 }}>Resultado (DRE)</p>
 
                                 {(!dreSummary || dreSummary.length === 0) ? (
                                     <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "40px 0", fontStyle: "italic" }}>
@@ -738,6 +782,84 @@ export default function CompanyDashboard() {
                             </div>
                         </div>
 
+                        {/* ── Row 2.5: Pie Despesas + Receita vs Despesa comparison ── */}
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                            gap: 16,
+                        }}>
+                            {/* Pie Chart — Despesas por Grupo */}
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                                    <IconBadge icon={PieChartIcon} color={C.red} bg={C.redSoft} size={18} />
+                                    <p style={{ fontSize: 16, fontWeight: 700, color: "#000" }}>Despesas por Grupo</p>
+                                </div>
+                                {(() => {
+                                    const expenseGroups = dre.groups
+                                        .filter((g) => g.total < 0)
+                                        .map((g) => ({ name: g.name, value: Math.abs(g.total) }));
+                                    if (expenseGroups.length === 0) {
+                                        return <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "40px 0", fontStyle: "italic" }}>Sem despesas no periodo</p>;
+                                    }
+                                    return (
+                                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                            <ResponsiveContainer width={isMobile ? "100%" : 180} height={180}>
+                                                <RechartsPie>
+                                                    <Pie data={expenseGroups} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} strokeWidth={0}>
+                                                        {expenseGroups.map((_e, idx) => (
+                                                            <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip formatter={(v: number) => fmt(v)} contentStyle={tooltipStyle} />
+                                                </RechartsPie>
+                                            </ResponsiveContainer>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                                                {expenseGroups.map((g, idx) => (
+                                                    <div key={g.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                        <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[idx % PIE_COLORS.length], flexShrink: 0 }} />
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <p style={{ fontSize: 12, fontWeight: 500, color: "#000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{g.name}</p>
+                                                            <p style={{ fontSize: 11, color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmt(g.value)}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Bar Chart — Receitas vs Despesas side by side */}
+                            <div style={cardStyle}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                                    <IconBadge icon={BarChart2} color={C.blue} bg={C.blueLight} size={18} />
+                                    <p style={{ fontSize: 16, fontWeight: 700, color: "#000" }}>Receitas vs Despesas</p>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <div style={{ width: 10, height: 10, borderRadius: 3, background: C.green }} />
+                                        <span style={{ fontSize: 12, fontWeight: 500, color: C.text2 }}>Receitas</span>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <div style={{ width: 10, height: 10, borderRadius: 3, background: C.red }} />
+                                        <span style={{ fontSize: 12, fontWeight: 500, color: C.text2 }}>Despesas</span>
+                                    </div>
+                                </div>
+                                <div style={{ height: chartHeight }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="20%">
+                                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={C.borderLight} />
+                                            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} dy={8} />
+                                            <YAxis tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={40} />
+                                            <Tooltip formatter={(v: number, n: string) => [fmt(v), n]} contentStyle={tooltipStyle} />
+                                            <Bar dataKey="receitas" name="Receitas" fill={C.green} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                                            <Bar dataKey="despesas" name="Despesas" fill={C.red} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* ── Row 3: Contas Vencidas + Saude + Config */}
                         <div style={{
                             display: "grid",
@@ -748,7 +870,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={Clock} color={C.red} bg={C.redSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Contas Vencidas</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Contas Vencidas</p>
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -767,7 +889,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={Activity} color={C.green} bg={C.greenSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Saude Financeira</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Saude Financeira</p>
                                 </div>
                                 {(() => {
                                     const score = totalPayables > 0 ? Math.min(100, Math.round(((accountsBalance || 0) / totalPayables) * 100)) : 100;
@@ -800,7 +922,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={Settings2} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Configuracao</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Configuracao</p>
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                                     {[
@@ -835,38 +957,24 @@ export default function CompanyDashboard() {
                         <div style={{
                             display: "grid",
                             gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr",
-                            gap: 16,
+                            gap: 14,
                         }}>
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                                    <IconBadge icon={DollarSign} color={C.green} bg={C.greenSoft} size={18} />
+                            {[
+                                { label: "Receita Total", value: fmt(rev.totalRevenue), icon: DollarSign, iconBg: C.greenSoft, iconColor: C.green, detail: dateLabel },
+                                { label: "Transacoes", value: String(rev.totalTransactions), icon: Receipt, iconBg: C.blueLight, iconColor: C.blue, detail: "Vendas no periodo" },
+                                { label: "Ticket Medio", value: fmt(rev.totalTransactions > 0 ? rev.totalRevenue / rev.totalTransactions : 0), icon: Target, iconBg: C.blueLight, iconColor: C.blue, detail: "Por transacao" },
+                            ].map((kpi) => (
+                                <div key={kpi.label} style={{ ...cardStyle, borderLeft: `4px solid ${kpi.iconColor}`, paddingLeft: 18 }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                                        <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
+                                    </div>
+                                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
+                                    <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                        {kpi.value}
+                                    </p>
+                                    <p style={{ fontSize: 12, color: C.text2, marginTop: 8, fontWeight: 500 }}>{kpi.detail}</p>
                                 </div>
-                                <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>Receita Total</p>
-                                <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                    {fmt(rev.totalRevenue)}
-                                </p>
-                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{dateLabel}</p>
-                            </div>
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                                    <IconBadge icon={ShoppingBag} color={C.blue} bg={C.blueLight} size={18} />
-                                </div>
-                                <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>Transacoes</p>
-                                <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                    {rev.totalTransactions}
-                                </p>
-                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>Vendas no periodo</p>
-                            </div>
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                                    <IconBadge icon={Target} color={C.blue} bg={C.blueLight} size={18} />
-                                </div>
-                                <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>Ticket Medio</p>
-                                <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                    {fmt(rev.totalTransactions > 0 ? rev.totalRevenue / rev.totalTransactions : 0)}
-                                </p>
-                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>Por transacao</p>
-                            </div>
+                            ))}
                         </div>
 
                         {/* Row: Vendas por Servico + Forma de Pagamento */}
@@ -878,8 +986,8 @@ export default function CompanyDashboard() {
                             {/* Vendas por Servico */}
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={PieChart} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Vendas por Servico</p>
+                                    <IconBadge icon={PieChartIcon} color={C.blue} bg={C.blueLight} size={16} />
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Vendas por Servico</p>
                                 </div>
                                 {rev.revenueByService.length === 0 ? (
                                     <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhuma receita no periodo</p>
@@ -921,7 +1029,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={CreditCard} color={C.green} bg={C.greenSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Forma de Pagamento</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Forma de Pagamento</p>
                                 </div>
                                 {rev.revenueByPaymentMethod.length === 0 ? (
                                     <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
@@ -957,7 +1065,7 @@ export default function CompanyDashboard() {
                                                         </div>
                                                     </div>
                                                     <div style={{ textAlign: "right" }}>
-                                                        <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, fontVariantNumeric: "tabular-nums" }}>{fmt(pm.total)}</p>
+                                                        <p style={{ fontSize: 14, fontWeight: 600, color: "#000", fontVariantNumeric: "tabular-nums" }}>{fmt(pm.total)}</p>
                                                         <p style={{ fontSize: 11, fontWeight: 600, color: dotColor }}>{pm.percentage.toFixed(1)}%</p>
                                                     </div>
                                                 </div>
@@ -970,7 +1078,7 @@ export default function CompanyDashboard() {
 
                         {/* Revenue chart (bar) */}
                         <div style={cardStyle}>
-                            <p style={{ fontSize: 16, fontWeight: 600, color: C.text1, marginBottom: 16 }}>Receitas no Periodo</p>
+                            <p style={{ fontSize: 16, fontWeight: 700, color: "#000", marginBottom: 16 }}>Receitas no Periodo</p>
                             <div style={{ height: chartHeight }}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData.filter((d: any) => d.receitas > 0)} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="30%">
@@ -1015,7 +1123,7 @@ export default function CompanyDashboard() {
                             {dre.groups.length === 0 ? (
                                 <div style={{ textAlign: "center", padding: "48px 0" }}>
                                     <FileText size={32} strokeWidth={1.5} color={C.textMuted} style={{ margin: "0 auto 12px" }} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Nenhuma transacao categorizada</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Nenhuma transacao categorizada</p>
                                     <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Categorize transacoes na conciliacao para visualizar o DRE.</p>
                                 </div>
                             ) : (
@@ -1180,21 +1288,20 @@ export default function CompanyDashboard() {
                             gap: 16,
                         }}>
                             {[
-                                { label: "Faturamento", value: fmt(op.revenue), icon: DollarSign, iconBg: C.blueLight, iconColor: C.blue, delta: op.revenue > 0 ? 12.3 : 0, detail: `${op.salesCount} transacoes` },
-                                { label: "Ticket Medio", value: fmt(op.avgTicket), icon: Target, iconBg: C.blueLight, iconColor: C.blue, delta: 0, detail: "Por venda" },
-                                { label: "N. de Vendas", value: String(op.salesCount), icon: ShoppingBag, iconBg: C.greenSoft, iconColor: C.green, delta: 0, detail: fmtCompact(op.revenue) },
-                                { label: "Margem", value: `${op.margin.toFixed(1)}%`, icon: BarChart2, iconBg: op.margin >= 0 ? C.greenSoft : C.redSoft, iconColor: op.margin >= 0 ? C.green : C.red, delta: op.margin, detail: `Despesas: ${fmtCompact(op.expenses)}` },
+                                { label: "Faturamento", value: fmt(op.revenue), icon: DollarSign, iconBg: C.blueLight, iconColor: C.blue, detail: `${op.salesCount} transacoes` },
+                                { label: "Ticket Medio", value: fmt(op.avgTicket), icon: Target, iconBg: C.blueLight, iconColor: C.blue, detail: "Por venda" },
+                                { label: "N. de Vendas", value: String(op.salesCount), icon: ShoppingBag, iconBg: C.greenSoft, iconColor: C.green, detail: fmtCompact(op.revenue) },
+                                { label: "Margem", value: `${op.margin.toFixed(1)}%`, icon: BarChart2, iconBg: op.margin >= 0 ? C.greenSoft : C.redSoft, iconColor: op.margin >= 0 ? C.green : C.red, detail: `Despesas: ${fmtCompact(op.expenses)}` },
                             ].map((kpi) => (
-                                <div key={kpi.label} style={cardStyle}>
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                <div key={kpi.label} style={{ ...cardStyle, borderLeft: `4px solid ${kpi.iconColor}`, paddingLeft: 18 }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                                         <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
-                                        <MoreHorizontal size={16} strokeWidth={1.5} color={C.textMuted} />
                                     </div>
-                                    <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
+                                    <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
                                         {kpi.value}
                                     </p>
-                                    <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{kpi.detail}</p>
+                                    <p style={{ fontSize: 12, color: C.text2, marginTop: 8, fontWeight: 500 }}>{kpi.detail}</p>
                                 </div>
                             ))}
                         </div>
@@ -1205,7 +1312,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={AlertTriangle} color="#F59E0B" bg="#FEF3C7" size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Inadimplencia</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Inadimplencia</p>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
                                     <div style={{ position: "relative", width: 104, height: 104, flexShrink: 0 }}>
@@ -1244,7 +1351,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={Activity} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Resumo</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Resumo</p>
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1285,7 +1392,7 @@ export default function CompanyDashboard() {
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={Users} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Top Clientes</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Top Clientes</p>
                                 </div>
                                 {op.topClients.length === 0 ? (
                                     <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
@@ -1316,8 +1423,8 @@ export default function CompanyDashboard() {
                             {/* Top Despesas */}
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={PieChart} color={C.red} bg={C.redSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>Top Despesas</p>
+                                    <IconBadge icon={PieChartIcon} color={C.red} bg={C.redSoft} size={16} />
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Top Despesas</p>
                                 </div>
                                 {op.topExpenses.length === 0 ? (
                                     <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
@@ -1366,12 +1473,12 @@ export default function CompanyDashboard() {
                                 { label: "Saidas", value: fmt(bank.totalOut), icon: ArrowDownRight, iconBg: C.redSoft, iconColor: C.red },
                                 { label: "Movimentacoes", value: String(bank.totalMovements), icon: CreditCard, iconBg: C.blueLight, iconColor: C.blue },
                             ].map((kpi) => (
-                                <div key={kpi.label} style={cardStyle}>
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                <div key={kpi.label} style={{ ...cardStyle, borderLeft: `4px solid ${kpi.iconColor}`, paddingLeft: 18 }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                                         <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
                                     </div>
-                                    <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginBottom: 6 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 28, fontWeight: 700, color: C.text1, letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
+                                    <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
                                         {kpi.value}
                                     </p>
                                 </div>
@@ -1382,7 +1489,7 @@ export default function CompanyDashboard() {
                         {bank.accounts.length === 0 ? (
                             <div style={{ ...cardStyle, padding: 40, textAlign: "center" }}>
                                 <IconBadge icon={Building2} color={C.textMuted} bg={C.borderLight} size={24} />
-                                <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginTop: 16 }}>Nenhuma conta bancaria cadastrada</p>
+                                <p style={{ fontSize: 14, fontWeight: 600, color: "#000", marginTop: 16 }}>Nenhuma conta bancaria cadastrada</p>
                                 <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Cadastre contas em Financeiro &gt; Contas Bancarias</p>
                             </div>
                         ) : (
@@ -1407,7 +1514,7 @@ export default function CompanyDashboard() {
                 {activeTab === "config" && (
                     <div style={{ ...cardStyle, padding: 40, textAlign: "center" }}>
                         <IconBadge icon={Settings2} color={C.textMuted} bg={C.borderLight} size={24} />
-                        <p style={{ fontSize: 14, fontWeight: 600, color: C.text1, marginTop: 16 }}>Configuracoes da Empresa</p>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "#000", marginTop: 16 }}>Configuracoes da Empresa</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Em desenvolvimento</p>
                     </div>
                 )}
