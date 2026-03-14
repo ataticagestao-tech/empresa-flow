@@ -73,7 +73,7 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                         <FormItem>
                             <FormLabel>Categoria (Plano de Contas)</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || "none"}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhuma --</SelectItem>
                                     {categories?.map((c: any) => (
@@ -98,7 +98,7 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                         <FormItem>
                             <FormLabel>Projeto</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || "none"}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhum --</SelectItem>
                                     {projects?.map((p: any) => (
@@ -118,7 +118,7 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                         <FormItem>
                             <FormLabel>Departamento</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || "none"}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhum --</SelectItem>
                                     {departments?.map((d: any) => (

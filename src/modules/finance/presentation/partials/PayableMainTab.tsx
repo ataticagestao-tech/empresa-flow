@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Plus, Loader2, Paperclip, Check, ChevronsUpDown, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Plus, Loader2, Paperclip, Check, ChevronsUpDown, AlertTriangle, Upload } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -24,6 +24,14 @@ interface PayableMainTabProps {
     form: UseFormReturn<AccountsPayable>;
     handleFileUpload?: (file: File) => Promise<void>;
     isUploading?: boolean;
+}
+
+function RequiredLabel({ children }: { children: React.ReactNode }) {
+    const text = String(children);
+    if (text.endsWith(" *")) {
+        return <FormLabel>{text.slice(0, -2)} <span className="text-red-500">*</span></FormLabel>;
+    }
+    return <FormLabel>{children}</FormLabel>;
 }
 
 export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableMainTabProps) {
@@ -113,7 +121,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
                         <div className="flex items-center justify-between">
-                            <FormLabel>Fornecedor *</FormLabel>
+                            <RequiredLabel>Fornecedor *</RequiredLabel>
                             <Button type="button" variant="ghost" className="h-auto p-0 text-xs text-green-600" onClick={() => setIsSupplierSheetOpen(true)}>
                                 <Plus className="w-3" /> Novo
                             </Button>
@@ -121,7 +129,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
                             <PopoverTrigger asChild>
                                 <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", !field.value && "text-muted-foreground")}>
                                         {field.value ? suppliers?.find(s => s.id === field.value)?.razao_social || "Selecione..." : "Selecione o fornecedor..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
@@ -157,8 +165,8 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         name="description"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Descrição *</FormLabel>
-                                <FormControl><Input placeholder="Ex: Aluguel janeiro" {...field} /></FormControl>
+                                <RequiredLabel>Descrição *</RequiredLabel>
+                                <FormControl><Input className="bg-white" placeholder="Ex: Aluguel janeiro" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -170,9 +178,10 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                     name="amount"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Valor (R$) *</FormLabel>
+                            <RequiredLabel>Valor (R$) *</RequiredLabel>
                             <FormControl>
                                 <Input
+                                    className="bg-white"
                                     type="number"
                                     step="0.01"
                                     min="0.01"
@@ -197,11 +206,11 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                     name="due_date"
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <FormLabel>Vencimento *</FormLabel>
+                            <RequiredLabel>Vencimento *</RequiredLabel>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
                                             {field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione</span>}
                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                         </Button>
@@ -221,11 +230,11 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                     name="competencia"
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <FormLabel>Competência *</FormLabel>
+                            <RequiredLabel>Competência *</RequiredLabel>
                             <Popover open={competenciaOpen} onOpenChange={setCompetenciaOpen}>
                                 <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
                                             {field.value || <span>Selecione mês/ano</span>}
                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                         </Button>
@@ -273,11 +282,11 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 name="category_id"
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
-                        <FormLabel>Categoria (Plano de Contas) *</FormLabel>
+                        <RequiredLabel>Categoria (Plano de Contas) *</RequiredLabel>
                         <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                             <PopoverTrigger asChild>
                                 <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", !field.value && "text-muted-foreground")}>
                                         {field.value ? (() => { const c = categories?.find((c: any) => c.id === field.value); return c ? `${c.code} - ${c.name}` : "Selecione..."; })() : "Selecione a categoria..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
@@ -318,9 +327,9 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         name="pix_key_type"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Tipo de Chave PIX *</FormLabel>
+                                <RequiredLabel>Tipo de Chave PIX *</RequiredLabel>
                                 <Select onValueChange={field.onChange} value={field.value || ""}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="cpf">CPF</SelectItem>
                                         <SelectItem value="cnpj">CNPJ</SelectItem>
@@ -373,6 +382,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                                 <FormItem>
                                     <FormControl>
                                         <Input
+                                            className="bg-white"
                                             placeholder={placeholders[pixType || ""] || "Selecione o tipo acima"}
                                             {...field}
                                             value={field.value || ""}
@@ -394,8 +404,8 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                     name="barcode"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Código de Barras *</FormLabel>
-                            <FormControl><Input placeholder="Linha digitável do boleto" {...field} value={field.value || ""} /></FormControl>
+                            <RequiredLabel>Código de Barras *</RequiredLabel>
+                            <FormControl><Input className="bg-white" placeholder="Linha digitável do boleto" {...field} value={field.value || ""} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -414,7 +424,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                             <Popover open={paymentMethodOpen} onOpenChange={setPaymentMethodOpen}>
                                 <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", (!field.value || field.value === "none") && "text-muted-foreground")}>
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", (!field.value || field.value === "none") && "text-muted-foreground")}>
                                             {field.value && field.value !== "none" ? PAYMENT_METHODS.find(m => m.value === field.value)?.label || "Selecione..." : "Selecione..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -451,7 +461,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                             <Popover open={bankAccountOpen} onOpenChange={setBankAccountOpen}>
                                 <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", (!field.value || field.value === "none") && "text-muted-foreground")}>
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", (!field.value || field.value === "none") && "text-muted-foreground")}>
                                             {field.value && field.value !== "none" ? bankAccounts?.find(b => b.id === field.value)?.name || "Selecione..." : "Selecione..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
@@ -491,7 +501,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                     name="invoice_number"
                     render={({ field }) => (
                         <FormItem>
-                            <FormControl><Input placeholder="Número da NF (importante para controle fiscal)" className="border-amber-200 focus:border-amber-400" {...field} value={field.value || ""} /></FormControl>
+                            <FormControl><Input placeholder="Número da NF (importante para controle fiscal)" className="bg-white border-amber-200 focus:border-amber-400" {...field} value={field.value || ""} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -505,7 +515,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>Detalhes Adicionais</FormLabel>
-                        <FormControl><Textarea placeholder="Observações sobre esta conta..." {...field} value={field.value || ""} /></FormControl>
+                        <FormControl><Textarea className="bg-white" placeholder="Observações sobre esta conta..." {...field} value={field.value || ""} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -513,7 +523,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
 
             {/* 9. Anexar Boleto */}
             {handleFileUpload && (
-                <div className="flex items-center gap-2 p-4 border border-dashed rounded-lg bg-[#F8FAFC]">
+                <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-5">
                     <Input
                         type="file"
                         className="hidden"
@@ -524,18 +534,52 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         }}
                         disabled={isUploading}
                     />
-                    <Button type="button" variant="secondary" onClick={() => document.getElementById("file-upload-payable")?.click()} disabled={isUploading}>
-                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
-                        {fileUrl ? "Trocar Arquivo" : "Anexar Boleto"}
-                    </Button>
-                    {fileUrl && (
-                        <div className="flex flex-col ml-2">
-                            <span className="text-xs text-green-600 font-medium">Anexado</span>
-                            <a href={fileUrl || "#"} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
-                                Visualizar
-                            </a>
-                        </div>
-                    )}
+                    <div className="flex flex-col items-center gap-3 text-center">
+                        {!fileUrl ? (
+                            <>
+                                <div className="rounded-full bg-primary/10 p-3">
+                                    <Upload className="h-6 w-6 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">Anexar Boleto / Comprovante</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">PDF, imagem ou documento</p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="bg-white"
+                                    onClick={() => document.getElementById("file-upload-payable")?.click()}
+                                    disabled={isUploading}
+                                >
+                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
+                                    Selecionar Arquivo
+                                </Button>
+                            </>
+                        ) : (
+                            <div className="flex items-center gap-4 w-full">
+                                <div className="rounded-full bg-green-100 p-2.5">
+                                    <Check className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="text-sm font-semibold text-green-700">Arquivo anexado</p>
+                                    <a href={fileUrl || "#"} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                                        Visualizar arquivo
+                                    </a>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-white"
+                                    onClick={() => document.getElementById("file-upload-payable")?.click()}
+                                    disabled={isUploading}
+                                >
+                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
+                                    Trocar
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
