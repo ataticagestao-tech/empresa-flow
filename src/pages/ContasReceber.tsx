@@ -979,6 +979,23 @@ export default function ContasReceber() {
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
+                                                    {bill.status === "paid" && (
+                                                        <DropdownMenuItem asChild onSelect={e => e.preventDefault()}>
+                                                            <div style={{ padding: 0 }}>
+                                                                <BotaoPagarComRecibo
+                                                                    contaId={bill.id}
+                                                                    tipo="receivable"
+                                                                    descricao={bill.description}
+                                                                    valor={Number(bill.amount)}
+                                                                    fornecedorOuCliente={bill.client?.nome_fantasia || bill.client?.razao_social}
+                                                                    vencimento={bill.due_date}
+                                                                    categoria={bill.category?.name}
+                                                                    onSuccess={() => refetch()}
+                                                                    apenasRecibo
+                                                                />
+                                                            </div>
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem onClick={() => handleDelete(bill)} style={{ color: T.red }}>
                                                         <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir

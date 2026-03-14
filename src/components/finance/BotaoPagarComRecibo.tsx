@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { pagarEGerarRecibo } from "@/lib/recibos/recibos-service";
+import { pagarEGerarRecibo, criarRecibo } from "@/lib/recibos/recibos-service";
 
 interface Props {
     contaId: string;
@@ -14,6 +14,7 @@ interface Props {
     categoria?: string;
     emailDestinatario?: string | null;
     onSuccess?: () => void;
+    apenasRecibo?: boolean;
 }
 
 export function BotaoPagarComRecibo({
@@ -23,6 +24,7 @@ export function BotaoPagarComRecibo({
     valor,
     emailDestinatario,
     onSuccess,
+    apenasRecibo = false,
 }: Props) {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
@@ -51,7 +53,7 @@ export function BotaoPagarComRecibo({
     };
 
     const confirmar = async () => {
-        if (!selectedBankId) {
+        if (!apenasRecibo && !selectedBankId) {
             setResultado({ ok: false, msg: "Selecione uma conta bancária." });
             setTimeout(() => setResultado(null), 3000);
             return;
@@ -59,25 +61,40 @@ export function BotaoPagarComRecibo({
 
         setIsPending(true);
         try {
-            const result = await pagarEGerarRecibo(
-                activeClient,
-                contaId,
-                selectedBankId,
-                tipo,
-                {
+            let result;
+            if (apenasRecibo) {
+                result = await criarRecibo(activeClient, {
+                    account_id: contaId,
+                    tipo,
+                    bank_account_id: selectedBankId || undefined,
                     enviar_email: enviarEmail && !!email.trim(),
                     email_destino: email.trim() || undefined,
-                }
-            );
+                });
+            } else {
+                result = await pagarEGerarRecibo(
+                    activeClient,
+                    contaId,
+                    selectedBankId,
+                    tipo,
+                    {
+                        enviar_email: enviarEmail && !!email.trim(),
+                        email_destino: email.trim() || undefined,
+                    }
+                );
+            }
 
             if (!result.ok) throw new Error(result.erro || "Erro ao processar.");
 
             setModal(false);
             setResultado({
                 ok: true,
-                msg: enviarEmail && email.trim()
-                    ? "Pagamento confirmado, comprovante gerado e e-mail enviado!"
-                    : "Pagamento confirmado e comprovante gerado!",
+                msg: apenasRecibo
+                    ? (enviarEmail && email.trim()
+                        ? "Comprovante gerado e e-mail enviado!"
+                        : "Comprovante gerado com sucesso!")
+                    : (enviarEmail && email.trim()
+                        ? "Pagamento confirmado, comprovante gerado e e-mail enviado!"
+                        : "Pagamento confirmado e comprovante gerado!"),
             });
 
             queryClient.invalidateQueries({ queryKey: ["accounts_payable"] });
@@ -129,7 +146,7 @@ export function BotaoPagarComRecibo({
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                     <circle cx="7" cy="7" r="5.5" /><path d="M4 7l2.5 2.5L10 5" />
                 </svg>
-                {isPending ? "Processando..." : "Pagar + Recibo"}
+                {isPending ? "Processando..." : apenasRecibo ? "Gerar Recibo" : "Pagar + Recibo"}
             </button>
 
             {modal && (
@@ -142,7 +159,7 @@ export function BotaoPagarComRecibo({
                         onClick={e => e.stopPropagation()}
                     >
                         <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>
-                            Confirmar {tipo === "payable" ? "pagamento" : "recebimento"}
+                            {apenasRecibo ? "Gerar Comprovante" : `Confirmar ${tipo === "payable" ? "pagamento" : "recebimento"}`}
                         </div>
                         <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4, lineHeight: 1.5 }}>
                             <strong>{descricao}</strong>
@@ -153,7 +170,7 @@ export function BotaoPagarComRecibo({
 
                         <div style={{ marginBottom: 16 }}>
                             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-                                Conta Bancária / Caixa
+                                Conta Bancária / Caixa {apenasRecibo && <span style={{ fontWeight: 400, color: "#94a3b8" }}>(opcional)</span>}
                             </label>
                             <select
                                 value={selectedBankId}
@@ -201,7 +218,10 @@ export function BotaoPagarComRecibo({
                         </div>
 
                         <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16, lineHeight: 1.5 }}>
-                            O pagamento será marcado como <strong>Pago</strong>, o saldo da conta será atualizado e um comprovante PDF será gerado automaticamente.
+                            {apenasRecibo
+                                ? "Um comprovante PDF será gerado e poderá ser baixado ou enviado por e-mail."
+                                : <>O pagamento será marcado como <strong>Pago</strong>, o saldo da conta será atualizado e um comprovante PDF será gerado automaticamente.</>
+                            }
                         </div>
 
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -211,7 +231,7 @@ export function BotaoPagarComRecibo({
                             </button>
                             <button onClick={confirmar} disabled={isPending}
                                 style={{ padding: "9px 18px", borderRadius: 8, border: "none", background: "#2e7d32", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, opacity: isPending ? 0.7 : 1 }}>
-                                {isPending ? "Processando..." : "Confirmar pagamento"}
+                                {isPending ? "Processando..." : apenasRecibo ? "Gerar comprovante" : "Confirmar pagamento"}
                             </button>
                         </div>
                     </div>
