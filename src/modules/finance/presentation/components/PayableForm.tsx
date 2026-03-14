@@ -7,7 +7,6 @@ import { usePayableForm } from "../hooks/usePayableForm";
 import { PayableMainTab } from "../partials/PayableMainTab";
 import { PayableTaxTab } from "../partials/PayableTaxTab";
 import { PayableClassificationTab } from "../partials/PayableClassificationTab";
-import { PayableDetailsTab } from "../partials/PayableDetailsTab";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -34,13 +33,10 @@ export function PayableForm({ onSuccess, initialData }: PayableFormProps) {
                         <TabsTrigger value="classificacao" className="border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-red-50/10 rounded-none px-4 py-2">
                             Classificação
                         </TabsTrigger>
-                        <TabsTrigger value="detalhes" className="border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-red-50/10 rounded-none px-4 py-2">
-                            Detalhes
-                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="principal">
-                        <PayableMainTab form={form} />
+                        <PayableMainTab form={form} handleFileUpload={handleFileUpload} isUploading={isUploading} />
                     </TabsContent>
 
                     <TabsContent value="impostos">
@@ -49,10 +45,6 @@ export function PayableForm({ onSuccess, initialData }: PayableFormProps) {
 
                     <TabsContent value="classificacao">
                         <PayableClassificationTab form={form} />
-                    </TabsContent>
-
-                    <TabsContent value="detalhes">
-                        <PayableDetailsTab form={form} handleFileUpload={handleFileUpload} isUploading={isUploading} />
                     </TabsContent>
                 </Tabs>
 

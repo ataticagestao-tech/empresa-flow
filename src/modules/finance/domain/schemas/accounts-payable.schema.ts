@@ -27,6 +27,7 @@ export const AccountsPayableSchema = z.object({
     // Detalhes Pagamento
     payment_method: z.string().optional(), // 'boleto', 'pix', etc
     barcode: z.string().optional(),
+    pix_key: z.string().optional(),
     bank_account_id: z.string().uuid().optional().nullable(),
 
     // Competência (mês/ano de referência, ex: "03/2026")

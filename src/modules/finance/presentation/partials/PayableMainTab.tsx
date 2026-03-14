@@ -3,15 +3,15 @@ import { UseFormReturn } from "react-hook-form";
 import { AccountsPayable } from "../../domain/schemas/accounts-payable.schema";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { DatePicker } from "@/components/ui/date-picker"; // Assumindo existência ou usar Popover+Calendar
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon, Plus } from "lucide-react";
+import { CalendarIcon, Plus, Loader2, Paperclip } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -19,14 +19,15 @@ import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
 
 interface PayableMainTabProps {
     form: UseFormReturn<AccountsPayable>;
+    handleFileUpload?: (file: File) => Promise<void>;
+    isUploading?: boolean;
 }
 
-export function PayableMainTab({ form }: PayableMainTabProps) {
+export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableMainTabProps) {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false);
 
-    // Buscar Fornecedores
     const { data: suppliers } = useQuery({
         queryKey: ["suppliers", selectedCompany?.id],
         queryFn: async () => {
@@ -40,7 +41,6 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
         enabled: !!selectedCompany?.id
     });
 
-    // Buscar Contas Bancárias
     const { data: bankAccounts } = useQuery({
         queryKey: ["bank_accounts", selectedCompany?.id],
         queryFn: async () => {
@@ -54,8 +54,11 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
         enabled: !!selectedCompany?.id
     });
 
+    const fileUrl = form.watch("file_url");
+
     return (
         <div className="space-y-4 pt-4">
+            {/* Descrição */}
             <FormField
                 control={form.control}
                 name="description"
@@ -68,6 +71,7 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                 )}
             />
 
+            {/* Valor + Fornecedor */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
@@ -104,9 +108,7 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                             </div>
                             <Select onValueChange={field.onChange} value={field.value || "none"}>
                                 <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione..." />
-                                    </SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhum --</SelectItem>
@@ -121,6 +123,7 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                 />
             </div>
 
+            {/* Vencimento + Previsão + Conta Corrente */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                     control={form.control}
@@ -191,6 +194,7 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                 />
             </div>
 
+            {/* Competência + Forma Pagamento + Status */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                     control={form.control}
@@ -260,6 +264,87 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                     )}
                 />
             </div>
+
+            {/* Nota Fiscal + Código de Barras */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="invoice_number"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Nota Fiscal</FormLabel>
+                            <FormControl><Input placeholder="Número da NF" {...field} value={field.value || ""} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="barcode"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Código de Barras</FormLabel>
+                            <FormControl><Input placeholder="Linha digitável do boleto" {...field} value={field.value || ""} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            {/* Chave PIX */}
+            <FormField
+                control={form.control}
+                name="pix_key"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Chave PIX</FormLabel>
+                        <FormControl><Input placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" {...field} value={field.value || ""} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            {/* Observações */}
+            <FormField
+                control={form.control}
+                name="observations"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Detalhes Adicionais</FormLabel>
+                        <FormControl><Textarea placeholder="Observações sobre esta conta..." {...field} value={field.value || ""} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            {/* Anexar Boleto/Arquivo */}
+            {handleFileUpload && (
+                <div className="flex items-center gap-2 p-4 border border-dashed rounded-lg bg-[#F8FAFC]">
+                    <Input
+                        type="file"
+                        className="hidden"
+                        id="file-upload-payable"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file);
+                        }}
+                        disabled={isUploading}
+                    />
+                    <Button type="button" variant="secondary" onClick={() => document.getElementById("file-upload-payable")?.click()} disabled={isUploading}>
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
+                        {fileUrl ? "Trocar Arquivo" : "Anexar Boleto"}
+                    </Button>
+                    {fileUrl && (
+                        <div className="flex flex-col ml-2">
+                            <span className="text-xs text-green-600 font-medium">Anexado</span>
+                            <a href={fileUrl || "#"} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
+                                Visualizar
+                            </a>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <SupplierSheet isOpen={isSupplierSheetOpen} onClose={() => setIsSupplierSheetOpen(false)} />
         </div>
