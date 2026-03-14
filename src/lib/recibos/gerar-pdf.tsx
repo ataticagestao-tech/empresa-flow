@@ -8,9 +8,13 @@ export interface ReciboPDFData {
   categoria?: string;
   conta_bancaria?: string;
   data_pagamento: string;
+  data_hora_pagamento?: string; // data/hora completa: "14/03/2026 18:30"
   descricao: string;
   empresa_nome: string;
   empresa_cnpj?: string;
+  pagador_razao_social?: string; // razão social de quem paga (identifica no extrato)
+  barcode?: string;
+  chave_pix?: string;
   cor_primaria?: string;
   rodape_texto?: string;
   tipo?: "payable" | "receivable";
@@ -68,38 +72,36 @@ export async function gerarReciboPDF(data: ReciboPDFData): Promise<Blob> {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(200, 210, 220);
-  doc.text(`N.º ${data.numero}`, W - margin - badgeW + 6, 25);
+  doc.text(`N.o ${data.numero}`, W - margin - badgeW + 6, 25);
 
   y = 50;
 
-  // ── Status block (valor pago) ──
-  doc.setFillColor(240, 253, 244); // #f0fdf4
+  // ── Status block (valor) ──
+  doc.setFillColor(240, 253, 244);
   doc.roundedRect(margin, y, contentW, 28, 4, 4, "F");
-  doc.setDrawColor(187, 247, 208); // #bbf7d0
+  doc.setDrawColor(187, 247, 208);
   doc.roundedRect(margin, y, contentW, 28, 4, 4, "S");
 
-  // Check circle
-  doc.setFillColor(34, 197, 94); // #22c55e
+  doc.setFillColor(34, 197, 94);
   doc.circle(margin + 14, y + 14, 7, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text("✓", margin + 11.5, y + 17.5);
+  doc.text("V", margin + 11.8, y + 17.5);
 
-  // Status text
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(22, 163, 74); // #16a34a
+  doc.setTextColor(22, 163, 74);
   doc.text(statusLabel, margin + 26, y + 10);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.setTextColor(21, 128, 61); // #15803d
+  doc.setTextColor(21, 128, 61);
   doc.text(fmt(data.valor), margin + 26, y + 22);
 
   y += 38;
 
-  // ── Section title: Detalhes ──
+  // ── Section: Detalhes ──
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(cr, cg, cb);
@@ -110,54 +112,95 @@ export async function gerarReciboPDF(data: ReciboPDFData): Promise<Blob> {
   doc.line(margin, y, margin + contentW, y);
   y += 8;
 
-  // ── Data rows ──
+  // ── Montar linhas do comprovante ──
   const rows: { label: string; value: string }[] = [
-    { label: "Favorecido / Pagador", value: data.favorecido || "-" },
-    { label: "Descrição", value: data.descricao || "-" },
-    { label: "Data do Pagamento", value: data.data_pagamento },
-    ...(data.categoria ? [{ label: "Categoria", value: data.categoria }] : []),
-    ...(data.conta_bancaria ? [{ label: "Conta Bancária", value: data.conta_bancaria }] : []),
-    ...(data.forma_pagamento ? [{ label: "Forma de Pagamento", value: data.forma_pagamento }] : []),
+    { label: "Fornecedor", value: data.favorecido || "-" },
+    { label: "Valor", value: fmt(data.valor) },
   ];
 
+  // Código de barras OU Chave PIX
+  if (data.barcode) {
+    rows.push({ label: "Codigo de Barras", value: data.barcode });
+  }
+  if (data.chave_pix) {
+    rows.push({ label: "Chave PIX", value: data.chave_pix });
+  }
+
+  // Identificação no extrato (razão social do pagador)
+  if (data.pagador_razao_social) {
+    rows.push({ label: "Identificacao no Extrato", value: data.pagador_razao_social });
+  }
+
+  // Data/hora do envio
+  rows.push({ label: "Data/Hora do Pagamento", value: data.data_hora_pagamento || data.data_pagamento });
+
+  // Campos adicionais
+  if (data.descricao) {
+    rows.push({ label: "Descricao", value: data.descricao });
+  }
+  if (data.categoria) {
+    rows.push({ label: "Categoria", value: data.categoria });
+  }
+  if (data.forma_pagamento) {
+    rows.push({ label: "Forma de Pagamento", value: data.forma_pagamento });
+  }
+  if (data.conta_bancaria) {
+    rows.push({ label: "Conta Bancaria", value: data.conta_bancaria });
+  }
+
+  // ── Renderizar linhas ──
+  const labelCol = margin + 4;
+  const valueCol = margin + 62;
+  const valueMaxW = contentW - 66;
+
   rows.forEach((row, i) => {
-    // Zebra striping
     if (i % 2 === 0) {
-      doc.setFillColor(249, 250, 251); // #f9fafb
+      doc.setFillColor(249, 250, 251);
       doc.rect(margin, y - 4, contentW, 10, "F");
     }
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.setTextColor(107, 114, 128); // #6b7280
-    doc.text(row.label, margin + 4, y + 2);
+    doc.setTextColor(107, 114, 128);
+    doc.text(row.label, labelCol, y + 2);
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(26, 26, 26);
-    doc.text(row.value, margin + 68, y + 2);
 
-    // Separator line
-    doc.setDrawColor(243, 244, 246); // #f3f4f6
+    // Quebrar texto longo (barcode, pix, etc.)
+    const lines = doc.splitTextToSize(row.value, valueMaxW);
+    if (lines.length > 1) {
+      doc.text(lines[0], valueCol, y + 2);
+      for (let li = 1; li < lines.length; li++) {
+        y += 8;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(26, 26, 26);
+        doc.text(lines[li], valueCol, y + 2);
+      }
+    } else {
+      doc.text(row.value, valueCol, y + 2);
+    }
+
+    doc.setDrawColor(243, 244, 246);
     doc.setLineWidth(0.2);
     doc.line(margin, y + 6, margin + contentW, y + 6);
 
     y += 10;
   });
 
-  y += 10;
-
   // ── Footer ──
   const footerY = 277;
-  doc.setDrawColor(229, 231, 235); // #e5e7eb
+  doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.3);
   doc.line(margin, footerY, margin + contentW, footerY);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.setTextColor(156, 163, 175); // #9ca3af
+  doc.setTextColor(156, 163, 175);
   doc.text(
-    data.rodape_texto || "Documento gerado automaticamente pelo sistema Tática Gestão.",
+    data.rodape_texto || "Documento gerado automaticamente pelo sistema Tatica Gestao.",
     margin,
     footerY + 5
   );
@@ -165,7 +208,7 @@ export async function gerarReciboPDF(data: ReciboPDFData): Promise<Blob> {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(cr, cg, cb);
-  doc.text("Tática Gestão", W - margin, footerY + 5, { align: "right" });
+  doc.text("Tatica Gestao", W - margin, footerY + 5, { align: "right" });
 
   return doc.output("blob");
 }

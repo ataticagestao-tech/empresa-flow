@@ -60,16 +60,18 @@ export async function criarRecibo(
   // 2. Buscar parceiro (fornecedor ou cliente) separadamente
   let partnerName = conta.description ?? "Favorecido";
   let partnerEmail: string | null = null;
+  let partnerPix: string | null = null;
   const partnerId = conta[fkField];
   if (partnerId) {
     const { data: partner } = await supabase
       .from(fkTable)
-      .select("id, razao_social, nome_fantasia, email")
+      .select("id, razao_social, nome_fantasia, email, dados_bancarios_pix")
       .eq("id", partnerId)
       .single();
     if (partner) {
       partnerName = partner.nome_fantasia || partner.razao_social || partnerName;
       partnerEmail = partner.email;
+      partnerPix = partner.dados_bancarios_pix;
     }
   }
 
@@ -97,14 +99,16 @@ export async function criarRecibo(
 
   if (errNum || !numData) return { ok: false, erro: "Erro ao gerar número do recibo." };
 
-  // 6. Buscar dados da empresa
+  // 6. Buscar dados da empresa (razao_social identifica no extrato bancário)
   const { data: empresa } = await supabase
     .from("companies")
-    .select("razao_social, nome_fantasia, cnpj")
+    .select("razao_social, nome_fantasia, cnpj, dados_bancarios_pix")
     .eq("id", conta.company_id)
     .single();
 
   const empresaNome = empresa?.nome_fantasia || empresa?.razao_social || "Empresa";
+  // Razão social do pagador = empresa que fez o pagamento (identifica no extrato)
+  const pagadorRazaoSocial = empresa?.razao_social || empresa?.nome_fantasia;
 
   // 7. Buscar conta bancária (se fornecida)
   let contaBancariaStr: string | undefined;
@@ -118,6 +122,7 @@ export async function criarRecibo(
   }
 
   // 8. Montar dados do PDF
+  const dataPgto = new Date(conta[dateField] ?? conta.updated_at);
   const pdfData: ReciboPDFData = {
     numero: numData,
     valor: Number(conta.amount),
@@ -125,9 +130,14 @@ export async function criarRecibo(
     forma_pagamento: conta.payment_method ?? undefined,
     categoria: categoryName,
     conta_bancaria: contaBancariaStr,
-    data_pagamento: new Intl.DateTimeFormat("pt-BR").format(
-      new Date(conta[dateField] ?? conta.updated_at)
-    ),
+    data_pagamento: new Intl.DateTimeFormat("pt-BR").format(dataPgto),
+    data_hora_pagamento: new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    }).format(dataPgto),
+    barcode: conta.barcode || undefined,
+    chave_pix: partnerPix || empresa?.dados_bancarios_pix || undefined,
+    pagador_razao_social: pagadorRazaoSocial || undefined,
     descricao: conta.description ?? "",
     empresa_nome: empresaNome,
     empresa_cnpj: empresa?.cnpj ?? undefined,
