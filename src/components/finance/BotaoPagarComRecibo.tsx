@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -105,19 +106,21 @@ export function BotaoPagarComRecibo({
 
             onSuccess?.();
         } catch (err: any) {
-            console.error(err);
-            setResultado({ ok: false, msg: err.message || "Erro ao processar pagamento." });
+            console.error("Erro ao gerar recibo:", err);
+            setResultado({ ok: false, msg: err.message || "Erro ao processar." });
         } finally {
             setIsPending(false);
-            setTimeout(() => setResultado(null), 4000);
+            setTimeout(() => setResultado(null), 5000);
         }
     };
 
-    return (
+    // Toast e Modal renderizados via Portal no document.body
+    // para escapar do DropdownMenu do Radix que captura eventos
+    const portalContent = createPortal(
         <>
             {resultado && (
                 <div style={{
-                    position: "fixed", bottom: 24, right: 24, zIndex: 100,
+                    position: "fixed", bottom: 24, right: 24, zIndex: 9999,
                     background: resultado.ok ? "#0f172a" : "#fde8e8",
                     color: resultado.ok ? "#ffffff" : "#c62828",
                     padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500,
@@ -132,30 +135,13 @@ export function BotaoPagarComRecibo({
                 </div>
             )}
 
-            <button
-                onClick={openModal}
-                disabled={isPending}
-                style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "7px 14px", borderRadius: 7, border: "none",
-                    background: "#2e7d32", color: "#ffffff",
-                    fontSize: 13, fontWeight: 500, cursor: isPending ? "not-allowed" : "pointer",
-                    opacity: isPending ? 0.7 : 1, width: "100%",
-                }}
-            >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                    <circle cx="7" cy="7" r="5.5" /><path d="M4 7l2.5 2.5L10 5" />
-                </svg>
-                {isPending ? "Processando..." : apenasRecibo ? "Gerar Recibo" : "Pagar + Recibo"}
-            </button>
-
             {modal && (
                 <div
-                    style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}
+                    style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9998 }}
                     onClick={() => setModal(false)}
                 >
                     <div
-                        style={{ background: "#fff", borderRadius: 14, padding: 28, width: 440, border: "0.5px solid #e8e4dc" }}
+                        style={{ background: "#fff", borderRadius: 14, padding: 28, width: 440, maxWidth: "90vw", border: "0.5px solid #e8e4dc" }}
                         onClick={e => e.stopPropagation()}
                     >
                         <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>
@@ -237,6 +223,29 @@ export function BotaoPagarComRecibo({
                     </div>
                 </div>
             )}
+        </>,
+        document.body
+    );
+
+    return (
+        <>
+            <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); openModal(); }}
+                disabled={isPending}
+                style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "7px 14px", borderRadius: 7, border: "none",
+                    background: "#2e7d32", color: "#ffffff",
+                    fontSize: 13, fontWeight: 500, cursor: isPending ? "not-allowed" : "pointer",
+                    opacity: isPending ? 0.7 : 1, width: "100%",
+                }}
+            >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                    <circle cx="7" cy="7" r="5.5" /><path d="M4 7l2.5 2.5L10 5" />
+                </svg>
+                {isPending ? "Processando..." : apenasRecibo ? "Gerar Recibo" : "Pagar + Recibo"}
+            </button>
+            {portalContent}
         </>
     );
 }
