@@ -37,6 +37,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             status: "pending",
             recurrence: "none",
             barcode: "",
+            pix_key_type: undefined,
             pix_key: "",
             payment_method: "",
             observations: "",

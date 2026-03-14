@@ -20,6 +20,7 @@ export const AccountsPayableSchema = z.object({
 
     // Pagamento (chave PIX ou código de barras — ao menos 1)
     barcode: z.string().optional(),
+    pix_key_type: z.enum(['cpf', 'cnpj', 'telefone', 'email', 'aleatoria']).optional(),
     pix_key: z.string().optional(),
     payment_method: z.string().optional(),
     bank_account_id: z.string().uuid().optional().nullable(),

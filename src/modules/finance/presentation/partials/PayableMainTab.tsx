@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Plus, Loader2, Paperclip, Check, ChevronsUpDown, AlertTriangle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -309,19 +310,84 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 )}
             />
 
-            {/* 5. Chave PIX + Código de Barras (ao menos 1 obrigatório) */}
+            {/* 5. Chave PIX (tipo + valor) + Código de Barras (ao menos 1 obrigatório) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="pix_key"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Chave PIX *</FormLabel>
-                            <FormControl><Input placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <div className="space-y-2">
+                    <FormField
+                        control={form.control}
+                        name="pix_key_type"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Tipo de Chave PIX *</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value || ""}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="cpf">CPF</SelectItem>
+                                        <SelectItem value="cnpj">CNPJ</SelectItem>
+                                        <SelectItem value="telefone">Telefone</SelectItem>
+                                        <SelectItem value="email">E-mail</SelectItem>
+                                        <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="pix_key"
+                        render={({ field }) => {
+                            const pixType = form.watch("pix_key_type");
+                            const placeholders: Record<string, string> = {
+                                cpf: "000.000.000-00",
+                                cnpj: "00.000.000/0000-00",
+                                telefone: "+55 11 99999-9999",
+                                email: "exemplo@email.com",
+                                aleatoria: "Chave aleatória",
+                            };
+                            const masks: Record<string, (v: string) => string> = {
+                                cpf: (v) => {
+                                    v = v.replace(/\D/g, "").slice(0, 11);
+                                    if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+                                    if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+                                    if (v.length > 3) return v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+                                    return v;
+                                },
+                                cnpj: (v) => {
+                                    v = v.replace(/\D/g, "").slice(0, 14);
+                                    if (v.length > 12) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, "$1.$2.$3/$4-$5");
+                                    if (v.length > 8) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, "$1.$2.$3/$4");
+                                    if (v.length > 5) return v.replace(/(\d{2})(\d{3})(\d{1,3})/, "$1.$2.$3");
+                                    if (v.length > 2) return v.replace(/(\d{2})(\d{1,3})/, "$1.$2");
+                                    return v;
+                                },
+                                telefone: (v) => {
+                                    v = v.replace(/\D/g, "").slice(0, 13);
+                                    if (v.length > 10) return v.replace(/(\d{2})(\d{2})(\d{5})(\d{1,4})/, "+$1 $2 $3-$4");
+                                    if (v.length > 7) return v.replace(/(\d{2})(\d{2})(\d{1,5})/, "+$1 $2 $3");
+                                    if (v.length > 2) return v.replace(/(\d{2})(\d{1,2})/, "+$1 $2");
+                                    return v;
+                                },
+                            };
+                            return (
+                                <FormItem>
+                                    <FormControl>
+                                        <Input
+                                            placeholder={placeholders[pixType || ""] || "Selecione o tipo acima"}
+                                            {...field}
+                                            value={field.value || ""}
+                                            onChange={e => {
+                                                const mask = pixType ? masks[pixType] : undefined;
+                                                field.onChange(mask ? mask(e.target.value) : e.target.value);
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            );
+                        }}
+                    />
+                </div>
 
                 <FormField
                     control={form.control}
