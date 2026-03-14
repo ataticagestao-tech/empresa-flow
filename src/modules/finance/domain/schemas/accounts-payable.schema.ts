@@ -6,46 +6,39 @@ export const AccountsPayableSchema = z.object({
     id: z.string().uuid().optional(),
     company_id: z.string().uuid("Empresa obrigatória"),
 
-    // Dados Básicos
-    description: z.string().min(3, "Descrição muito curta").max(255),
-    supplier_id: z.string().uuid("Fornecedor obrigatório").nullable().optional(),
-    // Nota: nullable().optional() para permitir 'none' temporariamente ou avulso, 
-    // mas idealmente deveria ser obrigatório se a regra de negócio exigir. 
-    // No legado era opcional 'none'.
-
-    // Valores e Datas
+    // Dados Básicos (obrigatórios)
+    description: z.string().min(3, "Descrição obrigatória (mínimo 3 caracteres)").max(255),
+    supplier_id: z.string().min(1, "Fornecedor obrigatório"),
     amount: z.number().min(0.01, "Valor deve ser maior que zero"),
     due_date: z.date({ required_error: "Data de vencimento obrigatória" }),
-    issue_date: z.date().default(() => new Date()),
-    register_date: z.date().default(() => new Date()),
+    competencia: z.string().min(7, "Competência obrigatória (MM/AAAA)"),
 
-    // Classificação
-    category_id: z.string().uuid().optional(),
+    // Classificação (obrigatório)
+    category_id: z.string().min(1, "Categoria obrigatória"),
     department_id: z.string().uuid().optional(),
     project_id: z.string().uuid().optional(),
 
-    // Detalhes Pagamento
-    payment_method: z.string().optional(), // 'boleto', 'pix', etc
+    // Pagamento (chave PIX ou código de barras — ao menos 1)
     barcode: z.string().optional(),
     pix_key: z.string().optional(),
+    payment_method: z.string().optional(),
     bank_account_id: z.string().uuid().optional().nullable(),
+    invoice_number: z.string().optional(),
 
-    // Competência (mês/ano de referência, ex: "03/2026")
-    competencia: z.string().optional(),
+    // Datas opcionais
+    issue_date: z.date().optional().nullable(),
+    register_date: z.date().optional().nullable(),
+    payment_date: z.date().optional().nullable(),
 
     // Status e Recorrência
     status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'),
     recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).default('none'),
     observations: z.string().optional(),
 
-    // Pagamento Realizado
-    payment_date: z.date().optional().nullable(),
-
     // Arquivo
     file_url: z.string().optional().nullable(),
-    invoice_number: z.string().optional(),
 
-    // Impostos (Campos explícitos conforme tabela legada)
+    // Impostos
     pis_amount: z.number().optional().default(0),
     pis_retain: z.boolean().default(false),
     cofins_amount: z.number().optional().default(0),
@@ -58,6 +51,9 @@ export const AccountsPayableSchema = z.object({
     iss_retain: z.boolean().default(false),
     inss_amount: z.number().optional().default(0),
     inss_retain: z.boolean().default(false),
-});
+}).refine(
+    (data) => !!(data.barcode || data.pix_key),
+    { message: "Informe a Chave PIX ou o Código de Barras", path: ["pix_key"] }
+);
 
 export type AccountsPayable = z.infer<typeof AccountsPayableSchema>;
