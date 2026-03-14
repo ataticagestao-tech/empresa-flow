@@ -148,6 +148,101 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
 
                 <FormField
                     control={form.control}
+                    name="payment_date"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Previsão de Pagamento</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="bank_account_id"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Conta Corrente</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || "none"}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="none">-- Nenhuma --</SelectItem>
+                                    {bankAccounts?.map(b => (
+                                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                    control={form.control}
+                    name="competencia"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Competência</FormLabel>
+                            <FormControl>
+                                <Input
+                                    placeholder="MM/AAAA"
+                                    maxLength={7}
+                                    {...field}
+                                    value={field.value || ""}
+                                    onChange={e => {
+                                        let v = e.target.value.replace(/\D/g, "");
+                                        if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2, 6);
+                                        field.onChange(v);
+                                    }}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="payment_method"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Forma de Pagamento</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || "none"}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="none">-- Nenhuma --</SelectItem>
+                                    <SelectItem value="pix">PIX</SelectItem>
+                                    <SelectItem value="boleto">Boleto</SelectItem>
+                                    <SelectItem value="transferencia">Transferência</SelectItem>
+                                    <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                                    <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                    <SelectItem value="cheque">Cheque</SelectItem>
+                                    <SelectItem value="debito_automatico">Débito Automático</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
                     name="status"
                     render={({ field }) => (
                         <FormItem>
@@ -164,27 +259,6 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                         </FormItem>
                     )}
                 />
-
-                {form.watch("status") === "paid" && (
-                    <FormField
-                        control={form.control}
-                        name="bank_account_id"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Conta Bancária</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || undefined}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {bankAccounts?.map(b => (
-                                            <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                )}
             </div>
 
             <SupplierSheet isOpen={isSupplierSheetOpen} onClose={() => setIsSupplierSheetOpen(false)} />

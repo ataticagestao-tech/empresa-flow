@@ -29,6 +29,9 @@ export const AccountsPayableSchema = z.object({
     barcode: z.string().optional(),
     bank_account_id: z.string().uuid().optional().nullable(),
 
+    // Competência (mês/ano de referência, ex: "03/2026")
+    competencia: z.string().optional(),
+
     // Status e Recorrência
     status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'),
     recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).default('none'),
