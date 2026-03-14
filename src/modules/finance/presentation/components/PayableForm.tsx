@@ -7,6 +7,7 @@ import { usePayableForm } from "../hooks/usePayableForm";
 import { PayableMainTab } from "../partials/PayableMainTab";
 import { PayableTaxTab } from "../partials/PayableTaxTab";
 import { PayableClassificationTab } from "../partials/PayableClassificationTab";
+import { PayableRecurrenceTab } from "../partials/PayableRecurrenceTab";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -30,6 +31,9 @@ export function PayableForm({ onSuccess, initialData }: PayableFormProps) {
                         <TabsTrigger value="impostos" className="border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-red-50/10 rounded-none px-4 py-2">
                             Impostos
                         </TabsTrigger>
+                        <TabsTrigger value="recorrencia" className="border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-red-50/10 rounded-none px-4 py-2">
+                            Recorrência
+                        </TabsTrigger>
                         <TabsTrigger value="classificacao" className="border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-red-50/10 rounded-none px-4 py-2">
                             Classificação
                         </TabsTrigger>
@@ -41,6 +45,10 @@ export function PayableForm({ onSuccess, initialData }: PayableFormProps) {
 
                     <TabsContent value="impostos">
                         <PayableTaxTab form={form} />
+                    </TabsContent>
+
+                    <TabsContent value="recorrencia">
+                        <PayableRecurrenceTab form={form} />
                     </TabsContent>
 
                     <TabsContent value="classificacao">
