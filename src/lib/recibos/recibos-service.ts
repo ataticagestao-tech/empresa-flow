@@ -47,34 +47,57 @@ export async function criarRecibo(
   const fkTable = input.tipo === "payable" ? "suppliers" : "clients";
   const dateField = input.tipo === "payable" ? "payment_date" : "receive_date";
 
-  // 1. Buscar conta
+  // 1. Buscar conta (query simples, sem join)
   const { data: conta, error: erroConta } = await supabase
     .from(tabela)
-    .select(`
-      *,
-      partner:${fkTable}!${fkField}(id, name, email),
-      category:categories!category_id(name)
-    `)
+    .select("*")
     .eq("id", input.account_id)
     .single();
 
   if (erroConta || !conta) return { ok: false, erro: "Conta não encontrada." };
   if (conta.receipt_generated) return { ok: false, erro: "Recibo já gerado para este pagamento." };
 
-  // 2. Buscar template da empresa (se existir)
+  // 2. Buscar parceiro (fornecedor ou cliente) separadamente
+  let partnerName = conta.description ?? "Favorecido";
+  let partnerEmail: string | null = null;
+  const partnerId = conta[fkField];
+  if (partnerId) {
+    const { data: partner } = await supabase
+      .from(fkTable)
+      .select("id, razao_social, nome_fantasia, email")
+      .eq("id", partnerId)
+      .single();
+    if (partner) {
+      partnerName = partner.nome_fantasia || partner.razao_social || partnerName;
+      partnerEmail = partner.email;
+    }
+  }
+
+  // 3. Buscar categoria separadamente
+  let categoryName: string | undefined;
+  if (conta.category_id) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("name")
+      .eq("id", conta.category_id)
+      .single();
+    if (cat) categoryName = cat.name;
+  }
+
+  // 4. Buscar template da empresa (se existir)
   const { data: template } = await supabase
     .from("receipt_templates")
     .select("*")
     .eq("company_id", conta.company_id)
     .maybeSingle();
 
-  // 3. Gerar número do recibo via RPC
+  // 5. Gerar número do recibo via RPC
   const { data: numData, error: errNum } = await supabase
     .rpc("generate_receipt_number", { p_company_id: conta.company_id });
 
   if (errNum || !numData) return { ok: false, erro: "Erro ao gerar número do recibo." };
 
-  // 4. Buscar dados da empresa
+  // 6. Buscar dados da empresa
   const { data: empresa } = await supabase
     .from("companies")
     .select("razao_social, nome_fantasia, cnpj")
@@ -83,7 +106,7 @@ export async function criarRecibo(
 
   const empresaNome = empresa?.nome_fantasia || empresa?.razao_social || "Empresa";
 
-  // 5. Buscar conta bancária (se fornecida)
+  // 7. Buscar conta bancária (se fornecida)
   let contaBancariaStr: string | undefined;
   if (input.bank_account_id) {
     const { data: ba } = await supabase
@@ -94,13 +117,13 @@ export async function criarRecibo(
     if (ba) contaBancariaStr = `${ba.name} (${ba.banco})`;
   }
 
-  // 6. Montar dados do PDF
+  // 8. Montar dados do PDF
   const pdfData: ReciboPDFData = {
     numero: numData,
     valor: Number(conta.amount),
-    favorecido: conta.partner?.name ?? conta.description ?? "Favorecido",
+    favorecido: partnerName,
     forma_pagamento: conta.payment_method ?? undefined,
-    categoria: conta.category?.name ?? undefined,
+    categoria: categoryName,
     conta_bancaria: contaBancariaStr,
     data_pagamento: new Intl.DateTimeFormat("pt-BR").format(
       new Date(conta[dateField] ?? conta.updated_at)
@@ -135,8 +158,8 @@ export async function criarRecibo(
     .from("documentos")
     .getPublicUrl(storagePath);
 
-  // 9. Determinar email destino
-  const emailDestino = input.email_destino ?? conta.partner?.email ?? null;
+  // 11. Determinar email destino
+  const emailDestino = input.email_destino ?? partnerEmail ?? null;
 
   // 10. Inserir registro na tabela receipts
   const receiptFkField = input.tipo === "payable" ? "account_payable_id" : "account_receivable_id";
