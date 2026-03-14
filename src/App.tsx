@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "rea
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { AdminProvider } from "@/contexts/AdminContext";
+import { ReciboModalProvider } from "@/components/finance/BotaoPagarComRecibo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
@@ -116,6 +117,7 @@ const App = () => (
           <CompanyProvider>
             <Toaster />
             <Sonner />
+            <ReciboModalProvider />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
