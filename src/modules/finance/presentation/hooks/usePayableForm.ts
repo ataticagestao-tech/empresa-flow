@@ -131,9 +131,24 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
         }
     };
 
+    const save = form.handleSubmit(
+        (data) => saveMutation.mutate(data),
+        (errors) => {
+            const msgs = Object.entries(errors)
+                .map(([field, err]) => `${field}: ${err?.message || "inválido"}`)
+                .join("\n");
+            console.error("Validation errors:", errors);
+            toast({
+                title: "Campos obrigatórios",
+                description: msgs || "Verifique os campos em vermelho",
+                variant: "destructive"
+            });
+        }
+    );
+
     return {
         form,
-        save: form.handleSubmit((data) => saveMutation.mutate(data)),
+        save,
         isSaving: saveMutation.isPending,
         handleFileUpload,
         isUploading
