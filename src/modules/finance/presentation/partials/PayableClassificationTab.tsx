@@ -17,14 +17,15 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
 
     // Queries
     const { data: categories } = useQuery({
-        queryKey: ["chart_of_accounts", selectedCompany?.id, 'despesa'],
+        queryKey: ["chart_of_accounts", selectedCompany?.id],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data } = await activeClient
                 .from("chart_of_accounts")
-                .select("*")
+                .select("id, code, name")
                 .eq("company_id", selectedCompany.id)
-                .eq("type", 'despesa')
+                .eq("status", "active")
+                .eq("is_analytical", true)
                 .order('code');
             return data || [];
         },
@@ -61,7 +62,7 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Categoria (Plano de Contas)</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || "none"}>
+                            <Select onValueChange={(v) => field.onChange(v === "none" ? undefined : v)} value={field.value || "none"}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhuma --</SelectItem>
@@ -81,7 +82,7 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Projeto</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || "none"}>
+                            <Select onValueChange={(v) => field.onChange(v === "none" ? undefined : v)} value={field.value || "none"}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhum --</SelectItem>
@@ -101,7 +102,7 @@ export function PayableClassificationTab({ form }: PayableClassificationTabProps
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Departamento</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || "none"}>
+                            <Select onValueChange={(v) => field.onChange(v === "none" ? undefined : v)} value={field.value || "none"}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">-- Nenhum --</SelectItem>

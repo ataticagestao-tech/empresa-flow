@@ -102,7 +102,7 @@ export function PayableMainTab({ form }: PayableMainTabProps) {
                                     <Plus className="w-3" /> Novo
                                 </Button>
                             </div>
-                            <Select onValueChange={field.onChange} value={field.value || "none"}>
+                            <Select onValueChange={(v) => field.onChange(v === "none" ? undefined : v)} value={field.value || "none"}>
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione..." />

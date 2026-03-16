@@ -47,11 +47,16 @@ export class FinanceService {
      * Salva ou atualiza um Contas a Receber.
      */
     async saveReceivable(data: AccountsReceivable) {
-        // Remove campos undefined/opcionais vazios para evitar erro no Supabase
         const payload = {
             ...data,
-            // Garantir datas no formato correto se necessário, embora o driver JS geralmente cuide disso
         };
+        // Limpar campos opcionais UUID que ficaram como "none" ou undefined
+        const optionalUuidFields = ['client_id', 'category_id', 'department_id', 'project_id', 'bank_account_id'] as const;
+        for (const field of optionalUuidFields) {
+            if ((payload as any)[field] === 'none' || (payload as any)[field] === undefined || (payload as any)[field] === '') {
+                (payload as any)[field] = null;
+            }
+        }
 
         if (data.id) {
             return this.supabase
@@ -94,6 +99,13 @@ export class FinanceService {
      */
     async savePayable(data: AccountsPayable) {
         const payload = { ...data };
+        // Limpar campos opcionais UUID que ficaram como "none" ou undefined
+        const optionalUuidFields = ['supplier_id', 'category_id', 'department_id', 'project_id', 'bank_account_id'] as const;
+        for (const field of optionalUuidFields) {
+            if (payload[field] === 'none' || payload[field] === undefined || payload[field] === '') {
+                (payload as any)[field] = null;
+            }
+        }
 
         if (data.id) {
             return this.supabase
