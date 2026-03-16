@@ -64,16 +64,16 @@
 
     --radius: 0.75rem;              /* 12px base */
 
-    /* Sidebar — Light/White */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 16% 47%;
+    /* Sidebar — Dark/Black */
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 85%;
     --sidebar-primary: 228 66% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 226 100% 97%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 18%;
     --sidebar-ring: 228 66% 55%;
-    --sidebar-muted: 215 20% 65%;
+    --sidebar-muted: 0 0% 55%;
   }
 }
 
@@ -95,7 +95,9 @@
 
 @layer components {
   /* Solid surfaces over diagonal pattern */
-  [data-sidebar],
+  [data-sidebar] {
+    background: hsl(0 0% 7%) !important;
+  }
   [role="dialog"],
   .glass {
     background: #ffffff;

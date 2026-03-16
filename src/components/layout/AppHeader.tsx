@@ -20,8 +20,8 @@ export function AppHeader({ title }: AppHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-[#E2E8F0] bg-white px-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <SidebarTrigger className="text-[#94A3B8] hover:text-[#475569] transition-colors" />
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-[#2a2a2a] bg-[#121212] px-5 shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+      <SidebarTrigger className="text-white/60 hover:text-white transition-colors" />
 
       {location.pathname !== "/" && (
         <Button
@@ -29,14 +29,14 @@ export function AppHeader({ title }: AppHeaderProps) {
           size="icon"
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="h-8 w-8 text-[#94A3B8] hover:text-[#475569]"
+          className="h-8 w-8 text-white/60 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
       )}
 
       {title && (
-        <h1 className="text-[13px] font-semibold text-[#0F172A]">{title}</h1>
+        <h1 className="text-[13px] font-semibold text-white">{title}</h1>
       )}
 
       <div className="ml-auto flex items-center gap-3">
@@ -48,7 +48,7 @@ export function AppHeader({ title }: AppHeaderProps) {
               {user?.email ? getInitials(user.email) : "US"}
             </AvatarFallback>
           </Avatar>
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-white" />
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-[#121212]" />
         </div>
       </div>
     </header>

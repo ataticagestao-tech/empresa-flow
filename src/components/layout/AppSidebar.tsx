@@ -55,7 +55,7 @@ export function AppSidebar() {
               className="relative z-10 h-5 w-5 object-contain transition-transform duration-200 group-hover:scale-105"
             />
           </div>
-          <span className="text-[13px] font-semibold text-sidebar-accent-foreground tracking-tight group-data-[collapsible=icon]:hidden">
+          <span className="text-[13px] font-semibold text-white tracking-tight group-data-[collapsible=icon]:hidden">
             Tática Gestão
           </span>
         </Link>
@@ -85,7 +85,7 @@ export function AppSidebar() {
                         type="button"
                         isActive={isActive(item.url)}
                         onClick={() => handleMenuAction(item)}
-                        className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2]" : ""}`}
+                        className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#EF4444] hover:text-[#FF6B6B] hover:bg-[#3a1515]" : ""}`}
                       >
                         <item.icon className="h-[15px] w-[15px] opacity-60" />
                         <span className="text-[12.5px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
@@ -117,7 +117,7 @@ export function AppSidebar() {
                   type="button"
                   isActive={isActive(item.url)}
                   onClick={() => handleMenuAction(item)}
-                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#EF4444] hover:text-[#DC2626] hover:bg-[#FEE2E2]" : ""}`}
+                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#EF4444] hover:text-[#FF6B6B] hover:bg-[#3a1515]" : ""}`}
                 >
                   <item.icon className="h-[15px] w-[15px] opacity-60" />
                   <span className="text-[12.5px]">{t(item.titleKey)}</span>
