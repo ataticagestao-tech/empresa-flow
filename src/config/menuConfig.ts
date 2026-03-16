@@ -54,7 +54,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.companies', icon: Building2, url: '/empresas' },
       { titleKey: 'menu.clients', icon: Users, url: '/clientes' },
       { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
-      { titleKey: 'WhatsApp', icon: Users, url: '/whatsapp', isHardcoded: true },
+      { titleKey: 'WhatsApp', icon: Users, url: '/whatsapp', isHardcoded: true, hidden: true },
       { titleKey: 'CRM', icon: Building2, url: '/crm', isHardcoded: true, hidden: true },
       { titleKey: 'menu.suppliers', icon: Truck, url: '/fornecedores' },
       { titleKey: 'menu.categories', icon: Tags, url: '/categorias' },
