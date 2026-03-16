@@ -609,7 +609,7 @@ export default function ContasPagar() {
                         )}
                         <button onClick={handleNew} style={{
                             display: "flex", alignItems: "center", gap: 6, padding: "6px 16px",
-                            borderRadius: 8, border: "none", background: T.primary, color: "#fff",
+                            borderRadius: 8, border: "none", background: T.red, color: "#fff",
                             cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
                         }}>
                             <Plus size={14} strokeWidth={2} />
