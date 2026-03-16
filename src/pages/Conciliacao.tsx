@@ -33,9 +33,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCategorySuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
+import { useCategorySuggestion, ExternalSuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
 import { useAiRecategorization } from "@/modules/finance/presentation/hooks/useAiRecategorization";
+import { useHistoricalCategorySuggestion } from "@/modules/finance/presentation/hooks/useHistoricalCategorySuggestion";
 
 function ScoreBadge({ score }: { score: number }) {
     if (score >= 85) return (
@@ -328,8 +329,39 @@ export default function Conciliacao() {
         return `${prefix}${String(nextNum).padStart(2, "0")}`;
     }, [selectedParentId, allChartAccounts]);
 
+    // Historical suggestions from past categorized transactions
+    const { historicalSuggestions } = useHistoricalCategorySuggestion(
+        createDescription, createType as "receita" | "despesa"
+    );
+
+    // Build external suggestions from: engine rules + historical data
+    const externalSuggestions = useMemo<ExternalSuggestion[]>(() => {
+        const result: ExternalSuggestion[] = [];
+
+        // 1. Engine suggestion (from conciliation_rules learned patterns)
+        if (selectedBankTx && showCreateForm) {
+            const engineSuggestion = suggestionMap.get(selectedBankTx.id);
+            if (engineSuggestion?.accountId) {
+                result.push({
+                    accountId: engineSuggestion.accountId,
+                    reason: `Regra: ${engineSuggestion.ruleName || "padrão aprendido"}`,
+                    score: 15,
+                });
+            }
+        }
+
+        // 2. Historical suggestions (from past categorized transactions)
+        for (const hs of historicalSuggestions) {
+            if (!result.some(r => r.accountId === hs.accountId)) {
+                result.push(hs);
+            }
+        }
+
+        return result;
+    }, [selectedBankTx, showCreateForm, suggestionMap, historicalSuggestions]);
+
     const { suggestions: createSuggestions } = useCategorySuggestion(
-        createDescription, chartCategories || [], createType as "receita" | "despesa"
+        createDescription, chartCategories || [], createType as "receita" | "despesa", externalSuggestions
     );
 
     // AI recategorization for reconciled batches
@@ -1281,7 +1313,13 @@ export default function Conciliacao() {
                                         <Separator />
                                         <Button variant="outline"
                                             className="w-full border-dashed border-2 border-primary/30 text-primary hover:bg-primary/5 h-11"
-                                            onClick={() => { setShowCreateForm(true); setNewEntry({ description: selectedBankTx.description || "", category_id: "" }); }}>
+                                            onClick={() => {
+                                                setShowCreateForm(true);
+                                                // Pre-fill category from engine suggestion (learned rules)
+                                                const engineSuggestion = suggestionMap.get(selectedBankTx.id);
+                                                const prefilledCategoryId = engineSuggestion?.accountId || "";
+                                                setNewEntry({ description: selectedBankTx.description || "", category_id: prefilledCategoryId });
+                                            }}>
                                             <Plus className="mr-2 h-4 w-4" />
                                             Criar {selectedBankTx.amount < 0 ? "Nova Despesa" : "Nova Receita"} e Conciliar
                                         </Button>

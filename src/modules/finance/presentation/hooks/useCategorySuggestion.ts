@@ -151,16 +151,44 @@ function findMatchingCategory(
     return bestMatch;
 }
 
+export interface ExternalSuggestion {
+    accountId: string;
+    reason: string;
+    score?: number;
+}
+
 export function useCategorySuggestion(
     description: string,
     categories: ChartAccount[],
-    filterType?: "receita" | "despesa"
+    filterType?: "receita" | "despesa",
+    externalSuggestions?: ExternalSuggestion[],
 ) {
     const suggestions = useMemo<ScoredCategory[]>(() => {
-        if (!description || description.length < 3 || !categories?.length) return [];
+        if (!categories?.length) return [];
+
+        const scored = new Map<string, ScoredCategory>();
+
+        // 0. Sugestões externas (regras aprendidas, histórico) — prioridade máxima
+        if (externalSuggestions?.length) {
+            for (const ext of externalSuggestions) {
+                const account = categories.find(c => c.id === ext.accountId);
+                if (account) {
+                    scored.set(account.id, {
+                        account,
+                        score: ext.score ?? 10,
+                        reason: ext.reason,
+                    });
+                }
+            }
+        }
+
+        if (!description || description.length < 3) {
+            const result = Array.from(scored.values());
+            result.sort((a, b) => b.score - a.score);
+            return result.slice(0, 3);
+        }
 
         const normalizedDesc = normalize(description);
-        const scored = new Map<string, ScoredCategory>();
 
         // 1. Score por mapa de keywords -> nome da categoria
         for (const rule of KEYWORD_TO_CATEGORY_NAME) {
@@ -227,7 +255,7 @@ export function useCategorySuggestion(
         const result = Array.from(scored.values());
         result.sort((a, b) => b.score - a.score);
         return result.slice(0, 3);
-    }, [description, categories, filterType]);
+    }, [description, categories, filterType, externalSuggestions]);
 
     return { suggestions };
 }
