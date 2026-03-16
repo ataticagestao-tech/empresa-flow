@@ -198,6 +198,7 @@ export default function ContasPagar() {
 
         // Detect date span to decide grouping
         const dates = filteredBills.filter(b => b.due_date).map(b => parseISO(b.due_date));
+        if (!dates.length) return [];
         const minDate = dates.reduce((a, b) => (a < b ? a : b));
         const maxDate = dates.reduce((a, b) => (a > b ? a : b));
         const spanMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + maxDate.getMonth() - minDate.getMonth();

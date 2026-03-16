@@ -61,7 +61,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             if (!selectedCompany?.id) throw new Error("Empresa não selecionada");
 
             // Limpar "none" dos selects
-            const cleanId = (v: string | undefined | null) => (!v || v === "none") ? null : v;
+            const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
 
             const payload = {
                 ...data,
@@ -71,7 +71,11 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
                 department_id: cleanId(data.department_id),
                 project_id: cleanId(data.project_id),
                 bank_account_id: cleanId(data.bank_account_id),
-                payment_method: data.payment_method === "none" ? null : data.payment_method,
+                payment_method: (!data.payment_method || data.payment_method === "none") ? null : data.payment_method,
+                competencia: data.competencia || null,
+                barcode: data.barcode || null,
+                pix_key: data.pix_key || null,
+                pix_key_type: data.pix_key_type || null,
                 // Corrigir datas: usar formato local yyyy-MM-dd (evita -1 dia por UTC)
                 due_date: dateToLocalString(data.due_date),
                 payment_date: dateToLocalString(data.payment_date),

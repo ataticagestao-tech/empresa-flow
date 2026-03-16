@@ -4,24 +4,24 @@ import { z } from "zod";
 // Schema para Contas a Pagar
 export const AccountsPayableSchema = z.object({
     id: z.string().uuid().optional(),
-    company_id: z.string().uuid("Empresa obrigatória"),
+    company_id: z.string().uuid().optional(),
 
-    // Dados Básicos (obrigatórios)
+    // Dados Básicos
     description: z.string().min(3, "Descrição obrigatória (mínimo 3 caracteres)").max(255),
-    supplier_id: z.string().min(1, "Fornecedor obrigatório"),
+    supplier_id: z.string().optional().nullable(),
     amount: z.number().min(0.01, "Valor deve ser maior que zero"),
     due_date: z.date({ required_error: "Data de vencimento obrigatória" }),
-    competencia: z.string().min(7, "Competência obrigatória (MM/AAAA)"),
+    competencia: z.string().optional().default(""),
 
-    // Classificação (obrigatório)
-    category_id: z.string().min(1, "Categoria obrigatória"),
-    department_id: z.string().uuid().optional(),
-    project_id: z.string().uuid().optional(),
+    // Classificação
+    category_id: z.string().optional().nullable(),
+    department_id: z.string().uuid().optional().nullable(),
+    project_id: z.string().uuid().optional().nullable(),
 
-    // Pagamento (chave PIX ou código de barras — ao menos 1)
-    barcode: z.string().optional(),
+    // Pagamento
+    barcode: z.string().optional().default(""),
     pix_key_type: z.enum(['cpf', 'cnpj', 'telefone', 'email', 'aleatoria']).optional(),
-    pix_key: z.string().optional(),
+    pix_key: z.string().optional().default(""),
     payment_method: z.string().optional(),
     bank_account_id: z.string().uuid().optional().nullable(),
     invoice_number: z.string().optional(),
@@ -36,8 +36,8 @@ export const AccountsPayableSchema = z.object({
     recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).default('none'),
     is_fixed_cost: z.boolean().default(false),
     recurrence_day: z.number().min(1).max(31).optional(),
-    recurrence_start: z.string().optional(), // MM/AAAA
-    recurrence_end: z.string().optional(),   // MM/AAAA
+    recurrence_start: z.string().optional(),
+    recurrence_end: z.string().optional(),
     recurrence_count: z.number().min(1).optional(),
     observations: z.string().optional(),
 
@@ -57,9 +57,6 @@ export const AccountsPayableSchema = z.object({
     iss_retain: z.boolean().default(false),
     inss_amount: z.number().optional().default(0),
     inss_retain: z.boolean().default(false),
-}).refine(
-    (data) => !!(data.barcode || data.pix_key),
-    { message: "Informe a Chave PIX ou o Código de Barras", path: ["pix_key"] }
-);
+});
 
 export type AccountsPayable = z.infer<typeof AccountsPayableSchema>;
