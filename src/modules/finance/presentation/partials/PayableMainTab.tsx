@@ -30,6 +30,13 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
     const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false);
     const [supplierOpen, setSupplierOpen] = useState(false);
     const [categoryOpen, setCategoryOpen] = useState(false);
+    const [competenciaOpen, setCompetenciaOpen] = useState(false);
+    const [competenciaYear, setCompetenciaYear] = useState(new Date().getFullYear());
+
+    const MONTHS = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
 
     const PAYMENT_METHODS = [
         { value: "pix", label: "PIX" },
@@ -132,7 +139,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 />
             </div>
 
-            {/* Vencimento + Fornecedor */}
+            {/* Vencimento + Competência */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
@@ -158,6 +165,50 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                     )}
                 />
 
+                <FormField
+                    control={form.control}
+                    name="competencia"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Competência</FormLabel>
+                            <Popover open={competenciaOpen} onOpenChange={setCompetenciaOpen}>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
+                                            {field.value || <span>Selecione mês/ano</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[280px] p-3" align="start">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => setCompetenciaYear(y => y - 1)}>&lt;</Button>
+                                        <span className="text-sm font-semibold">{competenciaYear}</span>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => setCompetenciaYear(y => y + 1)}>&gt;</Button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {MONTHS.map((month, idx) => {
+                                            const val = `${String(idx + 1).padStart(2, "0")}/${competenciaYear}`;
+                                            const isSelected = field.value === val;
+                                            return (
+                                                <Button key={idx} type="button" variant={isSelected ? "default" : "outline"} size="sm"
+                                                    className={cn("text-xs", isSelected && "bg-primary text-white")}
+                                                    onClick={() => { field.onChange(val); setCompetenciaOpen(false); }}>
+                                                    {month.slice(0, 3)}
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            {/* Fornecedor + Categoria */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
                     name="supplier_id"
@@ -199,10 +250,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         </FormItem>
                     )}
                 />
-            </div>
 
-            {/* Categoria + Forma de Pagamento */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
                     name="category_id"
@@ -239,7 +287,10 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         </FormItem>
                     )}
                 />
+            </div>
 
+            {/* Forma de Pagamento + Conta Corrente */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
                     name="payment_method"
