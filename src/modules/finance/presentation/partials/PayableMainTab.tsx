@@ -7,14 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useCategorySuggestion } from "../hooks/useCategorySuggestion";
-import { CategorySuggestions } from "../components/CategorySuggestions";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Plus, Loader2, Paperclip, Check, ChevronsUpDown, AlertTriangle, Upload } from "lucide-react";
+import { CalendarIcon, Plus, Loader2, Paperclip, Check, ChevronsUpDown, Upload } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -26,29 +24,12 @@ interface PayableMainTabProps {
     isUploading?: boolean;
 }
 
-function RequiredLabel({ children }: { children: React.ReactNode }) {
-    const text = String(children);
-    if (text.endsWith(" *")) {
-        return <FormLabel>{text.slice(0, -2)} <span className="text-red-500">*</span></FormLabel>;
-    }
-    return <FormLabel>{children}</FormLabel>;
-}
-
 export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableMainTabProps) {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false);
     const [supplierOpen, setSupplierOpen] = useState(false);
     const [categoryOpen, setCategoryOpen] = useState(false);
-    const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
-    const [bankAccountOpen, setBankAccountOpen] = useState(false);
-    const [competenciaOpen, setCompetenciaOpen] = useState(false);
-    const [competenciaYear, setCompetenciaYear] = useState(new Date().getFullYear());
-
-    const MONTHS = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-    ];
 
     const PAYMENT_METHODS = [
         { value: "pix", label: "PIX" },
@@ -87,7 +68,6 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
         enabled: !!selectedCompany?.id
     });
 
-    // Categorias (plano de contas - despesas analíticas)
     const { data: categories } = useQuery({
         queryKey: ["chart_of_accounts", selectedCompany?.id, "despesa"],
         queryFn: async () => {
@@ -107,57 +87,11 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
         enabled: !!selectedCompany?.id
     });
 
-    const description = form.watch("description") || "";
-    const { suggestions } = useCategorySuggestion(description, categories || [], "despesa");
-
     const fileUrl = form.watch("file_url");
 
     return (
         <div className="space-y-4 pt-4">
-            {/* 1. Fornecedor (obrigatório) — combobox com busca */}
-            <FormField
-                control={form.control}
-                name="supplier_id"
-                render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                        <div className="flex items-center justify-between">
-                            <RequiredLabel>Fornecedor *</RequiredLabel>
-                            <Button type="button" variant="ghost" className="h-auto p-0 text-xs text-green-600" onClick={() => setIsSupplierSheetOpen(true)}>
-                                <Plus className="w-3" /> Novo
-                            </Button>
-                        </div>
-                        <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", !field.value && "text-muted-foreground")}>
-                                        {field.value ? suppliers?.find(s => s.id === field.value)?.razao_social || "Selecione..." : "Selecione o fornecedor..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                <Command>
-                                    <CommandInput placeholder="Buscar fornecedor..." />
-                                    <CommandList>
-                                        <CommandEmpty>Nenhum fornecedor encontrado.</CommandEmpty>
-                                        <CommandGroup>
-                                            {suppliers?.map(s => (
-                                                <CommandItem key={s.id} value={s.razao_social} onSelect={() => { field.onChange(s.id); setSupplierOpen(false); }}>
-                                                    <Check className={cn("mr-2 h-4 w-4", field.value === s.id ? "opacity-100" : "opacity-0")} />
-                                                    {s.razao_social}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-
-            {/* 2. Descrição (obrigatório) + Valor (obrigatório) */}
+            {/* Descrição + Valor */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                     <FormField
@@ -165,20 +99,19 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         name="description"
                         render={({ field }) => (
                             <FormItem>
-                                <RequiredLabel>Descrição *</RequiredLabel>
+                                <FormLabel>Descrição <span className="text-red-500">*</span></FormLabel>
                                 <FormControl><Input className="bg-white" placeholder="Ex: Aluguel janeiro" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
                     />
                 </div>
-
                 <FormField
                     control={form.control}
                     name="amount"
                     render={({ field }) => (
                         <FormItem>
-                            <RequiredLabel>Valor (R$) *</RequiredLabel>
+                            <FormLabel>Valor (R$) <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
                                 <Input
                                     className="bg-white"
@@ -199,14 +132,14 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 />
             </div>
 
-            {/* 3. Vencimento (obrigatório) + Competência (obrigatório — picker mês/ano) */}
+            {/* Vencimento + Fornecedor */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
                     name="due_date"
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <RequiredLabel>Vencimento *</RequiredLabel>
+                            <FormLabel>Vencimento <span className="text-red-500">*</span></FormLabel>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <FormControl>
@@ -227,47 +160,39 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
 
                 <FormField
                     control={form.control}
-                    name="competencia"
+                    name="supplier_id"
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
-                            <RequiredLabel>Competência *</RequiredLabel>
-                            <Popover open={competenciaOpen} onOpenChange={setCompetenciaOpen}>
+                            <div className="flex items-center justify-between">
+                                <FormLabel>Fornecedor</FormLabel>
+                                <Button type="button" variant="ghost" className="h-auto p-0 text-xs text-green-600" onClick={() => setIsSupplierSheetOpen(true)}>
+                                    <Plus className="w-3" /> Novo
+                                </Button>
+                            </div>
+                            <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
                                 <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal bg-white", !field.value && "text-muted-foreground")}>
-                                            {field.value || <span>Selecione mês/ano</span>}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", !field.value && "text-muted-foreground")}>
+                                            {field.value ? suppliers?.find(s => s.id === field.value)?.razao_social || "Selecione..." : "Selecione..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </FormControl>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[280px] p-3" align="start">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => setCompetenciaYear(y => y - 1)}>
-                                            &lt;
-                                        </Button>
-                                        <span className="text-sm font-semibold">{competenciaYear}</span>
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => setCompetenciaYear(y => y + 1)}>
-                                            &gt;
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {MONTHS.map((month, idx) => {
-                                            const val = `${String(idx + 1).padStart(2, "0")}/${competenciaYear}`;
-                                            const isSelected = field.value === val;
-                                            return (
-                                                <Button
-                                                    key={idx}
-                                                    type="button"
-                                                    variant={isSelected ? "default" : "outline"}
-                                                    size="sm"
-                                                    className={cn("text-xs", isSelected && "bg-primary text-white")}
-                                                    onClick={() => { field.onChange(val); setCompetenciaOpen(false); }}
-                                                >
-                                                    {month.slice(0, 3)}
-                                                </Button>
-                                            );
-                                        })}
-                                    </div>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar fornecedor..." />
+                                        <CommandList>
+                                            <CommandEmpty>Nenhum encontrado.</CommandEmpty>
+                                            <CommandGroup>
+                                                {suppliers?.map(s => (
+                                                    <CommandItem key={s.id} value={s.razao_social} onSelect={() => { field.onChange(s.id); setSupplierOpen(false); }}>
+                                                        <Check className={cn("mr-2 h-4 w-4", field.value === s.id ? "opacity-100" : "opacity-0")} />
+                                                        {s.razao_social}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
                                 </PopoverContent>
                             </Popover>
                             <FormMessage />
@@ -276,254 +201,115 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 />
             </div>
 
-            {/* 4. Categoria no Plano de Contas (obrigatório) — combobox com busca */}
-            <FormField
-                control={form.control}
-                name="category_id"
-                render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                        <RequiredLabel>Categoria (Plano de Contas) *</RequiredLabel>
-                        <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", !field.value && "text-muted-foreground")}>
-                                        {field.value ? (() => { const c = categories?.find((c: any) => c.id === field.value); return c ? `${c.code} - ${c.name}` : "Selecione..."; })() : "Selecione a categoria..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                <Command>
-                                    <CommandInput placeholder="Buscar categoria..." />
-                                    <CommandList>
-                                        <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-                                        <CommandGroup>
-                                            {categories?.map((c: any) => (
-                                                <CommandItem key={c.id} value={`${c.code} - ${c.name}`} onSelect={() => { field.onChange(c.id); setCategoryOpen(false); }}>
-                                                    <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
-                                                    {c.code} - {c.name}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                        <CategorySuggestions
-                            suggestions={suggestions}
-                            onSelect={(id) => { form.setValue("category_id", id); setCategoryOpen(false); }}
-                            currentValue={form.watch("category_id")}
-                        />
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-
-            {/* 5. Chave PIX (tipo + valor) + Código de Barras (ao menos 1 obrigatório) */}
+            {/* Categoria + Forma de Pagamento */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <FormField
-                        control={form.control}
-                        name="pix_key_type"
-                        render={({ field }) => (
-                            <FormItem>
-                                <RequiredLabel>Tipo de Chave PIX *</RequiredLabel>
-                                <Select onValueChange={field.onChange} value={field.value || ""}>
-                                    <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="cpf">CPF</SelectItem>
-                                        <SelectItem value="cnpj">CNPJ</SelectItem>
-                                        <SelectItem value="telefone">Telefone</SelectItem>
-                                        <SelectItem value="email">E-mail</SelectItem>
-                                        <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="pix_key"
-                        render={({ field }) => {
-                            const pixType = form.watch("pix_key_type");
-                            const placeholders: Record<string, string> = {
-                                cpf: "000.000.000-00",
-                                cnpj: "00.000.000/0000-00",
-                                telefone: "+55 11 99999-9999",
-                                email: "exemplo@email.com",
-                                aleatoria: "Chave aleatória",
-                            };
-                            const masks: Record<string, (v: string) => string> = {
-                                cpf: (v) => {
-                                    v = v.replace(/\D/g, "").slice(0, 11);
-                                    if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
-                                    if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
-                                    if (v.length > 3) return v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
-                                    return v;
-                                },
-                                cnpj: (v) => {
-                                    v = v.replace(/\D/g, "").slice(0, 14);
-                                    if (v.length > 12) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, "$1.$2.$3/$4-$5");
-                                    if (v.length > 8) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, "$1.$2.$3/$4");
-                                    if (v.length > 5) return v.replace(/(\d{2})(\d{3})(\d{1,3})/, "$1.$2.$3");
-                                    if (v.length > 2) return v.replace(/(\d{2})(\d{1,3})/, "$1.$2");
-                                    return v;
-                                },
-                                telefone: (v) => {
-                                    v = v.replace(/\D/g, "").slice(0, 13);
-                                    if (v.length > 10) return v.replace(/(\d{2})(\d{2})(\d{5})(\d{1,4})/, "+$1 $2 $3-$4");
-                                    if (v.length > 7) return v.replace(/(\d{2})(\d{2})(\d{1,5})/, "+$1 $2 $3");
-                                    if (v.length > 2) return v.replace(/(\d{2})(\d{1,2})/, "+$1 $2");
-                                    return v;
-                                },
-                            };
-                            return (
-                                <FormItem>
+                <FormField
+                    control={form.control}
+                    name="category_id"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Categoria</FormLabel>
+                            <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                                <PopoverTrigger asChild>
                                     <FormControl>
-                                        <Input
-                                            className="bg-white"
-                                            placeholder={placeholders[pixType || ""] || "Selecione o tipo acima"}
-                                            {...field}
-                                            value={field.value || ""}
-                                            onChange={e => {
-                                                const mask = pixType ? masks[pixType] : undefined;
-                                                field.onChange(mask ? mask(e.target.value) : e.target.value);
-                                            }}
-                                        />
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", !field.value && "text-muted-foreground")}>
+                                            {field.value ? (() => { const c = categories?.find((c: any) => c.id === field.value); return c ? `${c.code} - ${c.name}` : "Selecione..."; })() : "Selecione..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
                                     </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            );
-                        }}
-                    />
-                </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar categoria..." />
+                                        <CommandList>
+                                            <CommandEmpty>Nenhuma encontrada.</CommandEmpty>
+                                            <CommandGroup>
+                                                {categories?.map((c: any) => (
+                                                    <CommandItem key={c.id} value={`${c.code} - ${c.name}`} onSelect={() => { field.onChange(c.id); setCategoryOpen(false); }}>
+                                                        <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
+                                                        {c.code} - {c.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="payment_method"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Forma de Pagamento</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {PAYMENT_METHODS.map(m => (
+                                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            {/* Conta Corrente + Código de Barras */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="bank_account_id"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Conta Corrente</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                                <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {bankAccounts?.map(b => (
+                                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 <FormField
                     control={form.control}
                     name="barcode"
                     render={({ field }) => (
                         <FormItem>
-                            <RequiredLabel>Código de Barras *</RequiredLabel>
+                            <FormLabel>Código de Barras</FormLabel>
                             <FormControl><Input className="bg-white" placeholder="Linha digitável do boleto" {...field} value={field.value || ""} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
                 />
             </div>
-            <p className="text-xs text-muted-foreground -mt-2">* Preencha pelo menos um: Chave PIX ou Código de Barras</p>
 
-            {/* 6. Forma de Pagamento + Conta Corrente (sem Status) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="payment_method"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>Forma de Pagamento</FormLabel>
-                            <Popover open={paymentMethodOpen} onOpenChange={setPaymentMethodOpen}>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", (!field.value || field.value === "none") && "text-muted-foreground")}>
-                                            {field.value && field.value !== "none" ? PAYMENT_METHODS.find(m => m.value === field.value)?.label || "Selecione..." : "Selecione..."}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar forma..." />
-                                        <CommandList>
-                                            <CommandEmpty>Nenhuma forma encontrada.</CommandEmpty>
-                                            <CommandGroup>
-                                                {PAYMENT_METHODS.map(m => (
-                                                    <CommandItem key={m.value} value={m.label} onSelect={() => { field.onChange(m.value); setPaymentMethodOpen(false); }}>
-                                                        <Check className={cn("mr-2 h-4 w-4", field.value === m.value ? "opacity-100" : "opacity-0")} />
-                                                        {m.label}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
-                <FormField
-                    control={form.control}
-                    name="bank_account_id"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>Conta Corrente</FormLabel>
-                            <Popover open={bankAccountOpen} onOpenChange={setBankAccountOpen}>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal bg-white", (!field.value || field.value === "none") && "text-muted-foreground")}>
-                                            {field.value && field.value !== "none" ? bankAccounts?.find(b => b.id === field.value)?.name || "Selecione..." : "Selecione..."}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar conta..." />
-                                        <CommandList>
-                                            <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
-                                            <CommandGroup>
-                                                {bankAccounts?.map(b => (
-                                                    <CommandItem key={b.id} value={b.name} onSelect={() => { field.onChange(b.id); setBankAccountOpen(false); }}>
-                                                        <Check className={cn("mr-2 h-4 w-4", field.value === b.id ? "opacity-100" : "opacity-0")} />
-                                                        {b.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </div>
-
-            {/* 7. Nota Fiscal — destaque alerta */}
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <span className="text-sm font-semibold text-amber-800">Nota Fiscal</span>
-                </div>
-                <FormField
-                    control={form.control}
-                    name="invoice_number"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormControl><Input placeholder="Número da NF (importante para controle fiscal)" className="bg-white border-amber-200 focus:border-amber-400" {...field} value={field.value || ""} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </div>
-
-            {/* 8. Detalhes Adicionais */}
+            {/* Observações */}
             <FormField
                 control={form.control}
                 name="observations"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Detalhes Adicionais</FormLabel>
-                        <FormControl><Textarea className="bg-white" placeholder="Observações sobre esta conta..." {...field} value={field.value || ""} /></FormControl>
+                        <FormLabel>Observações</FormLabel>
+                        <FormControl><Textarea className="bg-white" rows={2} placeholder="Observações sobre esta conta..." {...field} value={field.value || ""} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
             />
 
-            {/* 9. Anexar Boleto */}
+            {/* Anexar Arquivo */}
             {handleFileUpload && (
-                <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-5">
+                <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4">
                     <Input
                         type="file"
                         className="hidden"
@@ -534,52 +320,28 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                         }}
                         disabled={isUploading}
                     />
-                    <div className="flex flex-col items-center gap-3 text-center">
-                        {!fileUrl ? (
-                            <>
-                                <div className="rounded-full bg-primary/10 p-3">
-                                    <Upload className="h-6 w-6 text-primary" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-foreground">Anexar Boleto / Comprovante</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">PDF, imagem ou documento</p>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="bg-white"
-                                    onClick={() => document.getElementById("file-upload-payable")?.click()}
-                                    disabled={isUploading}
-                                >
-                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
-                                    Selecionar Arquivo
-                                </Button>
-                            </>
-                        ) : (
-                            <div className="flex items-center gap-4 w-full">
-                                <div className="rounded-full bg-green-100 p-2.5">
-                                    <Check className="h-5 w-5 text-green-600" />
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <p className="text-sm font-semibold text-green-700">Arquivo anexado</p>
-                                    <a href={fileUrl || "#"} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
-                                        Visualizar arquivo
-                                    </a>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="bg-white"
-                                    onClick={() => document.getElementById("file-upload-payable")?.click()}
-                                    disabled={isUploading}
-                                >
-                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
-                                    Trocar
-                                </Button>
-                            </div>
-                        )}
-                    </div>
+                    {!fileUrl ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full bg-white"
+                            onClick={() => document.getElementById("file-upload-payable")?.click()}
+                            disabled={isUploading}
+                        >
+                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Paperclip className="w-4 h-4 mr-2" />}
+                            Anexar Boleto / Comprovante
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <Check className="h-4 w-4 text-green-600" />
+                            <a href={fileUrl || "#"} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline flex-1">
+                                Arquivo anexado — clique para visualizar
+                            </a>
+                            <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById("file-upload-payable")?.click()} disabled={isUploading}>
+                                Trocar
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
 
