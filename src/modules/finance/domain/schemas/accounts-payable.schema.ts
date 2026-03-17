@@ -33,7 +33,7 @@ export const AccountsPayableSchema = z.object({
 
     // Status e Recorrência
     status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'),
-    recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).default('none'),
+    recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).nullable().transform(v => v ?? 'none').default('none'),
     is_fixed_cost: z.boolean().default(false),
     recurrence_day: z.number().min(1).max(31).optional(),
     recurrence_start: z.string().optional(),
