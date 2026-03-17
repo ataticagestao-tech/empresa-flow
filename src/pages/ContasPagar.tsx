@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal,
     CalendarDays, TrendingDown, CheckCircle2, AlertTriangle, X,
-    Download, FileText, FileSpreadsheet, Sparkles, ChevronRight
+    Download, FileText, FileSpreadsheet, Sparkles, ChevronRight, Upload
 } from "lucide-react";
+import { extractPayableFromPDF } from "@/lib/pdf-extract";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import {
@@ -383,6 +384,49 @@ export default function ContasPagar() {
         return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total, avgTicket, billCount: filteredBills.length };
     }, [filteredBills]);
 
+    // ── PDF Drop ──
+    const [isDragging, setIsDragging] = useState(false);
+    const [isParsing, setIsParsing] = useState(false);
+
+    const handleDrop = useCallback(async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf");
+        if (!files.length) return;
+        setIsParsing(true);
+        try {
+            const extracted = await extractPayableFromPDF(files[0]);
+            // Pré-preencher o formulário com os dados extraídos
+            setEditingItem({
+                description: extracted.description,
+                amount: extracted.amount || 0,
+                due_date: extracted.due_date || "",
+                barcode: extracted.barcode || "",
+                status: "pending",
+                company_id: selectedCompany?.id || "",
+                // campos opcionais
+                supplier_id: null,
+                category_id: null,
+                payment_method: null,
+                payment_date: null,
+                observations: extracted.supplier_name
+                    ? `Fornecedor detectado: ${extracted.supplier_name}${extracted.cnpj ? ` (CNPJ: ${extracted.cnpj})` : ""}${extracted.invoice_number ? ` | NF: ${extracted.invoice_number}` : ""}`
+                    : null,
+                file_url: null,
+                recurrence: null,
+                created_at: null,
+            } as any);
+            setIsSheetOpen(true);
+        } catch (err) {
+            console.error("Erro ao ler PDF:", err);
+        } finally {
+            setIsParsing(false);
+        }
+    }, [selectedCompany]);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
+    const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
+
     // Handlers
     const handleEdit = (item: AccountsPayable) => { setEditingItem(item); setIsSheetOpen(true); };
     const handleNew = () => { setEditingItem(undefined); setIsSheetOpen(true); };
@@ -522,7 +566,60 @@ export default function ContasPagar() {
 
     return (
         <AppLayout title="Contas a Pagar">
-            <div className="animate-fade-in" style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div
+                className="animate-fade-in"
+                style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20, position: "relative" }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
+                {/* Drop overlay */}
+                {isDragging && (
+                    <div style={{
+                        position: "fixed", inset: 0, zIndex: 50,
+                        background: "rgba(59,91,219,0.12)", backdropFilter: "blur(4px)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        pointerEvents: "none",
+                    }}>
+                        <div style={{
+                            background: "#fff", borderRadius: 16, padding: "40px 60px",
+                            border: `3px dashed ${T.primary}`, textAlign: "center",
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+                        }}>
+                            <Upload size={48} strokeWidth={1.5} color={T.primary} />
+                            <p style={{ fontSize: 18, fontWeight: 700, color: T.primary, marginTop: 12 }}>
+                                Solte o PDF aqui
+                            </p>
+                            <p style={{ fontSize: 13, color: T.text2, marginTop: 4 }}>
+                                Boleto, nota fiscal ou fatura — os dados serao extraidos automaticamente
+                            </p>
+                        </div>
+                    </div>
+                )}
+                {isParsing && (
+                    <div style={{
+                        position: "fixed", inset: 0, zIndex: 50,
+                        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                        <div style={{
+                            background: "#fff", borderRadius: 16, padding: "40px 60px",
+                            textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+                        }}>
+                            <div style={{
+                                width: 48, height: 48, border: `4px solid ${T.border}`,
+                                borderTopColor: T.primary, borderRadius: "50%",
+                                animation: "spin 1s linear infinite", margin: "0 auto",
+                            }} />
+                            <p style={{ fontSize: 16, fontWeight: 600, color: T.text1, marginTop: 16 }}>
+                                Lendo PDF...
+                            </p>
+                            <p style={{ fontSize: 13, color: T.text2, marginTop: 4 }}>
+                                Extraindo valor, vencimento e fornecedor
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* ════════ HEADER BAR ════════ */}
                 <div style={{
