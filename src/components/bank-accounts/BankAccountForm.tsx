@@ -89,15 +89,15 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
             const payload = {
                 company_id: selectedCompany.id,
                 name: values.name,
-                type: values.type,
-                banco: values.banco,
-                agencia: values.agencia,
-                conta: values.conta,
-                digito: values.digito,
+                type: values.type || "checking",
+                banco: values.banco || null,
+                agencia: values.agencia || null,
+                conta: values.conta || null,
+                digito: values.digito || null,
                 initial_balance: balance,
-                current_balance: balance, // Initial setup assumes current = initial
-                pix_key: values.pix_key,
-                pix_type: values.pix_type,
+                current_balance: balance,
+                pix_key: values.pix_key || null,
+                pix_type: values.pix_type || null,
             };
 
             let error;
