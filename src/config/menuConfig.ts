@@ -58,6 +58,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'CRM', icon: Building2, url: '/crm', isHardcoded: true, hidden: true },
       { titleKey: 'menu.suppliers', icon: Truck, url: '/fornecedores' },
       { titleKey: 'menu.categories', icon: Tags, url: '/categorias' },
+      { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
       { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' }
     ]
   },

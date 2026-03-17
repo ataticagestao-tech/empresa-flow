@@ -34,6 +34,7 @@ import Recibos from "./pages/Recibos";
 import NotFound from "./pages/NotFound";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import ContaBloqueada from "./pages/ContaBloqueada";
+import PlanoContas from "./pages/PlanoContas";
 
 const queryClient = new QueryClient();
 
@@ -134,6 +135,7 @@ const App = () => (
                     <Route path="/movimentacoes" element={<Movimentacoes />} />
                     <Route path="/movimentacoes/*" element={<Movimentacoes />} />
                     <Route path="/categorias" element={<Categorias />} />
+                    <Route path="/plano-contas" element={<PlanoContas />} />
                     <Route path="/contas-bancarias" element={<ContasBancarias />} />
                     <Route path="/contas-pagar" element={<ContasPagar />} />
                     <Route path="/contas-receber" element={<ContasReceber />} />
