@@ -44,11 +44,21 @@ export function useBankAccounts() {
         }
 
         try {
+            const balance = parseFloat(account.initial_balance) || 0;
             const { error } = await (activeClient as any)
                 .from('bank_accounts')
                 .insert([{
-                    ...account,
-                    company_id: selectedCompany.id
+                    name: account.name,
+                    type: account.type || "checking",
+                    banco: account.banco || null,
+                    agencia: account.agencia || null,
+                    conta: account.conta || null,
+                    digito: account.digito || null,
+                    initial_balance: balance,
+                    current_balance: account.current_balance ?? balance,
+                    pix_key: account.pix_key || null,
+                    pix_type: account.pix_type || null,
+                    company_id: selectedCompany.id,
                 }]);
 
             if (error) throw error;
