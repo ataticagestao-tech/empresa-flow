@@ -397,21 +397,25 @@ export default function ContasPagar() {
         try {
             const extracted = await extractPayableFromPDF(files[0]);
             // Pré-preencher o formulário com os dados extraídos
+            const obs = [
+                extracted.supplier_name ? `Fornecedor: ${extracted.supplier_name}` : null,
+                extracted.cnpj ? `CNPJ: ${extracted.cnpj}` : null,
+                extracted.invoice_number ? `NF: ${extracted.invoice_number}` : null,
+            ].filter(Boolean).join(" | ");
+
             setEditingItem({
                 description: extracted.description,
                 amount: extracted.amount || 0,
                 due_date: extracted.due_date || "",
+                competencia: extracted.competencia || "",
                 barcode: extracted.barcode || "",
                 status: "pending",
                 company_id: selectedCompany?.id || "",
-                // campos opcionais
                 supplier_id: null,
                 category_id: null,
                 payment_method: null,
                 payment_date: null,
-                observations: extracted.supplier_name
-                    ? `Fornecedor detectado: ${extracted.supplier_name}${extracted.cnpj ? ` (CNPJ: ${extracted.cnpj})` : ""}${extracted.invoice_number ? ` | NF: ${extracted.invoice_number}` : ""}`
-                    : null,
+                observations: obs || null,
                 file_url: null,
                 recurrence: null,
                 created_at: null,
