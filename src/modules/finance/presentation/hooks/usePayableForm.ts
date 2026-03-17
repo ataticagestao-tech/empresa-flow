@@ -64,6 +64,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
 
             // Montar payload apenas com colunas que existem na tabela accounts_payable
+            // Apenas colunas que existem na tabela accounts_payable do Supabase
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
                 description: data.description,
@@ -71,17 +72,13 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
                 status: data.status || "pending",
                 due_date: dateToLocalString(data.due_date),
                 payment_date: dateToLocalString(data.payment_date),
-                issue_date: dateToLocalString(data.issue_date),
                 supplier_id: cleanId(data.supplier_id),
                 category_id: cleanId(data.category_id),
-                bank_account_id: cleanId(data.bank_account_id),
                 payment_method: (!data.payment_method || data.payment_method === "none") ? null : data.payment_method,
                 barcode: data.barcode || null,
-                pix_key: data.pix_key || null,
-                pix_key_type: data.pix_key_type || null,
-                invoice_number: data.invoice_number || null,
                 observations: data.observations || null,
                 file_url: data.file_url || null,
+                recurrence: data.recurrence || null,
             };
 
             // Adicionar id se for edição

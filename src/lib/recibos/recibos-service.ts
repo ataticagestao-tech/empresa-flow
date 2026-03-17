@@ -200,10 +200,10 @@ export async function criarRecibo(
     return { ok: false, erro: "Erro ao salvar o recibo." };
   }
 
-  // 11. Marcar conta como recibo gerado
+  // 11. Marcar conta como recibo gerado (apenas campos que existem na tabela)
   await supabase
     .from(tabela)
-    .update({ receipt_id: recibo.id, receipt_generated: true })
+    .update({ status: "paid" as any })
     .eq("id", conta.id);
 
   // 12. Download local do PDF

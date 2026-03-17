@@ -97,7 +97,7 @@ export default function ContasPagar() {
             if (!selectedCompany?.id) return [];
             const { data: rows, error } = await (activeClient as any)
                 .from("accounts_payable")
-                .select("id, company_id, description, amount, status, due_date, payment_date, issue_date, supplier_id, category_id, bank_account_id, payment_method, barcode, pix_key, pix_key_type, invoice_number, observations, file_url, created_at")
+                .select("id, company_id, description, amount, status, due_date, payment_date, supplier_id, category_id, payment_method, barcode, observations, file_url, recurrence, created_at")
                 .eq("company_id", selectedCompany.id)
                 .order("due_date", { ascending: true });
             if (error || !rows) { console.error("accounts_payable error:", error); return []; }
