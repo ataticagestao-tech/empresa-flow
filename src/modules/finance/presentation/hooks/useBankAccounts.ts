@@ -71,9 +71,51 @@ export function useBankAccounts() {
         }
     };
 
+    const updateAccount = async (id: string, account: Record<string, any>) => {
+        if (!activeClient) return;
+        try {
+            const { error } = await (activeClient as any)
+                .from('bank_accounts')
+                .update({
+                    name: account.name,
+                    type: account.type || "checking",
+                    banco: account.banco || null,
+                    agencia: account.agencia || null,
+                    conta: account.conta || null,
+                    digito: account.digito || null,
+                    initial_balance: parseFloat(account.initial_balance) || 0,
+                    pix_key: account.pix_key || null,
+                    pix_type: account.pix_type || null,
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+            toast({ title: "Sucesso", description: "Conta bancária atualizada!" });
+            fetchAccounts();
+        } catch (error: any) {
+            toast({ title: "Erro", description: error.message, variant: "destructive" });
+        }
+    };
+
+    const deleteAccount = async (id: string) => {
+        if (!activeClient) return;
+        try {
+            const { error } = await (activeClient as any)
+                .from('bank_accounts')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            toast({ title: "Sucesso", description: "Conta bancária excluída!" });
+            fetchAccounts();
+        } catch (error: any) {
+            toast({ title: "Erro", description: error.message, variant: "destructive" });
+        }
+    };
+
     useEffect(() => {
         fetchAccounts();
     }, [selectedCompany?.id, activeClient]);
 
-    return { accounts, isLoading, fetchAccounts, createAccount };
+    return { accounts, isLoading, fetchAccounts, createAccount, updateAccount, deleteAccount };
 }

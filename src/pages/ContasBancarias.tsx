@@ -11,24 +11,53 @@ import { useNavigate } from "react-router-dom";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+const emptyAccount = { name: "", banco: "", initial_balance: 0, agencia: "", conta: "" };
+
 export default function ContasBancarias() {
-    const { accounts, isLoading, createAccount } = useBankAccounts();
+    const { accounts, isLoading, createAccount, updateAccount, deleteAccount } = useBankAccounts();
     const navigate = useNavigate();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-    // Form State simples para criação
-    const [newAccount, setNewAccount] = useState({
-        name: "",
-        banco: "",
-        initial_balance: 0,
-        agencia: "",
-        conta: ""
-    });
+    const [editingAccount, setEditingAccount] = useState<any>(null);
+    const [formData, setFormData] = useState(emptyAccount);
 
     const handleCreate = async () => {
-        await createAccount(newAccount);
+        await createAccount(formData);
         setIsDialogOpen(false);
-        setNewAccount({ name: "", banco: "", initial_balance: 0, agencia: "", conta: "" });
+        setFormData(emptyAccount);
+    };
+
+    const handleEdit = (account: any) => {
+        setEditingAccount(account);
+        setFormData({
+            name: account.name || "",
+            banco: account.banco || "",
+            initial_balance: account.initial_balance || 0,
+            agencia: account.agencia || "",
+            conta: account.conta || "",
+        });
+        setIsDialogOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (editingAccount?.id) {
+            await updateAccount(editingAccount.id, formData);
+        } else {
+            await createAccount(formData);
+        }
+        setIsDialogOpen(false);
+        setEditingAccount(null);
+        setFormData(emptyAccount);
+    };
+
+    const handleDelete = async (account: any) => {
+        if (!window.confirm(`Excluir a conta "${account.name}"? Esta ação não pode ser desfeita.`)) return;
+        await deleteAccount(account.id);
+    };
+
+    const handleOpenNew = () => {
+        setEditingAccount(null);
+        setFormData(emptyAccount);
+        setIsDialogOpen(true);
     };
 
     return (
@@ -43,67 +72,70 @@ export default function ContasBancarias() {
                         <p className="text-muted-foreground">Gerencie suas contas e saldos.</p>
                     </div>
 
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="bg-emerald-600 hover:bg-emerald-700">
-                                <Plus className="mr-2 h-4 w-4" /> Nova Conta
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Adicionar Conta Bancária</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                    <Label>Nome da Conta (Apelido)</Label>
-                                    <Input
-                                        placeholder="Ex: Itaú Principal"
-                                        value={newAccount.name}
-                                        onChange={e => setNewAccount({ ...newAccount, name: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Instituição Financeira</Label>
-                                    <Input
-                                        placeholder="Ex: Itaú"
-                                        value={newAccount.banco}
-                                        onChange={e => setNewAccount({ ...newAccount, banco: e.target.value })}
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Agência</Label>
-                                        <Input
-                                            placeholder="0000"
-                                            value={newAccount.agencia}
-                                            onChange={e => setNewAccount({ ...newAccount, agencia: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Número da Conta</Label>
-                                        <Input
-                                            placeholder="00000-0"
-                                            value={newAccount.conta}
-                                            onChange={e => setNewAccount({ ...newAccount, conta: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Saldo Inicial (R$)</Label>
-                                    <Input
-                                        type="number"
-                                        placeholder="0.00"
-                                        value={newAccount.initial_balance}
-                                        onChange={e => setNewAccount({ ...newAccount, initial_balance: Number(e.target.value) })}
-                                    />
-                                </div>
-                                <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleCreate}>
-                                    Salvar Conta
-                                </Button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+                    <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleOpenNew}>
+                        <Plus className="mr-2 h-4 w-4" /> Nova Conta
+                    </Button>
                 </div>
+
+                {/* Dialog de Criar/Editar */}
+                <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                    setIsDialogOpen(open);
+                    if (!open) { setEditingAccount(null); setFormData(emptyAccount); }
+                }}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{editingAccount ? "Editar Conta Bancária" : "Adicionar Conta Bancária"}</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Nome da Conta (Apelido)</Label>
+                                <Input
+                                    placeholder="Ex: Itaú Principal"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Instituição Financeira</Label>
+                                <Input
+                                    placeholder="Ex: Itaú"
+                                    value={formData.banco}
+                                    onChange={e => setFormData({ ...formData, banco: e.target.value })}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Agência</Label>
+                                    <Input
+                                        placeholder="0000"
+                                        value={formData.agencia}
+                                        onChange={e => setFormData({ ...formData, agencia: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Número da Conta</Label>
+                                    <Input
+                                        placeholder="00000-0"
+                                        value={formData.conta}
+                                        onChange={e => setFormData({ ...formData, conta: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Saldo Inicial (R$)</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={formData.initial_balance}
+                                    onChange={e => setFormData({ ...formData, initial_balance: Number(e.target.value) })}
+                                />
+                            </div>
+                            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}>
+                                {editingAccount ? "Salvar Alterações" : "Salvar Conta"}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {isLoading && (
@@ -118,7 +150,7 @@ export default function ContasBancarias() {
                             <Wallet className="h-12 w-12 mx-auto text-slate-300 mb-4" />
                             <h3 className="text-lg font-medium text-foreground">Nenhuma conta cadastrada</h3>
                             <p className="text-muted-foreground max-w-sm mx-auto mt-2">Cadastre sua primeira conta bancária para controlar seu saldo e fazer conciliações.</p>
-                            <Button variant="outline" className="mt-6 border-emerald-600 text-emerald-700 hover:bg-emerald-50" onClick={() => setIsDialogOpen(true)}>
+                            <Button variant="outline" className="mt-6 border-emerald-600 text-emerald-700 hover:bg-emerald-50" onClick={handleOpenNew}>
                                 Cadastrar Agora
                             </Button>
                         </div>
@@ -144,10 +176,10 @@ export default function ContasBancarias() {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleEdit(account)}>
                                                 <Pencil className="mr-2 h-4 w-4" /> Editar
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem className="text-[#EF4444]">
+                                            <DropdownMenuItem className="text-[#EF4444]" onClick={() => handleDelete(account)}>
                                                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
