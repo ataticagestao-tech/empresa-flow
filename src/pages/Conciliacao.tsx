@@ -295,20 +295,31 @@ export default function Conciliacao() {
 
     // Synthetic (parent) groups for "criar categoria" — filtered by createType
     // Despesa includes: expense, cost, and revenue-debit (deduções)
+    // Patrimonial/asset/liability/equity groups appear in both views
     const parentGroups = useMemo(() => {
         if (!allChartAccounts) return [];
-        if (createType === "despesa") {
-            return allChartAccounts.filter((c: any) =>
-                c.is_synthetic && (
-                    c.account_type === 'expense' ||
-                    c.account_type === 'cost' ||
-                    (c.account_type === 'revenue' && c.account_nature === 'debit')
-                )
-            );
-        }
-        return allChartAccounts.filter((c: any) =>
-            c.is_synthetic && c.account_type === 'revenue' && c.account_nature === 'credit'
+        const standardTypes = ['expense', 'cost', 'revenue'];
+        const patrimonialGroups = allChartAccounts.filter((c: any) =>
+            c.is_synthetic && !standardTypes.includes(c.account_type)
         );
+        if (createType === "despesa") {
+            return [
+                ...allChartAccounts.filter((c: any) =>
+                    c.is_synthetic && (
+                        c.account_type === 'expense' ||
+                        c.account_type === 'cost' ||
+                        (c.account_type === 'revenue' && c.account_nature === 'debit')
+                    )
+                ),
+                ...patrimonialGroups
+            ];
+        }
+        return [
+            ...allChartAccounts.filter((c: any) =>
+                c.is_synthetic && c.account_type === 'revenue' && c.account_nature === 'credit'
+            ),
+            ...patrimonialGroups
+        ];
     }, [allChartAccounts, createType]);
 
     // Auto-generate next available code under selected parent group
@@ -1430,7 +1441,7 @@ export default function Conciliacao() {
                                                             <CommandList className="max-h-[150px]">
                                                                 <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
                                                                 <CommandGroup>
-                                                                    {chartCategories?.filter((c: any) => c.type === createType)
+                                                                    {chartCategories?.filter((c: any) => c.type === createType || !['despesa', 'receita'].includes(c.type))
                                                                         .map((c: any) => (
                                                                             <CommandItem
                                                                                 key={c.id}
