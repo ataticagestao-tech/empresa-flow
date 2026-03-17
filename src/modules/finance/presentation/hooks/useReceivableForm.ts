@@ -40,11 +40,24 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
     // 3. Mutation para Salvar
     const saveMutation = useMutation({
         mutationFn: async (values: AccountsReceivable) => {
-            // Remove nulls e garante company_id
-            const payload = {
-                ...values,
-                company_id: selectedCompany!.id
+            const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
+
+            // Apenas colunas que existem na tabela accounts_receivable do Supabase
+            const payload: Record<string, any> = {
+                company_id: selectedCompany!.id,
+                description: values.description,
+                amount: values.amount,
+                status: values.status || "pending",
+                due_date: values.due_date instanceof Date ? values.due_date.toISOString().split("T")[0] : values.due_date,
+                receive_date: values.receive_date instanceof Date ? values.receive_date.toISOString().split("T")[0] : values.receive_date || null,
+                client_id: cleanId(values.client_id),
+                category_id: cleanId(values.category_id),
+                payment_method: (!values.payment_method || values.payment_method === "none") ? null : values.payment_method,
+                observations: values.observations || null,
+                file_url: values.file_url || null,
+                recurrence: values.recurrence || null,
             };
+            if (values.id) payload.id = values.id;
 
             // Salva o Recebível
             const { data: savedReceivable, error } = await service.saveReceivable(payload);

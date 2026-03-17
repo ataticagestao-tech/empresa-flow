@@ -24,7 +24,7 @@ export const AccountsReceivableSchema = z.object({
 
     // Status e Recorrência
     status: z.enum(['pending', 'paid', 'overdue', 'cancelled']).default('pending'), // Lowercase sync
-    recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).default('none'),
+    recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly', 'daily']).nullable().transform(v => v ?? 'none').default('none'),
 
     // Detalhes Pagamento
     payment_method: z.string().optional().nullable(),
