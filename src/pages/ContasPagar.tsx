@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -384,52 +384,74 @@ export default function ContasPagar() {
         return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total, avgTicket, billCount: filteredBills.length };
     }, [filteredBills]);
 
-    // ── PDF Drop ──
+    // ── PDF Drop (window-level events) ──
     const [isDragging, setIsDragging] = useState(false);
     const [isParsing, setIsParsing] = useState(false);
+    const dragCounter = useState({ current: 0 })[0];
 
-    const handleDrop = useCallback(async (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf");
-        if (!files.length) return;
-        setIsParsing(true);
-        try {
-            const extracted = await extractPayableFromPDF(files[0]);
-            // Pré-preencher o formulário com os dados extraídos
-            const obs = [
-                extracted.supplier_name ? `Fornecedor: ${extracted.supplier_name}` : null,
-                extracted.cnpj ? `CNPJ: ${extracted.cnpj}` : null,
-                extracted.invoice_number ? `NF: ${extracted.invoice_number}` : null,
-            ].filter(Boolean).join(" | ");
+    useEffect(() => {
+        const onDragEnter = (e: DragEvent) => {
+            e.preventDefault();
+            dragCounter.current++;
+            if (e.dataTransfer?.types.includes("Files")) setIsDragging(true);
+        };
+        const onDragLeave = (e: DragEvent) => {
+            e.preventDefault();
+            dragCounter.current--;
+            if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false); }
+        };
+        const onDragOver = (e: DragEvent) => { e.preventDefault(); };
+        const onDrop = async (e: DragEvent) => {
+            e.preventDefault();
+            dragCounter.current = 0;
+            setIsDragging(false);
+            const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type === "application/pdf");
+            if (!files.length) return;
+            setIsParsing(true);
+            try {
+                const extracted = await extractPayableFromPDF(files[0]);
+                const obs = [
+                    extracted.supplier_name ? `Fornecedor: ${extracted.supplier_name}` : null,
+                    extracted.cnpj ? `CNPJ: ${extracted.cnpj}` : null,
+                    extracted.invoice_number ? `NF: ${extracted.invoice_number}` : null,
+                ].filter(Boolean).join(" | ");
 
-            setEditingItem({
-                description: extracted.description,
-                amount: extracted.amount || 0,
-                due_date: extracted.due_date || "",
-                competencia: extracted.competencia || "",
-                barcode: extracted.barcode || "",
-                status: "pending",
-                company_id: selectedCompany?.id || "",
-                supplier_id: null,
-                category_id: null,
-                payment_method: null,
-                payment_date: null,
-                observations: obs || null,
-                file_url: null,
-                recurrence: null,
-                created_at: null,
-            } as any);
-            setIsSheetOpen(true);
-        } catch (err) {
-            console.error("Erro ao ler PDF:", err);
-        } finally {
-            setIsParsing(false);
-        }
+                setEditingItem({
+                    description: extracted.description,
+                    amount: extracted.amount || 0,
+                    due_date: extracted.due_date || "",
+                    competencia: extracted.competencia || "",
+                    barcode: extracted.barcode || "",
+                    status: "pending",
+                    company_id: selectedCompany?.id || "",
+                    supplier_id: null,
+                    category_id: null,
+                    payment_method: null,
+                    payment_date: null,
+                    observations: obs || null,
+                    file_url: null,
+                    recurrence: null,
+                    created_at: null,
+                } as any);
+                setIsSheetOpen(true);
+            } catch (err) {
+                console.error("Erro ao ler PDF:", err);
+            } finally {
+                setIsParsing(false);
+            }
+        };
+
+        window.addEventListener("dragenter", onDragEnter);
+        window.addEventListener("dragleave", onDragLeave);
+        window.addEventListener("dragover", onDragOver);
+        window.addEventListener("drop", onDrop);
+        return () => {
+            window.removeEventListener("dragenter", onDragEnter);
+            window.removeEventListener("dragleave", onDragLeave);
+            window.removeEventListener("dragover", onDragOver);
+            window.removeEventListener("drop", onDrop);
+        };
     }, [selectedCompany]);
-
-    const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); }, []);
-    const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
 
     // Handlers
     const handleEdit = (item: AccountsPayable) => { setEditingItem(item); setIsSheetOpen(true); };
@@ -573,9 +595,6 @@ export default function ContasPagar() {
             <div
                 className="animate-fade-in"
                 style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20, position: "relative" }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
             >
                 {/* Drop overlay */}
                 {isDragging && (
