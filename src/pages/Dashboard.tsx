@@ -20,8 +20,6 @@ import {
   Layers,
   Search,
   Wallet,
-  MapPin,
-  MailCheck,
   ChevronRight,
   Plus,
   CreditCard,
@@ -38,6 +36,7 @@ import { formatCurrency } from "@/utils/formatters";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -99,36 +98,63 @@ export default function Dashboard() {
     ).includes(needle);
   });
 
+  const { activeClient } = useAuth();
+
   const totalCompanies = companies?.length ?? 0;
   const resultsCount = filteredCompanies?.length ?? 0;
-  const totalRevenue = useMemo(
-    () =>
-      (companies ?? []).reduce((acc, company: any) => {
-        const value = Number(company?.faturamento);
-        return Number.isFinite(value) ? acc + value : acc;
-      }, 0),
-    [companies],
-  );
-  const statesCount = useMemo(
-    () =>
-      new Set(
-        (companies ?? [])
-          .map((company: any) => String(company?.endereco_estado ?? "").trim())
-          .filter(Boolean),
-      ).size,
-    [companies],
-  );
-  const companiesWithEmail = useMemo(
-    () => (companies ?? []).filter((company: any) => String(company?.email ?? "").trim().length > 0).length,
-    [companies],
-  );
-  const contactCoverage = totalCompanies > 0 ? Math.round((companiesWithEmail / totalCompanies) * 100) : 0;
+
+  // KPIs financeiros reais — saldo bancário, a receber, a pagar
+  const companyIds = useMemo(() => (companies ?? []).map(c => c.id), [companies]);
+
+  const { data: totalBankBalance = 0 } = useQuery({
+    queryKey: ['dashboard_total_balance', companyIds],
+    queryFn: async () => {
+      if (!companyIds.length) return 0;
+      const { data, error } = await (activeClient as any)
+        .from('bank_accounts')
+        .select('current_balance')
+        .in('company_id', companyIds);
+      if (error) return 0;
+      return (data || []).reduce((acc: number, r: any) => acc + (r.current_balance || 0), 0);
+    },
+    enabled: companyIds.length > 0,
+  });
+
+  const { data: totalReceivable = 0 } = useQuery({
+    queryKey: ['dashboard_total_receivable', companyIds],
+    queryFn: async () => {
+      if (!companyIds.length) return 0;
+      const { data, error } = await (activeClient as any)
+        .from('accounts_receivable')
+        .select('amount')
+        .in('company_id', companyIds)
+        .eq('status', 'pending');
+      if (error) return 0;
+      return (data || []).reduce((acc: number, r: any) => acc + (r.amount || 0), 0);
+    },
+    enabled: companyIds.length > 0,
+  });
+
+  const { data: totalPayable = 0 } = useQuery({
+    queryKey: ['dashboard_total_payable', companyIds],
+    queryFn: async () => {
+      if (!companyIds.length) return 0;
+      const { data, error } = await (activeClient as any)
+        .from('accounts_payable')
+        .select('amount')
+        .in('company_id', companyIds)
+        .eq('status', 'pending');
+      if (error) return 0;
+      return (data || []).reduce((acc: number, r: any) => acc + (r.amount || 0), 0);
+    },
+    enabled: companyIds.length > 0,
+  });
 
   const kpis = [
     { id: "total", label: "Empresas Cadastradas", value: String(totalCompanies), detail: `${resultsCount} em exibição`, icon: Building2 },
-    { id: "revenue", label: "Faturamento Informado", value: formatCurrency(totalRevenue), detail: "Soma das empresas listadas", icon: Wallet },
-    { id: "states", label: "Cobertura Geográfica", value: `${statesCount}`, detail: "Estados diferentes", icon: MapPin },
-    { id: "contact", label: "Dados de Contato", value: `${contactCoverage}%`, detail: `${companiesWithEmail}/${totalCompanies || 0} com email`, icon: MailCheck },
+    { id: "balance", label: "Saldo em Bancos", value: formatCurrency(totalBankBalance), detail: "Soma de todas as contas", icon: Wallet },
+    { id: "receivable", label: "A Receber (Pendente)", value: formatCurrency(totalReceivable), detail: "Total pendente de recebimento", icon: ArrowUpCircle },
+    { id: "payable", label: "A Pagar (Pendente)", value: formatCurrency(totalPayable), detail: "Total pendente de pagamento", icon: ArrowDownCircle },
   ];
 
   const quickActions = [
@@ -227,8 +253,8 @@ export default function Dashboard() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Empresa</TableHead>
-                      <TableHead className="hidden md:table-cell">Estado</TableHead>
-                      <TableHead className="hidden lg:table-cell text-right">Faturamento</TableHead>
+                      <TableHead className="hidden md:table-cell">CNPJ</TableHead>
+                      <TableHead className="hidden lg:table-cell">Estado</TableHead>
                       <TableHead className="text-center">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -252,16 +278,13 @@ export default function Dashboard() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <span className="text-[12.5px] text-muted-foreground">
-                            {company.endereco_estado || "-"}
+                          <span className="text-[12.5px] text-muted-foreground font-mono">
+                            {company.cnpj ? maskCNPJ(company.cnpj) : "-"}
                           </span>
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell text-right">
-                          <span className="td-value text-foreground">
-                            {(() => {
-                              const value = Number(company.faturamento);
-                              return Number.isFinite(value) ? formatCurrency(value) : "-";
-                            })()}
+                        <TableCell className="hidden lg:table-cell">
+                          <span className="text-[12.5px] text-muted-foreground">
+                            {company.endereco_cidade ? `${company.endereco_cidade}/${company.endereco_estado || ""}` : company.endereco_estado || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
