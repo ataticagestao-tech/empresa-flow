@@ -2,11 +2,9 @@ import {
   Building2,
   Users,
   Truck,
-  Tags,
   Wallet,
   LayoutDashboard,
   FileText,
-  CreditCard,
   ArrowLeftRight,
   ArrowDownCircle,
   ArrowUpCircle,
@@ -33,9 +31,9 @@ export interface MenuItem {
   icon: LucideIcon;
   url?: string;
   action?: 'logout' | 'none';
-  isHardcoded?: boolean; // Para títulos sem tradução ainda
-  hidden?: boolean; // Oculta do menu (ex.: CRM desabilitado temporariamente)
-  adminOnly?: boolean; // Apenas visível para super admin
+  isHardcoded?: boolean;
+  hidden?: boolean;
+  adminOnly?: boolean;
 }
 
 export interface MenuGroup {
@@ -49,39 +47,31 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'dashboard',
     items: [
-      {
-        titleKey: 'menu.dashboard',
-        icon: LayoutDashboard,
-        url: '/dashboard'
-      }
+      { titleKey: 'menu.dashboard', icon: LayoutDashboard, url: '/dashboard' }
     ]
   },
   {
     id: 'cadastros',
-    labelKey: 'Cadastros', // Hardcoded pois no original era string direta "Cadastros"
+    labelKey: 'Cadastros',
     isHardcodedLabel: true,
     items: [
       { titleKey: 'menu.companies', icon: Building2, url: '/empresas' },
-      { titleKey: 'menu.clients', icon: Users, url: '/clientes' },
       { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
-      { titleKey: 'WhatsApp', icon: Users, url: '/whatsapp', isHardcoded: true, hidden: true },
-      { titleKey: 'CRM', icon: Building2, url: '/crm', isHardcoded: true, hidden: true },
-      { titleKey: 'menu.categories', icon: Tags, url: '/categorias' },
       { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
-      { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' }
+      { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
+      { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
     ]
   },
   {
     id: 'financeiro',
     labelKey: 'menu.finance',
     items: [
-      { titleKey: 'Visão Geral', icon: LayoutDashboard, url: '/financeiro', isHardcoded: true },
-      { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
+      { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
-      { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
+      { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
-      { titleKey: 'menu.reconciliation', icon: CreditCard, url: '/conciliacao' },
-      { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true }
+      { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
+      { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
     ]
   },
   {
@@ -103,26 +93,19 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
       { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
       { titleKey: 'Composição de Custo', icon: Layers, url: '/composicao-custo', isHardcoded: true },
-      { titleKey: 'Margens de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
+      { titleKey: 'Margem de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
       { titleKey: 'Tabela de Preços', icon: TableProperties, url: '/tabela-precos', isHardcoded: true },
-      { titleKey: 'Markup / Simulador', icon: Target, url: '/markup-simulador', isHardcoded: true },
+      { titleKey: 'Markup', icon: Target, url: '/markup-simulador', isHardcoded: true },
     ]
   },
   {
-    id: 'operacional',
-    labelKey: 'menu.operational',
+    id: 'admin',
+    labelKey: 'Administração',
+    isHardcodedLabel: true,
     items: [
-      { titleKey: 'menu.operational', icon: Package, url: '/operacional', adminOnly: true },
-      { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true }
+      { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },
     ]
   },
-  {
-    id: 'relatorios',
-    labelKey: 'menu.reports',
-    items: [
-      { titleKey: 'menu.reports', icon: FileText, url: '/relatorios' }
-    ]
-  }
 ];
 
 export const footerMenu: MenuItem[] = [
