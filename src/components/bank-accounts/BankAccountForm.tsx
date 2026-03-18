@@ -171,6 +171,7 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
                                         <SelectItem value="savings">Conta Poupança</SelectItem>
                                         <SelectItem value="investment">Investimento</SelectItem>
                                         <SelectItem value="cash">Caixa Físico</SelectItem>
+                                        <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />

@@ -19,7 +19,7 @@ import {
     Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
     Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
-    DollarSign, Clock, Bot
+    DollarSign, Clock, Bot, CreditCard
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -94,9 +94,13 @@ export default function Conciliacao() {
         systemTransactions,
         importHistory,
         uploadOFX,
+        uploadCreditCardPDF,
         matchTransaction,
         deleteImportBatch
     } = useBankReconciliation(selectedAccountId);
+
+    const selectedAccount = accounts?.find((a: any) => a.id === selectedAccountId);
+    const isCreditCard = selectedAccount?.type === 'credit_card';
 
     const {
         suggestions,
@@ -382,9 +386,16 @@ export default function Conciliacao() {
     // HANDLERS
     // ============================================================
 
+    const ccFileInputRef = useRef<HTMLInputElement>(null);
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) uploadOFX.mutate(file);
+    };
+
+    const handleCCFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadCreditCardPDF.mutate(file);
     };
 
     const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
@@ -609,7 +620,9 @@ export default function Conciliacao() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {accounts.map(acc => (
-                                        <SelectItem key={acc.id} value={acc.id || ""}>{acc.name} - {acc.banco}</SelectItem>
+                                        <SelectItem key={acc.id} value={acc.id || ""}>
+                                            {acc.type === 'credit_card' ? '💳 ' : ''}{acc.name} - {acc.banco}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -621,17 +634,28 @@ export default function Conciliacao() {
                     <div className="flex items-center gap-3">
                         <input type="file" accept=".ofx" className="hidden" ref={fileInputRef}
                             onChange={handleFileChange} disabled={!selectedAccountId || uploadOFX.isPending} />
+                        <input type="file" accept=".pdf" className="hidden" ref={ccFileInputRef}
+                            onChange={handleCCFileChange} disabled={!selectedAccountId || uploadCreditCardPDF.isPending} />
                         <Button variant="outline" className="border-[#E2E8F0]"
                             onClick={() => setShowRulesPanel(!showRulesPanel)}>
                             <Brain className="mr-2 h-4 w-4" />
                             Regras ({rules.length})
                         </Button>
-                        <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={!selectedAccountId || uploadOFX.isPending}>
-                            {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                            Importar OFX
-                        </Button>
+                        {isCreditCard ? (
+                            <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                onClick={() => ccFileInputRef.current?.click()}
+                                disabled={!selectedAccountId || uploadCreditCardPDF.isPending}>
+                                {uploadCreditCardPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                Importar Fatura (PDF)
+                            </Button>
+                        ) : (
+                            <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={!selectedAccountId || uploadOFX.isPending}>
+                                {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                Importar OFX
+                            </Button>
+                        )}
                     </div>
                 </div>
 

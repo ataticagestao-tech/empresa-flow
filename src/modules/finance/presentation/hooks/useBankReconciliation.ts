@@ -7,6 +7,7 @@ import { BankTransaction } from "../../domain/schemas/bank-reconciliation.schema
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseBankStatementPdf } from "@/lib/parsers/bankStatementPdf";
+import { parseCreditCardPdf } from "@/lib/parsers/creditCardPdf";
 
 // Interface unificada para transações do sistema (Pagar e Receber)
 export interface SystemTransaction {
@@ -441,6 +442,53 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         onError: (err: any) => toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" })
     });
 
+    // Mutation: Upload Fatura de Cartão de Crédito (PDF)
+    const uploadCreditCardPDF = useMutation({
+        mutationFn: async (file: File) => {
+            if (!bankAccountId || !companyId) throw new Error("Dados incompletos");
+
+            const statement = await parseCreditCardPdf(file);
+            if (!statement.transactions.length) throw new Error("Nenhuma transação encontrada na fatura");
+
+            const toInsert = statement.transactions.map((tx, index) => {
+                const fitBase = `cc_${bankAccountId}:${tx.date}:${tx.amount}:${tx.description}:${index}`;
+                const fitId = `cc_${hashString(fitBase)}`;
+                return {
+                    company_id: companyId,
+                    bank_account_id: bankAccountId,
+                    fit_id: fitId,
+                    date: tx.date,
+                    amount: -Math.abs(tx.amount), // Cartão = despesa = negativo
+                    description: tx.installment
+                        ? `${tx.description} (${tx.installment})`
+                        : tx.description,
+                    memo: tx.installment ? `Parcela ${tx.installment}` : "",
+                    status: 'pending',
+                    source: 'credit_card_pdf',
+                };
+            });
+
+            const { error } = await (activeClient as any)
+                .from('bank_transactions')
+                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+
+            if (error) throw error;
+
+            return {
+                count: toInsert.length,
+                total: statement.totalAmount,
+                dueDate: statement.dueDate,
+                cardLast4: statement.cardLast4,
+            };
+        },
+        onSuccess: (result) => {
+            const extra = result.total ? ` | Total fatura: R$ ${result.total.toFixed(2).replace('.', ',')}` : '';
+            toast({ title: "Fatura importada", description: `${result.count} transações importadas.${extra}` });
+            queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
+        },
+        onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
+    });
+
     return {
         bankTransactions,
         statementFiles,
@@ -449,6 +497,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         isLoading: isLoadingBankTx || isLoadingSystemTx,
         uploadOFX,
         uploadPDF,
+        uploadCreditCardPDF,
         matchTransaction,
         deleteImportBatch
     };
