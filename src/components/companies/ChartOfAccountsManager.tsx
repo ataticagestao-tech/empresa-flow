@@ -812,6 +812,39 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                             />
                         </div>
 
+                        <div>
+                            <Label>Categoria Pai</Label>
+                            <Select
+                                value={formData.parent_id || "__none__"}
+                                onValueChange={(value) => {
+                                    const parentId = value === "__none__" ? null : value;
+                                    const parent = accounts.find(a => a.id === parentId);
+                                    setFormData({
+                                        ...formData,
+                                        parent_id: parentId,
+                                        code: parent ? parent.code + '.' : '',
+                                        account_type: parent ? parent.account_type as ChartOfAccountType : formData.account_type,
+                                        account_nature: parent ? parent.account_nature : formData.account_nature,
+                                    });
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Nenhuma (conta raiz)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__none__">Nenhuma (conta raiz)</SelectItem>
+                                    {accounts
+                                        .filter(a => a.is_analytic === false || accounts.some(child => child.parent_id === a.id))
+                                        .sort((a, b) => a.code.localeCompare(b.code))
+                                        .map(a => (
+                                            <SelectItem key={a.id} value={a.id}>
+                                                {a.code} - {a.name}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <Label>Tipo de Conta *</Label>
