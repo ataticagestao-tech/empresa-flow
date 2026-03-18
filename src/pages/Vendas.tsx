@@ -251,6 +251,7 @@ export default function Vendas() {
     const handleEdit = (sale: any) => {
         setEditingId(sale.id);
         setForm({
+            product_id: sale.product_id || "",
             description: sale.description || "",
             amount: String(sale.amount || ""),
             client_id: sale.client_id || "",
@@ -523,7 +524,6 @@ export default function Vendas() {
                                 <TableHead>Data</TableHead>
                                 <TableHead>Produto/Serviço</TableHead>
                                 <TableHead>Cliente</TableHead>
-                                <TableHead>Categoria</TableHead>
                                 <TableHead>Forma Pgto</TableHead>
                                 <TableHead className="text-right">Valor</TableHead>
                                 <TableHead>Status</TableHead>
@@ -532,15 +532,14 @@ export default function Vendas() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
                             ) : filtered.length === 0 ? (
-                                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma venda encontrada.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma venda encontrada.</TableCell></TableRow>
                             ) : filtered.map((s: any) => (
                                 <TableRow key={s.id} className="hover:bg-slate-50/50">
                                     <TableCell className="text-sm">{s.due_date ? format(parseISO(s.due_date), "dd/MM/yyyy") : "—"}</TableCell>
                                     <TableCell className="font-medium text-sm">{s.description || "—"}</TableCell>
                                     <TableCell className="text-sm">{s.client_name || "—"}</TableCell>
-                                    <TableCell className="text-sm">{s.category_name || "—"}</TableCell>
                                     <TableCell className="text-sm">{PM_LABELS[s.payment_method] || s.payment_method || "—"}</TableCell>
                                     <TableCell className="text-right font-semibold" style={{ color: T.green }}>{fmt(Number(s.amount))}</TableCell>
                                     <TableCell>{statusBadge(s.status)}</TableCell>
@@ -607,29 +606,16 @@ export default function Vendas() {
                                 <Input value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
                                     placeholder="0,00" className="font-semibold text-green-700" />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Cliente</Label>
-                                    <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
-                                        <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {clients.map((c: any) => (
-                                                <SelectItem key={c.id} value={c.id}>{c.nome_fantasia || c.razao_social}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Categoria</Label>
-                                    <Select value={form.category_id} onValueChange={v => setForm({ ...form, category_id: v })}>
-                                        <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {categories.map((c: any) => (
-                                                <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                            <div className="space-y-2">
+                                <Label>Cliente</Label>
+                                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
+                                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {clients.map((c: any) => (
+                                            <SelectItem key={c.id} value={c.id}>{c.nome_fantasia || c.razao_social}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -647,17 +633,6 @@ export default function Vendas() {
                                     <Label>Data</Label>
                                     <Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Status</Label>
-                                <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
-                                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="pending">Pendente</SelectItem>
-                                        <SelectItem value="paid">Recebido</SelectItem>
-                                        <SelectItem value="cancelled">Cancelado</SelectItem>
-                                    </SelectContent>
-                                </Select>
                             </div>
                             <div className="space-y-2">
                                 <Label>Observações</Label>
