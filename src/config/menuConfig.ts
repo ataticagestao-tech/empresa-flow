@@ -20,6 +20,11 @@ import {
   DollarSign,
   GitBranch,
   ShoppingCart,
+  ClipboardList,
+  Layers,
+  Percent,
+  TableProperties,
+  Target,
   LucideIcon
 } from "lucide-react";
 
@@ -61,7 +66,6 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
       { titleKey: 'WhatsApp', icon: Users, url: '/whatsapp', isHardcoded: true, hidden: true },
       { titleKey: 'CRM', icon: Building2, url: '/crm', isHardcoded: true, hidden: true },
-      { titleKey: 'menu.suppliers', icon: Truck, url: '/fornecedores' },
       { titleKey: 'menu.categories', icon: Tags, url: '/categorias' },
       { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
       { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' }
@@ -89,6 +93,19 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
       { titleKey: 'Previsão de Receitas', icon: DollarSign, url: '/previsao-receitas', isHardcoded: true },
       { titleKey: 'Cenários', icon: GitBranch, url: '/cenarios', isHardcoded: true },
+    ]
+  },
+  {
+    id: 'precificacao',
+    labelKey: 'Precificação',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
+      { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
+      { titleKey: 'Composição de Custo', icon: Layers, url: '/composicao-custo', isHardcoded: true },
+      { titleKey: 'Margens de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
+      { titleKey: 'Tabela de Preços', icon: TableProperties, url: '/tabela-precos', isHardcoded: true },
+      { titleKey: 'Markup / Simulador', icon: Target, url: '/markup-simulador', isHardcoded: true },
     ]
   },
   {

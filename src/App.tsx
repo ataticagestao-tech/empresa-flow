@@ -41,6 +41,11 @@ import Orcamento from "./pages/Orcamento";
 import PrevisaoReceitas from "./pages/PrevisaoReceitas";
 import Cenarios from "./pages/Cenarios";
 import Vendas from "./pages/Vendas";
+import FichaTecnica from "./pages/FichaTecnica";
+import ComposicaoCusto from "./pages/ComposicaoCusto";
+import MargensDesconto from "./pages/MargensDesconto";
+import TabelaPrecos from "./pages/TabelaPrecos";
+import MarkupSimulador from "./pages/MarkupSimulador";
 
 const queryClient = new QueryClient();
 
@@ -152,6 +157,11 @@ const App = () => (
                     <Route path="/previsao-receitas" element={<PrevisaoReceitas />} />
                     <Route path="/cenarios" element={<Cenarios />} />
                     <Route path="/vendas" element={<Vendas />} />
+                    <Route path="/ficha-tecnica" element={<FichaTecnica />} />
+                    <Route path="/composicao-custo" element={<ComposicaoCusto />} />
+                    <Route path="/margens-desconto" element={<MargensDesconto />} />
+                    <Route path="/tabela-precos" element={<TabelaPrecos />} />
+                    <Route path="/markup-simulador" element={<MarkupSimulador />} />
                     <Route path="/relatorios" element={<Relatorios />} />
                     <Route path="/relatorios/*" element={<Relatorios />} />
                     <Route path="/crm" element={<CRM />} />
