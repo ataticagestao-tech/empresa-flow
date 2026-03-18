@@ -3,7 +3,8 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Wallet, ArrowRight, MoreVertical, Pencil, Trash2, Landmark, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Wallet, ArrowRight, MoreVertical, Pencil, Trash2, Landmark, Check, ChevronsUpDown, Ban, CheckCircle2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +18,10 @@ import { useNavigate } from "react-router-dom";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const emptyAccount = { name: "", banco: "", initial_balance: 0, agencia: "", conta: "", type: "checking" };
+const emptyAccount = {
+    name: "", banco: "", initial_balance: 0, agencia: "", conta: "", digito: "",
+    type: "checking", chave_pix: "", data_saldo_inicial: "", ofx_ativo: false, status: "ativa"
+};
 
 function parseBankCode(banco: string): { code: string; name: string } | null {
     if (!banco) return null;
@@ -110,7 +114,12 @@ export default function ContasBancarias() {
             initial_balance: account.initial_balance || 0,
             agencia: account.agencia || "",
             conta: account.conta || "",
+            digito: account.digito || "",
             type: account.type || "checking",
+            chave_pix: account.chave_pix || account.pix_key || "",
+            data_saldo_inicial: account.data_saldo_inicial || "",
+            ofx_ativo: account.ofx_ativo || false,
+            status: account.status || "ativa",
         });
         setIsDialogOpen(true);
     };
@@ -186,7 +195,7 @@ export default function ContasBancarias() {
                                 </Select>
                             </div>
                             <BankCombobox value={formData.banco} onChange={v => setFormData({ ...formData, banco: v })} />
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <Label>Agência</Label>
                                     <Input
@@ -203,15 +212,67 @@ export default function ContasBancarias() {
                                         onChange={e => setFormData({ ...formData, conta: e.target.value })}
                                     />
                                 </div>
+                                <div className="space-y-2">
+                                    <Label>Dígito</Label>
+                                    <Input
+                                        placeholder="0"
+                                        value={formData.digito}
+                                        onChange={e => setFormData({ ...formData, digito: e.target.value })}
+                                        className="w-full"
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>Saldo Inicial (R$)</Label>
+                                <Label>Chave PIX</Label>
                                 <Input
-                                    type="number"
-                                    placeholder="0.00"
-                                    value={formData.initial_balance}
-                                    onChange={e => setFormData({ ...formData, initial_balance: Number(e.target.value) })}
+                                    placeholder="CPF, email, telefone ou chave aleatória"
+                                    value={formData.chave_pix}
+                                    onChange={e => setFormData({ ...formData, chave_pix: e.target.value })}
                                 />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Saldo Inicial (R$)</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={formData.initial_balance}
+                                        onChange={e => setFormData({ ...formData, initial_balance: Number(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Data do Saldo Inicial</Label>
+                                    <Input
+                                        type="date"
+                                        value={formData.data_saldo_inicial}
+                                        onChange={e => setFormData({ ...formData, data_saldo_inicial: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Status</Label>
+                                    <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v })}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ativa">Ativa</SelectItem>
+                                            <SelectItem value="encerrada">Encerrada</SelectItem>
+                                            <SelectItem value="bloqueada">Bloqueada</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Importação OFX</Label>
+                                    <div className="flex items-center gap-2 h-10">
+                                        <Switch
+                                            checked={formData.ofx_ativo}
+                                            onCheckedChange={v => setFormData({ ...formData, ofx_ativo: v })}
+                                        />
+                                        <span className="text-sm text-muted-foreground">
+                                            {formData.ofx_ativo ? "Habilitado" : "Desabilitado"}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}>
                                 {editingAccount ? "Salvar Alterações" : "Salvar Conta"}
@@ -250,7 +311,14 @@ export default function ContasBancarias() {
                                         </CardTitle>
                                         <CardDescription className="font-medium text-muted-foreground">
                                             {account.banco} • Ag: {account.agencia || '-'} CC: {account.conta || '-'}
+                                            {account.chave_pix && <span className="block text-xs mt-0.5">PIX: {account.chave_pix}</span>}
                                         </CardDescription>
+                                        {account.status && account.status !== 'ativa' && (
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${account.status === 'encerrada' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                <Ban className="h-3 w-3" />
+                                                {account.status === 'encerrada' ? 'Encerrada' : 'Bloqueada'}
+                                            </span>
+                                        )}
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

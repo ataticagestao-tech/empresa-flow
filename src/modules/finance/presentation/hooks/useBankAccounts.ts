@@ -56,8 +56,12 @@ export function useBankAccounts() {
                     digito: account.digito || null,
                     initial_balance: balance,
                     current_balance: account.current_balance ?? balance,
-                    pix_key: account.pix_key || null,
+                    pix_key: account.pix_key || account.chave_pix || null,
                     pix_type: account.pix_type || null,
+                    chave_pix: account.chave_pix || null,
+                    data_saldo_inicial: account.data_saldo_inicial || null,
+                    ofx_ativo: account.ofx_ativo || false,
+                    status: account.status || 'ativa',
                     company_id: selectedCompany.id,
                 }]);
 
@@ -84,8 +88,12 @@ export function useBankAccounts() {
                     conta: account.conta || null,
                     digito: account.digito || null,
                     initial_balance: parseFloat(account.initial_balance) || 0,
-                    pix_key: account.pix_key || null,
+                    pix_key: account.pix_key || account.chave_pix || null,
                     pix_type: account.pix_type || null,
+                    chave_pix: account.chave_pix || null,
+                    data_saldo_inicial: account.data_saldo_inicial || null,
+                    ofx_ativo: account.ofx_ativo || false,
+                    status: account.status || 'ativa',
                 })
                 .eq('id', id);
 

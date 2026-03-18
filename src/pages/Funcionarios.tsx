@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -23,14 +24,51 @@ interface Employee {
     email: string | null;
     phone: string | null;
     cpf: string | null;
+    rg: string | null;
+    data_nascimento: string | null;
     hire_date: string | null;
+    data_demissao: string | null;
     salary: number | null;
+    salario_base: number | null;
+    tipo_contrato: string | null;
+    pis: string | null;
+    ctps_numero: string | null;
+    ctps_serie: string | null;
+    banco_folha: string | null;
+    agencia_folha: string | null;
+    conta_folha: string | null;
+    tipo_conta_folha: string | null;
+    chave_pix_folha: string | null;
+    centro_custo_id: string | null;
     status: string;
     created_at: string;
 }
 
 const emptyForm = {
-    name: "", role: "", department: "", email: "", phone: "", cpf: "", hire_date: "", salary: "", status: "active"
+    name: "", role: "", department: "", email: "", phone: "",
+    cpf: "", rg: "", data_nascimento: "",
+    hire_date: "", data_demissao: "", salary: "", tipo_contrato: "clt",
+    pis: "", ctps_numero: "", ctps_serie: "",
+    banco_folha: "", agencia_folha: "", conta_folha: "", tipo_conta_folha: "", chave_pix_folha: "",
+    status: "ativo"
+};
+
+const statusLabels: Record<string, string> = {
+    ativo: "Ativo", inativo: "Inativo", afastado: "Afastado", ferias: "Férias",
+    active: "Ativo", inactive: "Inativo"
+};
+
+const tipoContratoLabels: Record<string, string> = {
+    clt: "CLT", pj: "PJ", autonomo: "Autônomo", estagio: "Estágio", temporario: "Temporário"
+};
+
+const statusColors: Record<string, string> = {
+    ativo: "bg-green-100 text-green-700",
+    active: "bg-green-100 text-green-700",
+    inativo: "bg-red-100 text-red-700",
+    inactive: "bg-red-100 text-red-700",
+    afastado: "bg-yellow-100 text-yellow-700",
+    ferias: "bg-blue-100 text-blue-700",
 };
 
 export default function Funcionarios() {
@@ -60,7 +98,8 @@ export default function Funcionarios() {
     const filtered = employees.filter(e =>
         e.name.toLowerCase().includes(search.toLowerCase()) ||
         (e.role || "").toLowerCase().includes(search.toLowerCase()) ||
-        (e.department || "").toLowerCase().includes(search.toLowerCase())
+        (e.department || "").toLowerCase().includes(search.toLowerCase()) ||
+        (e.cpf || "").includes(search)
     );
 
     const handleOpenNew = () => {
@@ -78,9 +117,21 @@ export default function Funcionarios() {
             email: emp.email || "",
             phone: emp.phone || "",
             cpf: emp.cpf || "",
+            rg: emp.rg || "",
+            data_nascimento: emp.data_nascimento || "",
             hire_date: emp.hire_date || "",
-            salary: emp.salary ? String(emp.salary) : "",
-            status: emp.status || "active",
+            data_demissao: emp.data_demissao || "",
+            salary: emp.salario_base ? String(emp.salario_base) : emp.salary ? String(emp.salary) : "",
+            tipo_contrato: emp.tipo_contrato || "clt",
+            pis: emp.pis || "",
+            ctps_numero: emp.ctps_numero || "",
+            ctps_serie: emp.ctps_serie || "",
+            banco_folha: emp.banco_folha || "",
+            agencia_folha: emp.agencia_folha || "",
+            conta_folha: emp.conta_folha || "",
+            tipo_conta_folha: emp.tipo_conta_folha || "",
+            chave_pix_folha: emp.chave_pix_folha || "",
+            status: emp.status || "ativo",
         });
         setIsDialogOpen(true);
     };
@@ -88,6 +139,7 @@ export default function Funcionarios() {
     const handleSave = async () => {
         if (!selectedCompany?.id || !formData.name.trim()) return;
         try {
+            const salarioVal = formData.salary ? parseFloat(formData.salary.replace(",", ".")) : null;
             const payload = {
                 company_id: selectedCompany.id,
                 name: formData.name.trim(),
@@ -96,8 +148,21 @@ export default function Funcionarios() {
                 email: formData.email || null,
                 phone: formData.phone || null,
                 cpf: formData.cpf || null,
+                rg: formData.rg || null,
+                data_nascimento: formData.data_nascimento || null,
                 hire_date: formData.hire_date || null,
-                salary: formData.salary ? parseFloat(formData.salary.replace(",", ".")) : null,
+                data_demissao: formData.data_demissao || null,
+                salary: salarioVal,
+                salario_base: salarioVal,
+                tipo_contrato: formData.tipo_contrato || null,
+                pis: formData.pis || null,
+                ctps_numero: formData.ctps_numero || null,
+                ctps_serie: formData.ctps_serie || null,
+                banco_folha: formData.banco_folha || null,
+                agencia_folha: formData.agencia_folha || null,
+                conta_folha: formData.conta_folha || null,
+                tipo_conta_folha: formData.tipo_conta_folha || null,
+                chave_pix_folha: formData.chave_pix_folha || null,
                 status: formData.status,
             };
 
@@ -138,6 +203,8 @@ export default function Funcionarios() {
     const fmt = (v: number | null) =>
         v ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v) : "—";
 
+    const set = (field: string, value: string) => setFormData(f => ({ ...f, [field]: value }));
+
     return (
         <AppLayout title="Funcionários">
             <div className="space-y-6 animate-in fade-in duration-500">
@@ -171,9 +238,9 @@ export default function Funcionarios() {
                             <TableRow>
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Cargo</TableHead>
-                                <TableHead>Departamento</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Telefone</TableHead>
+                                <TableHead>CPF</TableHead>
+                                <TableHead>Contrato</TableHead>
+                                <TableHead>Admissão</TableHead>
                                 <TableHead>Salário</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="w-[50px]"></TableHead>
@@ -197,15 +264,13 @@ export default function Funcionarios() {
                                     <TableRow key={emp.id}>
                                         <TableCell className="font-medium">{emp.name}</TableCell>
                                         <TableCell>{emp.role || "—"}</TableCell>
-                                        <TableCell>{emp.department || "—"}</TableCell>
-                                        <TableCell>{emp.email || "—"}</TableCell>
-                                        <TableCell>{emp.phone || "—"}</TableCell>
-                                        <TableCell>{fmt(emp.salary)}</TableCell>
+                                        <TableCell className="font-mono text-sm">{emp.cpf || "—"}</TableCell>
+                                        <TableCell>{tipoContratoLabels[emp.tipo_contrato || ""] || emp.tipo_contrato || "—"}</TableCell>
+                                        <TableCell>{emp.hire_date ? new Date(emp.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</TableCell>
+                                        <TableCell>{fmt(emp.salario_base || emp.salary)}</TableCell>
                                         <TableCell>
-                                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                emp.status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                                            }`}>
-                                                {emp.status === "active" ? "Ativo" : "Inativo"}
+                                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[emp.status] || "bg-gray-100 text-gray-700"}`}>
+                                                {statusLabels[emp.status] || emp.status}
                                             </span>
                                         </TableCell>
                                         <TableCell>
@@ -236,65 +301,158 @@ export default function Funcionarios() {
                     setIsDialogOpen(open);
                     if (!open) { setEditing(null); setFormData(emptyForm); }
                 }}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>{editing ? "Editar Funcionário" : "Novo Funcionário"}</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <div className="space-y-2">
-                                <Label>Nome Completo *</Label>
-                                <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                        <Tabs defaultValue="pessoal" className="mt-2">
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="pessoal">Dados Pessoais</TabsTrigger>
+                                <TabsTrigger value="profissional">Profissional</TabsTrigger>
+                                <TabsTrigger value="bancario">Dados Bancários</TabsTrigger>
+                            </TabsList>
+
+                            {/* ABA 1 — Dados Pessoais */}
+                            <TabsContent value="pessoal" className="space-y-4 mt-4">
                                 <div className="space-y-2">
-                                    <Label>Cargo</Label>
-                                    <Input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} placeholder="Ex: Gerente" />
+                                    <Label>Nome Completo *</Label>
+                                    <Input value={formData.name} onChange={e => set("name", e.target.value)} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Departamento</Label>
-                                    <Input value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })} placeholder="Ex: Financeiro" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>CPF</Label>
+                                        <Input value={formData.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>RG</Label>
+                                        <Input value={formData.rg} onChange={e => set("rg", e.target.value)} />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Data de Nascimento</Label>
+                                        <Input type="date" value={formData.data_nascimento} onChange={e => set("data_nascimento", e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Telefone</Label>
+                                        <Input value={formData.phone} onChange={e => set("phone", e.target.value)} placeholder="(00) 00000-0000" />
+                                    </div>
+                                </div>
                                 <div className="space-y-2">
                                     <Label>Email</Label>
-                                    <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                    <Input type="email" value={formData.email} onChange={e => set("email", e.target.value)} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Telefone</Label>
-                                    <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
+                            </TabsContent>
+
+                            {/* ABA 2 — Profissional */}
+                            <TabsContent value="profissional" className="space-y-4 mt-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Cargo *</Label>
+                                        <Input value={formData.role} onChange={e => set("role", e.target.value)} placeholder="Ex: Analista Financeiro" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Departamento</Label>
+                                        <Input value={formData.department} onChange={e => set("department", e.target.value)} placeholder="Ex: Financeiro" />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>CPF</Label>
-                                    <Input value={formData.cpf} onChange={e => setFormData({ ...formData, cpf: e.target.value })} placeholder="000.000.000-00" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Tipo de Contrato</Label>
+                                        <Select value={formData.tipo_contrato} onValueChange={v => set("tipo_contrato", v)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="clt">CLT</SelectItem>
+                                                <SelectItem value="pj">PJ</SelectItem>
+                                                <SelectItem value="autonomo">Autônomo</SelectItem>
+                                                <SelectItem value="estagio">Estágio</SelectItem>
+                                                <SelectItem value="temporario">Temporário</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Salário Base (R$)</Label>
+                                        <Input value={formData.salary} onChange={e => set("salary", e.target.value)} placeholder="0,00" />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Data de Admissão</Label>
-                                    <Input type="date" value={formData.hire_date} onChange={e => setFormData({ ...formData, hire_date: e.target.value })} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Data de Admissão</Label>
+                                        <Input type="date" value={formData.hire_date} onChange={e => set("hire_date", e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Data de Demissão</Label>
+                                        <Input type="date" value={formData.data_demissao} onChange={e => set("data_demissao", e.target.value)} />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Salário (R$)</Label>
-                                    <Input value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} placeholder="0,00" />
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>PIS/PASEP</Label>
+                                        <Input value={formData.pis} onChange={e => set("pis", e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>CTPS Nº</Label>
+                                        <Input value={formData.ctps_numero} onChange={e => set("ctps_numero", e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>CTPS Série</Label>
+                                        <Input value={formData.ctps_serie} onChange={e => set("ctps_serie", e.target.value)} />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Status</Label>
-                                    <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v })}>
+                                    <Select value={formData.status} onValueChange={v => set("status", v)}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="active">Ativo</SelectItem>
-                                            <SelectItem value="inactive">Inativo</SelectItem>
+                                            <SelectItem value="ativo">Ativo</SelectItem>
+                                            <SelectItem value="inativo">Inativo</SelectItem>
+                                            <SelectItem value="afastado">Afastado</SelectItem>
+                                            <SelectItem value="ferias">Férias</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-                            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleSave}>
-                                {editing ? "Salvar Alterações" : "Cadastrar"}
-                            </Button>
-                        </div>
+                            </TabsContent>
+
+                            {/* ABA 3 — Dados Bancários (Folha) */}
+                            <TabsContent value="bancario" className="space-y-4 mt-4">
+                                <p className="text-sm text-muted-foreground">Dados bancários para depósito de folha de pagamento.</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Banco</Label>
+                                        <Input value={formData.banco_folha} onChange={e => set("banco_folha", e.target.value)} placeholder="Ex: Itaú" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Tipo de Conta</Label>
+                                        <Select value={formData.tipo_conta_folha} onValueChange={v => set("tipo_conta_folha", v)}>
+                                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="corrente">Corrente</SelectItem>
+                                                <SelectItem value="poupanca">Poupança</SelectItem>
+                                                <SelectItem value="pix">PIX</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Agência</Label>
+                                        <Input value={formData.agencia_folha} onChange={e => set("agencia_folha", e.target.value)} placeholder="0000" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Conta</Label>
+                                        <Input value={formData.conta_folha} onChange={e => set("conta_folha", e.target.value)} placeholder="00000-0" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Chave PIX</Label>
+                                    <Input value={formData.chave_pix_folha} onChange={e => set("chave_pix_folha", e.target.value)} placeholder="CPF, email, telefone ou chave aleatória" />
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+
+                        <Button className="w-full bg-blue-600 hover:bg-blue-700 mt-4" onClick={handleSave}>
+                            {editing ? "Salvar Alterações" : "Cadastrar Funcionário"}
+                        </Button>
                     </DialogContent>
                 </Dialog>
             </div>
