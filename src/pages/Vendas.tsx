@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,7 @@ const presets = [
 ];
 
 interface SaleForm {
+    product_id: string;
     description: string;
     amount: string;
     client_id: string;
@@ -77,7 +78,7 @@ interface SaleForm {
 }
 
 const emptyForm: SaleForm = {
-    description: "", amount: "", client_id: "", category_id: "",
+    product_id: "", description: "", amount: "", client_id: "", category_id: "",
     payment_method: "pix", due_date: format(new Date(), "yyyy-MM-dd"),
     status: "pending", notes: "", quantity: "1", unit_price: "",
 };
@@ -85,9 +86,8 @@ const emptyForm: SaleForm = {
 const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c"];
 
 export default function Vendas() {
-    const { activeClient, user } = useAuth();
+    const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
-    const queryClient = useQueryClient();
     const { toast } = useToast();
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -171,6 +171,37 @@ export default function Vendas() {
         },
         enabled: !!selectedCompany?.id,
     });
+
+    // Fetch products from Operacional
+    const { data: products = [] } = useQuery({
+        queryKey: ["vendas_products", selectedCompany?.id],
+        queryFn: async () => {
+            const { data } = await (activeClient as any)
+                .from("products")
+                .select("id, code, description, price, cost_price, activity, is_active")
+                .eq("company_id", selectedCompany?.id)
+                .eq("is_active", true)
+                .order("description");
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    // When product is selected, auto-fill fields
+    const handleProductSelect = (productId: string) => {
+        const product = products.find((p: any) => p.id === productId);
+        if (product) {
+            const qty = parseFloat(form.quantity.replace(",", ".")) || 1;
+            const price = Number(product.price);
+            setForm({
+                ...form,
+                product_id: productId,
+                description: product.description,
+                unit_price: String(price),
+                amount: (qty * price).toFixed(2),
+            });
+        }
+    };
 
     // Save mutation
     const saveMutation = useMutation({
@@ -490,7 +521,7 @@ export default function Vendas() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Data</TableHead>
-                                <TableHead>Descrição</TableHead>
+                                <TableHead>Produto/Serviço</TableHead>
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Categoria</TableHead>
                                 <TableHead>Forma Pgto</TableHead>
@@ -540,9 +571,24 @@ export default function Vendas() {
                         </DialogHeader>
                         <div className="space-y-4 py-2">
                             <div className="space-y-2">
-                                <Label>Descrição *</Label>
-                                <Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                                    placeholder="Ex: Protocolo Capilar" />
+                                <Label>Produto / Serviço *</Label>
+                                <Select value={form.product_id} onValueChange={handleProductSelect}>
+                                    <SelectTrigger className="text-sm">
+                                        <SelectValue placeholder="Selecione um produto..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {products.map((p: any) => (
+                                            <SelectItem key={p.id} value={p.id}>
+                                                {p.code ? `${p.code} - ` : ""}{p.description} — {fmt(Number(p.price))}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {products.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Nenhum produto cadastrado. Cadastre em Operacional &gt; Produtos.
+                                    </p>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
