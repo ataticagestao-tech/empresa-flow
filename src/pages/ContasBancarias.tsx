@@ -12,11 +12,41 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { BANKS } from "@/lib/banks";
+import { getBankColor, getBankInitials } from "@/lib/bankLogos";
 import { useNavigate } from "react-router-dom";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const emptyAccount = { name: "", banco: "", initial_balance: 0, agencia: "", conta: "", type: "checking" };
+
+function parseBankCode(banco: string): { code: string; name: string } | null {
+    if (!banco) return null;
+    const match = banco.match(/^(\d+)\s*-\s*(.+)$/);
+    if (match) return { code: match[1], name: match[2].trim() };
+    const found = BANKS.find(b => banco.includes(b.name));
+    if (found) return { code: found.code, name: found.name };
+    return null;
+}
+
+function BankAvatar({ banco, size = 36 }: { banco: string; size?: number }) {
+    const parsed = parseBankCode(banco);
+    const code = parsed?.code || "0";
+    const name = parsed?.name || banco || "?";
+    const color = getBankColor(code);
+    const initials = getBankInitials(code, name);
+    const fontSize = size <= 28 ? 9 : size <= 36 ? 11 : 13;
+
+    return (
+        <div style={{
+            width: size, height: size, borderRadius: "50%",
+            background: color, display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#fff", fontWeight: 800, fontSize, letterSpacing: -0.5,
+            flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+        }}>
+            {initials}
+        </div>
+    );
+}
 
 function BankCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
     const [open, setOpen] = useState(false);
@@ -26,7 +56,10 @@ function BankCombobox({ value, onChange }: { value: string; onChange: (v: string
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}>
-                        {value || "Selecione o banco..."}
+                        <span className="flex items-center gap-2 truncate">
+                            {value && <BankAvatar banco={value} size={22} />}
+                            {value || "Selecione o banco..."}
+                        </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
@@ -43,7 +76,8 @@ function BankCombobox({ value, onChange }: { value: string; onChange: (v: string
                                         onSelect={() => { onChange(`${bank.code} - ${bank.name}`); setOpen(false); }}
                                     >
                                         <Check className={cn("mr-2 h-4 w-4", value === `${bank.code} - ${bank.name}` ? "opacity-100" : "opacity-0")} />
-                                        {bank.code} - {bank.name}
+                                        <BankAvatar banco={`${bank.code} - ${bank.name}`} size={24} />
+                                        <span className="ml-2">{bank.code} - {bank.name}</span>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
@@ -210,8 +244,8 @@ export default function ContasBancarias() {
                             <CardHeader className="pb-2 relative">
                                 <div className="flex justify-between items-start">
                                     <div className="space-y-1">
-                                        <CardTitle className="flex items-center text-lg font-bold text-foreground">
-                                            <Wallet className="mr-2 h-5 w-5 text-emerald-600" />
+                                        <CardTitle className="flex items-center gap-3 text-lg font-bold text-foreground">
+                                            <BankAvatar banco={account.banco} size={36} />
                                             {account.name}
                                         </CardTitle>
                                         <CardDescription className="font-medium text-muted-foreground">
