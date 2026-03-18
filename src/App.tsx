@@ -35,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import ContaBloqueada from "./pages/ContaBloqueada";
 import PlanoContas from "./pages/PlanoContas";
+import Funcionarios from "./pages/Funcionarios";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,7 @@ const App = () => (
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route path="/empresas" element={<Empresas />} />
                     <Route path="/clientes" element={<Clientes />} />
+                    <Route path="/funcionarios" element={<Funcionarios />} />
                     <Route path="/fornecedores" element={<Fornecedores />} />
                     <Route path="/movimentacoes" element={<Movimentacoes />} />
                     <Route path="/movimentacoes/*" element={<Movimentacoes />} />
