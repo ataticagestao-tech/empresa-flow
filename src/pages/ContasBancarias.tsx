@@ -3,15 +3,57 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Wallet, ArrowRight, MoreVertical, Pencil, Trash2, Landmark } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Wallet, ArrowRight, MoreVertical, Pencil, Trash2, Landmark, Check, ChevronsUpDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { BANKS } from "@/lib/banks";
 import { useNavigate } from "react-router-dom";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const emptyAccount = { name: "", banco: "", initial_balance: 0, agencia: "", conta: "" };
+const emptyAccount = { name: "", banco: "", initial_balance: 0, agencia: "", conta: "", type: "checking" };
+
+function BankCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="space-y-2">
+            <Label>Instituição Financeira</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}>
+                        {value || "Selecione o banco..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                        <CommandInput placeholder="Buscar banco..." />
+                        <CommandList className="max-h-[250px]">
+                            <CommandEmpty>Nenhum banco encontrado.</CommandEmpty>
+                            <CommandGroup>
+                                {BANKS.map((bank) => (
+                                    <CommandItem
+                                        key={bank.code}
+                                        value={`${bank.code} ${bank.name}`}
+                                        onSelect={() => { onChange(`${bank.code} - ${bank.name}`); setOpen(false); }}
+                                    >
+                                        <Check className={cn("mr-2 h-4 w-4", value === `${bank.code} - ${bank.name}` ? "opacity-100" : "opacity-0")} />
+                                        {bank.code} - {bank.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+}
 
 export default function ContasBancarias() {
     const { accounts, isLoading, createAccount, updateAccount, deleteAccount } = useBankAccounts();
@@ -34,6 +76,7 @@ export default function ContasBancarias() {
             initial_balance: account.initial_balance || 0,
             agencia: account.agencia || "",
             conta: account.conta || "",
+            type: account.type || "checking",
         });
         setIsDialogOpen(true);
     };
@@ -96,13 +139,19 @@ export default function ContasBancarias() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>Instituição Financeira</Label>
-                                <Input
-                                    placeholder="Ex: Itaú"
-                                    value={formData.banco}
-                                    onChange={e => setFormData({ ...formData, banco: e.target.value })}
-                                />
+                                <Label>Tipo</Label>
+                                <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="checking">Conta Corrente</SelectItem>
+                                        <SelectItem value="savings">Conta Poupança</SelectItem>
+                                        <SelectItem value="investment">Investimento</SelectItem>
+                                        <SelectItem value="cash">Caixa Físico</SelectItem>
+                                        <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
+                            <BankCombobox value={formData.banco} onChange={v => setFormData({ ...formData, banco: v })} />
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Agência</Label>
