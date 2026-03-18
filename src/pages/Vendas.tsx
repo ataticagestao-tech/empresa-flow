@@ -63,24 +63,26 @@ const presets = [
     { label: "Este ano", get: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
 ];
 
-interface SaleForm {
+interface SaleItem {
     product_id: string;
     description: string;
-    amount: string;
+    quantity: number;
+    unit_price: number;
+    subtotal: number;
+}
+
+interface SaleForm {
+    items: SaleItem[];
     client_id: string;
-    category_id: string;
     payment_method: string;
     due_date: string;
-    status: string;
     notes: string;
-    quantity: string;
-    unit_price: string;
 }
 
 const emptyForm: SaleForm = {
-    product_id: "", description: "", amount: "", client_id: "", category_id: "",
-    payment_method: "pix", due_date: format(new Date(), "yyyy-MM-dd"),
-    status: "pending", notes: "", quantity: "1", unit_price: "",
+    items: [],
+    client_id: "", payment_method: "pix",
+    due_date: format(new Date(), "yyyy-MM-dd"), notes: "",
 };
 
 const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c"];
@@ -187,34 +189,64 @@ export default function Vendas() {
         enabled: !!selectedCompany?.id,
     });
 
-    // When product is selected, auto-fill fields
-    const handleProductSelect = (productId: string) => {
+    // Add product to items list
+    const handleAddProduct = (productId: string) => {
         const product = products.find((p: any) => p.id === productId);
-        if (product) {
-            const qty = parseFloat(form.quantity.replace(",", ".")) || 1;
+        if (!product) return;
+        const existing = form.items.find(i => i.product_id === productId);
+        if (existing) {
+            // Increment quantity if already in list
+            setForm({
+                ...form,
+                items: form.items.map(i =>
+                    i.product_id === productId
+                        ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.unit_price }
+                        : i
+                ),
+            });
+        } else {
             const price = Number(product.price);
             setForm({
                 ...form,
-                product_id: productId,
-                description: product.description,
-                unit_price: String(price),
-                amount: (qty * price).toFixed(2),
+                items: [...form.items, {
+                    product_id: productId,
+                    description: product.description,
+                    quantity: 1,
+                    unit_price: price,
+                    subtotal: price,
+                }],
             });
         }
     };
 
+    // Update item quantity or price
+    const updateItem = (index: number, field: "quantity" | "unit_price", value: number) => {
+        const items = [...form.items];
+        items[index] = { ...items[index], [field]: value, subtotal: field === "quantity" ? value * items[index].unit_price : items[index].quantity * value };
+        setForm({ ...form, items });
+    };
+
+    // Remove item
+    const removeItem = (index: number) => {
+        setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
+    };
+
+    // Total of all items
+    const formTotal = form.items.reduce((s, i) => s + i.subtotal, 0);
+
     // Save mutation
     const saveMutation = useMutation({
         mutationFn: async () => {
+            const description = form.items.map(i => `${i.quantity}x ${i.description}`).join(", ");
             const payload = {
                 company_id: selectedCompany?.id,
-                description: form.description,
-                amount: parseFloat(form.amount.replace(",", ".")) || 0,
+                description,
+                amount: formTotal,
                 client_id: form.client_id || null,
-                category_id: form.category_id || null,
+                category_id: null,
                 payment_method: form.payment_method,
                 due_date: form.due_date,
-                status: form.status,
+                status: "pending",
                 notes: form.notes || null,
             };
 
@@ -250,29 +282,22 @@ export default function Vendas() {
     // Edit
     const handleEdit = (sale: any) => {
         setEditingId(sale.id);
-        setForm({
-            product_id: sale.product_id || "",
+        // Parse description back into items if possible
+        const items: SaleItem[] = [{
+            product_id: "",
             description: sale.description || "",
-            amount: String(sale.amount || ""),
+            quantity: 1,
+            unit_price: Number(sale.amount || 0),
+            subtotal: Number(sale.amount || 0),
+        }];
+        setForm({
+            items,
             client_id: sale.client_id || "",
-            category_id: sale.category_id || "",
             payment_method: sale.payment_method || "pix",
             due_date: sale.due_date || format(new Date(), "yyyy-MM-dd"),
-            status: sale.status || "pending",
             notes: sale.notes || "",
-            quantity: "1",
-            unit_price: String(sale.amount || ""),
         });
         setDialogOpen(true);
-    };
-
-    // Auto-calc amount from qty * unit_price
-    const updateCalc = (field: "quantity" | "unit_price", value: string) => {
-        const updated = { ...form, [field]: value };
-        const qty = parseFloat(updated.quantity.replace(",", ".")) || 0;
-        const price = parseFloat(updated.unit_price.replace(",", ".")) || 0;
-        updated.amount = (qty * price).toFixed(2);
-        setForm(updated);
     };
 
     // Filter
@@ -564,16 +589,17 @@ export default function Vendas() {
 
                 {/* Dialog - Nova/Editar Venda */}
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>{editingId ? "Editar Venda" : "Nova Venda"}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-2">
+                            {/* Product selector */}
                             <div className="space-y-2">
-                                <Label>Produto / Serviço *</Label>
-                                <Select value={form.product_id} onValueChange={handleProductSelect}>
+                                <Label>Adicionar Produto / Serviço</Label>
+                                <Select value="" onValueChange={handleAddProduct}>
                                     <SelectTrigger className="text-sm">
-                                        <SelectValue placeholder="Selecione um produto..." />
+                                        <SelectValue placeholder="Selecione um produto para adicionar..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {products.map((p: any) => (
@@ -589,23 +615,72 @@ export default function Vendas() {
                                     </p>
                                 )}
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Quantidade</Label>
-                                    <Input type="number" value={form.quantity} onChange={e => updateCalc("quantity", e.target.value)}
-                                        min="1" />
+
+                            {/* Items list */}
+                            {form.items.length > 0 && (
+                                <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+                                    <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                                        <thead>
+                                            <tr style={{ background: "#f8fafc", borderBottom: `1px solid ${T.border}` }}>
+                                                <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, fontSize: 11, color: T.text3 }}>PRODUTO</th>
+                                                <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 600, fontSize: 11, color: T.text3, width: 80 }}>QTD</th>
+                                                <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, fontSize: 11, color: T.text3, width: 120 }}>UNIT.</th>
+                                                <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, fontSize: 11, color: T.text3, width: 120 }}>SUBTOTAL</th>
+                                                <th style={{ width: 40 }} />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {form.items.map((item, i) => (
+                                                <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
+                                                    <td style={{ padding: "8px 12px", fontWeight: 500 }}>{item.description}</td>
+                                                    <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                                        <Input type="number" min={1} value={item.quantity}
+                                                            onChange={e => updateItem(i, "quantity", Number(e.target.value) || 1)}
+                                                            className="h-7 w-16 text-center text-sm mx-auto" />
+                                                    </td>
+                                                    <td style={{ padding: "4px 8px", textAlign: "right" }}>
+                                                        <Input type="number" value={item.unit_price} step="0.01"
+                                                            onChange={e => updateItem(i, "unit_price", Number(e.target.value) || 0)}
+                                                            className="h-7 w-24 text-right text-sm ml-auto" />
+                                                    </td>
+                                                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: T.green }}>
+                                                        {fmt(item.subtotal)}
+                                                    </td>
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700"
+                                                            onClick={() => removeItem(i)}>
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {/* Total bar */}
+                                    <div style={{
+                                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                                        padding: "12px 16px", background: T.greenLt, borderTop: `1px solid ${T.border}`,
+                                    }}>
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: T.text1 }}>
+                                            TOTAL ({form.items.length} {form.items.length === 1 ? "item" : "itens"})
+                                        </span>
+                                        <span style={{ fontSize: 20, fontWeight: 800, color: T.green }}>
+                                            {fmt(formTotal)}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Preço Unitário (R$)</Label>
-                                    <Input value={form.unit_price} onChange={e => updateCalc("unit_price", e.target.value)}
-                                        placeholder="0,00" />
+                            )}
+
+                            {form.items.length === 0 && (
+                                <div style={{
+                                    padding: "24px 16px", textAlign: "center", border: `2px dashed ${T.border}`,
+                                    borderRadius: 10, color: T.text3, fontSize: 13,
+                                }}>
+                                    Selecione produtos acima para adicionar à venda
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Valor Total (R$)</Label>
-                                <Input value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
-                                    placeholder="0,00" className="font-semibold text-green-700" />
-                            </div>
+                            )}
+
+                            {/* Client, payment, date */}
                             <div className="space-y-2">
                                 <Label>Cliente</Label>
                                 <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
@@ -640,8 +715,8 @@ export default function Vendas() {
                                     placeholder="Opcional" />
                             </div>
                             <Button className="w-full" onClick={() => saveMutation.mutate()}
-                                disabled={!form.description || !form.amount || saveMutation.isPending}>
-                                {saveMutation.isPending ? "Salvando..." : editingId ? "Atualizar Venda" : "Registrar Venda"}
+                                disabled={form.items.length === 0 || saveMutation.isPending}>
+                                {saveMutation.isPending ? "Salvando..." : editingId ? "Atualizar Venda" : `Registrar Venda — ${fmt(formTotal)}`}
                             </Button>
                         </div>
                     </DialogContent>
