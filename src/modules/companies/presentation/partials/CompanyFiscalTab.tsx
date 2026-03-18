@@ -258,12 +258,43 @@ export function CompanyFiscalTab({ onCnpjFileSelect, onCnpjSearch, isSearching }
                                 <SelectItem value="simples">Simples Nacional</SelectItem>
                                 <SelectItem value="presumido">Lucro Presumido</SelectItem>
                                 <SelectItem value="real">Lucro Real</SelectItem>
+                                <SelectItem value="mei">MEI</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />
                     </FormItem>
                 )}
             />
+            {/* Responsáveis */}
+            <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[#E2E8F0] mt-2">
+                <FormField
+                    control={control}
+                    name="responsavel_legal"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Responsável Legal</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Nome do responsável legal" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={control}
+                    name="contador_responsavel"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Contador Responsável</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Nome do contador" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
         </div>
     );
 }

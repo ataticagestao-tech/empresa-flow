@@ -39,9 +39,14 @@ export const CompanySchema = z.object({
 
     regime_tributario: z.string().optional(),
 
+    // Responsáveis
+    responsavel_legal: z.string().optional(),
+    contador_responsavel: z.string().optional(),
+
     // Contato
     email: z.string().email().optional().or(z.literal("")),
     telefone: z.string().optional(),
+    celular: z.string().optional(),
     site: z.string().optional(),
 
     // Endereço

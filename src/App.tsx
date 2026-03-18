@@ -46,6 +46,7 @@ import ComposicaoCusto from "./pages/ComposicaoCusto";
 import MargensDesconto from "./pages/MargensDesconto";
 import TabelaPrecos from "./pages/TabelaPrecos";
 import MarkupSimulador from "./pages/MarkupSimulador";
+import CentrosCusto from "./pages/CentrosCusto";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,7 @@ const App = () => (
                     <Route path="/movimentacoes/*" element={<Movimentacoes />} />
                     <Route path="/categorias" element={<Categorias />} />
                     <Route path="/plano-contas" element={<PlanoContas />} />
+                    <Route path="/centros-custo" element={<CentrosCusto />} />
                     <Route path="/contas-bancarias" element={<ContasBancarias />} />
                     <Route path="/contas-pagar" element={<ContasPagar />} />
                     <Route path="/contas-receber" element={<ContasReceber />} />

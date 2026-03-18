@@ -17,6 +17,7 @@ import {
   Calculator,
   DollarSign,
   GitBranch,
+  Network,
   ShoppingCart,
   ClipboardList,
   Layers,
@@ -59,6 +60,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
       { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
       { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
+      { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
     ]
   },
