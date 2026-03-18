@@ -22,7 +22,156 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const BANKS = [
+    { code: "654", name: "A.J. Renner" },
+    { code: "246", name: "ABC-Brasil" },
+    { code: "213", name: "Arbi" },
+    { code: "19", name: "Azteca do Brasil" },
+    { code: "25", name: "Banco Alfa" },
+    { code: "241", name: "Banco Classico" },
+    { code: "83", name: "Banco da China Brasil" },
+    { code: "300", name: "Banco de La Nacion Argentina" },
+    { code: "495", name: "Banco de La Provincia de Buenos Aires" },
+    { code: "494", name: "Banco de La Republica Oriental del Uruguay" },
+    { code: "1", name: "Banco do Brasil" },
+    { code: "37", name: "Banco do Estado do Pará" },
+    { code: "456", name: "Banco Tokyo Mitsubishi UFJ Brasil" },
+    { code: "370", name: "Banco WestLB do Brasil" },
+    { code: "756", name: "Bancoob" },
+    { code: "47", name: "Banese" },
+    { code: "33", name: "Banespa" },
+    { code: "21", name: "Banestes" },
+    { code: "719", name: "Banif" },
+    { code: "755", name: "Bank of America Merrill Lynch" },
+    { code: "41", name: "Banrisul" },
+    { code: "740", name: "Barclays" },
+    { code: "3", name: "BASA" },
+    { code: "107", name: "BBM" },
+    { code: "81", name: "BBN" },
+    { code: "250", name: "BCV" },
+    { code: "36", name: "BEM" },
+    { code: "122", name: "BERJ" },
+    { code: "78", name: "BES Investimento do Brasil" },
+    { code: "739", name: "BGN" },
+    { code: "320", name: "BIC Banco" },
+    { code: "96", name: "BM&F" },
+    { code: "394", name: "BMC" },
+    { code: "318", name: "BMG" },
+    { code: "4", name: "BNB" },
+    { code: "752", name: "BNP Paribas Brasil" },
+    { code: "17", name: "BNY Mellon" },
+    { code: "248", name: "Boa Vista Interatlântico" },
+    { code: "218", name: "Bonsucesso" },
+    { code: "69", name: "BPN Brasil" },
+    { code: "65", name: "Bracce" },
+    { code: "237", name: "Bradesco" },
+    { code: "225", name: "Brascan" },
+    { code: "125", name: "Brasil Plural" },
+    { code: "70", name: "BRB" },
+    { code: "92", name: "Brickell" },
+    { code: "208", name: "BTG Pactual" },
+    { code: "263", name: "Cacique" },
+    { code: "104", name: "Caixa Econômica Federal" },
+    { code: "473", name: "Caixa Geral Brasil" },
+    { code: "412", name: "Capital" },
+    { code: "40", name: "Cargill" },
+    { code: "112", name: "CC Unicred Brasil Central" },
+    { code: "84", name: "CC Uniprime Norte do Paraná" },
+    { code: "114", name: "Cecoopes" },
+    { code: "85", name: "Cecredi" },
+    { code: "266", name: "Cédula" },
+    { code: "233", name: "Cifra" },
+    { code: "745", name: "Citibank" },
+    { code: "477", name: "Citibank N.A." },
+    { code: "90", name: "Cooperativa Central SP" },
+    { code: "97", name: "Cooperativa Central Noroeste" },
+    { code: "89", name: "Cooperativa Mogiana" },
+    { code: "75", name: "CR2" },
+    { code: "98", name: "Credialiança" },
+    { code: "222", name: "Crédit Agricole Brasil" },
+    { code: "505", name: "Credit Suisse Brasil" },
+    { code: "707", name: "Daycoval" },
+    { code: "487", name: "Deutsche Bank" },
+    { code: "214", name: "Dibens" },
+    { code: "265", name: "Fator" },
+    { code: "224", name: "Fibra" },
+    { code: "626", name: "Ficsa" },
+    { code: "121", name: "Gerador" },
+    { code: "612", name: "Guanabara" },
+    { code: "62", name: "Hipercard" },
+    { code: "399", name: "HSBC" },
+    { code: "63", name: "IBI" },
+    { code: "604", name: "Industrial do Brasil" },
+    { code: "653", name: "Indusval" },
+    { code: "492", name: "ING Bank" },
+    { code: "630", name: "Intercap" },
+    { code: "77", name: "Intermedium (Inter)" },
+    { code: "249", name: "Investcred Unibanco" },
+    { code: "341", name: "Itaú" },
+    { code: "652", name: "Itaú Holding" },
+    { code: "184", name: "Itaú BBA" },
+    { code: "74", name: "J. Safra" },
+    { code: "376", name: "J.P. Morgan" },
+    { code: "217", name: "John Deere" },
+    { code: "488", name: "JPMorgan Chase" },
+    { code: "76", name: "KDB do Brasil" },
+    { code: "757", name: "KEB do Brasil" },
+    { code: "600", name: "Luso Brasileiro" },
+    { code: "243", name: "Máxima" },
+    { code: "389", name: "Mercantil do Brasil" },
+    { code: "746", name: "Modal" },
+    { code: "66", name: "Morgan Stanley" },
+    { code: "14", name: "Natixis Brasil" },
+    { code: "753", name: "NBC Bank Brasil" },
+    { code: "260", name: "Nubank" },
+    { code: "45", name: "Opportunity" },
+    { code: "79", name: "Original do Agronegócio" },
+    { code: "212", name: "Original" },
+    { code: "623", name: "Panamericano" },
+    { code: "254", name: "Paraná Banco" },
+    { code: "611", name: "Paulista" },
+    { code: "613", name: "Pecúnia" },
+    { code: "94", name: "Petra" },
+    { code: "643", name: "Pine" },
+    { code: "735", name: "Pottencial" },
+    { code: "747", name: "Rabobank" },
+    { code: "88", name: "Randon" },
+    { code: "633", name: "Rendimento" },
+    { code: "741", name: "Ribeirão Preto" },
+    { code: "120", name: "Rodobens" },
+    { code: "453", name: "Rural" },
+    { code: "72", name: "Rural Mais" },
+    { code: "422", name: "Safra" },
+    { code: "751", name: "Scotiabank Brasil" },
+    { code: "743", name: "Semear" },
+    { code: "748", name: "Sicredi" },
+    { code: "749", name: "Simples" },
+    { code: "366", name: "Société Générale Brasil" },
+    { code: "637", name: "Sofisa" },
+    { code: "464", name: "Sumitomo Mitsui" },
+    { code: "82", name: "Topázio" },
+    { code: "634", name: "Triângulo" },
+    { code: "230", name: "Unicard" },
+    { code: "91", name: "Unicred Central RS" },
+    { code: "87", name: "Unicred Central SC" },
+    { code: "99", name: "Uniprime Central" },
+    { code: "655", name: "Votorantim" },
+    { code: "610", name: "VR" },
+    { code: "119", name: "Western Union do Brasil" },
+    { code: "124", name: "Woori Bank do Brasil" },
+    { code: "336", name: "C6 Bank" },
+    { code: "197", name: "Stone Pagamentos" },
+    { code: "403", name: "Cora" },
+    { code: "380", name: "PicPay" },
+    { code: "290", name: "PagSeguro" },
+    { code: "323", name: "Mercado Pago" },
+] as const;
 
 const bankAccountFormSchema = z.object({
     name: z.string().min(1, "Nome da conta é obrigatório"),
@@ -198,15 +347,53 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
                     <FormField
                         control={form.control}
                         name="banco"
-                        render={({ field }) => (
-                            <FormItem className="col-span-3">
-                                <FormLabel>Banco</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Ex: Itaú, Nubank..." {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
+                        render={({ field }) => {
+                            const [bankOpen, setBankOpen] = useState(false);
+                            return (
+                                <FormItem className="col-span-3">
+                                    <FormLabel>Instituição Financeira</FormLabel>
+                                    <Popover open={bankOpen} onOpenChange={setBankOpen}>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={bankOpen}
+                                                    className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}
+                                                >
+                                                    {field.value || "Selecione o banco..."}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[400px] p-0" align="start">
+                                            <Command>
+                                                <CommandInput placeholder="Buscar banco..." />
+                                                <CommandList className="max-h-[250px]">
+                                                    <CommandEmpty>Nenhum banco encontrado.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {BANKS.map((bank) => (
+                                                            <CommandItem
+                                                                key={bank.code}
+                                                                value={`${bank.code} ${bank.name}`}
+                                                                onSelect={() => {
+                                                                    field.onChange(`${bank.code} - ${bank.name}`);
+                                                                    setBankOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className={cn("mr-2 h-4 w-4", field.value === `${bank.code} - ${bank.name}` ? "opacity-100" : "opacity-0")} />
+                                                                {bank.code} - {bank.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            );
+                        }}
                     />
                     <FormField
                         control={form.control}
