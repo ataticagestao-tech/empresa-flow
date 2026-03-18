@@ -15,6 +15,10 @@ import {
   LogOut,
   Book,
   Shield,
+  TrendingUp,
+  Calculator,
+  DollarSign,
+  GitBranch,
   LucideIcon
 } from "lucide-react";
 
@@ -72,6 +76,17 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'menu.reconciliation', icon: CreditCard, url: '/conciliacao' }
+    ]
+  },
+  {
+    id: 'projecao',
+    labelKey: 'Projeção Financeira',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
+      { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
+      { titleKey: 'Previsão de Receitas', icon: DollarSign, url: '/previsao-receitas', isHardcoded: true },
+      { titleKey: 'Cenários', icon: GitBranch, url: '/cenarios', isHardcoded: true },
     ]
   },
   {

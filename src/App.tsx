@@ -36,6 +36,10 @@ import AdminUsuarios from "./pages/AdminUsuarios";
 import ContaBloqueada from "./pages/ContaBloqueada";
 import PlanoContas from "./pages/PlanoContas";
 import Funcionarios from "./pages/Funcionarios";
+import FluxoCaixaProjetado from "./pages/FluxoCaixaProjetado";
+import Orcamento from "./pages/Orcamento";
+import PrevisaoReceitas from "./pages/PrevisaoReceitas";
+import Cenarios from "./pages/Cenarios";
 
 const queryClient = new QueryClient();
 
@@ -142,6 +146,10 @@ const App = () => (
                     <Route path="/contas-pagar" element={<ContasPagar />} />
                     <Route path="/contas-receber" element={<ContasReceber />} />
                     <Route path="/conciliacao" element={<Conciliacao />} />
+                    <Route path="/fluxo-caixa-projetado" element={<FluxoCaixaProjetado />} />
+                    <Route path="/orcamento" element={<Orcamento />} />
+                    <Route path="/previsao-receitas" element={<PrevisaoReceitas />} />
+                    <Route path="/cenarios" element={<Cenarios />} />
                     <Route path="/relatorios" element={<Relatorios />} />
                     <Route path="/relatorios/*" element={<Relatorios />} />
                     <Route path="/crm" element={<CRM />} />
