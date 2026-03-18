@@ -100,6 +100,13 @@ export default function Vendas() {
     const [dateRange, setDateRange] = useState(() => presets[0].get());
     const [activePreset, setActivePreset] = useState("Este mês");
 
+    // Add client inline
+    const [clientDialogOpen, setClientDialogOpen] = useState(false);
+    const [newClientName, setNewClientName] = useState("");
+    const [newClientPhone, setNewClientPhone] = useState("");
+    const [newClientEmail, setNewClientEmail] = useState("");
+    const [newClientDoc, setNewClientDoc] = useState("");
+
     const handlePreset = (p: typeof presets[0]) => { setActivePreset(p.label); setDateRange(p.get()); };
     const handleCalendarSelect = (range: DateRange | undefined) => {
         if (range?.from) { setActivePreset(""); setDateRange({ from: range.from, to: range.to || range.from }); }
@@ -148,7 +155,7 @@ export default function Vendas() {
     });
 
     // Fetch clients for select
-    const { data: clients = [] } = useQuery({
+    const { data: clients = [], refetch: refetchClients } = useQuery({
         queryKey: ["vendas_clients", selectedCompany?.id],
         queryFn: async () => {
             const { data } = await (activeClient as any)
@@ -158,6 +165,32 @@ export default function Vendas() {
         },
         enabled: !!selectedCompany?.id,
     });
+
+    // Save new client inline
+    const saveNewClient = async () => {
+        if (!newClientName.trim() || !selectedCompany?.id) return;
+        const { data, error } = await (activeClient as any)
+            .from("clients")
+            .insert({
+                company_id: selectedCompany.id,
+                razao_social: newClientName.trim(),
+                nome_fantasia: newClientName.trim(),
+                phone: newClientPhone || null,
+                email: newClientEmail || null,
+                cpf_cnpj: newClientDoc || null,
+            })
+            .select("id")
+            .single();
+        if (error) {
+            toast({ title: "Erro ao cadastrar cliente", description: error.message, variant: "destructive" });
+            return;
+        }
+        toast({ title: "Cliente cadastrado" });
+        await refetchClients();
+        setForm({ ...form, client_id: data.id });
+        setClientDialogOpen(false);
+        setNewClientName(""); setNewClientPhone(""); setNewClientEmail(""); setNewClientDoc("");
+    };
 
     // Fetch categories (revenue type)
     const { data: categories = [] } = useQuery({
@@ -682,7 +715,13 @@ export default function Vendas() {
 
                             {/* Client, payment, date */}
                             <div className="space-y-2">
-                                <Label>Cliente</Label>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <Label>Cliente</Label>
+                                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-primary"
+                                        onClick={() => setClientDialogOpen(true)}>
+                                        <Plus size={12} /> Novo Cliente
+                                    </Button>
+                                </div>
                                 <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
                                     <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                     <SelectContent>
@@ -717,6 +756,40 @@ export default function Vendas() {
                             <Button className="w-full" onClick={() => saveMutation.mutate()}
                                 disabled={form.items.length === 0 || saveMutation.isPending}>
                                 {saveMutation.isPending ? "Salvando..." : editingId ? "Atualizar Venda" : `Registrar Venda — ${fmt(formTotal)}`}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Dialog - Novo Cliente */}
+                <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
+                    <DialogContent className="max-w-sm">
+                        <DialogHeader>
+                            <DialogTitle>Novo Cliente</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                            <div className="space-y-2">
+                                <Label>Nome *</Label>
+                                <Input value={newClientName} onChange={e => setNewClientName(e.target.value)}
+                                    placeholder="Nome do cliente" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>CPF / CNPJ</Label>
+                                <Input value={newClientDoc} onChange={e => setNewClientDoc(e.target.value)}
+                                    placeholder="Opcional" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Telefone</Label>
+                                <Input value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)}
+                                    placeholder="Opcional" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>E-mail</Label>
+                                <Input value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)}
+                                    placeholder="Opcional" />
+                            </div>
+                            <Button className="w-full" onClick={saveNewClient} disabled={!newClientName.trim()}>
+                                Cadastrar Cliente
                             </Button>
                         </div>
                     </DialogContent>
