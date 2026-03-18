@@ -40,6 +40,7 @@ import FluxoCaixaProjetado from "./pages/FluxoCaixaProjetado";
 import Orcamento from "./pages/Orcamento";
 import PrevisaoReceitas from "./pages/PrevisaoReceitas";
 import Cenarios from "./pages/Cenarios";
+import Vendas from "./pages/Vendas";
 
 const queryClient = new QueryClient();
 
@@ -150,6 +151,7 @@ const App = () => (
                     <Route path="/orcamento" element={<Orcamento />} />
                     <Route path="/previsao-receitas" element={<PrevisaoReceitas />} />
                     <Route path="/cenarios" element={<Cenarios />} />
+                    <Route path="/vendas" element={<Vendas />} />
                     <Route path="/relatorios" element={<Relatorios />} />
                     <Route path="/relatorios/*" element={<Relatorios />} />
                     <Route path="/crm" element={<CRM />} />

@@ -19,6 +19,7 @@ import {
   Calculator,
   DollarSign,
   GitBranch,
+  ShoppingCart,
   LucideIcon
 } from "lucide-react";
 
@@ -75,7 +76,8 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
-      { titleKey: 'menu.reconciliation', icon: CreditCard, url: '/conciliacao' }
+      { titleKey: 'menu.reconciliation', icon: CreditCard, url: '/conciliacao' },
+      { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true }
     ]
   },
   {
