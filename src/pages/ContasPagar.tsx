@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -387,7 +387,7 @@ export default function ContasPagar() {
     // ── PDF Drop (window-level events) ──
     const [isDragging, setIsDragging] = useState(false);
     const [isParsing, setIsParsing] = useState(false);
-    const dragCounter = useState({ current: 0 })[0];
+    const dragCounter = useRef(0);
 
     useEffect(() => {
         const onDragEnter = (e: DragEvent) => {
