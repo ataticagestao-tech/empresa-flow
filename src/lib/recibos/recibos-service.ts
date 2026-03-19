@@ -42,46 +42,68 @@ export async function criarRecibo(
   supabase: SupabaseClient,
   input: CriarReciboInput
 ): Promise<ActionResult> {
-  const tabela = input.tipo === "payable" ? "accounts_payable" : "accounts_receivable";
-  const fkField = input.tipo === "payable" ? "supplier_id" : "client_id";
-  const fkTable = input.tipo === "payable" ? "suppliers" : "clients";
-  const dateField = input.tipo === "payable" ? "payment_date" : "receive_date";
+  // Tentar tabelas GESTAP primeiro, fallback para legacy
+  const tabelaGestap = input.tipo === "payable" ? "contas_pagar" : "contas_receber";
+  const tabelaLegacy = input.tipo === "payable" ? "accounts_payable" : "accounts_receivable";
 
-  // 1. Buscar conta (query simples, sem join)
-  const { data: conta, error: erroConta } = await supabase
-    .from(tabela)
+  let conta: any = null;
+  let isGestap = false;
+
+  // 1. Buscar na tabela GESTAP
+  const { data: contaGestap, error: erroGestap } = await supabase
+    .from(tabelaGestap)
     .select("*")
     .eq("id", input.account_id)
     .single();
 
-  if (erroConta || !conta) return { ok: false, erro: "Conta não encontrada." };
-  if (conta.receipt_generated) return { ok: false, erro: "Recibo já gerado para este pagamento." };
+  if (!erroGestap && contaGestap) {
+    conta = contaGestap;
+    isGestap = true;
+  } else {
+    // Fallback: buscar na tabela legacy
+    const { data: contaLegacy, error: erroLegacy } = await supabase
+      .from(tabelaLegacy)
+      .select("*")
+      .eq("id", input.account_id)
+      .single();
+    if (erroLegacy || !contaLegacy) return { ok: false, erro: "Conta não encontrada." };
+    conta = contaLegacy;
+  }
 
-  // 2. Buscar parceiro (fornecedor ou cliente) separadamente
-  let partnerName = conta.description ?? "Favorecido";
+  // 2. Resolver nome do parceiro
+  let partnerName = isGestap
+    ? (input.tipo === "payable" ? conta.credor_nome : conta.pagador_nome) || conta.observacoes || "Favorecido"
+    : conta.description ?? "Favorecido";
   let partnerEmail: string | null = null;
   let partnerPix: string | null = null;
-  const partnerId = conta[fkField];
-  if (partnerId) {
-    const { data: partner } = await supabase
-      .from(fkTable)
-      .select("id, razao_social, nome_fantasia, email, dados_bancarios_pix")
-      .eq("id", partnerId)
-      .single();
-    if (partner) {
-      partnerName = partner.nome_fantasia || partner.razao_social || partnerName;
-      partnerEmail = partner.email;
-      partnerPix = partner.dados_bancarios_pix;
+
+  if (!isGestap) {
+    const fkField = input.tipo === "payable" ? "supplier_id" : "client_id";
+    const fkTable = input.tipo === "payable" ? "suppliers" : "clients";
+    const partnerId = conta[fkField];
+    if (partnerId) {
+      const { data: partner } = await supabase
+        .from(fkTable)
+        .select("id, razao_social, nome_fantasia, email, dados_bancarios_pix")
+        .eq("id", partnerId)
+        .single();
+      if (partner) {
+        partnerName = partner.nome_fantasia || partner.razao_social || partnerName;
+        partnerEmail = partner.email;
+        partnerPix = partner.dados_bancarios_pix;
+      }
     }
   }
 
-  // 3. Buscar categoria separadamente
+  // 3. Buscar categoria (chart_of_accounts para GESTAP, categories para legacy)
   let categoryName: string | undefined;
-  if (conta.category_id) {
+  const catId = isGestap ? conta.conta_contabil_id : conta.category_id;
+  const catTable = isGestap ? "chart_of_accounts" : "categories";
+  if (catId) {
     const { data: cat } = await supabase
-      .from("categories")
+      .from(catTable)
       .select("name")
-      .eq("id", conta.category_id)
+      .eq("id", catId)
       .single();
     if (cat) categoryName = cat.name;
   }
@@ -122,12 +144,23 @@ export async function criarRecibo(
   }
 
   // 8. Montar dados do PDF
-  const dataPgto = new Date(conta[dateField] ?? conta.updated_at);
+  const dateFieldValue = isGestap
+    ? conta.data_pagamento
+    : (input.tipo === "payable" ? conta.payment_date : conta.receive_date);
+  const dataPgto = new Date(dateFieldValue ?? conta.updated_at);
+  const valorConta = isGestap ? Number(conta.valor || 0) : Number(conta.amount || 0);
+  const formaPgto = isGestap
+    ? (input.tipo === "payable" ? conta.forma_pagamento : conta.forma_recebimento)
+    : conta.payment_method;
+  const descricaoConta = isGestap
+    ? (input.tipo === "payable" ? conta.credor_nome : conta.pagador_nome) || conta.observacoes || ""
+    : conta.description ?? "";
+
   const pdfData: ReciboPDFData = {
     numero: numData,
-    valor: Number(conta.amount),
+    valor: valorConta,
     favorecido: partnerName,
-    forma_pagamento: conta.payment_method ?? undefined,
+    forma_pagamento: formaPgto ?? undefined,
     categoria: categoryName,
     conta_bancaria: contaBancariaStr,
     data_pagamento: new Intl.DateTimeFormat("pt-BR").format(dataPgto),
@@ -138,7 +171,7 @@ export async function criarRecibo(
     barcode: conta.barcode || undefined,
     chave_pix: partnerPix || empresa?.dados_bancarios_pix || undefined,
     pagador_razao_social: pagadorRazaoSocial || undefined,
-    descricao: conta.description ?? "",
+    descricao: descricaoConta,
     empresa_nome: empresaNome,
     empresa_cnpj: empresa?.cnpj ?? undefined,
     cor_primaria: template?.cor_primaria ?? "#0d1b2a",
@@ -185,7 +218,7 @@ export async function criarRecibo(
       forma_pagamento: pdfData.forma_pagamento,
       categoria: pdfData.categoria,
       conta_bancaria: pdfData.conta_bancaria,
-      data_pagamento: new Date(conta[dateField] ?? conta.updated_at).toISOString(),
+      data_pagamento: new Date(dateFieldValue ?? conta.updated_at).toISOString(),
       descricao: pdfData.descricao,
       pdf_url: urlData?.publicUrl ?? null,
       status_email: "pendente",
@@ -201,9 +234,11 @@ export async function criarRecibo(
   }
 
   // 11. Marcar conta como recibo gerado (apenas campos que existem na tabela)
+  const updateTabela = isGestap ? tabelaGestap : tabelaLegacy;
+  const updateStatus = isGestap ? "pago" : "paid";
   await supabase
-    .from(tabela)
-    .update({ status: "paid" as any })
+    .from(updateTabela)
+    .update({ status: updateStatus as any })
     .eq("id", conta.id);
 
   // 12. Download local do PDF
@@ -327,26 +362,30 @@ export async function pagarEGerarRecibo(
 ): Promise<ActionResult> {
   const { format } = await import("date-fns");
 
-  // 1. Processar pagamento via RPC existente
-  const rpcName = tipo === "payable" ? "process_payment" : "process_receipt";
-  const dateParam = tipo === "payable" ? "p_payment_date" : "p_receive_date";
-
+  // 1. Buscar valor da conta nas tabelas GESTAP
+  const tabela = tipo === "payable" ? "contas_pagar" : "contas_receber";
   const { data: conta } = await supabase
-    .from(tipo === "payable" ? "accounts_payable" : "accounts_receivable")
-    .select("amount")
+    .from(tabela)
+    .select("valor")
     .eq("id", accountId)
     .single();
 
+  // 2. Processar pagamento via RPC GESTAP (atomico)
+  const rpcName = tipo === "payable" ? "quitar_conta_pagar" : "quitar_conta_receber";
+  const idParam = tipo === "payable" ? "p_conta_pagar_id" : "p_conta_receber_id";
+  const formaParam = tipo === "payable" ? "p_forma_pagamento" : "p_forma_recebimento";
+
   const { error } = await supabase.rpc(rpcName, {
-    p_account_id: accountId,
-    p_bank_account_id: bankAccountId,
-    p_amount: conta?.amount ?? 0,
-    [dateParam]: format(new Date(), "yyyy-MM-dd"),
+    [idParam]: accountId,
+    p_valor_pago: conta?.valor ?? 0,
+    p_data_pagamento: format(new Date(), "yyyy-MM-dd"),
+    p_conta_bancaria_id: bankAccountId,
+    [formaParam]: "pix",
   });
 
-  if (error) return { ok: false, erro: "Erro ao processar o pagamento." };
+  if (error) return { ok: false, erro: "Erro ao processar o pagamento: " + error.message };
 
-  // 2. Criar recibo
+  // 3. Criar recibo
   return criarRecibo(supabase, {
     account_id: accountId,
     tipo,

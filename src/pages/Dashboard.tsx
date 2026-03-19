@@ -125,12 +125,12 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!companyIds.length) return 0;
       const { data, error } = await (activeClient as any)
-        .from('accounts_receivable')
-        .select('amount')
+        .from('contas_receber')
+        .select('valor')
         .in('company_id', companyIds)
-        .eq('status', 'pending');
+        .eq('status', 'aberto');
       if (error) return 0;
-      return (data || []).reduce((acc: number, r: any) => acc + (r.amount || 0), 0);
+      return (data || []).reduce((acc: number, r: any) => acc + Number(r.valor || 0), 0);
     },
     enabled: companyIds.length > 0,
   });
@@ -140,12 +140,12 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!companyIds.length) return 0;
       const { data, error } = await (activeClient as any)
-        .from('accounts_payable')
-        .select('amount')
+        .from('contas_pagar')
+        .select('valor')
         .in('company_id', companyIds)
-        .eq('status', 'pending');
+        .eq('status', 'aberto');
       if (error) return 0;
-      return (data || []).reduce((acc: number, r: any) => acc + (r.amount || 0), 0);
+      return (data || []).reduce((acc: number, r: any) => acc + Number(r.valor || 0), 0);
     },
     enabled: companyIds.length > 0,
   });

@@ -42,10 +42,10 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             const today = new Date();
 
             const { data, error } = await db
-                .from('accounts_receivable')
-                .select('amount, due_date')
+                .from('contas_receber')
+                .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
-                .eq('status', 'pending');
+                .eq('status', 'aberto');
 
             if (error) throw error;
 
@@ -54,10 +54,11 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             let period = 0;
 
             data.forEach((r: any) => {
-                const dueDate = new Date(r.due_date);
-                if (dueDate < startOfDay(today)) overdue += r.amount;
-                if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += r.amount;
-                if (dueDate >= startOfDay(rangeStart) && dueDate <= endOfDay(rangeEnd)) period += r.amount;
+                const dueDate = new Date(r.data_vencimento);
+                const val = Number(r.valor || 0);
+                if (dueDate < startOfDay(today)) overdue += val;
+                if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += val;
+                if (dueDate >= startOfDay(rangeStart) && dueDate <= endOfDay(rangeEnd)) period += val;
             });
 
             return { overdue, today: amountToday, period };
@@ -73,10 +74,10 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             const today = new Date();
 
             const { data, error } = await db
-                .from('accounts_payable')
-                .select('amount, due_date')
+                .from('contas_pagar')
+                .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
-                .eq('status', 'pending');
+                .eq('status', 'aberto');
 
             if (error) throw error;
 
@@ -85,10 +86,11 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             let period = 0;
 
             data.forEach((p: any) => {
-                const dueDate = new Date(p.due_date);
-                if (dueDate < startOfDay(today)) overdue += p.amount;
-                if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += p.amount;
-                if (dueDate >= startOfDay(rangeStart) && dueDate <= endOfDay(rangeEnd)) period += p.amount;
+                const dueDate = new Date(p.data_vencimento);
+                const val = Number(p.valor || 0);
+                if (dueDate < startOfDay(today)) overdue += val;
+                if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += val;
+                if (dueDate >= startOfDay(rangeStart) && dueDate <= endOfDay(rangeEnd)) period += val;
             });
 
             return { overdue, today: amountToday, period };
@@ -104,19 +106,21 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
 
             const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
 
-            const { data: receivables } = await db
-                .from('accounts_receivable')
-                .select('amount, due_date')
+            const { data: receivablesRaw } = await db
+                .from('contas_receber')
+                .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
-                .gte('due_date', rangeStart.toISOString())
-                .lte('due_date', rangeEnd.toISOString());
+                .gte('data_vencimento', rangeStart.toISOString())
+                .lte('data_vencimento', rangeEnd.toISOString());
+            const receivables = (receivablesRaw || []).map((r: any) => ({ amount: Number(r.valor || 0), due_date: r.data_vencimento }));
 
-            const { data: payables } = await db
-                .from('accounts_payable')
-                .select('amount, due_date')
+            const { data: payablesRaw } = await db
+                .from('contas_pagar')
+                .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
-                .gte('due_date', rangeStart.toISOString())
-                .lte('due_date', rangeEnd.toISOString());
+                .gte('data_vencimento', rangeStart.toISOString())
+                .lte('data_vencimento', rangeEnd.toISOString());
+            const payables = (payablesRaw || []).map((p: any) => ({ amount: Number(p.valor || 0), due_date: p.data_vencimento }));
 
             const { data: bankData } = await db
                 .from('bank_accounts')
@@ -158,10 +162,10 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
 
             const { data, error } = await db
-                .from('transactions')
+                .from('movimentacoes')
                 .select(`
-                    amount,
-                    type,
+                    valor,
+                    tipo,
                     category:chart_of_accounts (
                         name,
                         dre_group,
@@ -169,8 +173,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                     )
                 `)
                 .eq('company_id', selectedCompany.id)
-                .gte('date', rangeStart.toISOString())
-                .lte('date', rangeEnd.toISOString());
+                .gte('data', rangeStart.toISOString())
+                .lte('data', rangeEnd.toISOString());
 
             if (error) throw error;
 
@@ -184,8 +188,9 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                     groups[groupName] = { name: groupName, total: 0, order };
                 }
 
-                if (t.type === 'credit') groups[groupName].total += t.amount;
-                else groups[groupName].total -= t.amount;
+                const val = Number(t.valor || 0);
+                if (t.tipo === 'credito') groups[groupName].total += val;
+                else groups[groupName].total -= val;
             });
 
             return Object.values(groups).sort((a, b) => a.order - b.order);

@@ -180,20 +180,25 @@ export default function Relatorios() {
                 .from("movimentacoes")
                 .select(
                     `
-                    date,
-                    type,
-                    amount,
-                    category:categories(name,type)
+                    data,
+                    tipo,
+                    valor,
+                    category:chart_of_accounts(name,account_type)
                 `,
                 )
                 .eq("company_id", selectedCompany.id)
-                .gte("date", dateRange.start)
-                .lte("date", dateRange.end)
-                .order("date", { ascending: true })
+                .gte("data", dateRange.start)
+                .lte("data", dateRange.end)
+                .order("data", { ascending: true })
                 .order("created_at", { ascending: true });
 
             if (error) throw error;
-            return (data || []) as ReportTransaction[];
+            return (data || []).map((t: any) => ({
+                date: t.data,
+                type: t.tipo === "credito" ? "credit" : "debit",
+                amount: Number(t.valor || 0),
+                category: t.category ? { name: t.category.name, type: t.category.account_type } : null,
+            })) as ReportTransaction[];
         },
         enabled: !!selectedCompany?.id,
     });
@@ -383,34 +388,35 @@ export default function Relatorios() {
 
             let receivableQuery = (activeClient as any)
                 .from("contas_receber")
-                .select("id, amount, due_date, status, description")
+                .select("id, valor, data_vencimento, status, pagador_nome")
                 .eq("company_id", companyId)
-                .gte("due_date", dateRange.start)
-                .lte("due_date", dateRange.end)
-                .order("due_date", { ascending: true })
+                .gte("data_vencimento", dateRange.start)
+                .lte("data_vencimento", dateRange.end)
+                .order("data_vencimento", { ascending: true })
                 .order("created_at", { ascending: true });
 
             let payableQuery = (activeClient as any)
                 .from("contas_pagar")
-                .select("id, amount, due_date, status, description")
+                .select("id, valor, data_vencimento, status, credor_nome")
                 .eq("company_id", companyId)
-                .gte("due_date", dateRange.start)
-                .lte("due_date", dateRange.end)
-                .order("due_date", { ascending: true })
+                .gte("data_vencimento", dateRange.start)
+                .lte("data_vencimento", dateRange.end)
+                .order("data_vencimento", { ascending: true })
                 .order("created_at", { ascending: true });
 
             if (selectedSearch.kind === "client") {
-                receivableQuery = receivableQuery.eq("client_id", selectedSearch.id);
+                receivableQuery = receivableQuery.ilike("pagador_nome", `%${selectedSearch.label}%`);
             } else if (selectedSearch.kind === "supplier") {
-                payableQuery = payableQuery.eq("supplier_id", selectedSearch.id);
+                payableQuery = payableQuery.ilike("credor_nome", `%${selectedSearch.label}%`);
             } else if (selectedSearch.kind === "product") {
                 const tokens = [selectedSearch.code, selectedSearch.label].filter(Boolean).map((t) => String(t).replace(/[,()]/g, " ").trim());
-                const or = tokens.map((t) => `description.ilike.%${t}%`).join(",");
-                receivableQuery = receivableQuery.or(or);
-                payableQuery = payableQuery.or(or);
+                const orRec = tokens.map((t) => `pagador_nome.ilike.%${t}%`).join(",");
+                const orPay = tokens.map((t) => `credor_nome.ilike.%${t}%`).join(",");
+                receivableQuery = receivableQuery.or(orRec);
+                payableQuery = payableQuery.or(orPay);
             } else if (selectedSearch.kind === "term") {
-                receivableQuery = receivableQuery.ilike("description", like);
-                payableQuery = payableQuery.ilike("description", like);
+                receivableQuery = receivableQuery.ilike("pagador_nome", like);
+                payableQuery = payableQuery.ilike("credor_nome", like);
             }
 
             const [receivableRes, payableRes] = await Promise.all([receivableQuery, payableQuery]);
@@ -597,10 +603,10 @@ export default function Relatorios() {
                     .eq("company_id", selectedCompany.id),
                 (activeClient as any)
                     .from("contas_receber")
-                    .select("amount")
+                    .select("valor")
                     .eq("company_id", selectedCompany.id)
-                    .lte("due_date", todayIso)
-                    .in("status", ["pending", "overdue"]),
+                    .lte("data_vencimento", todayIso)
+                    .in("status", ["aberto", "vencido"]),
             ]);
 
             if (bankAccountsRes.error) throw bankAccountsRes.error;
@@ -612,7 +618,7 @@ export default function Relatorios() {
             );
 
             const overdueReceivables = (overdueRes.data || []).reduce(
-                (sum: number, row: any) => sum + Number(row.amount || 0),
+                (sum: number, row: any) => sum + Number(row.valor || 0),
                 0,
             );
 

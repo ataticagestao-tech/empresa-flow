@@ -52,22 +52,22 @@ export function useDreDashboard(dateRange?: DashboardDateRange) {
             // 2. Fetch transactions in period
             const { data: transactions, error: txErr } = await db
                 .from("movimentacoes")
-                .select("amount, type, category_id")
+                .select("valor, tipo, conta_contabil_id")
                 .eq("company_id", selectedCompany.id)
-                .gte("date", rangeStart.toISOString())
-                .lte("date", rangeEnd.toISOString());
+                .gte("data", rangeStart.toISOString())
+                .lte("data", rangeEnd.toISOString());
 
             if (txErr) throw txErr;
 
-            // 3. Aggregate totals by category_id (analytical accounts)
+            // 3. Aggregate totals by conta_contabil_id (analytical accounts)
             const totalsMap: Record<string, number> = {};
             (transactions || []).forEach((t: any) => {
-                if (!t.category_id) return;
-                if (!totalsMap[t.category_id]) totalsMap[t.category_id] = 0;
-                if (t.type === "credit") {
-                    totalsMap[t.category_id] += Number(t.amount) || 0;
+                if (!t.conta_contabil_id) return;
+                if (!totalsMap[t.conta_contabil_id]) totalsMap[t.conta_contabil_id] = 0;
+                if (t.tipo === "credito") {
+                    totalsMap[t.conta_contabil_id] += Number(t.valor) || 0;
                 } else {
-                    totalsMap[t.category_id] -= Number(t.amount) || 0;
+                    totalsMap[t.conta_contabil_id] -= Number(t.valor) || 0;
                 }
             });
 

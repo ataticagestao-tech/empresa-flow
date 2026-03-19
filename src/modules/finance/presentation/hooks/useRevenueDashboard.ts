@@ -36,16 +36,16 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
             const { data, error } = await db
                 .from("movimentacoes")
                 .select(`
-                    amount,
+                    valor,
                     category:chart_of_accounts (
                         name,
                         code
                     )
                 `)
                 .eq("company_id", selectedCompany.id)
-                .eq("type", "credit")
-                .gte("date", rangeStart.toISOString())
-                .lte("date", rangeEnd.toISOString());
+                .eq("tipo", "credito")
+                .gte("data", rangeStart.toISOString())
+                .lte("data", rangeEnd.toISOString());
 
             if (error) throw error;
 
@@ -56,7 +56,7 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
                 if (!byCategory[catName]) {
                     byCategory[catName] = { name: catName, total: 0, count: 0 };
                 }
-                byCategory[catName].total += Number(t.amount) || 0;
+                byCategory[catName].total += Number(t.valor) || 0;
                 byCategory[catName].count += 1;
             });
 
@@ -79,21 +79,21 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
 
             const { data, error } = await db
                 .from("contas_receber")
-                .select("amount, payment_method")
+                .select("valor, forma_recebimento")
                 .eq("company_id", selectedCompany.id)
-                .gte("due_date", rangeStart.toISOString())
-                .lte("due_date", rangeEnd.toISOString());
+                .gte("data_vencimento", rangeStart.toISOString())
+                .lte("data_vencimento", rangeEnd.toISOString());
 
             if (error) throw error;
 
             const byMethod: Record<string, { method: string; total: number; count: number }> = {};
 
             (data || []).forEach((r: any) => {
-                const method = r.payment_method?.trim() || "Não informado";
+                const method = r.forma_recebimento?.trim() || "Não informado";
                 if (!byMethod[method]) {
                     byMethod[method] = { method, total: 0, count: 0 };
                 }
-                byMethod[method].total += Number(r.amount) || 0;
+                byMethod[method].total += Number(r.valor) || 0;
                 byMethod[method].count += 1;
             });
 

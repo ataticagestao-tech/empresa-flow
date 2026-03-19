@@ -63,22 +63,17 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             // Limpar "none" dos selects
             const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
 
-            // Montar payload apenas com colunas que existem na tabela accounts_payable
-            // Apenas colunas que existem na tabela accounts_payable do Supabase
+            // Montar payload com colunas da tabela contas_pagar (GESTAP)
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
-                description: data.description,
-                amount: data.amount,
-                status: data.status || "pending",
-                due_date: dateToLocalString(data.due_date),
-                payment_date: dateToLocalString(data.payment_date),
-                supplier_id: cleanId(data.supplier_id),
-                category_id: cleanId(data.category_id),
-                payment_method: (!data.payment_method || data.payment_method === "none") ? null : data.payment_method,
-                barcode: data.barcode || null,
-                observations: data.observations || null,
-                file_url: data.file_url || null,
-                recurrence: data.recurrence || null,
+                credor_nome: data.description || "Fornecedor",
+                valor: data.amount,
+                status: data.status === "pending" ? "aberto" : data.status === "paid" ? "pago" : data.status === "cancelled" ? "cancelado" : data.status || "aberto",
+                data_vencimento: dateToLocalString(data.due_date),
+                data_pagamento: dateToLocalString(data.payment_date),
+                conta_contabil_id: cleanId(data.category_id),
+                forma_pagamento: (!data.payment_method || data.payment_method === "none") ? null : data.payment_method,
+                observacoes: data.observations || null,
             };
 
             // Adicionar id se for edição
@@ -95,8 +90,8 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
         },
         onSuccess: () => {
             toast({ title: "Sucesso", description: "Conta a pagar salva com sucesso!" });
-            queryClient.invalidateQueries({ queryKey: ["accounts_payable"] });
-            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+            queryClient.invalidateQueries({ queryKey: ["contas_pagar"] });
+            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
             if (onSuccess) onSuccess();
         },
         onError: (error: any) => {

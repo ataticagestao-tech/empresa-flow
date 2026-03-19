@@ -1158,9 +1158,10 @@ export default function ContasPagar() {
                         initialAmount={paymentItem.amount}
                         description={`Pagamento: ${paymentItem.description}`}
                         onSuccess={() => {
-                            queryClient.invalidateQueries({ queryKey: ["accounts_payable"] });
-                            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                            queryClient.invalidateQueries({ queryKey: ["contas_pagar"] });
+                            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
                             queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
+                            refetch();
                             setIsPaymentModalOpen(false);
                             setPaymentItem(null);
                         }}

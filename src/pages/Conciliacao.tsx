@@ -155,16 +155,16 @@ export default function Conciliacao() {
             if (payableIds.length > 0) {
                 const { data: payables } = await (activeClient as any)
                     .from("contas_pagar")
-                    .select("id, category_id, description")
+                    .select("id, conta_contabil_id, credor_nome")
                     .in("id", payableIds);
-                (payables || []).forEach((p: any) => { payableMap[p.id] = p; });
+                (payables || []).forEach((p: any) => { payableMap[p.id] = { ...p, category_id: p.conta_contabil_id, description: p.credor_nome }; });
             }
             if (receivableIds.length > 0) {
                 const { data: receivables } = await (activeClient as any)
                     .from("contas_receber")
-                    .select("id, category_id, description")
+                    .select("id, conta_contabil_id, pagador_nome")
                     .in("id", receivableIds);
-                (receivables || []).forEach((r: any) => { receivableMap[r.id] = r; });
+                (receivables || []).forEach((r: any) => { receivableMap[r.id] = { ...r, category_id: r.conta_contabil_id, description: r.pagador_nome }; });
             }
 
             return (txs || []).map((t: any) => {
@@ -186,19 +186,20 @@ export default function Conciliacao() {
 
     // Mutation: update category on linked payable/receivable
     const updateLinkedCategory = async (linkedTable: string, linkedId: string, newCategoryId: string) => {
+        const gestapTable = linkedTable === "accounts_payable" ? "contas_pagar" : "contas_receber";
         const { error } = await (activeClient as any)
-            .from(linkedTable)
-            .update({ category_id: newCategoryId })
+            .from(gestapTable)
+            .update({ conta_contabil_id: newCategoryId })
             .eq("id", linkedId);
         if (error) {
             toast({ title: "Erro", description: "Não foi possível atualizar a categoria.", variant: "destructive" });
             return;
         }
         // Also update the transaction record if it exists
-        const txField = linkedTable === "accounts_payable" ? "related_payable_id" : "related_receivable_id";
+        const txField = linkedTable === "accounts_payable" ? "conta_pagar_id" : "conta_receber_id";
         await (activeClient as any)
             .from("movimentacoes")
-            .update({ category_id: newCategoryId })
+            .update({ conta_contabil_id: newCategoryId })
             .eq(txField, linkedId);
 
         toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
@@ -407,33 +408,35 @@ export default function Conciliacao() {
     const handleCreateAndReconcile = async () => {
         if (!selectedBankTx || !selectedCompany?.id) return;
         const isExpense = selectedBankTx.amount < 0;
-        const table = isExpense ? "accounts_payable" : "accounts_receivable";
-        const description = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
+        const table = isExpense ? "contas_pagar" : "contas_receber";
+        const nameCol = isExpense ? "credor_nome" : "pagador_nome";
+        const entryDescription = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
         const amount = Math.abs(selectedBankTx.amount);
 
         setIsCreating(true);
         try {
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
-                description, amount,
-                due_date: selectedBankTx.date,
-                status: "pending",
+                [nameCol]: entryDescription,
+                valor: amount,
+                data_vencimento: selectedBankTx.date,
+                status: "aberto",
             };
             if (newEntry.category_id && newEntry.category_id !== "none") {
-                payload.category_id = newEntry.category_id;
+                payload.conta_contabil_id = newEntry.category_id;
             }
 
             const { data: created, error: createError } = await (activeClient as any)
                 .from(table).insert(payload)
-                .select("id, description, amount, due_date, status").single();
+                .select(`id, ${nameCol}, valor, data_vencimento, status`).single();
             if (createError) throw createError;
 
             const sysTx: SystemTransaction = {
                 id: created.id,
                 type: isExpense ? "payable" : "receivable",
-                description: created.description,
-                amount: created.amount,
-                date: created.due_date,
+                description: created[nameCol] || '',
+                amount: Number(created.valor || 0),
+                date: created.data_vencimento,
                 status: created.status,
                 entity_name: "Criado via conciliação",
                 original_table_id: created.id,
@@ -481,30 +484,31 @@ export default function Conciliacao() {
                 } else {
                     // Caso 2: Sugestão IA (categoria) → criar lançamento + conciliar
                     const isExpense = bt.amount < 0;
-                    const table = isExpense ? "accounts_payable" : "accounts_receivable";
+                    const table = isExpense ? "contas_pagar" : "contas_receber";
+                    const batchNameCol = isExpense ? "credor_nome" : "pagador_nome";
 
                     const payload: Record<string, any> = {
                         company_id: selectedCompany?.id,
-                        description: bt.description || "Lançamento via conciliação IA",
-                        amount: Math.abs(bt.amount),
-                        due_date: bt.date,
-                        status: "pending",
+                        [batchNameCol]: bt.description || "Lançamento via conciliação IA",
+                        valor: Math.abs(bt.amount),
+                        data_vencimento: bt.date,
+                        status: "aberto",
                     };
                     if (suggestion.accountId) {
-                        payload.category_id = suggestion.accountId;
+                        payload.conta_contabil_id = suggestion.accountId;
                     }
 
                     const { data: created, error: createError } = await (activeClient as any)
                         .from(table).insert(payload)
-                        .select("id, description, amount, due_date, status").single();
+                        .select(`id, ${batchNameCol}, valor, data_vencimento, status`).single();
                     if (createError) throw createError;
 
                     const sysTx: SystemTransaction = {
                         id: created.id,
                         type: isExpense ? "payable" : "receivable",
-                        description: created.description,
-                        amount: created.amount,
-                        date: created.due_date,
+                        description: created[batchNameCol] || '',
+                        amount: Number(created.valor || 0),
+                        date: created.data_vencimento,
                         status: created.status,
                         entity_name: "Criado via conciliação IA",
                         original_table_id: created.id,

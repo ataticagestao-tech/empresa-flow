@@ -78,19 +78,19 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             // Buscar Contas a Pagar Pendentes
             const { data: payables, error: payError } = await (activeClient as any)
-                .from('accounts_payable')
-                .select('id, description, amount, due_date, status, suppliers(razao_social)')
+                .from('contas_pagar')
+                .select('id, credor_nome, valor, data_vencimento, status')
                 .eq('company_id', companyId)
-                .eq('status', 'pending');
+                .eq('status', 'aberto');
 
             if (payError) throw payError;
 
             // Buscar Contas a Receber Pendentes
             const { data: receivables, error: recError } = await (activeClient as any)
-                .from('accounts_receivable')
-                .select('id, description, amount, due_date, status, clients(razao_social)') // Ajustar relation name
+                .from('contas_receber')
+                .select('id, pagador_nome, valor, data_vencimento, status')
                 .eq('company_id', companyId)
-                .eq('status', 'pending');
+                .eq('status', 'aberto');
 
             if (recError) throw recError;
 
@@ -101,11 +101,11 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 normalized.push({
                     id: p.id,
                     type: 'payable',
-                    description: p.description,
-                    amount: p.amount, // Negativo? Não, vamos tratar como valor absoluto e usar type
-                    date: p.due_date,
+                    description: p.credor_nome || '',
+                    amount: Number(p.valor || 0),
+                    date: p.data_vencimento,
                     status: p.status,
-                    entity_name: p.suppliers?.razao_social || 'Fornecedor avulso',
+                    entity_name: p.credor_nome || 'Fornecedor avulso',
                     original_table_id: p.id
                 });
             });
@@ -114,11 +114,11 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 normalized.push({
                     id: r.id,
                     type: 'receivable',
-                    description: r.description,
-                    amount: r.amount,
-                    date: r.due_date,
+                    description: r.pagador_nome || '',
+                    amount: Number(r.valor || 0),
+                    date: r.data_vencimento,
                     status: r.status,
-                    entity_name: r.clients?.razao_social || 'Cliente avulso',
+                    entity_name: r.pagador_nome || 'Cliente avulso',
                     original_table_id: r.id
                 });
             });
@@ -266,19 +266,19 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             if (!Number.isFinite(amount) || amount <= 0) throw new Error("Valor inválido");
 
             if (sysTx.type === 'payable') {
-                const { error } = await (activeClient as any).rpc('process_payment', {
-                    p_account_id: sysTx.id,
-                    p_amount: amount,
-                    p_bank_account_id: bankTx.bank_account_id,
-                    p_payment_date: date,
+                const { error } = await (activeClient as any).rpc('quitar_conta_pagar', {
+                    p_conta_pagar_id: sysTx.id,
+                    p_valor_pago: amount,
+                    p_conta_bancaria_id: bankTx.bank_account_id,
+                    p_data_pagamento: date,
                 });
                 if (error) throw error;
             } else {
-                const { error } = await (activeClient as any).rpc('process_receipt', {
-                    p_account_id: sysTx.id,
-                    p_amount: amount,
-                    p_bank_account_id: bankTx.bank_account_id,
-                    p_receive_date: date,
+                const { error } = await (activeClient as any).rpc('quitar_conta_receber', {
+                    p_conta_receber_id: sysTx.id,
+                    p_valor_pago: amount,
+                    p_conta_bancaria_id: bankTx.bank_account_id,
+                    p_data_pagamento: date,
                 });
                 if (error) throw error;
             }

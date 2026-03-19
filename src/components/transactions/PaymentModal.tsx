@@ -90,42 +90,39 @@ export function PaymentModal({
     const onSubmit = async (values: PaymentFormValues) => {
         setIsProcessing(true);
         try {
-            const rpcName = type === "payable" ? "process_payment" : "process_receipt";
-            const paramIdName = type === "payable" ? "p_account_id" : "p_account_id"; // Fixed param name to match SQL function check
+            const rpcName = type === "payable" ? "quitar_conta_pagar" : "quitar_conta_receber";
+            const idParam = type === "payable" ? "p_conta_pagar_id" : "p_conta_receber_id";
+            const formaParam = type === "payable" ? "p_forma_pagamento" : "p_forma_recebimento";
 
-            let rpcError;
+            const { data, error } = await activeClient.rpc(rpcName, {
+                [idParam]: accountingId,
+                p_valor_pago: parseFloat(values.amount),
+                p_data_pagamento: values.date,
+                p_conta_bancaria_id: values.bank_account_id,
+                [formaParam]: "pix",
+            });
 
-            if (type === 'payable') {
-                const { error } = await activeClient.rpc('process_payment', {
-                    p_account_id: accountingId,
-                    p_bank_account_id: values.bank_account_id,
-                    p_amount: parseFloat(values.amount),
-                    p_payment_date: values.date,
-                });
-                rpcError = error;
-            } else {
-                const { error } = await activeClient.rpc('process_receipt', {
-                    p_account_id: accountingId,
-                    p_bank_account_id: values.bank_account_id,
-                    p_amount: parseFloat(values.amount),
-                    p_receive_date: values.date,
-                });
-                rpcError = error;
-            }
+            if (error) throw error;
 
-            if (rpcError) throw rpcError;
+            const result = data as any;
+            const statusMsg = result?.novo_status === "pago" ? "quitada" : "parcialmente paga";
 
             toast({
                 title: "Sucesso",
-                description: `Baixa realizada com sucesso!`,
+                description: `Conta ${statusMsg} com sucesso!`,
             });
             onSuccess();
             onClose();
         } catch (err: any) {
             console.error(err);
+            const msg = err.message || "Erro ao processar";
+            let userMsg = msg;
+            if (msg.includes("CR_JA_PAGO") || msg.includes("CP_JA_PAGO")) userMsg = "Esta conta ja foi quitada";
+            else if (msg.includes("NOT_FOUND")) userMsg = "Conta nao encontrada";
+            else if (msg.includes("VALOR_INVALIDO")) userMsg = "Valor invalido";
             toast({
                 title: "Erro",
-                description: "Erro ao processar baixa. " + err.message,
+                description: userMsg,
                 variant: "destructive",
             });
         } finally {

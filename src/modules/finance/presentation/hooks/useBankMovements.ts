@@ -56,14 +56,21 @@ export function useBankMovements(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
                 .from("movimentacoes")
-                .select("id, date, amount, description, type, bank_account_id")
+                .select("id, data, valor, descricao, tipo, conta_bancaria_id")
                 .eq("company_id", selectedCompany.id)
-                .not("bank_account_id", "is", null)
-                .gte("date", rangeStart.toISOString())
-                .lte("date", rangeEnd.toISOString())
-                .order("date", { ascending: false });
+                .not("conta_bancaria_id", "is", null)
+                .gte("data", rangeStart.toISOString())
+                .lte("data", rangeEnd.toISOString())
+                .order("data", { ascending: false });
             if (error) throw error;
-            return (data || []) as BankMovement[];
+            return (data || []).map((m: any) => ({
+                id: m.id,
+                date: m.data,
+                amount: Number(m.valor || 0),
+                description: m.descricao || "",
+                type: m.tipo === "credito" ? "credit" : "debit",
+                bank_account_id: m.conta_bancaria_id,
+            })) as BankMovement[];
         },
         enabled: !!selectedCompany?.id,
     });

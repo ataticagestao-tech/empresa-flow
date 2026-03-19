@@ -52,10 +52,10 @@ export default function Orcamento() {
         queryFn: async () => {
             const { data } = await (activeClient as any)
                 .from("contas_pagar")
-                .select("id, amount, category_id, status")
+                .select("id, valor, conta_contabil_id, status")
                 .eq("company_id", selectedCompany?.id)
-                .gte("due_date", format(monthStart, "yyyy-MM-dd"))
-                .lte("due_date", format(monthEnd, "yyyy-MM-dd"));
+                .gte("data_vencimento", format(monthStart, "yyyy-MM-dd"))
+                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"));
             return data || [];
         },
         enabled: !!selectedCompany?.id,
@@ -78,8 +78,8 @@ export default function Orcamento() {
         return categories.map((cat: any) => {
             const orcado = budgets[cat.id] || 0;
             const realizado = payables
-                .filter((p: any) => p.category_id === cat.id)
-                .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+                .filter((p: any) => p.conta_contabil_id === cat.id)
+                .reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
             const disponivel = orcado - realizado;
             const pct = orcado > 0 ? (realizado / orcado) * 100 : 0;
             return { ...cat, orcado, realizado, disponivel, pct };

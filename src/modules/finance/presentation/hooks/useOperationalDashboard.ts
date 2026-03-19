@@ -20,14 +20,14 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return { total: 0, count: 0, avg: 0 };
             const { data, error } = await db
-                .from('transactions')
-                .select('amount')
+                .from('movimentacoes')
+                .select('valor')
                 .eq('company_id', selectedCompany.id)
-                .eq('type', 'credit')
-                .gte('date', rangeStart.toISOString())
-                .lte('date', rangeEnd.toISOString());
+                .eq('tipo', 'credito')
+                .gte('data', rangeStart.toISOString())
+                .lte('data', rangeEnd.toISOString());
             if (error) throw error;
-            const total = data.reduce((s: number, t: any) => s + (t.amount || 0), 0);
+            const total = data.reduce((s: number, t: any) => s + Number(t.valor || 0), 0);
             const count = data.length;
             return { total, count, avg: count > 0 ? total / count : 0 };
         },
@@ -40,14 +40,14 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return 0;
             const { data, error } = await db
-                .from('transactions')
-                .select('amount')
+                .from('movimentacoes')
+                .select('valor')
                 .eq('company_id', selectedCompany.id)
-                .eq('type', 'debit')
-                .gte('date', rangeStart.toISOString())
-                .lte('date', rangeEnd.toISOString());
+                .eq('tipo', 'debito')
+                .gte('data', rangeStart.toISOString())
+                .lte('data', rangeEnd.toISOString());
             if (error) throw error;
-            return data.reduce((s: number, t: any) => s + (t.amount || 0), 0);
+            return data.reduce((s: number, t: any) => s + Number(t.valor || 0), 0);
         },
         enabled: !!selectedCompany?.id,
     });
@@ -58,14 +58,14 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return { rate: 0, overdueCount: 0, totalCount: 0 };
             const { data, error } = await db
-                .from('accounts_receivable')
-                .select('amount, due_date, status')
+                .from('contas_receber')
+                .select('valor, data_vencimento, status')
                 .eq('company_id', selectedCompany.id);
             if (error) throw error;
             const today = startOfDay(new Date());
             const total = data.length;
             const overdue = data.filter((r: any) =>
-                r.status === 'pending' && new Date(r.due_date) < today
+                r.status === 'aberto' && new Date(r.data_vencimento) < today
             );
             return {
                 rate: total > 0 ? (overdue.length / total) * 100 : 0,
@@ -82,17 +82,17 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
-                .from('accounts_receivable')
-                .select('amount, client:clients(razao_social)')
+                .from('contas_receber')
+                .select('valor, pagador_nome')
                 .eq('company_id', selectedCompany.id)
-                .gte('due_date', rangeStart.toISOString())
-                .lte('due_date', rangeEnd.toISOString());
+                .gte('data_vencimento', rangeStart.toISOString())
+                .lte('data_vencimento', rangeEnd.toISOString());
             if (error) throw error;
 
             const byClient: Record<string, number> = {};
             data.forEach((r: any) => {
-                const name = r.client?.razao_social || 'Sem cliente';
-                byClient[name] = (byClient[name] || 0) + (r.amount || 0);
+                const name = r.pagador_nome || 'Sem cliente';
+                byClient[name] = (byClient[name] || 0) + Number(r.valor || 0);
             });
 
             return Object.entries(byClient)
@@ -109,18 +109,18 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
-                .from('transactions')
-                .select('amount, category:chart_of_accounts(name)')
+                .from('movimentacoes')
+                .select('valor, category:chart_of_accounts(name)')
                 .eq('company_id', selectedCompany.id)
-                .eq('type', 'debit')
-                .gte('date', rangeStart.toISOString())
-                .lte('date', rangeEnd.toISOString());
+                .eq('tipo', 'debito')
+                .gte('data', rangeStart.toISOString())
+                .lte('data', rangeEnd.toISOString());
             if (error) throw error;
 
             const byCat: Record<string, number> = {};
             data.forEach((t: any) => {
                 const name = t.category?.name || 'Sem categoria';
-                byCat[name] = (byCat[name] || 0) + (t.amount || 0);
+                byCat[name] = (byCat[name] || 0) + Number(t.valor || 0);
             });
 
             return Object.entries(byCat)

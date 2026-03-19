@@ -43,16 +43,21 @@ export function useHistoricalCategorySuggestion(
         queryKey: ["historical_categorized_tx", companyId, type],
         queryFn: async () => {
             if (!companyId) return [];
-            const table = type === "despesa" ? "accounts_payable" : "accounts_receivable";
+            const table = type === "despesa" ? "contas_pagar" : "contas_receber";
+            const nameCol = type === "despesa" ? "credor_nome" : "pagador_nome";
             const { data, error } = await (activeClient as any)
                 .from(table)
-                .select("id, description, category_id")
+                .select(`id, ${nameCol}, conta_contabil_id`)
                 .eq("company_id", companyId)
-                .not("category_id", "is", null)
+                .not("conta_contabil_id", "is", null)
                 .order("created_at", { ascending: false })
                 .limit(200);
             if (error) return [];
-            return (data || []) as Array<{ id: string; description: string; category_id: string }>;
+            return (data || []).map((r: any) => ({
+                id: r.id,
+                description: r[nameCol] || '',
+                category_id: r.conta_contabil_id,
+            })) as Array<{ id: string; description: string; category_id: string }>;
         },
         enabled: !!companyId && !!description && description.length >= 3,
         staleTime: 5 * 60 * 1000,

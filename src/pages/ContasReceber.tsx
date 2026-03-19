@@ -1015,9 +1015,10 @@ export default function ContasReceber() {
                         initialAmount={paymentItem.amount}
                         description={`Recebimento: ${paymentItem.description}`}
                         onSuccess={() => {
-                            queryClient.invalidateQueries({ queryKey: ["accounts_receivable"] });
-                            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                            queryClient.invalidateQueries({ queryKey: ["contas_receber"] });
+                            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
                             queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
+                            refetch();
                             setIsPaymentModalOpen(false);
                             setPaymentItem(null);
                         }}

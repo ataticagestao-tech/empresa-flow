@@ -83,18 +83,8 @@ export default function Movimentacoes() {
         enabled: !!selectedCompany?.id
     });
 
-    // Fetch categories (legacy)
-    const { data: categories } = useQuery({
-        queryKey: ["categories_map", selectedCompany?.id],
-        queryFn: async () => {
-            const { data } = await (activeClient as any)
-                .from("categories")
-                .select("id, name")
-                .eq("company_id", selectedCompany!.id);
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id
-    });
+    // chart_of_accounts already loaded above — no separate categories query needed
+    const categories: any[] = [];
 
     // Fetch movimentacoes (new table)
     const { data: rawMovimentacoes, isLoading: loadingMov } = useQuery({

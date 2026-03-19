@@ -124,9 +124,9 @@ export function ReciboModalProvider() {
                         : "Pagamento confirmado e comprovante gerado!"),
             });
 
-            queryClient.invalidateQueries({ queryKey: ["accounts_payable"] });
-            queryClient.invalidateQueries({ queryKey: ["accounts_receivable"] });
-            queryClient.invalidateQueries({ queryKey: ["transactions"] });
+            queryClient.invalidateQueries({ queryKey: ["contas_pagar"] });
+            queryClient.invalidateQueries({ queryKey: ["contas_receber"] });
+            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
             queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
             queryClient.invalidateQueries({ queryKey: ["receipts"] });
 

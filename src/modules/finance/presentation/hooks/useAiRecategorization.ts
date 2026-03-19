@@ -90,19 +90,27 @@ export function useAiRecategorization(categories: ChartAccount[]) {
             const pageSize = 1000;
 
             while (true) {
-                const { data, error } = await db
+                const { data: rawData, error } = await db
                     .from("movimentacoes")
                     .select(`
-                        id, description, amount, date, type,
-                        category_id,
+                        id, descricao, valor, data, tipo,
+                        conta_contabil_id,
                         category:chart_of_accounts (
                             id, code, name, account_type, account_nature
                         )
                     `)
                     .eq("company_id", selectedCompany.id)
-                    .not("category_id", "is", null)
-                    .order("date")
+                    .not("conta_contabil_id", "is", null)
+                    .order("data")
                     .range(from, from + pageSize - 1);
+                const data = (rawData || []).map((t: any) => ({
+                    ...t,
+                    description: t.descricao,
+                    amount: t.valor,
+                    date: t.data,
+                    type: t.tipo,
+                    category_id: t.conta_contabil_id,
+                }));
 
                 if (error) break;
                 if (!data?.length) break;

@@ -25,14 +25,15 @@ export default function FluxoCaixaProjetado() {
     const { data: receivables = [] } = useQuery({
         queryKey: ["fc_receivables", selectedCompany?.id, days],
         queryFn: async () => {
-            const { data } = await (activeClient as any)
+            const { data: raw } = await (activeClient as any)
                 .from("contas_receber")
-                .select("id, description, amount, due_date, status")
+                .select("id, pagador_nome, valor, data_vencimento, status")
                 .eq("company_id", selectedCompany?.id)
-                .eq("status", "pending")
-                .gte("due_date", format(today, "yyyy-MM-dd"))
-                .lte("due_date", format(endDate, "yyyy-MM-dd"))
-                .order("due_date");
+                .eq("status", "aberto")
+                .gte("data_vencimento", format(today, "yyyy-MM-dd"))
+                .lte("data_vencimento", format(endDate, "yyyy-MM-dd"))
+                .order("data_vencimento");
+            const data = (raw || []).map((r: any) => ({ id: r.id, description: r.pagador_nome || "", amount: Number(r.valor || 0), due_date: r.data_vencimento, status: r.status }));
             return data || [];
         },
         enabled: !!selectedCompany?.id,
@@ -41,14 +42,15 @@ export default function FluxoCaixaProjetado() {
     const { data: payables = [] } = useQuery({
         queryKey: ["fc_payables", selectedCompany?.id, days],
         queryFn: async () => {
-            const { data } = await (activeClient as any)
+            const { data: raw } = await (activeClient as any)
                 .from("contas_pagar")
-                .select("id, description, amount, due_date, status")
+                .select("id, credor_nome, valor, data_vencimento, status")
                 .eq("company_id", selectedCompany?.id)
-                .eq("status", "pending")
-                .gte("due_date", format(today, "yyyy-MM-dd"))
-                .lte("due_date", format(endDate, "yyyy-MM-dd"))
-                .order("due_date");
+                .eq("status", "aberto")
+                .gte("data_vencimento", format(today, "yyyy-MM-dd"))
+                .lte("data_vencimento", format(endDate, "yyyy-MM-dd"))
+                .order("data_vencimento");
+            const data = (raw || []).map((p: any) => ({ id: p.id, description: p.credor_nome || "", amount: Number(p.valor || 0), due_date: p.data_vencimento, status: p.status }));
             return data || [];
         },
         enabled: !!selectedCompany?.id,
