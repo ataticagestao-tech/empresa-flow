@@ -24,6 +24,7 @@ import {
   Percent,
   TableProperties,
   Target,
+  Bell,
   LucideIcon
 } from "lucide-react";
 
@@ -74,6 +75,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
       { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
+      { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
     ]
   },
   {
