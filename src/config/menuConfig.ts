@@ -91,6 +91,16 @@ export const menuGroups: MenuGroup[] = [
     ]
   },
   {
+    id: 'estoque',
+    labelKey: 'Estoque & Compras',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Estoque', icon: Package, url: '/estoque', isHardcoded: true },
+      { titleKey: 'Ordens de Compra', icon: ShoppingCart, url: '/ordens-compra', isHardcoded: true },
+      { titleKey: 'Inventário', icon: ClipboardList, url: '/inventario', isHardcoded: true },
+    ]
+  },
+  {
     id: 'precificacao',
     labelKey: 'Precificação',
     isHardcodedLabel: true,

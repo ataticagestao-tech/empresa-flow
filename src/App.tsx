@@ -49,6 +49,9 @@ import MarkupSimulador from "./pages/MarkupSimulador";
 import CentrosCusto from "./pages/CentrosCusto";
 import ReguaCobranca from "./pages/ReguaCobranca";
 import DRE from "./pages/DRE";
+import EstoqueProdutos from "./pages/EstoqueProdutos";
+import OrdensCompra from "./pages/OrdensCompra";
+import Inventario from "./pages/Inventario";
 
 const queryClient = new QueryClient();
 
@@ -174,6 +177,9 @@ const App = () => (
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="/regua-cobranca" element={<ReguaCobranca />} />
                     <Route path="/dre" element={<DRE />} />
+                    <Route path="/estoque" element={<EstoqueProdutos />} />
+                    <Route path="/ordens-compra" element={<OrdensCompra />} />
+                    <Route path="/inventario" element={<Inventario />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/operacional" element={<ProdutosDepartamentos />} />
