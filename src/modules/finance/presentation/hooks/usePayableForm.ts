@@ -74,6 +74,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
                 conta_contabil_id: cleanId(data.category_id),
                 forma_pagamento: (!data.payment_method || data.payment_method === "none") ? null : data.payment_method,
                 observacoes: data.observations || null,
+                file_url: data.file_url || null,
             };
 
             // Adicionar id se for edição

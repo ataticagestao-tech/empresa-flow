@@ -114,13 +114,17 @@ export default function ContasPagar() {
 
             return rows.map((b: any) => ({
                 ...b,
+                // Mapear colunas GESTAP → campos do formulário
                 description: b.credor_nome || b.observacoes || "",
                 amount: Number(b.valor || 0),
                 due_date: b.data_vencimento,
                 payment_date: b.data_pagamento,
-                payment_method: b.forma_pagamento,
+                payment_method: b.forma_pagamento || "",
+                category_id: b.conta_contabil_id || "",
                 observations: b.observacoes || "",
+                file_url: b.file_url || "",
                 status: b.status === "aberto" ? "pending" : b.status === "pago" ? "paid" : b.status === "vencido" ? "overdue" : b.status === "cancelado" ? "cancelled" : b.status,
+                // Campos para exibição na tabela
                 supplier: b.credor_nome ? { razao_social: b.credor_nome, nome_fantasia: b.credor_nome } : undefined,
                 category: b.conta_contabil_id && catMap[b.conta_contabil_id] ? { name: catMap[b.conta_contabil_id] } : null,
             })) as AccountsPayable[];

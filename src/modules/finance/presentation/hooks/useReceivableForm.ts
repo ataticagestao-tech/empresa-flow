@@ -53,6 +53,7 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
                 conta_contabil_id: cleanId(values.category_id),
                 forma_recebimento: (!values.payment_method || values.payment_method === "none") ? null : values.payment_method,
                 observacoes: values.observations || null,
+                file_url: (values as any).file_url || null,
             };
             if (values.id) payload.id = values.id;
 

@@ -26,7 +26,7 @@ export function AccountsPayableSheet({ isOpen, onClose, dataToEdit }: AccountsPa
                             : "Preencha os dados para registrar uma nova conta a pagar."}
                     </SheetDescription>
                 </SheetHeader>
-                <AccountsPayableForm onSuccess={onClose} initialData={dataToEdit} />
+                <AccountsPayableForm key={dataToEdit?.id || "new"} onSuccess={onClose} initialData={dataToEdit} />
             </SheetContent>
         </Sheet>
     );

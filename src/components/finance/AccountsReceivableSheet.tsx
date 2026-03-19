@@ -26,7 +26,7 @@ export function AccountsReceivableSheet({ isOpen, onClose, dataToEdit }: Account
                             : "Preencha os dados para registrar um novo recebimento."}
                     </SheetDescription>
                 </SheetHeader>
-                <AccountsReceivableForm onSuccess={onClose} initialData={dataToEdit} />
+                <AccountsReceivableForm key={dataToEdit?.id || "new"} onSuccess={onClose} initialData={dataToEdit} />
             </SheetContent>
         </Sheet>
     );
