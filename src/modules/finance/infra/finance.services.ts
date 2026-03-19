@@ -59,14 +59,14 @@ export class FinanceService {
 
         if (data.id) {
             return this.supabase
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .update(payload)
                 .eq("id", data.id)
                 .select()
                 .single();
         } else {
             return this.supabase
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .insert(payload)
                 .select()
                 .single();
@@ -78,18 +78,17 @@ export class FinanceService {
      */
     async createTransactionFromReceivable(receivableId: string, data: any, companyId: string) {
         return this.supabase
-            .from("transactions")
+            .from("movimentacoes")
             .insert({
                 company_id: companyId,
-                bank_account_id: data.bank_account_id,
-                category_id: data.category_id,
-                type: "credit",
-                amount: data.amount,
-                date: data.receive_date || new Date(),
-                description: `Recebimento: ${data.description}`,
-                status: "completed",
-                origin_id: receivableId,
-                origin_type: 'receivable'
+                conta_bancaria_id: data.bank_account_id,
+                conta_contabil_id: data.category_id || null,
+                conta_receber_id: receivableId,
+                tipo: "credito",
+                valor: data.amount,
+                data: data.receive_date || new Date(),
+                descricao: `Recebimento: ${data.description}`,
+                origem: "conta_receber",
             });
     }
 
@@ -101,14 +100,14 @@ export class FinanceService {
 
         if (data.id) {
             return this.supabase
-                .from("accounts_payable")
+                .from("contas_pagar")
                 .update(payload)
                 .eq("id", data.id)
                 .select()
                 .single();
         } else {
             return this.supabase
-                .from("accounts_payable")
+                .from("contas_pagar")
                 .insert(payload)
                 .select()
                 .single();
@@ -120,18 +119,17 @@ export class FinanceService {
      */
     async createTransactionFromPayable(payableId: string, data: any, companyId: string) {
         return this.supabase
-            .from("transactions")
+            .from("movimentacoes")
             .insert({
                 company_id: companyId,
-                bank_account_id: data.bank_account_id,
-                category_id: data.category_id,
-                type: "debit",
-                amount: data.amount,
-                date: data.payment_date || data.due_date || new Date(),
-                description: `Pagamento: ${data.description}`,
-                status: "completed",
-                origin_id: payableId,
-                origin_type: 'payable'
+                conta_bancaria_id: data.bank_account_id,
+                conta_contabil_id: data.category_id || null,
+                conta_pagar_id: payableId,
+                tipo: "debito",
+                valor: data.amount,
+                data: data.payment_date || data.due_date || new Date(),
+                descricao: `Pagamento: ${data.description}`,
+                origem: "conta_pagar",
             });
     }
 }

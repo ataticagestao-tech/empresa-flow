@@ -93,43 +93,27 @@ export default function ContasPagar() {
     };
 
     const { data: bills, isLoading, refetch } = useQuery({
-        queryKey: ["accounts_payable", selectedCompany?.id, isUsingSecondary],
+        queryKey: ["contas_pagar", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data: rows, error } = await (activeClient as any)
-                .from("accounts_payable")
-                .select("id, company_id, description, amount, status, due_date, payment_date, supplier_id, category_id, payment_method, barcode, observations, file_url, recurrence, created_at")
+                .from("contas_pagar")
+                .select("*")
                 .eq("company_id", selectedCompany.id)
-                .order("due_date", { ascending: true });
-            if (error || !rows) { console.error("accounts_payable error:", error); return []; }
-
-            // Hydrate categories and suppliers
-            const catIds = [...new Set(rows.map((b: any) => b.category_id).filter(Boolean))] as string[];
-            const supIds = [...new Set(rows.map((b: any) => b.supplier_id).filter(Boolean))] as string[];
-            const catMap: Record<string, string> = {};
-            const supMap: Record<string, { razao_social: string; nome_fantasia?: string }> = {};
-
-            if (catIds.length) {
-                const { data: cats } = await (activeClient as any)
-                    .from("chart_of_accounts").select("id, name").in("id", catIds);
-                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
-                // Also try categories table
-                if (!cats || cats.length === 0) {
-                    const { data: cats2 } = await (activeClient as any)
-                        .from("categories").select("id, name").in("id", catIds);
-                    if (cats2) cats2.forEach((c: any) => { catMap[c.id] = c.name; });
-                }
-            }
-            if (supIds.length) {
-                const { data: sups } = await (activeClient as any)
-                    .from("suppliers").select("id, razao_social, nome_fantasia").in("id", supIds);
-                if (sups) sups.forEach((s: any) => { supMap[s.id] = { razao_social: s.razao_social, nome_fantasia: s.nome_fantasia }; });
-            }
+                .order("data_vencimento", { ascending: true });
+            if (error || !rows) { console.error("contas_pagar error:", error); return []; }
 
             return rows.map((b: any) => ({
                 ...b,
-                category: b.category_id && catMap[b.category_id] ? { name: catMap[b.category_id] } : undefined,
-                supplier: b.supplier_id && supMap[b.supplier_id] ? supMap[b.supplier_id] : undefined,
+                // Compat aliases for existing UI
+                description: b.observacoes || b.credor_nome || "",
+                amount: Number(b.valor || 0),
+                due_date: b.data_vencimento,
+                payment_date: b.data_pagamento,
+                payment_method: b.forma_pagamento,
+                status: b.status === "aberto" ? "pending" : b.status === "pago" ? "paid" : b.status === "vencido" ? "overdue" : b.status === "cancelado" ? "cancelled" : b.status,
+                supplier: b.credor_nome ? { razao_social: b.credor_nome, nome_fantasia: b.credor_nome } : undefined,
+                category: null,
             })) as AccountsPayable[];
         },
         enabled: !!selectedCompany?.id,
@@ -458,12 +442,12 @@ export default function ContasPagar() {
     const handleNew = () => { setEditingItem(undefined); setIsSheetOpen(true); };
     const handleDelete = async (bill: AccountsPayable) => {
         if (!window.confirm(`Excluir "${bill.description}"?`)) return;
-        const { error } = await activeClient.from("accounts_payable").delete().eq("id", bill.id);
+        const { error } = await activeClient.from("contas_pagar").delete().eq("id", bill.id);
         if (!error) {
             refetch();
             if (user?.id) await logDeletion(activeClient, {
                 userId: user.id, companyId: selectedCompany?.id || null,
-                entity: "accounts_payable", entityId: bill.id,
+                entity: "contas_pagar", entityId: bill.id,
                 payload: { description: bill.description, amount: bill.amount },
             });
         }

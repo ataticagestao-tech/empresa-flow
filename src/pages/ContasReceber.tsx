@@ -92,42 +92,27 @@ export default function ContasReceber() {
     };
 
     const { data: bills, isLoading, refetch } = useQuery({
-        queryKey: ["accounts_receivable", selectedCompany?.id, isUsingSecondary],
+        queryKey: ["contas_receber", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data: rows, error } = await (activeClient as any)
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .select("*")
                 .eq("company_id", selectedCompany.id)
-                .order("due_date", { ascending: true });
-            if (error || !rows) { console.error("accounts_receivable error:", error); return []; }
-
-            // Hydrate categories and clients
-            const catIds = [...new Set(rows.map((b: any) => b.category_id).filter(Boolean))] as string[];
-            const cliIds = [...new Set(rows.map((b: any) => b.client_id).filter(Boolean))] as string[];
-            const catMap: Record<string, string> = {};
-            const cliMap: Record<string, { razao_social: string; nome_fantasia?: string }> = {};
-
-            if (catIds.length) {
-                const { data: cats } = await (activeClient as any)
-                    .from("chart_of_accounts").select("id, name").in("id", catIds);
-                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
-                if (!cats || cats.length === 0) {
-                    const { data: cats2 } = await (activeClient as any)
-                        .from("categories").select("id, name").in("id", catIds);
-                    if (cats2) cats2.forEach((c: any) => { catMap[c.id] = c.name; });
-                }
-            }
-            if (cliIds.length) {
-                const { data: clis } = await (activeClient as any)
-                    .from("clients").select("id, razao_social, nome_fantasia").in("id", cliIds);
-                if (clis) clis.forEach((c: any) => { cliMap[c.id] = { razao_social: c.razao_social, nome_fantasia: c.nome_fantasia }; });
-            }
+                .order("data_vencimento", { ascending: true });
+            if (error || !rows) { console.error("contas_receber error:", error); return []; }
 
             return rows.map((b: any) => ({
                 ...b,
-                category: b.category_id && catMap[b.category_id] ? { name: catMap[b.category_id] } : undefined,
-                client: b.client_id && cliMap[b.client_id] ? cliMap[b.client_id] : undefined,
+                // Compat aliases for existing UI
+                description: b.observacoes || b.pagador_nome || "",
+                amount: Number(b.valor || 0),
+                due_date: b.data_vencimento,
+                payment_date: b.data_pagamento,
+                payment_method: b.forma_recebimento,
+                status: b.status === "aberto" ? "pending" : b.status === "pago" ? "paid" : b.status === "vencido" ? "overdue" : b.status === "cancelado" ? "cancelled" : b.status,
+                client: b.pagador_nome ? { razao_social: b.pagador_nome, nome_fantasia: b.pagador_nome } : undefined,
+                category: null,
             })) as AccountsReceivable[];
         },
         enabled: !!selectedCompany?.id,
@@ -379,12 +364,12 @@ export default function ContasReceber() {
     const handleNew = () => { setEditingItem(undefined); setIsSheetOpen(true); };
     const handleDelete = async (bill: AccountsReceivable) => {
         if (!window.confirm(`Excluir "${bill.description}"?`)) return;
-        const { error } = await activeClient.from("accounts_receivable").delete().eq("id", bill.id);
+        const { error } = await activeClient.from("contas_receber").delete().eq("id", bill.id);
         if (!error) {
             refetch();
             if (user?.id) await logDeletion(activeClient, {
                 userId: user.id, companyId: selectedCompany?.id || null,
-                entity: "accounts_receivable", entityId: bill.id,
+                entity: "contas_receber", entityId: bill.id,
                 payload: { description: bill.description, amount: bill.amount },
             });
         }

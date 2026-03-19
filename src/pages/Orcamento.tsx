@@ -51,7 +51,7 @@ export default function Orcamento() {
         queryKey: ["budget_payables", selectedCompany?.id, currentMonth],
         queryFn: async () => {
             const { data } = await (activeClient as any)
-                .from("accounts_payable")
+                .from("contas_pagar")
                 .select("id, amount, category_id, status")
                 .eq("company_id", selectedCompany?.id)
                 .gte("due_date", format(monthStart, "yyyy-MM-dd"))

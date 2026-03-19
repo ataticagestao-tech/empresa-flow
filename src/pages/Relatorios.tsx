@@ -177,7 +177,7 @@ export default function Relatorios() {
             if (!selectedCompany?.id) return [];
 
             const { data, error } = await (activeClient as any)
-                .from("transactions")
+                .from("movimentacoes")
                 .select(
                     `
                     date,
@@ -382,7 +382,7 @@ export default function Relatorios() {
             const like = `%${safeTerm}%`;
 
             let receivableQuery = (activeClient as any)
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .select("id, amount, due_date, status, description")
                 .eq("company_id", companyId)
                 .gte("due_date", dateRange.start)
@@ -391,7 +391,7 @@ export default function Relatorios() {
                 .order("created_at", { ascending: true });
 
             let payableQuery = (activeClient as any)
-                .from("accounts_payable")
+                .from("contas_pagar")
                 .select("id, amount, due_date, status, description")
                 .eq("company_id", companyId)
                 .gte("due_date", dateRange.start)
@@ -596,7 +596,7 @@ export default function Relatorios() {
                     .select("current_balance")
                     .eq("company_id", selectedCompany.id),
                 (activeClient as any)
-                    .from("accounts_receivable")
+                    .from("contas_receber")
                     .select("amount")
                     .eq("company_id", selectedCompany.id)
                     .lte("due_date", todayIso)

@@ -26,7 +26,7 @@ export default function FluxoCaixaProjetado() {
         queryKey: ["fc_receivables", selectedCompany?.id, days],
         queryFn: async () => {
             const { data } = await (activeClient as any)
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .select("id, description, amount, due_date, status")
                 .eq("company_id", selectedCompany?.id)
                 .eq("status", "pending")
@@ -42,7 +42,7 @@ export default function FluxoCaixaProjetado() {
         queryKey: ["fc_payables", selectedCompany?.id, days],
         queryFn: async () => {
             const { data } = await (activeClient as any)
-                .from("accounts_payable")
+                .from("contas_pagar")
                 .select("id, description, amount, due_date, status")
                 .eq("company_id", selectedCompany?.id)
                 .eq("status", "pending")

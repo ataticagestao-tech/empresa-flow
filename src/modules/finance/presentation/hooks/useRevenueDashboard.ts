@@ -34,7 +34,7 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
 
             const { data, error } = await db
-                .from("transactions")
+                .from("movimentacoes")
                 .select(`
                     amount,
                     category:chart_of_accounts (
@@ -78,7 +78,7 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
 
             const { data, error } = await db
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .select("amount, payment_method")
                 .eq("company_id", selectedCompany.id)
                 .gte("due_date", rangeStart.toISOString())

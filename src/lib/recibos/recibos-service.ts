@@ -175,7 +175,7 @@ export async function criarRecibo(
   const receiptFkField = input.tipo === "payable" ? "account_payable_id" : "account_receivable_id";
 
   const { data: recibo, error: erroInsert } = await supabase
-    .from("receipts")
+    .from("recibos_v2")
     .insert({
       company_id: conta.company_id,
       [receiptFkField]: conta.id,
@@ -233,7 +233,7 @@ export async function reenviarEmailRecibo(
   emailDestino?: string
 ): Promise<ActionResult> {
   const { data: recibo, error } = await supabase
-    .from("receipts")
+    .from("recibos_v2")
     .select("*")
     .eq("id", receiptId)
     .single();
@@ -291,7 +291,7 @@ export async function reenviarEmailRecibo(
     });
 
     await supabase
-      .from("receipts")
+      .from("recibos_v2")
       .update({
         status_email: "enviado",
         email_destino: destino,
@@ -305,7 +305,7 @@ export async function reenviarEmailRecibo(
     const erroMsg = err?.message || "Erro ao enviar e-mail.";
 
     await supabase
-      .from("receipts")
+      .from("recibos_v2")
       .update({
         status_email: "erro",
         email_erro: erroMsg,
@@ -400,13 +400,13 @@ async function _enviarEmailRecibo(
       },
     });
 
-    await supabase.from("receipts").update({
+    await supabase.from("recibos_v2").update({
       status_email: "enviado",
       email_enviado_em: new Date().toISOString(),
       email_erro: null,
     }).eq("id", opts.receiptId);
   } catch (err: any) {
-    await supabase.from("receipts").update({
+    await supabase.from("recibos_v2").update({
       status_email: "erro",
       email_erro: err?.message || "Erro desconhecido",
     }).eq("id", opts.receiptId);

@@ -55,7 +55,7 @@ export function useBankMovements(dateRange?: DashboardDateRange) {
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
-                .from("transactions")
+                .from("movimentacoes")
                 .select("id, date, amount, description, type, bank_account_id")
                 .eq("company_id", selectedCompany.id)
                 .not("bank_account_id", "is", null)

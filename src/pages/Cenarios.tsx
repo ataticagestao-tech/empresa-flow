@@ -42,12 +42,12 @@ export default function Cenarios() {
         queryKey: ["cenario_receita", selectedCompany?.id],
         queryFn: async () => {
             const { data } = await (activeClient as any)
-                .from("accounts_receivable")
-                .select("amount")
+                .from("contas_receber")
+                .select("valor")
                 .eq("company_id", selectedCompany?.id)
-                .gte("due_date", format(monthStart, "yyyy-MM-dd"))
-                .lte("due_date", format(monthEnd, "yyyy-MM-dd"));
-            return (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+                .gte("data_vencimento", format(monthStart, "yyyy-MM-dd"))
+                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"));
+            return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
         },
         enabled: !!selectedCompany?.id,
     });
@@ -56,12 +56,12 @@ export default function Cenarios() {
         queryKey: ["cenario_despesa", selectedCompany?.id],
         queryFn: async () => {
             const { data } = await (activeClient as any)
-                .from("accounts_payable")
-                .select("amount")
+                .from("contas_pagar")
+                .select("valor")
                 .eq("company_id", selectedCompany?.id)
-                .gte("due_date", format(monthStart, "yyyy-MM-dd"))
-                .lte("due_date", format(monthEnd, "yyyy-MM-dd"));
-            return (data || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+                .gte("data_vencimento", format(monthStart, "yyyy-MM-dd"))
+                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"));
+            return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
         },
         enabled: !!selectedCompany?.id,
     });

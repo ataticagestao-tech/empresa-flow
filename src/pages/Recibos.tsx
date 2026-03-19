@@ -191,16 +191,31 @@ export default function Recibos() {
     const [fb, setFb] = useState<{ id: string; ok: boolean } | null>(null);
 
     const { data: recibos, isLoading, refetch } = useQuery({
-        queryKey: ["receipts", selectedCompany?.id, isUsingSecondary],
+        queryKey: ["recibos_v2", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data, error } = await activeClient
-                .from("receipts")
+                .from("recibos_v2")
                 .select("*")
                 .eq("company_id", selectedCompany.id)
                 .order("created_at", { ascending: false });
             if (error) throw error;
-            return data as Recibo[];
+            // Map to Recibo interface
+            return (data || []).map((r: any) => ({
+                id: r.id,
+                numero: String(r.numero_sequencial || ""),
+                valor: Number(r.valor || 0),
+                favorecido: r.pagador_nome || "",
+                forma_pagamento: r.forma_pagamento,
+                categoria: null,
+                conta_bancaria: null,
+                data_pagamento: r.data,
+                descricao: r.descricao_servico,
+                pdf_url: r.pdf_url,
+                status_email: r.enviado_email ? "enviado" : "pendente",
+                email_destino: r.email_destino,
+                tipo: "receivable" as const,
+            })) as Recibo[];
         },
         enabled: !!selectedCompany?.id,
     });

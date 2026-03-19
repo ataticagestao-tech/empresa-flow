@@ -96,19 +96,19 @@ export default function Movimentacoes() {
         enabled: !!selectedCompany?.id
     });
 
-    // Fetch transactions
-    const { data: rawTransactions, isLoading: loadingTx } = useQuery({
-        queryKey: ["transactions_raw", selectedCompany?.id, dateRange, isUsingSecondary],
+    // Fetch movimentacoes (new table)
+    const { data: rawMovimentacoes, isLoading: loadingMov } = useQuery({
+        queryKey: ["movimentacoes", selectedCompany?.id, dateRange, isUsingSecondary],
         queryFn: async () => {
             const { data, error } = await (activeClient as any)
-                .from("transactions")
+                .from("movimentacoes")
                 .select("*")
                 .eq("company_id", selectedCompany!.id)
-                .gte("date", dateRange.start)
-                .lte("date", dateRange.end)
-                .order("date", { ascending: false });
+                .gte("data", dateRange.start)
+                .lte("data", dateRange.end)
+                .order("data", { ascending: false });
             if (error) {
-                console.error("transactions query error:", error);
+                console.error("movimentacoes query error:", error);
                 return [];
             }
             return data || [];
@@ -116,20 +116,20 @@ export default function Movimentacoes() {
         enabled: !!selectedCompany?.id
     });
 
-    // Fetch accounts_payable (paid = real movements)
+    // Fetch contas_pagar (paid = real movements) as fallback
     const { data: rawPayables, isLoading: loadingPay } = useQuery({
-        queryKey: ["payables_movements", selectedCompany?.id, dateRange, isUsingSecondary],
+        queryKey: ["cp_movements", selectedCompany?.id, dateRange, isUsingSecondary],
         queryFn: async () => {
             const { data, error } = await (activeClient as any)
-                .from("accounts_payable")
+                .from("contas_pagar")
                 .select("*")
                 .eq("company_id", selectedCompany!.id)
-                .eq("status", "paid")
-                .gte("payment_date", dateRange.start)
-                .lte("payment_date", dateRange.end)
-                .order("payment_date", { ascending: false });
+                .eq("status", "pago")
+                .gte("data_pagamento", dateRange.start)
+                .lte("data_pagamento", dateRange.end)
+                .order("data_pagamento", { ascending: false });
             if (error) {
-                console.error("payables query error:", error);
+                console.error("contas_pagar query error:", error);
                 return [];
             }
             return data || [];
@@ -137,20 +137,20 @@ export default function Movimentacoes() {
         enabled: !!selectedCompany?.id
     });
 
-    // Fetch accounts_receivable (paid = real movements)
+    // Fetch contas_receber (paid = real movements) as fallback
     const { data: rawReceivables, isLoading: loadingRec } = useQuery({
-        queryKey: ["receivables_movements", selectedCompany?.id, dateRange, isUsingSecondary],
+        queryKey: ["cr_movements", selectedCompany?.id, dateRange, isUsingSecondary],
         queryFn: async () => {
             const { data, error } = await (activeClient as any)
-                .from("accounts_receivable")
+                .from("contas_receber")
                 .select("*")
                 .eq("company_id", selectedCompany!.id)
-                .eq("status", "paid")
-                .gte("receive_date", dateRange.start)
-                .lte("receive_date", dateRange.end)
-                .order("receive_date", { ascending: false });
+                .eq("status", "pago")
+                .gte("data_pagamento", dateRange.start)
+                .lte("data_pagamento", dateRange.end)
+                .order("data_pagamento", { ascending: false });
             if (error) {
-                console.error("receivables query error:", error);
+                console.error("contas_receber query error:", error);
                 return [];
             }
             return data || [];
@@ -158,7 +158,7 @@ export default function Movimentacoes() {
         enabled: !!selectedCompany?.id
     });
 
-    const isLoading = loadingTx || loadingPay || loadingRec;
+    const isLoading = loadingMov || loadingPay || loadingRec;
 
     // Build lookup maps
     const accountMap = useMemo(() => {
@@ -177,48 +177,48 @@ export default function Movimentacoes() {
     // Merge all sources into unified MovementRow[]
     const allMovements: MovementRow[] = useMemo(() => {
         const rows: MovementRow[] = [];
-        const txIds = new Set<string>();
+        const movIds = new Set<string>();
 
-        // 1) Transactions table
-        (rawTransactions || []).forEach((t: any) => {
-            txIds.add(t.id);
+        // 1) Movimentacoes table (new)
+        (rawMovimentacoes || []).forEach((m: any) => {
+            movIds.add(m.id);
             rows.push({
-                id: t.id,
-                date: t.date,
-                description: t.description || "",
-                category: categoryMap[t.category_id] || "",
-                account: accountMap[t.bank_account_id] || "",
-                amount: Number(t.amount || 0),
-                type: t.type === "credit" ? "credit" : "debit",
+                id: m.id,
+                date: m.data,
+                description: m.descricao || "",
+                category: categoryMap[m.conta_contabil_id] || "",
+                account: accountMap[m.conta_bancaria_id] || "",
+                amount: Number(m.valor || 0),
+                type: m.tipo === "credito" ? "credit" : "debit",
                 source: "transaction",
             });
         });
 
-        // 2) Accounts Payable (paid) — only if not already linked via transaction
+        // 2) Contas Pagar (pagas) — fallback se não tem movimentação vinculada
         (rawPayables || []).forEach((p: any) => {
-            if (p.transaction_id && txIds.has(p.transaction_id)) return;
+            if (p.id && movIds.has(p.id)) return;
             rows.push({
                 id: `pay-${p.id}`,
-                date: p.payment_date || p.due_date,
-                description: p.description || "",
-                category: categoryMap[p.category_id] || "",
-                account: accountMap[p.bank_account_id] || "",
-                amount: Number(p.amount || 0),
+                date: p.data_pagamento || p.data_vencimento,
+                description: p.observacoes || p.credor_nome || "",
+                category: categoryMap[p.conta_contabil_id] || "",
+                account: accountMap[p.conta_bancaria_id] || "",
+                amount: Number(p.valor || 0),
                 type: "debit",
                 source: "payable",
             });
         });
 
-        // 3) Accounts Receivable (paid) — only if not already linked via transaction
+        // 3) Contas Receber (pagas) — fallback se não tem movimentação vinculada
         (rawReceivables || []).forEach((r: any) => {
-            if (r.transaction_id && txIds.has(r.transaction_id)) return;
+            if (r.id && movIds.has(r.id)) return;
             rows.push({
                 id: `rec-${r.id}`,
-                date: r.receive_date || r.due_date,
-                description: r.description || "",
-                category: categoryMap[r.category_id] || "",
-                account: accountMap[r.bank_account_id] || "",
-                amount: Number(r.amount || 0),
+                date: r.data_pagamento || r.data_vencimento,
+                description: r.observacoes || r.pagador_nome || "",
+                category: categoryMap[r.conta_contabil_id] || "",
+                account: "",
+                amount: Number(r.valor || 0),
                 type: "credit",
                 source: "receivable",
             });
@@ -227,7 +227,7 @@ export default function Movimentacoes() {
         // Sort by date desc
         rows.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
         return rows;
-    }, [rawTransactions, rawPayables, rawReceivables, categoryMap, accountMap]);
+    }, [rawMovimentacoes, rawPayables, rawReceivables, categoryMap, accountMap]);
 
     // Filter by account
     const accountFiltered = selectedAccount === "all"

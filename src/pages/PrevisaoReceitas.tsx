@@ -24,11 +24,11 @@ export default function PrevisaoReceitas() {
         queryKey: ["prev_receivables", selectedCompany?.id],
         queryFn: async () => {
             const { data } = await (activeClient as any)
-                .from("accounts_receivable")
-                .select("id, amount, due_date, payment_date, status")
+                .from("contas_receber")
+                .select("id, valor, data_vencimento, data_pagamento, status")
                 .eq("company_id", selectedCompany?.id)
-                .gte("due_date", format(sixMonthsAgo, "yyyy-MM-dd"))
-                .order("due_date");
+                .gte("data_vencimento", format(sixMonthsAgo, "yyyy-MM-dd"))
+                .order("data_vencimento");
             return data || [];
         },
         enabled: !!selectedCompany?.id,
@@ -41,10 +41,10 @@ export default function PrevisaoReceitas() {
             const key = format(d, "yyyy-MM");
             const label = format(d, "MMM/yy", { locale: ptBR });
             const monthRecv = receivables.filter((r: any) => {
-                const rd = r.payment_date || r.due_date;
-                return rd && rd.startsWith(key) && (r.status === "paid" || r.payment_date);
+                const rd = r.data_pagamento || r.data_vencimento;
+                return rd && rd.startsWith(key) && (r.status === "pago" || r.data_pagamento);
             });
-            const real = monthRecv.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+            const real = monthRecv.reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
             months.push({ key, label, real, count: monthRecv.length });
         }
         return months;

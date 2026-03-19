@@ -42,20 +42,17 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
         mutationFn: async (values: AccountsReceivable) => {
             const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
 
-            // Apenas colunas que existem na tabela accounts_receivable do Supabase
+            // Colunas da tabela contas_receber
             const payload: Record<string, any> = {
                 company_id: selectedCompany!.id,
-                description: values.description,
-                amount: values.amount,
-                status: values.status || "pending",
-                due_date: values.due_date instanceof Date ? values.due_date.toISOString().split("T")[0] : values.due_date,
-                receive_date: values.receive_date instanceof Date ? values.receive_date.toISOString().split("T")[0] : values.receive_date || null,
-                client_id: cleanId(values.client_id),
-                category_id: cleanId(values.category_id),
-                payment_method: (!values.payment_method || values.payment_method === "none") ? null : values.payment_method,
-                observations: values.observations || null,
-                file_url: values.file_url || null,
-                recurrence: values.recurrence || null,
+                pagador_nome: values.description || "Cliente",
+                valor: values.amount,
+                status: values.status === "pending" ? "aberto" : values.status === "paid" ? "pago" : values.status === "cancelled" ? "cancelado" : values.status || "aberto",
+                data_vencimento: values.due_date instanceof Date ? values.due_date.toISOString().split("T")[0] : values.due_date,
+                data_pagamento: values.receive_date instanceof Date ? values.receive_date.toISOString().split("T")[0] : values.receive_date || null,
+                conta_contabil_id: cleanId(values.category_id),
+                forma_recebimento: (!values.payment_method || values.payment_method === "none") ? null : values.payment_method,
+                observacoes: values.observations || null,
             };
             if (values.id) payload.id = values.id;
 
@@ -73,7 +70,7 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
         },
         onSuccess: () => {
             toast({ title: "Sucesso", description: "Conta a receber salva com sucesso!" });
-            queryClient.invalidateQueries({ queryKey: ['accounts_receivable'] });
+            queryClient.invalidateQueries({ queryKey: ['contas_receber'] });
             queryClient.invalidateQueries({ queryKey: ['cash_flow'] }); // Invalida fluxo de caixa
             if (onSuccess) onSuccess();
         },

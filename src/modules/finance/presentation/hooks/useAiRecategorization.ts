@@ -91,7 +91,7 @@ export function useAiRecategorization(categories: ChartAccount[]) {
 
             while (true) {
                 const { data, error } = await db
-                    .from("transactions")
+                    .from("movimentacoes")
                     .select(`
                         id, description, amount, date, type,
                         category_id,

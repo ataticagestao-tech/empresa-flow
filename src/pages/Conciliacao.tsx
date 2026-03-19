@@ -154,14 +154,14 @@ export default function Conciliacao() {
 
             if (payableIds.length > 0) {
                 const { data: payables } = await (activeClient as any)
-                    .from("accounts_payable")
+                    .from("contas_pagar")
                     .select("id, category_id, description")
                     .in("id", payableIds);
                 (payables || []).forEach((p: any) => { payableMap[p.id] = p; });
             }
             if (receivableIds.length > 0) {
                 const { data: receivables } = await (activeClient as any)
-                    .from("accounts_receivable")
+                    .from("contas_receber")
                     .select("id, category_id, description")
                     .in("id", receivableIds);
                 (receivables || []).forEach((r: any) => { receivableMap[r.id] = r; });
@@ -197,7 +197,7 @@ export default function Conciliacao() {
         // Also update the transaction record if it exists
         const txField = linkedTable === "accounts_payable" ? "related_payable_id" : "related_receivable_id";
         await (activeClient as any)
-            .from("transactions")
+            .from("movimentacoes")
             .update({ category_id: newCategoryId })
             .eq(txField, linkedId);
 

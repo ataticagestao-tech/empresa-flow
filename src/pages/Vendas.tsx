@@ -112,43 +112,26 @@ export default function Vendas() {
         if (range?.from) { setActivePreset(""); setDateRange({ from: range.from, to: range.to || range.from }); }
     };
 
-    // Fetch sales (accounts_receivable marked as sales or all)
+    // Fetch sales from vendas + vendas_itens
     const { data: sales = [], isLoading, refetch } = useQuery({
         queryKey: ["vendas", selectedCompany?.id],
         queryFn: async () => {
             const { data: rows } = await (activeClient as any)
-                .from("accounts_receivable")
-                .select("*")
+                .from("vendas")
+                .select("*, vendas_itens(*)")
                 .eq("company_id", selectedCompany?.id)
-                .order("due_date", { ascending: false });
+                .order("data_venda", { ascending: false });
 
             if (!rows) return [];
 
-            const catIds = [...new Set(rows.map((r: any) => r.category_id).filter(Boolean))] as string[];
-            const cliIds = [...new Set(rows.map((r: any) => r.client_id).filter(Boolean))] as string[];
-            const catMap: Record<string, string> = {};
-            const cliMap: Record<string, { razao_social: string; nome_fantasia?: string }> = {};
-
-            if (catIds.length) {
-                const { data: cats } = await (activeClient as any)
-                    .from("chart_of_accounts").select("id, name").in("id", catIds);
-                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
-                if (!cats || cats.length === 0) {
-                    const { data: cats2 } = await (activeClient as any)
-                        .from("categories").select("id, name").in("id", catIds);
-                    if (cats2) cats2.forEach((c: any) => { catMap[c.id] = c.name; });
-                }
-            }
-            if (cliIds.length) {
-                const { data: clis } = await (activeClient as any)
-                    .from("clients").select("id, razao_social, nome_fantasia").in("id", cliIds);
-                if (clis) clis.forEach((c: any) => { cliMap[c.id] = { razao_social: c.razao_social, nome_fantasia: c.nome_fantasia }; });
-            }
-
             return rows.map((r: any) => ({
                 ...r,
-                category_name: catMap[r.category_id] || "",
-                client_name: cliMap[r.client_id]?.nome_fantasia || cliMap[r.client_id]?.razao_social || "",
+                // Compat aliases for filters/charts/export
+                description: (r.vendas_itens || []).map((i: any) => `${i.quantidade}x ${i.descricao}`).join(", "),
+                amount: Number(r.valor_total || 0),
+                due_date: r.data_venda,
+                client_name: r.cliente_nome || "",
+                category_name: "",
             }));
         },
         enabled: !!selectedCompany?.id,
@@ -191,21 +174,6 @@ export default function Vendas() {
         setClientDialogOpen(false);
         setNewClientName(""); setNewClientPhone(""); setNewClientEmail(""); setNewClientDoc("");
     };
-
-    // Fetch categories (revenue type)
-    const { data: categories = [] } = useQuery({
-        queryKey: ["vendas_categories", selectedCompany?.id],
-        queryFn: async () => {
-            const { data } = await (activeClient as any)
-                .from("chart_of_accounts").select("id, code, name")
-                .eq("company_id", selectedCompany?.id)
-                .eq("account_type", "revenue")
-                .eq("is_analytical", true)
-                .order("code");
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id,
-    });
 
     // Fetch products from Operacional
     const { data: products = [] } = useQuery({
@@ -267,30 +235,69 @@ export default function Vendas() {
     // Total of all items
     const formTotal = form.items.reduce((s, i) => s + i.subtotal, 0);
 
-    // Save mutation
+    // Save mutation — vendas + vendas_itens + contas_receber
     const saveMutation = useMutation({
         mutationFn: async () => {
-            const description = form.items.map(i => `${i.quantity}x ${i.description}`).join(", ");
-            const payload = {
+            const clientObj = clients.find((c: any) => c.id === form.client_id);
+            const clientName = clientObj?.nome_fantasia || clientObj?.razao_social || "Cliente avulso";
+
+            const vendaPayload = {
                 company_id: selectedCompany?.id,
-                description,
-                amount: formTotal,
-                client_id: form.client_id || null,
-                category_id: null,
-                payment_method: form.payment_method,
-                due_date: form.due_date,
-                status: "pending",
-                observations: form.observations || null,
+                cliente_nome: clientName,
+                cliente_cpf_cnpj: null,
+                valor_total: formTotal,
+                desconto: 0,
+                data_venda: form.due_date,
+                forma_pagamento: form.payment_method,
+                parcelas: 1,
+                status: "confirmado",
+                observacoes: form.observations || null,
             };
 
             if (editingId) {
+                // Update venda
                 const { error } = await (activeClient as any)
-                    .from("accounts_receivable").update(payload).eq("id", editingId);
+                    .from("vendas").update(vendaPayload).eq("id", editingId);
                 if (error) throw error;
+                // Delete old itens and re-insert
+                await (activeClient as any).from("vendas_itens").delete().eq("venda_id", editingId);
+                const itensPayload = form.items.map(i => ({
+                    venda_id: editingId,
+                    descricao: i.description,
+                    quantidade: i.quantity,
+                    valor_unitario: i.unit_price,
+                }));
+                const { error: itensError } = await (activeClient as any)
+                    .from("vendas_itens").insert(itensPayload);
+                if (itensError) throw itensError;
             } else {
-                const { error } = await (activeClient as any)
-                    .from("accounts_receivable").insert(payload);
+                // Insert venda
+                const { data: venda, error } = await (activeClient as any)
+                    .from("vendas").insert(vendaPayload).select("id").single();
                 if (error) throw error;
+                // Insert itens
+                const itensPayload = form.items.map(i => ({
+                    venda_id: venda.id,
+                    descricao: i.description,
+                    quantidade: i.quantity,
+                    valor_unitario: i.unit_price,
+                }));
+                const { error: itensError } = await (activeClient as any)
+                    .from("vendas_itens").insert(itensPayload);
+                if (itensError) throw itensError;
+                // Auto-generate contas_receber
+                const { error: crError } = await (activeClient as any)
+                    .from("contas_receber").insert({
+                        company_id: selectedCompany?.id,
+                        venda_id: venda.id,
+                        pagador_nome: clientName,
+                        valor: formTotal,
+                        data_vencimento: form.due_date,
+                        forma_recebimento: form.payment_method,
+                        status: "aberto",
+                        observacoes: form.observations || null,
+                    });
+                if (crError) throw crError;
             }
         },
         onSuccess: () => {
@@ -308,27 +315,37 @@ export default function Vendas() {
     // Delete
     const handleDelete = async (id: string, desc: string) => {
         if (!window.confirm(`Excluir venda "${desc}"?`)) return;
-        const { error } = await (activeClient as any).from("accounts_receivable").delete().eq("id", id);
+        // Delete contas_receber linked, then vendas_itens cascade, then venda
+        await (activeClient as any).from("contas_receber").delete().eq("venda_id", id);
+        const { error } = await (activeClient as any).from("vendas").delete().eq("id", id);
         if (!error) refetch();
     };
 
     // Edit
     const handleEdit = (sale: any) => {
         setEditingId(sale.id);
-        // Parse description back into items if possible
-        const items: SaleItem[] = [{
-            product_id: "",
-            description: sale.description || "",
-            quantity: 1,
-            unit_price: Number(sale.amount || 0),
-            subtotal: Number(sale.amount || 0),
-        }];
+        const itens = sale.vendas_itens || [];
+        const items: SaleItem[] = itens.length > 0
+            ? itens.map((i: any) => ({
+                product_id: "",
+                description: i.descricao || "",
+                quantity: Number(i.quantidade || 1),
+                unit_price: Number(i.valor_unitario || 0),
+                subtotal: Number(i.quantidade || 1) * Number(i.valor_unitario || 0),
+            }))
+            : [{
+                product_id: "",
+                description: sale.description || "",
+                quantity: 1,
+                unit_price: Number(sale.amount || 0),
+                subtotal: Number(sale.amount || 0),
+            }];
         setForm({
             items,
-            client_id: sale.client_id || "",
-            payment_method: sale.payment_method || "pix",
-            due_date: sale.due_date || format(new Date(), "yyyy-MM-dd"),
-            observations: sale.observations || "",
+            client_id: "",
+            payment_method: sale.forma_pagamento || "pix",
+            due_date: sale.data_venda || format(new Date(), "yyyy-MM-dd"),
+            observations: sale.observacoes || "",
         });
         setDialogOpen(true);
     };
@@ -359,9 +376,9 @@ export default function Vendas() {
     // KPIs
     const stats = useMemo(() => {
         const total = filtered.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-        const paid = filtered.filter((r: any) => r.status === "paid");
+        const paid = filtered.filter((r: any) => r.status === "confirmado" || r.status === "paid");
         const paidTotal = paid.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-        const pending = filtered.filter((r: any) => r.status === "pending");
+        const pending = filtered.filter((r: any) => r.status === "orcamento" || r.status === "pending");
         const pendingTotal = pending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
         const avgTicket = filtered.length > 0 ? total / filtered.length : 0;
         return { total, paidTotal, paidCount: paid.length, pendingTotal, pendingCount: pending.length, count: filtered.length, avgTicket };
@@ -376,7 +393,7 @@ export default function Vendas() {
             const label = format(parseISO(s.due_date), "MMM/yy", { locale: ptBR });
             if (!map.has(key)) map.set(key, { label, recebido: 0, pendente: 0 });
             const entry = map.get(key)!;
-            if (s.status === "paid") entry.recebido += Number(s.amount);
+            if (s.status === "confirmado" || s.status === "paid") entry.recebido += Number(s.amount);
             else entry.pendente += Number(s.amount);
         });
         return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
