@@ -25,6 +25,8 @@ import { useOperationalDashboard } from "@/modules/finance/presentation/hooks/us
 import { useBankMovements } from "@/modules/finance/presentation/hooks/useBankMovements";
 import { useRevenueDashboard } from "@/modules/finance/presentation/hooks/useRevenueDashboard";
 import { useDreDashboard } from "@/modules/finance/presentation/hooks/useDreDashboard";
+import { useScoreFinanceiro } from "@/modules/finance/presentation/hooks/useScoreFinanceiro";
+import { ScoreGauge } from "@/components/bi/ScoreGauge";
 import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -340,6 +342,7 @@ export default function CompanyDashboard() {
     const bank = useBankMovements(dateRange);
     const rev = useRevenueDashboard(dateRange);
     const dre = useDreDashboard(dateRange);
+    const { score: scoreData } = useScoreFinanceiro();
 
     const chartData = useMemo(
         () => (cashFlowData || []).map((d: any) => ({ ...d, despesas_neg: -(d.despesas || 0) })),
@@ -885,37 +888,20 @@ export default function CompanyDashboard() {
                                 </div>
                             </div>
 
-                            {/* Saude Financeira */}
+                            {/* Score Financeiro */}
                             <div style={cardStyle}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                                     <IconBadge icon={Activity} color={C.green} bg={C.greenSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Saude Financeira</p>
+                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Score Financeiro</p>
                                 </div>
-                                {(() => {
-                                    const score = totalPayables > 0 ? Math.min(100, Math.round(((accountsBalance || 0) / totalPayables) * 100)) : 100;
-                                    const scoreColor = score >= 70 ? C.green : score >= 40 ? "#F59E0B" : C.red;
-                                    const scoreLabel = score >= 70 ? "Saudavel" : score >= 40 ? "Atencao" : "Critico";
-                                    return (
-                                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "8px 0" }}>
-                                            <div style={{ position: "relative", width: 100, height: 100 }}>
-                                                <svg viewBox="0 0 100 100" width={100} height={100}>
-                                                    <circle cx="50" cy="50" r="42" fill="none" stroke={C.borderLight} strokeWidth="8" strokeDasharray="198 66" strokeLinecap="round" transform="rotate(135 50 50)" />
-                                                    <circle cx="50" cy="50" r="42" fill="none" stroke={scoreColor} strokeWidth="8" strokeDasharray={`${(score / 100) * 198} ${264 - (score / 100) * 198}`} strokeLinecap="round" transform="rotate(135 50 50)" />
-                                                </svg>
-                                                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                                                    <span style={{ fontSize: 24, fontWeight: 800, color: C.text1 }}>{score}</span>
-                                                </div>
-                                            </div>
-                                            <span style={{
-                                                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20,
-                                                background: score >= 70 ? C.greenSoft : score >= 40 ? "#FEF3C7" : C.redSoft,
-                                                color: score >= 70 ? "#16A34A" : score >= 40 ? "#92400E" : "#DC2626",
-                                            }}>
-                                                {scoreLabel}
-                                            </span>
-                                        </div>
-                                    );
-                                })()}
+                                {scoreData ? (
+                                    <ScoreGauge score={scoreData} />
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "8px 0" }}>
+                                        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+                                        <span style={{ fontSize: 12, color: C.textMuted }}>Calculando score...</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Config */}

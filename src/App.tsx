@@ -48,6 +48,7 @@ import TabelaPrecos from "./pages/TabelaPrecos";
 import MarkupSimulador from "./pages/MarkupSimulador";
 import CentrosCusto from "./pages/CentrosCusto";
 import ReguaCobranca from "./pages/ReguaCobranca";
+import DRE from "./pages/DRE";
 
 const queryClient = new QueryClient();
 
@@ -172,6 +173,7 @@ const App = () => (
                     <Route path="/import-data" element={<ImportData />} />
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="/regua-cobranca" element={<ReguaCobranca />} />
+                    <Route path="/dre" element={<DRE />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/operacional" element={<ProdutosDepartamentos />} />

@@ -74,6 +74,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
+      { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
       { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
       { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
     ]
