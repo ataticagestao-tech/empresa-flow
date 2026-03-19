@@ -102,17 +102,26 @@ export default function ContasReceber() {
                 .order("data_vencimento", { ascending: true });
             if (error || !rows) { console.error("contas_receber error:", error); return []; }
 
+            // Resolve category names
+            const catIds = [...new Set(rows.map((b: any) => b.conta_contabil_id).filter(Boolean))] as string[];
+            const catMap: Record<string, string> = {};
+            if (catIds.length) {
+                const { data: cats } = await (activeClient as any)
+                    .from("chart_of_accounts").select("id, name").in("id", catIds);
+                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
+            }
+
             return rows.map((b: any) => ({
                 ...b,
-                // Compat aliases for existing UI
-                description: b.observacoes || b.pagador_nome || "",
+                description: b.pagador_nome || b.observacoes || "",
                 amount: Number(b.valor || 0),
                 due_date: b.data_vencimento,
                 payment_date: b.data_pagamento,
                 payment_method: b.forma_recebimento,
+                observations: b.observacoes || "",
                 status: b.status === "aberto" ? "pending" : b.status === "pago" ? "paid" : b.status === "vencido" ? "overdue" : b.status === "cancelado" ? "cancelled" : b.status,
                 client: b.pagador_nome ? { razao_social: b.pagador_nome, nome_fantasia: b.pagador_nome } : undefined,
-                category: null,
+                category: b.conta_contabil_id && catMap[b.conta_contabil_id] ? { name: catMap[b.conta_contabil_id] } : null,
             })) as AccountsReceivable[];
         },
         enabled: !!selectedCompany?.id,
