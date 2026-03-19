@@ -76,13 +76,13 @@ interface SaleForm {
     client_id: string;
     payment_method: string;
     due_date: string;
-    notes: string;
+    observations: string;
 }
 
 const emptyForm: SaleForm = {
     items: [],
     client_id: "", payment_method: "pix",
-    due_date: format(new Date(), "yyyy-MM-dd"), notes: "",
+    due_date: format(new Date(), "yyyy-MM-dd"), observations: "",
 };
 
 const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c"];
@@ -280,7 +280,7 @@ export default function Vendas() {
                 payment_method: form.payment_method,
                 due_date: form.due_date,
                 status: "pending",
-                notes: form.notes || null,
+                observations: form.observations || null,
             };
 
             if (editingId) {
@@ -328,7 +328,7 @@ export default function Vendas() {
             client_id: sale.client_id || "",
             payment_method: sale.payment_method || "pix",
             due_date: sale.due_date || format(new Date(), "yyyy-MM-dd"),
-            notes: sale.notes || "",
+            observations: sale.observations || "",
         });
         setDialogOpen(true);
     };
@@ -750,7 +750,7 @@ export default function Vendas() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Observações</Label>
-                                <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                                <Input value={form.observations} onChange={e => setForm({ ...form, observations: e.target.value })}
                                     placeholder="Opcional" />
                             </div>
                             <Button className="w-full" onClick={() => saveMutation.mutate()}
