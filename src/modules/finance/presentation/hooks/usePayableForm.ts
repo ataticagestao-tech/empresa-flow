@@ -63,18 +63,31 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             // Limpar "none" dos selects
             const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
 
+            // Resolver nome do fornecedor se supplier_id foi selecionado
+            let credorNome = data.description || "Fornecedor";
+            if (data.supplier_id && data.supplier_id !== "none") {
+                const { data: sup } = await activeClient
+                    .from("suppliers")
+                    .select("razao_social")
+                    .eq("id", data.supplier_id)
+                    .single();
+                if (sup?.razao_social) credorNome = sup.razao_social;
+            }
+
             // Montar payload com colunas da tabela contas_pagar (GESTAP)
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
-                credor_nome: data.description || "Fornecedor",
+                credor_nome: credorNome,
                 valor: data.amount,
                 status: data.status === "pending" ? "aberto" : data.status === "paid" ? "pago" : data.status === "cancelled" ? "cancelado" : data.status || "aberto",
                 data_vencimento: dateToLocalString(data.due_date),
                 data_pagamento: dateToLocalString(data.payment_date),
                 conta_contabil_id: cleanId(data.category_id),
+                conta_bancaria_id: cleanId(data.bank_account_id),
                 forma_pagamento: (!data.payment_method || data.payment_method === "none") ? null : data.payment_method,
                 observacoes: data.observations || null,
                 file_url: data.file_url || null,
+                codigo_barras: data.barcode || null,
             };
 
             // Adicionar id se for edição
@@ -83,7 +96,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             const { data: savedPayable, error } = await financeService.savePayable(payload as any);
             if (error) throw error;
 
-            if (payload.status === 'paid' && payload.bank_account_id) {
+            if (payload.status === 'paid' && payload.conta_bancaria_id) {
                 await financeService.createTransactionFromPayable(savedPayable.id, payload, selectedCompany.id);
             }
 

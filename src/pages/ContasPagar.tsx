@@ -112,6 +112,15 @@ export default function ContasPagar() {
                 if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
             }
 
+            // Resolve supplier IDs from credor_nome
+            const credorNomes = [...new Set(rows.map((b: any) => b.credor_nome).filter(Boolean))] as string[];
+            const supplierMap: Record<string, string> = {};
+            if (credorNomes.length) {
+                const { data: sups } = await (activeClient as any)
+                    .from("suppliers").select("id, razao_social").eq("company_id", selectedCompany.id);
+                if (sups) sups.forEach((s: any) => { supplierMap[s.razao_social] = s.id; });
+            }
+
             return rows.map((b: any) => ({
                 ...b,
                 // Mapear colunas GESTAP → campos do formulário
@@ -121,8 +130,11 @@ export default function ContasPagar() {
                 payment_date: b.data_pagamento,
                 payment_method: b.forma_pagamento || "",
                 category_id: b.conta_contabil_id || "",
+                bank_account_id: b.conta_bancaria_id || "",
+                barcode: b.codigo_barras || "",
                 observations: b.observacoes || "",
                 file_url: b.file_url || "",
+                supplier_id: b.credor_nome ? (supplierMap[b.credor_nome] || "") : "",
                 status: b.status === "aberto" ? "pending" : b.status === "pago" ? "paid" : b.status === "vencido" ? "overdue" : b.status === "cancelado" ? "cancelled" : b.status,
                 // Campos para exibição na tabela
                 supplier: b.credor_nome ? { razao_social: b.credor_nome, nome_fantasia: b.credor_nome } : undefined,
