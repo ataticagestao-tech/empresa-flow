@@ -117,12 +117,17 @@ export default function Vendas() {
     const { data: sales = [], isLoading, refetch } = useQuery({
         queryKey: ["vendas", selectedCompany?.id],
         queryFn: async () => {
-            const { data: rows } = await (activeClient as any)
+            const { data: rows, error } = await (activeClient as any)
                 .from("vendas")
                 .select("*, vendas_itens(*)")
                 .eq("company_id", selectedCompany?.id)
                 .order("data_venda", { ascending: false });
 
+            if (error) {
+                console.error("[Vendas] Erro ao buscar vendas:", error);
+                return [];
+            }
+            console.log("[Vendas] Fetch result:", { company_id: selectedCompany?.id, count: rows?.length, rows });
             if (!rows) return [];
 
             return rows.map((r: any) => ({
@@ -284,8 +289,10 @@ export default function Vendas() {
                     .eq("venda_id", editingId);
             } else {
                 // Insert venda
+                console.log("[Vendas] Inserting venda:", vendaPayload);
                 const { data: venda, error } = await (activeClient as any)
                     .from("vendas").insert(vendaPayload).select("id").single();
+                console.log("[Vendas] Insert result:", { venda, error });
                 if (error) throw error;
                 // Insert itens
                 const itensPayload = form.items.map(i => ({
