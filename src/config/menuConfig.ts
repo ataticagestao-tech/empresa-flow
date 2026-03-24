@@ -28,6 +28,7 @@ import {
   FolderOpen,
   Upload,
   Clock,
+  GitMerge,
   LucideIcon
 } from "lucide-react";
 
@@ -124,6 +125,16 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Margem de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
       { titleKey: 'Tabela de Preços', icon: TableProperties, url: '/tabela-precos', isHardcoded: true },
       { titleKey: 'Markup', icon: Target, url: '/markup-simulador', isHardcoded: true },
+    ]
+  },
+  {
+    id: 'multiempresa',
+    labelKey: 'Multi-empresa',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Consolidado', icon: GitMerge, url: '/multiempresa', isHardcoded: true },
+      { titleKey: 'Transferências', icon: ArrowLeftRight, url: '/multiempresa/transferencias', isHardcoded: true },
+      { titleKey: 'Relatórios', icon: FileText, url: '/multiempresa/relatorios', isHardcoded: true },
     ]
   },
   {
