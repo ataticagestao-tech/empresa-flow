@@ -123,9 +123,8 @@ export default function Vendas() {
                 .eq("company_id", selectedCompany?.id)
                 .order("data_venda", { ascending: false });
 
-            console.log("[Vendas] Fetch:", { company_id: selectedCompany?.id, rowCount: rows?.length, error, firstRow: rows?.[0] });
             if (error) {
-                console.error("[Vendas] Fetch ERROR:", error.message, error.code, error.details);
+                console.error("[Vendas] Fetch error:", error);
                 return [];
             }
             if (!rows) return [];
@@ -187,7 +186,7 @@ export default function Vendas() {
         queryFn: async () => {
             const { data } = await (activeClient as any)
                 .from("products")
-                .select("id, code, description, price, cost_price, activity, is_active")
+                .select("id, code, description, price, is_active")
                 .eq("company_id", selectedCompany?.id)
                 .eq("is_active", true)
                 .order("description");
@@ -289,10 +288,8 @@ export default function Vendas() {
                     .eq("venda_id", editingId);
             } else {
                 // Insert venda
-                console.log("[Vendas] Inserting venda:", vendaPayload);
                 const { data: venda, error } = await (activeClient as any)
                     .from("vendas").insert(vendaPayload).select("id").single();
-                console.log("[Vendas] Insert result:", { venda, error });
                 if (error) throw error;
                 // Insert itens
                 const itensPayload = form.items.map(i => ({
@@ -303,23 +300,19 @@ export default function Vendas() {
                 }));
                 const { error: itensError } = await (activeClient as any)
                     .from("vendas_itens").insert(itensPayload);
-                console.log("[Vendas] Itens insert:", { itensError });
                 if (itensError) throw itensError;
                 // Auto-generate contas_receber
-                const crPayload = {
-                    company_id: selectedCompany?.id,
-                    venda_id: venda.id,
-                    pagador_nome: clientName,
-                    valor: formTotal,
-                    data_vencimento: form.due_date,
-                    forma_recebimento: form.payment_method,
-                    status: "aberto",
-                    observacoes: form.observations || null,
-                };
-                console.log("[Vendas] CR insert payload:", crPayload);
                 const { error: crError } = await (activeClient as any)
-                    .from("contas_receber").insert(crPayload);
-                console.log("[Vendas] CR insert result:", { crError });
+                    .from("contas_receber").insert({
+                        company_id: selectedCompany?.id,
+                        venda_id: venda.id,
+                        pagador_nome: clientName,
+                        valor: formTotal,
+                        data_vencimento: form.due_date,
+                        forma_recebimento: form.payment_method,
+                        status: "aberto",
+                        observacoes: form.observations || null,
+                    });
                 if (crError) throw crError;
             }
         },
