@@ -52,6 +52,7 @@ import DRE from "./pages/DRE";
 import EstoqueProdutos from "./pages/EstoqueProdutos";
 import OrdensCompra from "./pages/OrdensCompra";
 import Inventario from "./pages/Inventario";
+import Documentos from "./pages/Documentos";
 
 const queryClient = new QueryClient();
 
@@ -180,6 +181,8 @@ const App = () => (
                     <Route path="/estoque" element={<EstoqueProdutos />} />
                     <Route path="/ordens-compra" element={<OrdensCompra />} />
                     <Route path="/inventario" element={<Inventario />} />
+                    <Route path="/documentos" element={<Documentos />} />
+                    <Route path="/documentos/*" element={<Documentos />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/operacional" element={<ProdutosDepartamentos />} />

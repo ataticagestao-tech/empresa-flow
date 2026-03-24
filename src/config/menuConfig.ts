@@ -25,6 +25,9 @@ import {
   TableProperties,
   Target,
   Bell,
+  FolderOpen,
+  Upload,
+  Clock,
   LucideIcon
 } from "lucide-react";
 
@@ -98,6 +101,16 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Estoque', icon: Package, url: '/estoque', isHardcoded: true },
       { titleKey: 'Ordens de Compra', icon: ShoppingCart, url: '/ordens-compra', isHardcoded: true },
       { titleKey: 'Inventário', icon: ClipboardList, url: '/inventario', isHardcoded: true },
+    ]
+  },
+  {
+    id: 'documentos',
+    labelKey: 'Documentos',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Explorador', icon: FolderOpen, url: '/documentos', isHardcoded: true },
+      { titleKey: 'Upload', icon: Upload, url: '/documentos/upload', isHardcoded: true },
+      { titleKey: 'Vencimentos', icon: Clock, url: '/documentos/vencimentos', isHardcoded: true },
     ]
   },
   {
