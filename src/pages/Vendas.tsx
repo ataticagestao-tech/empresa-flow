@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +91,7 @@ export default function Vendas() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const { toast } = useToast();
+    const queryClient = useQueryClient();
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -158,7 +159,7 @@ export default function Vendas() {
                 company_id: selectedCompany.id,
                 razao_social: newClientName.trim(),
                 nome_fantasia: newClientName.trim(),
-                phone: newClientPhone || null,
+                telefone: newClientPhone || null,
                 email: newClientEmail || null,
                 cpf_cnpj: newClientDoc || null,
             })
@@ -270,6 +271,17 @@ export default function Vendas() {
                 const { error: itensError } = await (activeClient as any)
                     .from("vendas_itens").insert(itensPayload);
                 if (itensError) throw itensError;
+                // Atualizar contas_receber vinculada à venda
+                await (activeClient as any)
+                    .from("contas_receber")
+                    .update({
+                        pagador_nome: clientName,
+                        valor: formTotal,
+                        data_vencimento: form.due_date,
+                        forma_recebimento: form.payment_method,
+                        observacoes: form.observations || null,
+                    })
+                    .eq("venda_id", editingId);
             } else {
                 // Insert venda
                 const { data: venda, error } = await (activeClient as any)
@@ -306,6 +318,7 @@ export default function Vendas() {
             setEditingId(null);
             setForm(emptyForm);
             refetch();
+            queryClient.invalidateQueries({ queryKey: ["contas_receber"] });
         },
         onError: (err: any) => {
             toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
@@ -340,9 +353,14 @@ export default function Vendas() {
                 unit_price: Number(sale.amount || 0),
                 subtotal: Number(sale.amount || 0),
             }];
+        // Match client by name to recover the client_id for the select
+        const matchedClient = clients.find((c: any) =>
+            (c.nome_fantasia && c.nome_fantasia === sale.cliente_nome) ||
+            (c.razao_social && c.razao_social === sale.cliente_nome)
+        );
         setForm({
             items,
-            client_id: "",
+            client_id: matchedClient?.id || "",
             payment_method: sale.forma_pagamento || "pix",
             due_date: sale.data_venda || format(new Date(), "yyyy-MM-dd"),
             observations: sale.observacoes || "",
