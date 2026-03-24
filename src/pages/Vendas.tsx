@@ -154,6 +154,7 @@ export default function Vendas() {
                 amount: Number(r.valor_total || 0),
                 due_date: r.data_venda,
                 client_name: r.cliente_nome || "",
+                payment_method: r.forma_pagamento || "",
                 category_name: "",
             }));
         },
