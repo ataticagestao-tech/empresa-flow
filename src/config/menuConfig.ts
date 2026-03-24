@@ -29,6 +29,7 @@ import {
   Upload,
   Clock,
   GitMerge,
+  CheckSquare,
   LucideIcon
 } from "lucide-react";
 
@@ -81,6 +82,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
       { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
       { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
+      { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
     ]
   },
   {
