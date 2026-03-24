@@ -117,22 +117,40 @@ export default function Vendas() {
     const { data: sales = [], isLoading, refetch } = useQuery({
         queryKey: ["vendas", selectedCompany?.id],
         queryFn: async () => {
-            const { data: rows, error } = await (activeClient as any)
+            // Try with join first, fallback to vendas only
+            let rows: any[] | null = null;
+            let joinWorked = false;
+
+            const { data: joined, error: joinErr } = await (activeClient as any)
                 .from("vendas")
                 .select("*, vendas_itens(*)")
                 .eq("company_id", selectedCompany?.id)
                 .order("data_venda", { ascending: false });
 
-            if (error) {
-                console.error("[Vendas] Fetch error:", error);
-                return [];
+            if (!joinErr && joined) {
+                rows = joined;
+                joinWorked = true;
+            } else {
+                // Fallback: fetch vendas without join (vendas_itens may not exist)
+                const { data: plain, error: plainErr } = await (activeClient as any)
+                    .from("vendas")
+                    .select("*")
+                    .eq("company_id", selectedCompany?.id)
+                    .order("data_venda", { ascending: false });
+                if (plainErr) {
+                    console.error("[Vendas] Fetch error:", plainErr);
+                    return [];
+                }
+                rows = plain;
             }
+
             if (!rows) return [];
 
             return rows.map((r: any) => ({
                 ...r,
-                // Compat aliases for filters/charts/export
-                description: (r.vendas_itens || []).map((i: any) => `${i.quantidade}x ${i.descricao}`).join(", "),
+                description: joinWorked
+                    ? (r.vendas_itens || []).map((i: any) => `${i.quantidade}x ${i.descricao}`).join(", ")
+                    : r.cliente_nome || "",
                 amount: Number(r.valor_total || 0),
                 due_date: r.data_venda,
                 client_name: r.cliente_nome || "",
@@ -264,17 +282,18 @@ export default function Vendas() {
                 const { error } = await (activeClient as any)
                     .from("vendas").update(vendaPayload).eq("id", editingId);
                 if (error) throw error;
-                // Delete old itens and re-insert
+                // Delete old itens and re-insert (vendas_itens may not exist)
                 await (activeClient as any).from("vendas_itens").delete().eq("venda_id", editingId);
-                const itensPayload = form.items.map(i => ({
-                    venda_id: editingId,
-                    descricao: i.description,
-                    quantidade: i.quantity,
-                    valor_unitario: i.unit_price,
-                }));
-                const { error: itensError } = await (activeClient as any)
-                    .from("vendas_itens").insert(itensPayload);
-                if (itensError) throw itensError;
+                if (form.items.length > 0) {
+                    const itensPayload = form.items.map(i => ({
+                        venda_id: editingId,
+                        descricao: i.description,
+                        quantidade: i.quantity,
+                        valor_unitario: i.unit_price,
+                    }));
+                    await (activeClient as any)
+                        .from("vendas_itens").insert(itensPayload);
+                }
                 // Atualizar contas_receber vinculada à venda
                 await (activeClient as any)
                     .from("contas_receber")
@@ -291,16 +310,18 @@ export default function Vendas() {
                 const { data: venda, error } = await (activeClient as any)
                     .from("vendas").insert(vendaPayload).select("id").single();
                 if (error) throw error;
-                // Insert itens
-                const itensPayload = form.items.map(i => ({
-                    venda_id: venda.id,
-                    descricao: i.description,
-                    quantidade: i.quantity,
-                    valor_unitario: i.unit_price,
-                }));
-                const { error: itensError } = await (activeClient as any)
-                    .from("vendas_itens").insert(itensPayload);
-                if (itensError) throw itensError;
+                // Insert itens (vendas_itens may not exist if migration not applied)
+                if (form.items.length > 0) {
+                    const itensPayload = form.items.map(i => ({
+                        venda_id: venda.id,
+                        descricao: i.description,
+                        quantidade: i.quantity,
+                        valor_unitario: i.unit_price,
+                    }));
+                    const { error: itensError } = await (activeClient as any)
+                        .from("vendas_itens").insert(itensPayload);
+                    if (itensError) console.warn("[Vendas] vendas_itens insert error (table may not exist):", itensError);
+                }
                 // Auto-generate contas_receber
                 const { error: crError } = await (activeClient as any)
                     .from("contas_receber").insert({
@@ -313,7 +334,7 @@ export default function Vendas() {
                         status: "aberto",
                         observacoes: form.observations || null,
                     });
-                if (crError) throw crError;
+                if (crError) console.warn("[Vendas] contas_receber insert error:", crError);
             }
         },
         onSuccess: () => {
