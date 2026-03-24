@@ -123,11 +123,11 @@ export default function Vendas() {
                 .eq("company_id", selectedCompany?.id)
                 .order("data_venda", { ascending: false });
 
+            console.log("[Vendas] Fetch:", { company_id: selectedCompany?.id, rowCount: rows?.length, error, firstRow: rows?.[0] });
             if (error) {
-                console.error("[Vendas] Erro ao buscar vendas:", error);
+                console.error("[Vendas] Fetch ERROR:", error.message, error.code, error.details);
                 return [];
             }
-            console.log("[Vendas] Fetch result:", { company_id: selectedCompany?.id, count: rows?.length, rows });
             if (!rows) return [];
 
             return rows.map((r: any) => ({
@@ -303,19 +303,23 @@ export default function Vendas() {
                 }));
                 const { error: itensError } = await (activeClient as any)
                     .from("vendas_itens").insert(itensPayload);
+                console.log("[Vendas] Itens insert:", { itensError });
                 if (itensError) throw itensError;
                 // Auto-generate contas_receber
+                const crPayload = {
+                    company_id: selectedCompany?.id,
+                    venda_id: venda.id,
+                    pagador_nome: clientName,
+                    valor: formTotal,
+                    data_vencimento: form.due_date,
+                    forma_recebimento: form.payment_method,
+                    status: "aberto",
+                    observacoes: form.observations || null,
+                };
+                console.log("[Vendas] CR insert payload:", crPayload);
                 const { error: crError } = await (activeClient as any)
-                    .from("contas_receber").insert({
-                        company_id: selectedCompany?.id,
-                        venda_id: venda.id,
-                        pagador_nome: clientName,
-                        valor: formTotal,
-                        data_vencimento: form.due_date,
-                        forma_recebimento: form.payment_method,
-                        status: "aberto",
-                        observacoes: form.observations || null,
-                    });
+                    .from("contas_receber").insert(crPayload);
+                console.log("[Vendas] CR insert result:", { crError });
                 if (crError) throw crError;
             }
         },
