@@ -193,6 +193,13 @@ export default function Conciliacao() {
     }
 
     try {
+      // 0) Load chart_of_accounts for name lookup
+      const contasMap = new Map<string, string>()
+      const coaRows = await safeFetch('chart_of_accounts')
+      for (const c of coaRows) {
+        contasMap.set(c.id, c.code + ' - ' + c.name)
+      }
+
       // 1) CR pagas
       const crRows = await safeFetch('contas_receber', { status: ['pago', 'parcial'] })
       for (const r of crRows) {
@@ -205,6 +212,7 @@ export default function Conciliacao() {
           status: r.status === 'pago' ? 'Pago' : 'Parcial',
           origem: 'Conta a Receber',
           forma: r.forma_recebimento || '-',
+          categoria: r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
         })
       }
 
@@ -220,6 +228,7 @@ export default function Conciliacao() {
           status: r.status === 'pago' ? 'Pago' : 'Parcial',
           origem: 'Conta a Pagar',
           forma: r.forma_pagamento || '-',
+          categoria: r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
         })
       }
 
@@ -235,6 +244,7 @@ export default function Conciliacao() {
           status: r.status_conciliacao === 'conciliado' ? 'Conciliado' : 'Registrado',
           origem: 'Movimentacao',
           forma: r.origem || '-',
+          categoria: r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
         })
       }
 
@@ -250,6 +260,7 @@ export default function Conciliacao() {
           status: r.status_conciliacao || r.status || 'Importado',
           origem: 'Extrato Bancario',
           forma: '-',
+          categoria: r.category_id ? (contasMap.get(r.category_id) || '-') : r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
         })
       }
 
@@ -265,6 +276,7 @@ export default function Conciliacao() {
           status: r.status === 'conciliado' ? 'Conciliado' : r.status || '-',
           origem: 'Conciliacao OFX',
           forma: '-',
+          categoria: '-',
         })
       }
 
@@ -280,6 +292,7 @@ export default function Conciliacao() {
           status: r.status === 'matched' ? 'Conciliado' : r.status || '-',
           origem: 'Match Bancario',
           forma: r.match_type || '-',
+          categoria: '-',
         })
       }
 
@@ -1413,18 +1426,19 @@ export default function Conciliacao() {
                     </span>
                   </div>
                   {/* Header */}
-                  <div className="hidden md:grid md:grid-cols-[1fr_120px_100px_120px_120px_100px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                  <div className="hidden md:grid md:grid-cols-[1fr_120px_100px_120px_120px_100px_160px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
                     <div className="p-3">Descricao</div>
                     <div className="p-3 text-right">Valor</div>
                     <div className="p-3 text-center">Data</div>
                     <div className="p-3 text-center">Status</div>
                     <div className="p-3 text-center">Origem</div>
                     <div className="p-3 text-center">Forma</div>
+                    <div className="p-3">Categoria</div>
                   </div>
                   {historicoConciliacoes.map((item) => (
                     <div
                       key={item.id}
-                      className="grid grid-cols-1 md:grid-cols-[1fr_120px_100px_120px_120px_100px] border-b border-[#eee] last:border-b-0 hover:bg-[#fafafa]"
+                      className="grid grid-cols-1 md:grid-cols-[1fr_120px_100px_120px_120px_100px_160px] border-b border-[#eee] last:border-b-0 hover:bg-[#fafafa]"
                     >
                       <div className="p-3">
                         <div className="flex items-center gap-2">
@@ -1479,6 +1493,11 @@ export default function Conciliacao() {
                       <div className="p-3 text-center">
                         <span className="text-[10px] text-[#555]">
                           {item.forma}
+                        </span>
+                      </div>
+                      <div className="p-3">
+                        <span className="text-[11px] text-[#0a0a0a] truncate block max-w-[150px]">
+                          {item.categoria}
                         </span>
                       </div>
                     </div>
