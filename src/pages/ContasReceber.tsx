@@ -1,1034 +1,1164 @@
-import { useState, useMemo } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '@/integrations/supabase/client'
+import { useCompany } from '@/contexts/CompanyContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { safeQuery } from '@/lib/supabaseQuery'
+import { formatBRL, formatData } from '@/lib/format'
+import { quitarCR } from '@/lib/financeiro/transacao'
+import { AppLayout } from '@/components/layout/AppLayout'
 import {
-    Plus, Search, Pencil, Trash2, DollarSign, MoreHorizontal,
-    CalendarDays, TrendingUp, CheckCircle2, AlertTriangle, X,
-    Download, FileText, FileSpreadsheet, Sparkles, ChevronRight
-} from "lucide-react";
-import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
+  addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
+} from 'date-fns'
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { AccountsReceivableSheet } from "@/components/finance/AccountsReceivableSheet";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
-import {
-    format, isBefore, isToday, parseISO, startOfDay, endOfDay,
-    startOfMonth, endOfMonth, subMonths, startOfYear,
-    isAfter
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { AccountsReceivable } from "@/types/finance";
-import { logDeletion } from "@/lib/audit";
-import { PaymentModal } from "@/components/transactions/PaymentModal";
-import { BotaoPagarComRecibo } from "@/components/finance/BotaoPagarComRecibo";
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-    DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    Area, AreaChart, Line, PieChart, Pie, Cell
-} from "recharts";
-import type { DateRange } from "react-day-picker";
+  Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
+  MoreHorizontal, X, ChevronDown, Loader2,
+} from 'lucide-react'
 
-/* ── Tokens ────────────────────────────────────── */
-const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828", redLt: "#fde8e8",
-    amber: "#f57f17", amberLt: "#fff8e1",
-    text1: "#0f172a", text2: "#475569", text3: "#94a3b8",
-    bg: "#f8f9fb", card: "#ffffff", border: "#e2e8f0", hover: "#f1f5f9",
-} as const;
-const FONT = "var(--font-base)";
-const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+/* ================================================================
+   TYPES
+   ================================================================ */
 
-const presets = [
-    { label: "Este mes", get: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
-    { label: "Mes passado", get: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
-    { label: "3 meses", get: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
-    { label: "Este ano", get: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
-];
+interface CR {
+  id: string
+  company_id: string
+  pagador_nome: string
+  pagador_cpf_cnpj: string | null
+  pagador_email: string | null
+  valor: number
+  valor_pago: number | null
+  data_vencimento: string
+  data_pagamento: string | null
+  status: string
+  forma_recebimento: string | null
+  conta_contabil_id: string | null
+  centro_custo_id: string | null
+  observacoes: string | null
+  venda_id: string | null
+  contrato_recorrente_id: string | null
+}
 
-const PM_LABELS: Record<string, string> = {
-    pix: "Pix", boleto: "Boleto", transfer: "Transferencia", cash: "Dinheiro", card: "Cartao", other: "Outro",
-};
+interface BankAccount { id: string; name: string }
+interface ChartAccount { id: string; code: string; name: string }
+interface CentroCusto { id: string; codigo: string; descricao: string }
 
-const tooltipStyle = {
-    backgroundColor: "#1e293b", color: "#fff", borderRadius: 8, border: "none",
-    padding: "10px 14px", fontSize: 12, fontFamily: FONT, boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-} as const;
+/* ================================================================
+   CONSTANTS
+   ================================================================ */
+
+const STATUS_OPTIONS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'aberto', label: 'Aberto' },
+  { value: 'parcial', label: 'Parcial' },
+  { value: 'vencido', label: 'Vencido' },
+  { value: 'pago', label: 'Pago' },
+]
+
+const FORMAS_RECEBIMENTO = [
+  'PIX', 'Dinheiro', 'Transferencia', 'Cartao debito', 'Cartao credito', 'Boleto',
+]
+
+const TIPO_TITULO_OPTIONS = [
+  { value: 'unica', label: 'Parcela unica', icon: '1x' },
+  { value: 'parcelado', label: 'Parcelado', icon: 'Nx' },
+  { value: 'recorrente', label: 'Recorrente', icon: '~' },
+  { value: 'avulsa', label: 'Cobranca avulsa', icon: '$' },
+  { value: 'contrato', label: 'Contrato', icon: '#' },
+]
+
+/* ================================================================
+   HELPERS
+   ================================================================ */
+
+function deriveTipo(cr: CR): string {
+  if (cr.contrato_recorrente_id) return 'Contrato'
+  if (cr.venda_id) return 'Parcela unica'
+  return 'Cobranca avulsa'
+}
+
+function statusBadge(status: string) {
+  switch (status) {
+    case 'aberto':
+      return { label: 'Em aberto', text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a' }
+    case 'vencido':
+      return { label: 'Vencido', text: '#8b0000', bg: '#fdecea', border: '#8b0000' }
+    case 'parcial':
+      return { label: 'Parcial', text: '#5c3a00', bg: '#fffbe6', border: '#b8960a' }
+    case 'pago':
+      return { label: 'Pago', text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e' }
+    default:
+      return { label: status, text: '#555', bg: '#f5f5f5', border: '#ccc' }
+  }
+}
+
+function computeStatus(cr: CR): string {
+  if (cr.status === 'pago' || cr.status === 'cancelado') return cr.status
+  const hoje = new Date().toISOString().split('T')[0]
+  if (cr.data_vencimento < hoje && cr.status !== 'pago') {
+    return (cr.valor_pago || 0) > 0 ? 'parcial' : 'vencido'
+  }
+  if ((cr.valor_pago || 0) > 0 && (cr.valor_pago || 0) < cr.valor) return 'parcial'
+  return cr.status
+}
+
+/* ================================================================
+   COMPONENT
+   ================================================================ */
 
 export default function ContasReceber() {
-    const { selectedCompany } = useCompany();
-    const { activeClient, isUsingSecondary, user } = useAuth();
-    const queryClient = useQueryClient();
+  const { selectedCompany } = useCompany()
+  const { activeClient } = useAuth()
 
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<AccountsReceivable | undefined>();
-    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [paymentItem, setPaymentItem] = useState<AccountsReceivable | null>(null);
+  // ── Data ──
+  const [items, setItems] = useState<CR[]>([])
+  const [loading, setLoading] = useState(true)
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
+  const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
 
-    // Filters — default to Este ano
-    const [dateRange, setDateRange] = useState(() => presets[3].get());
-    const [activePreset, setActivePreset] = useState("Este ano");
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [methodFilter, setMethodFilter] = useState("all");
-    const [categoryFilter, setCategoryFilter] = useState("all");
-    const [aiOpen, setAiOpen] = useState(false);
+  // ── Filters ──
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('todos')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
-    const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
+  // ── Modals ──
+  const [quitarModal, setQuitarModal] = useState<CR | null>(null)
+  const [novoModal, setNovoModal] = useState(false)
+  const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
 
-    const handlePreset = (p: typeof presets[0]) => { setActivePreset(p.label); setDateRange(p.get()); };
-    const handleCalendarSelect = (range: DateRange | undefined) => {
-        if (range?.from) { setActivePreset(""); setDateRange({ from: range.from, to: range.to || range.from }); }
-    };
+  // ── Submitting state ──
+  const [submitting, setSubmitting] = useState(false)
 
-    const { data: bills, isLoading, refetch } = useQuery({
-        queryKey: ["contas_receber", selectedCompany?.id, isUsingSecondary],
-        queryFn: async () => {
-            if (!selectedCompany?.id) return [];
-            const { data: rows, error } = await (activeClient as any)
-                .from("contas_receber")
-                .select("*")
-                .eq("company_id", selectedCompany.id)
-                .order("data_vencimento", { ascending: true });
-            if (error || !rows) { console.error("contas_receber error:", error); return []; }
+  const companyId = selectedCompany?.id
 
-            // Resolve category names
-            const catIds = [...new Set(rows.map((b: any) => b.conta_contabil_id).filter(Boolean))] as string[];
-            const catMap: Record<string, string> = {};
-            if (catIds.length) {
-                const { data: cats } = await (activeClient as any)
-                    .from("chart_of_accounts").select("id, name").in("id", catIds);
-                if (cats) cats.forEach((c: any) => { catMap[c.id] = c.name; });
-            }
+  // ── Fetch items ──
+  async function fetchItems() {
+    if (!companyId) return
+    setLoading(true)
+    const data = await safeQuery(
+      () =>
+        supabase
+          .from('contas_receber')
+          .select('*')
+          .eq('company_id', companyId)
+          .is('deleted_at', null)
+          .order('data_vencimento', { ascending: true }),
+      'listar contas a receber',
+    )
+    setItems((data as CR[]) || [])
+    setLoading(false)
+  }
 
-            return rows.map((b: any) => ({
-                ...b,
-                // Mapear colunas GESTAP → campos do formulário
-                description: b.pagador_nome || b.observacoes || "",
-                amount: Number(b.valor || 0),
-                due_date: b.data_vencimento,
-                payment_date: b.data_pagamento,
-                payment_method: b.forma_recebimento || "",
-                category_id: b.conta_contabil_id || "",
-                observations: b.observacoes || "",
-                status: b.status === "aberto" ? "pending" : b.status === "pago" ? "paid" : b.status === "vencido" ? "overdue" : b.status === "cancelado" ? "cancelled" : b.status,
-                // Campos para exibição na tabela
-                client: b.pagador_nome ? { razao_social: b.pagador_nome, nome_fantasia: b.pagador_nome } : undefined,
-                category: b.conta_contabil_id && catMap[b.conta_contabil_id] ? { name: catMap[b.conta_contabil_id] } : null,
-            })) as AccountsReceivable[];
-        },
-        enabled: !!selectedCompany?.id,
-    });
+  // ── Fetch lookups ──
+  async function fetchLookups() {
+    if (!companyId) return
+    const [banks, accounts, centros] = await Promise.all([
+      safeQuery(
+        () => supabase.from('bank_accounts').select('id,name').eq('company_id', companyId).eq('is_active', true),
+        'bank accounts',
+      ),
+      safeQuery(
+        () => supabase.from('chart_of_accounts').select('id,code,name').eq('company_id', companyId).eq('type', 'revenue'),
+        'chart accounts revenue',
+      ),
+      safeQuery(
+        () => supabase.from('centros_custo').select('id,codigo,descricao').eq('company_id', companyId).eq('ativo', true),
+        'centros custo',
+      ),
+    ])
+    setBankAccounts((banks as BankAccount[]) || [])
+    setChartAccounts((accounts as ChartAccount[]) || [])
+    setCentrosCusto((centros as CentroCusto[]) || [])
+  }
 
-    const normalizeSearch = (value: unknown) =>
-        String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  useEffect(() => {
+    fetchItems()
+    fetchLookups()
+  }, [companyId])
 
-    // ── Filter ──
-    const filteredBills = useMemo(() => {
-        if (!bills) return [];
-        const rangeStart = startOfDay(dateRange.from);
-        const rangeEnd = endOfDay(dateRange.to);
+  // ── Close dropdown on outside click ──
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = () => setDropdownOpen(null)
+    window.addEventListener('click', handler)
+    return () => window.removeEventListener('click', handler)
+  }, [dropdownOpen])
 
-        return bills.filter((bill) => {
-            if (bill.due_date) {
-                const due = parseISO(bill.due_date);
-                if (isBefore(due, rangeStart) || isAfter(due, rangeEnd)) return false;
-            }
-            if (statusFilter !== "all") {
-                if (statusFilter === "overdue") {
-                    if (bill.status !== "pending") return false;
-                    if (!isBefore(startOfDay(parseISO(bill.due_date)), startOfDay(new Date()))) return false;
-                } else if (bill.status !== statusFilter) return false;
-            }
-            if (methodFilter !== "all" && bill.payment_method !== methodFilter) return false;
-            if (categoryFilter !== "all") {
-                const catName = bill.category?.name || "Sem categoria";
-                if (catName !== categoryFilter) return false;
-            }
-            if (searchTerm.trim()) {
-                const needle = normalizeSearch(searchTerm);
-                const haystack = normalizeSearch([
-                    bill.description, bill.client?.razao_social, bill.client?.nome_fantasia,
-                    bill.category?.name, fmt(bill.amount),
-                    bill.due_date ? format(parseISO(bill.due_date), "dd/MM/yyyy") : "",
-                ].filter(Boolean).join(" "));
-                if (!haystack.includes(needle)) return false;
-            }
-            return true;
-        });
-    }, [bills, dateRange, statusFilter, methodFilter, categoryFilter, searchTerm]);
+  // ── Derived data ──
+  const enrichedItems = useMemo(() => items.map(cr => ({ ...cr, _status: computeStatus(cr) })), [items])
 
-    // ── KPIs ──
-    const stats = useMemo(() => {
-        const pending = filteredBills.filter(b => b.status === "pending");
-        const paid = filteredBills.filter(b => b.status === "paid");
-        const overdue = pending.filter(b => isBefore(startOfDay(parseISO(b.due_date)), startOfDay(new Date())));
-        return {
-            pendingTotal: pending.reduce((s, b) => s + Number(b.amount), 0),
-            pendingCount: pending.length,
-            paidTotal: paid.reduce((s, b) => s + Number(b.amount), 0),
-            paidCount: paid.length,
-            overdueTotal: overdue.reduce((s, b) => s + Number(b.amount), 0),
-            overdueCount: overdue.length,
-        };
-    }, [filteredBills]);
+  const filtered = useMemo(() => {
+    let list = enrichedItems
+    if (search) {
+      const s = search.toLowerCase()
+      list = list.filter(cr => cr.pagador_nome.toLowerCase().includes(s))
+    }
+    if (statusFilter !== 'todos') {
+      list = list.filter(cr => cr._status === statusFilter)
+    }
+    if (dateFrom) list = list.filter(cr => cr.data_vencimento >= dateFrom)
+    if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
+    return list
+  }, [enrichedItems, search, statusFilter, dateFrom, dateTo])
 
-    // ── Chart: smart grouping ──
-    const chartData = useMemo(() => {
-        if (!filteredBills.length) return [];
-        const dates = filteredBills.filter(b => b.due_date).map(b => parseISO(b.due_date));
-        const minDate = dates.reduce((a, b) => (a < b ? a : b));
-        const maxDate = dates.reduce((a, b) => (a > b ? a : b));
-        const spanMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + maxDate.getMonth() - minDate.getMonth();
-        const groupByDay = spanMonths <= 2;
+  // ── KPIs ──
+  const kpis = useMemo(() => {
+    const hoje = new Date().toISOString().split('T')[0]
+    const em7dias = format(addDays(new Date(), 7), 'yyyy-MM-dd')
+    const mesInicio = format(startOfMonth(new Date()), 'yyyy-MM-dd')
+    const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
-        const buckets = new Map<string, { label: string; pending: number; paid: number; overdue: number }>();
-        filteredBills.forEach(b => {
-            if (!b.due_date) return;
-            const d = parseISO(b.due_date);
-            const key = groupByDay ? format(d, "yyyy-MM-dd") : format(d, "yyyy-MM");
-            const label = groupByDay ? format(d, "dd MMM", { locale: ptBR }) : format(d, "MMM yy", { locale: ptBR });
-            if (!buckets.has(key)) buckets.set(key, { label, pending: 0, paid: 0, overdue: 0 });
-            const entry = buckets.get(key)!;
-            const amount = Number(b.amount);
-            if (b.status === "paid") {
-                entry.paid += amount;
-            } else if (b.status === "pending") {
-                if (isBefore(startOfDay(d), startOfDay(new Date()))) {
-                    entry.overdue += amount;
-                } else {
-                    entry.pending += amount;
-                }
-            }
-        });
+    let totalAberto = 0
+    let vencendo7d = 0
+    let totalVencido = 0
+    let recebidoMes = 0
 
-        let acc = 0;
-        return Array.from(buckets.entries())
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([, vals]) => {
-                const total = vals.pending + vals.paid + vals.overdue;
-                acc += total;
-                return { ...vals, total, acumulado: acc };
-            });
-    }, [filteredBills]);
+    for (const cr of enrichedItems) {
+      const saldo = cr.valor - (cr.valor_pago || 0)
+      const st = cr._status
 
-    // ── Unique categories for filter ──
-    const uniqueCategories = useMemo(() => {
-        if (!bills) return [];
-        const set = new Set<string>();
-        bills.forEach(b => { set.add(b.category?.name || "Sem categoria"); });
-        return Array.from(set).sort();
-    }, [bills]);
+      if (['aberto', 'parcial', 'vencido'].includes(st)) {
+        totalAberto += saldo
+      }
+      if (st === 'aberto' && cr.data_vencimento >= hoje && cr.data_vencimento <= em7dias) {
+        vencendo7d += saldo
+      }
+      if (cr.data_vencimento < hoje && ['aberto', 'parcial'].includes(st)) {
+        totalVencido += saldo
+      }
+      if (cr.data_pagamento && cr.data_pagamento >= mesInicio && cr.data_pagamento <= mesFim) {
+        recebidoMes += (cr.valor_pago || 0)
+      }
+    }
 
-    // ── Pie: received bills grouped by category ──
-    const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c", "#4f46e5", "#059669"];
-    const categoryPieData = useMemo(() => {
-        const paid = filteredBills.filter(b => b.status === "paid");
-        const map = new Map<string, number>();
-        paid.forEach(b => {
-            const cat = b.category?.name || "Sem categoria";
-            map.set(cat, (map.get(cat) || 0) + Number(b.amount));
-        });
-        const sorted = Array.from(map.entries())
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
-        if (sorted.length <= 8) return sorted;
-        const top = sorted.slice(0, 7);
-        const rest = sorted.slice(7).reduce((s, d) => s + d.value, 0);
-        return [...top, { name: "Outros", value: rest }];
-    }, [filteredBills]);
+    return { totalAberto, vencendo7d, totalVencido, recebidoMes }
+  }, [enrichedItems])
 
-    // ── AI Analysis with market context ──
-    const SELIC = 14.25;
-    const IPCA_12M = 5.06;
-    const CDI_MENSAL = SELIC / 12;
+  /* ================================================================
+     RENDER
+     ================================================================ */
 
-    const aiAnalysis = useMemo(() => {
-        if (!filteredBills.length) return null;
-        const total = filteredBills.reduce((s, b) => s + Number(b.amount), 0);
-        const paid = filteredBills.filter(b => b.status === "paid");
-        const pending = filteredBills.filter(b => b.status === "pending");
-        const overdue = pending.filter(b => isBefore(startOfDay(parseISO(b.due_date)), startOfDay(new Date())));
-        const paidTotal = paid.reduce((s, b) => s + Number(b.amount), 0);
-        const pendingTotal = pending.reduce((s, b) => s + Number(b.amount), 0);
-        const overdueTotal = overdue.reduce((s, b) => s + Number(b.amount), 0);
-        const paidPct = total > 0 ? ((paidTotal / total) * 100).toFixed(1) : "0";
-        const avgTicket = filteredBills.length > 0 ? total / filteredBills.length : 0;
+  return (
+    <AppLayout>
+      <div className="p-6 max-w-[1400px] mx-auto space-y-6">
 
-        // Top category
-        const catMap = new Map<string, number>();
-        filteredBills.forEach(b => {
-            const cat = b.category?.name || "Sem categoria";
-            catMap.set(cat, (catMap.get(cat) || 0) + Number(b.amount));
-        });
-        const topCat = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1])[0];
-        const topCatPct = topCat && total > 0 ? ((topCat[1] / total) * 100).toFixed(1) : "0";
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-[#0a0a0a] tracking-tight">Contas a Receber</h1>
+            <p className="text-[13px] text-[#555] mt-0.5">Gerencie titulos, cobran&ccedil;as e recebimentos</p>
+          </div>
+          <button
+            onClick={() => setNovoModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1a2e4a] text-white text-[13px] font-semibold rounded-lg hover:bg-[#15253d] transition-colors"
+          >
+            <Plus size={16} />
+            Novo titulo
+          </button>
+        </div>
 
-        // Top clients
-        const cliMap = new Map<string, number>();
-        filteredBills.forEach(b => {
-            const cli = b.client?.nome_fantasia || b.client?.razao_social || "Sem cliente";
-            cliMap.set(cli, (cliMap.get(cli) || 0) + Number(b.amount));
-        });
-        const topClients = Array.from(cliMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
-        const top3Total = topClients.reduce((s, [, v]) => s + v, 0);
-        const top3Pct = total > 0 ? ((top3Total / total) * 100).toFixed(0) : "0";
+        {/* ── KPI Cards ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            icon={<DollarSign size={18} />}
+            label="Total em aberto"
+            value={formatBRL(kpis.totalAberto)}
+            color={{ text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a', icon: '#1a2e4a' }}
+          />
+          <KpiCard
+            icon={<Clock size={18} />}
+            label="Vencendo em 7 dias"
+            value={formatBRL(kpis.vencendo7d)}
+            color={{ text: '#5c3a00', bg: '#fffbe6', border: '#b8960a', icon: '#b8960a' }}
+          />
+          <KpiCard
+            icon={<AlertTriangle size={18} />}
+            label="Vencidos"
+            value={formatBRL(kpis.totalVencido)}
+            color={{ text: '#8b0000', bg: '#fdecea', border: '#8b0000', icon: '#8b0000' }}
+          />
+          <KpiCard
+            icon={<CheckCircle2 size={18} />}
+            label="Recebido no mes"
+            value={formatBRL(kpis.recebidoMes)}
+            color={{ text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e', icon: '#0a5c2e' }}
+          />
+        </div>
 
-        // Cost of delay
-        const overdueInterestMonth = overdueTotal * 0.02;
-
-        const insights: { title: string; text: string; type: "success" | "warning" | "danger" | "info" }[] = [];
-
-        // 1. Execution
-        if (Number(paidPct) >= 90) {
-            insights.push({
-                title: "Recebimento eficiente",
-                text: `${paidPct}% dos recebimentos confirmados (${fmt(paidTotal)} de ${fmt(total)}). Taxa de conversao acima da media de PMEs no Brasil, que oscila entre 70% e 80% segundo o Sebrae. Com Selic a ${SELIC}% a.a., capital recebido e reinvestido no CDI rende ${CDI_MENSAL.toFixed(2)}% ao mes. Manter essa eficiencia maximiza o fluxo de caixa disponivel.`,
-                type: "success",
-            });
-        } else if (Number(paidPct) >= 60) {
-            insights.push({
-                title: "Taxa de recebimento abaixo do ideal",
-                text: `Apenas ${paidPct}% dos valores foram recebidos. ${fmt(pendingTotal)} permanecem em aberto. Com Selic a ${SELIC}% a.a. e inflacao (IPCA) a ${IPCA_12M}%, cada mes sem receber equivale a uma perda de poder de compra de aproximadamente ${fmt(pendingTotal * IPCA_12M / 1200)} alem do custo de oportunidade de ${fmt(pendingTotal * CDI_MENSAL / 100)} em rendimentos CDI.`,
-                type: "warning",
-            });
-        } else {
-            insights.push({
-                title: "Taxa de recebimento critica",
-                text: `Somente ${paidPct}% dos valores recebidos. ${fmt(pendingTotal)} em aberto representam risco direto ao fluxo de caixa. Com a Selic a ${SELIC}% a.a., o custo de oportunidade mensal e de ${fmt(pendingTotal * CDI_MENSAL / 100)}. Alem disso, inadimplencia prolongada aumenta risco de perdas definitivas. Acao imediata: intensificar cobranca e considerar protesto ou negociacao.`,
-                type: "danger",
-            });
-        }
-
-        // 2. Overdue
-        if (overdue.length > 0) {
-            insights.push({
-                title: `Inadimplencia: ${overdue.length} recebimento${overdue.length > 1 ? "s" : ""} vencido${overdue.length > 1 ? "s" : ""}`,
-                text: `Total vencido: ${fmt(overdueTotal)}. Custo de oportunidade estimado: ${fmt(overdueInterestMonth)}/mes (base CDI ${CDI_MENSAL.toFixed(2)}%). Alem do custo financeiro, recebimentos atrasados comprometem o capital de giro e podem exigir recorrencia a linhas de credito com juros superiores a 2% ao mes. Prioridade: cobrar os maiores valores e avaliar protesto para devedores contumazes.`,
-                type: "danger",
-            });
-        } else if (pending.length === 0) {
-            insights.push({
-                title: "Sem pendencias no periodo",
-                text: `Todos os recebimentos foram confirmados. Empresa esta com fluxo de caixa positivo, podendo: (1) antecipar pagamentos a fornecedores com desconto de 2% a 5%, (2) aplicar excedentes no CDI a ${CDI_MENSAL.toFixed(2)}%/mes, (3) investir em expansao com recurso proprio, evitando financiamento a juros elevados.`,
-                type: "success",
-            });
-        }
-
-        // 3. Category
-        if (topCat && topCat[0] !== "Sem categoria") {
-            if (Number(topCatPct) > 40) {
-                insights.push({
-                    title: `Concentracao excessiva: ${topCat[0]} (${topCatPct}%)`,
-                    text: `A categoria "${topCat[0]}" representa ${topCatPct}% da receita (${fmt(topCat[1])}). Concentracao acima de 40% em uma unica fonte de receita aumenta vulnerabilidade. Com IPCA a ${IPCA_12M}% nos ultimos 12 meses, recomenda-se: (1) diversificar fontes de receita, (2) negociar contratos de longo prazo para garantir previsibilidade, (3) avaliar novos segmentos de mercado.`,
-                    type: "warning",
-                });
-            } else {
-                insights.push({
-                    title: `Principal categoria: ${topCat[0]} (${topCatPct}%)`,
-                    text: `Distribuicao de receitas esta equilibrada. "${topCat[0]}" e a maior, com ${topCatPct}% do total. Manter diversificacao abaixo de 40% por categoria reduz o impacto de oscilacoes setoriais. Monitorar mensalmente para identificar tendencias.`,
-                    type: "info",
-                });
-            }
-        }
-
-        // 4. Clients
-        if (Number(top3Pct) >= 60 && topClients.length >= 3) {
-            insights.push({
-                title: `Dependencia de clientes: ${top3Pct}% em 3 empresas`,
-                text: `${topClients.map(([n, v]) => `${n}: ${fmt(v)}`).join(" / ")}. Concentracao acima de 60% em tres clientes configura risco comercial. Se qualquer um atrasar pagamentos ou encerrar contrato, o impacto no caixa sera de ${fmt(top3Total * 0.33)}. Recomendacao: ampliar base de clientes e diversificar carteira.`,
-                type: "warning",
-            });
-        }
-
-        // 5. Market
-        insights.push({
-            title: "Cenario macroeconomico",
-            text: `Selic: ${SELIC}% a.a. (juros elevados). IPCA acumulado 12 meses: ${IPCA_12M}%. CDI mensal: ${CDI_MENSAL.toFixed(2)}%. Impacto pratico: cada R$ 10.000 nao recebido gera perda de oportunidade de ${fmt(10000 * CDI_MENSAL / 100)}/mes em rendimentos. Alem disso, a inflacao corroi o valor real dos recebimentos atrasados em ${fmt(10000 * IPCA_12M / 1200)}/mes. Conclusao: intensificar cobranca e aplicar recursos recebidos imediatamente.`,
-            type: "info",
-        });
-
-        // 6. Uncategorized
-        const uncatCount = filteredBills.filter(b => !b.category?.name).length;
-        if (uncatCount > 3) {
-            insights.push({
-                title: `${uncatCount} recebimentos sem categoria`,
-                text: `${((uncatCount / filteredBills.length) * 100).toFixed(0)}% dos lancamentos estao sem classificacao. Isso compromete a qualidade das analises por categoria, impede a identificacao das principais fontes de receita e dificulta o planejamento orcamentario. Categorize esses lancamentos para obter uma visao precisa da composicao da receita.`,
-                type: "danger",
-            });
-        }
-
-        return { insights, paidPct: Number(paidPct), hasOverdue: overdue.length > 0, total, avgTicket, billCount: filteredBills.length };
-    }, [filteredBills]);
-
-    // Handlers
-    const handleEdit = (item: AccountsReceivable) => { setEditingItem(item); setIsSheetOpen(true); };
-    const handleNew = () => { setEditingItem(undefined); setIsSheetOpen(true); };
-    const handleDelete = async (bill: AccountsReceivable) => {
-        if (!window.confirm(`Excluir "${bill.description}"?`)) return;
-        const { error } = await activeClient.from("contas_receber").delete().eq("id", bill.id);
-        if (!error) {
-            refetch();
-            if (user?.id) await logDeletion(activeClient, {
-                userId: user.id, companyId: selectedCompany?.id || null,
-                entity: "contas_receber", entityId: bill.id,
-                payload: { description: bill.description, amount: bill.amount },
-            });
-        }
-    };
-
-    const getStatus = (status: string, dueDate: string) => {
-        const today = startOfDay(new Date());
-        const due = startOfDay(parseISO(dueDate));
-        if (status === "paid") return { label: "Recebido", bg: T.greenLt, color: T.green };
-        if (status === "cancelled") return { label: "Cancelado", bg: T.hover, color: T.text3 };
-        if (isBefore(due, today) && !isToday(due)) return { label: "Atrasado", bg: T.redLt, color: T.red };
-        if (isToday(due)) return { label: "Vence Hoje", bg: T.amberLt, color: T.amber };
-        return { label: "A Receber", bg: T.primaryLt, color: T.primary };
-    };
-
-    // ── Export helpers ──
-    const buildExportRows = () => filteredBills.map(b => ({
-        Status: getStatus(b.status, b.due_date).label,
-        Descricao: b.description,
-        Cliente: b.client?.nome_fantasia || b.client?.razao_social || "-",
-        Categoria: b.category?.name || "-",
-        Vencimento: b.due_date ? format(parseISO(b.due_date), "dd/MM/yyyy") : "-",
-        "Forma Pgto.": b.payment_method ? PM_LABELS[b.payment_method] || b.payment_method : "-",
-        Valor: Number(b.amount),
-    }));
-
-    const exportPDF = () => {
-        const rows = buildExportRows();
-        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-        const empresa = selectedCompany?.razao_social || "Empresa";
-        const periodo = dateLabel;
-
-        doc.setFontSize(16);
-        doc.setTextColor(15, 23, 42);
-        doc.text("Contas a Receber", 14, 18);
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text(`${empresa}  |  Periodo: ${periodo}  |  Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 25);
-
-        doc.setFontSize(10);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`A Receber: ${fmt(stats.pendingTotal)}   |   Recebido: ${fmt(stats.paidTotal)}   |   Vencido: ${fmt(stats.overdueTotal)}`, 14, 33);
-
-        const cols = ["Status", "Descricao", "Cliente", "Categoria", "Vencimento", "Forma Pgto.", "Valor"];
-        const colWidths = [22, 80, 50, 40, 26, 26, 28];
-        const startY = 40;
-        const rowH = 7;
-        const pageW = doc.internal.pageSize.getWidth();
-
-        doc.setFillColor(241, 245, 249);
-        doc.rect(14, startY, pageW - 28, rowH, "F");
-        doc.setFontSize(7.5);
-        doc.setTextColor(100);
-        let xOff = 14;
-        cols.forEach((col, i) => {
-            doc.text(col.toUpperCase(), xOff + 2, startY + 5);
-            xOff += colWidths[i];
-        });
-
-        doc.setFontSize(8);
-        doc.setTextColor(15, 23, 42);
-        let y = startY + rowH;
-        rows.forEach((row, idx) => {
-            if (y > doc.internal.pageSize.getHeight() - 15) {
-                doc.addPage();
-                y = 15;
-            }
-            if (idx % 2 === 0) {
-                doc.setFillColor(248, 249, 251);
-                doc.rect(14, y, pageW - 28, rowH, "F");
-            }
-            xOff = 14;
-            cols.forEach((col, i) => {
-                let val = String(col === "Valor" ? fmt(row[col]) : row[col as keyof typeof row]);
-                const maxChars = Math.floor(colWidths[i] / 1.8);
-                if (val.length > maxChars) val = val.substring(0, maxChars - 1) + "...";
-                doc.text(val, xOff + 2, y + 5);
-                xOff += colWidths[i];
-            });
-            y += rowH;
-        });
-
-        const totalPages = doc.getNumberOfPages();
-        for (let p = 1; p <= totalPages; p++) {
-            doc.setPage(p);
-            doc.setFontSize(7);
-            doc.setTextColor(150);
-            doc.text(`Pagina ${p} de ${totalPages}`, pageW - 30, doc.internal.pageSize.getHeight() - 8);
-        }
-
-        doc.save(`contas-a-receber_${format(new Date(), "yyyy-MM-dd")}.pdf`);
-    };
-
-    const exportExcel = () => {
-        const rows = buildExportRows();
-        const ws = XLSX.utils.json_to_sheet(rows.map(r => ({ ...r, Valor: r.Valor })));
-        ws["!cols"] = [
-            { wch: 12 }, { wch: 50 }, { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 15 },
-        ];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Contas a Receber");
-
-        const summaryData = [
-            { Resumo: "Empresa", Valor: selectedCompany?.razao_social || "" },
-            { Resumo: "Periodo", Valor: dateLabel },
-            { Resumo: "Total A Receber", Valor: stats.pendingTotal },
-            { Resumo: "Total Recebido", Valor: stats.paidTotal },
-            { Resumo: "Total Vencido", Valor: stats.overdueTotal },
-            { Resumo: "Qtd. Recebimentos", Valor: filteredBills.length },
-        ];
-        const ws2 = XLSX.utils.json_to_sheet(summaryData);
-        ws2["!cols"] = [{ wch: 18 }, { wch: 30 }];
-        XLSX.utils.book_append_sheet(wb, ws2, "Resumo");
-
-        XLSX.writeFile(wb, `contas-a-receber_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-    };
-
-    return (
-        <AppLayout title="Contas a Receber">
-            <div className="animate-fade-in" style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
-
-                {/* ════════ HEADER BAR ════════ */}
-                <div style={{
-                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
-                    padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    gap: 12, flexWrap: "wrap",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: T.greenLt, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <TrendingUp size={20} strokeWidth={1.5} color={T.green} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", lineHeight: 1.2 }}>Contas a Receber</h2>
-                            <p style={{ fontSize: 12, color: "#000", opacity: 0.45 }}>{filteredBills.length} recebimentos no periodo</p>
-                        </div>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ display: "flex", background: T.hover, borderRadius: 8, padding: 2, gap: 1 }}>
-                            {presets.map((p) => (
-                                <button key={p.label} onClick={() => handlePreset(p)} style={{
-                                    padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11,
-                                    fontWeight: activePreset === p.label ? 600 : 400, fontFamily: FONT,
-                                    background: activePreset === p.label ? T.card : "transparent",
-                                    color: activePreset === p.label ? "#000" : T.text3, cursor: "pointer",
-                                    boxShadow: activePreset === p.label ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                                }}>{p.label}</button>
-                            ))}
-                        </div>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button style={{
-                                    display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
-                                    fontSize: 11, fontWeight: 500, fontFamily: FONT, borderRadius: 6,
-                                    border: `1px solid ${T.border}`, background: T.card, color: "#000", cursor: "pointer",
-                                }}>
-                                    <CalendarDays size={12} strokeWidth={1.5} color={T.primary} />
-                                    {dateLabel}
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to } as DateRange} onSelect={handleCalendarSelect} numberOfMonths={2} defaultMonth={dateRange.from} />
-                            </PopoverContent>
-                        </Popover>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button style={{
-                                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-                                    borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: "#000",
-                                    cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 500,
-                                }}>
-                                    <Download size={14} strokeWidth={1.5} color={T.primary} />
-                                    Exportar
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-[180px]">
-                                <DropdownMenuLabel style={{ fontSize: 11 }}>Exportar dados</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={exportPDF} style={{ gap: 8 }}>
-                                    <FileText className="h-4 w-4" style={{ color: T.red }} />
-                                    <span>Baixar PDF</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={exportExcel} style={{ gap: 8 }}>
-                                    <FileSpreadsheet className="h-4 w-4" style={{ color: T.green }} />
-                                    <span>Baixar Excel</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        {/* AI toggle */}
-                        {aiAnalysis && (
-                            <button onClick={() => setAiOpen(!aiOpen)} style={{
-                                display: "flex", alignItems: "center", gap: 6, padding: "6px 14px",
-                                borderRadius: 8, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                                background: aiOpen ? T.primary : aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                color: "#fff", transition: "all 0.2s ease",
-                            }}>
-                                <Sparkles size={14} strokeWidth={1.5} />
-                                Analise
-                                <ChevronRight size={14} strokeWidth={2} style={{
-                                    transform: aiOpen ? "rotate(90deg)" : "rotate(0deg)",
-                                    transition: "transform 0.2s ease",
-                                }} />
-                            </button>
-                        )}
-                        <button onClick={handleNew} style={{
-                            display: "flex", alignItems: "center", gap: 6, padding: "6px 16px",
-                            borderRadius: 8, border: "none", background: T.green, color: "#fff",
-                            cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
-                        }}>
-                            <Plus size={14} strokeWidth={2} />
-                            Novo Recebimento
-                        </button>
-                    </div>
-                </div>
-
-                {/* ════════ AI PANEL (collapsible) ════════ */}
-                {aiOpen && aiAnalysis && (
-                    <div style={{
-                        background: T.card, borderRadius: 14, border: `1px solid ${T.border}`,
-                        padding: "20px 22px", animation: "fadeIn 0.2s ease",
-                    }}>
-                        <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
-                            <Sparkles size={16} strokeWidth={1.5} color={T.primary} />
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>Analise Financeira — Recebimentos</p>
-                                <p style={{ fontSize: 10, color: "#000", opacity: 0.5 }}>Selic {SELIC}% a.a. | IPCA {IPCA_12M}% | CDI {CDI_MENSAL.toFixed(2)}%/mes | {aiAnalysis.billCount} lancamentos | Ticket medio {fmt(aiAnalysis.avgTicket)}</p>
-                            </div>
-                            <div style={{
-                                padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" as const,
-                                background: aiAnalysis.hasOverdue ? T.red : aiAnalysis.paidPct >= 80 ? T.green : T.amber,
-                                color: "#fff",
-                            }}>
-                                {aiAnalysis.hasOverdue ? "ATENCAO" : aiAnalysis.paidPct >= 80 ? "SAUDAVEL" : "MODERADO"}
-                            </div>
-                            <button onClick={() => setAiOpen(false)} style={{
-                                width: 28, height: 28, borderRadius: 6, border: "none", background: T.hover,
-                                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                            }}>
-                                <X size={14} strokeWidth={2} color={T.text2} />
-                            </button>
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 8 }}>
-                            {aiAnalysis.insights.map((item, i) => (
-                                <div key={i} style={{
-                                    padding: "10px 12px", borderRadius: 8,
-                                    borderLeft: `3px solid ${item.type === "danger" ? T.red : item.type === "warning" ? T.amber : item.type === "success" ? T.green : T.primary}`,
-                                    background: item.type === "danger" ? `${T.red}06` : item.type === "warning" ? `${T.amber}06` : "transparent",
-                                }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, color: "#000", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>{item.title}</p>
-                                    <p style={{ fontSize: 11.5, color: "#000", lineHeight: 1.6, opacity: 0.85 }}>{item.text}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* ════════ SUMMARY STRIP ════════ */}
-                <div style={{
-                    display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 0,
-                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden",
-                }}>
-                    {[
-                        { label: "A Receber", value: stats.pendingTotal, count: stats.pendingCount, color: T.primary, icon: TrendingUp },
-                        { label: "Recebido", value: stats.paidTotal, count: stats.paidCount, color: T.green, icon: CheckCircle2 },
-                        { label: "Vencido", value: stats.overdueTotal, count: stats.overdueCount, color: T.red, icon: AlertTriangle },
-                    ].map((item, i, arr) => (
-                        <div key={item.label} style={{
-                            padding: "18px 24px",
-                            borderRight: i < arr.length - 1 ? `1px solid ${T.border}` : "none",
-                            display: "flex", alignItems: "center", gap: 14,
-                        }}>
-                            <div style={{
-                                width: 42, height: 42, borderRadius: 10,
-                                background: `${item.color}12`,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                            }}>
-                                <item.icon size={20} strokeWidth={1.5} color={item.color} />
-                            </div>
-                            <div>
-                                <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: T.text3, marginBottom: 2 }}>{item.label}</p>
-                                <p style={{ fontSize: 20, fontWeight: 700, color: "#000", fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(item.value)}</p>
-                                <p style={{ fontSize: 11, color: item.color, fontWeight: 600, marginTop: 2 }}>{item.count} recebimento{item.count !== 1 ? "s" : ""}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* ════════ CHARTS ROW ════════ */}
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 16 }}>
-
-                    {/* ── Area Chart: Fluxo ── */}
-                    <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                            <p style={{ fontSize: 15, fontWeight: 700, color: "#000" }}>Fluxo de Recebimentos</p>
-                            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                                {[
-                                    { label: "A Receber", color: T.primary },
-                                    { label: "Recebido", color: T.green },
-                                    { label: "Atrasado", color: T.red },
-                                    { label: "Acumulado", color: T.amber },
-                                ].map((l) => (
-                                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
-                                        <span style={{ fontSize: 11, fontWeight: 500, color: T.text2 }}>{l.label}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {chartData.length === 0 ? (
-                            <div style={{ textAlign: "center", padding: "48px 0", color: T.text3 }}>
-                                <TrendingUp size={36} strokeWidth={1} color={T.border} style={{ margin: "0 auto 12px" }} />
-                                <p style={{ fontSize: 14, fontWeight: 600, color: T.text1 }}>Sem dados no periodo</p>
-                                <p style={{ fontSize: 12, color: T.text3, marginTop: 4 }}>Selecione outro periodo ou cadastre recebimentos</p>
-                            </div>
-                        ) : (
-                            <div style={{ height: 300 }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -4, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id="gradRecPaid" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor={T.green} stopOpacity={0.25} />
-                                                <stop offset="100%" stopColor={T.green} stopOpacity={0.02} />
-                                            </linearGradient>
-                                            <linearGradient id="gradRecPending" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor={T.primary} stopOpacity={0.2} />
-                                                <stop offset="100%" stopColor={T.primary} stopOpacity={0.02} />
-                                            </linearGradient>
-                                            <linearGradient id="gradRecOverdue" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor={T.red} stopOpacity={0.2} />
-                                                <stop offset="100%" stopColor={T.red} stopOpacity={0.02} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={`${T.border}80`} />
-                                        <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} dy={8} />
-                                        <YAxis tickLine={false} axisLine={false} tick={{ fill: T.text3, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={48} />
-                                        <Tooltip
-                                            formatter={(v: number, n: string) => [fmt(v), n === "paid" ? "Recebido" : n === "pending" ? "A Receber" : n === "overdue" ? "Atrasado" : "Acumulado"]}
-                                            contentStyle={tooltipStyle}
-                                            cursor={{ stroke: T.text3, strokeDasharray: "4 4" }}
-                                        />
-                                        <Area type="monotone" dataKey="paid" name="paid" stroke={T.green} strokeWidth={2.5} fill="url(#gradRecPaid)" dot={{ r: 4, fill: T.card, stroke: T.green, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.green, stroke: T.card, strokeWidth: 2 }} />
-                                        <Area type="monotone" dataKey="pending" name="pending" stroke={T.primary} strokeWidth={2.5} fill="url(#gradRecPending)" dot={{ r: 4, fill: T.card, stroke: T.primary, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.primary, stroke: T.card, strokeWidth: 2 }} />
-                                        <Area type="monotone" dataKey="overdue" name="overdue" stroke={T.red} strokeWidth={2.5} fill="url(#gradRecOverdue)" dot={{ r: 4, fill: T.card, stroke: T.red, strokeWidth: 2 }} activeDot={{ r: 6, fill: T.red, stroke: T.card, strokeWidth: 2 }} />
-                                        <Line type="monotone" dataKey="acumulado" name="acumulado" stroke={T.amber} strokeWidth={2} strokeDasharray="8 4" dot={false} />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* ── Pie Chart: Recebimentos por Categoria ── */}
-                    <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 24, display: "flex", flexDirection: "column" }}>
-                        <p style={{ fontSize: 15, fontWeight: 700, color: "#000", marginBottom: 16 }}>Recebimentos por Categoria</p>
-
-                        {categoryPieData.length === 0 ? (
-                            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: T.text3 }}>
-                                <p style={{ fontSize: 13 }}>Sem recebimentos no periodo</p>
-                            </div>
-                        ) : (
-                            <>
-                                <div style={{ height: 220, position: "relative" }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={categoryPieData}
-                                                cx="50%" cy="50%"
-                                                innerRadius={55} outerRadius={90}
-                                                paddingAngle={2}
-                                                dataKey="value"
-                                                stroke="none"
-                                            >
-                                                {categoryPieData.map((_, i) => (
-                                                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                formatter={(v: number, name: string) => [fmt(v), name]}
-                                                contentStyle={tooltipStyle}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    <div style={{
-                                        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-                                        textAlign: "center", pointerEvents: "none",
-                                    }}>
-                                        <p style={{ fontSize: 16, fontWeight: 700, color: "#000", lineHeight: 1.1 }}>
-                                            {fmt(categoryPieData.reduce((s, d) => s + d.value, 0))}
-                                        </p>
-                                        <p style={{ fontSize: 9, color: T.text3, marginTop: 2 }}>Total recebido</p>
-                                    </div>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 12, overflow: "auto", maxHeight: 140 }} className="scrollbar-thin">
-                                    {categoryPieData.map((item, i) => {
-                                        const total = categoryPieData.reduce((s, d) => s + d.value, 0);
-                                        const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
-                                        return (
-                                            <div key={item.name} style={{
-                                                display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", borderRadius: 6,
-                                                cursor: "pointer", transition: "background 0.15s",
-                                            }}
-                                                onMouseEnter={(e) => { e.currentTarget.style.background = T.hover; }}
-                                                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                                                onClick={() => setCategoryFilter(categoryFilter === item.name ? "all" : item.name)}
-                                            >
-                                                <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
-                                                <span style={{ fontSize: 11, color: T.text1, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, fontWeight: 500 }}>{item.name}</span>
-                                                <span style={{ fontSize: 11, fontWeight: 700, color: T.text1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{pct}%</span>
-                                                <span style={{ fontSize: 10, color: T.text3, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" as const }}>{fmt(item.value)}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* ════════ FILTER + TABLE ════════ */}
-                <div style={{
-                    background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden",
-                }}>
-                    {/* Filter bar */}
-                    <div style={{
-                        padding: "14px 20px", borderBottom: `1px solid ${T.border}`,
-                        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-                    }}>
-                        <div style={{ display: "flex", background: T.hover, borderRadius: 6, padding: 2, gap: 1 }}>
-                            {[
-                                { key: "all", label: "Todos", count: filteredBills.length },
-                                { key: "pending", label: "A Receber", count: stats.pendingCount },
-                                { key: "paid", label: "Recebidos", count: stats.paidCount },
-                                { key: "overdue", label: "Atrasados", count: stats.overdueCount },
-                            ].map((f) => (
-                                <button key={f.key} onClick={() => setStatusFilter(f.key)} style={{
-                                    padding: "4px 10px", borderRadius: 4, border: "none", fontSize: 11,
-                                    fontWeight: statusFilter === f.key ? 600 : 400, fontFamily: FONT,
-                                    background: statusFilter === f.key ? T.card : "transparent",
-                                    color: statusFilter === f.key ? "#000" : T.text3, cursor: "pointer",
-                                    boxShadow: statusFilter === f.key ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-                                    display: "flex", alignItems: "center", gap: 4,
-                                }}>
-                                    {f.label}
-                                    <span style={{
-                                        fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 4,
-                                        background: statusFilter === f.key ? T.primaryLt : "transparent",
-                                        color: statusFilter === f.key ? T.primary : T.text3,
-                                    }}>{f.count}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <div style={{
-                            display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 180,
-                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`, background: T.card,
-                        }}>
-                            <Search size={13} strokeWidth={1.5} color={T.text3} />
-                            <input
-                                type="text" placeholder="Buscar descricao, cliente, valor..."
-                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ border: "none", outline: "none", background: "transparent", fontSize: 11, fontFamily: FONT, color: T.text1, width: "100%" }}
-                            />
-                            {searchTerm && <button onClick={() => setSearchTerm("")} style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}><X size={12} color={T.text3} /></button>}
-                        </div>
-
-                        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{
-                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`,
-                            background: T.card, fontSize: 11, fontFamily: FONT, color: T.text1, cursor: "pointer",
-                            maxWidth: 160,
-                        }}>
-                            <option value="all">Categoria</option>
-                            {uniqueCategories.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-
-                        <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} style={{
-                            padding: "5px 10px", borderRadius: 6, border: `1px solid ${T.border}`,
-                            background: T.card, fontSize: 11, fontFamily: FONT, color: T.text1, cursor: "pointer",
-                        }}>
-                            <option value="all">Forma pgto.</option>
-                            {Object.entries(PM_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Table */}
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="hover:bg-transparent" style={{ borderBottom: `1px solid ${T.border}` }}>
-                                {["Status", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", ""].map((h, i) => (
-                                    <TableHead
-                                        key={h || i}
-                                        className={i === 2 ? "hidden md:table-cell" : i === 3 ? "hidden lg:table-cell" : ""}
-                                        style={{
-                                            padding: "10px 16px", fontSize: 10, fontWeight: 700,
-                                            color: T.text3, textTransform: "uppercase" as const, letterSpacing: "0.06em",
-                                            textAlign: i === 5 ? "right" : "left",
-                                            ...(i === 6 ? { width: 50 } : {}),
-                                        }}
-                                    >{h}</TableHead>
-                                ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} style={{ textAlign: "center", padding: "40px 0" }}>
-                                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: T.text3 }}>
-                                            <div style={{ width: 18, height: 18, border: `2px solid ${T.border}`, borderTopColor: T.primary, borderRadius: 99, animation: "spin 0.8s linear infinite" }} />
-                                            <span style={{ fontSize: 12 }}>Carregando...</span>
-                                        </div>
-                                        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                                    </TableCell>
-                                </TableRow>
-                            ) : filteredBills.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} style={{ textAlign: "center", padding: "48px 0" }}>
-                                        <TrendingUp size={28} strokeWidth={1} color={T.border} style={{ margin: "0 auto 8px" }} />
-                                        <p style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Nenhum recebimento encontrado</p>
-                                        <p style={{ fontSize: 11, color: T.text3, marginTop: 4 }}>Ajuste os filtros ou cadastre um novo recebimento</p>
-                                    </TableCell>
-                                </TableRow>
-                            ) : filteredBills.map((bill) => {
-                                const st = getStatus(bill.status, bill.due_date);
-                                return (
-                                    <TableRow key={bill.id} className="group" style={{ borderBottom: `1px solid ${T.hover}` }}>
-                                        <TableCell style={{ padding: "12px 16px" }}>
-                                            <span style={{
-                                                display: "inline-flex", alignItems: "center", gap: 5,
-                                                padding: "2px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600,
-                                                background: st.bg, color: st.color,
-                                            }}>
-                                                <div style={{ width: 5, height: 5, borderRadius: 99, background: st.color }} />
-                                                {st.label}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell style={{ padding: "12px 16px" }}>
-                                            <p style={{ fontSize: 13, fontWeight: 600, color: "#000", lineHeight: 1.3 }}>{bill.description}</p>
-                                        </TableCell>
-                                        <TableCell className="hidden md:table-cell" style={{ padding: "12px 16px" }}>
-                                            <span style={{ fontSize: 12, color: T.text2 }}>{bill.client?.nome_fantasia || bill.client?.razao_social || "-"}</span>
-                                        </TableCell>
-                                        <TableCell className="hidden lg:table-cell" style={{ padding: "12px 16px" }}>
-                                            <span style={{
-                                                fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
-                                                background: T.primaryLt, color: T.primary,
-                                            }}>
-                                                {bill.category?.name || "-"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell style={{ padding: "12px 16px" }}>
-                                            <span style={{ fontSize: 12, fontWeight: 500, color: T.text1, fontVariantNumeric: "tabular-nums" }}>
-                                                {format(parseISO(bill.due_date), "dd/MM/yyyy")}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell style={{ padding: "12px 16px", textAlign: "right" }}>
-                                            <span style={{
-                                                fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums",
-                                                color: bill.status === "paid" ? T.green : "#000",
-                                            }}>{fmt(bill.amount)}</span>
-                                        </TableCell>
-                                        <TableCell style={{ padding: "12px 8px" }}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-[150px]">
-                                                    <DropdownMenuLabel style={{ fontSize: 11 }}>Acoes</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => handleEdit(bill)}>
-                                                        <Pencil className="mr-2 h-3.5 w-3.5" style={{ color: T.primary }} /> Editar
-                                                    </DropdownMenuItem>
-                                                    {bill.status === "pending" && (
-                                                        <>
-                                                            <DropdownMenuItem onClick={() => { setPaymentItem(bill); setIsPaymentModalOpen(true); }}>
-                                                                <DollarSign className="mr-2 h-3.5 w-3.5" style={{ color: T.green }} /> Receber
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem asChild onSelect={e => e.preventDefault()}>
-                                                                <div style={{ padding: 0 }}>
-                                                                    <BotaoPagarComRecibo
-                                                                        contaId={bill.id}
-                                                                        tipo="receivable"
-                                                                        descricao={bill.description}
-                                                                        valor={Number(bill.amount)}
-                                                                        fornecedorOuCliente={bill.client?.nome_fantasia || bill.client?.razao_social}
-                                                                        vencimento={bill.due_date}
-                                                                        categoria={bill.category?.name}
-                                                                        onSuccess={() => refetch()}
-                                                                    />
-                                                                </div>
-                                                            </DropdownMenuItem>
-                                                        </>
-                                                    )}
-                                                    {bill.status === "paid" && (
-                                                        <DropdownMenuItem asChild onSelect={e => e.preventDefault()}>
-                                                            <div style={{ padding: 0 }}>
-                                                                <BotaoPagarComRecibo
-                                                                    contaId={bill.id}
-                                                                    tipo="receivable"
-                                                                    descricao={bill.description}
-                                                                    valor={Number(bill.amount)}
-                                                                    fornecedorOuCliente={bill.client?.nome_fantasia || bill.client?.razao_social}
-                                                                    vencimento={bill.due_date}
-                                                                    categoria={bill.category?.name}
-                                                                    onSuccess={() => refetch()}
-                                                                    apenasRecibo
-                                                                />
-                                                            </div>
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDelete(bill)} style={{ color: T.red }}>
-                                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </div>
-
-                {/* Modals */}
-                <AccountsReceivableSheet isOpen={isSheetOpen} onClose={() => { setIsSheetOpen(false); setEditingItem(undefined); }} dataToEdit={editingItem} />
-                {paymentItem && (
-                    <PaymentModal
-                        isOpen={isPaymentModalOpen}
-                        onClose={() => { setIsPaymentModalOpen(false); setPaymentItem(null); }}
-                        accountingId={paymentItem.id}
-                        type="receivable"
-                        initialAmount={paymentItem.amount}
-                        description={`Recebimento: ${paymentItem.description}`}
-                        onSuccess={() => {
-                            queryClient.invalidateQueries({ queryKey: ["contas_receber"] });
-                            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
-                            queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
-                            refetch();
-                            setIsPaymentModalOpen(false);
-                            setPaymentItem(null);
-                        }}
-                    />
-                )}
-                <div style={{ height: 20 }} />
+        {/* ── Filters ── */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden">
+          <div className="bg-[#1a2e4a] px-4 py-2.5">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
+          </div>
+          <div className="p-4 bg-white flex flex-wrap gap-3 items-end">
+            {/* Search */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">Pagador</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                />
+              </div>
             </div>
-        </AppLayout>
-    );
+            {/* Status */}
+            <div className="min-w-[140px]">
+              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              >
+                {STATUS_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            {/* Date from */}
+            <div className="min-w-[140px]">
+              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">De</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              />
+            </div>
+            {/* Date to */}
+            <div className="min-w-[140px]">
+              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">Ate</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              />
+            </div>
+            {/* Clear */}
+            {(search || statusFilter !== 'todos' || dateFrom || dateTo) && (
+              <button
+                onClick={() => { setSearch(''); setStatusFilter('todos'); setDateFrom(''); setDateTo('') }}
+                className="px-3 py-2 text-[12px] text-[#8b0000] font-semibold hover:underline"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Table ── */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+              Titulos ({filtered.length})
+            </h3>
+          </div>
+          <div className="bg-white overflow-x-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={24} className="animate-spin text-[#1a2e4a]" />
+                <span className="ml-2 text-[13px] text-[#555]">Carregando...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16 text-[13px] text-[#999]">
+                Nenhum titulo encontrado.
+              </div>
+            ) : (
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#e5e5e5]">
+                    {['Pagador', 'Tipo', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(cr => {
+                    const saldo = cr.valor - (cr.valor_pago || 0)
+                    const st = statusBadge(cr._status)
+                    const hoje = new Date().toISOString().split('T')[0]
+                    const isVencido = cr.data_vencimento < hoje && !['pago', 'cancelado'].includes(cr._status)
+                    const diasAtraso = isVencido ? differenceInDays(new Date(), parseISO(cr.data_vencimento)) : 0
+
+                    return (
+                      <tr
+                        key={cr.id}
+                        className="border-b border-[#f0f0f0] hover:bg-[#fafafa] transition-colors"
+                      >
+                        {/* Pagador */}
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</div>
+                          {cr.pagador_cpf_cnpj && (
+                            <div className="text-[11px] text-[#999] mt-0.5">{cr.pagador_cpf_cnpj}</div>
+                          )}
+                        </td>
+                        {/* Tipo */}
+                        <td className="px-4 py-3">
+                          <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-[#f5f5f5] border border-[#ddd] rounded">
+                            {deriveTipo(cr)}
+                          </span>
+                        </td>
+                        {/* Vencimento */}
+                        <td className="px-4 py-3">
+                          <span className={isVencido ? 'text-[#8b0000] font-semibold' : 'text-[#0a0a0a]'}>
+                            {formatData(cr.data_vencimento)}
+                          </span>
+                          {isVencido && diasAtraso > 0 && (
+                            <div className="text-[10px] text-[#8b0000] mt-0.5">
+                              {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
+                            </div>
+                          )}
+                        </td>
+                        {/* Valor */}
+                        <td className="px-4 py-3 font-medium text-[#0a0a0a]">
+                          {formatBRL(cr.valor)}
+                        </td>
+                        {/* Pago */}
+                        <td className="px-4 py-3 text-[#0a5c2e] font-medium">
+                          {formatBRL(cr.valor_pago || 0)}
+                        </td>
+                        {/* Saldo */}
+                        <td className="px-4 py-3 font-semibold text-[#0a0a0a]">
+                          {formatBRL(saldo)}
+                        </td>
+                        {/* Status */}
+                        <td className="px-4 py-3">
+                          <span
+                            className="inline-block px-2.5 py-1 text-[11px] font-semibold rounded border"
+                            style={{ color: st.text, backgroundColor: st.bg, borderColor: st.border }}
+                          >
+                            {st.label}
+                          </span>
+                        </td>
+                        {/* Acoes */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {cr._status !== 'pago' && cr._status !== 'cancelado' && (
+                              <button
+                                onClick={() => setQuitarModal(cr)}
+                                className="px-3 py-1.5 text-[11px] font-semibold text-white bg-[#0a5c2e] rounded hover:bg-[#084d25] transition-colors"
+                              >
+                                Quitar
+                              </button>
+                            )}
+                            {/* Dropdown */}
+                            <div className="relative">
+                              <button
+                                onClick={e => { e.stopPropagation(); setDropdownOpen(dropdownOpen === cr.id ? null : cr.id) }}
+                                className="p-1.5 rounded hover:bg-[#f0f0f0] transition-colors"
+                              >
+                                <MoreHorizontal size={16} className="text-[#555]" />
+                              </button>
+                              {dropdownOpen === cr.id && (
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ccc] rounded-lg shadow-lg z-50">
+                                  <button
+                                    onClick={() => { setRenegociarModal(cr); setDropdownOpen(null) }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors first:rounded-t-lg"
+                                  >
+                                    Renegociar
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      setDropdownOpen(null)
+                                      if (!confirm('Cancelar este titulo?')) return
+                                      await supabase.from('contas_receber').update({ status: 'cancelado' }).eq('id', cr.id)
+                                      fetchItems()
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#8b0000] hover:bg-[#fdecea] transition-colors"
+                                  >
+                                    Cancelar titulo
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setDropdownOpen(null)
+                                      alert('Funcionalidade de cobranca manual sera implementada em breve.')
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors last:rounded-b-lg"
+                                  >
+                                    Enviar cobranca manual
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Modal: Quitar CR ── */}
+      {quitarModal && (
+        <ModalQuitarCR
+          cr={quitarModal}
+          bankAccounts={bankAccounts}
+          submitting={submitting}
+          onClose={() => setQuitarModal(null)}
+          onConfirm={async (dados) => {
+            setSubmitting(true)
+            const result = await quitarCR(quitarModal.id, dados)
+            setSubmitting(false)
+            if (result.sucesso) {
+              setQuitarModal(null)
+              fetchItems()
+            } else {
+              alert('Erro ao quitar: ' + (result.erro || 'Erro desconhecido'))
+            }
+          }}
+        />
+      )}
+
+      {/* ── Modal: Novo CR ── */}
+      {novoModal && (
+        <ModalNovoCR
+          companyId={companyId!}
+          chartAccounts={chartAccounts}
+          centrosCusto={centrosCusto}
+          submitting={submitting}
+          onClose={() => setNovoModal(false)}
+          onConfirm={async () => {
+            setNovoModal(false)
+            fetchItems()
+          }}
+        />
+      )}
+
+      {/* ── Modal: Renegociar ── */}
+      {renegociarModal && (
+        <ModalRenegociar
+          cr={renegociarModal}
+          submitting={submitting}
+          onClose={() => setRenegociarModal(null)}
+          onConfirm={async (novaData: string) => {
+            setSubmitting(true)
+            await supabase
+              .from('contas_receber')
+              .update({ data_vencimento: novaData })
+              .eq('id', renegociarModal.id)
+            setSubmitting(false)
+            setRenegociarModal(null)
+            fetchItems()
+          }}
+        />
+      )}
+    </AppLayout>
+  )
+}
+
+/* ================================================================
+   KPI CARD
+   ================================================================ */
+
+function KpiCard({
+  icon, label, value, color,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  color: { text: string; bg: string; border: string; icon: string }
+}) {
+  return (
+    <div
+      className="rounded-lg border p-4 flex items-center gap-4"
+      style={{ borderColor: color.border, backgroundColor: color.bg }}
+    >
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+        style={{ backgroundColor: color.border + '18' }}
+      >
+        <span style={{ color: color.icon }}>{icon}</span>
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: color.text }}>
+          {label}
+        </p>
+        <p className="text-lg font-bold mt-0.5" style={{ color: color.text }}>
+          {value}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   MODAL OVERLAY
+   ================================================================ */
+
+function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div
+        className="bg-white rounded-xl border border-[#ccc] shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+  return (
+    <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-xl">
+      <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">{title}</h3>
+      <button onClick={onClose} className="text-[#a8bfd4] hover:text-white transition-colors">
+        <X size={18} />
+      </button>
+    </div>
+  )
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">
+      {children}
+    </label>
+  )
+}
+
+const inputCls =
+  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a] disabled:bg-[#f5f5f5] disabled:text-[#999]'
+
+/* ================================================================
+   MODAL: QUITAR CR
+   ================================================================ */
+
+function ModalQuitarCR({
+  cr,
+  bankAccounts,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  cr: CR
+  bankAccounts: BankAccount[]
+  submitting: boolean
+  onClose: () => void
+  onConfirm: (dados: {
+    valorPago: number
+    dataPagamento: string
+    formaRecebimento: string
+    contaBancariaId: string
+    juros?: number
+    desconto?: number
+  }) => void
+}) {
+  const saldo = cr.valor - (cr.valor_pago || 0)
+  const [valorRecebido, setValorRecebido] = useState(saldo.toFixed(2))
+  const [dataRecebimento, setDataRecebimento] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [formaRecebimento, setFormaRecebimento] = useState('PIX')
+  const [contaBancariaId, setContaBancariaId] = useState(bankAccounts[0]?.id || '')
+  const [juros, setJuros] = useState('')
+  const [desconto, setDesconto] = useState('')
+  const [observacao, setObservacao] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const v = parseFloat(valorRecebido)
+    if (!v || v <= 0) return alert('Informe um valor valido.')
+    if (!contaBancariaId) return alert('Selecione a conta bancaria.')
+    onConfirm({
+      valorPago: v,
+      dataPagamento: dataRecebimento,
+      formaRecebimento,
+      contaBancariaId,
+      juros: juros ? parseFloat(juros) : undefined,
+      desconto: desconto ? parseFloat(desconto) : undefined,
+    })
+  }
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <ModalHeader title="Quitar conta a receber" onClose={onClose} />
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Saldo devedor badge */}
+        <div
+          className="flex items-center gap-2 px-4 py-3 rounded-lg border"
+          style={{ backgroundColor: '#f0f4f8', borderColor: '#1a2e4a' }}
+        >
+          <DollarSign size={16} className="text-[#1a2e4a]" />
+          <div>
+            <span className="text-[10px] font-bold text-[#1a2e4a] uppercase tracking-widest">Saldo devedor</span>
+            <p className="text-lg font-bold text-[#1a2e4a]">{formatBRL(saldo)}</p>
+          </div>
+        </div>
+
+        {/* Pagador info */}
+        <div className="text-[13px] text-[#555]">
+          Pagador: <span className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</span>
+        </div>
+
+        {/* Valor recebido */}
+        <div>
+          <FieldLabel>Valor recebido *</FieldLabel>
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={valorRecebido}
+            onChange={e => setValorRecebido(e.target.value)}
+            className={inputCls}
+            required
+          />
+        </div>
+
+        {/* Data recebimento */}
+        <div>
+          <FieldLabel>Data recebimento *</FieldLabel>
+          <input
+            type="date"
+            value={dataRecebimento}
+            onChange={e => setDataRecebimento(e.target.value)}
+            className={inputCls}
+            required
+          />
+        </div>
+
+        {/* Forma recebimento */}
+        <div>
+          <FieldLabel>Forma de recebimento *</FieldLabel>
+          <select
+            value={formaRecebimento}
+            onChange={e => setFormaRecebimento(e.target.value)}
+            className={inputCls}
+            required
+          >
+            {FORMAS_RECEBIMENTO.map(f => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Conta bancaria */}
+        <div>
+          <FieldLabel>Conta bancaria *</FieldLabel>
+          <select
+            value={contaBancariaId}
+            onChange={e => setContaBancariaId(e.target.value)}
+            className={inputCls}
+            required
+          >
+            <option value="">Selecione...</option>
+            {bankAccounts.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Juros / Desconto */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>Juros / Multa</FieldLabel>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={juros}
+              onChange={e => setJuros(e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <FieldLabel>Desconto</FieldLabel>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={desconto}
+              onChange={e => setDesconto(e.target.value)}
+              className={inputCls}
+            />
+          </div>
+        </div>
+
+        {/* Observacao */}
+        <div>
+          <FieldLabel>Observacao</FieldLabel>
+          <textarea
+            value={observacao}
+            onChange={e => setObservacao(e.target.value)}
+            rows={2}
+            className={inputCls + ' resize-none'}
+            placeholder="Opcional..."
+          />
+        </div>
+
+        {/* Recibo badge */}
+        <div
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-[12px] font-medium"
+          style={{ backgroundColor: '#e6f4ec', borderColor: '#0a5c2e', color: '#0a5c2e' }}
+        >
+          <CheckCircle2 size={14} />
+          Recibo sera gerado e enviado automaticamente por e-mail ao pagador
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#0a5c2e] rounded-lg hover:bg-[#084d25] transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {submitting && <Loader2 size={14} className="animate-spin" />}
+            Confirmar recebimento
+          </button>
+        </div>
+      </form>
+    </ModalOverlay>
+  )
+}
+
+/* ================================================================
+   MODAL: NOVO CR
+   ================================================================ */
+
+function ModalNovoCR({
+  companyId,
+  chartAccounts,
+  centrosCusto,
+  submitting: parentSubmitting,
+  onClose,
+  onConfirm,
+}: {
+  companyId: string
+  chartAccounts: ChartAccount[]
+  centrosCusto: CentroCusto[]
+  submitting: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const [tipo, setTipo] = useState('unica')
+  const [pagadorNome, setPagadorNome] = useState('')
+  const [pagadorCpfCnpj, setPagadorCpfCnpj] = useState('')
+  const [pagadorEmail, setPagadorEmail] = useState('')
+  const [valor, setValor] = useState('')
+  const [vencimento, setVencimento] = useState('')
+  const [numParcelas, setNumParcelas] = useState('2')
+  const [contaContabilId, setContaContabilId] = useState('')
+  const [centroCustoId, setCentroCustoId] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const v = parseFloat(valor)
+    if (!v || v <= 0) return alert('Informe o valor.')
+    if (!vencimento) return alert('Informe o vencimento.')
+    if (!pagadorNome.trim()) return alert('Informe o nome do pagador.')
+
+    setSaving(true)
+
+    try {
+      if (tipo === 'parcelado') {
+        const n = parseInt(numParcelas) || 2
+        const valorParcela = Math.round((v / n) * 100) / 100
+        const records = []
+        for (let i = 0; i < n; i++) {
+          const dataVenc = format(addDays(parseISO(vencimento), i * 30), 'yyyy-MM-dd')
+          records.push({
+            company_id: companyId,
+            pagador_nome: pagadorNome.trim(),
+            pagador_cpf_cnpj: pagadorCpfCnpj.trim() || null,
+            pagador_email: pagadorEmail.trim() || null,
+            valor: i === n - 1 ? Math.round((v - valorParcela * (n - 1)) * 100) / 100 : valorParcela,
+            valor_pago: 0,
+            data_vencimento: dataVenc,
+            status: 'aberto',
+            conta_contabil_id: contaContabilId || null,
+            centro_custo_id: centroCustoId || null,
+            observacoes: descricao ? `${descricao} (${i + 1}/${n})` : `Parcela ${i + 1}/${n}`,
+          })
+        }
+        const { error } = await supabase.from('contas_receber').insert(records)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('contas_receber').insert({
+          company_id: companyId,
+          pagador_nome: pagadorNome.trim(),
+          pagador_cpf_cnpj: pagadorCpfCnpj.trim() || null,
+          pagador_email: pagadorEmail.trim() || null,
+          valor: v,
+          valor_pago: 0,
+          data_vencimento: vencimento,
+          status: 'aberto',
+          conta_contabil_id: contaContabilId || null,
+          centro_custo_id: centroCustoId || null,
+          observacoes: descricao || null,
+        })
+        if (error) throw error
+      }
+
+      onConfirm()
+    } catch (err: any) {
+      console.error('[NovoCR]', err)
+      alert('Erro ao criar titulo: ' + (err.message || 'Erro desconhecido'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <ModalHeader title="Novo titulo a receber" onClose={onClose} />
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
+        {/* Tipo - cards */}
+        <div>
+          <FieldLabel>Tipo de titulo</FieldLabel>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
+            {TIPO_TITULO_OPTIONS.map(t => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTipo(t.value)}
+                className={`px-3 py-2.5 rounded-lg border text-[12px] font-semibold text-center transition-colors ${
+                  tipo === t.value
+                    ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
+                    : 'border-[#ccc] bg-white text-[#555] hover:bg-[#fafafa]'
+                }`}
+              >
+                <span className="block text-[16px] mb-0.5">{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pagador */}
+        <div className="space-y-3">
+          <div>
+            <FieldLabel>Nome do pagador *</FieldLabel>
+            <input
+              type="text"
+              value={pagadorNome}
+              onChange={e => setPagadorNome(e.target.value)}
+              className={inputCls}
+              placeholder="Nome completo ou razao social"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel>CPF / CNPJ</FieldLabel>
+              <input
+                type="text"
+                value={pagadorCpfCnpj}
+                onChange={e => setPagadorCpfCnpj(e.target.value)}
+                className={inputCls}
+                placeholder="000.000.000-00"
+              />
+            </div>
+            <div>
+              <FieldLabel>E-mail</FieldLabel>
+              <input
+                type="email"
+                value={pagadorEmail}
+                onChange={e => setPagadorEmail(e.target.value)}
+                className={inputCls}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Valor / Vencimento */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>Valor *</FieldLabel>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={valor}
+              onChange={e => setValor(e.target.value)}
+              className={inputCls}
+              placeholder="0,00"
+              required
+            />
+          </div>
+          <div>
+            <FieldLabel>Vencimento *</FieldLabel>
+            <input
+              type="date"
+              value={vencimento}
+              onChange={e => setVencimento(e.target.value)}
+              className={inputCls}
+              required
+            />
+          </div>
+        </div>
+
+        {/* Parcelas (only for parcelado) */}
+        {tipo === 'parcelado' && (
+          <div>
+            <FieldLabel>Numero de parcelas</FieldLabel>
+            <input
+              type="number"
+              min="2"
+              max="120"
+              value={numParcelas}
+              onChange={e => setNumParcelas(e.target.value)}
+              className={inputCls}
+            />
+            <p className="text-[11px] text-[#999] mt-1">
+              Valor por parcela: {formatBRL(parseFloat(valor || '0') / (parseInt(numParcelas) || 2))}
+            </p>
+          </div>
+        )}
+
+        {/* Conta contabil / Centro de custo */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>Conta contabil</FieldLabel>
+            <select
+              value={contaContabilId}
+              onChange={e => setContaContabilId(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Nenhuma</option>
+              {chartAccounts.map(c => (
+                <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <FieldLabel>Centro de custo</FieldLabel>
+            <select
+              value={centroCustoId}
+              onChange={e => setCentroCustoId(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Nenhum</option>
+              {centrosCusto.map(c => (
+                <option key={c.id} value={c.id}>{c.codigo} - {c.descricao}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Descricao */}
+        <div>
+          <FieldLabel>Descricao</FieldLabel>
+          <textarea
+            value={descricao}
+            onChange={e => setDescricao(e.target.value)}
+            rows={2}
+            className={inputCls + ' resize-none'}
+            placeholder="Detalhes sobre o titulo..."
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d] transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {tipo === 'parcelado' ? `Criar ${parseInt(numParcelas) || 2} parcelas` : 'Criar titulo'}
+          </button>
+        </div>
+      </form>
+    </ModalOverlay>
+  )
+}
+
+/* ================================================================
+   MODAL: RENEGOCIAR
+   ================================================================ */
+
+function ModalRenegociar({
+  cr,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  cr: CR
+  submitting: boolean
+  onClose: () => void
+  onConfirm: (novaData: string) => void
+}) {
+  const [novaData, setNovaData] = useState(cr.data_vencimento)
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!novaData) return alert('Informe a nova data de vencimento.')
+    if (novaData === cr.data_vencimento) return alert('Selecione uma data diferente da atual.')
+    onConfirm(novaData)
+  }
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <ModalHeader title="Renegociar titulo" onClose={onClose} />
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Info */}
+        <div className="text-[13px] text-[#555] space-y-1">
+          <p>Pagador: <span className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</span></p>
+          <p>Valor: <span className="font-semibold text-[#0a0a0a]">{formatBRL(cr.valor)}</span></p>
+          <p>Vencimento atual: <span className="font-semibold text-[#0a0a0a]">{formatData(cr.data_vencimento)}</span></p>
+        </div>
+
+        <div>
+          <FieldLabel>Nova data de vencimento *</FieldLabel>
+          <input
+            type="date"
+            value={novaData}
+            onChange={e => setNovaData(e.target.value)}
+            className={inputCls}
+            required
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d] transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {submitting && <Loader2 size={14} className="animate-spin" />}
+            Confirmar renegociacao
+          </button>
+        </div>
+      </form>
+    </ModalOverlay>
+  )
 }

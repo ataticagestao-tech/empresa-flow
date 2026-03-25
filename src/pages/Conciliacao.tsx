@@ -416,6 +416,19 @@ export default function Conciliacao() {
 
     const handleCreateAndReconcile = async () => {
         if (!selectedBankTx || !selectedCompany?.id) return;
+
+        // Verificar se esta bank_transaction já foi conciliada (evitar duplicatas)
+        const { data: existingMatch } = await (activeClient as any)
+            .from("bank_reconciliation_matches")
+            .select("id")
+            .eq("bank_transaction_id", selectedBankTx.id)
+            .eq("status", "matched")
+            .limit(1);
+        if (existingMatch && existingMatch.length > 0) {
+            toast({ title: "Já conciliada", description: "Esta transação bancária já possui um lançamento vinculado.", variant: "destructive" });
+            return;
+        }
+
         const isExpense = selectedBankTx.amount < 0;
         const table = isExpense ? "contas_pagar" : "contas_receber";
         const nameCol = isExpense ? "credor_nome" : "pagador_nome";
@@ -483,6 +496,18 @@ export default function Conciliacao() {
         for (const suggestion of toApprove) {
             try {
                 const bt = suggestion.bankTransaction;
+
+                // Verificar se já foi conciliada (evitar duplicatas)
+                const { data: alreadyMatched } = await (activeClient as any)
+                    .from("bank_reconciliation_matches")
+                    .select("id")
+                    .eq("bank_transaction_id", bt.id)
+                    .eq("status", "matched")
+                    .limit(1);
+                if (alreadyMatched && alreadyMatched.length > 0) {
+                    failed++;
+                    continue;
+                }
 
                 if (suggestion.systemTransaction) {
                     // Caso 1: Já tem lançamento do sistema → conciliar direto

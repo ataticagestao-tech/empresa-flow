@@ -1,861 +1,1072 @@
-import { useState, useMemo } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { supabase } from '@/integrations/supabase/client'
+import { useCompany } from '@/contexts/CompanyContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { safeQuery } from '@/lib/supabaseQuery'
+import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
+import { quitarCR } from '@/lib/financeiro/transacao'
+import { AppLayout } from '@/components/layout/AppLayout'
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-    ShoppingCart, Plus, Search, Pencil, Trash2, DollarSign,
-    TrendingUp, Package, MoreHorizontal, Download, FileText, FileSpreadsheet,
-} from "lucide-react";
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-    PieChart, Pie, Cell,
-} from "recharts";
-import {
-    format, parseISO, startOfMonth, endOfMonth, subMonths, startOfYear, startOfDay, endOfDay,
-    isBefore, isAfter,
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarDays } from "lucide-react";
-import type { DateRange } from "react-day-picker";
-import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
-import { useToast } from "@/hooks/use-toast";
+  ShoppingCart, Search, Plus, Eye, Trash2, X,
+  Loader2, AlertCircle, Check, Package,
+  Briefcase, FileText, RefreshCw, CreditCard, Banknote,
+  QrCode, Receipt, Calendar
+} from 'lucide-react'
+import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
 
-const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828", redLt: "#fde8e8",
-    amber: "#f57f17", amberLt: "#fff8e1",
-    text1: "#0f172a", text2: "#475569", text3: "#94a3b8",
-    border: "#e2e8f0", hover: "#f1f5f9",
-} as const;
-const FONT = "var(--font-base)";
-const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+/* ================================================================
+   TYPES
+   ================================================================ */
 
-const PM_LABELS: Record<string, string> = {
-    pix: "Pix", boleto: "Boleto", transfer: "Transferência", cash: "Dinheiro", card: "Cartão", other: "Outro",
-};
-
-const presets = [
-    { label: "Este mês", get: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
-    { label: "Mês passado", get: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
-    { label: "3 meses", get: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
-    { label: "Este ano", get: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
-];
-
-interface SaleItem {
-    product_id: string;
-    description: string;
-    quantity: number;
-    unit_price: number;
-    subtotal: number;
+interface Venda {
+  id: string
+  company_id: string
+  cliente_nome: string
+  cliente_cpf_cnpj: string | null
+  tipo: 'servico' | 'produto' | 'pacote' | 'contrato'
+  valor_total: number
+  data_venda: string
+  forma_pagamento: string
+  status: string
+  vendas_itens?: VendaItem[]
+  contas_receber?: ContaReceber[]
 }
 
-interface SaleForm {
-    items: SaleItem[];
-    client_id: string;
-    payment_method: string;
-    due_date: string;
-    observations: string;
+interface VendaItem {
+  id: string
+  venda_id: string
+  descricao: string
+  quantidade: number
+  valor_unitario: number
+  valor_total: number
 }
 
-const emptyForm: SaleForm = {
-    items: [],
-    client_id: "", payment_method: "pix",
-    due_date: format(new Date(), "yyyy-MM-dd"), observations: "",
-};
+interface ContaReceber {
+  id: string
+  status: string
+  valor: number
+  valor_pago: number | null
+  data_vencimento: string
+}
 
-const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#7c3aed", "#0891b2", "#be185d", "#ea580c"];
+interface BankAccount {
+  id: string
+  nome: string
+}
+
+interface CentroCusto {
+  id: string
+  nome: string
+}
+
+interface NovoItem {
+  descricao: string
+  quantidade: number
+  valor_unitario: number
+}
+
+/* ================================================================
+   CONSTANTS
+   ================================================================ */
+
+const TIPOS_VENDA = [
+  { value: 'servico', label: 'Servico', icon: Briefcase },
+  { value: 'produto', label: 'Produto', icon: Package },
+  { value: 'pacote', label: 'Pacote', icon: FileText },
+  { value: 'contrato', label: 'Contrato', icon: RefreshCw },
+] as const
+
+const FORMAS_PAGAMENTO = [
+  { value: 'pix', label: 'PIX/TED', icon: QrCode },
+  { value: 'dinheiro', label: 'Dinheiro', icon: Banknote },
+  { value: 'cartao_credito', label: 'Cartao credito', icon: CreditCard },
+  { value: 'cartao_debito', label: 'Cartao debito', icon: CreditCard },
+  { value: 'boleto', label: 'Boleto', icon: Receipt },
+  { value: 'parcelado', label: 'Parcelado', icon: Calendar },
+] as const
+
+const FORMAS_A_VISTA = ['pix', 'dinheiro', 'cartao_debito']
+const FORMAS_A_PRAZO = ['parcelado', 'boleto', 'cartao_credito']
+
+const LABEL_FORMA: Record<string, string> = {
+  pix: 'PIX/TED',
+  dinheiro: 'Dinheiro',
+  cartao_credito: 'Cartao credito',
+  cartao_debito: 'Cartao debito',
+  boleto: 'Boleto',
+  parcelado: 'Parcelado',
+}
+
+const LABEL_TIPO: Record<string, string> = {
+  servico: 'Servico',
+  produto: 'Produto',
+  pacote: 'Pacote',
+  contrato: 'Contrato',
+}
+
+/* ================================================================
+   COMPONENT
+   ================================================================ */
 
 export default function Vendas() {
-    const { activeClient } = useAuth();
-    const { selectedCompany } = useCompany();
-    const { toast } = useToast();
-    const queryClient = useQueryClient();
+  const { selectedCompany } = useCompany()
+  const { activeClient } = useAuth()
 
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [form, setForm] = useState<SaleForm>(emptyForm);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [dateRange, setDateRange] = useState(() => presets[0].get());
-    const [activePreset, setActivePreset] = useState("Este mês");
+  // ─── Data state ──────────────────────────────────────────────
+  const [vendas, setVendas] = useState<Venda[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-    // Add client inline
-    const [clientDialogOpen, setClientDialogOpen] = useState(false);
-    const [newClientName, setNewClientName] = useState("");
-    const [newClientPhone, setNewClientPhone] = useState("");
-    const [newClientEmail, setNewClientEmail] = useState("");
-    const [newClientDoc, setNewClientDoc] = useState("");
+  // ─── Filter state ────────────────────────────────────────────
+  const [searchTerm, setSearchTerm] = useState('')
+  const [mesAtual, setMesAtual] = useState(() => format(new Date(), 'yyyy-MM'))
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroForma, setFiltroForma] = useState('')
 
-    const handlePreset = (p: typeof presets[0]) => { setActivePreset(p.label); setDateRange(p.get()); };
-    const handleCalendarSelect = (range: DateRange | undefined) => {
-        if (range?.from) { setActivePreset(""); setDateRange({ from: range.from, to: range.to || range.from }); }
-    };
+  // ─── Modal state ─────────────────────────────────────────────
+  const [modalAberto, setModalAberto] = useState(false)
+  const [modalDetalhes, setModalDetalhes] = useState<Venda | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  const [erroModal, setErroModal] = useState<string | null>(null)
 
-    // Fetch sales from vendas + vendas_itens
-    const { data: sales = [], isLoading, refetch } = useQuery({
-        queryKey: ["vendas", selectedCompany?.id],
-        queryFn: async () => {
-            // Try with join first, fallback to vendas only
-            let rows: any[] | null = null;
-            let joinWorked = false;
+  // ─── Form state ──────────────────────────────────────────────
+  const [formTipo, setFormTipo] = useState<string>('servico')
+  const [formCliente, setFormCliente] = useState('')
+  const [formCpfCnpj, setFormCpfCnpj] = useState('')
+  const [formDataVenda, setFormDataVenda] = useState(() => format(new Date(), 'yyyy-MM-dd'))
+  const [formItens, setFormItens] = useState<NovoItem[]>([{ descricao: '', quantidade: 1, valor_unitario: 0 }])
+  const [formDescontoTipo, setFormDescontoTipo] = useState<'valor' | 'percentual'>('valor')
+  const [formDesconto, setFormDesconto] = useState(0)
+  const [formPagamento, setFormPagamento] = useState<string>('pix')
+  const [formParcelas, setFormParcelas] = useState(2)
+  const [formContaBancaria, setFormContaBancaria] = useState('')
+  const [formCentroCusto, setFormCentroCusto] = useState('')
 
-            const { data: joined, error: joinErr } = await (activeClient as any)
-                .from("vendas")
-                .select("*, vendas_itens(*)")
-                .eq("company_id", selectedCompany?.id)
-                .order("data_venda", { ascending: false });
+  // ─── Computed ────────────────────────────────────────────────
+  const companyId = selectedCompany?.id
 
-            if (!joinErr && joined) {
-                rows = joined;
-                joinWorked = true;
-            } else {
-                // Fallback: fetch vendas without join (vendas_itens may not exist)
-                const { data: plain, error: plainErr } = await (activeClient as any)
-                    .from("vendas")
-                    .select("*")
-                    .eq("company_id", selectedCompany?.id)
-                    .order("data_venda", { ascending: false });
-                if (plainErr) {
-                    console.error("[Vendas] Fetch error:", plainErr);
-                    return [];
-                }
-                rows = plain;
-            }
+  const mesDate = useMemo(() => {
+    const [y, m] = mesAtual.split('-').map(Number)
+    return new Date(y, m - 1, 1)
+  }, [mesAtual])
 
-            if (!rows) return [];
+  const subtotalItens = useMemo(
+    () => formItens.reduce((s, it) => s + it.quantidade * it.valor_unitario, 0),
+    [formItens]
+  )
 
-            return rows.map((r: any) => ({
-                ...r,
-                description: joinWorked
-                    ? (r.vendas_itens || []).map((i: any) => `${i.quantidade}x ${i.descricao}`).join(", ")
-                    : r.cliente_nome || "",
-                amount: Number(r.valor_total || 0),
-                due_date: r.data_venda,
-                client_name: r.cliente_nome || "",
-                payment_method: r.forma_pagamento || "",
-                category_name: "",
-            }));
-        },
-        enabled: !!selectedCompany?.id,
-    });
+  const descontoCalculado = useMemo(
+    () => formDescontoTipo === 'percentual' ? subtotalItens * (formDesconto / 100) : formDesconto,
+    [subtotalItens, formDesconto, formDescontoTipo]
+  )
 
-    // Fetch clients for select
-    const { data: clients = [], refetch: refetchClients } = useQuery({
-        queryKey: ["vendas_clients", selectedCompany?.id],
-        queryFn: async () => {
-            const { data } = await (activeClient as any)
-                .from("clients").select("id, razao_social, nome_fantasia")
-                .eq("company_id", selectedCompany?.id).order("razao_social");
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id,
-    });
+  const totalVenda = useMemo(
+    () => Math.max(0, subtotalItens - descontoCalculado),
+    [subtotalItens, descontoCalculado]
+  )
 
-    // Save new client inline
-    const saveNewClient = async () => {
-        if (!newClientName.trim() || !selectedCompany?.id) return;
-        const { data, error } = await (activeClient as any)
-            .from("clients")
-            .insert({
-                company_id: selectedCompany.id,
-                razao_social: newClientName.trim(),
-                nome_fantasia: newClientName.trim(),
-                telefone: newClientPhone || null,
-                email: newClientEmail || null,
-                cpf_cnpj: newClientDoc || null,
-            })
-            .select("id")
-            .single();
-        if (error) {
-            toast({ title: "Erro ao cadastrar cliente", description: error.message, variant: "destructive" });
-            return;
+  const isAVista = FORMAS_A_VISTA.includes(formPagamento)
+
+  // ─── Filtered data ──────────────────────────────────────────
+  const vendasFiltradas = useMemo(() => {
+    return vendas.filter((v) => {
+      if (searchTerm && !v.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())) return false
+      if (filtroTipo && v.tipo !== filtroTipo) return false
+      if (filtroForma && v.forma_pagamento !== filtroForma) return false
+      return true
+    })
+  }, [vendas, searchTerm, filtroTipo, filtroForma])
+
+  // ─── KPIs ────────────────────────────────────────────────────
+  const kpis = useMemo(() => {
+    const total = vendas.reduce((s, v) => s + (v.valor_total || 0), 0)
+    const count = vendas.length
+    const ticket = count > 0 ? total / count : 0
+    const aVista = vendas
+      .filter((v) => FORMAS_A_VISTA.includes(v.forma_pagamento))
+      .reduce((s, v) => s + (v.valor_total || 0), 0)
+    const aPrazo = vendas
+      .filter((v) => FORMAS_A_PRAZO.includes(v.forma_pagamento))
+      .reduce((s, v) => s + (v.valor_total || 0), 0)
+    return { total, ticket, aVista, aPrazo }
+  }, [vendas])
+
+  // ─── Fetch data ──────────────────────────────────────────────
+  const fetchVendas = useCallback(async () => {
+    if (!companyId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const inicio = format(startOfMonth(mesDate), 'yyyy-MM-dd')
+      const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
+
+      const data = await safeQuery(
+        () =>
+          supabase
+            .from('vendas')
+            .select('*, vendas_itens(*), contas_receber(*)')
+            .eq('company_id', companyId)
+            .gte('data_venda', inicio)
+            .lte('data_venda', fim)
+            .order('data_venda', { ascending: false }),
+        'buscar vendas'
+      )
+      setVendas((data as Venda[]) || [])
+    } catch (e: any) {
+      setError(e.message || 'Erro ao buscar vendas')
+    } finally {
+      setLoading(false)
+    }
+  }, [companyId, mesDate])
+
+  const fetchAuxData = useCallback(async () => {
+    if (!companyId) return
+    const [banks, centros] = await Promise.all([
+      safeQuery(
+        () => supabase.from('bank_accounts').select('id, nome').eq('company_id', companyId),
+        'buscar contas bancarias'
+      ),
+      safeQuery(
+        () => supabase.from('centros_custo').select('id, nome').eq('company_id', companyId),
+        'buscar centros de custo'
+      ),
+    ])
+    setBankAccounts((banks as BankAccount[]) || [])
+    setCentrosCusto((centros as CentroCusto[]) || [])
+  }, [companyId])
+
+  useEffect(() => {
+    fetchVendas()
+  }, [fetchVendas])
+
+  useEffect(() => {
+    fetchAuxData()
+  }, [fetchAuxData])
+
+  // ─── Helpers ─────────────────────────────────────────────────
+  function resetForm() {
+    setFormTipo('servico')
+    setFormCliente('')
+    setFormCpfCnpj('')
+    setFormDataVenda(format(new Date(), 'yyyy-MM-dd'))
+    setFormItens([{ descricao: '', quantidade: 1, valor_unitario: 0 }])
+    setFormDescontoTipo('valor')
+    setFormDesconto(0)
+    setFormPagamento('pix')
+    setFormParcelas(2)
+    setFormContaBancaria('')
+    setFormCentroCusto('')
+    setErroModal(null)
+  }
+
+  function addItem() {
+    setFormItens((prev) => [...prev, { descricao: '', quantidade: 1, valor_unitario: 0 }])
+  }
+
+  function removeItem(idx: number) {
+    setFormItens((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateItem(idx: number, field: keyof NovoItem, value: string | number) {
+    setFormItens((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it))
+    )
+  }
+
+  function getCRStatus(venda: Venda) {
+    const crs = venda.contas_receber || []
+    if (crs.length === 0) return 'avista'
+    const allPago = crs.every((c) => c.status === 'pago')
+    if (allPago) return 'pago'
+    const anyParcial = crs.some((c) => c.status === 'parcial')
+    if (anyParcial) return 'parcial'
+    return 'aberto'
+  }
+
+  function formatDoc(doc: string | null) {
+    if (!doc) return '-'
+    const clean = doc.replace(/\D/g, '')
+    return clean.length <= 11 ? formatCPF(clean) : formatCNPJ(clean)
+  }
+
+  // ─── Save venda ──────────────────────────────────────────────
+  async function salvarVenda() {
+    if (!companyId) return
+    if (!formCliente.trim()) { setErroModal('Informe o nome do cliente.'); return }
+    if (formItens.length === 0 || formItens.some((it) => !it.descricao.trim())) {
+      setErroModal('Preencha a descricao de todos os itens.')
+      return
+    }
+    if (totalVenda <= 0) { setErroModal('Valor total deve ser maior que zero.'); return }
+    if (!formContaBancaria) { setErroModal('Selecione a conta bancaria destino.'); return }
+
+    setSalvando(true)
+    setErroModal(null)
+
+    try {
+      // 1. Insert venda
+      const { data: vendaData, error: vendaErr } = await supabase
+        .from('vendas')
+        .insert({
+          company_id: companyId,
+          cliente_nome: formCliente.trim(),
+          cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+          tipo: formTipo,
+          valor_total: totalVenda,
+          data_venda: formDataVenda,
+          forma_pagamento: formPagamento,
+          status: 'concluida',
+        })
+        .select()
+        .single()
+
+      if (vendaErr) throw vendaErr
+
+      // 2. Insert itens
+      const itensPayload = formItens.map((it) => ({
+        venda_id: vendaData.id,
+        descricao: it.descricao.trim(),
+        quantidade: it.quantidade,
+        valor_unitario: it.valor_unitario,
+        valor_total: it.quantidade * it.valor_unitario,
+      }))
+
+      const { error: itensErr } = await supabase.from('vendas_itens').insert(itensPayload)
+      if (itensErr) throw itensErr
+
+      // 3. Generate CRs
+      const isParcelado = formPagamento === 'parcelado'
+      const numParcelas = isParcelado ? formParcelas : 1
+      const valorParcela = Math.round((totalVenda / numParcelas) * 100) / 100
+
+      const crsPayload = Array.from({ length: numParcelas }, (_, i) => {
+        const vencimento = isParcelado
+          ? format(addMonths(parseISO(formDataVenda), i + 1), 'yyyy-MM-dd')
+          : formDataVenda
+
+        // Adjust last parcela for rounding
+        const valor = i === numParcelas - 1
+          ? totalVenda - valorParcela * (numParcelas - 1)
+          : valorParcela
+
+        return {
+          company_id: companyId,
+          pagador_nome: formCliente.trim(),
+          pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+          valor,
+          valor_pago: 0,
+          data_vencimento: vencimento,
+          status: 'aberto',
+          forma_recebimento: formPagamento,
+          conta_contabil_id: null,
+          centro_custo_id: formCentroCusto || null,
         }
-        toast({ title: "Cliente cadastrado" });
-        await refetchClients();
-        setForm({ ...form, client_id: data.id });
-        setClientDialogOpen(false);
-        setNewClientName(""); setNewClientPhone(""); setNewClientEmail(""); setNewClientDoc("");
-    };
+      })
 
-    // Fetch products from Operacional
-    const { data: products = [] } = useQuery({
-        queryKey: ["vendas_products", selectedCompany?.id],
-        queryFn: async () => {
-            const { data } = await (activeClient as any)
-                .from("products")
-                .select("id, code, description, price, is_active")
-                .eq("company_id", selectedCompany?.id)
-                .eq("is_active", true)
-                .order("description");
-            return data || [];
-        },
-        enabled: !!selectedCompany?.id,
-    });
+      const { data: crsData, error: crsErr } = await supabase
+        .from('contas_receber')
+        .insert(crsPayload)
+        .select()
 
-    // Add product to items list
-    const handleAddProduct = (productId: string) => {
-        const product = products.find((p: any) => p.id === productId);
-        if (!product) return;
-        const existing = form.items.find(i => i.product_id === productId);
-        if (existing) {
-            // Increment quantity if already in list
-            setForm({
-                ...form,
-                items: form.items.map(i =>
-                    i.product_id === productId
-                        ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.unit_price }
-                        : i
-                ),
-            });
-        } else {
-            const price = Number(product.price);
-            setForm({
-                ...form,
-                items: [...form.items, {
-                    product_id: productId,
-                    description: product.description,
-                    quantity: 1,
-                    unit_price: price,
-                    subtotal: price,
-                }],
-            });
-        }
-    };
+      if (crsErr) throw crsErr
 
-    // Update item quantity or price
-    const updateItem = (index: number, field: "quantity" | "unit_price", value: number) => {
-        const items = [...form.items];
-        items[index] = { ...items[index], [field]: value, subtotal: field === "quantity" ? value * items[index].unit_price : items[index].quantity * value };
-        setForm({ ...form, items });
-    };
+      // 4. If a vista, quitar immediately
+      if (isAVista && crsData && crsData.length > 0) {
+        const cr = crsData[0]
+        await quitarCR(cr.id, {
+          valorPago: cr.valor,
+          dataPagamento: formDataVenda,
+          formaRecebimento: formPagamento,
+          contaBancariaId: formContaBancaria,
+        })
+      }
 
-    // Remove item
-    const removeItem = (index: number) => {
-        setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
-    };
+      resetForm()
+      setModalAberto(false)
+      await fetchVendas()
+    } catch (e: any) {
+      console.error('[salvarVenda]', e)
+      setErroModal(e.message || 'Erro ao salvar venda.')
+    } finally {
+      setSalvando(false)
+    }
+  }
 
-    // Total of all items
-    const formTotal = form.items.reduce((s, i) => s + i.subtotal, 0);
+  // ─── Delete venda ────────────────────────────────────────────
+  async function deletarVenda(id: string) {
+    try {
+      await supabase.from('vendas_itens').delete().eq('venda_id', id)
+      const { error } = await supabase.from('vendas').delete().eq('id', id)
+      if (error) throw error
+      setConfirmDelete(null)
+      await fetchVendas()
+    } catch (e: any) {
+      console.error('[deletarVenda]', e)
+    }
+  }
 
-    // Save mutation — vendas + vendas_itens + contas_receber
-    const saveMutation = useMutation({
-        mutationFn: async () => {
-            const clientObj = clients.find((c: any) => c.id === form.client_id);
-            const clientName = clientObj?.nome_fantasia || clientObj?.razao_social || "Cliente avulso";
-
-            const vendaPayload = {
-                company_id: selectedCompany?.id,
-                cliente_nome: clientName,
-                cliente_cpf_cnpj: null,
-                valor_total: formTotal,
-                desconto: 0,
-                data_venda: form.due_date,
-                forma_pagamento: form.payment_method,
-                parcelas: 1,
-                status: "confirmado",
-                observacoes: form.observations || null,
-            };
-
-            if (editingId) {
-                // Update venda
-                const { error } = await (activeClient as any)
-                    .from("vendas").update(vendaPayload).eq("id", editingId);
-                if (error) throw error;
-                // Delete old itens and re-insert (vendas_itens may not exist)
-                await (activeClient as any).from("vendas_itens").delete().eq("venda_id", editingId);
-                if (form.items.length > 0) {
-                    const itensPayload = form.items.map(i => ({
-                        venda_id: editingId,
-                        descricao: i.description,
-                        quantidade: i.quantity,
-                        valor_unitario: i.unit_price,
-                    }));
-                    await (activeClient as any)
-                        .from("vendas_itens").insert(itensPayload);
-                }
-                // Atualizar contas_receber vinculada à venda
-                await (activeClient as any)
-                    .from("contas_receber")
-                    .update({
-                        pagador_nome: clientName,
-                        valor: formTotal,
-                        data_vencimento: form.due_date,
-                        forma_recebimento: form.payment_method,
-                        observacoes: form.observations || null,
-                    })
-                    .eq("venda_id", editingId);
-            } else {
-                // Insert venda
-                const { data: venda, error } = await (activeClient as any)
-                    .from("vendas").insert(vendaPayload).select("id").single();
-                if (error) throw error;
-                // Insert itens (vendas_itens may not exist if migration not applied)
-                if (form.items.length > 0) {
-                    const itensPayload = form.items.map(i => ({
-                        venda_id: venda.id,
-                        descricao: i.description,
-                        quantidade: i.quantity,
-                        valor_unitario: i.unit_price,
-                    }));
-                    const { error: itensError } = await (activeClient as any)
-                        .from("vendas_itens").insert(itensPayload);
-                    if (itensError) console.warn("[Vendas] vendas_itens insert error (table may not exist):", itensError);
-                }
-                // Auto-generate contas_receber
-                const { error: crError } = await (activeClient as any)
-                    .from("contas_receber").insert({
-                        company_id: selectedCompany?.id,
-                        venda_id: venda.id,
-                        pagador_nome: clientName,
-                        valor: formTotal,
-                        data_vencimento: form.due_date,
-                        forma_recebimento: form.payment_method,
-                        status: "aberto",
-                        observacoes: form.observations || null,
-                    });
-                if (crError) console.warn("[Vendas] contas_receber insert error:", crError);
-            }
-        },
-        onSuccess: () => {
-            toast({ title: editingId ? "Venda atualizada" : "Venda registrada" });
-            setDialogOpen(false);
-            setEditingId(null);
-            setForm(emptyForm);
-            refetch();
-            queryClient.invalidateQueries({ queryKey: ["contas_receber"] });
-        },
-        onError: (err: any) => {
-            toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
-        },
-    });
-
-    // Delete
-    const handleDelete = async (id: string, desc: string) => {
-        if (!window.confirm(`Excluir venda "${desc}"?`)) return;
-        // Delete contas_receber linked, then vendas_itens cascade, then venda
-        await (activeClient as any).from("contas_receber").delete().eq("venda_id", id);
-        const { error } = await (activeClient as any).from("vendas").delete().eq("id", id);
-        if (!error) refetch();
-    };
-
-    // Edit
-    const handleEdit = (sale: any) => {
-        setEditingId(sale.id);
-        const itens = sale.vendas_itens || [];
-        const items: SaleItem[] = itens.length > 0
-            ? itens.map((i: any) => ({
-                product_id: "",
-                description: i.descricao || "",
-                quantity: Number(i.quantidade || 1),
-                unit_price: Number(i.valor_unitario || 0),
-                subtotal: Number(i.quantidade || 1) * Number(i.valor_unitario || 0),
-            }))
-            : [{
-                product_id: "",
-                description: sale.description || "",
-                quantity: 1,
-                unit_price: Number(sale.amount || 0),
-                subtotal: Number(sale.amount || 0),
-            }];
-        // Match client by name to recover the client_id for the select
-        const matchedClient = clients.find((c: any) =>
-            (c.nome_fantasia && c.nome_fantasia === sale.cliente_nome) ||
-            (c.razao_social && c.razao_social === sale.cliente_nome)
-        );
-        setForm({
-            items,
-            client_id: matchedClient?.id || "",
-            payment_method: sale.forma_pagamento || "pix",
-            due_date: sale.data_venda || format(new Date(), "yyyy-MM-dd"),
-            observations: sale.observacoes || "",
-        });
-        setDialogOpen(true);
-    };
-
-    // Filter
-    const normalizeSearch = (v: unknown) =>
-        String(v ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-    const filtered = useMemo(() => {
-        const rangeStart = startOfDay(dateRange.from);
-        const rangeEnd = endOfDay(dateRange.to);
-
-        return sales.filter((s: any) => {
-            if (s.due_date) {
-                const d = parseISO(s.due_date);
-                if (isBefore(d, rangeStart) || isAfter(d, rangeEnd)) return false;
-            }
-            if (statusFilter !== "all" && s.status !== statusFilter) return false;
-            if (searchTerm.trim()) {
-                const needle = normalizeSearch(searchTerm);
-                const haystack = normalizeSearch([s.description, s.client_name, s.category_name, fmt(Number(s.amount))].join(" "));
-                if (!haystack.includes(needle)) return false;
-            }
-            return true;
-        });
-    }, [sales, dateRange, statusFilter, searchTerm]);
-
-    // KPIs
-    const stats = useMemo(() => {
-        const total = filtered.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-        const paid = filtered.filter((r: any) => r.status === "confirmado" || r.status === "paid");
-        const paidTotal = paid.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-        const pending = filtered.filter((r: any) => r.status === "orcamento" || r.status === "pending");
-        const pendingTotal = pending.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-        const avgTicket = filtered.length > 0 ? total / filtered.length : 0;
-        return { total, paidTotal, paidCount: paid.length, pendingTotal, pendingCount: pending.length, count: filtered.length, avgTicket };
-    }, [filtered]);
-
-    // Chart: monthly bar
-    const chartData = useMemo(() => {
-        const map = new Map<string, { label: string; recebido: number; pendente: number }>();
-        filtered.forEach((s: any) => {
-            if (!s.due_date) return;
-            const key = s.due_date.substring(0, 7);
-            const label = format(parseISO(s.due_date), "MMM/yy", { locale: ptBR });
-            if (!map.has(key)) map.set(key, { label, recebido: 0, pendente: 0 });
-            const entry = map.get(key)!;
-            if (s.status === "confirmado" || s.status === "paid") entry.recebido += Number(s.amount);
-            else entry.pendente += Number(s.amount);
-        });
-        return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
-    }, [filtered]);
-
-    // Pie: by category
-    const pieData = useMemo(() => {
-        const map = new Map<string, number>();
-        filtered.forEach((s: any) => {
-            const cat = s.category_name || "Sem categoria";
-            map.set(cat, (map.get(cat) || 0) + Number(s.amount));
-        });
-        return Array.from(map.entries())
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 8);
-    }, [filtered]);
-
-    // Export PDF
-    const exportPDF = () => {
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text("Relatório de Vendas", 14, 20);
-        doc.setFontSize(10);
-        doc.text(`Período: ${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`, 14, 28);
-        doc.text(`Total: ${fmt(stats.total)} | ${stats.count} vendas`, 14, 34);
-
-        let y = 44;
-        doc.setFontSize(8);
-        doc.text("Data", 14, y); doc.text("Descrição", 40, y); doc.text("Cliente", 100, y); doc.text("Valor", 160, y); doc.text("Status", 185, y);
-        y += 6;
-
-        filtered.forEach((s: any) => {
-            if (y > 280) { doc.addPage(); y = 20; }
-            doc.text(s.due_date ? format(parseISO(s.due_date), "dd/MM/yyyy") : "—", 14, y);
-            doc.text((s.description || "—").substring(0, 30), 40, y);
-            doc.text((s.client_name || "—").substring(0, 30), 100, y);
-            doc.text(fmt(Number(s.amount)), 160, y);
-            doc.text(s.status === "paid" ? "Recebido" : "Pendente", 185, y);
-            y += 5;
-        });
-        doc.save("vendas.pdf");
-    };
-
-    // Export Excel
-    const exportExcel = () => {
-        const wsData = filtered.map((s: any) => ({
-            Data: s.due_date ? format(parseISO(s.due_date), "dd/MM/yyyy") : "",
-            Descrição: s.description || "",
-            Cliente: s.client_name || "",
-            Categoria: s.category_name || "",
-            Valor: Number(s.amount),
-            "Forma Pgto": PM_LABELS[s.payment_method] || s.payment_method || "",
-            Status: s.status === "paid" ? "Recebido" : s.status === "pending" ? "Pendente" : s.status,
-        }));
-        const ws = XLSX.utils.json_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Vendas");
-        XLSX.writeFile(wb, "vendas.xlsx");
-    };
-
-    const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
-
-    const statusBadge = (status: string) => {
-        if (status === "paid") return <Badge className="bg-green-100 text-green-700">Recebido</Badge>;
-        if (status === "cancelled") return <Badge className="bg-gray-100 text-gray-500">Cancelado</Badge>;
-        return <Badge className="bg-amber-100 text-amber-700">Pendente</Badge>;
-    };
-
+  // ─── Render helpers ──────────────────────────────────────────
+  function CRBadge({ venda }: { venda: Venda }) {
+    const st = getCRStatus(venda)
+    const styles: Record<string, string> = {
+      pago: 'text-[#0a5c2e] bg-[#e6f4ec] border border-[#0a5c2e]',
+      aberto: 'text-[#1a2e4a] bg-[#f0f4f8] border border-[#1a2e4a]',
+      parcial: 'text-[#5c3a00] bg-[#fffbe6] border border-[#b8960a]',
+      avista: 'text-[#555] bg-[#f5f5f5] border border-[#ccc]',
+    }
+    const labels: Record<string, string> = {
+      pago: 'Pago',
+      aberto: 'CR \u2014 aberto',
+      parcial: 'CR \u2014 parcial',
+      avista: 'A vista',
+    }
     return (
-        <AppLayout title="Vendas">
-            <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
-                {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
-                            <ShoppingCart size={22} color={T.primary} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 20, fontWeight: 700, color: T.text1 }}>Vendas</h2>
-                            <p style={{ fontSize: 12, color: T.text3 }}>{stats.count} vendas no período</p>
-                        </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        {presets.map(p => (
-                            <Button key={p.label} variant={activePreset === p.label ? "default" : "outline"} size="sm"
-                                onClick={() => handlePreset(p)} style={{ fontSize: 12 }}>{p.label}</Button>
-                        ))}
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" style={{ fontSize: 12, gap: 4 }}>
-                                    <CalendarDays size={14} /> {dateLabel}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to }}
-                                    onSelect={handleCalendarSelect} locale={ptBR} numberOfMonths={2} />
-                            </PopoverContent>
-                        </Popover>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm"><Download size={14} /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem onClick={exportPDF}><FileText className="mr-2 h-4 w-4" /> PDF</DropdownMenuItem>
-                                <DropdownMenuItem onClick={exportExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Excel</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button size="sm" onClick={() => { setEditingId(null); setForm(emptyForm); setDialogOpen(true); }}
-                            style={{ gap: 6 }}><Plus size={16} /> Nova Venda</Button>
-                    </div>
-                </div>
+      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${styles[st]}`}>
+        {labels[st]}
+      </span>
+    )
+  }
 
-                {/* KPIs */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-                    {[
-                        { label: "TOTAL VENDAS", value: fmt(stats.total), sub: `${stats.count} vendas`, icon: ShoppingCart, color: T.primary, bg: T.primaryLt },
-                        { label: "RECEBIDO", value: fmt(stats.paidTotal), sub: `${stats.paidCount} recebidos`, icon: DollarSign, color: T.green, bg: T.greenLt },
-                        { label: "PENDENTE", value: fmt(stats.pendingTotal), sub: `${stats.pendingCount} pendentes`, icon: TrendingUp, color: T.amber, bg: T.amberLt },
-                        { label: "TICKET MÉDIO", value: fmt(stats.avgTicket), sub: "por venda", icon: Package, color: T.primary, bg: T.primaryLt },
-                    ].map((kpi, i) => (
-                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: `1px solid ${T.border}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ background: kpi.bg, borderRadius: 10, padding: 10 }}>
-                                    <kpi.icon size={20} color={kpi.color} />
-                                </div>
-                                <div>
-                                    <p style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 20, fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
-                                    <p style={{ fontSize: 11, color: T.text3 }}>{kpi.sub}</p>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
+  function TipoBadge({ tipo }: { tipo: string }) {
+    return (
+      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold text-[#555] bg-[#f5f5f5] border border-[#ccc]">
+        {LABEL_TIPO[tipo] || tipo}
+      </span>
+    )
+  }
 
-                {/* Charts */}
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-                    <Card style={{ padding: 20, borderRadius: 14, border: `1px solid ${T.border}` }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Vendas por Mês</p>
-                        <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                                <Tooltip formatter={(v: number) => fmt(v)} />
-                                <Legend />
-                                <Bar dataKey="recebido" fill={T.green} name="Recebido" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="pendente" fill={T.amber} name="Pendente" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </Card>
-                    <Card style={{ padding: 20, borderRadius: 14, border: `1px solid ${T.border}` }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Por Categoria</p>
-                        {pieData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={260}>
-                                <PieChart>
-                                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={90}
-                                        paddingAngle={2} dataKey="value" nameKey="name">
-                                        {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                                    </Pie>
-                                    <Tooltip formatter={(v: number) => fmt(v)} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: T.text3, fontSize: 13 }}>
-                                Sem dados para exibir
-                            </div>
-                        )}
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                            {pieData.map((d, i) => (
-                                <span key={i} style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}>
-                                    <span style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                                    {d.name}
-                                </span>
-                            ))}
-                        </div>
-                    </Card>
-                </div>
+  /* ================================================================
+     RENDER
+     ================================================================ */
+  return (
+    <AppLayout title="Vendas">
+      <div className="max-w-[1400px] mx-auto space-y-5">
 
-                {/* Filters + Table */}
-                <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
-                    <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-                            <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
-                            <Input placeholder="Buscar vendas..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                                className="h-9 pl-8 text-sm" />
-                        </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[140px] h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                <SelectItem value="pending">Pendente</SelectItem>
-                                <SelectItem value="paid">Recebido</SelectItem>
-                                <SelectItem value="cancelled">Cancelado</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Produto/Serviço</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Forma Pgto</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="w-[50px]" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
-                            ) : filtered.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma venda encontrada.</TableCell></TableRow>
-                            ) : filtered.map((s: any) => (
-                                <TableRow key={s.id} className="hover:bg-slate-50/50">
-                                    <TableCell className="text-sm">{s.due_date ? format(parseISO(s.due_date), "dd/MM/yyyy") : "—"}</TableCell>
-                                    <TableCell className="font-medium text-sm">{s.description || "—"}</TableCell>
-                                    <TableCell className="text-sm">{s.client_name || "—"}</TableCell>
-                                    <TableCell className="text-sm">{PM_LABELS[s.payment_method] || s.payment_method || "—"}</TableCell>
-                                    <TableCell className="text-right font-semibold" style={{ color: T.green }}>{fmt(Number(s.amount))}</TableCell>
-                                    <TableCell>{statusBadge(s.status)}</TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleEdit(s)}><Pencil className="mr-2 h-3.5 w-3.5" /> Editar</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(s.id, s.description)}>
-                                                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </Card>
-
-                {/* Dialog - Nova/Editar Venda */}
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>{editingId ? "Editar Venda" : "Nova Venda"}</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            {/* Product selector */}
-                            <div className="space-y-2">
-                                <Label>Adicionar Produto / Serviço</Label>
-                                <Select value="" onValueChange={handleAddProduct}>
-                                    <SelectTrigger className="text-sm">
-                                        <SelectValue placeholder="Selecione um produto para adicionar..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {products.map((p: any) => (
-                                            <SelectItem key={p.id} value={p.id}>
-                                                {p.code ? `${p.code} - ` : ""}{p.description} — {fmt(Number(p.price))}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {products.length === 0 && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Nenhum produto cadastrado. Cadastre em Operacional &gt; Produtos.
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Items list */}
-                            {form.items.length > 0 && (
-                                <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
-                                    <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
-                                        <thead>
-                                            <tr style={{ background: "#f8fafc", borderBottom: `1px solid ${T.border}` }}>
-                                                <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, fontSize: 11, color: T.text3 }}>PRODUTO</th>
-                                                <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 600, fontSize: 11, color: T.text3, width: 80 }}>QTD</th>
-                                                <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, fontSize: 11, color: T.text3, width: 120 }}>UNIT.</th>
-                                                <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, fontSize: 11, color: T.text3, width: 120 }}>SUBTOTAL</th>
-                                                <th style={{ width: 40 }} />
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {form.items.map((item, i) => (
-                                                <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
-                                                    <td style={{ padding: "8px 12px", fontWeight: 500 }}>{item.description}</td>
-                                                    <td style={{ padding: "4px 8px", textAlign: "center" }}>
-                                                        <Input type="number" min={1} value={item.quantity}
-                                                            onChange={e => updateItem(i, "quantity", Number(e.target.value) || 1)}
-                                                            className="h-7 w-16 text-center text-sm mx-auto" />
-                                                    </td>
-                                                    <td style={{ padding: "4px 8px", textAlign: "right" }}>
-                                                        <Input type="number" value={item.unit_price} step="0.01"
-                                                            onChange={e => updateItem(i, "unit_price", Number(e.target.value) || 0)}
-                                                            className="h-7 w-24 text-right text-sm ml-auto" />
-                                                    </td>
-                                                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: T.green }}>
-                                                        {fmt(item.subtotal)}
-                                                    </td>
-                                                    <td style={{ padding: "4px 8px" }}>
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700"
-                                                            onClick={() => removeItem(i)}>
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {/* Total bar */}
-                                    <div style={{
-                                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                                        padding: "12px 16px", background: T.greenLt, borderTop: `1px solid ${T.border}`,
-                                    }}>
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: T.text1 }}>
-                                            TOTAL ({form.items.length} {form.items.length === 1 ? "item" : "itens"})
-                                        </span>
-                                        <span style={{ fontSize: 20, fontWeight: 800, color: T.green }}>
-                                            {fmt(formTotal)}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {form.items.length === 0 && (
-                                <div style={{
-                                    padding: "24px 16px", textAlign: "center", border: `2px dashed ${T.border}`,
-                                    borderRadius: 10, color: T.text3, fontSize: 13,
-                                }}>
-                                    Selecione produtos acima para adicionar à venda
-                                </div>
-                            )}
-
-                            {/* Client, payment, date */}
-                            <div className="space-y-2">
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <Label>Cliente</Label>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 text-primary"
-                                        onClick={() => setClientDialogOpen(true)}>
-                                        <Plus size={12} /> Novo Cliente
-                                    </Button>
-                                </div>
-                                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
-                                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {clients.map((c: any) => (
-                                            <SelectItem key={c.id} value={c.id}>{c.nome_fantasia || c.razao_social}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Forma de Pagamento</Label>
-                                    <Select value={form.payment_method} onValueChange={v => setForm({ ...form, payment_method: v })}>
-                                        <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {Object.entries(PM_LABELS).map(([k, v]) => (
-                                                <SelectItem key={k} value={k}>{v}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Data</Label>
-                                    <Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Observações</Label>
-                                <Input value={form.observations} onChange={e => setForm({ ...form, observations: e.target.value })}
-                                    placeholder="Opcional" />
-                            </div>
-                            <Button className="w-full" onClick={() => saveMutation.mutate()}
-                                disabled={form.items.length === 0 || saveMutation.isPending}>
-                                {saveMutation.isPending ? "Salvando..." : editingId ? "Atualizar Venda" : `Registrar Venda — ${fmt(formTotal)}`}
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Dialog - Novo Cliente */}
-                <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
-                    <DialogContent className="max-w-sm">
-                        <DialogHeader>
-                            <DialogTitle>Novo Cliente</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <div className="space-y-2">
-                                <Label>Nome *</Label>
-                                <Input value={newClientName} onChange={e => setNewClientName(e.target.value)}
-                                    placeholder="Nome do cliente" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>CPF / CNPJ</Label>
-                                <Input value={newClientDoc} onChange={e => setNewClientDoc(e.target.value)}
-                                    placeholder="Opcional" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Telefone</Label>
-                                <Input value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)}
-                                    placeholder="Opcional" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>E-mail</Label>
-                                <Input value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)}
-                                    placeholder="Opcional" />
-                            </div>
-                            <Button className="w-full" onClick={saveNewClient} disabled={!newClientName.trim()}>
-                                Cadastrar Cliente
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+        {/* ─── KPIs ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Vendas do mes', value: formatBRL(kpis.total), color: '#1a2e4a' },
+            { label: 'Ticket medio', value: formatBRL(kpis.ticket), color: '#1a2e4a' },
+            { label: 'A vista', value: formatBRL(kpis.aVista), color: '#0a5c2e' },
+            { label: 'A prazo', value: formatBRL(kpis.aPrazo), color: '#5c3a00' },
+          ].map((kpi) => (
+            <div key={kpi.label} className="border border-[#ccc] rounded-lg overflow-hidden">
+              <div className="bg-[#1a2e4a] px-4 py-2">
+                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">{kpi.label}</h3>
+              </div>
+              <div className="p-4 bg-white">
+                <p className="text-xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+              </div>
             </div>
-        </AppLayout>
-    );
+          ))}
+        </div>
+
+        {/* ─── Filtros ──────────────────────────────────────── */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
+            <button
+              onClick={() => { setSearchTerm(''); setFiltroTipo(''); setFiltroForma('') }}
+              className="text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
+            >
+              Limpar
+            </button>
+          </div>
+          <div className="p-4 bg-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
+              <input
+                type="text"
+                placeholder="Buscar cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              />
+            </div>
+
+            {/* Month */}
+            <input
+              type="month"
+              value={mesAtual}
+              onChange={(e) => setMesAtual(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+            />
+
+            {/* Tipo */}
+            <select
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+            >
+              <option value="">Todos os tipos</option>
+              {TIPOS_VENDA.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+
+            {/* Forma pagamento */}
+            <select
+              value={filtroForma}
+              onChange={(e) => setFiltroForma(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+            >
+              <option value="">Todas as formas</option>
+              {FORMAS_PAGAMENTO.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* ─── Tabela de Vendas ─────────────────────────────── */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+              Vendas ({vendasFiltradas.length})
+            </h3>
+            <button
+              onClick={() => { resetForm(); setModalAberto(true) }}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
+            >
+              <Plus size={13} /> Nova venda
+            </button>
+          </div>
+          <div className="bg-white overflow-x-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-16 text-[#555]">
+                <Loader2 size={20} className="animate-spin mr-2" /> Carregando...
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center py-16 text-[#8b0000]">
+                <AlertCircle size={16} className="mr-2" /> {error}
+              </div>
+            ) : vendasFiltradas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-[#555]">
+                <ShoppingCart size={32} className="mb-2 text-[#ccc]" />
+                <p className="text-sm">Nenhuma venda encontrada</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#ccc] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                    <th className="text-left px-4 py-3">Cliente</th>
+                    <th className="text-left px-4 py-3">Itens</th>
+                    <th className="text-left px-4 py-3">Tipo</th>
+                    <th className="text-left px-4 py-3">Data</th>
+                    <th className="text-left px-4 py-3">Forma pgto</th>
+                    <th className="text-right px-4 py-3">Valor total</th>
+                    <th className="text-center px-4 py-3">CR gerado</th>
+                    <th className="text-center px-4 py-3">Acoes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendasFiltradas.map((v) => (
+                    <tr key={v.id} className="border-b border-[#eee] hover:bg-[#fafafa] transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-[#0a0a0a]">{v.cliente_nome}</div>
+                        {v.cliente_cpf_cnpj && (
+                          <div className="text-[11px] text-[#555]">{formatDoc(v.cliente_cpf_cnpj)}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[#555]">
+                        {v.vendas_itens?.length || 0} item(ns)
+                      </td>
+                      <td className="px-4 py-3"><TipoBadge tipo={v.tipo} /></td>
+                      <td className="px-4 py-3 text-[#555]">{formatData(v.data_venda)}</td>
+                      <td className="px-4 py-3 text-[#555]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-[#0a0a0a]">{formatBRL(v.valor_total)}</td>
+                      <td className="px-4 py-3 text-center"><CRBadge venda={v} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => setModalDetalhes(v)}
+                            className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors"
+                            title="Ver detalhes"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(v.id)}
+                            className="p-1.5 rounded hover:bg-[#fdecea] text-[#8b0000] transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ================================================================
+         MODAL NOVA VENDA
+         ================================================================ */}
+      {modalAberto && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto">
+            {/* Header */}
+            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Nova Venda</h2>
+              <button onClick={() => setModalAberto(false)} className="text-[#a8bfd4] hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
+              {/* Tipo */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Tipo</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {TIPOS_VENDA.map((t) => {
+                    const Icon = t.icon
+                    const sel = formTipo === t.value
+                    return (
+                      <button
+                        key={t.value}
+                        onClick={() => setFormTipo(t.value)}
+                        className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-md border text-xs font-semibold transition-all ${
+                          sel
+                            ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
+                            : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
+                        }`}
+                      >
+                        <Icon size={16} />
+                        {t.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Cliente */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Cliente</label>
+                  <input
+                    type="text"
+                    value={formCliente}
+                    onChange={(e) => setFormCliente(e.target.value)}
+                    placeholder="Nome do cliente"
+                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">CPF/CNPJ</label>
+                  <input
+                    type="text"
+                    value={formCpfCnpj}
+                    onChange={(e) => setFormCpfCnpj(e.target.value)}
+                    placeholder="Opcional"
+                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  />
+                </div>
+              </div>
+
+              {/* Data */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Data da venda</label>
+                <input
+                  type="date"
+                  value={formDataVenda}
+                  onChange={(e) => setFormDataVenda(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                />
+              </div>
+
+              {/* Itens */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Itens</label>
+                <div className="border border-[#ccc] rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                        <th className="text-left px-3 py-2">Descricao</th>
+                        <th className="text-center px-3 py-2 w-20">Qtd</th>
+                        <th className="text-center px-3 py-2 w-28">Valor unit.</th>
+                        <th className="text-right px-3 py-2 w-28">Subtotal</th>
+                        <th className="w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formItens.map((it, idx) => (
+                        <tr key={idx} className="border-t border-[#eee]">
+                          <td className="px-2 py-1.5">
+                            <input
+                              type="text"
+                              value={it.descricao}
+                              onChange={(e) => updateItem(idx, 'descricao', e.target.value)}
+                              placeholder="Descricao do item"
+                              className="w-full px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              type="number"
+                              min={1}
+                              value={it.quantidade}
+                              onChange={(e) => updateItem(idx, 'quantidade', parseInt(e.target.value) || 1)}
+                              className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={it.valor_unitario}
+                              onChange={(e) => updateItem(idx, 'valor_unitario', parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                            />
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-sm font-medium text-[#0a0a0a]">
+                            {formatBRL(it.quantidade * it.valor_unitario)}
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            {formItens.length > 1 && (
+                              <button
+                                onClick={() => removeItem(idx)}
+                                className="text-[#8b0000] hover:text-red-700 transition-colors"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  onClick={addItem}
+                  className="mt-2 text-[11px] font-semibold text-[#1a2e4a] hover:underline flex items-center gap-1"
+                >
+                  <Plus size={12} /> Item
+                </button>
+              </div>
+
+              {/* Desconto */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Desconto</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={formDescontoTipo}
+                    onChange={(e) => setFormDescontoTipo(e.target.value as 'valor' | 'percentual')}
+                    className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                  >
+                    <option value="valor">R$</option>
+                    <option value="percentual">%</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formDesconto}
+                    onChange={(e) => setFormDesconto(parseFloat(e.target.value) || 0)}
+                    className="flex-1 px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  />
+                </div>
+                {descontoCalculado > 0 && (
+                  <p className="mt-1 text-[11px] text-[#555]">Desconto aplicado: {formatBRL(descontoCalculado)}</p>
+                )}
+              </div>
+
+              {/* Forma de pagamento */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Forma de pagamento</label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {FORMAS_PAGAMENTO.map((f) => {
+                    const Icon = f.icon
+                    const sel = formPagamento === f.value
+                    return (
+                      <button
+                        key={f.value}
+                        onClick={() => setFormPagamento(f.value)}
+                        className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md border text-[10px] font-semibold transition-all ${
+                          sel
+                            ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
+                            : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
+                        }`}
+                      >
+                        <Icon size={14} />
+                        {f.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Parcelas */}
+              {formPagamento === 'parcelado' && (
+                <div>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Numero de parcelas</label>
+                  <select
+                    value={formParcelas}
+                    onChange={(e) => setFormParcelas(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  >
+                    {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
+                      <option key={n} value={n}>{n}x de {formatBRL(totalVenda / n)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Conta bancaria */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta bancaria destino</label>
+                <select
+                  value={formContaBancaria}
+                  onChange={(e) => setFormContaBancaria(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                >
+                  <option value="">Selecione...</option>
+                  {bankAccounts.map((ba) => (
+                    <option key={ba.id} value={ba.id}>{ba.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Centro de custo */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Centro de custo</label>
+                <select
+                  value={formCentroCusto}
+                  onChange={(e) => setFormCentroCusto(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                >
+                  <option value="">Nenhum</option>
+                  {centrosCusto.map((cc) => (
+                    <option key={cc.id} value={cc.id}>{cc.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Preview */}
+              {totalVenda > 0 && (
+                <div className="rounded-md border border-[#0a5c2e] bg-[#e6f4ec] p-3">
+                  <div className="flex items-start gap-2">
+                    <Check size={16} className="text-[#0a5c2e] mt-0.5 flex-shrink-0" />
+                    <div className="text-[12px] text-[#0a5c2e]">
+                      {formPagamento === 'parcelado' ? (
+                        <>
+                          <p className="font-semibold mb-1">CR gerado automaticamente &mdash; {formParcelas}x parcelas:</p>
+                          <ul className="space-y-0.5">
+                            {Array.from({ length: formParcelas }, (_, i) => {
+                              const valorParcela = Math.round((totalVenda / formParcelas) * 100) / 100
+                              const valor = i === formParcelas - 1
+                                ? totalVenda - valorParcela * (formParcelas - 1)
+                                : valorParcela
+                              const venc = format(addMonths(parseISO(formDataVenda), i + 1), 'dd/MM/yyyy')
+                              return (
+                                <li key={i}>Parcela {i + 1}: {formatBRL(valor)} &middot; vencimento {venc}</li>
+                              )
+                            })}
+                          </ul>
+                        </>
+                      ) : (
+                        <p className="font-semibold">
+                          CR gerado automaticamente &mdash; {formatBRL(totalVenda)} &middot; vencimento {format(parseISO(formDataVenda), 'dd/MM/yyyy')}
+                          {isAVista && ' (quitado automaticamente)'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error */}
+              {erroModal && (
+                <div className="rounded-md border border-[#8b0000] bg-[#fdecea] p-3 flex items-center gap-2 text-[12px] text-[#8b0000]">
+                  <AlertCircle size={14} className="flex-shrink-0" />
+                  {erroModal}
+                </div>
+              )}
+
+              {/* Total + actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-[#ccc]">
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Total: </span>
+                  <span className="text-lg font-bold text-[#0a0a0a]">{formatBRL(totalVenda)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setModalAberto(false)}
+                    className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={salvarVenda}
+                    disabled={salvando}
+                    className="px-5 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {salvando && <Loader2 size={14} className="animate-spin" />}
+                    Confirmar venda
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================
+         MODAL DETALHES
+         ================================================================ */}
+      {modalDetalhes && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 my-auto">
+            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Detalhes da Venda</h2>
+              <button onClick={() => setModalDetalhes(null)} className="text-[#a8bfd4] hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Info */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Cliente</span>
+                  <span className="text-[#0a0a0a] font-medium">{modalDetalhes.cliente_nome}</span>
+                  {modalDetalhes.cliente_cpf_cnpj && (
+                    <span className="block text-[11px] text-[#555]">{formatDoc(modalDetalhes.cliente_cpf_cnpj)}</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Data</span>
+                  <span className="text-[#0a0a0a]">{formatData(modalDetalhes.data_venda)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Tipo</span>
+                  <TipoBadge tipo={modalDetalhes.tipo} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Forma pgto</span>
+                  <span className="text-[#0a0a0a]">{LABEL_FORMA[modalDetalhes.forma_pagamento] || modalDetalhes.forma_pagamento}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Valor total</span>
+                  <span className="text-[#0a0a0a] font-bold">{formatBRL(modalDetalhes.valor_total)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">CR</span>
+                  <CRBadge venda={modalDetalhes} />
+                </div>
+              </div>
+
+              {/* Itens */}
+              {modalDetalhes.vendas_itens && modalDetalhes.vendas_itens.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Itens</span>
+                  <div className="border border-[#ccc] rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                          <th className="text-left px-3 py-2">Descricao</th>
+                          <th className="text-center px-3 py-2 w-16">Qtd</th>
+                          <th className="text-right px-3 py-2 w-24">Unit.</th>
+                          <th className="text-right px-3 py-2 w-24">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {modalDetalhes.vendas_itens.map((it) => (
+                          <tr key={it.id} className="border-t border-[#eee]">
+                            <td className="px-3 py-2 text-[#0a0a0a]">{it.descricao}</td>
+                            <td className="px-3 py-2 text-center text-[#555]">{it.quantidade}</td>
+                            <td className="px-3 py-2 text-right text-[#555]">{formatBRL(it.valor_unitario)}</td>
+                            <td className="px-3 py-2 text-right font-medium text-[#0a0a0a]">{formatBRL(it.valor_total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* CRs */}
+              {modalDetalhes.contas_receber && modalDetalhes.contas_receber.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Contas a Receber</span>
+                  <div className="space-y-1.5">
+                    {modalDetalhes.contas_receber.map((cr, idx) => (
+                      <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-[#fafafa]">
+                        <span className="text-[#555]">
+                          {modalDetalhes.contas_receber!.length > 1 ? `Parcela ${idx + 1}` : 'CR'} &mdash; venc. {formatData(cr.data_vencimento)}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium text-[#0a0a0a]">{formatBRL(cr.valor)}</span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                            cr.status === 'pago'
+                              ? 'text-[#0a5c2e] bg-[#e6f4ec]'
+                              : cr.status === 'parcial'
+                              ? 'text-[#5c3a00] bg-[#fffbe6]'
+                              : 'text-[#1a2e4a] bg-[#f0f4f8]'
+                          }`}>
+                            {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-[#ccc] flex justify-end">
+                <button
+                  onClick={() => setModalDetalhes(null)}
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================
+         MODAL CONFIRMAR EXCLUSAO
+         ================================================================ */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#fdecea] flex items-center justify-center">
+                  <Trash2 size={18} className="text-[#8b0000]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#0a0a0a]">Excluir venda</h3>
+                  <p className="text-sm text-[#555]">Esta acao nao pode ser desfeita.</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => deletarVenda(confirmDelete)}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#8b0000] rounded-md hover:bg-[#6d0000] transition-colors"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  )
 }

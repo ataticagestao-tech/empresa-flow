@@ -56,6 +56,22 @@ export default function CompanyDashboard() {
     const today = useMemo(() => new Date(), []);
     const todayStr = format(today, "yyyy-MM-dd");
 
+    // ─── Transfer account IDs (excluir de todos os cálculos) ─
+    const { data: transferAccountIds = [] } = useQuery({
+        queryKey: ["dash_transfer_ids", cId],
+        queryFn: async () => {
+            const { data } = await db.from("chart_of_accounts")
+                .select("id, name")
+                .eq("company_id", cId)
+                .ilike("name", "%transfer%");
+            return (data || []).map((a: any) => a.id);
+        },
+        enabled: !!cId,
+    });
+
+    const isTransfer = (r: any) =>
+        r.conta_contabil_id && transferAccountIds.includes(r.conta_contabil_id);
+
     // ─── Bank Accounts ─────────────────────────────────────
     const { data: bankAccounts } = useQuery({
         queryKey: ["dash_banks", cId],
@@ -67,54 +83,72 @@ export default function CompanyDashboard() {
     });
     const saldoCaixa = useMemo(() => (bankAccounts || []).reduce((s: number, a: any) => s + Number(a.current_balance || 0), 0), [bankAccounts]);
 
-    // ─── Receivables (all open) ─────────────────────────────
+    // ─── Receivables (all open, excl. transferências) ──────
     const { data: receivablesRaw } = useQuery({
         queryKey: ["dash_receivables", cId],
         queryFn: async () => {
             const { data } = await db.from("contas_receber")
-                .select("id, pagador_nome, valor, valor_pago, data_vencimento, status")
-                .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"]);
+                .select("id, pagador_nome, valor, valor_pago, data_vencimento, status, conta_contabil_id")
+                .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"])
+                .is("deleted_at", null);
             return data || [];
         },
         enabled: !!cId,
     });
+    const receivablesFiltered = useMemo(() =>
+        (receivablesRaw || []).filter((r: any) => !isTransfer(r)),
+        [receivablesRaw, transferAccountIds]
+    );
 
-    // ─── Payables (all open) ────────────────────────────────
+    // ─── Payables (all open, excl. transferências) ─────────
     const { data: payablesRaw } = useQuery({
         queryKey: ["dash_payables", cId],
         queryFn: async () => {
             const { data } = await db.from("contas_pagar")
-                .select("id, credor_nome, valor, valor_pago, data_vencimento, status")
-                .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"]);
+                .select("id, credor_nome, valor, valor_pago, data_vencimento, status, conta_contabil_id")
+                .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"])
+                .is("deleted_at", null);
             return data || [];
         },
         enabled: !!cId,
     });
+    const payablesFiltered = useMemo(() =>
+        (payablesRaw || []).filter((p: any) => !isTransfer(p)),
+        [payablesRaw, transferAccountIds]
+    );
 
     // ─── Paid this month (receita/despesa do mês) ───────────
     const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
 
     const { data: receitaMes = 0 } = useQuery({
-        queryKey: ["dash_receita_mes", cId, monthStart],
+        queryKey: ["dash_receita_mes", cId, monthStart, transferAccountIds],
         queryFn: async () => {
             const { data } = await db.from("contas_receber")
-                .select("valor_pago").eq("company_id", cId)
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId)
                 .eq("status", "pago")
+                .is("deleted_at", null)
                 .gte("data_pagamento", monthStart)
                 .lte("data_pagamento", monthEnd);
-            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+            return (data || [])
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
     });
 
     const { data: despesaMes = 0 } = useQuery({
-        queryKey: ["dash_despesa_mes", cId, monthStart],
+        queryKey: ["dash_despesa_mes", cId, monthStart, transferAccountIds],
         queryFn: async () => {
             const { data } = await db.from("contas_pagar")
-                .select("valor_pago").eq("company_id", cId).eq("status", "pago")
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId).eq("status", "pago")
+                .is("deleted_at", null)
                 .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd);
-            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+            return (data || [])
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
     });
@@ -125,10 +159,10 @@ export default function CompanyDashboard() {
     // ─── Payables next 7 days ───────────────────────────────
     const next7 = format(addDays(today, 7), "yyyy-MM-dd");
     const payables7d = useMemo(() =>
-        (payablesRaw || [])
+        payablesFiltered
             .filter((p: any) => p.data_vencimento <= next7)
             .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento)),
-        [payablesRaw, next7]
+        [payablesFiltered, next7]
     );
     const totalPagar7d = payables7d.reduce((s: number, p: any) => s + Number(p.valor || 0) - Number(p.valor_pago || 0), 0);
     const vencem_hoje_pagar = payables7d.filter((p: any) => p.data_vencimento === todayStr).length;
@@ -140,7 +174,7 @@ export default function CompanyDashboard() {
         let totalAberto = 0;
         let totalCount = 0;
 
-        (receivablesRaw || []).forEach((r: any) => {
+        receivablesFiltered.forEach((r: any) => {
             const saldo = Number(r.valor || 0) - Number(r.valor_pago || 0);
             if (saldo <= 0) return;
             totalAberto += saldo;
@@ -162,7 +196,7 @@ export default function CompanyDashboard() {
 
         overdue.sort((a, b) => b.diasAtraso - a.diasAtraso);
         return { buckets, overdue: overdue.slice(0, 5), totalAberto, totalCount };
-    }, [receivablesRaw, today]);
+    }, [receivablesFiltered, today]);
 
     // ─── Alert banner ───────────────────────────────────────
     const alertItems: string[] = [];
@@ -180,15 +214,24 @@ export default function CompanyDashboard() {
                 const me = format(endOfMonth(d), "yyyy-MM-dd");
 
                 const [{ data: rec }, { data: desp }] = await Promise.all([
-                    db.from("contas_receber").select("valor_pago").eq("company_id", cId)
-                        .eq("status", "pago")
+                    db.from("contas_receber")
+                        .select("valor_pago, conta_contabil_id")
+                        .eq("company_id", cId).eq("status", "pago")
+                        .is("deleted_at", null)
                         .gte("data_pagamento", ms).lte("data_pagamento", me),
-                    db.from("contas_pagar").select("valor_pago").eq("company_id", cId)
-                        .eq("status", "pago").gte("data_pagamento", ms).lte("data_pagamento", me),
+                    db.from("contas_pagar")
+                        .select("valor_pago, conta_contabil_id")
+                        .eq("company_id", cId).eq("status", "pago")
+                        .is("deleted_at", null)
+                        .gte("data_pagamento", ms).lte("data_pagamento", me),
                 ]);
 
-                const receita = (rec || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
-                const despesa = (desp || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                const receita = (rec || [])
+                    .filter((r: any) => !isTransfer(r))
+                    .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                const despesa = (desp || [])
+                    .filter((r: any) => !isTransfer(r))
+                    .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
 
                 months.push({
                     mes: format(d, "MMM", { locale: ptBR }).replace(".", ""),
@@ -213,9 +256,9 @@ export default function CompanyDashboard() {
                 const d = addDays(today, i);
                 const ds = format(d, "yyyy-MM-dd");
 
-                const recDay = (receivablesRaw || []).filter((r: any) => r.data_vencimento === ds)
+                const recDay = receivablesFiltered.filter((r: any) => r.data_vencimento === ds)
                     .reduce((s: number, r: any) => s + Number(r.valor || 0) - Number(r.valor_pago || 0), 0);
-                const payDay = (payablesRaw || []).filter((p: any) => p.data_vencimento === ds)
+                const payDay = payablesFiltered.filter((p: any) => p.data_vencimento === ds)
                     .reduce((s: number, p: any) => s + Number(p.valor || 0) - Number(p.valor_pago || 0), 0);
 
                 balance += recDay - payDay;
