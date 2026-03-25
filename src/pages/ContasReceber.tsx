@@ -43,6 +43,7 @@ interface BankAccount { id: string; name: string; banco?: string }
 interface ChartAccount { id: string; code: string; name: string }
 interface CentroCusto { id: string; codigo: string; descricao: string }
 interface Cliente { id: string; razao_social: string; nome_fantasia: string | null; cpf_cnpj: string | null; email: string | null }
+interface Product { id: string; description: string; code: string | null }
 
 /* ================================================================
    CONSTANTS
@@ -117,6 +118,7 @@ export default function ContasReceber() {
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [products, setProducts] = useState<Product[]>([])
 
   // ── Filters ──
   const [search, setSearch] = useState('')
@@ -152,16 +154,18 @@ export default function ContasReceber() {
   // ── Fetch lookups ──
   async function fetchLookups() {
     if (!companyId) return
-    const [banksRes, accountsRes, centrosRes, clientesRes] = await Promise.all([
+    const [banksRes, accountsRes, centrosRes, clientesRes, prodRes] = await Promise.all([
       db.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
       db.from('chart_of_accounts').select('id, code, name').eq('company_id', companyId),
       db.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       db.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
+      db.from('products').select('id, description, code').eq('company_id', companyId).eq('is_active', true).order('description'),
     ])
     setBankAccounts((banksRes.data as BankAccount[]) || [])
     setChartAccounts((accountsRes.data as ChartAccount[]) || [])
     setCentrosCusto((centrosRes.data as CentroCusto[]) || [])
     setClientes((clientesRes.data as Cliente[]) || [])
+    setProducts((prodRes.data as Product[]) || [])
   }
 
   useEffect(() => {
@@ -532,6 +536,7 @@ export default function ContasReceber() {
           chartAccounts={chartAccounts}
           centrosCusto={centrosCusto}
           clientes={clientes}
+          products={products}
           submitting={submitting}
           onClose={() => setNovoModal(false)}
           onConfirm={async () => {
@@ -845,6 +850,7 @@ function ModalNovoCR({
   chartAccounts,
   centrosCusto,
   clientes,
+  products,
   submitting: parentSubmitting,
   onClose,
   onConfirm,
@@ -854,6 +860,7 @@ function ModalNovoCR({
   chartAccounts: ChartAccount[]
   centrosCusto: CentroCusto[]
   clientes: Cliente[]
+  products: Product[]
   submitting: boolean
   onClose: () => void
   onConfirm: () => void
@@ -1207,16 +1214,21 @@ function ModalNovoCR({
           </div>
         </div>
 
-        {/* Descricao */}
+        {/* Descricao (Produto/Servico do Operacional) */}
         <div>
-          <FieldLabel>Descricao</FieldLabel>
-          <textarea
+          <FieldLabel>Descricao (Produto/Servico)</FieldLabel>
+          <select
             value={descricao}
             onChange={e => setDescricao(e.target.value)}
-            rows={2}
-            className={inputCls + ' resize-none'}
-            placeholder="Detalhes sobre o titulo..."
-          />
+            className={inputCls}
+          >
+            <option value="">Selecione um produto/servico...</option>
+            {products.map(p => (
+              <option key={p.id} value={p.description}>
+                {p.code ? `${p.code} - ` : ''}{p.description}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Actions */}

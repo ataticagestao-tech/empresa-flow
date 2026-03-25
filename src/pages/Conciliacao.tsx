@@ -21,6 +21,7 @@ import {
   ListChecks,
   BookOpen,
   Loader2,
+  History,
 } from 'lucide-react'
 
 /* ════════════════════════════════════════════════════════════════════
@@ -128,7 +129,7 @@ export default function Conciliacao() {
   const companyId = selectedCompany?.id
 
   // ── State ───────────────────────────────────────────────────────
-  const [abaAtiva, setAbaAtiva] = useState<'conciliacao' | 'regras'>('conciliacao')
+  const [abaAtiva, setAbaAtiva] = useState<'conciliacao' | 'historico' | 'regras'>('conciliacao')
   const [carregando, setCarregando] = useState(false)
   const [importando, setImportando] = useState(false)
 
@@ -161,7 +162,137 @@ export default function Conciliacao() {
     transacaoId: string
   }>({ aberto: false, descricao: '', tipo: '', transacaoId: '' })
 
-  // ── KPIs ────────────────────────────────────────────────────────
+  // Historico from conciliacao_bancaria
+  const [historicoConciliacoes, setHistoricoConciliacoes] = useState<any[]>([])
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false)
+
+  const carregarHistorico = useCallback(async () => {
+    if (!companyId) return
+    setCarregandoHistorico(true)
+    const items: any[] = []
+
+    // Helper: safe fetch from any table
+    const safeFetch = async (table: string, filters?: Record<string, any>) => {
+      try {
+        let q = activeClient.from(table).select('*').eq('company_id', companyId)
+        if (filters) {
+          for (const [key, val] of Object.entries(filters)) {
+            if (Array.isArray(val)) q = q.in(key, val)
+            else q = q.eq(key, val)
+          }
+        }
+        const { data, error } = await q
+        if (error) {
+          console.warn('[Hist] ' + table + ' erro:', error.message)
+          return []
+        }
+        return data || []
+      } catch {
+        return []
+      }
+    }
+
+    try {
+      // 1) CR pagas
+      const crRows = await safeFetch('contas_receber', { status: ['pago', 'parcial'] })
+      for (const r of crRows) {
+        items.push({
+          id: 'cr-' + r.id,
+          descricao: (r.pagador_nome || '-') + (r.observacoes ? ' \u2014 ' + r.observacoes : ''),
+          valor: r.valor_pago || r.valor,
+          data: r.data_pagamento || r.data_vencimento,
+          tipo: 'credito',
+          status: r.status === 'pago' ? 'Pago' : 'Parcial',
+          origem: 'Conta a Receber',
+          forma: r.forma_recebimento || '-',
+        })
+      }
+
+      // 2) CP pagas
+      const cpRows = await safeFetch('contas_pagar', { status: ['pago', 'parcial'] })
+      for (const r of cpRows) {
+        items.push({
+          id: 'cp-' + r.id,
+          descricao: (r.credor_nome || '-') + (r.observacoes ? ' \u2014 ' + r.observacoes : ''),
+          valor: r.valor_pago || r.valor,
+          data: r.data_pagamento || r.data_vencimento,
+          tipo: 'debito',
+          status: r.status === 'pago' ? 'Pago' : 'Parcial',
+          origem: 'Conta a Pagar',
+          forma: r.forma_pagamento || '-',
+        })
+      }
+
+      // 3) Movimentacoes
+      const movRows = await safeFetch('movimentacoes')
+      for (const r of movRows) {
+        items.push({
+          id: 'mov-' + r.id,
+          descricao: r.descricao || '-',
+          valor: r.valor,
+          data: r.data,
+          tipo: r.tipo || 'debito',
+          status: r.status_conciliacao === 'conciliado' ? 'Conciliado' : 'Registrado',
+          origem: 'Movimentacao',
+          forma: r.origem || '-',
+        })
+      }
+
+      // 4) bank_transactions
+      const btRows = await safeFetch('bank_transactions')
+      for (const r of btRows) {
+        items.push({
+          id: 'bt-' + r.id,
+          descricao: r.descricao || r.description || r.memo || '-',
+          valor: r.valor != null ? r.valor : Math.abs(r.amount || 0),
+          data: r.data || r.date,
+          tipo: r.tipo || (r.amount != null ? (r.amount >= 0 ? 'credito' : 'debito') : 'debito'),
+          status: r.status_conciliacao || r.status || 'Importado',
+          origem: 'Extrato Bancario',
+          forma: '-',
+        })
+      }
+
+      // 5) conciliacao_bancaria
+      const cbRows = await safeFetch('conciliacao_bancaria')
+      for (const r of cbRows) {
+        items.push({
+          id: 'cb-' + r.id,
+          descricao: r.descricao_extrato || '-',
+          valor: r.valor_extrato,
+          data: r.data_extrato,
+          tipo: r.tipo_extrato || 'debito',
+          status: r.status === 'conciliado' ? 'Conciliado' : r.status || '-',
+          origem: 'Conciliacao OFX',
+          forma: '-',
+        })
+      }
+
+      // 6) bank_reconciliation_matches
+      const brmRows = await safeFetch('bank_reconciliation_matches')
+      for (const r of brmRows) {
+        items.push({
+          id: 'brm-' + r.id,
+          descricao: r.note || 'Match #' + (r.id || '').substring(0, 8),
+          valor: r.matched_amount || 0,
+          data: r.matched_date || (r.created_at ? r.created_at.substring(0, 10) : '-'),
+          tipo: r.receivable_id ? 'credito' : 'debito',
+          status: r.status === 'matched' ? 'Conciliado' : r.status || '-',
+          origem: 'Match Bancario',
+          forma: r.match_type || '-',
+        })
+      }
+
+      items.sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''))
+      setHistoricoConciliacoes(items)
+    } catch (err: any) {
+      console.error('[Hist] erro geral:', err)
+    } finally {
+      setCarregandoHistorico(false)
+    }
+  }, [companyId, activeClient])
+
+    // ── KPIs ────────────────────────────────────────────────────────
   const totalImportadas = matchesEnriquecidos.length
   const conciliadasAuto = matchesEnriquecidos.filter(
     (m) => m.match?.status === 'match_auto' || m.match?.status === 'match_regra'
@@ -309,7 +440,8 @@ export default function Conciliacao() {
     carregarContas()
     carregarDados()
     carregarRegras()
-  }, [carregarContas, carregarDados, carregarRegras])
+    carregarHistorico()
+  }, [carregarContas, carregarDados, carregarRegras, carregarHistorico])
 
   // ── Matching Engine ────────────────────────────────────────────
   const executarMatching = useCallback(
@@ -911,6 +1043,7 @@ export default function Conciliacao() {
         <div className="flex gap-1 border-b border-[#ccc]">
           {[
             { id: 'conciliacao' as const, label: 'Conciliacao', icon: <ListChecks size={14} /> },
+            { id: 'historico' as const, label: 'Historico', icon: <History size={14} /> },
             { id: 'regras' as const, label: 'Regras Salvas', icon: <BookOpen size={14} /> },
           ].map((tab) => (
             <button
@@ -1238,6 +1371,122 @@ export default function Conciliacao() {
               </div>
             </div>
           </>
+        )}
+
+
+        {/* ════════════════════════════════════════════════════════
+           TAB: HISTORICO
+           ════════════════════════════════════════════════════════ */}
+        {abaAtiva === 'historico' && (
+          <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+                Historico de Conciliacoes
+              </h3>
+              <button
+                onClick={carregarHistorico}
+                className="text-white/70 hover:text-white transition"
+                title="Recarregar"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+            <div className="bg-white">
+              {carregandoHistorico ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-[#555] text-sm">
+                  <Loader2 size={18} className="animate-spin" />
+                  Carregando historico...
+                </div>
+              ) : historicoConciliacoes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
+                  <History size={32} className="text-[#ccc] mb-2" />
+                  Nenhuma conciliacao realizada ainda.
+                  <span className="text-[11px] text-[#999]">
+                    Conciliacoes aprovadas aparecerao aqui.
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 py-2 bg-[#f9f9f9] border-b border-[#ccc] flex items-center justify-between">
+                    <span className="text-[11px] text-[#555] font-semibold">
+                      {historicoConciliacoes.length} conciliacoes encontradas
+                    </span>
+                  </div>
+                  {/* Header */}
+                  <div className="hidden md:grid md:grid-cols-[1fr_120px_100px_120px_120px_100px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                    <div className="p-3">Descricao</div>
+                    <div className="p-3 text-right">Valor</div>
+                    <div className="p-3 text-center">Data</div>
+                    <div className="p-3 text-center">Status</div>
+                    <div className="p-3 text-center">Origem</div>
+                    <div className="p-3 text-center">Forma</div>
+                  </div>
+                  {historicoConciliacoes.map((item) => (
+                    <div
+                      key={item.id}
+                      className="grid grid-cols-1 md:grid-cols-[1fr_120px_100px_120px_120px_100px] border-b border-[#eee] last:border-b-0 hover:bg-[#fafafa]"
+                    >
+                      <div className="p-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                              item.tipo === 'credito'
+                                ? 'bg-[#e6f4ec] text-[#0a5c2e]'
+                                : 'bg-[#fdecea] text-[#8b0000]'
+                            }`}
+                          >
+                            {item.tipo === 'credito' ? 'C' : 'D'}
+                          </span>
+                          <p className="text-sm text-[#0a0a0a] truncate max-w-[400px]">
+                            {item.descricao}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="p-3 text-right">
+                        <span className={`text-sm font-semibold ${
+                          item.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
+                        }`}>
+                          {item.tipo === 'credito' ? '+' : '-'}{formatBRL(Math.abs(item.valor))}
+                        </span>
+                      </div>
+                      <div className="p-3 text-center text-[11px] text-[#555]">
+                        {formatData(item.data)}
+                      </div>
+                      <div className="p-3 flex items-center justify-center">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          item.status === 'conciliado' || item.status === 'pago'
+                            ? 'bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]'
+                            : item.status === 'parcial'
+                              ? 'bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a]'
+                              : item.status === 'pendente'
+                                ? 'bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a]'
+                                : 'bg-gray-100 text-gray-500 border border-gray-300'
+                        }`}>
+                          <CheckCircle2 size={12} />
+                          {item.status === 'conciliado' ? 'Conciliado'
+                            : item.status === 'pago' ? 'Pago'
+                            : item.status === 'parcial' ? 'Parcial'
+                            : item.status === 'pendente' ? 'Pendente'
+                            : item.status === 'ignorado' ? 'Ignorado'
+                            : item.status}
+                        </span>
+                      </div>
+                      <div className="p-3 text-center">
+                        <span className="text-[10px] text-[#999] uppercase font-semibold">
+                          {item.origem}
+                        </span>
+                      </div>
+                      <div className="p-3 text-center">
+                        <span className="text-[10px] text-[#555]">
+                          {item.forma}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
         )}
 
         {/* ════════════════════════════════════════════════════════

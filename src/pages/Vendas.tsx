@@ -1,18 +1,20 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
-import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
-  ShoppingCart, Search, Plus, Eye, Trash2, X,
+  Search, Plus, Eye, Trash2, X,
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
-  QrCode, Receipt, Calendar
+  QrCode, Receipt, Calendar, UserPlus, ChevronDown
 } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
+
+// Cast supabase for GESTAP tables not in the generated types
+const db = supabase as any
 
 /* ================================================================
    TYPES
@@ -51,18 +53,37 @@ interface ContaReceber {
 
 interface BankAccount {
   id: string
-  nome: string
+  name: string
+  banco?: string
 }
 
 interface CentroCusto {
   id: string
-  nome: string
+  codigo: string
+  descricao: string
+}
+
+interface Cliente {
+  id: string
+  razao_social: string
+  nome_fantasia: string | null
+  cpf_cnpj: string | null
+  email: string | null
+}
+
+interface Produto {
+  id: string
+  code: string | null
+  description: string
+  price: number | null
+  unidade_medida: string | null
 }
 
 interface NovoItem {
   descricao: string
   quantidade: number
   valor_unitario: number
+  produto_id?: string
 }
 
 /* ================================================================
@@ -70,7 +91,7 @@ interface NovoItem {
    ================================================================ */
 
 const TIPOS_VENDA = [
-  { value: 'servico', label: 'Servico', icon: Briefcase },
+  { value: 'servico', label: 'Serviço', icon: Briefcase },
   { value: 'produto', label: 'Produto', icon: Package },
   { value: 'pacote', label: 'Pacote', icon: FileText },
   { value: 'contrato', label: 'Contrato', icon: RefreshCw },
@@ -79,8 +100,8 @@ const TIPOS_VENDA = [
 const FORMAS_PAGAMENTO = [
   { value: 'pix', label: 'PIX/TED', icon: QrCode },
   { value: 'dinheiro', label: 'Dinheiro', icon: Banknote },
-  { value: 'cartao_credito', label: 'Cartao credito', icon: CreditCard },
-  { value: 'cartao_debito', label: 'Cartao debito', icon: CreditCard },
+  { value: 'cartao_credito', label: 'Cartão crédito', icon: CreditCard },
+  { value: 'cartao_debito', label: 'Cartão débito', icon: CreditCard },
   { value: 'boleto', label: 'Boleto', icon: Receipt },
   { value: 'parcelado', label: 'Parcelado', icon: Calendar },
 ] as const
@@ -89,19 +110,12 @@ const FORMAS_A_VISTA = ['pix', 'dinheiro', 'cartao_debito']
 const FORMAS_A_PRAZO = ['parcelado', 'boleto', 'cartao_credito']
 
 const LABEL_FORMA: Record<string, string> = {
-  pix: 'PIX/TED',
-  dinheiro: 'Dinheiro',
-  cartao_credito: 'Cartao credito',
-  cartao_debito: 'Cartao debito',
-  boleto: 'Boleto',
-  parcelado: 'Parcelado',
+  pix: 'PIX/TED', dinheiro: 'Dinheiro', cartao_credito: 'Cartão crédito',
+  cartao_debito: 'Cartão débito', boleto: 'Boleto', parcelado: 'Parcelado',
 }
 
 const LABEL_TIPO: Record<string, string> = {
-  servico: 'Servico',
-  produto: 'Produto',
-  pacote: 'Pacote',
-  contrato: 'Contrato',
+  servico: 'Serviço', produto: 'Produto', pacote: 'Pacote', contrato: 'Contrato',
 }
 
 /* ================================================================
@@ -110,12 +124,13 @@ const LABEL_TIPO: Record<string, string> = {
 
 export default function Vendas() {
   const { selectedCompany } = useCompany()
-  const { activeClient } = useAuth()
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -134,6 +149,7 @@ export default function Vendas() {
 
   // ─── Form state ──────────────────────────────────────────────
   const [formTipo, setFormTipo] = useState<string>('servico')
+  const [formClienteId, setFormClienteId] = useState<string | null>(null)
   const [formCliente, setFormCliente] = useState('')
   const [formCpfCnpj, setFormCpfCnpj] = useState('')
   const [formDataVenda, setFormDataVenda] = useState(() => format(new Date(), 'yyyy-MM-dd'))
@@ -144,6 +160,22 @@ export default function Vendas() {
   const [formParcelas, setFormParcelas] = useState(2)
   const [formContaBancaria, setFormContaBancaria] = useState('')
   const [formCentroCusto, setFormCentroCusto] = useState('')
+
+  // ─── Client search state ─────────────────────────────────────
+  const [clienteSearch, setClienteSearch] = useState('')
+  const [clienteDropdownOpen, setClienteDropdownOpen] = useState(false)
+  const clienteRef = useRef<HTMLDivElement>(null)
+
+  // ─── Novo Cliente modal ──────────────────────────────────────
+  const [modalNovoCliente, setModalNovoCliente] = useState(false)
+  const [novoClienteNome, setNovoClienteNome] = useState('')
+  const [novoClienteCpfCnpj, setNovoClienteCpfCnpj] = useState('')
+  const [novoClienteEmail, setNovoClienteEmail] = useState('')
+  const [salvandoCliente, setSalvandoCliente] = useState(false)
+
+  // ─── Product search state per item row ───────────────────────
+  const [produtoDropdownIdx, setProdutoDropdownIdx] = useState<number | null>(null)
+  const [produtoSearchTerm, setProdutoSearchTerm] = useState('')
 
   // ─── Computed ────────────────────────────────────────────────
   const companyId = selectedCompany?.id
@@ -180,6 +212,27 @@ export default function Vendas() {
     })
   }, [vendas, searchTerm, filtroTipo, filtroForma])
 
+  // ─── Filtered clients for dropdown ───────────────────────────
+  const clientesFiltrados = useMemo(() => {
+    if (!clienteSearch.trim()) return clientes.slice(0, 20)
+    const term = clienteSearch.toLowerCase()
+    return clientes.filter(c =>
+      (c.nome_fantasia || '').toLowerCase().includes(term) ||
+      c.razao_social.toLowerCase().includes(term) ||
+      (c.cpf_cnpj || '').includes(term)
+    ).slice(0, 20)
+  }, [clientes, clienteSearch])
+
+  // ─── Filtered products for dropdown ──────────────────────────
+  const produtosFiltrados = useMemo(() => {
+    if (!produtoSearchTerm.trim()) return produtos.slice(0, 20)
+    const term = produtoSearchTerm.toLowerCase()
+    return produtos.filter(p =>
+      p.description.toLowerCase().includes(term) ||
+      (p.code || '').toLowerCase().includes(term)
+    ).slice(0, 20)
+  }, [produtos, produtoSearchTerm])
+
   // ─── KPIs ────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const total = vendas.reduce((s, v) => s + (v.valor_total || 0), 0)
@@ -203,17 +256,15 @@ export default function Vendas() {
       const inicio = format(startOfMonth(mesDate), 'yyyy-MM-dd')
       const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
 
-      const data = await safeQuery(
-        () =>
-          supabase
-            .from('vendas')
-            .select('*, vendas_itens(*), contas_receber(*)')
-            .eq('company_id', companyId)
-            .gte('data_venda', inicio)
-            .lte('data_venda', fim)
-            .order('data_venda', { ascending: false }),
-        'buscar vendas'
-      )
+      const { data, error: err } = await db
+        .from('vendas')
+        .select('*, vendas_itens(*), contas_receber(*)')
+        .eq('company_id', companyId)
+        .gte('data_venda', inicio)
+        .lte('data_venda', fim)
+        .order('data_venda', { ascending: false })
+
+      if (err) throw err
       setVendas((data as Venda[]) || [])
     } catch (e: any) {
       setError(e.message || 'Erro ao buscar vendas')
@@ -224,33 +275,42 @@ export default function Vendas() {
 
   const fetchAuxData = useCallback(async () => {
     if (!companyId) return
-    const [banks, centros] = await Promise.all([
-      safeQuery(
-        () => supabase.from('bank_accounts').select('id, nome').eq('company_id', companyId),
-        'buscar contas bancarias'
-      ),
-      safeQuery(
-        () => supabase.from('centros_custo').select('id, nome').eq('company_id', companyId),
-        'buscar centros de custo'
-      ),
+
+    const [banksRes, centrosRes, clientesRes, produtosRes] = await Promise.all([
+      db.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
+      db.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
+      db.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
+      db.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).eq('is_active', true).order('description'),
     ])
-    setBankAccounts((banks as BankAccount[]) || [])
-    setCentrosCusto((centros as CentroCusto[]) || [])
+
+    setBankAccounts((banksRes.data as BankAccount[]) || [])
+    setCentrosCusto((centrosRes.data as CentroCusto[]) || [])
+    setClientes((clientesRes.data as Cliente[]) || [])
+    setProdutos((produtosRes.data as Produto[]) || [])
   }, [companyId])
 
-  useEffect(() => {
-    fetchVendas()
-  }, [fetchVendas])
+  useEffect(() => { fetchVendas() }, [fetchVendas])
+  useEffect(() => { fetchAuxData() }, [fetchAuxData])
 
+  // ─── Close dropdowns on outside click ────────────────────────
   useEffect(() => {
-    fetchAuxData()
-  }, [fetchAuxData])
+    const handler = (e: MouseEvent) => {
+      if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) {
+        setClienteDropdownOpen(false)
+      }
+      setProdutoDropdownIdx(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   // ─── Helpers ─────────────────────────────────────────────────
   function resetForm() {
     setFormTipo('servico')
+    setFormClienteId(null)
     setFormCliente('')
     setFormCpfCnpj('')
+    setClienteSearch('')
     setFormDataVenda(format(new Date(), 'yyyy-MM-dd'))
     setFormItens([{ descricao: '', quantidade: 1, valor_unitario: 0 }])
     setFormDescontoTipo('valor')
@@ -262,26 +322,40 @@ export default function Vendas() {
     setErroModal(null)
   }
 
+  function selectCliente(c: Cliente) {
+    setFormClienteId(c.id)
+    setFormCliente(c.nome_fantasia || c.razao_social)
+    setFormCpfCnpj(c.cpf_cnpj || '')
+    setClienteSearch(c.nome_fantasia || c.razao_social)
+    setClienteDropdownOpen(false)
+  }
+
+  function selectProduto(idx: number, p: Produto) {
+    setFormItens(prev => prev.map((it, i) =>
+      i === idx ? { ...it, descricao: p.description, valor_unitario: p.price || 0, produto_id: p.id } : it
+    ))
+    setProdutoDropdownIdx(null)
+    setProdutoSearchTerm('')
+  }
+
   function addItem() {
-    setFormItens((prev) => [...prev, { descricao: '', quantidade: 1, valor_unitario: 0 }])
+    setFormItens(prev => [...prev, { descricao: '', quantidade: 1, valor_unitario: 0 }])
   }
 
   function removeItem(idx: number) {
-    setFormItens((prev) => prev.filter((_, i) => i !== idx))
+    setFormItens(prev => prev.filter((_, i) => i !== idx))
   }
 
   function updateItem(idx: number, field: keyof NovoItem, value: string | number) {
-    setFormItens((prev) =>
-      prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it))
-    )
+    setFormItens(prev => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)))
   }
 
   function getCRStatus(venda: Venda) {
     const crs = venda.contas_receber || []
     if (crs.length === 0) return 'avista'
-    const allPago = crs.every((c) => c.status === 'pago')
+    const allPago = crs.every(c => c.status === 'pago')
     if (allPago) return 'pago'
-    const anyParcial = crs.some((c) => c.status === 'parcial')
+    const anyParcial = crs.some(c => c.status === 'parcial')
     if (anyParcial) return 'parcial'
     return 'aberto'
   }
@@ -292,23 +366,52 @@ export default function Vendas() {
     return clean.length <= 11 ? formatCPF(clean) : formatCNPJ(clean)
   }
 
+  // ─── Salvar novo cliente ───────────────────────────────────
+  async function salvarNovoCliente() {
+    if (!companyId || !novoClienteNome.trim()) return
+    setSalvandoCliente(true)
+    try {
+      const { data, error: err } = await db.from('clients').insert({
+        company_id: companyId,
+        razao_social: novoClienteNome.trim(),
+        cpf_cnpj: novoClienteCpfCnpj.replace(/\D/g, '') || null,
+        email: novoClienteEmail.trim() || null,
+        is_active: true,
+      }).select().single()
+
+      if (err) throw err
+
+      const novoCliente: Cliente = data
+      setClientes(prev => [...prev, novoCliente])
+      selectCliente(novoCliente)
+      setModalNovoCliente(false)
+      setNovoClienteNome('')
+      setNovoClienteCpfCnpj('')
+      setNovoClienteEmail('')
+    } catch (e: any) {
+      alert('Erro ao cadastrar cliente: ' + (e.message || ''))
+    } finally {
+      setSalvandoCliente(false)
+    }
+  }
+
   // ─── Save venda ──────────────────────────────────────────────
   async function salvarVenda() {
     if (!companyId) return
-    if (!formCliente.trim()) { setErroModal('Informe o nome do cliente.'); return }
-    if (formItens.length === 0 || formItens.some((it) => !it.descricao.trim())) {
-      setErroModal('Preencha a descricao de todos os itens.')
+    if (!formCliente.trim()) { setErroModal('Informe o cliente.'); return }
+    if (formItens.length === 0 || formItens.some(it => !it.descricao.trim())) {
+      setErroModal('Preencha a descrição de todos os itens.')
       return
     }
     if (totalVenda <= 0) { setErroModal('Valor total deve ser maior que zero.'); return }
-    if (!formContaBancaria) { setErroModal('Selecione a conta bancaria destino.'); return }
+    if (!formContaBancaria) { setErroModal('Selecione a conta bancária destino.'); return }
 
     setSalvando(true)
     setErroModal(null)
 
     try {
       // 1. Insert venda
-      const { data: vendaData, error: vendaErr } = await supabase
+      const { data: vendaData, error: vendaErr } = await db
         .from('vendas')
         .insert({
           company_id: companyId,
@@ -326,7 +429,7 @@ export default function Vendas() {
       if (vendaErr) throw vendaErr
 
       // 2. Insert itens
-      const itensPayload = formItens.map((it) => ({
+      const itensPayload = formItens.map(it => ({
         venda_id: vendaData.id,
         descricao: it.descricao.trim(),
         quantidade: it.quantidade,
@@ -334,7 +437,7 @@ export default function Vendas() {
         valor_total: it.quantidade * it.valor_unitario,
       }))
 
-      const { error: itensErr } = await supabase.from('vendas_itens').insert(itensPayload)
+      const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
       if (itensErr) throw itensErr
 
       // 3. Generate CRs
@@ -347,7 +450,6 @@ export default function Vendas() {
           ? format(addMonths(parseISO(formDataVenda), i + 1), 'yyyy-MM-dd')
           : formDataVenda
 
-        // Adjust last parcela for rounding
         const valor = i === numParcelas - 1
           ? totalVenda - valorParcela * (numParcelas - 1)
           : valorParcela
@@ -363,17 +465,18 @@ export default function Vendas() {
           forma_recebimento: formPagamento,
           conta_contabil_id: null,
           centro_custo_id: formCentroCusto || null,
+          venda_id: vendaData.id,
         }
       })
 
-      const { data: crsData, error: crsErr } = await supabase
+      const { data: crsData, error: crsErr } = await db
         .from('contas_receber')
         .insert(crsPayload)
         .select()
 
       if (crsErr) throw crsErr
 
-      // 4. If a vista, quitar immediately
+      // 4. If à vista, quitar immediately
       if (isAVista && crsData && crsData.length > 0) {
         const cr = crsData[0]
         await quitarCR(cr.id, {
@@ -398,9 +501,9 @@ export default function Vendas() {
   // ─── Delete venda ────────────────────────────────────────────
   async function deletarVenda(id: string) {
     try {
-      await supabase.from('vendas_itens').delete().eq('venda_id', id)
-      const { error } = await supabase.from('vendas').delete().eq('id', id)
-      if (error) throw error
+      await db.from('vendas_itens').delete().eq('venda_id', id)
+      const { error: err } = await db.from('vendas').delete().eq('id', id)
+      if (err) throw err
       setConfirmDelete(null)
       await fetchVendas()
     } catch (e: any) {
@@ -418,10 +521,7 @@ export default function Vendas() {
       avista: 'text-[#555] bg-[#f5f5f5] border border-[#ccc]',
     }
     const labels: Record<string, string> = {
-      pago: 'Pago',
-      aberto: 'CR \u2014 aberto',
-      parcial: 'CR \u2014 parcial',
-      avista: 'A vista',
+      pago: 'Pago', aberto: 'CR \u2014 aberto', parcial: 'CR \u2014 parcial', avista: 'À vista',
     }
     return (
       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${styles[st]}`}>
@@ -442,17 +542,17 @@ export default function Vendas() {
      RENDER
      ================================================================ */
   return (
-    <AppLayout title="Vendas">
+    <AppLayout>
       <div className="max-w-[1400px] mx-auto space-y-5">
 
         {/* ─── KPIs ─────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Vendas do mes', value: formatBRL(kpis.total), color: '#1a2e4a' },
-            { label: 'Ticket medio', value: formatBRL(kpis.ticket), color: '#1a2e4a' },
-            { label: 'A vista', value: formatBRL(kpis.aVista), color: '#0a5c2e' },
+            { label: 'Vendas do mês', value: formatBRL(kpis.total), color: '#1a2e4a' },
+            { label: 'Ticket médio', value: formatBRL(kpis.ticket), color: '#1a2e4a' },
+            { label: 'À vista', value: formatBRL(kpis.aVista), color: '#0a5c2e' },
             { label: 'A prazo', value: formatBRL(kpis.aPrazo), color: '#5c3a00' },
-          ].map((kpi) => (
+          ].map(kpi => (
             <div key={kpi.label} className="border border-[#ccc] rounded-lg overflow-hidden">
               <div className="bg-[#1a2e4a] px-4 py-2">
                 <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">{kpi.label}</h3>
@@ -475,7 +575,7 @@ export default function Vendas() {
               Limpar
             </button>
           </div>
-          <div className="p-4 bg-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-4 bg-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Search */}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
@@ -483,88 +583,79 @@ export default function Vendas() {
                 type="text"
                 placeholder="Buscar cliente..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
               />
             </div>
-
             {/* Month */}
             <input
               type="month"
               value={mesAtual}
-              onChange={(e) => setMesAtual(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              onChange={e => setMesAtual(e.target.value)}
+              className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
             />
-
             {/* Tipo */}
             <select
               value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              onChange={e => setFiltroTipo(e.target.value)}
+              className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
             >
               <option value="">Todos os tipos</option>
-              {TIPOS_VENDA.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
+              {TIPOS_VENDA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
-
-            {/* Forma pagamento */}
+            {/* Forma */}
             <select
               value={filtroForma}
-              onChange={(e) => setFiltroForma(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              onChange={e => setFiltroForma(e.target.value)}
+              className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
             >
               <option value="">Todas as formas</option>
-              {FORMAS_PAGAMENTO.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
+              {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
+            {/* Nova venda */}
+            <button
+              onClick={() => { resetForm(); setModalAberto(true) }}
+              className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
+            >
+              <Plus size={14} /> Nova Venda
+            </button>
           </div>
         </div>
 
-        {/* ─── Tabela de Vendas ─────────────────────────────── */}
+        {/* ─── Tabela ───────────────────────────────────────── */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#1a2e4a] px-4 py-2.5">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-              Vendas ({vendasFiltradas.length})
+              Vendas &mdash; {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
             </h3>
-            <button
-              onClick={() => { resetForm(); setModalAberto(true) }}
-              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
-            >
-              <Plus size={13} /> Nova venda
-            </button>
           </div>
           <div className="bg-white overflow-x-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-16 text-[#555]">
+              <div className="flex items-center justify-center py-12 text-[#555]">
                 <Loader2 size={20} className="animate-spin mr-2" /> Carregando...
               </div>
             ) : error ? (
-              <div className="flex items-center justify-center py-16 text-[#8b0000]">
+              <div className="flex items-center justify-center py-12 text-[#8b0000]">
                 <AlertCircle size={16} className="mr-2" /> {error}
               </div>
             ) : vendasFiltradas.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#555]">
-                <ShoppingCart size={32} className="mb-2 text-[#ccc]" />
-                <p className="text-sm">Nenhuma venda encontrada</p>
-              </div>
+              <div className="text-center py-12 text-[#555] text-sm">Nenhuma venda encontrada.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#ccc] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                    <th className="text-left px-4 py-3">Cliente</th>
-                    <th className="text-left px-4 py-3">Itens</th>
-                    <th className="text-left px-4 py-3">Tipo</th>
-                    <th className="text-left px-4 py-3">Data</th>
-                    <th className="text-left px-4 py-3">Forma pgto</th>
-                    <th className="text-right px-4 py-3">Valor total</th>
-                    <th className="text-center px-4 py-3">CR gerado</th>
-                    <th className="text-center px-4 py-3">Acoes</th>
+                  <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#ccc]">
+                    <th className="text-left px-4 py-2.5">Cliente</th>
+                    <th className="text-center px-3 py-2.5">Itens</th>
+                    <th className="text-center px-3 py-2.5">Tipo</th>
+                    <th className="text-center px-3 py-2.5">Data</th>
+                    <th className="text-center px-3 py-2.5">Forma pgto</th>
+                    <th className="text-right px-3 py-2.5">Valor total</th>
+                    <th className="text-center px-3 py-2.5">CR</th>
+                    <th className="text-center px-3 py-2.5 w-20">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {vendasFiltradas.map((v) => (
+                  {vendasFiltradas.map(v => (
                     <tr key={v.id} className="border-b border-[#eee] hover:bg-[#fafafa] transition-colors">
                       <td className="px-4 py-3">
                         <div className="font-medium text-[#0a0a0a]">{v.cliente_nome}</div>
@@ -572,29 +663,19 @@ export default function Vendas() {
                           <div className="text-[11px] text-[#555]">{formatDoc(v.cliente_cpf_cnpj)}</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[#555]">
-                        {v.vendas_itens?.length || 0} item(ns)
-                      </td>
-                      <td className="px-4 py-3"><TipoBadge tipo={v.tipo} /></td>
-                      <td className="px-4 py-3 text-[#555]">{formatData(v.data_venda)}</td>
-                      <td className="px-4 py-3 text-[#555]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-[#0a0a0a]">{formatBRL(v.valor_total)}</td>
-                      <td className="px-4 py-3 text-center"><CRBadge venda={v} /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => setModalDetalhes(v)}
-                            className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors"
-                            title="Ver detalhes"
-                          >
-                            <Eye size={15} />
+                      <td className="px-3 py-3 text-center text-[#555]">{v.vendas_itens?.length || 0}</td>
+                      <td className="px-3 py-3 text-center"><TipoBadge tipo={v.tipo} /></td>
+                      <td className="px-3 py-3 text-center text-[#555]">{formatData(v.data_venda)}</td>
+                      <td className="px-3 py-3 text-center text-[#555]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-[#0a0a0a]">{formatBRL(v.valor_total)}</td>
+                      <td className="px-3 py-3 text-center"><CRBadge venda={v} /></td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => setModalDetalhes(v)} className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors" title="Ver detalhes">
+                            <Eye size={14} />
                           </button>
-                          <button
-                            onClick={() => setConfirmDelete(v.id)}
-                            className="p-1.5 rounded hover:bg-[#fdecea] text-[#8b0000] transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 size={15} />
+                          <button onClick={() => setConfirmDelete(v.id)} className="p-1.5 rounded hover:bg-[#fdecea] text-[#8b0000] transition-colors" title="Excluir">
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -626,7 +707,7 @@ export default function Vendas() {
               <div>
                 <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Tipo</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {TIPOS_VENDA.map((t) => {
+                  {TIPOS_VENDA.map(t => {
                     const Icon = t.icon
                     const sel = formTipo === t.value
                     return (
@@ -634,9 +715,7 @@ export default function Vendas() {
                         key={t.value}
                         onClick={() => setFormTipo(t.value)}
                         className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-md border text-xs font-semibold transition-all ${
-                          sel
-                            ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
-                            : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
+                          sel ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
                         }`}
                       >
                         <Icon size={16} />
@@ -647,28 +726,87 @@ export default function Vendas() {
                 </div>
               </div>
 
-              {/* Cliente */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Cliente</label>
-                  <input
-                    type="text"
-                    value={formCliente}
-                    onChange={(e) => setFormCliente(e.target.value)}
-                    placeholder="Nome do cliente"
-                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-                  />
+              {/* Cliente — searchable dropdown */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Cliente</label>
+                <div ref={clienteRef} className="relative">
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
+                      <input
+                        type="text"
+                        value={clienteSearch}
+                        onChange={e => {
+                          setClienteSearch(e.target.value)
+                          setClienteDropdownOpen(true)
+                          if (!e.target.value.trim()) {
+                            setFormClienteId(null)
+                            setFormCliente('')
+                            setFormCpfCnpj('')
+                          }
+                        }}
+                        onFocus={() => setClienteDropdownOpen(true)}
+                        placeholder="Buscar cliente cadastrado..."
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        setModalNovoCliente(true)
+                        setNovoClienteNome(clienteSearch)
+                      }}
+                      className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-[#1a2e4a] border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors whitespace-nowrap"
+                      title="Adicionar novo cliente"
+                    >
+                      <UserPlus size={14} /> Novo
+                    </button>
+                  </div>
+
+                  {/* Dropdown */}
+                  {clienteDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-[#ccc] rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {clientesFiltrados.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-[#555] text-center">
+                          Nenhum cliente encontrado.
+                          <button
+                            onClick={() => {
+                              setModalNovoCliente(true)
+                              setNovoClienteNome(clienteSearch)
+                              setClienteDropdownOpen(false)
+                            }}
+                            className="block mx-auto mt-2 text-[#1a2e4a] font-semibold hover:underline"
+                          >
+                            + Adicionar cliente
+                          </button>
+                        </div>
+                      ) : (
+                        clientesFiltrados.map(c => (
+                          <button
+                            key={c.id}
+                            onClick={() => selectCliente(c)}
+                            className={`w-full text-left px-3 py-2 hover:bg-[#f0f4f8] transition-colors border-b border-[#eee] last:border-b-0 ${
+                              formClienteId === c.id ? 'bg-[#f0f4f8]' : ''
+                            }`}
+                          >
+                            <div className="text-sm font-medium text-[#0a0a0a]">
+                              {c.nome_fantasia || c.razao_social}
+                            </div>
+                            <div className="text-[11px] text-[#555]">
+                              {c.cpf_cnpj ? formatDoc(c.cpf_cnpj) : 'Sem documento'}
+                              {c.email && ` · ${c.email}`}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">CPF/CNPJ</label>
-                  <input
-                    type="text"
-                    value={formCpfCnpj}
-                    onChange={(e) => setFormCpfCnpj(e.target.value)}
-                    placeholder="Opcional"
-                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-                  />
-                </div>
+                {formClienteId && (
+                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-[#0a5c2e]">
+                    <Check size={12} />
+                    <span><strong>{formCliente}</strong> {formCpfCnpj && `· ${formatDoc(formCpfCnpj)}`}</span>
+                  </div>
+                )}
               </div>
 
               {/* Data */}
@@ -677,19 +815,19 @@ export default function Vendas() {
                 <input
                   type="date"
                   value={formDataVenda}
-                  onChange={(e) => setFormDataVenda(e.target.value)}
+                  onChange={e => setFormDataVenda(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                 />
               </div>
 
-              {/* Itens */}
+              {/* Itens — with product selector */}
               <div>
                 <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Itens</label>
                 <div className="border border-[#ccc] rounded-md overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                        <th className="text-left px-3 py-2">Descricao</th>
+                        <th className="text-left px-3 py-2">Descrição</th>
                         <th className="text-center px-3 py-2 w-20">Qtd</th>
                         <th className="text-center px-3 py-2 w-28">Valor unit.</th>
                         <th className="text-right px-3 py-2 w-28">Subtotal</th>
@@ -700,20 +838,52 @@ export default function Vendas() {
                       {formItens.map((it, idx) => (
                         <tr key={idx} className="border-t border-[#eee]">
                           <td className="px-2 py-1.5">
-                            <input
-                              type="text"
-                              value={it.descricao}
-                              onChange={(e) => updateItem(idx, 'descricao', e.target.value)}
-                              placeholder="Descricao do item"
-                              className="w-full px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
-                            />
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={it.descricao}
+                                onChange={e => {
+                                  updateItem(idx, 'descricao', e.target.value)
+                                  setProdutoSearchTerm(e.target.value)
+                                  setProdutoDropdownIdx(idx)
+                                }}
+                                onFocus={() => {
+                                  setProdutoDropdownIdx(idx)
+                                  setProdutoSearchTerm(it.descricao)
+                                }}
+                                placeholder="Buscar produto/serviço..."
+                                className="w-full px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                              />
+                              {/* Product dropdown */}
+                              {produtoDropdownIdx === idx && produtosFiltrados.length > 0 && (
+                                <div className="absolute z-20 mt-1 left-0 right-0 bg-white border border-[#ccc] rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                  {produtosFiltrados.map(p => (
+                                    <button
+                                      key={p.id}
+                                      onClick={() => selectProduto(idx, p)}
+                                      className="w-full text-left px-3 py-2 hover:bg-[#f0f4f8] transition-colors border-b border-[#eee] last:border-b-0"
+                                    >
+                                      <div className="text-sm text-[#0a0a0a]">
+                                        {p.code && <span className="text-[#555] mr-1">[{p.code}]</span>}
+                                        {p.description}
+                                      </div>
+                                      {p.price != null && (
+                                        <div className="text-[11px] text-[#555]">
+                                          {formatBRL(p.price)} {p.unidade_medida && `/ ${p.unidade_medida}`}
+                                        </div>
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-2 py-1.5">
                             <input
                               type="number"
                               min={1}
                               value={it.quantidade}
-                              onChange={(e) => updateItem(idx, 'quantidade', parseInt(e.target.value) || 1)}
+                              onChange={e => updateItem(idx, 'quantidade', parseInt(e.target.value) || 1)}
                               className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
                             />
                           </td>
@@ -723,7 +893,7 @@ export default function Vendas() {
                               min={0}
                               step={0.01}
                               value={it.valor_unitario}
-                              onChange={(e) => updateItem(idx, 'valor_unitario', parseFloat(e.target.value) || 0)}
+                              onChange={e => updateItem(idx, 'valor_unitario', parseFloat(e.target.value) || 0)}
                               className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
                             />
                           </td>
@@ -732,10 +902,7 @@ export default function Vendas() {
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             {formItens.length > 1 && (
-                              <button
-                                onClick={() => removeItem(idx)}
-                                className="text-[#8b0000] hover:text-red-700 transition-colors"
-                              >
+                              <button onClick={() => removeItem(idx)} className="text-[#8b0000] hover:text-red-700 transition-colors">
                                 <X size={14} />
                               </button>
                             )}
@@ -759,7 +926,7 @@ export default function Vendas() {
                 <div className="flex items-center gap-2">
                   <select
                     value={formDescontoTipo}
-                    onChange={(e) => setFormDescontoTipo(e.target.value as 'valor' | 'percentual')}
+                    onChange={e => setFormDescontoTipo(e.target.value as 'valor' | 'percentual')}
                     className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
                   >
                     <option value="valor">R$</option>
@@ -770,7 +937,7 @@ export default function Vendas() {
                     min={0}
                     step={0.01}
                     value={formDesconto}
-                    onChange={(e) => setFormDesconto(parseFloat(e.target.value) || 0)}
+                    onChange={e => setFormDesconto(parseFloat(e.target.value) || 0)}
                     className="flex-1 px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                   />
                 </div>
@@ -783,7 +950,7 @@ export default function Vendas() {
               <div>
                 <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Forma de pagamento</label>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {FORMAS_PAGAMENTO.map((f) => {
+                  {FORMAS_PAGAMENTO.map(f => {
                     const Icon = f.icon
                     const sel = formPagamento === f.value
                     return (
@@ -791,9 +958,7 @@ export default function Vendas() {
                         key={f.value}
                         onClick={() => setFormPagamento(f.value)}
                         className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md border text-[10px] font-semibold transition-all ${
-                          sel
-                            ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
-                            : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
+                          sel ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
                         }`}
                       >
                         <Icon size={14} />
@@ -807,30 +972,30 @@ export default function Vendas() {
               {/* Parcelas */}
               {formPagamento === 'parcelado' && (
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Numero de parcelas</label>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Número de parcelas</label>
                   <select
                     value={formParcelas}
-                    onChange={(e) => setFormParcelas(parseInt(e.target.value))}
+                    onChange={e => setFormParcelas(parseInt(e.target.value))}
                     className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                   >
-                    {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
+                    {Array.from({ length: 11 }, (_, i) => i + 2).map(n => (
                       <option key={n} value={n}>{n}x de {formatBRL(totalVenda / n)}</option>
                     ))}
                   </select>
                 </div>
               )}
 
-              {/* Conta bancaria */}
+              {/* Conta bancária */}
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta bancaria destino</label>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta bancária destino</label>
                 <select
                   value={formContaBancaria}
-                  onChange={(e) => setFormContaBancaria(e.target.value)}
+                  onChange={e => setFormContaBancaria(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                 >
                   <option value="">Selecione...</option>
-                  {bankAccounts.map((ba) => (
-                    <option key={ba.id} value={ba.id}>{ba.nome}</option>
+                  {bankAccounts.map(ba => (
+                    <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -840,12 +1005,12 @@ export default function Vendas() {
                 <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Centro de custo</label>
                 <select
                   value={formCentroCusto}
-                  onChange={(e) => setFormCentroCusto(e.target.value)}
+                  onChange={e => setFormCentroCusto(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                 >
                   <option value="">Nenhum</option>
-                  {centrosCusto.map((cc) => (
-                    <option key={cc.id} value={cc.id}>{cc.nome}</option>
+                  {centrosCusto.map(cc => (
+                    <option key={cc.id} value={cc.id}>{cc.codigo ? `${cc.codigo} — ` : ''}{cc.descricao}</option>
                   ))}
                 </select>
               </div>
@@ -861,14 +1026,10 @@ export default function Vendas() {
                           <p className="font-semibold mb-1">CR gerado automaticamente &mdash; {formParcelas}x parcelas:</p>
                           <ul className="space-y-0.5">
                             {Array.from({ length: formParcelas }, (_, i) => {
-                              const valorParcela = Math.round((totalVenda / formParcelas) * 100) / 100
-                              const valor = i === formParcelas - 1
-                                ? totalVenda - valorParcela * (formParcelas - 1)
-                                : valorParcela
+                              const vp = Math.round((totalVenda / formParcelas) * 100) / 100
+                              const valor = i === formParcelas - 1 ? totalVenda - vp * (formParcelas - 1) : vp
                               const venc = format(addMonths(parseISO(formDataVenda), i + 1), 'dd/MM/yyyy')
-                              return (
-                                <li key={i}>Parcela {i + 1}: {formatBRL(valor)} &middot; vencimento {venc}</li>
-                              )
+                              return <li key={i}>Parcela {i + 1}: {formatBRL(valor)} &middot; vencimento {venc}</li>
                             })}
                           </ul>
                         </>
@@ -920,6 +1081,69 @@ export default function Vendas() {
       )}
 
       {/* ================================================================
+         MODAL NOVO CLIENTE (inline)
+         ================================================================ */}
+      {modalNovoCliente && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Novo Cliente</h2>
+              <button onClick={() => setModalNovoCliente(false)} className="text-[#a8bfd4] hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Nome / Razão Social *</label>
+                <input
+                  type="text"
+                  value={novoClienteNome}
+                  onChange={e => setNovoClienteNome(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">CPF/CNPJ</label>
+                <input
+                  type="text"
+                  value={novoClienteCpfCnpj}
+                  onChange={e => setNovoClienteCpfCnpj(e.target.value)}
+                  placeholder="Opcional"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">E-mail</label>
+                <input
+                  type="email"
+                  value={novoClienteEmail}
+                  onChange={e => setNovoClienteEmail(e.target.value)}
+                  placeholder="Opcional"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-[#ccc]">
+                <button
+                  onClick={() => setModalNovoCliente(false)}
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={salvarNovoCliente}
+                  disabled={salvandoCliente || !novoClienteNome.trim()}
+                  className="px-5 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {salvandoCliente && <Loader2 size={14} className="animate-spin" />}
+                  Cadastrar e selecionar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================
          MODAL DETALHES
          ================================================================ */}
       {modalDetalhes && (
@@ -932,7 +1156,6 @@ export default function Vendas() {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              {/* Info */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Cliente</span>
@@ -971,14 +1194,14 @@ export default function Vendas() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                          <th className="text-left px-3 py-2">Descricao</th>
+                          <th className="text-left px-3 py-2">Descrição</th>
                           <th className="text-center px-3 py-2 w-16">Qtd</th>
                           <th className="text-right px-3 py-2 w-24">Unit.</th>
                           <th className="text-right px-3 py-2 w-24">Subtotal</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {modalDetalhes.vendas_itens.map((it) => (
+                        {modalDetalhes.vendas_itens.map(it => (
                           <tr key={it.id} className="border-t border-[#eee]">
                             <td className="px-3 py-2 text-[#0a0a0a]">{it.descricao}</td>
                             <td className="px-3 py-2 text-center text-[#555]">{it.quantidade}</td>
@@ -1005,11 +1228,9 @@ export default function Vendas() {
                         <div className="flex items-center gap-3">
                           <span className="font-medium text-[#0a0a0a]">{formatBRL(cr.valor)}</span>
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                            cr.status === 'pago'
-                              ? 'text-[#0a5c2e] bg-[#e6f4ec]'
-                              : cr.status === 'parcial'
-                              ? 'text-[#5c3a00] bg-[#fffbe6]'
-                              : 'text-[#1a2e4a] bg-[#f0f4f8]'
+                            cr.status === 'pago' ? 'text-[#0a5c2e] bg-[#e6f4ec]' :
+                            cr.status === 'parcial' ? 'text-[#5c3a00] bg-[#fffbe6]' :
+                            'text-[#1a2e4a] bg-[#f0f4f8]'
                           }`}>
                             {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
                           </span>
@@ -1034,7 +1255,7 @@ export default function Vendas() {
       )}
 
       {/* ================================================================
-         MODAL CONFIRMAR EXCLUSAO
+         MODAL CONFIRMAR EXCLUSÃO
          ================================================================ */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -1046,7 +1267,7 @@ export default function Vendas() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#0a0a0a]">Excluir venda</h3>
-                  <p className="text-sm text-[#555]">Esta acao nao pode ser desfeita.</p>
+                  <p className="text-sm text-[#555]">Esta ação não pode ser desfeita.</p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">

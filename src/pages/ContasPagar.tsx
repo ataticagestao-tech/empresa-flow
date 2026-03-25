@@ -48,7 +48,14 @@ interface ChartAccount {
 interface CentroCusto {
   id: string
   company_id: string
-  nome: string
+  codigo: string
+  descricao: string
+}
+
+interface Product {
+  id: string
+  description: string
+  code: string | null
 }
 
 type Recorrencia = 'sem' | 'mensal' | 'trimestral' | 'anual'
@@ -90,6 +97,7 @@ export default function ContasPagar() {
   const [contas, setContas] = useState<ContaPagar[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -146,7 +154,7 @@ export default function ContasPagar() {
     if (!selectedCompany) return
     setLoading(true)
 
-    const [cpData, bankData, chartData, ccData] = await Promise.all([
+    const [cpData, bankData, chartData, ccData, prodData] = await Promise.all([
       safeQuery(
         () => supabase.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido']).order('data_vencimento', { ascending: true }),
         'listar contas a pagar'
@@ -160,8 +168,12 @@ export default function ContasPagar() {
         'listar plano de contas'
       ),
       safeQuery(
-        () => supabase.from('centros_custo').select('id, company_id, nome').eq('company_id', selectedCompany.id),
+        () => supabase.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
         'listar centros de custo'
+      ),
+      safeQuery(
+        () => supabase.from('products').select('id, description, code').eq('company_id', selectedCompany.id).eq('is_active', true).order('description'),
+        'listar produtos'
       ),
     ])
 
@@ -169,6 +181,7 @@ export default function ContasPagar() {
     setBankAccounts((bankData as BankAccount[]) || [])
     setChartAccounts((chartData as ChartAccount[]) || [])
     setCentrosCusto((ccData as CentroCusto[]) || [])
+    setProducts((prodData as Product[]) || [])
     setSelectedIds(new Set())
     setLoading(false)
   }, [selectedCompany])
@@ -456,7 +469,7 @@ export default function ContasPagar() {
 
   const centroCustoMap = useMemo(() => {
     const m: Record<string, string> = {}
-    for (const c of centrosCusto) m[c.id] = c.nome
+    for (const c of centrosCusto) m[c.id] = `${c.codigo} - ${c.descricao}`
     return m
   }, [centrosCusto])
 
@@ -1015,14 +1028,19 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Descricao *</label>
-                  <input
-                    type="text"
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Descricao (Produto/Servico) *</label>
+                  <select
                     value={newForm.descricao}
                     onChange={(e) => setNewForm({ ...newForm, descricao: e.target.value })}
-                    placeholder="Descricao do pagamento"
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
-                  />
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
+                  >
+                    <option value="">Selecione um produto/servico...</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.description}>
+                        {p.code ? `${p.code} - ` : ''}{p.description}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1071,7 +1089,7 @@ export default function ContasPagar() {
                   >
                     <option value="">Nenhum</option>
                     {centrosCusto.map((cc) => (
-                      <option key={cc.id} value={cc.id}>{cc.nome}</option>
+                      <option key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</option>
                     ))}
                   </select>
                 </div>

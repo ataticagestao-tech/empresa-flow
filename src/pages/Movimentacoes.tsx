@@ -61,7 +61,14 @@ interface ChartAccount {
 interface CentroCusto {
   id: string
   company_id: string
-  nome: string
+  codigo: string
+  descricao: string
+}
+
+interface Product {
+  id: string
+  description: string
+  code: string | null
 }
 
 interface DayGroup {
@@ -116,6 +123,7 @@ export default function Movimentacoes() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
 
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null)
@@ -142,7 +150,7 @@ export default function Movimentacoes() {
     try {
       const client = activeClient ?? supabase
 
-      const [movData, bankData, coaData, ccData] = await Promise.all([
+      const [movData, bankData, coaData, ccData, prodData] = await Promise.all([
         safeQuery(
           () =>
             (client as any)
@@ -178,10 +186,20 @@ export default function Movimentacoes() {
           () =>
             (client as any)
               .from('centros_custo')
-              .select('id, company_id, nome')
+              .select('id, company_id, codigo, descricao')
               .eq('company_id', companyId)
-              .order('nome'),
+              .order('descricao'),
           'centros_custo'
+        ),
+        safeQuery(
+          () =>
+            (client as any)
+              .from('products')
+              .select('id, description, code')
+              .eq('company_id', companyId)
+              .eq('is_active', true)
+              .order('description'),
+          'products'
         ),
       ])
 
@@ -702,7 +720,7 @@ export default function Movimentacoes() {
                   <option value="">Nenhum</option>
                   {centrosCusto.map((cc) => (
                     <option key={cc.id} value={cc.id}>
-                      {cc.nome}
+                      {cc.codigo} - {cc.descricao}
                     </option>
                   ))}
                 </select>
