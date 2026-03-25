@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
-import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
-import { formatBRL, formatData } from '@/lib/format'
+import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
@@ -11,8 +10,11 @@ import {
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, Loader2,
+  MoreHorizontal, X, ChevronDown, Loader2, UserPlus,
 } from 'lucide-react'
+
+// Cast for GESTAP tables not in generated types
+const db = supabase as any
 
 /* ================================================================
    TYPES
@@ -37,9 +39,10 @@ interface CR {
   contrato_recorrente_id: string | null
 }
 
-interface BankAccount { id: string; name: string }
+interface BankAccount { id: string; name: string; banco?: string }
 interface ChartAccount { id: string; code: string; name: string }
 interface CentroCusto { id: string; codigo: string; descricao: string }
+interface Cliente { id: string; razao_social: string; nome_fantasia: string | null; cpf_cnpj: string | null; email: string | null }
 
 /* ================================================================
    CONSTANTS
@@ -106,7 +109,6 @@ function computeStatus(cr: CR): string {
 
 export default function ContasReceber() {
   const { selectedCompany } = useCompany()
-  const { activeClient } = useAuth()
 
   // ── Data ──
   const [items, setItems] = useState<CR[]>([])
@@ -114,6 +116,7 @@ export default function ContasReceber() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
 
   // ── Filters ──
   const [search, setSearch] = useState('')
@@ -136,16 +139,12 @@ export default function ContasReceber() {
   async function fetchItems() {
     if (!companyId) return
     setLoading(true)
-    const data = await safeQuery(
-      () =>
-        supabase
-          .from('contas_receber')
-          .select('*')
-          .eq('company_id', companyId)
-          .is('deleted_at', null)
-          .order('data_vencimento', { ascending: true }),
-      'listar contas a receber',
-    )
+    const { data } = await db
+      .from('contas_receber')
+      .select('*')
+      .eq('company_id', companyId)
+      .is('deleted_at', null)
+      .order('data_vencimento', { ascending: true })
     setItems((data as CR[]) || [])
     setLoading(false)
   }
@@ -153,23 +152,16 @@ export default function ContasReceber() {
   // ── Fetch lookups ──
   async function fetchLookups() {
     if (!companyId) return
-    const [banks, accounts, centros] = await Promise.all([
-      safeQuery(
-        () => supabase.from('bank_accounts').select('id,name').eq('company_id', companyId).eq('is_active', true),
-        'bank accounts',
-      ),
-      safeQuery(
-        () => supabase.from('chart_of_accounts').select('id,code,name').eq('company_id', companyId).eq('type', 'revenue'),
-        'chart accounts revenue',
-      ),
-      safeQuery(
-        () => supabase.from('centros_custo').select('id,codigo,descricao').eq('company_id', companyId).eq('ativo', true),
-        'centros custo',
-      ),
+    const [banksRes, accountsRes, centrosRes, clientesRes] = await Promise.all([
+      db.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
+      db.from('chart_of_accounts').select('id, code, name').eq('company_id', companyId),
+      db.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
+      db.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
     ])
-    setBankAccounts((banks as BankAccount[]) || [])
-    setChartAccounts((accounts as ChartAccount[]) || [])
-    setCentrosCusto((centros as CentroCusto[]) || [])
+    setBankAccounts((banksRes.data as BankAccount[]) || [])
+    setChartAccounts((accountsRes.data as ChartAccount[]) || [])
+    setCentrosCusto((centrosRes.data as CentroCusto[]) || [])
+    setClientes((clientesRes.data as Cliente[]) || [])
   }
 
   useEffect(() => {
@@ -186,6 +178,12 @@ export default function ContasReceber() {
   }, [dropdownOpen])
 
   // ── Derived data ──
+  const categoryMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    chartAccounts.forEach(a => { m[a.id] = a.name })
+    return m
+  }, [chartAccounts])
+
   const enrichedItems = useMemo(() => items.map(cr => ({ ...cr, _status: computeStatus(cr) })), [items])
 
   const filtered = useMemo(() => {
@@ -372,7 +370,7 @@ export default function ContasReceber() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e5e5e5]">
-                    {['Pagador', 'Tipo', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
+                    {['Pagador', 'Tipo', 'Categoria', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"
@@ -407,6 +405,10 @@ export default function ContasReceber() {
                           <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-[#f5f5f5] border border-[#ddd] rounded">
                             {deriveTipo(cr)}
                           </span>
+                        </td>
+                        {/* Categoria */}
+                        <td className="px-4 py-3 text-[13px] text-[#555]">
+                          {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
                         </td>
                         {/* Vencimento */}
                         <td className="px-4 py-3">
@@ -471,7 +473,7 @@ export default function ContasReceber() {
                                     onClick={async () => {
                                       setDropdownOpen(null)
                                       if (!confirm('Cancelar este titulo?')) return
-                                      await supabase.from('contas_receber').update({ status: 'cancelado' }).eq('id', cr.id)
+                                      await db.from('contas_receber').update({ status: 'cancelado' }).eq('id', cr.id)
                                       fetchItems()
                                     }}
                                     className="w-full px-4 py-2.5 text-left text-[13px] text-[#8b0000] hover:bg-[#fdecea] transition-colors"
@@ -529,12 +531,14 @@ export default function ContasReceber() {
           companyId={companyId!}
           chartAccounts={chartAccounts}
           centrosCusto={centrosCusto}
+          clientes={clientes}
           submitting={submitting}
           onClose={() => setNovoModal(false)}
           onConfirm={async () => {
             setNovoModal(false)
             fetchItems()
           }}
+          onClienteAdded={(c: Cliente) => setClientes(prev => [...prev, c])}
         />
       )}
 
@@ -840,16 +844,20 @@ function ModalNovoCR({
   companyId,
   chartAccounts,
   centrosCusto,
+  clientes,
   submitting: parentSubmitting,
   onClose,
   onConfirm,
+  onClienteAdded,
 }: {
   companyId: string
   chartAccounts: ChartAccount[]
   centrosCusto: CentroCusto[]
+  clientes: Cliente[]
   submitting: boolean
   onClose: () => void
   onConfirm: () => void
+  onClienteAdded: (c: Cliente) => void
 }) {
   const [tipo, setTipo] = useState('unica')
   const [pagadorNome, setPagadorNome] = useState('')
@@ -862,6 +870,68 @@ function ModalNovoCR({
   const [centroCustoId, setCentroCustoId] = useState('')
   const [descricao, setDescricao] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Client search
+  const [clienteSearch, setClienteSearch] = useState('')
+  const [clienteDropdownOpen, setClienteDropdownOpen] = useState(false)
+  const [showNovoCliente, setShowNovoCliente] = useState(false)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoCpf, setNovoCpf] = useState('')
+  const [novoEmail, setNovoEmail] = useState('')
+  const clienteRef = useRef<HTMLDivElement>(null)
+
+  const formatDoc = (d: string | null) => {
+    if (!d) return ''
+    const c = d.replace(/\D/g, '')
+    return c.length <= 11 ? formatCPF(c) : formatCNPJ(c)
+  }
+
+  const clientesFiltrados = useMemo(() => {
+    if (!clienteSearch.trim()) return clientes.slice(0, 20)
+    const t = clienteSearch.toLowerCase()
+    return clientes.filter(c =>
+      (c.nome_fantasia || '').toLowerCase().includes(t) ||
+      c.razao_social.toLowerCase().includes(t) ||
+      (c.cpf_cnpj || '').includes(t)
+    ).slice(0, 20)
+  }, [clientes, clienteSearch])
+
+  function selectCliente(c: Cliente) {
+    setPagadorNome(c.nome_fantasia || c.razao_social)
+    setPagadorCpfCnpj(c.cpf_cnpj || '')
+    setPagadorEmail(c.email || '')
+    setClienteSearch(c.nome_fantasia || c.razao_social)
+    setClienteDropdownOpen(false)
+  }
+
+  async function salvarNovoCliente() {
+    if (!novoNome.trim()) return
+    try {
+      const { data, error } = await db.from('clients').insert({
+        company_id: companyId,
+        razao_social: novoNome.trim(),
+        cpf_cnpj: novoCpf.replace(/\D/g, '') || null,
+        email: novoEmail.trim() || null,
+        is_active: true,
+      }).select().single()
+      if (error) throw error
+      const nc: Cliente = data
+      onClienteAdded(nc)
+      selectCliente(nc)
+      setShowNovoCliente(false)
+      setNovoNome(''); setNovoCpf(''); setNovoEmail('')
+    } catch (e: any) {
+      alert('Erro ao cadastrar cliente: ' + (e.message || ''))
+    }
+  }
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) setClienteDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -893,10 +963,10 @@ function ModalNovoCR({
             observacoes: descricao ? `${descricao} (${i + 1}/${n})` : `Parcela ${i + 1}/${n}`,
           })
         }
-        const { error } = await supabase.from('contas_receber').insert(records)
+        const { error } = await db.from('contas_receber').insert(records)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('contas_receber').insert({
+        const { error } = await db.from('contas_receber').insert({
           company_id: companyId,
           pagador_nome: pagadorNome.trim(),
           pagador_cpf_cnpj: pagadorCpfCnpj.trim() || null,
@@ -948,41 +1018,118 @@ function ModalNovoCR({
           </div>
         </div>
 
-        {/* Pagador */}
+        {/* Pagador — searchable client dropdown */}
         <div className="space-y-3">
-          <div>
-            <FieldLabel>Nome do pagador *</FieldLabel>
+          <div ref={clienteRef} className="relative">
+            <FieldLabel>Pagador *</FieldLabel>
             <input
               type="text"
-              value={pagadorNome}
-              onChange={e => setPagadorNome(e.target.value)}
+              value={clienteSearch}
+              onChange={e => { setClienteSearch(e.target.value); setClienteDropdownOpen(true) }}
+              onFocus={() => setClienteDropdownOpen(true)}
               className={inputCls}
-              placeholder="Nome completo ou razao social"
-              required
+              placeholder="Buscar cliente por nome ou CPF/CNPJ..."
+              autoComplete="off"
             />
+            {/* Hidden required field to enforce selection */}
+            <input type="hidden" value={pagadorNome} required />
+
+            {clienteDropdownOpen && (
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {clientesFiltrados.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectCliente(c)}
+                    className="w-full text-left px-3 py-2 hover:bg-[#f0f4f8] border-b border-[#eee] last:border-0"
+                  >
+                    <div className="text-[13px] font-semibold text-[#0a0a0a]">
+                      {c.nome_fantasia || c.razao_social}
+                    </div>
+                    {c.cpf_cnpj && (
+                      <div className="text-[11px] text-[#999]">{formatDoc(c.cpf_cnpj)}</div>
+                    )}
+                  </button>
+                ))}
+                {clientesFiltrados.length === 0 && (
+                  <div className="px-3 py-2 text-[12px] text-[#999]">Nenhum cliente encontrado</div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowNovoCliente(true)}
+                  className="w-full text-left px-3 py-2 text-[13px] font-semibold text-[#1a2e4a] hover:bg-[#f0f4f8] flex items-center gap-2 border-t border-[#ccc]"
+                >
+                  <UserPlus size={14} /> + Adicionar cliente
+                </button>
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>CPF / CNPJ</FieldLabel>
+
+          {/* Novo cliente inline modal */}
+          {showNovoCliente && (
+            <div className="border border-[#1a2e4a] rounded-lg p-3 bg-[#f0f4f8] space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[12px] font-bold text-[#1a2e4a] uppercase tracking-wider">Novo cliente</span>
+                <button type="button" onClick={() => setShowNovoCliente(false)}><X size={14} className="text-[#999]" /></button>
+              </div>
               <input
                 type="text"
-                value={pagadorCpfCnpj}
-                onChange={e => setPagadorCpfCnpj(e.target.value)}
+                value={novoNome}
+                onChange={e => setNovoNome(e.target.value)}
                 className={inputCls}
-                placeholder="000.000.000-00"
+                placeholder="Razao social / Nome *"
               />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={novoCpf}
+                  onChange={e => setNovoCpf(e.target.value)}
+                  className={inputCls}
+                  placeholder="CPF / CNPJ"
+                />
+                <input
+                  type="email"
+                  value={novoEmail}
+                  onChange={e => setNovoEmail(e.target.value)}
+                  className={inputCls}
+                  placeholder="E-mail"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={salvarNovoCliente}
+                className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d]"
+              >
+                Salvar cliente
+              </button>
             </div>
-            <div>
-              <FieldLabel>E-mail</FieldLabel>
-              <input
-                type="email"
-                value={pagadorEmail}
-                onChange={e => setPagadorEmail(e.target.value)}
-                className={inputCls}
-                placeholder="email@exemplo.com"
-              />
+          )}
+
+          {/* Show selected client info */}
+          {pagadorNome && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>CPF / CNPJ</FieldLabel>
+                <input
+                  type="text"
+                  value={pagadorCpfCnpj}
+                  onChange={e => setPagadorCpfCnpj(e.target.value)}
+                  className={inputCls}
+                  placeholder="000.000.000-00"
+                />
+              </div>
+              <div>
+                <FieldLabel>E-mail</FieldLabel>
+                <input
+                  type="email"
+                  value={pagadorEmail}
+                  onChange={e => setPagadorEmail(e.target.value)}
+                  className={inputCls}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Valor / Vencimento */}
