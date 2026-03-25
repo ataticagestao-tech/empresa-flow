@@ -99,8 +99,10 @@ export default function CompanyDashboard() {
         queryKey: ["dash_receita_mes", cId, monthStart],
         queryFn: async () => {
             const { data } = await db.from("contas_receber")
-                .select("valor_pago").eq("company_id", cId).eq("status", "pago")
-                .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd);
+                .select("valor_pago").eq("company_id", cId)
+                .eq("status", "pago")
+                .gte("data_pagamento", monthStart)
+                .lte("data_pagamento", monthEnd);
             return (data || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
@@ -179,7 +181,8 @@ export default function CompanyDashboard() {
 
                 const [{ data: rec }, { data: desp }] = await Promise.all([
                     db.from("contas_receber").select("valor_pago").eq("company_id", cId)
-                        .eq("status", "pago").gte("data_pagamento", ms).lte("data_pagamento", me),
+                        .eq("status", "pago")
+                        .gte("data_pagamento", ms).lte("data_pagamento", me),
                     db.from("contas_pagar").select("valor_pago").eq("company_id", cId)
                         .eq("status", "pago").gte("data_pagamento", ms).lte("data_pagamento", me),
                 ]);
@@ -312,11 +315,11 @@ export default function CompanyDashboard() {
                     {/* Receita do Mês */}
                     <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
-                            Receita do Mês
+                            Faturamento do Mês
                         </p>
                         <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(receitaMes)}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                            Despesa: {fmt(despesaMes)}
+                            Despesas pagas: {fmt(despesaMes)}
                         </p>
                     </div>
 

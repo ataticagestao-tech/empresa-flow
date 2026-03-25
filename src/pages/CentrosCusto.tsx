@@ -1,324 +1,245 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, MoreVertical, Pencil, Trash2, GitBranch } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { formatBRL } from "@/lib/format";
 
 interface CentroCusto {
-    id: string;
-    company_id: string;
-    codigo: string;
-    descricao: string;
-    pai_id: string | null;
-    ativo: boolean;
-    created_at: string;
+  id: string; company_id: string; codigo: string; descricao: string;
+  pai_id: string | null; ativo: boolean; created_at: string;
+  meta_mensal?: number | null; is_padrao?: boolean;
 }
 
-const emptyForm = { codigo: "", descricao: "", pai_id: "", ativo: true };
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full";
+const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
 
 export default function CentrosCusto() {
-    const { activeClient } = useAuth();
-    const { selectedCompany } = useCompany();
-    const queryClient = useQueryClient();
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editing, setEditing] = useState<CentroCusto | null>(null);
-    const [formData, setFormData] = useState(emptyForm);
-    const [search, setSearch] = useState("");
+  const { activeClient } = useAuth();
+  const { selectedCompany } = useCompany();
+  const queryClient = useQueryClient();
 
-    const { data: centros = [], isLoading } = useQuery({
-        queryKey: ["centros_custo", selectedCompany?.id],
-        queryFn: async () => {
-            if (!selectedCompany?.id) return [];
-            const { data, error } = await (activeClient as any)
-                .from("centros_custo")
-                .select("*")
-                .eq("company_id", selectedCompany.id)
-                .order("codigo");
-            if (error) throw error;
-            return data as CentroCusto[];
-        },
-        enabled: !!selectedCompany?.id,
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" });
+  const [saving, setSaving] = useState(false);
+
+  const { data: centros = [], isLoading } = useQuery({
+    queryKey: ["centros_custo", selectedCompany?.id],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return [];
+      const { data, error } = await (activeClient as any)
+        .from("centros_custo").select("*").eq("company_id", selectedCompany.id).order("codigo");
+      if (error) throw error;
+      return data as CentroCusto[];
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
+  const { data: empCounts = {} } = useQuery({
+    queryKey: ["emp_counts_by_centro", selectedCompany?.id],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return {};
+      const { data } = await (activeClient as any)
+        .from("employees").select("centro_custo_id").eq("company_id", selectedCompany.id).eq("status", "ativo");
+      const counts: Record<string, number> = {};
+      (data || []).forEach((e: any) => { if (e.centro_custo_id) counts[e.centro_custo_id] = (counts[e.centro_custo_id] || 0) + 1; });
+      return counts;
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
+  const selected = centros.find(c => c.id === selectedId);
+  const set = (k: string, v: string) => setFormData(f => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    if (!selectedCompany?.id || !formData.descricao.trim()) { toast.error("Descrição é obrigatória"); return; }
+    setSaving(true);
+    try {
+      const payload: any = {
+        company_id: selectedCompany.id, codigo: formData.codigo || null,
+        descricao: formData.descricao.trim(), pai_id: formData.pai_id || null, ativo: true,
+      };
+      if (formData.meta_mensal) payload.meta_mensal = parseFloat(formData.meta_mensal.replace(",", "."));
+
+      if (editingId) {
+        const { error } = await (activeClient as any).from("centros_custo").update(payload).eq("id", editingId);
+        if (error) throw error;
+        toast.success("Setor atualizado");
+      } else {
+        const { error } = await (activeClient as any).from("centros_custo").insert(payload);
+        if (error) throw error;
+        toast.success("Setor criado");
+      }
+      queryClient.invalidateQueries({ queryKey: ["centros_custo"] });
+      setShowForm(false); setEditingId(null);
+      setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" });
+    } catch (err: any) { toast.error("Erro: " + (err.message || "Erro desconhecido")); }
+    finally { setSaving(false); }
+  };
+
+  const handleEdit = (c: CentroCusto) => {
+    setEditingId(c.id);
+    setFormData({
+      codigo: c.codigo || "", descricao: c.descricao || "",
+      pai_id: c.pai_id || "", meta_mensal: c.meta_mensal ? String(c.meta_mensal) : "",
     });
+    setShowForm(true);
+  };
 
-    // Build hierarchy: find children for each parent
-    const getParentName = (paiId: string | null) => {
-        if (!paiId) return null;
-        const parent = centros.find(c => c.id === paiId);
-        return parent ? `${parent.codigo} - ${parent.descricao}` : null;
-    };
+  const handleDelete = async (c: CentroCusto) => {
+    if (c.is_padrao) { toast.error("Não é possível excluir setores padrão"); return; }
+    if (!confirm(`Excluir setor "${c.descricao}"?`)) return;
+    try {
+      const { error } = await (activeClient as any).from("centros_custo").delete().eq("id", c.id);
+      if (error) throw error;
+      toast.success("Excluído");
+      queryClient.invalidateQueries({ queryKey: ["centros_custo"] });
+      if (selectedId === c.id) setSelectedId(null);
+    } catch (err: any) { toast.error("Erro: " + err.message); }
+  };
 
-    // Sort items: parents first, then children indented
-    const buildTree = (items: CentroCusto[]): (CentroCusto & { level: number })[] => {
-        const result: (CentroCusto & { level: number })[] = [];
-        const addChildren = (parentId: string | null, level: number) => {
-            items
-                .filter(i => i.pai_id === parentId)
-                .forEach(item => {
-                    result.push({ ...item, level });
-                    addChildren(item.id, level + 1);
-                });
-        };
-        addChildren(null, 0);
-        // Add any orphans not in tree
-        items.forEach(item => {
-            if (!result.find(r => r.id === item.id)) {
-                result.push({ ...item, level: 0 });
-            }
-        });
-        return result;
-    };
+  const getMetaPercent = (c: CentroCusto) => {
+    const meta = c.meta_mensal || 0;
+    if (meta <= 0) return 0;
+    return 0; // placeholder — real value would come from expenses query
+  };
 
-    const treeItems = buildTree(centros);
-    const filtered = treeItems.filter(c =>
-        c.codigo.toLowerCase().includes(search.toLowerCase()) ||
-        c.descricao.toLowerCase().includes(search.toLowerCase())
-    );
+  return (
+    <AppLayout title="Centros de Custo">
+      <div className="space-y-6">
+        {/* Alert */}
+        <div className="bg-[#fffbe6] border border-[#e6c200] border-l-4 border-l-[#b8960a] rounded-md px-4 py-2.5 text-sm font-semibold text-[#5c3a00]">
+          Os setores abaixo foram criados pela Tática como padrão para esta empresa. O cliente pode renomear ou adicionar novos setores, mas não pode excluir os padrões.
+        </div>
 
-    const handleOpenNew = () => {
-        setEditing(null);
-        setFormData(emptyForm);
-        setIsDialogOpen(true);
-    };
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold text-[#0a0a0a]">Setores / Centros de Custo</h2>
+          <button onClick={() => { setEditingId(null); setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" }); setShowForm(!showForm); }}
+            className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+            {showForm ? "Fechar" : "+ Adicionar Setor"}
+          </button>
+        </div>
 
-    const handleEdit = (cc: CentroCusto) => {
-        setEditing(cc);
-        setFormData({
-            codigo: cc.codigo || "",
-            descricao: cc.descricao || "",
-            pai_id: cc.pai_id || "",
-            ativo: cc.ativo,
-        });
-        setIsDialogOpen(true);
-    };
-
-    const handleSave = async () => {
-        if (!selectedCompany?.id || !formData.codigo.trim() || !formData.descricao.trim()) {
-            toast.error("Código e Descrição são obrigatórios");
-            return;
-        }
-        try {
-            const payload = {
-                company_id: selectedCompany.id,
-                codigo: formData.codigo.trim(),
-                descricao: formData.descricao.trim(),
-                pai_id: formData.pai_id || null,
-                ativo: formData.ativo,
-            };
-
-            if (editing?.id) {
-                const { error } = await (activeClient as any)
-                    .from("centros_custo").update(payload).eq("id", editing.id);
-                if (error) throw error;
-                toast.success("Centro de custo atualizado");
-            } else {
-                const { error } = await (activeClient as any)
-                    .from("centros_custo").insert(payload);
-                if (error) throw error;
-                toast.success("Centro de custo cadastrado");
-            }
-
-            queryClient.invalidateQueries({ queryKey: ["centros_custo"] });
-            setIsDialogOpen(false);
-            setEditing(null);
-            setFormData(emptyForm);
-        } catch (err: any) {
-            toast.error("Erro ao salvar: " + (err.message || "Erro desconhecido"));
-        }
-    };
-
-    const handleDelete = async (cc: CentroCusto) => {
-        const hasChildren = centros.some(c => c.pai_id === cc.id);
-        if (hasChildren) {
-            toast.error("Não é possível excluir: este centro possui sub-centros vinculados.");
-            return;
-        }
-        if (!window.confirm(`Excluir "${cc.codigo} - ${cc.descricao}"?`)) return;
-        try {
-            const { error } = await (activeClient as any)
-                .from("centros_custo").delete().eq("id", cc.id);
-            if (error) throw error;
-            toast.success("Centro de custo excluído");
-            queryClient.invalidateQueries({ queryKey: ["centros_custo"] });
-        } catch (err: any) {
-            toast.error("Erro ao excluir: " + err.message);
-        }
-    };
-
-    // Filter parent options: exclude self and descendants when editing
-    const getParentOptions = () => {
-        if (!editing) return centros.filter(c => c.ativo);
-        const descendants = new Set<string>();
-        const addDesc = (id: string) => {
-            centros.filter(c => c.pai_id === id).forEach(c => {
-                descendants.add(c.id);
-                addDesc(c.id);
-            });
-        };
-        addDesc(editing.id);
-        return centros.filter(c => c.id !== editing.id && !descendants.has(c.id) && c.ativo);
-    };
-
-    return (
-        <AppLayout title="Centros de Custo">
-            <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-                            <GitBranch className="h-8 w-8 text-blue-600" />
-                            Centros de Custo
-                        </h2>
-                        <p className="text-muted-foreground">{centros.length} centro(s) cadastrado(s)</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                className="pl-9 w-[200px]"
-                            />
-                        </div>
-                        <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleOpenNew}>
-                            <Plus className="mr-2 h-4 w-4" /> Novo Centro
-                        </Button>
-                    </div>
-                </div>
-
-                <Card className="overflow-hidden">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Código</TableHead>
-                                <TableHead>Descrição</TableHead>
-                                <TableHead>Centro Pai</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        Carregando...
-                                    </TableCell>
-                                </TableRow>
-                            ) : filtered.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        {search ? "Nenhum centro encontrado." : "Nenhum centro de custo cadastrado."}
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filtered.map(cc => (
-                                    <TableRow key={cc.id} className={!cc.ativo ? "opacity-50" : ""}>
-                                        <TableCell className="font-mono font-medium">
-                                            <span style={{ paddingLeft: cc.level * 20 }}>
-                                                {cc.level > 0 && <span className="text-muted-foreground mr-1">└</span>}
-                                                {cc.codigo}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>{cc.descricao}</TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            {getParentName(cc.pai_id) || "—"}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                cc.ativo ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                                            }`}>
-                                                {cc.ativo ? "Ativo" : "Inativo"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handleEdit(cc)}>
-                                                        <Pencil className="mr-2 h-4 w-4" /> Editar
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(cc)}>
-                                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </Card>
-
-                <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                    setIsDialogOpen(open);
-                    if (!open) { setEditing(null); setFormData(emptyForm); }
-                }}>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>{editing ? "Editar Centro de Custo" : "Novo Centro de Custo"}</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Código *</Label>
-                                    <Input
-                                        value={formData.codigo}
-                                        onChange={e => setFormData({ ...formData, codigo: e.target.value })}
-                                        placeholder="001"
-                                    />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <Label>Descrição *</Label>
-                                    <Input
-                                        value={formData.descricao}
-                                        onChange={e => setFormData({ ...formData, descricao: e.target.value })}
-                                        placeholder="Ex: Administrativo"
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Centro Pai (opcional)</Label>
-                                <Select value={formData.pai_id} onValueChange={v => setFormData({ ...formData, pai_id: v === "none" ? "" : v })}>
-                                    <SelectTrigger><SelectValue placeholder="Nenhum (raiz)" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">Nenhum (raiz)</SelectItem>
-                                        {getParentOptions().map(c => (
-                                            <SelectItem key={c.id} value={c.id}>
-                                                {c.codigo} - {c.descricao}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Switch
-                                    checked={formData.ativo}
-                                    onCheckedChange={v => setFormData({ ...formData, ativo: v })}
-                                />
-                                <Label>Ativo</Label>
-                            </div>
-                            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleSave}>
-                                {editing ? "Salvar Alterações" : "Cadastrar"}
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+        {/* New Sector Form */}
+        {showForm && (
+          <div className="border border-[#ccc] rounded-lg overflow-hidden">
+            <div className="bg-[#1a2e4a] px-4 py-2.5">
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest">{editingId ? "Editar Setor" : "Novo Setor"}</h3>
             </div>
-        </AppLayout>
-    );
+            <div className="p-5 bg-white space-y-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="flex flex-col gap-1"><label className={LB}>Código</label><input value={formData.codigo} onChange={e => set("codigo", e.target.value)} className={IC} placeholder="Ex: ADM" /></div>
+                <div className="flex flex-col gap-1 col-span-2"><label className={LB}>Descrição <span className="text-[#8b0000]">*</span></label><input value={formData.descricao} onChange={e => set("descricao", e.target.value)} className={IC} /></div>
+                <div className="flex flex-col gap-1"><label className={LB}>Meta Mensal (R$)</label><input value={formData.meta_mensal} onChange={e => set("meta_mensal", e.target.value)} className={IC} placeholder="0,00" /></div>
+              </div>
+              <div className="flex flex-col gap-1 max-w-xs">
+                <label className={LB}>Setor Pai</label>
+                <select value={formData.pai_id} onChange={e => set("pai_id", e.target.value)} className={IC}>
+                  <option value="">Nenhum (raiz)</option>
+                  {centros.filter(c => c.id !== editingId).map(c => <option key={c.id} value={c.id}>{c.codigo} — {c.descricao}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={handleSave} disabled={saving} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                  {saving ? "Salvando..." : editingId ? "Salvar" : "Criar Setor"}
+                </button>
+                <button onClick={() => { setShowForm(false); setEditingId(null); }} className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Grid */}
+        {isLoading ? (
+          <div className="text-center py-12 text-sm text-[#555]">Carregando setores...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {centros.map(c => {
+              const isPadrao = c.is_padrao ?? false;
+              const empCount = empCounts[c.id] || 0;
+              const meta = c.meta_mensal || 0;
+              const pct = getMetaPercent(c);
+              const barColor = pct > 100 ? "bg-[#8b0000]" : pct > 80 ? "bg-[#b8960a]" : "bg-[#0a5c2e]";
+
+              return (
+                <div key={c.id}
+                  onClick={() => setSelectedId(selectedId === c.id ? null : c.id)}
+                  className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
+                    selectedId === c.id ? "border-[#1a2e4a] shadow-md" : "border-[#ccc] hover:shadow-sm"
+                  }`}>
+                  <div className={`px-4 py-2.5 flex items-center justify-between ${isPadrao ? "bg-[#1a2e4a]" : "bg-[#555]"}`}>
+                    <div>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-widest">{c.descricao}</h3>
+                      {c.codigo && <p className="text-[10px] text-[#a8bfd4]">{c.codigo}</p>}
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={e => { e.stopPropagation(); handleEdit(c); }} className="text-[#a8bfd4] hover:text-white text-xs px-1">✎</button>
+                      {!isPadrao && <button onClick={e => { e.stopPropagation(); handleDelete(c); }} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-white">
+                    <div className="flex justify-between text-xs text-[#555] mb-2">
+                      <span>{empCount} funcionário(s)</span>
+                      {meta > 0 && <span>Meta: {formatBRL(meta)}</span>}
+                    </div>
+                    {meta > 0 && (
+                      <div className="w-full h-2 bg-[#eee] rounded-full mb-2">
+                        <div className={`h-2 rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      {isPadrao
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]">Padrão Tática</span>
+                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#f5f5f5] text-[#555]">Personalizado</span>}
+                      {!c.ativo && <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#8b0000] bg-[#fdecea] text-[#8b0000]">Inativo</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Add card */}
+            <div onClick={() => { setEditingId(null); setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" }); setShowForm(true); }}
+              className="border-2 border-dashed border-[#ccc] rounded-lg flex items-center justify-center py-12 cursor-pointer hover:border-[#1a2e4a] transition-all">
+              <div className="text-center">
+                <p className="text-2xl text-[#ccc] mb-1">+</p>
+                <p className="text-sm text-[#555]">Adicionar setor</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Detail Panel */}
+        {selected && (
+          <div className="border border-[#ccc] rounded-lg overflow-hidden">
+            <div className="bg-[#1a2e4a] px-4 py-2.5">
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest">
+                Detalhe — {selected.descricao}
+              </h3>
+            </div>
+            <div className="p-5 bg-white">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#555] mb-3">Funcionários do Setor</h4>
+                  {(empCounts[selected.id] || 0) === 0 ? (
+                    <p className="text-sm text-[#555]">Nenhum funcionário vinculado a este setor.</p>
+                  ) : (
+                    <p className="text-sm text-[#0a0a0a]">{empCounts[selected.id]} funcionário(s) ativo(s)</p>
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#555] mb-3">Despesas do Mês</h4>
+                  <p className="text-sm text-[#555]">Dados de despesas serão exibidos quando os lançamentos estiverem vinculados a centros de custo.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </AppLayout>
+  );
 }
