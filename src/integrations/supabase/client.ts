@@ -9,6 +9,9 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1
 const SUPABASE_TATICA_URL = import.meta.env.VITE_SUPABASE_TATICA_URL || SUPABASE_URL;
 const SUPABASE_TATICA_KEY = import.meta.env.VITE_SUPABASE_TATICA_ANON_KEY || SUPABASE_KEY;
 
+// Only true when a distinct secondary project URL is explicitly configured
+export const HAS_SECONDARY_PROJECT = !!(import.meta.env.VITE_SUPABASE_TATICA_URL && import.meta.env.VITE_SUPABASE_TATICA_URL !== SUPABASE_URL);
+
 // Default client
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
   auth: {

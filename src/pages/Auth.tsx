@@ -32,6 +32,7 @@ const toPtBrAuthError = (message: string) => {
   if (msg.includes("token has expired") || msg.includes("invalid or expired")) return "Link invalido ou expirado.";
   if (msg.includes("weak password")) return "Senha fraca.";
   if (msg.includes("already registered") || msg.includes("duplicate") || msg.includes("already exists")) return "Este email ja esta cadastrado";
+  if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network request failed")) return "Erro de conexao. Verifique sua internet e tente novamente.";
   return message;
 };
 

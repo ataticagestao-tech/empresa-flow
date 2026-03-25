@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react";
 import { User, Session, SupabaseClient } from "@supabase/supabase-js";
-import { supabase, supabaseTatica } from "@/integrations/supabase/client";
-
-const HAS_SECONDARY_PROJECT = supabaseTatica !== supabase;
+import { supabase, supabaseTatica, HAS_SECONDARY_PROJECT } from "@/integrations/supabase/client";
 
 export interface AuthContextType {
   user: User | null;
