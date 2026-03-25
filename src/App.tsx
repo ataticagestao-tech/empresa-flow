@@ -54,6 +54,7 @@ import OrdensCompra from "./pages/OrdensCompra";
 import Inventario from "./pages/Inventario";
 import Documentos from "./pages/Documentos";
 import MultiEmpresa from "./pages/MultiEmpresa";
+import ContratosRecorrentes from "./pages/ContratosRecorrentes";
 
 const queryClient = new QueryClient();
 
@@ -177,6 +178,7 @@ const App = () => (
                     <Route path="/recibos" element={<Recibos />} />
                     <Route path="/import-data" element={<ImportData />} />
                     <Route path="/ajuda" element={<Ajuda />} />
+                    <Route path="/contratos-recorrentes" element={<ContratosRecorrentes />} />
                     <Route path="/regua-cobranca" element={<ReguaCobranca />} />
                     <Route path="/dre" element={<DRE />} />
                     <Route path="/estoque" element={<EstoqueProdutos />} />

@@ -1,557 +1,949 @@
-import { useState, useMemo } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useToast } from "@/components/ui/use-toast";
+import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '@/integrations/supabase/client'
+import { useCompany } from '@/contexts/CompanyContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { safeQuery } from '@/lib/supabaseQuery'
+import { formatBRL, formatData } from '@/lib/format'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { format, parseISO, differenceInDays } from 'date-fns'
 import {
-    Mail, MessageSquare, Plus, Pencil, Trash2, Send, CheckCircle2,
-    XCircle, Clock, Eye, Bell, Settings2, History, Zap, RefreshCw
-} from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+  Plus, Search, Trash2, Bell, Mail, MessageSquare, Play, Pause, Send,
+} from 'lucide-react'
 
-const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+/* ================================================================
+   TYPES
+   ================================================================ */
 
-const TABS = [
-    { id: "canais", label: "Canais", icon: Settings2 },
-    { id: "reguas", label: "Réguas", icon: Bell },
-    { id: "historico", label: "Histórico", icon: History },
-] as const;
+interface Regua {
+  id: string
+  company_id: string
+  nome: string
+  ativo: boolean
+}
 
-type TabId = typeof TABS[number]["id"];
+interface Etapa {
+  id: string
+  regua_id: string
+  tipo_acao: 'email' | 'whatsapp' | 'sms'
+  dias_antes_vencimento: number
+  template_mensagem: string
+  ordem: number
+}
 
-const GATILHO_LABELS: Record<string, string> = {
-    antes_vencimento: "Antes do vencimento",
-    no_vencimento: "No dia do vencimento",
-    apos_vencimento: "Após o vencimento",
-};
+interface EtapaForm {
+  tipo_acao: 'email' | 'whatsapp' | 'sms'
+  dias_antes_vencimento: number
+  template_mensagem: string
+  ordem: number
+}
 
-const CANAL_LABELS: Record<string, string> = {
-    email: "E-mail",
-    whatsapp: "WhatsApp",
-    ambos: "E-mail + WhatsApp",
-};
+interface CR {
+  id: string
+  company_id: string
+  pagador_nome: string
+  pagador_cpf_cnpj: string | null
+  valor: number
+  data_vencimento: string
+  status: string
+}
 
-const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-    enviado: { label: "Enviado", color: "#2e7d32", bg: "#e8f5e9" },
-    entregue: { label: "Entregue", color: "#2e7d32", bg: "#e8f5e9" },
-    lido: { label: "Lido", color: "#3b5bdb", bg: "#eef2ff" },
-    falhou: { label: "Falhou", color: "#c62828", bg: "#fde8e8" },
-    pendente: { label: "Pendente", color: "#f57f17", bg: "#fff8e1" },
-};
+interface LogEntry {
+  id: string
+  regua_id: string
+  contas_receber_id: string
+  tipo_acao: string
+  status: string
+  enviado_em: string
+  regua_nome?: string
+  cliente_nome?: string
+}
 
-const VARIAVEIS = [
-    "{{pagador_nome}}", "{{valor}}", "{{data_vencimento}}",
-    "{{dias_restantes}}", "{{dias_atraso}}", "{{empresa_nome}}", "{{empresa_telefone}}"
-];
+/* ================================================================
+   HELPERS
+   ================================================================ */
+
+function diasLabel(dias: number): string {
+  if (dias < 0) return `${Math.abs(dias)} dias antes`
+  if (dias === 0) return 'No dia do vencimento'
+  return `${dias} dias depois`
+}
+
+function tipoIcon(tipo: string) {
+  switch (tipo) {
+    case 'email': return <Mail size={14} />
+    case 'whatsapp': return <MessageSquare size={14} />
+    case 'sms': return <Send size={14} />
+    default: return <Bell size={14} />
+  }
+}
+
+function tipoLabel(tipo: string): string {
+  switch (tipo) {
+    case 'email': return 'E-mail'
+    case 'whatsapp': return 'WhatsApp'
+    case 'sms': return 'SMS'
+    default: return tipo
+  }
+}
+
+function tipoBadgeColors(tipo: string) {
+  switch (tipo) {
+    case 'email': return { text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a' }
+    case 'whatsapp': return { text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e' }
+    case 'sms': return { text: '#5c3a00', bg: '#fffbe6', border: '#b8960a' }
+    default: return { text: '#555', bg: '#f5f5f5', border: '#ccc' }
+  }
+}
+
+function statusBadge(status: string) {
+  switch (status) {
+    case 'aberto':
+      return { label: 'Em aberto', text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a' }
+    case 'vencido':
+      return { label: 'Vencido', text: '#8b0000', bg: '#fdecea', border: '#8b0000' }
+    case 'parcial':
+      return { label: 'Parcial', text: '#5c3a00', bg: '#fffbe6', border: '#b8960a' }
+    case 'pago':
+      return { label: 'Pago', text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e' }
+    default:
+      return { label: status, text: '#555', bg: '#f5f5f5', border: '#ccc' }
+  }
+}
+
+function logStatusBadge(status: string) {
+  switch (status) {
+    case 'enviado':
+      return { label: 'Enviado', text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e' }
+    case 'erro':
+      return { label: 'Erro', text: '#8b0000', bg: '#fdecea', border: '#8b0000' }
+    case 'pendente':
+      return { label: 'Pendente', text: '#5c3a00', bg: '#fffbe6', border: '#b8960a' }
+    default:
+      return { label: status, text: '#555', bg: '#f5f5f5', border: '#ccc' }
+  }
+}
+
+function computeStatus(cr: CR): string {
+  if (cr.status === 'pago' || cr.status === 'cancelado') return cr.status
+  const hoje = new Date().toISOString().split('T')[0]
+  if (cr.data_vencimento < hoje && cr.status !== 'pago') return 'vencido'
+  return cr.status
+}
+
+/* ================================================================
+   COMPONENT
+   ================================================================ */
 
 export default function ReguaCobranca() {
-    const { activeClient } = useAuth();
-    const { selectedCompany } = useCompany();
-    const { toast } = useToast();
-    const queryClient = useQueryClient();
-    const [activeTab, setActiveTab] = useState<TabId>("canais");
-    const db = activeClient as any;
-    const companyId = selectedCompany?.id;
+  const { selectedCompany } = useCompany()
+  const { activeClient } = useAuth()
+  const companyId = selectedCompany?.id
 
-    // ── CANAIS ──
-    const { data: canais = [] } = useQuery({
-        queryKey: ["config_canais", companyId],
-        queryFn: async () => {
-            const { data } = await db.from("config_canais").select("*").eq("company_id", companyId);
-            return data || [];
-        },
-        enabled: !!companyId,
-    });
+  // ── Reguas state ──
+  const [reguas, setReguas] = useState<Regua[]>([])
+  const [reguaEtapas, setReguaEtapas] = useState<Record<string, Etapa[]>>({})
+  const [loadingReguas, setLoadingReguas] = useState(true)
 
-    const emailConfig = canais.find((c: any) => c.canal === "email");
-    const whatsappConfig = canais.find((c: any) => c.canal === "whatsapp");
+  // ── CRs state ──
+  const [crs, setCrs] = useState<CR[]>([])
+  const [loadingCrs, setLoadingCrs] = useState(true)
 
-    const [emailForm, setEmailForm] = useState({ remetente: "", nome: "", api_key: "" });
-    const [whatsappForm, setWhatsappForm] = useState({ numero: "", instance: "", api_url: "", api_key: "" });
+  // ── Logs state ──
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [loadingLogs, setLoadingLogs] = useState(true)
 
-    const salvarCanal = useMutation({
-        mutationFn: async ({ canal, payload }: { canal: string; payload: any }) => {
-            const existing = canais.find((c: any) => c.canal === canal);
-            if (existing) {
-                const { error } = await db.from("config_canais").update(payload).eq("id", existing.id);
-                if (error) throw error;
-            } else {
-                const { error } = await db.from("config_canais").insert({ ...payload, company_id: companyId, canal });
-                if (error) throw error;
-            }
-        },
-        onSuccess: () => {
-            toast({ title: "Canal salvo!" });
-            queryClient.invalidateQueries({ queryKey: ["config_canais"] });
-        },
-        onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-    });
+  // ── Modal state ──
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingRegua, setEditingRegua] = useState<Regua | null>(null)
+  const [reguaNome, setReguaNome] = useState('')
+  const [etapasForm, setEtapasForm] = useState<EtapaForm[]>([])
+  const [saving, setSaving] = useState(false)
 
-    const handleSaveEmail = () => {
-        salvarCanal.mutate({
-            canal: "email",
-            payload: {
-                email_remetente: emailForm.remetente || emailConfig?.email_remetente,
-                email_nome_remetente: emailForm.nome || emailConfig?.email_nome_remetente,
-                resend_api_key: emailForm.api_key || emailConfig?.resend_api_key,
-                status: "ativo",
-            },
-        });
-    };
+  // ── Processing state ──
+  const [processing, setProcessing] = useState(false)
 
-    const handleSaveWhatsapp = () => {
-        salvarCanal.mutate({
-            canal: "whatsapp",
-            payload: {
-                whatsapp_numero: whatsappForm.numero || whatsappConfig?.whatsapp_numero,
-                whatsapp_instance: whatsappForm.instance || whatsappConfig?.whatsapp_instance,
-                evolution_api_url: whatsappForm.api_url || whatsappConfig?.evolution_api_url,
-                evolution_api_key: whatsappForm.api_key || whatsappConfig?.evolution_api_key,
-                status: "ativo",
-            },
-        });
-    };
+  // ── Search ──
+  const [searchCr, setSearchCr] = useState('')
 
-    // ── RÉGUAS ──
-    const { data: reguas = [] } = useQuery({
-        queryKey: ["regua_cobranca", companyId],
-        queryFn: async () => {
-            const { data } = await db.from("regua_cobranca").select("*").eq("company_id", companyId).order("dias_referencia");
-            return data || [];
-        },
-        enabled: !!companyId,
-    });
+  /* ── Fetch reguas ── */
+  async function fetchReguas() {
+    if (!companyId) return
+    setLoadingReguas(true)
+    const data = await safeQuery(
+      () =>
+        supabase
+          .from('regua_cobranca')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('nome'),
+      'listar reguas',
+    )
+    const reguaList = (data as Regua[]) || []
+    setReguas(reguaList)
 
-    const [reguaDialog, setReguaDialog] = useState(false);
-    const [editRegua, setEditRegua] = useState<any>(null);
-    const [reguaForm, setReguaForm] = useState({
-        nome: "", gatilho_tipo: "antes_vencimento", dias_referencia: 3,
-        canal: "ambos", template: "", ativo: true,
-    });
+    // Fetch etapas for each regua
+    if (reguaList.length > 0) {
+      const ids = reguaList.map(r => r.id)
+      const etapasData = await safeQuery(
+        () =>
+          supabase
+            .from('regua_cobranca_etapas')
+            .select('*')
+            .in('regua_id', ids)
+            .order('ordem'),
+        'listar etapas',
+      )
+      const etapasList = (etapasData as Etapa[]) || []
+      const grouped: Record<string, Etapa[]> = {}
+      for (const e of etapasList) {
+        if (!grouped[e.regua_id]) grouped[e.regua_id] = []
+        grouped[e.regua_id].push(e)
+      }
+      setReguaEtapas(grouped)
+    } else {
+      setReguaEtapas({})
+    }
+    setLoadingReguas(false)
+  }
 
-    const openReguaDialog = (regua?: any) => {
-        if (regua) {
-            setEditRegua(regua);
-            setReguaForm({
-                nome: regua.nome, gatilho_tipo: regua.gatilho_tipo,
-                dias_referencia: regua.dias_referencia, canal: regua.canal,
-                template: regua.template, ativo: regua.ativo,
-            });
-        } else {
-            setEditRegua(null);
-            setReguaForm({
-                nome: "", gatilho_tipo: "antes_vencimento", dias_referencia: 3,
-                canal: "ambos",
-                template: "Olá, {{pagador_nome}}! Seu título de {{valor}} vence em {{dias_restantes}} dias ({{data_vencimento}}). Entre em contato: {{empresa_telefone}}",
-                ativo: true,
-            });
+  /* ── Fetch CRs ── */
+  async function fetchCrs() {
+    if (!companyId) return
+    setLoadingCrs(true)
+    const data = await safeQuery(
+      () =>
+        supabase
+          .from('contas_receber')
+          .select('id, company_id, pagador_nome, pagador_cpf_cnpj, valor, data_vencimento, status')
+          .eq('company_id', companyId)
+          .in('status', ['aberto', 'vencido', 'parcial'])
+          .is('deleted_at', null)
+          .order('data_vencimento', { ascending: true }),
+      'listar CRs para cobranca',
+    )
+    setCrs((data as CR[]) || [])
+    setLoadingCrs(false)
+  }
+
+  /* ── Fetch logs ── */
+  async function fetchLogs() {
+    if (!companyId) return
+    setLoadingLogs(true)
+
+    const data = await safeQuery(
+      () =>
+        supabase
+          .from('regua_cobranca_log')
+          .select('*, regua:regua_cobranca(nome), cr:contas_receber(pagador_nome)')
+          .order('enviado_em', { ascending: false })
+          .limit(100),
+      'listar logs de cobranca',
+    )
+
+    const logList = ((data as any[]) || []).map((l: any) => ({
+      id: l.id,
+      regua_id: l.regua_id,
+      contas_receber_id: l.contas_receber_id,
+      tipo_acao: l.tipo_acao,
+      status: l.status,
+      enviado_em: l.enviado_em,
+      regua_nome: l.regua?.nome || '-',
+      cliente_nome: l.cr?.pagador_nome || '-',
+    }))
+    setLogs(logList)
+    setLoadingLogs(false)
+  }
+
+  useEffect(() => {
+    fetchReguas()
+    fetchCrs()
+    fetchLogs()
+  }, [companyId])
+
+  /* ── Derived: CRs with regua info ── */
+  const crsWithRegua = useMemo(() => {
+    const hoje = new Date()
+    return crs.map(cr => {
+      const realStatus = computeStatus(cr)
+      const venc = parseISO(cr.data_vencimento)
+      const diasDiff = differenceInDays(hoje, venc) // positive = after vencimento
+
+      // Find last log for this CR
+      const crLogs = logs.filter(l => l.contas_receber_id === cr.id)
+      const lastLog = crLogs.length > 0 ? crLogs[0] : null
+
+      // Find which regua is applied (first active one for simplicity)
+      const activeRegua = reguas.find(r => r.ativo)
+      const etapas = activeRegua ? (reguaEtapas[activeRegua.id] || []) : []
+
+      // Calculate next action
+      let nextAction: { tipo: string; diasLabel: string } | null = null
+      if (activeRegua && etapas.length > 0) {
+        // Find next etapa that hasn't fired yet
+        const firedTypes = new Set(crLogs.map(l => `${l.tipo_acao}-${l.regua_id}`))
+        for (const etapa of etapas) {
+          // dias_antes_vencimento: negative = before, 0 = day of, positive = after
+          const targetDayDiff = etapa.dias_antes_vencimento
+          // targetDayDiff comparison: if targetDayDiff <= diasDiff, it should have fired
+          if (targetDayDiff > diasDiff) {
+            // This one is in the future
+            nextAction = { tipo: tipoLabel(etapa.tipo_acao), diasLabel: diasLabel(etapa.dias_antes_vencimento) }
+            break
+          }
         }
-        setReguaDialog(true);
-    };
+      }
 
-    const salvarRegua = useMutation({
-        mutationFn: async () => {
-            const payload = { ...reguaForm, company_id: companyId };
-            if (editRegua) {
-                const { error } = await db.from("regua_cobranca").update(payload).eq("id", editRegua.id);
-                if (error) throw error;
-            } else {
-                const { error } = await db.from("regua_cobranca").insert(payload);
-                if (error) throw error;
-            }
-        },
-        onSuccess: () => {
-            toast({ title: "Régua salva!" });
-            setReguaDialog(false);
-            queryClient.invalidateQueries({ queryKey: ["regua_cobranca"] });
-        },
-        onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-    });
+      return {
+        ...cr,
+        realStatus,
+        lastLog,
+        activeRegua,
+        nextAction,
+      }
+    })
+  }, [crs, logs, reguas, reguaEtapas])
 
-    const toggleRegua = useMutation({
-        mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
-            const { error } = await db.from("regua_cobranca").update({ ativo }).eq("id", id);
-            if (error) throw error;
-        },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["regua_cobranca"] }),
-    });
+  const filteredCrs = useMemo(() => {
+    if (!searchCr.trim()) return crsWithRegua
+    const q = searchCr.toLowerCase()
+    return crsWithRegua.filter(cr =>
+      cr.pagador_nome?.toLowerCase().includes(q) ||
+      cr.pagador_cpf_cnpj?.toLowerCase().includes(q)
+    )
+  }, [crsWithRegua, searchCr])
 
-    const deletarRegua = useMutation({
-        mutationFn: async (id: string) => {
-            const { error } = await db.from("regua_cobranca").delete().eq("id", id);
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            toast({ title: "Régua removida" });
-            queryClient.invalidateQueries({ queryKey: ["regua_cobranca"] });
-        },
-    });
+  /* ── Modal: open new/edit ── */
+  function openModal(regua?: Regua) {
+    if (regua) {
+      setEditingRegua(regua)
+      setReguaNome(regua.nome)
+      const existingEtapas = (reguaEtapas[regua.id] || []).map(e => ({
+        tipo_acao: e.tipo_acao,
+        dias_antes_vencimento: e.dias_antes_vencimento,
+        template_mensagem: e.template_mensagem,
+        ordem: e.ordem,
+      }))
+      setEtapasForm(existingEtapas.length > 0 ? existingEtapas : getDefaultEtapas())
+    } else {
+      setEditingRegua(null)
+      setReguaNome('')
+      setEtapasForm(getDefaultEtapas())
+    }
+    setModalOpen(true)
+  }
 
-    // ── PREVIEW ──
-    const [previewDialog, setPreviewDialog] = useState(false);
-    const previewRendered = useMemo(() => {
-        const vars: Record<string, string> = {
-            pagador_nome: "João Silva",
-            valor: "R$ 1.500,00",
-            data_vencimento: "15/01/2026",
-            dias_restantes: "3",
-            dias_atraso: "5",
-            empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
-            empresa_telefone: "(11) 99999-9999",
-        };
-        let text = reguaForm.template;
-        Object.entries(vars).forEach(([k, v]) => { text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, "g"), v); });
-        return text;
-    }, [reguaForm.template, selectedCompany]);
+  function getDefaultEtapas(): EtapaForm[] {
+    return [
+      {
+        tipo_acao: 'whatsapp',
+        dias_antes_vencimento: -3,
+        template_mensagem: 'Ola {nome}, lembramos que sua fatura de {valor} vence em {data_vencimento}.',
+        ordem: 1,
+      },
+      {
+        tipo_acao: 'email',
+        dias_antes_vencimento: 0,
+        template_mensagem: 'Prezado(a) {nome}, sua fatura de {valor} vence hoje.',
+        ordem: 2,
+      },
+      {
+        tipo_acao: 'whatsapp',
+        dias_antes_vencimento: 2,
+        template_mensagem: '{nome}, identificamos que a fatura de {valor} venceu em {data_vencimento}. Por favor, regularize.',
+        ordem: 3,
+      },
+      {
+        tipo_acao: 'email',
+        dias_antes_vencimento: 5,
+        template_mensagem: 'Segundo aviso: sua fatura de {valor} esta {dias_atraso} dias em atraso.',
+        ordem: 4,
+      },
+    ]
+  }
 
-    // ── HISTÓRICO ──
-    const { data: historico = [] } = useQuery({
-        queryKey: ["regua_cobranca_log", companyId],
-        queryFn: async () => {
-            const { data } = await db
-                .from("regua_cobranca_log")
-                .select("*, regua:regua_cobranca(nome)")
-                .order("enviado_em", { ascending: false })
-                .limit(100);
-            return data || [];
-        },
-        enabled: !!companyId && activeTab === "historico",
-    });
+  function addEtapa() {
+    const maxOrdem = etapasForm.reduce((max, e) => Math.max(max, e.ordem), 0)
+    setEtapasForm([...etapasForm, {
+      tipo_acao: 'email',
+      dias_antes_vencimento: 0,
+      template_mensagem: '',
+      ordem: maxOrdem + 1,
+    }])
+  }
 
-    const { data: alertasLog = [] } = useQuery({
-        queryKey: ["alertas_log", companyId],
-        queryFn: async () => {
-            const { data } = await db
-                .from("alertas_log")
-                .select("*")
-                .eq("company_id", companyId)
-                .order("enviado_em", { ascending: false })
-                .limit(100);
-            return data || [];
-        },
-        enabled: !!companyId && activeTab === "historico",
-    });
+  function removeEtapa(index: number) {
+    setEtapasForm(etapasForm.filter((_, i) => i !== index))
+  }
 
-    const allLogs = useMemo(() => {
-        const logs = [
-            ...historico.map((h: any) => ({
-                id: h.id, tipo: "regua", nome: h.regua?.nome || "—",
-                canal: h.canal, destinatario: h.destinatario,
-                status: h.status_envio, erro: h.erro_descricao,
-                data: h.enviado_em,
-            })),
-            ...alertasLog.map((a: any) => ({
-                id: a.id, tipo: "alerta", nome: a.evento || "—",
-                canal: a.canal, destinatario: a.destinatario,
-                status: a.status, erro: a.erro_descricao,
-                data: a.enviado_em,
-            })),
-        ].sort((a, b) => (b.data || "").localeCompare(a.data || ""));
-        return logs;
-    }, [historico, alertasLog]);
+  function updateEtapa(index: number, field: keyof EtapaForm, value: any) {
+    setEtapasForm(etapasForm.map((e, i) => i === index ? { ...e, [field]: value } : e))
+  }
 
-    // ── RENDER ──
-    return (
-        <AppLayout title="Régua de Cobrança">
-            <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
-                {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Régua de Cobrança</h2>
-                        <p style={{ fontSize: 13, color: "#94a3b8" }}>Configure canais, réguas automáticas e acompanhe disparos</p>
-                    </div>
-                </div>
+  /* ── Save regua ── */
+  async function handleSave() {
+    if (!companyId || !reguaNome.trim() || etapasForm.length === 0) return
+    setSaving(true)
 
-                {/* Tabs */}
-                <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0", paddingBottom: 0 }}>
-                    {TABS.map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                            style={{
-                                display: "flex", alignItems: "center", gap: 6, padding: "10px 16px",
-                                fontSize: 13, fontWeight: 600, border: "none", background: "none", cursor: "pointer",
-                                color: activeTab === tab.id ? "#3b5bdb" : "#94a3b8",
-                                borderBottom: activeTab === tab.id ? "2px solid #3b5bdb" : "2px solid transparent",
-                                marginBottom: -1,
-                            }}>
-                            <tab.icon size={16} />{tab.label}
+    try {
+      let reguaId: string
+
+      if (editingRegua) {
+        // Update regua
+        const { error } = await supabase
+          .from('regua_cobranca')
+          .update({ nome: reguaNome.trim() })
+          .eq('id', editingRegua.id)
+        if (error) throw error
+        reguaId = editingRegua.id
+
+        // Delete old etapas
+        await supabase.from('regua_cobranca_etapas').delete().eq('regua_id', reguaId)
+      } else {
+        // Insert new regua
+        const { data, error } = await supabase
+          .from('regua_cobranca')
+          .insert({ company_id: companyId, nome: reguaNome.trim(), ativo: true })
+          .select('id')
+          .single()
+        if (error) throw error
+        reguaId = data.id
+      }
+
+      // Insert etapas
+      const etapasToInsert = etapasForm.map((e, i) => ({
+        regua_id: reguaId,
+        tipo_acao: e.tipo_acao,
+        dias_antes_vencimento: e.dias_antes_vencimento,
+        template_mensagem: e.template_mensagem,
+        ordem: i + 1,
+      }))
+
+      const { error: etapasError } = await supabase
+        .from('regua_cobranca_etapas')
+        .insert(etapasToInsert)
+      if (etapasError) throw etapasError
+
+      setModalOpen(false)
+      await fetchReguas()
+    } catch (err: any) {
+      console.error('Erro ao salvar regua:', err.message)
+      alert('Erro ao salvar: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /* ── Toggle ativo ── */
+  async function toggleAtivo(regua: Regua) {
+    const { error } = await supabase
+      .from('regua_cobranca')
+      .update({ ativo: !regua.ativo })
+      .eq('id', regua.id)
+    if (!error) {
+      setReguas(reguas.map(r => r.id === regua.id ? { ...r, ativo: !r.ativo } : r))
+    }
+  }
+
+  /* ── Delete regua ── */
+  async function deleteRegua(id: string) {
+    if (!confirm('Excluir esta regua de cobranca?')) return
+    await supabase.from('regua_cobranca_etapas').delete().eq('regua_id', id)
+    const { error } = await supabase.from('regua_cobranca').delete().eq('id', id)
+    if (!error) {
+      setReguas(reguas.filter(r => r.id !== id))
+    }
+  }
+
+  /* ── Process regua (simulation) ── */
+  async function processarRegua() {
+    if (!companyId) return
+    setProcessing(true)
+
+    try {
+      const activeRegua = reguas.find(r => r.ativo)
+      if (!activeRegua) {
+        alert('Nenhuma regua ativa encontrada.')
+        setProcessing(false)
+        return
+      }
+
+      const etapas = reguaEtapas[activeRegua.id] || []
+      if (etapas.length === 0) {
+        alert('A regua ativa nao possui etapas configuradas.')
+        setProcessing(false)
+        return
+      }
+
+      const hoje = new Date()
+      let count = 0
+
+      for (const cr of crs) {
+        const venc = parseISO(cr.data_vencimento)
+        const diasDiff = differenceInDays(hoje, venc)
+
+        for (const etapa of etapas) {
+          // Check if this etapa should fire today
+          // dias_antes_vencimento: negative = before, 0 = on day, positive = after
+          if (etapa.dias_antes_vencimento === diasDiff) {
+            // Build message
+            const diasAtraso = diasDiff > 0 ? diasDiff : 0
+            const msg = etapa.template_mensagem
+              .replace(/\{nome\}/g, cr.pagador_nome)
+              .replace(/\{valor\}/g, formatBRL(cr.valor))
+              .replace(/\{data_vencimento\}/g, formatData(cr.data_vencimento))
+              .replace(/\{dias_atraso\}/g, String(diasAtraso))
+
+            console.log(`[Regua] ${tipoLabel(etapa.tipo_acao)} para ${cr.pagador_nome}: ${msg}`)
+
+            // Insert log
+            await supabase.from('regua_cobranca_log').insert({
+              regua_id: activeRegua.id,
+              contas_receber_id: cr.id,
+              tipo_acao: etapa.tipo_acao,
+              status: 'pendente',
+              enviado_em: new Date().toISOString(),
+            })
+
+            count++
+          }
+        }
+      }
+
+      alert(`${count} cobrancas processadas.`)
+      await fetchLogs()
+    } catch (err: any) {
+      console.error('Erro ao processar regua:', err.message)
+      alert('Erro: ' + err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  /* ================================================================
+     RENDER
+     ================================================================ */
+
+  return (
+    <AppLayout title="Regua de Cobranca">
+      <div className="flex flex-col gap-6">
+
+        {/* ── Page Header ── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-[18px] font-bold text-[#0a0a0a]">Regua de Cobranca</h2>
+            <p className="text-[12px] text-[#555] mt-0.5">Configure reguas automaticas e acompanhe disparos de cobranca</p>
+          </div>
+          <button
+            onClick={processarRegua}
+            disabled={processing}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1a2e4a] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <Play size={14} />
+            {processing ? 'Processando...' : 'Processar regua agora'}
+          </button>
+        </div>
+
+        {/* ================================================================
+           SECTION 1: Reguas de Cobranca
+           ================================================================ */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Reguas de Cobranca</h3>
+            <button
+              onClick={() => openModal()}
+              className="flex items-center gap-1 text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
+            >
+              <Plus size={13} /> Nova Regua
+            </button>
+          </div>
+          <div className="p-4 bg-white">
+            {loadingReguas ? (
+              <p className="text-[13px] text-[#555] text-center py-6">Carregando...</p>
+            ) : reguas.length === 0 ? (
+              <div className="text-center py-10">
+                <Bell size={36} className="mx-auto text-[#ccc] mb-3" />
+                <p className="text-[13px] text-[#555]">Nenhuma regua configurada.</p>
+                <p className="text-[11px] text-[#999] mt-1">Crie sua primeira regua de cobranca clicando em "+ Nova Regua".</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {reguas.map(regua => {
+                  const etapas = reguaEtapas[regua.id] || []
+                  return (
+                    <div
+                      key={regua.id}
+                      className="flex items-center justify-between border border-[#e5e5e5] rounded-lg px-4 py-3 hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${regua.ativo ? 'bg-[#0a5c2e]' : 'bg-[#ccc]'}`} />
+                        <div>
+                          <p className="text-[13px] font-semibold text-[#0a0a0a]">{regua.nome}</p>
+                          <p className="text-[11px] text-[#555]">{etapas.length} etapa{etapas.length !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {/* Ativo/Inativo toggle */}
+                        <button
+                          onClick={() => toggleAtivo(regua)}
+                          className="flex items-center gap-1.5 text-[11px] font-medium"
+                          style={{
+                            color: regua.ativo ? '#0a5c2e' : '#8b0000',
+                          }}
+                        >
+                          {regua.ativo ? <Play size={12} /> : <Pause size={12} />}
+                          {regua.ativo ? 'Ativa' : 'Inativa'}
                         </button>
-                    ))}
+
+                        {/* Edit */}
+                        <button
+                          onClick={() => openModal(regua)}
+                          className="text-[11px] font-medium text-[#1a2e4a] hover:underline"
+                        >
+                          Editar
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => deleteRegua(regua.id)}
+                          className="text-[#8b0000] hover:opacity-70"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ================================================================
+           SECTION 2: CRs com Cobranca Ativa
+           ================================================================ */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Contas a Receber com Cobranca</h3>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-white/10 rounded px-2 py-1">
+                <Search size={12} className="text-[#a8bfd4]" />
+                <input
+                  type="text"
+                  value={searchCr}
+                  onChange={e => setSearchCr(e.target.value)}
+                  placeholder="Buscar cliente..."
+                  className="bg-transparent border-none outline-none text-[11px] text-white placeholder-[#a8bfd4] ml-1.5 w-[140px]"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white overflow-x-auto">
+            {loadingCrs ? (
+              <p className="text-[13px] text-[#555] text-center py-6">Carregando...</p>
+            ) : filteredCrs.length === 0 ? (
+              <p className="text-[13px] text-[#555] text-center py-6">Nenhuma conta a receber em aberto ou vencida.</p>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-[#e5e5e5]">
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Cliente</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Valor</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Vencimento</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Status</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Ultima acao</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Proxima acao</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Regua</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCrs.map(cr => {
+                    const badge = statusBadge(cr.realStatus)
+                    return (
+                      <tr key={cr.id} className="border-b border-[#f0f0f0] hover:bg-[#fafafa]">
+                        <td className="px-4 py-2.5">
+                          <p className="text-[13px] font-medium text-[#0a0a0a]">{cr.pagador_nome}</p>
+                          {cr.pagador_cpf_cnpj && (
+                            <p className="text-[10px] text-[#999]">{cr.pagador_cpf_cnpj}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-[13px] font-semibold text-[#0a0a0a]">
+                          {formatBRL(cr.valor)}
+                        </td>
+                        <td className="px-4 py-2.5 text-[12px] text-[#555]">
+                          {formatData(cr.data_vencimento)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded border"
+                            style={{ color: badge.text, backgroundColor: badge.bg, borderColor: badge.border }}
+                          >
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {cr.lastLog ? (
+                            <div>
+                              <span
+                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                                style={(() => {
+                                  const c = tipoBadgeColors(cr.lastLog.tipo_acao)
+                                  return { color: c.text, backgroundColor: c.bg }
+                                })()}
+                              >
+                                {tipoLabel(cr.lastLog.tipo_acao)}
+                              </span>
+                              <p className="text-[10px] text-[#999] mt-0.5">
+                                {cr.lastLog.enviado_em ? format(parseISO(cr.lastLog.enviado_em), 'dd/MM HH:mm') : '-'}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-[#999]">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {cr.nextAction ? (
+                            <div>
+                              <p className="text-[11px] font-medium text-[#1a2e4a]">{cr.nextAction.tipo}</p>
+                              <p className="text-[10px] text-[#999]">{cr.nextAction.diasLabel}</p>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-[#999]">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-[11px] text-[#555]">
+                          {cr.activeRegua?.nome || '-'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* ================================================================
+           SECTION 3: Log de Cobrancas
+           ================================================================ */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Log de Cobrancas</h3>
+            <button
+              onClick={fetchLogs}
+              className="text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
+            >
+              Atualizar
+            </button>
+          </div>
+          <div className="bg-white overflow-x-auto">
+            {loadingLogs ? (
+              <p className="text-[13px] text-[#555] text-center py-6">Carregando...</p>
+            ) : logs.length === 0 ? (
+              <p className="text-[13px] text-[#555] text-center py-6">Nenhum disparo registrado.</p>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-[#e5e5e5]">
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Data/hora</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Cliente</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Tipo</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Status</th>
+                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Regua</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map(log => {
+                    const tipoBadge = tipoBadgeColors(log.tipo_acao)
+                    const stBadge = logStatusBadge(log.status)
+                    return (
+                      <tr key={log.id} className="border-b border-[#f0f0f0] hover:bg-[#fafafa]">
+                        <td className="px-4 py-2.5 text-[12px] text-[#555]">
+                          {log.enviado_em ? format(parseISO(log.enviado_em), 'dd/MM/yy HH:mm') : '-'}
+                        </td>
+                        <td className="px-4 py-2.5 text-[13px] font-medium text-[#0a0a0a]">
+                          {log.cliente_nome}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border"
+                            style={{ color: tipoBadge.text, backgroundColor: tipoBadge.bg, borderColor: tipoBadge.border }}
+                          >
+                            {tipoIcon(log.tipo_acao)}
+                            {tipoLabel(log.tipo_acao)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded border"
+                            style={{ color: stBadge.text, backgroundColor: stBadge.bg, borderColor: stBadge.border }}
+                          >
+                            {stBadge.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-[11px] text-[#555]">
+                          {log.regua_nome}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* ================================================================
+           MODAL: Nova/Editar Regua
+           ================================================================ */}
+        {modalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto mx-4">
+              {/* Modal header */}
+              <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+                <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">
+                  {editingRegua ? 'Editar Regua' : 'Nova Regua de Cobranca'}
+                </h3>
+                <button onClick={() => setModalOpen(false)} className="text-[#a8bfd4] hover:text-white text-[18px] leading-none">
+                  &times;
+                </button>
+              </div>
+
+              <div className="p-5 flex flex-col gap-5">
+                {/* Nome */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wider mb-1">
+                    Nome da regua *
+                  </label>
+                  <input
+                    type="text"
+                    value={reguaNome}
+                    onChange={e => setReguaNome(e.target.value)}
+                    placeholder="Ex: Cobranca Padrao"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-[13px] text-[#0a0a0a] outline-none focus:border-[#1a2e4a] transition-colors"
+                  />
                 </div>
 
-                {/* Tab: Canais */}
-                {activeTab === "canais" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                        {/* Email */}
-                        <Card style={{ padding: 24, borderRadius: 14, border: "1px solid #e2e8f0" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                                <div style={{ background: "#eef2ff", borderRadius: 10, padding: 8 }}><Mail size={20} color="#3b5bdb" /></div>
-                                <div>
-                                    <p style={{ fontWeight: 700, fontSize: 14 }}>E-mail (Resend)</p>
-                                    {emailConfig && (
-                                        <Badge style={{ background: emailConfig.status === "ativo" ? "#e8f5e9" : "#fde8e8", color: emailConfig.status === "ativo" ? "#2e7d32" : "#c62828", fontSize: 10 }}>
-                                            {emailConfig.status === "ativo" ? "Ativo" : "Inativo"}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>API Key (Resend)</Label>
-                                    <Input type="password" placeholder="re_xxxxxxxxxxxx"
-                                        defaultValue={emailConfig?.resend_api_key || ""}
-                                        onChange={e => setEmailForm(f => ({ ...f, api_key: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>E-mail Remetente</Label>
-                                    <Input placeholder="financeiro@suaempresa.com"
-                                        defaultValue={emailConfig?.email_remetente || ""}
-                                        onChange={e => setEmailForm(f => ({ ...f, remetente: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>Nome do Remetente</Label>
-                                    <Input placeholder="Financeiro - Clínica ABC"
-                                        defaultValue={emailConfig?.email_nome_remetente || ""}
-                                        onChange={e => setEmailForm(f => ({ ...f, nome: e.target.value }))} />
-                                </div>
-                                <Button onClick={handleSaveEmail} disabled={salvarCanal.isPending} className="w-full">
-                                    Salvar Configuração E-mail
-                                </Button>
-                            </div>
-                        </Card>
+                {/* Timeline de etapas */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-[11px] font-semibold text-[#555] uppercase tracking-wider">
+                      Etapas da regua
+                    </label>
+                    <button
+                      onClick={addEtapa}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-[#1a2e4a] hover:underline"
+                    >
+                      <Plus size={13} /> Adicionar etapa
+                    </button>
+                  </div>
 
-                        {/* WhatsApp */}
-                        <Card style={{ padding: 24, borderRadius: 14, border: "1px solid #e2e8f0" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                                <div style={{ background: "#e8f5e9", borderRadius: 10, padding: 8 }}><MessageSquare size={20} color="#2e7d32" /></div>
-                                <div>
-                                    <p style={{ fontWeight: 700, fontSize: 14 }}>WhatsApp (Evolution API)</p>
-                                    {whatsappConfig && (
-                                        <Badge style={{ background: whatsappConfig.status === "ativo" ? "#e8f5e9" : "#fde8e8", color: whatsappConfig.status === "ativo" ? "#2e7d32" : "#c62828", fontSize: 10 }}>
-                                            {whatsappConfig.status === "ativo" ? "Ativo" : "Inativo"}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>API URL (Evolution)</Label>
-                                    <Input placeholder="https://evo.suaempresa.com"
-                                        defaultValue={whatsappConfig?.evolution_api_url || ""}
-                                        onChange={e => setWhatsappForm(f => ({ ...f, api_url: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>API Key</Label>
-                                    <Input type="password" placeholder="xxxxxxxx"
-                                        defaultValue={whatsappConfig?.evolution_api_key || ""}
-                                        onChange={e => setWhatsappForm(f => ({ ...f, api_key: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>Nome da Instância</Label>
-                                    <Input placeholder="clinica-abc"
-                                        defaultValue={whatsappConfig?.whatsapp_instance || ""}
-                                        onChange={e => setWhatsappForm(f => ({ ...f, instance: e.target.value }))} />
-                                </div>
-                                <div>
-                                    <Label style={{ fontSize: 12 }}>Número WhatsApp</Label>
-                                    <Input placeholder="+55 11 99999-9999"
-                                        defaultValue={whatsappConfig?.whatsapp_numero || ""}
-                                        onChange={e => setWhatsappForm(f => ({ ...f, numero: e.target.value }))} />
-                                </div>
-                                <Button onClick={handleSaveWhatsapp} disabled={salvarCanal.isPending} className="w-full"
-                                    style={{ background: "#2e7d32" }}>
-                                    Salvar Configuração WhatsApp
-                                </Button>
-                            </div>
-                        </Card>
-                    </div>
-                )}
+                  {etapasForm.length === 0 ? (
+                    <p className="text-[12px] text-[#999] text-center py-4">Nenhuma etapa. Clique em "+ Adicionar etapa".</p>
+                  ) : (
+                    <div className="relative pl-6">
+                      {/* Vertical timeline line */}
+                      <div
+                        className="absolute left-[9px] top-2 bottom-2 w-[2px] bg-[#ccc]"
+                      />
 
-                {/* Tab: Réguas */}
-                {activeTab === "reguas" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <Button onClick={() => openReguaDialog()} size="sm">
-                                <Plus className="h-4 w-4 mr-1" /> Nova Régua
-                            </Button>
-                        </div>
+                      <div className="flex flex-col gap-4">
+                        {etapasForm.map((etapa, index) => (
+                          <div key={index} className="relative">
+                            {/* Timeline dot */}
+                            <div
+                              className="absolute -left-6 top-3 w-[14px] h-[14px] rounded-full border-2 border-[#1a2e4a] bg-white z-10"
+                              style={{
+                                left: '-18px',
+                              }}
+                            />
 
-                        {reguas.length === 0 ? (
-                            <Card style={{ padding: 40, borderRadius: 14, border: "1px solid #e2e8f0", textAlign: "center" }}>
-                                <Bell size={40} color="#94a3b8" style={{ margin: "0 auto 12px" }} />
-                                <p style={{ fontSize: 14, color: "#94a3b8" }}>Nenhuma régua configurada. Crie sua primeira régua de cobrança.</p>
-                            </Card>
-                        ) : reguas.map((regua: any) => (
-                            <Card key={regua.id} style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                        <div style={{ background: regua.ativo ? "#eef2ff" : "#f1f5f9", borderRadius: 10, padding: 10 }}>
-                                            <Zap size={20} color={regua.ativo ? "#3b5bdb" : "#94a3b8"} />
-                                        </div>
-                                        <div>
-                                            <p style={{ fontWeight: 700, fontSize: 14, color: regua.ativo ? "#0f172a" : "#94a3b8" }}>{regua.nome}</p>
-                                            <p style={{ fontSize: 12, color: "#94a3b8" }}>
-                                                {GATILHO_LABELS[regua.gatilho_tipo] || regua.gatilho_tipo}
-                                                {regua.dias_referencia > 0 && ` — ${regua.dias_referencia} dias`}
-                                                {" · "}{CANAL_LABELS[regua.canal] || regua.canal}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                        <Switch checked={regua.ativo} onCheckedChange={v => toggleRegua.mutate({ id: regua.id, ativo: v })} />
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openReguaDialog(regua)}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => deletarRegua.mutate(regua.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                            <div className="border border-[#e5e5e5] rounded-lg p-3 bg-[#fafafa]">
+                              {/* Header row: type selector + days + remove */}
+                              <div className="flex items-start gap-3 mb-3">
+                                {/* Tipo acao cards */}
+                                <div className="flex gap-1.5">
+                                  {(['email', 'whatsapp', 'sms'] as const).map(tipo => (
+                                    <button
+                                      key={tipo}
+                                      onClick={() => updateEtapa(index, 'tipo_acao', tipo)}
+                                      className="flex items-center gap-1 px-2.5 py-1.5 rounded text-[10px] font-semibold border transition-colors"
+                                      style={{
+                                        backgroundColor: etapa.tipo_acao === tipo ? tipoBadgeColors(tipo).bg : '#fff',
+                                        borderColor: etapa.tipo_acao === tipo ? tipoBadgeColors(tipo).border : '#e5e5e5',
+                                        color: etapa.tipo_acao === tipo ? tipoBadgeColors(tipo).text : '#999',
+                                      }}
+                                    >
+                                      {tipoIcon(tipo)}
+                                      {tipoLabel(tipo)}
+                                    </button>
+                                  ))}
                                 </div>
-                            </Card>
+
+                                {/* Dias input */}
+                                <div className="flex items-center gap-1.5 ml-auto">
+                                  <input
+                                    type="number"
+                                    value={etapa.dias_antes_vencimento}
+                                    onChange={e => updateEtapa(index, 'dias_antes_vencimento', parseInt(e.target.value) || 0)}
+                                    className="w-[60px] border border-[#ccc] rounded px-2 py-1 text-[12px] text-center outline-none focus:border-[#1a2e4a]"
+                                  />
+                                  <span className="text-[10px] text-[#555] whitespace-nowrap">
+                                    {diasLabel(etapa.dias_antes_vencimento)}
+                                  </span>
+                                </div>
+
+                                {/* Remove */}
+                                <button
+                                  onClick={() => removeEtapa(index)}
+                                  className="text-[#8b0000] hover:opacity-70 ml-1 mt-0.5"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+
+                              {/* Template */}
+                              <textarea
+                                value={etapa.template_mensagem}
+                                onChange={e => updateEtapa(index, 'template_mensagem', e.target.value)}
+                                placeholder="Mensagem da cobranca. Use {nome}, {valor}, {data_vencimento}, {dias_atraso}..."
+                                rows={2}
+                                className="w-full border border-[#ccc] rounded px-3 py-2 text-[12px] text-[#0a0a0a] outline-none focus:border-[#1a2e4a] resize-none"
+                              />
+
+                              {/* Preview line */}
+                              <p className="text-[10px] text-[#999] mt-1 truncate">
+                                {tipoLabel(etapa.tipo_acao)} -- {diasLabel(etapa.dias_antes_vencimento)} -- "{etapa.template_mensagem.slice(0, 60)}{etapa.template_mensagem.length > 60 ? '...' : ''}"
+                              </p>
+                            </div>
+                          </div>
                         ))}
+                      </div>
                     </div>
-                )}
+                  )}
+                </div>
 
-                {/* Tab: Histórico */}
-                {activeTab === "historico" && (
-                    <Card style={{ borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Data</TableHead>
-                                    <TableHead>Régua/Evento</TableHead>
-                                    <TableHead>Canal</TableHead>
-                                    <TableHead>Destinatário</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {allLogs.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                            Nenhum disparo registrado ainda.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : allLogs.map((log: any) => {
-                                    const st = STATUS_BADGE[log.status] || STATUS_BADGE.pendente;
-                                    return (
-                                        <TableRow key={log.id}>
-                                            <TableCell style={{ fontSize: 12 }}>
-                                                {log.data ? format(parseISO(log.data), "dd/MM/yy HH:mm", { locale: ptBR }) : "—"}
-                                            </TableCell>
-                                            <TableCell style={{ fontSize: 13, fontWeight: 500 }}>{log.nome}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" style={{ fontSize: 11 }}>
-                                                    {log.canal === "email" ? "E-mail" : log.canal === "whatsapp" ? "WhatsApp" : log.canal}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell style={{ fontSize: 12, color: "#475569" }}>{log.destinatario || "—"}</TableCell>
-                                            <TableCell>
-                                                <span style={{ fontSize: 11, fontWeight: 600, color: st.color, background: st.bg, padding: "2px 8px", borderRadius: 6 }}>
-                                                    {st.label}
-                                                </span>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </Card>
-                )}
-
-                {/* Dialog: Criar/Editar Régua */}
-                <Dialog open={reguaDialog} onOpenChange={setReguaDialog}>
-                    <DialogContent className="max-w-lg">
-                        <DialogHeader>
-                            <DialogTitle>{editRegua ? "Editar Régua" : "Nova Régua de Cobrança"}</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-2">
-                            <div className="space-y-2">
-                                <Label>Nome</Label>
-                                <Input value={reguaForm.nome} onChange={e => setReguaForm(f => ({ ...f, nome: e.target.value }))}
-                                    placeholder="Ex: Lembrete 3 dias antes" />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Quando disparar</Label>
-                                <select className="w-full border rounded-md p-2 text-sm" value={reguaForm.gatilho_tipo}
-                                    onChange={e => setReguaForm(f => ({ ...f, gatilho_tipo: e.target.value }))}>
-                                    <option value="antes_vencimento">X dias ANTES do vencimento</option>
-                                    <option value="no_vencimento">No dia do vencimento</option>
-                                    <option value="apos_vencimento">X dias APÓS o vencimento</option>
-                                </select>
-                            </div>
-
-                            {reguaForm.gatilho_tipo !== "no_vencimento" && (
-                                <div className="space-y-2">
-                                    <Label>Dias de referência</Label>
-                                    <Input type="number" min={1} value={reguaForm.dias_referencia}
-                                        onChange={e => setReguaForm(f => ({ ...f, dias_referencia: parseInt(e.target.value) || 0 }))} />
-                                </div>
-                            )}
-
-                            <div className="space-y-2">
-                                <Label>Canal</Label>
-                                <select className="w-full border rounded-md p-2 text-sm" value={reguaForm.canal}
-                                    onChange={e => setReguaForm(f => ({ ...f, canal: e.target.value }))}>
-                                    <option value="email">Apenas E-mail</option>
-                                    <option value="whatsapp">Apenas WhatsApp</option>
-                                    <option value="ambos">E-mail + WhatsApp</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Mensagem</Label>
-                                <Textarea rows={5} value={reguaForm.template}
-                                    onChange={e => setReguaForm(f => ({ ...f, template: e.target.value }))}
-                                    placeholder="Olá, {{pagador_nome}}! Seu título de {{valor}} vence em..." />
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                                    {VARIAVEIS.map(v => (
-                                        <button key={v} onClick={() => setReguaForm(f => ({ ...f, template: f.template + " " + v }))}
-                                            style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, border: "1px solid #e2e8f0", background: "#f8f9fb", cursor: "pointer", color: "#3b5bdb" }}>
-                                            {v}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <Button variant="outline" className="flex-1" onClick={() => setPreviewDialog(true)}>
-                                    <Eye className="h-4 w-4 mr-1" /> Preview
-                                </Button>
-                                <Button className="flex-1" onClick={() => salvarRegua.mutate()} disabled={!reguaForm.nome || !reguaForm.template}>
-                                    Salvar Régua
-                                </Button>
-                            </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Dialog: Preview */}
-                <Dialog open={previewDialog} onOpenChange={setPreviewDialog}>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Preview da Mensagem</DialogTitle>
-                        </DialogHeader>
-                        <div style={{ background: "#f8f9fb", borderRadius: 10, padding: 16, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                            {previewRendered}
-                        </div>
-                        <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center" }}>
-                            Dados fictícios usados para preview
-                        </p>
-                    </DialogContent>
-                </Dialog>
+                {/* Actions */}
+                <div className="flex items-center gap-3 pt-2 border-t border-[#e5e5e5]">
+                  <button
+                    onClick={() => setModalOpen(false)}
+                    className="flex-1 px-4 py-2 border border-[#ccc] rounded-lg text-[12px] font-semibold text-[#555] hover:bg-[#f5f5f5] transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || !reguaNome.trim() || etapasForm.length === 0}
+                    className="flex-1 px-4 py-2 bg-[#1a2e4a] text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {saving ? 'Salvando...' : editingRegua ? 'Salvar Alteracoes' : 'Criar Regua'}
+                  </button>
+                </div>
+              </div>
             </div>
-        </AppLayout>
-    );
+          </div>
+        )}
+
+      </div>
+    </AppLayout>
+  )
 }

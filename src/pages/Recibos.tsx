@@ -1,569 +1,483 @@
-import { useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
-import { reenviarEmailRecibo } from "@/lib/recibos/recibos-service";
+import { useState, useEffect } from 'react'
+import { supabase } from '@/integrations/supabase/client'
+import { useCompany } from '@/contexts/CompanyContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { safeQuery } from '@/lib/supabaseQuery'
+import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { Search, Mail, Download, FileText, ChevronRight } from 'lucide-react'
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface Recibo {
-    id: string;
-    numero: string;
-    valor: number;
-    favorecido: string;
-    forma_pagamento: string | null;
-    categoria: string | null;
-    conta_bancaria: string | null;
-    data_pagamento: string;
-    descricao: string | null;
-    pdf_url: string | null;
-    status_email: "pendente" | "enviado" | "erro";
-    email_destino: string | null;
-    tipo: "payable" | "receivable";
+  id: string
+  company_id: string
+  numero: string
+  favorecido: string
+  pagador_cpf_cnpj?: string | null
+  descricao: string | null
+  valor: number
+  data_pagamento: string
+  forma_pagamento: string | null
+  status_email: 'pendente' | 'enviado' | 'erro'
+  email_destino: string | null
+  pdf_url: string | null
+  tipo: string | null
 }
 
-const fmt = (v: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-const fmtD = (d: string) =>
-    new Intl.DateTimeFormat("pt-BR").format(new Date(d));
-
-const td: React.CSSProperties = {
-    padding: "11px 14px",
-    fontSize: 13,
-    color: "#334155",
-    verticalAlign: "middle",
-};
-
-const iconBtn = (bg: string, c: string): React.CSSProperties => ({
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    background: bg,
-    color: c,
-    border: "none",
-    cursor: "pointer",
-    textDecoration: "none",
-});
-
-function StatusBadge({ s, override }: { s: Recibo["status_email"]; override?: { id: string; ok: boolean } | null }) {
-    const status = override ? (override.ok ? "enviado" : "erro") : s;
-    const m: Record<string, [string, string]> = {
-        pendente: ["#fff8e1", "#f57f17"],
-        enviado: ["#e8f5e9", "#2e7d32"],
-        erro: ["#fde8e8", "#c62828"],
-    };
-    const [bg, color] = m[status] ?? m.pendente;
-    return (
-        <span
-            style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                background: bg,
-                color,
-                fontSize: 11,
-                fontWeight: 500,
-                padding: "3px 8px",
-                borderRadius: 20,
-            }}
-        >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
-    );
+interface Empresa {
+  name: string
+  document: string
 }
 
-function ModalEmail({
-    r,
-    onClose,
-    onEnviar,
-    isPending,
-}: {
-    r: Recibo;
-    onClose: () => void;
-    onEnviar: (email: string) => void;
-    isPending: boolean;
-}) {
-    const [email, setEmail] = useState(r.email_destino ?? "");
-    return (
-        <div
-            style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.4)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 50,
-            }}
-            onClick={onClose}
-        >
-            <div
-                style={{
-                    background: "#fff",
-                    borderRadius: 12,
-                    padding: 24,
-                    width: 400,
-                    border: "0.5px solid #e8e4dc",
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>
-                    Enviar comprovante por e-mail
-                </div>
-                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>
-                    {r.numero} — {fmt(r.valor)}
-                </div>
-                <label
-                    style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: "#475569",
-                        display: "block",
-                        marginBottom: 6,
-                    }}
-                >
-                    E-mail do destinatário
-                </label>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@exemplo.com"
-                    style={{
-                        width: "100%",
-                        padding: "9px 12px",
-                        borderRadius: 7,
-                        fontSize: 13,
-                        border: "0.5px solid #e2e8f0",
-                        outline: "none",
-                        marginBottom: 16,
-                        background: "#f8f9fb",
-                        color: "#0f172a",
-                        boxSizing: "border-box",
-                    }}
-                />
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            padding: "8px 16px",
-                            borderRadius: 7,
-                            border: "0.5px solid #e2e8f0",
-                            background: "#f8f9fb",
-                            cursor: "pointer",
-                            fontSize: 13,
-                            color: "#475569",
-                        }}
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={() => email && onEnviar(email)}
-                        disabled={!email || isPending}
-                        style={{
-                            padding: "8px 16px",
-                            borderRadius: 7,
-                            border: "none",
-                            background: email && !isPending ? "#3b5bdb" : "#e2e8f0",
-                            color: email && !isPending ? "#fff" : "#94a3b8",
-                            cursor: email && !isPending ? "pointer" : "not-allowed",
-                            fontSize: 13,
-                            fontWeight: 500,
-                        }}
-                    >
-                        {isPending ? "Enviando..." : "Enviar comprovante"}
-                    </button>
-                </div>
-            </div>
+// ---------------------------------------------------------------------------
+// Valor por extenso (BRL)
+// ---------------------------------------------------------------------------
+
+function valorPorExtenso(valor: number): string {
+  if (valor === 0) return 'zero reais'
+
+  const unidades = [
+    '', 'um', 'dois', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
+    'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis',
+    'dezessete', 'dezoito', 'dezenove',
+  ]
+  const dezenas = [
+    '', '', 'vinte', 'trinta', 'quarenta', 'cinquenta',
+    'sessenta', 'setenta', 'oitenta', 'noventa',
+  ]
+  const centenas = [
+    '', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
+    'seiscentos', 'setecentos', 'oitocentos', 'novecentos',
+  ]
+
+  function grupoPorExtenso(n: number): string {
+    if (n === 0) return ''
+    if (n === 100) return 'cem'
+
+    const parts: string[] = []
+    const c = Math.floor(n / 100)
+    const rest = n % 100
+
+    if (c > 0) parts.push(centenas[c])
+
+    if (rest > 0 && rest < 20) {
+      parts.push(unidades[rest])
+    } else if (rest >= 20) {
+      const d = Math.floor(rest / 10)
+      const u = rest % 10
+      let dezStr = dezenas[d]
+      if (u > 0) dezStr += ' e ' + unidades[u]
+      parts.push(dezStr)
+    }
+
+    return parts.join(' e ')
+  }
+
+  const abs = Math.abs(valor)
+  const inteiro = Math.floor(abs)
+  const centavos = Math.round((abs - inteiro) * 100)
+
+  const milhoes = Math.floor(inteiro / 1_000_000)
+  const milhares = Math.floor((inteiro % 1_000_000) / 1_000)
+  const unidade = inteiro % 1_000
+
+  const partes: string[] = []
+
+  if (milhoes > 0) {
+    partes.push(
+      grupoPorExtenso(milhoes) +
+        (milhoes === 1 ? ' milhao' : ' milhoes')
+    )
+  }
+  if (milhares > 0) {
+    partes.push(grupoPorExtenso(milhares) + ' mil')
+  }
+  if (unidade > 0) {
+    partes.push(grupoPorExtenso(unidade))
+  }
+
+  let resultado = ''
+  if (partes.length > 0) {
+    resultado = partes.join(', ') + (inteiro === 1 ? ' real' : ' reais')
+  }
+
+  if (centavos > 0) {
+    const centStr = grupoPorExtenso(centavos) + (centavos === 1 ? ' centavo' : ' centavos')
+    resultado = resultado ? resultado + ' e ' + centStr : centStr
+  }
+
+  if (!resultado) resultado = 'zero reais'
+
+  return resultado.charAt(0).toUpperCase() + resultado.slice(1)
+}
+
+// ---------------------------------------------------------------------------
+// Status Badge
+// ---------------------------------------------------------------------------
+
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { text: string; bg: string; border: string; color: string }> = {
+    enviado: { text: 'Enviado', bg: 'bg-[#e6f4ec]', border: 'border-[#0a5c2e]', color: 'text-[#0a5c2e]' },
+    pendente: { text: 'Pendente envio', bg: 'bg-[#fffbe6]', border: 'border-[#b8960a]', color: 'text-[#5c3a00]' },
+    erro: { text: 'Erro', bg: 'bg-[#fdecea]', border: 'border-[#8b0000]', color: 'text-[#8b0000]' },
+    manual: { text: 'Manual', bg: 'bg-[#f0f4f8]', border: 'border-[#1a2e4a]', color: 'text-[#1a2e4a]' },
+  }
+  const c = config[status] || config.pendente
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full border ${c.bg} ${c.border} ${c.color}`}>
+      {c.text}
+    </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Preview Component
+// ---------------------------------------------------------------------------
+
+function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa | null }) {
+  return (
+    <div className="p-6 bg-white min-h-[400px]">
+      {/* Header */}
+      <div className="flex justify-between pb-4 mb-4 border-b-2 border-[#1a2e4a]">
+        <div>
+          <div className="text-sm font-bold text-[#1a2e4a]">{empresa?.name || '---'}</div>
+          <div className="text-xs text-[#555]">
+            CNPJ: {empresa?.document ? formatCNPJ(empresa.document) : '---'}
+          </div>
         </div>
-    );
+        <div className="text-right">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#555]">Recibo</div>
+          <div className="text-lg font-bold text-[#1a2e4a]">#{recibo.numero}</div>
+          <div className="text-xs text-[#555]">{formatData(recibo.data_pagamento)}</div>
+        </div>
+      </div>
+
+      {/* Pagador */}
+      <div className="mb-4 p-3 bg-[#f9f9f9] rounded border border-[#eee]">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Pagador / Favorecido</div>
+        <div className="text-sm font-semibold text-[#0a0a0a]">{recibo.favorecido}</div>
+        {recibo.pagador_cpf_cnpj && (
+          <div className="text-xs text-[#555] mt-0.5">CPF/CNPJ: {recibo.pagador_cpf_cnpj}</div>
+        )}
+      </div>
+
+      {/* Descricao */}
+      {recibo.descricao && (
+        <div className="mb-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Descricao</div>
+          <div className="text-sm text-[#0a0a0a] leading-relaxed">{recibo.descricao}</div>
+        </div>
+      )}
+
+      {/* Valor total */}
+      <div className="mb-4 p-4 bg-[#1a2e4a] rounded">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-white/70 mb-1">Valor Total</div>
+        <div className="text-2xl font-bold text-white">{formatBRL(recibo.valor)}</div>
+      </div>
+
+      {/* Valor por extenso */}
+      <div className="mb-4">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Valor por Extenso</div>
+        <div className="text-xs text-[#0a0a0a] italic">
+          {valorPorExtenso(recibo.valor)}
+        </div>
+      </div>
+
+      {/* Forma de pagamento */}
+      {recibo.forma_pagamento && (
+        <div className="mb-6">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Forma de Pagamento</div>
+          <div className="text-sm text-[#0a0a0a]">{recibo.forma_pagamento}</div>
+        </div>
+      )}
+
+      {/* Assinaturas */}
+      <div className="grid grid-cols-2 gap-8 mt-8 mb-6">
+        <div className="text-center">
+          <div className="border-t border-[#0a0a0a] pt-2 mx-4">
+            <div className="text-xs text-[#555]">Emitente</div>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="border-t border-[#0a0a0a] pt-2 mx-4">
+            <div className="text-xs text-[#555]">Recebedor</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-[#ccc] pt-3 mt-6">
+        <div className="text-[9px] text-[#999] text-center leading-relaxed">
+          Documento gerado eletronicamente. Este recibo comprova o pagamento referente aos servicos descritos acima.
+        </div>
+      </div>
+    </div>
+  )
 }
+
+// ---------------------------------------------------------------------------
+// Main Page
+// ---------------------------------------------------------------------------
 
 export default function Recibos() {
-    const { selectedCompany } = useCompany();
-    const { activeClient, isUsingSecondary } = useAuth();
-    const [busca, setBusca] = useState("");
-    const [modal, setModal] = useState<Recibo | null>(null);
-    const [isPending, setIsPending] = useState(false);
-    const [fb, setFb] = useState<{ id: string; ok: boolean } | null>(null);
+  const { selectedCompany } = useCompany()
+  const { activeClient } = useAuth()
 
-    const { data: recibos, isLoading, refetch } = useQuery({
-        queryKey: ["recibos_v2", selectedCompany?.id, isUsingSecondary],
-        queryFn: async () => {
-            if (!selectedCompany?.id) return [];
-            const { data, error } = await activeClient
-                .from("recibos_v2")
-                .select("*")
-                .eq("company_id", selectedCompany.id)
-                .order("created_at", { ascending: false });
-            if (error) throw error;
-            // Map to Recibo interface
-            return (data || []).map((r: any) => ({
-                id: r.id,
-                numero: String(r.numero_sequencial || ""),
-                valor: Number(r.valor || 0),
-                favorecido: r.pagador_nome || "",
-                forma_pagamento: r.forma_pagamento,
-                categoria: null,
-                conta_bancaria: null,
-                data_pagamento: r.data,
-                descricao: r.descricao_servico,
-                pdf_url: r.pdf_url,
-                status_email: r.enviado_email ? "enviado" : "pendente",
-                email_destino: r.email_destino,
-                tipo: "receivable" as const,
-            })) as Recibo[];
-        },
-        enabled: !!selectedCompany?.id,
-    });
+  const [recibos, setRecibos] = useState<Recibo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [selecionado, setSelecionado] = useState<Recibo | null>(null)
+  const [empresa, setEmpresa] = useState<Empresa | null>(null)
 
-    const normalizeSearch = (value: unknown) =>
-        String(value ?? "")
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .trim();
+  // Fetch recibos
+  useEffect(() => {
+    if (!selectedCompany?.id) {
+      setRecibos([])
+      setLoading(false)
+      return
+    }
 
-    const filtrados = (recibos ?? []).filter((r) => {
-        const needle = normalizeSearch(busca);
-        if (!needle) return true;
-        return normalizeSearch(
-            [r.favorecido, r.numero, r.categoria, r.forma_pagamento, r.descricao, fmtD(r.data_pagamento), fmt(r.valor)]
-                .filter(Boolean)
-                .join(" ")
-        ).includes(needle);
-    });
+    async function fetchRecibos() {
+      setLoading(true)
+      const data = await safeQuery<any[]>(
+        async () =>
+          (activeClient ?? supabase)
+            .from('recibos_v2')
+            .select('*')
+            .eq('company_id', selectedCompany!.id)
+            .order('created_at', { ascending: false }),
+        'Recibos.fetchRecibos'
+      )
 
-    const handleEnviar = async (r: Recibo, email: string) => {
-        setModal(null);
-        setIsPending(true);
-        try {
-            const res = await reenviarEmailRecibo(activeClient, r.id, email);
-            setFb({ id: r.id, ok: res.ok });
-            if (!res.ok) console.warn("Erro email:", res.erro);
-            refetch();
-        } catch {
-            setFb({ id: r.id, ok: false });
-        } finally {
-            setIsPending(false);
-            setTimeout(() => setFb(null), 3000);
-        }
-    };
+      const mapped: Recibo[] = ((data as any[]) || []).map((r: any) => ({
+        id: r.id,
+        company_id: r.company_id,
+        numero: String(r.numero_sequencial || r.numero || ''),
+        favorecido: r.pagador_nome || r.favorecido || '',
+        pagador_cpf_cnpj: r.pagador_cpf_cnpj || null,
+        descricao: r.descricao_servico || r.descricao || null,
+        valor: Number(r.valor || 0),
+        data_pagamento: r.data_emissao || r.data_pagamento || r.data || r.created_at,
+        forma_pagamento: r.forma_pagamento || null,
+        status_email: r.status_email === 'enviado' || r.enviado_email ? 'enviado' : r.status_email === 'erro' ? 'erro' : 'pendente',
+        email_destino: r.email_destino || null,
+        pdf_url: r.pdf_url || null,
+        tipo: r.tipo || null,
+      }))
 
-    return (
-        <AppLayout title="Recibos">
-            <div style={{ padding: "24px 32px", fontFamily: "Inter, sans-serif" }}>
-                {/* Header */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-                    <div
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 8,
-                            background: "#e8f5e9",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 18 18"
-                            fill="none"
-                            stroke="#2e7d32"
-                            strokeWidth="1.4"
-                            strokeLinecap="round"
-                        >
-                            <rect x="2" y="1" width="14" height="16" rx="2" />
-                            <path d="M6 6h6M6 9h6M6 12h4" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 style={{ fontSize: 18, fontWeight: 600, color: "#0f172a", margin: 0 }}>
-                            Recibos
-                        </h1>
-                        <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
-                            Histórico de comprovantes gerados
-                        </p>
-                    </div>
-                </div>
+      setRecibos(mapped)
+      setLoading(false)
+    }
 
-                {/* Card */}
-                <div
-                    style={{
-                        background: "#ffffff",
-                        borderRadius: 12,
-                        border: "0.5px solid #e8e4dc",
-                        overflow: "hidden",
-                    }}
-                >
-                    {/* Toolbar */}
-                    <div
-                        style={{
-                            padding: "14px 16px",
-                            borderBottom: "0.5px solid #e8e4dc",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                        }}
-                    >
-                        <div style={{ fontWeight: 500, fontSize: 14, color: "#0f172a" }}>
-                            Histórico de Recibos Gerados
-                            <span
-                                style={{
-                                    marginLeft: 8,
-                                    fontSize: 11,
-                                    padding: "1px 7px",
-                                    borderRadius: 10,
-                                    background: "#f1f5f9",
-                                    color: "#64748b",
-                                }}
-                            >
-                                {filtrados.length}
-                            </span>
-                        </div>
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                border: "0.5px solid #e2e8f0",
-                                borderRadius: 8,
-                                padding: "7px 12px",
-                                background: "#f8f9fb",
-                                width: 280,
-                            }}
-                        >
-                            <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 14 14"
-                                fill="none"
-                                stroke="#94a3b8"
-                                strokeWidth="1.4"
-                                strokeLinecap="round"
-                            >
-                                <circle cx="6" cy="6" r="4" />
-                                <path d="M10 10l2 2" />
-                            </svg>
-                            <input
-                                value={busca}
-                                onChange={(e) => setBusca(e.target.value)}
-                                placeholder="Pesquisar recibos..."
-                                style={{
-                                    border: "none",
-                                    outline: "none",
-                                    background: "transparent",
-                                    fontSize: 13,
-                                    color: "#0f172a",
-                                    width: "100%",
-                                }}
-                            />
-                        </div>
-                    </div>
+    fetchRecibos()
+  }, [selectedCompany?.id, activeClient])
 
-                    {/* Tabela */}
-                    <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <thead>
-                                <tr style={{ borderBottom: "0.5px solid #e8e4dc" }}>
-                                    {["Data", "Favorecido / Categoria", "Nº Recibo", "Valor", "E-mail", "Ações"].map(
-                                        (h, i) => (
-                                            <th
-                                                key={h}
-                                                style={{
-                                                    padding: "10px 14px",
-                                                    fontSize: 10,
-                                                    fontWeight: 600,
-                                                    letterSpacing: "0.07em",
-                                                    textTransform: "uppercase",
-                                                    color: "#94a3b8",
-                                                    textAlign: i === 5 ? "right" : "left",
-                                                }}
-                                            >
-                                                {h}
-                                            </th>
-                                        )
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {isLoading ? (
-                                    <tr>
-                                        <td
-                                            colSpan={6}
-                                            style={{
-                                                padding: "40px 14px",
-                                                textAlign: "center",
-                                                color: "#94a3b8",
-                                                fontSize: 13,
-                                            }}
-                                        >
-                                            Carregando...
-                                        </td>
-                                    </tr>
-                                ) : filtrados.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={6}
-                                            style={{
-                                                padding: "40px 14px",
-                                                textAlign: "center",
-                                                color: "#94a3b8",
-                                                fontSize: 13,
-                                            }}
-                                        >
-                                            {busca
-                                                ? "Nenhum recibo encontrado."
-                                                : "Nenhum recibo gerado ainda."}
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filtrados.map((r, i) => (
-                                        <tr
-                                            key={r.id}
-                                            style={{
-                                                borderBottom: "0.5px solid #ede9e1",
-                                                background: i % 2 === 0 ? "#ffffff" : "#f7f5f0",
-                                                transition: "background 0.15s",
-                                            }}
-                                            onMouseEnter={(e) =>
-                                                (e.currentTarget.style.background = "#f0ece3")
-                                            }
-                                            onMouseLeave={(e) =>
-                                                (e.currentTarget.style.background =
-                                                    i % 2 === 0 ? "#ffffff" : "#f7f5f0")
-                                            }
-                                        >
-                                            <td style={td}>{fmtD(r.data_pagamento)}</td>
-                                            <td style={td}>
-                                                <div style={{ fontWeight: 500, color: "#0f172a" }}>
-                                                    {r.favorecido}
-                                                </div>
-                                                {r.categoria && (
-                                                    <div
-                                                        style={{
-                                                            fontSize: 11,
-                                                            color: "#94a3b8",
-                                                            marginTop: 1,
-                                                        }}
-                                                    >
-                                                        {r.categoria}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td style={td}>
-                                                <span
-                                                    style={{
-                                                        fontSize: 11,
-                                                        padding: "2px 7px",
-                                                        borderRadius: 5,
-                                                        background: "#f1f5f9",
-                                                        color: "#475569",
-                                                        fontFamily: "monospace",
-                                                    }}
-                                                >
-                                                    {r.numero}
-                                                </span>
-                                            </td>
-                                            <td style={{ ...td, fontWeight: 600, color: "#2e7d32" }}>
-                                                {fmt(r.valor)}
-                                            </td>
-                                            <td style={td}>
-                                                <StatusBadge
-                                                    s={r.status_email}
-                                                    override={fb?.id === r.id ? fb : null}
-                                                />
-                                            </td>
-                                            <td style={{ ...td, textAlign: "right" }}>
-                                                <div
-                                                    style={{
-                                                        display: "flex",
-                                                        gap: 6,
-                                                        justifyContent: "flex-end",
-                                                    }}
-                                                >
-                                                    {r.pdf_url && (
-                                                        <a
-                                                            href={r.pdf_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            style={iconBtn("#eef2ff", "#3b5bdb")}
-                                                            title="Baixar PDF"
-                                                        >
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                viewBox="0 0 14 14"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                strokeWidth="1.4"
-                                                                strokeLinecap="round"
-                                                            >
-                                                                <path d="M7 2v7M4 6l3 3 3-3M2 11h10" />
-                                                            </svg>
-                                                        </a>
-                                                    )}
-                                                    <button
-                                                        onClick={() => setModal(r)}
-                                                        disabled={isPending}
-                                                        style={iconBtn(
-                                                            r.status_email === "enviado"
-                                                                ? "#e8f5e9"
-                                                                : "#fff8e1",
-                                                            r.status_email === "enviado"
-                                                                ? "#2e7d32"
-                                                                : "#f57f17"
-                                                        )}
-                                                        title={
-                                                            r.status_email === "enviado"
-                                                                ? "Re-enviar e-mail"
-                                                                : "Enviar por e-mail"
-                                                        }
-                                                    >
-                                                        <svg
-                                                            width="14"
-                                                            height="14"
-                                                            viewBox="0 0 14 14"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="1.4"
-                                                            strokeLinecap="round"
-                                                        >
-                                                            <rect
-                                                                x="1"
-                                                                y="3"
-                                                                width="12"
-                                                                height="8"
-                                                                rx="1.5"
-                                                            />
-                                                            <path d="M1 5l6 4 6-4" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+  // Fetch empresa info
+  useEffect(() => {
+    if (!selectedCompany?.id) return
 
-                {modal && (
-                    <ModalEmail
-                        r={modal}
-                        onClose={() => setModal(null)}
-                        onEnviar={(email) => handleEnviar(modal, email)}
-                        isPending={isPending}
-                    />
-                )}
+    async function fetchEmpresa() {
+      const data = await safeQuery<any>(
+        async () =>
+          (activeClient ?? supabase)
+            .from('companies')
+            .select('nome_fantasia, razao_social, cnpj')
+            .eq('id', selectedCompany!.id)
+            .single(),
+        'Recibos.fetchEmpresa'
+      )
+      if (data) {
+        setEmpresa({
+          name: (data as any).nome_fantasia || (data as any).razao_social || 'Empresa',
+          document: (data as any).cnpj || '',
+        })
+      }
+    }
+
+    fetchEmpresa()
+  }, [selectedCompany?.id, activeClient])
+
+  // Normalize for search
+  const normalize = (v: unknown) =>
+    String(v ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+
+  // Filter
+  const filtrados = recibos.filter((r) => {
+    // Status filter
+    if (filtroStatus !== 'todos' && r.status_email !== filtroStatus) return false
+
+    // Search filter
+    const needle = normalize(busca)
+    if (!needle) return true
+    const haystack = normalize(
+      [r.favorecido, r.numero, r.descricao, formatBRL(r.valor)].filter(Boolean).join(' ')
+    )
+    return haystack.includes(needle)
+  })
+
+  // Actions
+  const handleReenviarEmail = (recibo: Recibo) => {
+    console.log('[Recibos] Reenviar e-mail:', recibo.id, recibo.email_destino)
+  }
+
+  const handleDownloadPDF = (recibo: Recibo) => {
+    if (recibo.pdf_url) {
+      window.open(recibo.pdf_url, '_blank')
+    } else {
+      console.log('[Recibos] PDF nao disponivel para recibo:', recibo.id)
+    }
+  }
+
+  return (
+    <AppLayout title="Recibos">
+      <div className="flex gap-4 h-[calc(100vh-120px)]">
+
+        {/* ---- LEFT COLUMN: List ---- */}
+        <div className="w-[420px] min-w-[360px] flex flex-col">
+          <div className="border border-[#ccc] rounded-lg overflow-hidden flex flex-col h-full">
+            {/* Card header */}
+            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between shrink-0">
+              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Recibos</h3>
+              <span className="text-[10px] text-white/60 font-medium">{filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}</span>
             </div>
-        </AppLayout>
-    );
+
+            {/* Search + filter */}
+            <div className="p-3 border-b border-[#eee] bg-white space-y-2 shrink-0">
+              {/* Search */}
+              <div className="flex items-center gap-2 border border-[#ccc] rounded px-3 py-2 bg-white">
+                <Search className="w-3.5 h-3.5 text-[#999] shrink-0" />
+                <input
+                  type="text"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por nome ou numero..."
+                  className="flex-1 text-xs text-[#0a0a0a] placeholder:text-[#999] bg-transparent outline-none border-none"
+                />
+              </div>
+
+              {/* Status filter */}
+              <div className="flex gap-1.5">
+                {[
+                  { key: 'todos', label: 'Todos' },
+                  { key: 'enviado', label: 'Enviado' },
+                  { key: 'pendente', label: 'Pendente' },
+                  { key: 'erro', label: 'Erro' },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setFiltroStatus(f.key)}
+                    className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded border transition-colors ${
+                      filtroStatus === f.key
+                        ? 'bg-[#1a2e4a] text-white border-[#1a2e4a]'
+                        : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* List items */}
+            <div className="flex-1 overflow-y-auto bg-white">
+              {loading ? (
+                <div className="flex items-center justify-center h-40 text-xs text-[#999]">
+                  Carregando recibos...
+                </div>
+              ) : filtrados.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-xs text-[#999]">
+                  <FileText className="w-8 h-8 text-[#ccc] mb-2" />
+                  {busca ? 'Nenhum recibo encontrado.' : 'Nenhum recibo gerado ainda.'}
+                </div>
+              ) : (
+                filtrados.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelecionado(r)}
+                    className={`w-full text-left px-4 py-3 border-b border-[#f0f0f0] transition-colors hover:bg-[#f7f9fb] ${
+                      selecionado?.id === r.id ? 'bg-[#f0f4f8] border-l-2 border-l-[#1a2e4a]' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-mono text-[#1a2e4a] font-bold">#{r.numero}</span>
+                          <StatusBadge status={r.status_email} />
+                        </div>
+                        <div className="text-xs font-semibold text-[#0a0a0a] truncate">{r.favorecido}</div>
+                        {r.descricao && (
+                          <div className="text-[11px] text-[#555] truncate mt-0.5">
+                            {r.descricao.length > 60 ? r.descricao.slice(0, 60) + '...' : r.descricao}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-[#999] mt-1">{formatData(r.data_pagamento)}</div>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                        <div className="text-sm font-bold text-[#0a0a0a]">{formatBRL(r.valor)}</div>
+                        <ChevronRight className="w-3.5 h-3.5 text-[#ccc] mt-1" />
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ---- RIGHT COLUMN: Preview ---- */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="border border-[#ccc] rounded-lg overflow-hidden flex flex-col h-full">
+            {selecionado ? (
+              <>
+                {/* Preview header */}
+                <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between shrink-0">
+                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+                    Recibo #{selecionado.numero}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleReenviarEmail(selecionado)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/20"
+                    >
+                      <Mail className="w-3 h-3" />
+                      Reenviar e-mail
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPDF(selecionado)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white text-[#1a2e4a] hover:bg-white/90 transition-colors"
+                    >
+                      <Download className="w-3 h-3" />
+                      Download PDF
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preview body */}
+                <div className="flex-1 overflow-y-auto bg-[#f5f5f5] p-4">
+                  <div className="max-w-[700px] mx-auto shadow-sm border border-[#e0e0e0] rounded bg-white">
+                    <PreviewRecibo recibo={selecionado} empresa={empresa} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Empty state */
+              <div className="flex-1 flex flex-col items-center justify-center bg-white">
+                <FileText className="w-12 h-12 text-[#ccc] mb-3" />
+                <div className="text-sm text-[#999]">Selecione um recibo para visualizar</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+    </AppLayout>
+  )
 }
