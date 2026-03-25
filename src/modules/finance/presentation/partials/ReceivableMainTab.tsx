@@ -46,18 +46,24 @@ export function ReceivableMainTab({ form, categories, bankAccounts }: Receivable
                     name="amount"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Valor (R$)</FormLabel>
+                            <FormLabel>Valor (R$) *</FormLabel>
                             <FormControl>
                                 <Input
                                     type="number"
                                     step="0.01"
+                                    min="0"
                                     className="font-bold text-lg"
-                                    placeholder="0.00"
-                                    {...field}
+                                    placeholder="0,00"
+                                    value={field.value || ""}
                                     onChange={e => {
-                                        const val = parseFloat(e.target.value);
-                                        field.onChange(isNaN(val) ? 0 : val);
+                                        const raw = e.target.value;
+                                        if (raw === "") { field.onChange(undefined); return; }
+                                        const val = parseFloat(raw);
+                                        field.onChange(isNaN(val) ? undefined : val);
                                     }}
+                                    onBlur={field.onBlur}
+                                    name={field.name}
+                                    ref={field.ref}
                                 />
                             </FormControl>
                             <FormMessage />

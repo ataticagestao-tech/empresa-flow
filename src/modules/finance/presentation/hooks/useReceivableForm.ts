@@ -32,7 +32,8 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
             recurrence: 'none',
             company_id: selectedCompany?.id,
             issue_date: new Date(),
-            amount: 0,
+            due_date: new Date(),
+            amount: undefined as any, // sem "0" na frente
             ...initialData // Merge com dados iniciais se houver
         }
     });
@@ -80,13 +81,24 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
         }
     });
 
-    const onSubmit = (values: AccountsReceivable) => {
-        saveMutation.mutate(values);
-    };
+    const save = form.handleSubmit(
+        (values) => saveMutation.mutate(values),
+        (errors) => {
+            const msgs = Object.entries(errors)
+                .map(([field, err]) => `${field}: ${err?.message || "inválido"}`)
+                .join("\n");
+            console.error("Validation errors:", errors);
+            toast({
+                title: "Campos obrigatórios",
+                description: msgs || "Verifique os campos em vermelho",
+                variant: "destructive"
+            });
+        }
+    );
 
     return {
         form,
-        onSubmit,
+        save,
         dependencies,
         isLoading: isLoadingDeps || saveMutation.isPending,
         isSubmitting: saveMutation.isPending

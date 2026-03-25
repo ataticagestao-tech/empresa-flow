@@ -52,8 +52,9 @@ export function useDreDashboard(dateRange?: DashboardDateRange) {
             // 2. Fetch transactions in period
             const { data: transactions, error: txErr } = await db
                 .from("movimentacoes")
-                .select("valor, tipo, conta_contabil_id")
+                .select("valor, tipo, conta_contabil_id, origem")
                 .eq("company_id", selectedCompany.id)
+                .neq("origem", "transferencia")
                 .gte("data", rangeStart.toISOString())
                 .lte("data", rangeEnd.toISOString());
 

@@ -166,6 +166,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 .select(`
                     valor,
                     tipo,
+                    origem,
                     category:chart_of_accounts (
                         name,
                         dre_group,
@@ -180,7 +181,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
 
             const groups: Record<string, { name: string, total: number, order: number }> = {};
 
-            data.forEach((t: any) => {
+            // Excluir transferências entre contas (neutras, não afetam DRE)
+            data.filter((t: any) => t.origem !== 'transferencia').forEach((t: any) => {
                 const groupName = t.category?.dre_group || 'Outros';
                 const order = t.category?.dre_order || 99;
 

@@ -14,7 +14,7 @@ interface ReceivableFormProps {
 }
 
 export function ReceivableForm({ onSuccess, initialData, onCancel }: ReceivableFormProps) {
-    const { form, onSubmit, dependencies, isLoading, isSubmitting } = useReceivableForm(initialData, onSuccess);
+    const { form, save, dependencies, isLoading, isSubmitting } = useReceivableForm(initialData, onSuccess);
 
     if (isLoading) {
         return <div className="p-8 text-center">Carregando formulário...</div>;
@@ -22,7 +22,7 @@ export function ReceivableForm({ onSuccess, initialData, onCancel }: ReceivableF
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={save} className="space-y-4">
                 <Tabs defaultValue="main" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 bg-[#F1F5F9]/50">
                         <TabsTrigger value="main">Principal</TabsTrigger>

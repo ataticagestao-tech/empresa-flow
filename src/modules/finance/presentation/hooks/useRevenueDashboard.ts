@@ -37,6 +37,7 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
                 .from("movimentacoes")
                 .select(`
                     valor,
+                    origem,
                     category:chart_of_accounts (
                         name,
                         code
@@ -44,6 +45,7 @@ export function useRevenueDashboard(dateRange?: DashboardDateRange) {
                 `)
                 .eq("company_id", selectedCompany.id)
                 .eq("tipo", "credito")
+                .neq("origem", "transferencia")
                 .gte("data", rangeStart.toISOString())
                 .lte("data", rangeEnd.toISOString());
 

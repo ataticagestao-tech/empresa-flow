@@ -88,8 +88,9 @@ export default function DRE() {
 
     const { data: movs } = await db
       .from("movimentacoes")
-      .select("valor, tipo, conta_contabil_id, data")
+      .select("valor, tipo, conta_contabil_id, data, origem")
       .eq("company_id", selectedCompany.id)
+      .neq("origem", "transferencia")
       .gte("data", `${mesInicio}-01`)
       .lte("data", `${mesFim}-31`);
 

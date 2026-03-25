@@ -137,10 +137,10 @@ export default function Conciliacao() {
             const batch = importHistory?.find((b: any) => b.key === expandedBatchKey);
             if (!batch?.tx_ids?.length) return [];
 
-            // Fetch bank_transactions with full details
+            // Fetch bank_transactions with full details (including direct category_id)
             const { data: txs, error } = await (activeClient as any)
                 .from("bank_transactions")
-                .select("id, date, amount, description, memo, status, reconciled_payable_id, reconciled_receivable_id")
+                .select("id, date, amount, description, memo, status, category_id, reconciled_payable_id, reconciled_receivable_id")
                 .in("id", batch.tx_ids)
                 .order("date", { ascending: true });
             if (error) throw error;
@@ -177,34 +177,43 @@ export default function Conciliacao() {
                     ...t,
                     linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
                     linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
-                    category_id: linked?.category_id || null,
+                    category_id: t.category_id || linked?.category_id || null,
                 };
             });
         },
         enabled: !!expandedBatchKey && !!importHistory,
     });
 
-    // Mutation: update category on linked payable/receivable
-    const updateLinkedCategory = async (linkedTable: string, linkedId: string, newCategoryId: string) => {
-        const gestapTable = linkedTable === "accounts_payable" ? "contas_pagar" : "contas_receber";
-        const { error } = await (activeClient as any)
-            .from(gestapTable)
-            .update({ conta_contabil_id: newCategoryId })
-            .eq("id", linkedId);
-        if (error) {
-            toast({ title: "Erro", description: "Não foi possível atualizar a categoria.", variant: "destructive" });
-            return;
+    // Mutation: update category — works on linked payable/receivable OR directly on bank_transactions
+    const updateLinkedCategory = async (linkedTable: string | null, linkedId: string | null, newCategoryId: string, bankTxId?: string) => {
+        // Always save category_id directly on the bank_transaction
+        if (bankTxId) {
+            await (activeClient as any)
+                .from("bank_transactions")
+                .update({ category_id: newCategoryId })
+                .eq("id", bankTxId);
         }
-        // Also update the transaction record if it exists
-        const txField = linkedTable === "accounts_payable" ? "conta_pagar_id" : "conta_receber_id";
-        await (activeClient as any)
-            .from("movimentacoes")
-            .update({ conta_contabil_id: newCategoryId })
-            .eq(txField, linkedId);
+
+        // If linked to payable/receivable, also update there
+        if (linkedTable && linkedId) {
+            const gestapTable = linkedTable === "accounts_payable" ? "contas_pagar" : "contas_receber";
+            const { error } = await (activeClient as any)
+                .from(gestapTable)
+                .update({ conta_contabil_id: newCategoryId })
+                .eq("id", linkedId);
+            if (error) {
+                toast({ title: "Erro", description: "Não foi possível atualizar a categoria.", variant: "destructive" });
+                return;
+            }
+            const txField = linkedTable === "accounts_payable" ? "conta_pagar_id" : "conta_receber_id";
+            await (activeClient as any)
+                .from("movimentacoes")
+                .update({ conta_contabil_id: newCategoryId })
+                .eq(txField, linkedId);
+        }
 
         toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
         queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] });
-        // Invalidar dashboard para refletir a mudança de categoria
         queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard_dre_detailed"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_service"] });

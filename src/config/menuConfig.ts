@@ -65,6 +65,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.companies', icon: Building2, url: '/empresas' },
       { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
       { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
+      { titleKey: 'Clientes', icon: Users, url: '/clientes', isHardcoded: true },
       { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
       { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },

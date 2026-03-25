@@ -88,6 +88,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
                 observacoes: data.observations || null,
                 file_url: data.file_url || null,
                 codigo_barras: data.barcode || null,
+                competencia: data.competencia || null,
             };
 
             // Adicionar id se for edição

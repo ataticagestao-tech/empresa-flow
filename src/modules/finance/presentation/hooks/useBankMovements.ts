@@ -22,6 +22,7 @@ export interface BankMovement {
     description: string;
     type: "credit" | "debit";
     bank_account_id: string;
+    origem: string;
 }
 
 export function useBankMovements(dateRange?: DashboardDateRange) {
@@ -56,7 +57,7 @@ export function useBankMovements(dateRange?: DashboardDateRange) {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
                 .from("movimentacoes")
-                .select("id, data, valor, descricao, tipo, conta_bancaria_id")
+                .select("id, data, valor, descricao, tipo, conta_bancaria_id, origem")
                 .eq("company_id", selectedCompany.id)
                 .not("conta_bancaria_id", "is", null)
                 .gte("data", rangeStart.toISOString())
@@ -70,18 +71,20 @@ export function useBankMovements(dateRange?: DashboardDateRange) {
                 description: m.descricao || "",
                 type: m.tipo === "credito" ? "credit" : "debit",
                 bank_account_id: m.conta_bancaria_id,
+                origem: m.origem || "manual",
             })) as BankMovement[];
         },
         enabled: !!selectedCompany?.id,
     });
 
-    // 3. Aggregate: total in/out per account
+    // 3. Aggregate: total in/out per account (excluindo transferências entre contas)
     const accountSummaries = (accounts || []).map((acc) => {
         const accMovements = (movements || []).filter((m) => m.bank_account_id === acc.id);
-        const totalIn = accMovements
+        const nonTransfer = accMovements.filter((m) => m.origem !== "transferencia");
+        const totalIn = nonTransfer
             .filter((m) => m.type === "credit")
             .reduce((s, m) => s + (m.amount || 0), 0);
-        const totalOut = accMovements
+        const totalOut = nonTransfer
             .filter((m) => m.type === "debit")
             .reduce((s, m) => s + (m.amount || 0), 0);
         return {
@@ -94,7 +97,7 @@ export function useBankMovements(dateRange?: DashboardDateRange) {
         };
     });
 
-    // 4. Totals across all accounts
+    // 4. Totals across all accounts (excluindo transferências)
     const totalBalance = (accounts || []).reduce((s, a) => s + (a.current_balance || 0), 0);
     const totalIn = accountSummaries.reduce((s, a) => s + a.totalIn, 0);
     const totalOut = accountSummaries.reduce((s, a) => s + a.totalOut, 0);

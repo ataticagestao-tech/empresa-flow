@@ -38,6 +38,7 @@ interface MovementRow {
     amount: number;
     type: "credit" | "debit";
     source: string;
+    origem: string;
 }
 
 export default function Movimentacoes() {
@@ -181,6 +182,7 @@ export default function Movimentacoes() {
                 amount: Number(m.valor || 0),
                 type: m.tipo === "credito" ? "credit" : "debit",
                 source: "transaction",
+                origem: m.origem || "manual",
             });
         });
 
@@ -196,6 +198,7 @@ export default function Movimentacoes() {
                 amount: Number(p.valor || 0),
                 type: "debit",
                 source: "payable",
+                origem: "conta_pagar",
             });
         });
 
@@ -211,6 +214,7 @@ export default function Movimentacoes() {
                 amount: Number(r.valor || 0),
                 type: "credit",
                 source: "receivable",
+                origem: "conta_receber",
             });
         });
 
@@ -239,11 +243,14 @@ export default function Movimentacoes() {
         ).includes(needle);
     });
 
-    const totalIn = filteredMovements
+    // Excluir transferências entre contas dos totais (são neutras)
+    const nonTransferMovements = filteredMovements.filter(m => m.origem !== "transferencia");
+
+    const totalIn = nonTransferMovements
         .filter(m => m.type === "credit")
         .reduce((acc, m) => acc + m.amount, 0);
 
-    const totalOut = filteredMovements
+    const totalOut = nonTransferMovements
         .filter(m => m.type === "debit")
         .reduce((acc, m) => acc + m.amount, 0);
 
@@ -270,7 +277,7 @@ export default function Movimentacoes() {
             let entradas = 0;
             let saidas = 0;
 
-            filteredMovements.forEach(m => {
+            nonTransferMovements.forEach(m => {
                 if (!m.date) return;
                 const mDate = parseISO(m.date);
                 if (bucketDays.some(d => isSameDay(d, mDate))) {
@@ -283,7 +290,7 @@ export default function Movimentacoes() {
         }
 
         return buckets;
-    }, [dateRange, filteredMovements]);
+    }, [dateRange, nonTransferMovements]);
 
     const formatBRL = (value: number) =>
         new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);

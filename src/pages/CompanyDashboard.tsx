@@ -1,1511 +1,553 @@
-
-import { useEffect, useMemo, useState, useCallback, useSyncExternalStore, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useCompanies } from "@/hooks/useCompanies";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-    TrendingUp, TrendingDown, DollarSign, Target,
-    ShoppingBag, AlertTriangle, Users, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight,
-    CalendarDays, BarChart2, Zap, Activity, Clock, Settings2,
-    Building2, CreditCard, Wallet, ChevronDown, ChevronUp, FileText, Download,
-    Bell, Receipt
-} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, AreaChart, Area, ReferenceLine,
-    PieChart as RechartsPie, Pie, Cell
+    ResponsiveContainer, AreaChart, Area,
 } from "recharts";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useFinanceDashboard, type DashboardDateRange } from "@/modules/finance/presentation/hooks/useFinanceDashboard";
-import { useOperationalDashboard } from "@/modules/finance/presentation/hooks/useOperationalDashboard";
-import { useBankMovements } from "@/modules/finance/presentation/hooks/useBankMovements";
-import { useRevenueDashboard } from "@/modules/finance/presentation/hooks/useRevenueDashboard";
-import { useDreDashboard } from "@/modules/finance/presentation/hooks/useDreDashboard";
-import { useScoreFinanceiro } from "@/modules/finance/presentation/hooks/useScoreFinanceiro";
-import { ScoreGauge } from "@/components/bi/ScoreGauge";
-import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from "date-fns";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+import {
+    startOfMonth, endOfMonth, subMonths, addDays, format,
+    differenceInDays,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { DateRange } from "react-day-picker";
 
-/* ── Design Tokens (aligned with tokens.css) ──────────────── */
+/* ── Design Tokens ──────────────────────────────────────────── */
 const C = {
-    bgBase:     "#f8f9fb",
-    surface:    "#ffffff",
-    darkCard:   "#1A1F36",
-    blue:       "#3b5bdb",
-    blueLight:  "#eef2ff",
-    blueVivid:  "#3b5bdb",
-    blueDark:   "#1e3a8a",
-    green:      "#2e7d32",
-    greenSoft:  "#e8f5e9",
-    red:        "#c62828",
-    redSoft:    "#fde8e8",
-    amber:      "#f57f17",
-    amberSoft:  "#fff8e1",
-    text1:      "#0f172a",
-    text2:      "#475569",
-    textMuted:  "#94a3b8",
-    border:     "#e2e8f0",
-    borderLight:"#f1f5f9",
+    darkCard: "#1A1F36",
+    gold: "#C5A24D",
+    goldBg: "#FDF8EC",
+    goldBorder: "#E8D5A0",
+    green: "#2e7d32",
+    greenSoft: "#e8f5e9",
+    red: "#c62828",
+    redSoft: "#fde8e8",
+    redBg: "#B91C1C",
+    text1: "#0f172a",
+    text2: "#475569",
+    textMuted: "#94a3b8",
+    border: "#e2e8f0",
+    surface: "#ffffff",
 } as const;
 
-const FONT = "var(--font-base)";
-
-/* ── Pie chart colors ─────────────────────────────────────── */
-const PIE_COLORS = ["#3b5bdb", "#2e7d32", "#c62828", "#f57f17", "#8B5CF6", "#EC4899", "#14B8A6", "#6366F1"];
-
-/* ── Card base styles ──────────────────────────────────────── */
-const cardStyle = {
-    background: C.surface,
-    borderRadius: 14,
-    padding: 20,
-    border: `1px solid ${C.border}`,
-    transition: "background 0.15s ease",
-} as const;
-
-const darkCardStyle = {
-    ...cardStyle,
-    background: C.darkCard,
-    border: "none",
-    color: "#fff",
-} as const;
-
-/* ── Formatters ────────────────────────────────────────────── */
 const fmt = (v: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+const fmtFull = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-const fmtCompact = (v: number) =>
-    new Intl.NumberFormat("pt-BR", { notation: "compact", compactDisplay: "short", style: "currency", currency: "BRL" }).format(v);
-const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+const fmtPct = (v: number) => `${v.toFixed(1)}%`;
 
-/* ── Responsive hook ───────────────────────────────────────── */
-function useWindowWidth() {
-    const subscribe = useCallback((cb: () => void) => {
-        window.addEventListener("resize", cb);
-        return () => window.removeEventListener("resize", cb);
-    }, []);
-    return useSyncExternalStore(subscribe, () => window.innerWidth);
-}
+/* ── Period Type ────────────────────────────────────────────── */
+type Period = "hoje" | "mes" | "trimestre" | "ano";
 
-/* ── Tooltip style (dark) ──────────────────────────────────── */
-const tooltipStyle = {
-    backgroundColor: C.text1,
-    color: "#fff",
-    borderRadius: 8,
-    border: "none",
-    padding: "8px 14px",
-    fontSize: 12,
-    fontFamily: FONT,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-} as const;
+/* ── Main Component ─────────────────────────────────────────── */
+export default function CompanyDashboard() {
+    const { id: companyId } = useParams<{ id: string }>();
+    const { selectedCompany } = useCompany();
+    const { activeClient } = useAuth();
+    const navigate = useNavigate();
+    const db = activeClient as any;
+    const cId = companyId || selectedCompany?.id;
 
-/* ── Date Presets ───────────────────────────────────────────── */
-const presets = [
-    { label: "Este mes", get: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
-    { label: "Mes passado", get: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
-    { label: "3 meses", get: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
-    { label: "Este ano", get: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
-];
+    const [period, setPeriod] = useState<Period>("mes");
 
-/* ── Tab config ─────────────────────────────────────────────── */
-const TABS = [
-    { id: "financeiro", label: "Financeiro", icon: BarChart2 },
-    { id: "receitas", label: "Receitas", icon: TrendingUp },
-    { id: "dre", label: "DRE", icon: FileText },
-    { id: "operacional", label: "Operacional", icon: Zap },
-    { id: "bancos", label: "Bancos", icon: Building2 },
-    { id: "config", label: "Config", icon: Settings2 },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
+    const today = useMemo(() => new Date(), []);
+    const todayStr = format(today, "yyyy-MM-dd");
 
-/* ── Delta Badge ────────────────────────────────────────────── */
-function DeltaBadge({ value, label }: { value: number; label?: string }) {
-    const isPositive = value >= 0;
-    return (
-        <span style={{
-            display: "inline-flex", alignItems: "center", gap: 3,
-            padding: "2px 10px", borderRadius: 9999,
-            fontSize: 11, fontWeight: 500, fontFamily: FONT,
-            background: isPositive ? C.greenSoft : C.redSoft,
-            color: isPositive ? C.green : C.red,
-        }}>
-            {isPositive ? <ArrowUpRight size={12} strokeWidth={1.5} /> : <ArrowDownRight size={12} strokeWidth={1.5} />}
-            {fmtPct(value)}
-            {label && <span style={{ fontWeight: 400, marginLeft: 2 }}>{label}</span>}
-        </span>
+    // ─── Bank Accounts ─────────────────────────────────────
+    const { data: bankAccounts } = useQuery({
+        queryKey: ["dash_banks", cId],
+        queryFn: async () => {
+            const { data } = await db.from("bank_accounts").select("id, name, current_balance").eq("company_id", cId);
+            return data || [];
+        },
+        enabled: !!cId,
+    });
+    const saldoCaixa = useMemo(() => (bankAccounts || []).reduce((s: number, a: any) => s + Number(a.current_balance || 0), 0), [bankAccounts]);
+
+    // ─── Receivables (all open) ─────────────────────────────
+    const { data: receivablesRaw } = useQuery({
+        queryKey: ["dash_receivables", cId],
+        queryFn: async () => {
+            const { data } = await db.from("contas_receber")
+                .select("id, pagador_nome, valor, valor_pago, data_vencimento, status")
+                .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"]);
+            return data || [];
+        },
+        enabled: !!cId,
+    });
+
+    // ─── Payables (all open) ────────────────────────────────
+    const { data: payablesRaw } = useQuery({
+        queryKey: ["dash_payables", cId],
+        queryFn: async () => {
+            const { data } = await db.from("contas_pagar")
+                .select("id, credor_nome, valor, valor_pago, data_vencimento, status")
+                .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"]);
+            return data || [];
+        },
+        enabled: !!cId,
+    });
+
+    // ─── Paid this month (receita/despesa do mês) ───────────
+    const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
+    const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
+
+    const { data: receitaMes = 0 } = useQuery({
+        queryKey: ["dash_receita_mes", cId, monthStart],
+        queryFn: async () => {
+            const { data } = await db.from("contas_receber")
+                .select("valor_pago").eq("company_id", cId).eq("status", "pago")
+                .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd);
+            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+        },
+        enabled: !!cId,
+    });
+
+    const { data: despesaMes = 0 } = useQuery({
+        queryKey: ["dash_despesa_mes", cId, monthStart],
+        queryFn: async () => {
+            const { data } = await db.from("contas_pagar")
+                .select("valor_pago").eq("company_id", cId).eq("status", "pago")
+                .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd);
+            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+        },
+        enabled: !!cId,
+    });
+
+    const resultadoMes = receitaMes - despesaMes;
+    const margemMes = receitaMes > 0 ? (resultadoMes / receitaMes) * 100 : 0;
+
+    // ─── Payables next 7 days ───────────────────────────────
+    const next7 = format(addDays(today, 7), "yyyy-MM-dd");
+    const payables7d = useMemo(() =>
+        (payablesRaw || [])
+            .filter((p: any) => p.data_vencimento <= next7)
+            .sort((a: any, b: any) => a.data_vencimento.localeCompare(b.data_vencimento)),
+        [payablesRaw, next7]
     );
-}
+    const totalPagar7d = payables7d.reduce((s: number, p: any) => s + Number(p.valor || 0) - Number(p.valor_pago || 0), 0);
+    const vencem_hoje_pagar = payables7d.filter((p: any) => p.data_vencimento === todayStr).length;
 
-/* ── Icon Badge ─────────────────────────────────────────────── */
-function IconBadge({ icon: Icon, color = C.blue, bg = C.blueLight, size = 18 }: { icon: any; color?: string; bg?: string; size?: number }) {
-    return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size + 18, height: size + 18, borderRadius: 10, background: bg }}>
-            <Icon size={size} strokeWidth={1.5} color={color} />
-        </div>
-    );
-}
+    // ─── Receivables aging ──────────────────────────────────
+    const receivablesAging = useMemo(() => {
+        const buckets = { ate30: { total: 0, count: 0 }, de31a60: { total: 0, count: 0 }, acima60: { total: 0, count: 0 } };
+        const overdue: any[] = [];
+        let totalAberto = 0;
+        let totalCount = 0;
 
-/* ── Bank Account Card (expandable) ─────────────────────────── */
-function BankAccountCard({ account, isMobile, fmt, fmtCompact }: {
-    account: {
-        id: string; name: string; banco: string; agencia: string;
-        conta: string; current_balance: number; is_active: boolean;
-        totalIn: number; totalOut: number; net: number; movementCount: number;
-        movements: { id: string; date: string; amount: number; description: string; type: string }[];
+        (receivablesRaw || []).forEach((r: any) => {
+            const saldo = Number(r.valor || 0) - Number(r.valor_pago || 0);
+            if (saldo <= 0) return;
+            totalAberto += saldo;
+            totalCount++;
+
+            const diasAtraso = differenceInDays(today, new Date(r.data_vencimento));
+            if (diasAtraso > 60) {
+                buckets.acima60.total += saldo;
+                buckets.acima60.count++;
+                overdue.push({ ...r, diasAtraso, saldo });
+            } else if (diasAtraso > 30) {
+                buckets.de31a60.total += saldo;
+                buckets.de31a60.count++;
+            } else {
+                buckets.ate30.total += saldo;
+                buckets.ate30.count++;
+            }
+        });
+
+        overdue.sort((a, b) => b.diasAtraso - a.diasAtraso);
+        return { buckets, overdue: overdue.slice(0, 5), totalAberto, totalCount };
+    }, [receivablesRaw, today]);
+
+    // ─── Alert banner ───────────────────────────────────────
+    const alertItems: string[] = [];
+    if (vencem_hoje_pagar > 0) alertItems.push(`${vencem_hoje_pagar} conta${vencem_hoje_pagar > 1 ? "s" : ""} a pagar vence${vencem_hoje_pagar > 1 ? "m" : ""} hoje`);
+    if (receivablesAging.overdue.length > 0) alertItems.push(`${receivablesAging.overdue.length} título${receivablesAging.overdue.length > 1 ? "s" : ""} a receber com mais de 60 dias em atraso`);
+
+    // ─── Receita x Despesa 6 meses (chart) ──────────────────
+    const { data: chartRevExp } = useQuery({
+        queryKey: ["dash_rev_exp_6m", cId],
+        queryFn: async () => {
+            const months: any[] = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = subMonths(today, i);
+                const ms = format(startOfMonth(d), "yyyy-MM-dd");
+                const me = format(endOfMonth(d), "yyyy-MM-dd");
+
+                const [{ data: rec }, { data: desp }] = await Promise.all([
+                    db.from("contas_receber").select("valor_pago").eq("company_id", cId)
+                        .eq("status", "pago").gte("data_pagamento", ms).lte("data_pagamento", me),
+                    db.from("contas_pagar").select("valor_pago").eq("company_id", cId)
+                        .eq("status", "pago").gte("data_pagamento", ms).lte("data_pagamento", me),
+                ]);
+
+                const receita = (rec || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                const despesa = (desp || []).reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+
+                months.push({
+                    mes: format(d, "MMM", { locale: ptBR }).replace(".", ""),
+                    Receita: receita,
+                    Despesa: despesa,
+                });
+            }
+            return months;
+        },
+        enabled: !!cId,
+    });
+
+    // ─── Fluxo de Caixa 30 dias (chart) ─────────────────────
+    const { data: chartCashflow } = useQuery({
+        queryKey: ["dash_cashflow_30d", cId],
+        queryFn: async () => {
+            const days: any[] = [];
+            let balance = saldoCaixa || 0;
+            let totalIn = 0, totalOut = 0;
+
+            for (let i = 0; i < 30; i++) {
+                const d = addDays(today, i);
+                const ds = format(d, "yyyy-MM-dd");
+
+                const recDay = (receivablesRaw || []).filter((r: any) => r.data_vencimento === ds)
+                    .reduce((s: number, r: any) => s + Number(r.valor || 0) - Number(r.valor_pago || 0), 0);
+                const payDay = (payablesRaw || []).filter((p: any) => p.data_vencimento === ds)
+                    .reduce((s: number, p: any) => s + Number(p.valor || 0) - Number(p.valor_pago || 0), 0);
+
+                balance += recDay - payDay;
+                totalIn += recDay;
+                totalOut += payDay;
+
+                days.push({
+                    dia: format(d, "dd/MM"),
+                    saldo: balance,
+                });
+            }
+
+            const negativeDay = days.find((d) => d.saldo < 0);
+            return { days, totalIn, totalOut, projected: balance, negativeDay };
+        },
+        enabled: !!cId && saldoCaixa !== undefined,
+    });
+
+    const tooltipStyle = {
+        backgroundColor: C.text1, color: "#fff", borderRadius: 8,
+        border: "none", padding: "8px 14px", fontSize: 12,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
     };
-    isMobile: boolean;
-    fmt: (v: number) => string;
-    fmtCompact: (v: number) => string;
-}) {
-    const [expanded, setExpanded] = useState(false);
-    const recentMovements = account.movements.slice(0, 10);
+
+    const daysUntilDue = (dateStr: string) => {
+        const diff = differenceInDays(new Date(dateStr), today);
+        if (diff === 0) return "Vence hoje";
+        if (diff < 0) return `${Math.abs(diff)} dias atrás`;
+        return `Vence em ${diff} dia${diff > 1 ? "s" : ""}`;
+    };
 
     return (
-        <div style={{
-            background: C.surface, borderRadius: 12, border: `0.5px solid ${C.border}`,
-            overflow: "hidden",
-        }}>
-            {/* Header */}
-            <button
-                onClick={() => setExpanded(!expanded)}
-                style={{
-                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: 16, border: "none", background: "transparent", cursor: "pointer",
-                    textAlign: "left", fontFamily: FONT,
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <AppLayout title="Dashboard">
+            <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "var(--font-base)" }}>
+
+                {/* ── Header: Period Filter ── */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                    <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
+                        {([
+                            { key: "hoje", label: "Hoje" },
+                            { key: "mes", label: "Este mês" },
+                            { key: "trimestre", label: "Trimestre" },
+                            { key: "ano", label: "Ano" },
+                        ] as { key: Period; label: string }[]).map((p) => (
+                            <button key={p.key} onClick={() => setPeriod(p.key)} style={{
+                                padding: "8px 18px", fontSize: 13, fontWeight: period === p.key ? 700 : 400,
+                                background: period === p.key ? C.text1 : C.surface,
+                                color: period === p.key ? "#fff" : C.text2,
+                                border: "none", cursor: "pointer",
+                                borderRight: `1px solid ${C.border}`,
+                            }}>
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+                    <span style={{ fontSize: 12, color: C.textMuted }}>
+                        Atualizado às {format(today, "HH:mm")}
+                    </span>
+                </div>
+
+                {/* ── Alert Banner ── */}
+                {alertItems.length > 0 && (
                     <div style={{
-                        width: 36, height: 36, borderRadius: 8,
-                        background: C.blueLight, display: "flex", alignItems: "center", justifyContent: "center",
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "12px 18px", borderRadius: 10,
+                        border: `1.5px solid ${C.redBg}`, background: C.redSoft,
+                        marginBottom: 20,
                     }}>
-                        <Building2 size={18} strokeWidth={1.2} color={C.blue} />
-                    </div>
-                    <div>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>{account.name}</p>
-                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>
-                            {account.banco}{account.agencia ? ` - Ag ${account.agencia}` : ""}{account.conta ? ` / CC ${account.conta}` : ""}
-                        </p>
-                    </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 12 : 32 }}>
-                    {!isMobile && (
-                        <>
-                            <div style={{ textAlign: "right" }}>
-                                <p style={{ fontSize: 11, color: C.textMuted }}>Entradas</p>
-                                <p style={{ fontSize: 14, fontWeight: 600, color: C.green, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(account.totalIn)}</p>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                                <p style={{ fontSize: 11, color: C.textMuted }}>Saidas</p>
-                                <p style={{ fontSize: 14, fontWeight: 600, color: C.red, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(account.totalOut)}</p>
-                            </div>
-                        </>
-                    )}
-                    <div style={{ textAlign: "right" }}>
-                        <p style={{ fontSize: 11, color: C.textMuted }}>Saldo</p>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: C.text1, fontVariantNumeric: "tabular-nums" }}>{fmt(account.current_balance)}</p>
-                    </div>
-                    {expanded ? <ChevronUp size={16} color={C.textMuted} /> : <ChevronDown size={16} color={C.textMuted} />}
-                </div>
-            </button>
-
-            {/* Expanded: stats + movements */}
-            {expanded && (
-                <div style={{ borderTop: `1px solid ${C.borderLight}` }}>
-                    {/* Quick stats on mobile */}
-                    {isMobile && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, borderBottom: `1px solid ${C.borderLight}` }}>
-                            {[
-                                { label: "Entradas", value: fmtCompact(account.totalIn), color: C.green },
-                                { label: "Saidas", value: fmtCompact(account.totalOut), color: C.red },
-                                { label: "Liquido", value: fmtCompact(account.net), color: account.net >= 0 ? C.green : C.red },
-                            ].map((s) => (
-                                <div key={s.label} style={{ padding: "12px 16px", textAlign: "center" }}>
-                                    <p style={{ fontSize: 11, color: C.textMuted }}>{s.label}</p>
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Movement count + flow bar */}
-                    <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.borderLight}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: C.text2 }}>{account.movementCount} movimentacoes no periodo</span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: account.net >= 0 ? C.green : C.red, fontVariantNumeric: "tabular-nums" }}>
-                                Liquido: {fmt(account.net)}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.redBg, flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: C.red, fontWeight: 500 }}>
+                                {alertItems.join("  ·  ")}
                             </span>
                         </div>
-                        {/* Stacked bar */}
-                        {(account.totalIn + account.totalOut) > 0 && (
-                            <div style={{ display: "flex", height: 6, borderRadius: 99, overflow: "hidden", background: C.borderLight }}>
-                                <div style={{ width: `${(account.totalIn / (account.totalIn + account.totalOut)) * 100}%`, background: C.green, borderRadius: "99px 0 0 99px" }} />
-                                <div style={{ width: `${(account.totalOut / (account.totalIn + account.totalOut)) * 100}%`, background: C.red, borderRadius: "0 99px 99px 0" }} />
+                        <button onClick={() => navigate("/contas-pagar")} style={{
+                            fontSize: 13, fontWeight: 600, color: C.text1, background: "none", border: "none",
+                            cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
+                        }}>
+                            Ver pendentes <ArrowRight size={14} />
+                        </button>
+                    </div>
+                )}
+
+                {/* ── 4 KPI Cards ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+                    {/* Saldo em Caixa */}
+                    <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
+                            Saldo em Caixa
+                        </p>
+                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(saldoCaixa)}</p>
+                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                            {(bankAccounts || []).length} conta{(bankAccounts || []).length !== 1 ? "s" : ""} bancária{(bankAccounts || []).length !== 1 ? "s" : ""}
+                        </p>
+                    </div>
+
+                    {/* Receita do Mês */}
+                    <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
+                            Receita do Mês
+                        </p>
+                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(receitaMes)}</p>
+                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                            Despesa: {fmt(despesaMes)}
+                        </p>
+                    </div>
+
+                    {/* Resultado do Mês */}
+                    <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
+                            Resultado do Mês
+                        </p>
+                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6, color: resultadoMes >= 0 ? "#4ade80" : "#f87171" }}>
+                            {fmt(resultadoMes)}
+                        </p>
+                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                            Margem {fmtPct(margemMes)}
+                        </p>
+                    </div>
+
+                    {/* A Pagar — 7 Dias */}
+                    <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
+                            A Pagar — 7 Dias
+                        </p>
+                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(totalPagar7d)}</p>
+                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                            {payables7d.length} título{payables7d.length !== 1 ? "s" : ""} vencendo
+                        </p>
+                        {vencem_hoje_pagar > 0 && (
+                            <span style={{
+                                display: "inline-block", marginTop: 6, padding: "2px 10px",
+                                borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                background: C.redBg, color: "#fff",
+                            }}>
+                                {vencem_hoje_pagar} vence{vencem_hoje_pagar > 1 ? "m" : ""} hoje
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── 2 Charts ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+                    {/* Receita x Despesa 6 meses */}
+                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Receita x Despesa — 6 Meses
+                            </p>
+                            <button onClick={() => navigate("/dre")} style={{
+                                fontSize: 12, color: C.text2, background: "none", border: "none", cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 2,
+                            }}>
+                                Ver DRE <ArrowRight size={12} />
+                            </button>
+                        </div>
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart data={chartRevExp || []} barGap={4}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="mes" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtFull(v)} />
+                                <Bar dataKey="Receita" fill={C.text1} radius={[3, 3, 0, 0]} barSize={18} />
+                                <Bar dataKey="Despesa" fill="#d1d5db" radius={[3, 3, 0, 0]} barSize={18} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                        <div style={{ display: "flex", gap: 20, marginTop: 8 }}>
+                            <span style={{ fontSize: 11, color: C.text2, display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ width: 10, height: 10, background: C.text1, borderRadius: 2, display: "inline-block" }} /> Receita
+                            </span>
+                            <span style={{ fontSize: 11, color: C.text2, display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ width: 10, height: 10, background: "#d1d5db", borderRadius: 2, display: "inline-block" }} /> Despesa
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Fluxo de Caixa 30 dias */}
+                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Fluxo de Caixa — 30 Dias
+                            </p>
+                            <button onClick={() => navigate("/fluxo-caixa-projetado")} style={{
+                                fontSize: 12, color: C.text2, background: "none", border: "none", cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 2,
+                            }}>
+                                Ver completo <ArrowRight size={12} />
+                            </button>
+                        </div>
+                        <ResponsiveContainer width="100%" height={160}>
+                            <AreaChart data={chartCashflow?.days || []}>
+                                <defs>
+                                    <linearGradient id="cfGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor={C.gold} stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor={C.gold} stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="dia" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval={6} />
+                                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtFull(v)} />
+                                <Area type="monotone" dataKey="saldo" stroke={C.gold} fill="url(#cfGrad)" strokeWidth={2} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+
+                        {chartCashflow?.negativeDay && (
+                            <div style={{
+                                display: "flex", alignItems: "center", gap: 6, marginTop: 10,
+                                padding: "6px 12px", borderRadius: 6,
+                                background: C.goldBg, border: `1px solid ${C.goldBorder}`,
+                                fontSize: 12, color: "#92400e",
+                            }}>
+                                <AlertTriangle size={14} />
+                                Projeção indica possível saldo negativo em {chartCashflow.negativeDay.dia}
+                            </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 24, marginTop: 10, fontSize: 12, color: C.text2 }}>
+                            <span>Projetado: <strong>{fmt(chartCashflow?.projected || 0)}</strong></span>
+                            <span>Entradas: <strong>{fmt(chartCashflow?.totalIn || 0)}</strong></span>
+                            <span>Saídas: <strong>{fmt(chartCashflow?.totalOut || 0)}</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── 2 Detail Cards ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+
+                    {/* A Pagar — Próximos 7 Dias */}
+                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                A Pagar — Próximos 7 Dias
+                            </p>
+                            <button onClick={() => navigate("/contas-pagar")} style={{
+                                fontSize: 12, color: C.text2, background: "none", border: "none", cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 2,
+                            }}>
+                                Ver todos <ArrowRight size={12} />
+                            </button>
+                        </div>
+
+                        {payables7d.length === 0 ? (
+                            <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0" }}>
+                                Nenhuma conta a pagar nos próximos 7 dias.
+                            </p>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {payables7d.slice(0, 6).map((p: any) => {
+                                    const saldo = Number(p.valor || 0) - Number(p.valor_pago || 0);
+                                    const isToday = p.data_vencimento === todayStr;
+                                    return (
+                                        <div key={p.id} style={{
+                                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                                            padding: "10px 14px", borderRadius: 8,
+                                            borderLeft: `3px solid ${isToday ? C.red : C.gold}`,
+                                            background: isToday ? C.redSoft : "#fafafa",
+                                        }}>
+                                            <div>
+                                                <p style={{ fontSize: 13, fontWeight: 600, color: C.text1 }}>{p.credor_nome}</p>
+                                                <p style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+                                                    {daysUntilDue(p.data_vencimento)}
+                                                </p>
+                                            </div>
+                                            <p style={{ fontSize: 14, fontWeight: 700, color: C.text1 }}>{fmt(saldo)}</p>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
 
-                    {/* Recent movements list */}
-                    {recentMovements.length === 0 ? (
-                        <div style={{ padding: "24px 20px", textAlign: "center" }}>
-                            <p style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>Nenhuma movimentacao neste periodo</p>
-                        </div>
-                    ) : (
-                        <div>
-                            <div style={{ padding: "10px 20px", display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.borderLight}` }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Ultimas movimentacoes</span>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Valor</span>
-                            </div>
-                            {recentMovements.map((mov) => (
-                                <div
-                                    key={mov.id}
-                                    style={{
-                                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                                        padding: "10px 20px",
-                                        borderBottom: `1px solid ${C.borderLight}`,
-                                    }}
-                                >
-                                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                                        <div style={{
-                                            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                                            display: "flex", alignItems: "center", justifyContent: "center",
-                                            background: mov.type === "credit" ? C.greenSoft : C.redSoft,
-                                        }}>
-                                            {mov.type === "credit"
-                                                ? <ArrowUpRight size={14} strokeWidth={2} color={C.green} />
-                                                : <ArrowDownRight size={14} strokeWidth={2} color={C.red} />
-                                            }
-                                        </div>
-                                        <div style={{ minWidth: 0 }}>
-                                            <p style={{ fontSize: 13, fontWeight: 500, color: C.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-                                                {mov.description || "Sem descricao"}
-                                            </p>
-                                            <p style={{ fontSize: 11, color: C.textMuted }}>
-                                                {format(new Date(mov.date), "dd/MM/yyyy")}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span style={{
-                                        fontSize: 14, fontWeight: 600, flexShrink: 0, marginLeft: 12,
-                                        color: mov.type === "credit" ? C.green : C.red,
-                                        fontVariantNumeric: "tabular-nums",
-                                    }}>
-                                        {mov.type === "credit" ? "+" : "-"}{fmt(mov.amount)}
-                                    </span>
-                                </div>
-                            ))}
-                            {account.movements.length > 10 && (
-                                <div style={{ padding: "12px 20px", textAlign: "center" }}>
-                                    <span style={{ fontSize: 12, color: C.blue, fontWeight: 500 }}>
-                                        + {account.movements.length - 10} movimentacoes
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-/* ════════════════════════════════════════════════════════════ */
-
-export default function CompanyDashboard() {
-    const { id } = useParams<{ id: string }>();
-    const { user, activeClient, isUsingSecondary } = useAuth();
-    const { companies } = useCompanies(user?.id);
-    const { setSelectedCompany, selectedCompany } = useCompany();
-    const width = useWindowWidth();
-    const isMobile = width < 768;
-    const isTablet = width >= 768 && width < 1280;
-
-    const [activeTab, setActiveTab] = useState<TabId>("financeiro");
-    const [dateRange, setDateRange] = useState<DashboardDateRange>({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) });
-    const [calendarRange, setCalendarRange] = useState<DateRange | undefined>({ from: dateRange.from, to: dateRange.to });
-    const [activePreset, setActivePreset] = useState("Este mes");
-
-    useEffect(() => {
-        if (id && companies) {
-            const company = companies.find(c => c.id === id);
-            if (company) setSelectedCompany(company);
-        }
-    }, [id, companies, setSelectedCompany]);
-
-    const companyId = selectedCompany?.id || null;
-    const { accountsBalance, receivablesSummary, payablesSummary, cashFlowData, dreSummary } = useFinanceDashboard(dateRange);
-    const op = useOperationalDashboard(dateRange);
-    const bank = useBankMovements(dateRange);
-    const rev = useRevenueDashboard(dateRange);
-    const dre = useDreDashboard(dateRange);
-    const { score: scoreData } = useScoreFinanceiro();
-
-    const chartData = useMemo(
-        () => (cashFlowData || []).map((d: any) => ({ ...d, despesas_neg: -(d.despesas || 0) })),
-        [cashFlowData]
-    );
-
-    const { data: nfseSettings } = useQuery({
-        queryKey: ["company_nfse_settings", companyId, isUsingSecondary],
-        queryFn: async () => {
-            if (!companyId) return null;
-            const { data, error } = await (activeClient as any)
-                .from("company_nfse_settings")
-                .select("provider, city_name, city_ibge_code, uf, environment")
-                .eq("company_id", companyId)
-                .maybeSingle();
-            if (error) throw error;
-            return data as any;
-        },
-        enabled: Boolean(companyId) && Boolean(selectedCompany?.enable_nfse),
-    });
-
-    const isNfseConfigured = useMemo(() => {
-        if (!selectedCompany?.enable_nfse) return false;
-        const provider = String((nfseSettings as any)?.provider || "").trim();
-        const city = String((nfseSettings as any)?.city_name || "").trim();
-        const ibge = String((nfseSettings as any)?.city_ibge_code || "").trim();
-        return Boolean(provider && (ibge || city));
-    }, [nfseSettings, selectedCompany?.enable_nfse]);
-
-    const handlePreset = (p: typeof presets[number]) => {
-        const r = p.get();
-        setDateRange(r);
-        setCalendarRange({ from: r.from, to: r.to });
-        setActivePreset(p.label);
-    };
-
-    const handleCalendarSelect = (range: DateRange | undefined) => {
-        setCalendarRange(range);
-        if (range?.from && range?.to) {
-            setDateRange({ from: range.from, to: range.to });
-            setActivePreset("");
-        }
-    };
-
-    if (!selectedCompany) {
-        return (
-            <AppLayout title="Dashboard">
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "80px 0" }}>
-                    <div style={{ width: 32, height: 32, border: `3px solid ${C.blue}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                    <p style={{ fontSize: 13, color: C.text2, marginTop: 12, fontFamily: FONT }}>Carregando dados...</p>
-                </div>
-            </AppLayout>
-        );
-    }
-
-    const totalReceivables = (receivablesSummary?.overdue || 0) + (receivablesSummary?.today || 0) + (receivablesSummary?.period || 0);
-    const totalPayables = (payablesSummary?.overdue || 0) + (payablesSummary?.today || 0) + (payablesSummary?.period || 0);
-    const projectedBalance = chartData[chartData.length - 1]?.saldo_acumulado || 0;
-    const dreTotal = dreSummary?.reduce((acc: number, curr: any) => acc + curr.total, 0) ?? 0;
-
-    const dateLabel = `${format(dateRange.from, "dd MMM", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`;
-    const chartHeight = isMobile ? 160 : isTablet ? 200 : 240;
-
-    /* ── KPI data ──────────────────────────────────────────── */
-    // Faturamento = total de receitas no período
-    const faturamento = rev.totalRevenue || 0;
-
-    // Recebimentos por forma de pagamento
-    const recebimentosByMethod = rev.revenueByPaymentMethod || [];
-    const recebimentoDetail = recebimentosByMethod.length > 0
-        ? recebimentosByMethod.map((m) => `${m.method}: ${fmtCompact(m.total)}`).join(" · ")
-        : "Nenhum recebimento";
-    const totalRecebimentos = recebimentosByMethod.reduce((s, m) => s + m.total, 0);
-
-    // Despesas e Custos = soma dos grupos DRE com total negativo (CSP + Despesas + Deduções)
-    const despesasECustos = Math.abs(
-        dre.groups
-            .filter((g) => g.total < 0)
-            .reduce((s, g) => s + g.total, 0)
-    );
-
-    // Custo Fixo = grupo "Despesas Operacionais" ou "Despesas Administrativas" (despesas que não são CSP/Deduções)
-    const custoFixo = Math.abs(
-        dre.groups
-            .filter((g) => {
-                const name = g.name.toLowerCase();
-                return name.includes("despesa") && !name.includes("dedu");
-            })
-            .reduce((s, g) => s + g.total, 0)
-    );
-    const custoFixoPct = faturamento > 0 ? ((custoFixo / faturamento) * 100).toFixed(1) : "0.0";
-
-    const kpis = [
-        { id: "faturamento",   label: "Faturamento",          value: fmt(faturamento),       icon: TrendingUp,   iconBg: C.blueLight, iconColor: C.blue, detail: `${rev.totalTransactions || 0} transações no período` },
-        { id: "recebimentos",  label: "Recebimentos",         value: fmt(totalRecebimentos), icon: CreditCard,   iconBg: C.greenSoft, iconColor: C.green,  detail: recebimentoDetail },
-        { id: "despesas",      label: "Despesas e Custos",    value: fmt(despesasECustos),   icon: TrendingDown,  iconBg: C.redSoft,   iconColor: C.red,   detail: `${dre.groups.filter(g => g.total < 0).length} grupo(s) no período` },
-        { id: "custofixo",     label: "Custo Fixo",           value: fmt(custoFixo),         icon: Target,       iconBg: C.amberSoft, iconColor: C.amber, detail: `${custoFixoPct}% do faturamento` },
-    ];
-
-    const dashboardRef = useRef<HTMLDivElement>(null);
-    const [exporting, setExporting] = useState(false);
-
-    const handleExportPDF = async () => {
-        if (!dashboardRef.current) return;
-        setExporting(true);
-        try {
-            const html2canvas = (await import("html2canvas")).default;
-            const { jsPDF } = await import("jspdf");
-
-            const element = dashboardRef.current;
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: C.bgBase,
-                logging: false,
-            });
-
-            const imgData = canvas.toDataURL("image/png");
-            const imgWidth = 210; // A4 width in mm
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-            const pdf = new jsPDF("p", "mm", "a4");
-            let yOffset = 0;
-            const pageHeight = 297; // A4 height in mm
-
-            // If content fits in one page
-            if (imgHeight <= pageHeight) {
-                pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-            } else {
-                // Multi-page
-                while (yOffset < imgHeight) {
-                    if (yOffset > 0) pdf.addPage();
-                    pdf.addImage(imgData, "PNG", 0, -yOffset, imgWidth, imgHeight);
-                    yOffset += pageHeight;
-                }
-            }
-
-            const companyName = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "empresa";
-            const fileName = `${companyName.replace(/\s+/g, "_")}_${activeTab}_${format(dateRange.from, "yyyy-MM-dd")}_${format(dateRange.to, "yyyy-MM-dd")}.pdf`;
-            pdf.save(fileName);
-        } catch (err) {
-            console.error("Erro ao gerar PDF:", err);
-        } finally {
-            setExporting(false);
-        }
-    };
-
-    return (
-        <AppLayout title={`${selectedCompany.nome_fantasia || selectedCompany.razao_social}`}>
-            <div ref={dashboardRef} className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONT }}>
-
-                {/* ── Page Header ─────────────────────────────── */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                    <div>
-                        <h2 style={{ fontSize: 28, fontWeight: 400, color: "#000", letterSpacing: "0.02em", fontFamily: "'Bebas Neue', sans-serif" }}>
-                            {(selectedCompany.nome_fantasia || selectedCompany.razao_social).toUpperCase()}
-                        </h2>
-                        <p style={{ fontSize: 13, color: C.text2, marginTop: 2 }}>Visao financeira consolidada</p>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        {/* Toggle presets */}
-                        <div style={{ display: "flex", background: C.borderLight, borderRadius: 10, padding: 3, gap: 2 }}>
-                            {presets.map((p) => (
-                                <button
-                                    key={p.label}
-                                    onClick={() => handlePreset(p)}
-                                    style={{
-                                        padding: "6px 14px", borderRadius: 8, border: "none",
-                                        fontSize: 12, fontWeight: activePreset === p.label ? 600 : 400,
-                                        fontFamily: FONT, cursor: "pointer",
-                                        background: activePreset === p.label ? C.surface : "transparent",
-                                        color: activePreset === p.label ? "#000" : C.textMuted,
-                                        boxShadow: activePreset === p.label ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-                                        transition: "all 0.15s ease",
-                                    }}
-                                >
-                                    {p.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button style={{
-                                    display: "flex", alignItems: "center", gap: 6,
-                                    padding: "7px 14px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
-                                    borderRadius: 8, border: `1px solid ${C.border}`,
-                                    background: C.surface, color: C.text1, cursor: "pointer",
-                                }}>
-                                    <CalendarDays size={14} strokeWidth={1.5} color={C.blue} />
-                                    {dateLabel}
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar mode="range" selected={calendarRange} onSelect={handleCalendarSelect} numberOfMonths={isMobile ? 1 : 2} defaultMonth={dateRange.from} />
-                            </PopoverContent>
-                        </Popover>
-
-                        {/* Notifications */}
-                        <button
-                            style={{
-                                position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
-                                width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`,
-                                background: C.surface, cursor: "pointer",
-                            }}
-                            title="Notificacoes"
-                        >
-                            <Bell size={16} strokeWidth={1.5} color={C.text1} />
-                            {(payablesSummary?.overdue > 0 || receivablesSummary?.overdue > 0) && (
-                                <div style={{
-                                    position: "absolute", top: -3, right: -3,
-                                    width: 10, height: 10, borderRadius: 99,
-                                    background: C.red, border: `2px solid ${C.surface}`,
-                                }} />
-                            )}
-                        </button>
-
-                        {/* PDF Export */}
-                        <button
-                            onClick={handleExportPDF}
-                            disabled={exporting}
-                            style={{
-                                display: "flex", alignItems: "center", gap: 6,
-                                padding: "7px 14px", fontSize: 12, fontWeight: 500, fontFamily: FONT,
-                                borderRadius: 8, border: `1px solid ${C.border}`,
-                                background: C.surface, color: C.text1, cursor: exporting ? "wait" : "pointer",
-                                opacity: exporting ? 0.6 : 1,
-                                transition: "all 0.15s ease",
-                            }}
-                            title="Baixar PDF"
-                        >
-                            <Download size={14} strokeWidth={1.5} color={C.blue} />
-                            {exporting ? "Gerando..." : "PDF"}
-                        </button>
-                    </div>
-                </div>
-
-                {/* ── Notifications Banner ─────────────────────── */}
-                {(payablesSummary?.overdue > 0 || receivablesSummary?.overdue > 0) && (
-                    <div style={{
-                        display: "flex", alignItems: "center", gap: 12, padding: "12px 20px",
-                        background: "#FFF7ED", border: `1px solid #FED7AA`, borderRadius: 12,
-                    }}>
-                        <AlertTriangle size={18} strokeWidth={1.8} color={C.amber} />
-                        <div style={{ flex: 1 }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: "#000" }}>Atencao: contas vencidas</p>
-                            <p style={{ fontSize: 12, color: C.text2, marginTop: 2 }}>
-                                {payablesSummary?.overdue > 0 && <span style={{ marginRight: 16 }}>A Pagar: <strong style={{ color: C.red }}>{fmt(payablesSummary.overdue)}</strong></span>}
-                                {receivablesSummary?.overdue > 0 && <span>A Receber: <strong style={{ color: C.red }}>{fmt(receivablesSummary.overdue)}</strong></span>}
+                    {/* Contas a Receber — Em Aberto */}
+                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Contas a Receber — Em Aberto
                             </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* ── KPI Cards (colored left border) ─────────── */}
-                <div style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
-                    gap: 14,
-                }}>
-                    {kpis.map((kpi) => (
-                        <div key={kpi.id} style={{
-                            ...cardStyle,
-                            borderLeft: `4px solid ${kpi.iconColor}`,
-                            paddingLeft: 18,
-                        }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                                <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
-                            </div>
-                            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
-                            <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                {kpi.value}
-                            </p>
-                            <p style={{ fontSize: 12, color: C.text2, marginTop: 8, fontWeight: 500 }}>{kpi.detail}</p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* ── Tab Bar (pill style) ─────────────────────── */}
-                <div style={{ display: "flex", background: C.borderLight, borderRadius: 10, padding: 4, gap: 2 }}>
-                    {TABS.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        const TabIcon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                style={{
-                                    display: "flex", alignItems: "center", gap: 6,
-                                    padding: "8px 16px", border: "none", borderRadius: 8,
-                                    fontSize: 13, fontWeight: isActive ? 600 : 400, fontFamily: FONT,
-                                    color: isActive ? "#000" : C.textMuted,
-                                    background: isActive ? C.surface : "transparent",
-                                    boxShadow: isActive ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-                                    cursor: "pointer",
-                                    transition: "all 0.15s ease",
-                                }}
-                            >
-                                <TabIcon size={15} strokeWidth={isActive ? 1.8 : 1.3} />
-                                {(!isMobile || isActive) && <span>{tab.label}</span>}
+                            <button onClick={() => navigate("/contas-receber")} style={{
+                                fontSize: 12, color: C.text2, background: "none", border: "none", cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 2,
+                            }}>
+                                Ver todos <ArrowRight size={12} />
                             </button>
-                        );
-                    })}
-                </div>
+                        </div>
 
-                {/* ══════════════════════════════════════════════ */}
-                {/* TAB: FINANCEIRO                                */}
-                {/* ══════════════════════════════════════════════ */}
-                {activeTab === "financeiro" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-                        {/* ── Row 1: Cash Flow (wide) + Hero KPI ─── */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : "1fr 280px",
-                            gap: 16,
-                        }}>
-                            {/* Cash Flow Chart */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                                    <div>
-                                        <p style={{ fontSize: 18, fontWeight: 700, color: "#000" }}>Fluxo de Caixa</p>
-                                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{dateLabel}</p>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.green }} />
-                                            <span style={{ fontSize: 11, color: C.text2, fontWeight: 500 }}>Entradas</span>
-                                        </div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.red }} />
-                                            <span style={{ fontSize: 11, color: C.text2, fontWeight: 500 }}>Saidas</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style={{ height: chartHeight }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} stackOffset="sign" barCategoryGap="30%">
-                                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={C.borderLight} />
-                                            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} dy={8} />
-                                            <YAxis tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={(v) => { const a = Math.abs(v); return a >= 1000 ? `${(a / 1000).toFixed(0)}k` : `${a}`; }} width={40} />
-                                            <Tooltip formatter={(v: number, n: string) => [fmt(Math.abs(v)), n === "despesas_neg" ? "Saidas" : "Entradas"]} contentStyle={tooltipStyle} cursor={{ fill: "rgba(37,99,235,0.04)" }} />
-                                            <ReferenceLine y={0} stroke={C.border} strokeWidth={1} />
-                                            <Bar dataKey="receitas" name="Entradas" fill={C.green} radius={[6, 6, 0, 0]} maxBarSize={22} stackId="flow" />
-                                            <Bar dataKey="despesas_neg" name="despesas_neg" fill={C.red} radius={[0, 0, 6, 6]} maxBarSize={22} stackId="flow" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
+                        {/* Aging Buckets */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                            <div style={{ padding: "10px 12px", borderRadius: 8, background: "#16a34a", color: "#fff", textAlign: "center" }}>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Até 30 dias</p>
+                                <p style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{fmt(receivablesAging.buckets.ate30.total)}</p>
+                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.ate30.count} título{receivablesAging.buckets.ate30.count !== 1 ? "s" : ""}</p>
                             </div>
-
-                            {/* Hero KPI — Projecao (dark card) */}
-                            <div style={{ ...darkCardStyle, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                                <div>
-                                    <p style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>Projecao de Saldo</p>
-                                    <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>Fim do periodo</p>
-                                </div>
-                                <div>
-                                    <p style={{ fontSize: isMobile ? 32 : 40, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-                                        {fmtCompact(projectedBalance)}
-                                    </p>
-                                    <div style={{ marginTop: 12 }}>
-                                        <DeltaBadge value={projectedBalance >= 0 ? 100 : -100} />
-                                    </div>
-                                </div>
-                                {/* Progress bar */}
-                                <div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                                        <span style={{ fontSize: 11, color: "#64748B" }}>Cobertura</span>
-                                        <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600 }}>
-                                            {totalPayables > 0 ? Math.min(100, Math.round(((accountsBalance || 0) / totalPayables) * 100)) : 100}%
-                                        </span>
-                                    </div>
-                                    <div style={{ height: 6, borderRadius: 99, background: "#2D3561" }}>
-                                        <div style={{
-                                            height: 6, borderRadius: 99, background: C.blue,
-                                            width: `${totalPayables > 0 ? Math.min(100, Math.round(((accountsBalance || 0) / totalPayables) * 100)) : 100}%`,
-                                            transition: "width 0.4s ease",
-                                        }} />
-                                    </div>
-                                </div>
+                            <div style={{ padding: "10px 12px", borderRadius: 8, background: "#ca8a04", color: "#fff", textAlign: "center" }}>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>31 a 60 dias</p>
+                                <p style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{fmt(receivablesAging.buckets.de31a60.total)}</p>
+                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.de31a60.count} título{receivablesAging.buckets.de31a60.count !== 1 ? "s" : ""}</p>
+                            </div>
+                            <div style={{ padding: "10px 12px", borderRadius: 8, background: C.redBg, color: "#fff", textAlign: "center" }}>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Acima de 60 dias</p>
+                                <p style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{fmt(receivablesAging.buckets.acima60.total)}</p>
+                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.acima60.count} título{receivablesAging.buckets.acima60.count !== 1 ? "s" : ""}</p>
                             </div>
                         </div>
 
-                        {/* ── Row 2: Projecao Chart + DRE ──────── */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                            gap: 16,
-                        }}>
-                            {/* Projecao de Saldo — Area Chart */}
-                            <div style={cardStyle}>
-                                <p style={{ fontSize: 16, fontWeight: 700, color: "#000", marginBottom: 16 }}>Saldo Acumulado</p>
-                                <div style={{ height: chartHeight }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                                            <defs>
-                                                <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={C.blue} stopOpacity={0.15} />
-                                                    <stop offset="95%" stopColor={C.blue} stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={C.borderLight} />
-                                            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} interval="preserveStartEnd" minTickGap={30} />
-                                            <YAxis tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={(v) => `${v >= 0 ? "" : "-"}${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(0)}k` : Math.abs(v)}`} />
-                                            <Tooltip formatter={(v) => fmt(v as number)} contentStyle={tooltipStyle} />
-                                            <ReferenceLine y={0} stroke={C.border} strokeDasharray="4 4" />
-                                            <Area type="monotone" dataKey="saldo_acumulado" name="Saldo" stroke={C.blue} strokeWidth={2} fillOpacity={1} fill="url(#blueGrad)" dot={false} activeDot={{ r: 5, fill: C.surface, stroke: C.blue, strokeWidth: 2 }} />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            {/* DRE */}
-                            <div style={cardStyle}>
-                                <p style={{ fontSize: 16, fontWeight: 700, color: "#000", marginBottom: 16 }}>Resultado (DRE)</p>
-
-                                {(!dreSummary || dreSummary.length === 0) ? (
-                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "40px 0", fontStyle: "italic" }}>
-                                        Nenhuma transacao categorizada neste periodo.
-                                    </p>
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                                        {dreSummary.map((g: any) => (
-                                            <div key={g.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${C.borderLight}` }}>
-                                                <span style={{ fontSize: 13, fontWeight: 500, color: C.text1 }}>{g.name}</span>
-                                                <span style={{ fontSize: 14, fontWeight: 600, color: g.total >= 0 ? C.green : C.red, fontVariantNumeric: "tabular-nums" }}>
-                                                    {fmt(g.total)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 0" }}>
-                                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text1 }}>RESULTADO LIQUIDO</span>
-                                            <span style={{ fontSize: 18, fontWeight: 800, color: dreTotal >= 0 ? C.green : C.red, fontVariantNumeric: "tabular-nums" }}>
-                                                {fmt(dreTotal)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                        {/* Total */}
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, color: C.text1, marginBottom: 12 }}>
+                            <span>Total em aberto</span>
+                            <span>{fmt(receivablesAging.totalAberto)} · {receivablesAging.totalCount} título{receivablesAging.totalCount !== 1 ? "s" : ""}</span>
                         </div>
 
-                        {/* ── Row 2.5: Pie Despesas + Receita vs Despesa comparison ── */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                            gap: 16,
-                        }}>
-                            {/* Pie Chart — Despesas por Grupo */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-                                    <IconBadge icon={PieChartIcon} color={C.red} bg={C.redSoft} size={18} />
-                                    <p style={{ fontSize: 16, fontWeight: 700, color: "#000" }}>Despesas por Grupo</p>
-                                </div>
-                                {(() => {
-                                    const expenseGroups = dre.groups
-                                        .filter((g) => g.total < 0)
-                                        .map((g) => ({ name: g.name, value: Math.abs(g.total) }));
-                                    if (expenseGroups.length === 0) {
-                                        return <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "40px 0", fontStyle: "italic" }}>Sem despesas no periodo</p>;
-                                    }
-                                    return (
-                                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                                            <ResponsiveContainer width={isMobile ? "100%" : 180} height={180}>
-                                                <RechartsPie>
-                                                    <Pie data={expenseGroups} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} strokeWidth={0}>
-                                                        {expenseGroups.map((_e, idx) => (
-                                                            <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip formatter={(v: number) => fmt(v)} contentStyle={tooltipStyle} />
-                                                </RechartsPie>
-                                            </ResponsiveContainer>
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-                                                {expenseGroups.map((g, idx) => (
-                                                    <div key={g.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                        <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[idx % PIE_COLORS.length], flexShrink: 0 }} />
-                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                            <p style={{ fontSize: 12, fontWeight: 500, color: "#000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{g.name}</p>
-                                                            <p style={{ fontSize: 11, color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmt(g.value)}</p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* Bar Chart — Receitas vs Despesas side by side */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-                                    <IconBadge icon={BarChart2} color={C.blue} bg={C.blueLight} size={18} />
-                                    <p style={{ fontSize: 16, fontWeight: 700, color: "#000" }}>Receitas vs Despesas</p>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                        <div style={{ width: 10, height: 10, borderRadius: 3, background: C.green }} />
-                                        <span style={{ fontSize: 12, fontWeight: 500, color: C.text2 }}>Receitas</span>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                        <div style={{ width: 10, height: 10, borderRadius: 3, background: C.red }} />
-                                        <span style={{ fontSize: 12, fontWeight: 500, color: C.text2 }}>Despesas</span>
-                                    </div>
-                                </div>
-                                <div style={{ height: chartHeight }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="20%">
-                                            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={C.borderLight} />
-                                            <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} dy={8} />
-                                            <YAxis tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={40} />
-                                            <Tooltip formatter={(v: number, n: string) => [fmt(v), n]} contentStyle={tooltipStyle} />
-                                            <Bar dataKey="receitas" name="Receitas" fill={C.green} radius={[4, 4, 0, 0]} maxBarSize={20} />
-                                            <Bar dataKey="despesas" name="Despesas" fill={C.red} radius={[4, 4, 0, 0]} maxBarSize={20} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── Row 3: Contas Vencidas + Saude + Config */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr",
-                            gap: 16,
-                        }}>
-                            {/* Contas Vencidas */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={Clock} color={C.red} bg={C.redSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Contas Vencidas</p>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <span style={{ fontSize: 13, color: C.text2 }}>A Receber vencidas</span>
-                                        <span style={{ fontSize: 16, fontWeight: 700, color: C.red, fontVariantNumeric: "tabular-nums" }}>{fmt(receivablesSummary?.overdue || 0)}</span>
-                                    </div>
-                                    <div style={{ height: 1, background: C.borderLight }} />
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <span style={{ fontSize: 13, color: C.text2 }}>A Pagar vencidas</span>
-                                        <span style={{ fontSize: 16, fontWeight: 700, color: C.red, fontVariantNumeric: "tabular-nums" }}>{fmt(payablesSummary?.overdue || 0)}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Score Financeiro */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={Activity} color={C.green} bg={C.greenSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Score Financeiro</p>
-                                </div>
-                                {scoreData ? (
-                                    <ScoreGauge score={scoreData} />
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "8px 0" }}>
-                                        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-                                        <span style={{ fontSize: 12, color: C.textMuted }}>Calculando score...</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Config */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={Settings2} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Configuracao</p>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                                    {[
-                                        { label: "NFS-e", ok: isNfseConfigured },
-                                        { label: "Plano de Contas", ok: dreSummary && dreSummary.length > 0 },
-                                        { label: "Certificado Digital", ok: false },
-                                    ].map((item, i, arr) => (
-                                        <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
-                                            <span style={{ fontSize: 13, color: C.text2 }}>{item.label}</span>
+                        {/* Overdue List */}
+                        {receivablesAging.overdue.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+                                {receivablesAging.overdue.map((r: any) => (
+                                    <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <div>
+                                            <span style={{ fontSize: 13, fontWeight: 500, color: C.text1 }}>{r.pagador_nome}</span>
                                             <span style={{
-                                                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20,
-                                                background: item.ok ? C.greenSoft : C.borderLight,
-                                                color: item.ok ? "#16A34A" : C.textMuted,
+                                                display: "inline-block", marginLeft: 8, padding: "1px 8px",
+                                                borderRadius: 4, fontSize: 10, fontWeight: 600,
+                                                border: `1px solid ${C.border}`, color: C.text2,
                                             }}>
-                                                {item.ok ? "Ativo" : "Pendente"}
+                                                {r.diasAtraso} dias
                                             </span>
+                                            <p style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                                                Venceu em {format(new Date(r.data_vencimento), "dd/MM/yyyy")}
+                                            </p>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ══════════════════════════════════════════════ */}
-                {/* TAB: RECEITAS                                    */}
-                {/* ══════════════════════════════════════════════ */}
-                {activeTab === "receitas" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-                        {/* KPIs row */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr",
-                            gap: 14,
-                        }}>
-                            {[
-                                { label: "Receita Total", value: fmt(rev.totalRevenue), icon: DollarSign, iconBg: C.greenSoft, iconColor: C.green, detail: dateLabel },
-                                { label: "Transacoes", value: String(rev.totalTransactions), icon: Receipt, iconBg: C.blueLight, iconColor: C.blue, detail: "Vendas no periodo" },
-                                { label: "Ticket Medio", value: fmt(rev.totalTransactions > 0 ? rev.totalRevenue / rev.totalTransactions : 0), icon: Target, iconBg: C.blueLight, iconColor: C.blue, detail: "Por transacao" },
-                            ].map((kpi) => (
-                                <div key={kpi.label} style={{ ...cardStyle, borderLeft: `4px solid ${kpi.iconColor}`, paddingLeft: 18 }}>
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                                        <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
+                                        <p style={{ fontSize: 14, fontWeight: 700, color: C.red }}>{fmt(r.saldo)}</p>
                                     </div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                        {kpi.value}
-                                    </p>
-                                    <p style={{ fontSize: 12, color: C.text2, marginTop: 8, fontWeight: 500 }}>{kpi.detail}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Row: Vendas por Servico + Forma de Pagamento */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                            gap: 16,
-                        }}>
-                            {/* Vendas por Servico */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={PieChartIcon} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Vendas por Servico</p>
-                                </div>
-                                {rev.revenueByService.length === 0 ? (
-                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhuma receita no periodo</p>
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                                        {/* Header */}
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 70px", gap: 8, padding: "0 0 10px", borderBottom: `1px solid ${C.borderLight}` }}>
-                                            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Servico</span>
-                                            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em", textAlign: "right" }}>Valor</span>
-                                            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.05em", textAlign: "right" }}>%</span>
-                                        </div>
-                                        {rev.revenueByService.map((s, i) => {
-                                            const barColors = [C.blue, C.blueVivid, C.blueDark, C.green, "#8B5CF6", "#EC4899", "#F59E0B", "#14B8A6"];
-                                            const barColor = barColors[i % barColors.length];
-                                            return (
-                                                <div key={s.name} style={{ display: "grid", gridTemplateColumns: "1fr 100px 70px", gap: 8, alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${C.borderLight}` }}>
-                                                    <div style={{ minWidth: 0 }}>
-                                                        <p style={{ fontSize: 13, fontWeight: 500, color: C.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{s.name}</p>
-                                                        <div style={{ height: 4, borderRadius: 99, background: C.borderLight, marginTop: 6, maxWidth: 160 }}>
-                                                            <div style={{ height: 4, borderRadius: 99, background: barColor, width: `${s.percentage}%`, transition: "width 0.4s ease" }} />
-                                                        </div>
-                                                    </div>
-                                                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text1, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(s.total)}</span>
-                                                    <span style={{ fontSize: 12, fontWeight: 600, color: C.blue, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{s.percentage.toFixed(1)}%</span>
-                                                </div>
-                                            );
-                                        })}
-                                        {/* Total row */}
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 70px", gap: 8, padding: "14px 0 0" }}>
-                                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text1 }}>TOTAL</span>
-                                            <span style={{ fontSize: 14, fontWeight: 800, color: C.green, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{fmt(rev.totalRevenue)}</span>
-                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text1, textAlign: "right" }}>100%</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Forma de Pagamento */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={CreditCard} color={C.green} bg={C.greenSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Forma de Pagamento</p>
-                                </div>
-                                {rev.revenueByPaymentMethod.length === 0 ? (
-                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                                        {/* Stacked bar overview */}
-                                        <div style={{ display: "flex", height: 10, borderRadius: 99, overflow: "hidden", marginBottom: 20 }}>
-                                            {rev.revenueByPaymentMethod.map((pm, i) => {
-                                                const pmColors = [C.green, C.blue, "#8B5CF6", "#F59E0B", "#EC4899", C.red, "#14B8A6", "#6366F1"];
-                                                return (
-                                                    <div
-                                                        key={pm.method}
-                                                        style={{
-                                                            width: `${pm.percentage}%`,
-                                                            background: pmColors[i % pmColors.length],
-                                                            transition: "width 0.4s ease",
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                        {/* Items */}
-                                        {rev.revenueByPaymentMethod.map((pm, i) => {
-                                            const pmColors = [C.green, C.blue, "#8B5CF6", "#F59E0B", "#EC4899", C.red, "#14B8A6", "#6366F1"];
-                                            const dotColor = pmColors[i % pmColors.length];
-                                            return (
-                                                <div key={pm.method} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${C.borderLight}` }}>
-                                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                        <div style={{ width: 10, height: 10, borderRadius: 99, background: dotColor, flexShrink: 0 }} />
-                                                        <div>
-                                                            <p style={{ fontSize: 13, fontWeight: 500, color: C.text1 }}>{pm.method}</p>
-                                                            <p style={{ fontSize: 11, color: C.textMuted }}>{pm.count} transacao{pm.count !== 1 ? "es" : ""}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ textAlign: "right" }}>
-                                                        <p style={{ fontSize: 14, fontWeight: 600, color: "#000", fontVariantNumeric: "tabular-nums" }}>{fmt(pm.total)}</p>
-                                                        <p style={{ fontSize: 11, fontWeight: 600, color: dotColor }}>{pm.percentage.toFixed(1)}%</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Revenue chart (bar) */}
-                        <div style={cardStyle}>
-                            <p style={{ fontSize: 16, fontWeight: 700, color: "#000", marginBottom: 16 }}>Receitas no Periodo</p>
-                            <div style={{ height: chartHeight }}>
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={chartData.filter((d: any) => d.receitas > 0)} margin={{ top: 8, right: 8, left: -4, bottom: 0 }} barCategoryGap="30%">
-                                        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={C.borderLight} />
-                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} dy={8} />
-                                        <YAxis tickLine={false} axisLine={false} tick={{ fill: C.textMuted, fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} width={40} />
-                                        <Tooltip formatter={(v: number) => [fmt(v), "Receita"]} contentStyle={tooltipStyle} cursor={{ fill: "rgba(34,197,94,0.04)" }} />
-                                        <Bar dataKey="receitas" name="Receitas" fill={C.green} radius={[6, 6, 0, 0]} maxBarSize={28} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ══════════════════════════════════════════════ */}
-                {/* TAB: DRE                                         */}
-                {/* ══════════════════════════════════════════════ */}
-                {activeTab === "dre" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-                        {/* DRE Header Card */}
-                        <div style={{ ...darkCardStyle, display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-                            <div>
-                                <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em" }}>Demonstracao do Resultado</p>
-                                <p style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>{dateLabel}</p>
-                            </div>
-                            <div style={{ textAlign: isMobile ? "left" : "right" }}>
-                                <p style={{ fontSize: 11, color: "#64748B" }}>Resultado Liquido</p>
-                                <p style={{
-                                    fontSize: isMobile ? 28 : 36, fontWeight: 800,
-                                    color: dre.grandTotal >= 0 ? C.green : C.red,
-                                    letterSpacing: "-0.03em", lineHeight: 1, fontVariantNumeric: "tabular-nums",
-                                }}>
-                                    {fmt(dre.grandTotal)}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* DRE Table */}
-                        <div style={cardStyle}>
-                            {dre.groups.length === 0 ? (
-                                <div style={{ textAlign: "center", padding: "48px 0" }}>
-                                    <FileText size={32} strokeWidth={1.5} color={C.textMuted} style={{ margin: "0 auto 12px" }} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Nenhuma transacao categorizada</p>
-                                    <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Categorize transacoes na conciliacao para visualizar o DRE.</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: "flex", flexDirection: "column" }}>
-                                    {/* Table header */}
-                                    <div style={{
-                                        display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
-                                        gap: 8, padding: "0 0 12px",
-                                        borderBottom: `2px solid ${C.border}`,
-                                    }}>
-                                        {!isMobile && <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Codigo</span>}
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>Conta</span>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em", textAlign: "right" }}>Valor</span>
-                                        {!isMobile && <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.06em", textAlign: "right" }}>%</span>}
-                                    </div>
-
-                                    {dre.groups.map((group, gi) => {
-                                        const totalRevenue = dre.groups
-                                            .filter((g) => g.total > 0)
-                                            .reduce((s, g) => s + g.total, 0);
-                                        const groupPct = totalRevenue > 0 ? (Math.abs(group.total) / totalRevenue) * 100 : 0;
-
-                                        // Recursive renderer for account hierarchy
-                                        const renderAccount = (acc: any, depth: number) => {
-                                            const accPct = totalRevenue > 0 ? (Math.abs(acc.total) / totalRevenue) * 100 : 0;
-                                            const hasChildren = acc.children && acc.children.length > 0;
-                                            const isSynthetic = hasChildren || !acc.is_analytical;
-                                            const indent = depth * (isMobile ? 10 : 16);
-
-                                            // Skip accounts with zero total and no children with totals
-                                            if (acc.total === 0 && !hasChildren) return null;
-                                            if (acc.total === 0 && hasChildren && acc.children.every((c: any) => c.total === 0)) return null;
-
-                                            return (
-                                                <div key={acc.id}>
-                                                    <div style={{
-                                                        display: "grid",
-                                                        gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
-                                                        gap: 8,
-                                                        padding: isSynthetic ? "10px 0 6px" : "7px 0",
-                                                        borderBottom: `1px solid ${C.borderLight}`,
-                                                        background: isSynthetic && depth === 0 ? C.borderLight + "30" : "transparent",
-                                                    }}>
-                                                        {!isMobile && (
-                                                            <span style={{
-                                                                fontSize: 12,
-                                                                color: isSynthetic ? C.text2 : C.textMuted,
-                                                                fontVariantNumeric: "tabular-nums",
-                                                                fontWeight: isSynthetic ? 600 : 500,
-                                                            }}>
-                                                                {acc.code}
-                                                            </span>
-                                                        )}
-                                                        <span style={{
-                                                            fontSize: isSynthetic ? 13 : 12.5,
-                                                            color: isSynthetic ? C.text1 : C.text2,
-                                                            fontWeight: isSynthetic ? 600 : 400,
-                                                            paddingLeft: isMobile ? indent + 4 : indent + 8,
-                                                        }}>
-                                                            {isMobile && <span style={{ fontSize: 11, color: C.textMuted, marginRight: 6 }}>{acc.code}</span>}
-                                                            {acc.name}
-                                                        </span>
-                                                        <span style={{
-                                                            fontSize: isSynthetic ? 13 : 12.5,
-                                                            fontWeight: isSynthetic ? 700 : 500,
-                                                            textAlign: "right",
-                                                            fontVariantNumeric: "tabular-nums",
-                                                            color: acc.total >= 0 ? C.green : C.red,
-                                                        }}>
-                                                            {fmt(acc.total)}
-                                                        </span>
-                                                        {!isMobile && (
-                                                            <span style={{
-                                                                fontSize: 12,
-                                                                fontWeight: isSynthetic ? 600 : 500,
-                                                                textAlign: "right",
-                                                                color: isSynthetic ? C.text2 : C.textMuted,
-                                                            }}>
-                                                                {accPct.toFixed(1)}%
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {hasChildren && acc.children
-                                                        .filter((c: any) => c.total !== 0)
-                                                        .map((child: any) => renderAccount(child, depth + 1))
-                                                    }
-                                                </div>
-                                            );
-                                        };
-
-                                        return (
-                                            <div key={group.name}>
-                                                {/* Group header row */}
-                                                <div style={{
-                                                    display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
-                                                    gap: 8, padding: "14px 0 8px",
-                                                    borderBottom: `2px solid ${C.border}`,
-                                                    background: gi % 2 === 0 ? "transparent" : C.borderLight + "40",
-                                                }}>
-                                                    {!isMobile && <span />}
-                                                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase" as const, letterSpacing: "0.02em" }}>
-                                                        {group.name}
-                                                    </span>
-                                                    <span style={{
-                                                        fontSize: 14, fontWeight: 700, textAlign: "right", fontVariantNumeric: "tabular-nums",
-                                                        color: group.total >= 0 ? C.green : C.red,
-                                                    }}>
-                                                        {fmt(group.total)}
-                                                    </span>
-                                                    {!isMobile && (
-                                                        <span style={{ fontSize: 12, fontWeight: 600, textAlign: "right", color: C.text2 }}>
-                                                            {groupPct.toFixed(1)}%
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Hierarchical accounts */}
-                                                {group.accounts.map((acc) => renderAccount(acc, 0))}
-                                            </div>
-                                        );
-                                    })}
-
-                                    {/* Grand Total */}
-                                    <div style={{
-                                        display: "grid", gridTemplateColumns: isMobile ? "1fr 100px" : "60px 1fr 120px 80px",
-                                        gap: 8, padding: "16px 0 4px",
-                                        borderTop: `2px solid ${C.border}`,
-                                        marginTop: 4,
-                                    }}>
-                                        {!isMobile && <span />}
-                                        <span style={{ fontSize: 14, fontWeight: 800, color: C.text1, textTransform: "uppercase" as const }}>
-                                            Resultado Liquido
-                                        </span>
-                                        <span style={{
-                                            fontSize: 18, fontWeight: 800, textAlign: "right", fontVariantNumeric: "tabular-nums",
-                                            color: dre.grandTotal >= 0 ? C.green : C.red,
-                                        }}>
-                                            {fmt(dre.grandTotal)}
-                                        </span>
-                                        {!isMobile && (
-                                            <span style={{ fontSize: 13, fontWeight: 700, textAlign: "right", color: C.text1 }}>
-                                                100%
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* ══════════════════════════════════════════════ */}
-                {/* TAB: OPERACIONAL                                */}
-                {/* ══════════════════════════════════════════════ */}
-                {activeTab === "operacional" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-                        {/* Op KPIs */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
-                            gap: 16,
-                        }}>
-                            {[
-                                { label: "Faturamento", value: fmt(op.revenue), icon: DollarSign, iconBg: C.blueLight, iconColor: C.blue, detail: `${op.salesCount} transacoes` },
-                                { label: "Ticket Medio", value: fmt(op.avgTicket), icon: Target, iconBg: C.blueLight, iconColor: C.blue, detail: "Por venda" },
-                                { label: "N. de Vendas", value: String(op.salesCount), icon: ShoppingBag, iconBg: C.greenSoft, iconColor: C.green, detail: fmtCompact(op.revenue) },
-                                { label: "Margem", value: `${op.margin.toFixed(1)}%`, icon: BarChart2, iconBg: op.margin >= 0 ? C.greenSoft : C.redSoft, iconColor: op.margin >= 0 ? C.green : C.red, detail: `Despesas: ${fmtCompact(op.expenses)}` },
-                            ].map((kpi) => (
-                                <div key={kpi.label} style={{ ...cardStyle, borderLeft: `4px solid ${kpi.iconColor}`, paddingLeft: 18 }}>
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                                        <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
-                                    </div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                        {kpi.value}
-                                    </p>
-                                    <p style={{ fontSize: 12, color: C.text2, marginTop: 8, fontWeight: 500 }}>{kpi.detail}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Inadimplencia + Resumo */}
-                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
-                            {/* Inadimplencia */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={AlertTriangle} color="#F59E0B" bg="#FEF3C7" size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Inadimplencia</p>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                                    <div style={{ position: "relative", width: 104, height: 104, flexShrink: 0 }}>
-                                        <svg viewBox="0 0 104 104" width={104} height={104}>
-                                            <circle cx="52" cy="52" r="42" fill="none" stroke={C.borderLight} strokeWidth="12" />
-                                            <circle cx="52" cy="52" r="42" fill="none" stroke={op.defaultRate.rate > 20 ? C.red : op.defaultRate.rate > 10 ? "#F59E0B" : C.green} strokeWidth="12" strokeDasharray={`${(op.defaultRate.rate / 100) * 264} ${264 - (op.defaultRate.rate / 100) * 264}`} strokeLinecap="round" transform="rotate(-90 52 52)" />
-                                        </svg>
-                                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                            <span style={{ fontSize: 20, fontWeight: 700, color: C.text1 }}>{op.defaultRate.rate.toFixed(1)}%</span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                        <div>
-                                            <p style={{ fontSize: 11, color: C.textMuted }}>Titulos vencidos</p>
-                                            <p style={{ fontSize: 18, fontWeight: 700, color: C.red }}>{op.defaultRate.overdueCount}</p>
-                                        </div>
-                                        <div>
-                                            <p style={{ fontSize: 11, color: C.textMuted }}>Total de titulos</p>
-                                            <p style={{ fontSize: 18, fontWeight: 700, color: C.text1 }}>{op.defaultRate.totalCount}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: 99, background: op.defaultRate.rate > 20 ? C.red : op.defaultRate.rate > 10 ? "#F59E0B" : C.green }} />
-                                        <span style={{ fontSize: 11, color: C.text2 }}>Inadimplente</span>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: 99, background: C.borderLight }} />
-                                        <span style={{ fontSize: 11, color: C.text2 }}>Adimplente</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Resumo Financeiro */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={Activity} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Resumo</p>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <ArrowUpRight size={14} strokeWidth={2} color={C.green} />
-                                            <span style={{ fontSize: 13, color: C.text1 }}>Receitas</span>
-                                        </div>
-                                        <span style={{ fontSize: 15, fontWeight: 700, color: C.green, fontVariantNumeric: "tabular-nums" }}>{fmt(op.revenue)}</span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <ArrowDownRight size={14} strokeWidth={2} color={C.red} />
-                                            <span style={{ fontSize: 13, color: C.text1 }}>Despesas</span>
-                                        </div>
-                                        <span style={{ fontSize: 15, fontWeight: 700, color: C.red, fontVariantNumeric: "tabular-nums" }}>{fmt(op.expenses)}</span>
-                                    </div>
-                                    <div style={{ height: 1, background: C.borderLight }} />
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text1 }}>RESULTADO</span>
-                                        <span style={{ fontSize: 20, fontWeight: 800, color: (op.revenue - op.expenses) >= 0 ? C.green : C.red, fontVariantNumeric: "tabular-nums" }}>{fmt(op.revenue - op.expenses)}</span>
-                                    </div>
-                                    <div>
-                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                            <span style={{ fontSize: 11, color: C.textMuted }}>Margem</span>
-                                            <DeltaBadge value={op.margin} />
-                                        </div>
-                                        <div style={{ height: 6, borderRadius: 99, background: C.borderLight }}>
-                                            <div style={{ height: 6, borderRadius: 99, background: op.margin >= 0 ? C.green : C.red, width: `${Math.min(100, Math.max(0, op.margin))}%`, transition: "width 0.4s ease" }} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Rankings */}
-                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
-                            {/* Top Clientes */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={Users} color={C.blue} bg={C.blueLight} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Top Clientes</p>
-                                </div>
-                                {op.topClients.length === 0 ? (
-                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                        {op.topClients.map((c, i) => {
-                                            const max = op.topClients[0]?.total || 1;
-                                            const opacities = [1, 0.85, 0.7, 0.55, 0.4];
-                                            return (
-                                                <div key={c.name}>
-                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                                                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, width: 16 }}>{i + 1}</span>
-                                                            <span style={{ fontSize: 13, fontWeight: 500, color: C.text1 }}>{c.name}</span>
-                                                        </div>
-                                                        <span style={{ fontSize: 12, fontWeight: 600, color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(c.total)}</span>
-                                                    </div>
-                                                    <div style={{ height: 4, borderRadius: 99, background: C.borderLight }}>
-                                                        <div style={{ height: 4, borderRadius: 99, background: C.blue, opacity: opacities[i] ?? 0.3, width: `${(c.total / max) * 100}%`, transition: "width 0.4s ease" }} />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Top Despesas */}
-                            <div style={cardStyle}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                                    <IconBadge icon={PieChartIcon} color={C.red} bg={C.redSoft} size={16} />
-                                    <p style={{ fontSize: 14, fontWeight: 600, color: "#000" }}>Top Despesas</p>
-                                </div>
-                                {op.topExpenses.length === 0 ? (
-                                    <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0", fontStyle: "italic" }}>Nenhum dado no periodo</p>
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                        {op.topExpenses.map((e, i) => {
-                                            const max = op.topExpenses[0]?.total || 1;
-                                            const opacities = [1, 0.85, 0.7, 0.55, 0.4];
-                                            return (
-                                                <div key={e.name}>
-                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                                                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                                                            <span style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, width: 16 }}>{i + 1}</span>
-                                                            <span style={{ fontSize: 13, fontWeight: 500, color: C.text1 }}>{e.name}</span>
-                                                        </div>
-                                                        <span style={{ fontSize: 12, fontWeight: 600, color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmtCompact(e.total)}</span>
-                                                    </div>
-                                                    <div style={{ height: 4, borderRadius: 99, background: C.borderLight }}>
-                                                        <div style={{ height: 4, borderRadius: 99, background: C.red, opacity: opacities[i] ?? 0.3, width: `${(e.total / max) * 100}%`, transition: "width 0.4s ease" }} />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ══════════════════════════════════════════════ */}
-                {/* TAB: BANCOS                                     */}
-                {/* ══════════════════════════════════════════════ */}
-                {activeTab === "bancos" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-                        {/* Totals row */}
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
-                            gap: 16,
-                        }}>
-                            {[
-                                { label: "Saldo Total", value: fmt(bank.totalBalance), icon: Wallet, iconBg: C.blueLight, iconColor: C.blue },
-                                { label: "Entradas", value: fmt(bank.totalIn), icon: ArrowUpRight, iconBg: C.greenSoft, iconColor: C.green },
-                                { label: "Saidas", value: fmt(bank.totalOut), icon: ArrowDownRight, iconBg: C.redSoft, iconColor: C.red },
-                                { label: "Movimentacoes", value: String(bank.totalMovements), icon: CreditCard, iconBg: C.blueLight, iconColor: C.blue },
-                            ].map((kpi) => (
-                                <div key={kpi.label} style={{ ...cardStyle, borderLeft: `4px solid ${kpi.iconColor}`, paddingLeft: 18 }}>
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                                        <IconBadge icon={kpi.icon} color={kpi.iconColor} bg={kpi.iconBg} size={18} />
-                                    </div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: C.text2, marginBottom: 6 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 26, fontWeight: 700, color: "#000", letterSpacing: "-0.02em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                                        {kpi.value}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Per-bank cards */}
-                        {bank.accounts.length === 0 ? (
-                            <div style={{ ...cardStyle, padding: 40, textAlign: "center" }}>
-                                <IconBadge icon={Building2} color={C.textMuted} bg={C.borderLight} size={24} />
-                                <p style={{ fontSize: 14, fontWeight: 600, color: "#000", marginTop: 16 }}>Nenhuma conta bancaria cadastrada</p>
-                                <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Cadastre contas em Financeiro &gt; Contas Bancarias</p>
-                            </div>
-                        ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                                {bank.accountSummaries.map((acc) => (
-                                    <BankAccountCard
-                                        key={acc.id}
-                                        account={acc}
-                                        isMobile={isMobile}
-                                        fmt={fmt}
-                                        fmtCompact={fmtCompact}
-                                    />
                                 ))}
                             </div>
                         )}
                     </div>
-                )}
-
-                {/* ══════════════════════════════════════════════ */}
-                {/* TAB: CONFIG                                    */}
-                {/* ══════════════════════════════════════════════ */}
-                {activeTab === "config" && (
-                    <div style={{ ...cardStyle, padding: 40, textAlign: "center" }}>
-                        <IconBadge icon={Settings2} color={C.textMuted} bg={C.borderLight} size={24} />
-                        <p style={{ fontSize: 14, fontWeight: 600, color: "#000", marginTop: 16 }}>Configuracoes da Empresa</p>
-                        <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Em desenvolvimento</p>
-                    </div>
-                )}
-
-                <div style={{ height: 40 }} />
+                </div>
             </div>
         </AppLayout>
     );

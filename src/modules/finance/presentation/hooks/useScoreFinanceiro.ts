@@ -53,8 +53,9 @@ export function useScoreFinanceiro() {
       // 3. DRE do mês (para lucratividade)
       const { data: movs } = await db
         .from("movimentacoes")
-        .select("valor, tipo")
+        .select("valor, tipo, origem")
         .eq("company_id", selectedCompany.id)
+        .neq("origem", "transferencia")
         .gte("data", `${competencia}-01`)
         .lte("data", `${competencia}-31`);
 
