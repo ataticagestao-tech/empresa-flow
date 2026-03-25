@@ -8,7 +8,7 @@ import { formatBRL } from "@/lib/format";
 
 interface Employee {
   id: string; company_id: string; name: string; role: string | null;
-  department: string | null; email: string | null; phone: string | null;
+  email: string | null; phone: string | null;
   cpf: string | null; rg: string | null; data_nascimento: string | null;
   hire_date: string | null; data_demissao: string | null;
   salary: number | null; salario_base: number | null;
@@ -21,7 +21,7 @@ interface Employee {
 }
 
 const emptyForm = {
-  name: "", role: "", department: "", email: "", phone: "",
+  name: "", role: "", email: "", phone: "",
   cpf: "", rg: "", data_nascimento: "",
   hire_date: "", data_demissao: "", salary: "", tipo_contrato: "clt",
   pis: "", ctps_numero: "", ctps_serie: "",
@@ -123,7 +123,7 @@ export default function Funcionarios() {
     setSelectedId(emp.id);
     setIsCreating(false);
     setFormData({
-      name: emp.name || "", role: emp.role || "", department: emp.department || "",
+      name: emp.name || "", role: emp.role || "",
       email: emp.email || "", phone: emp.phone || "",
       cpf: emp.cpf || "", rg: emp.rg || "", data_nascimento: emp.data_nascimento || "",
       hire_date: emp.hire_date || "", data_demissao: emp.data_demissao || "",
@@ -148,7 +148,7 @@ export default function Funcionarios() {
       const salarioVal = formData.salary ? parseFloat(formData.salary.replace(",", ".")) : null;
       const payload = {
         company_id: selectedCompany.id, name: formData.name.trim(),
-        role: formData.role || null, department: formData.department || null,
+        role: formData.role || null,
         email: formData.email || null, phone: formData.phone || null,
         cpf: formData.cpf || null, rg: formData.rg || null,
         data_nascimento: formData.data_nascimento || null,
