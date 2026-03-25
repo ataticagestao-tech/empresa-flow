@@ -207,6 +207,7 @@ export default function Movimentacoes() {
       setBankAccounts((bankData as BankAccount[]) || [])
       setChartAccounts((coaData as ChartAccount[]) || [])
       setCentrosCusto((ccData as CentroCusto[]) || [])
+      setProducts((prodData as Product[]) || [])
     } finally {
       setLoading(false)
     }
@@ -626,18 +627,23 @@ export default function Movimentacoes() {
                 </div>
               </div>
 
-              {/* Descricao */}
+              {/* Descricao (Produto/Servico do Operacional) */}
               <div>
                 <label className="block text-xs font-medium text-[#555] mb-1">
-                  Descricao <span className="text-[#8b0000]">*</span>
+                  Descricao (Produto/Servico) <span className="text-[#8b0000]">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formDescricao}
                   onChange={(e) => setFormDescricao(e.target.value)}
-                  placeholder="Ex: Pagamento fornecedor"
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
-                />
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a]"
+                >
+                  <option value="">Selecione um produto/servico...</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.description}>
+                      {p.code ? `${p.code} - ` : ''}{p.description}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Valor + Data */}
