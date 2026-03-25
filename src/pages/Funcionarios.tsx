@@ -26,6 +26,7 @@ const emptyForm = {
   hire_date: "", data_demissao: "", salary: "", tipo_contrato: "clt",
   pis: "", ctps_numero: "", ctps_serie: "",
   banco_folha: "", agencia_folha: "", conta_folha: "", tipo_conta_folha: "", chave_pix_folha: "",
+  centro_custo_id: "",
   status: "ativo",
 };
 
@@ -85,6 +86,18 @@ export default function Funcionarios() {
   const [calcSalario, setCalcSalario] = useState(0);
   const [calcDependentes, setCalcDependentes] = useState(0);
 
+  const { data: centrosCusto = [] } = useQuery({
+    queryKey: ["centros_custo", selectedCompany?.id],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return [];
+      const { data, error } = await (activeClient as any)
+        .from("centros_custo").select("id, codigo, descricao").eq("company_id", selectedCompany.id).eq("ativo", true).order("codigo");
+      if (error) throw error;
+      return data as { id: string; codigo: string; descricao: string }[];
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employees", selectedCompany?.id],
     queryFn: async () => {
@@ -119,7 +132,8 @@ export default function Funcionarios() {
       pis: emp.pis || "", ctps_numero: emp.ctps_numero || "", ctps_serie: emp.ctps_serie || "",
       banco_folha: emp.banco_folha || "", agencia_folha: emp.agencia_folha || "",
       conta_folha: emp.conta_folha || "", tipo_conta_folha: emp.tipo_conta_folha || "",
-      chave_pix_folha: emp.chave_pix_folha || "", status: emp.status || "ativo",
+      chave_pix_folha: emp.chave_pix_folha || "", centro_custo_id: emp.centro_custo_id || "",
+      status: emp.status || "ativo",
     });
     setCalcSalario(emp.salario_base || emp.salary || 0);
     setTab("dados");
@@ -144,7 +158,8 @@ export default function Funcionarios() {
         pis: formData.pis || null, ctps_numero: formData.ctps_numero || null, ctps_serie: formData.ctps_serie || null,
         banco_folha: formData.banco_folha || null, agencia_folha: formData.agencia_folha || null,
         conta_folha: formData.conta_folha || null, tipo_conta_folha: formData.tipo_conta_folha || null,
-        chave_pix_folha: formData.chave_pix_folha || null, status: formData.status,
+        chave_pix_folha: formData.chave_pix_folha || null,
+        centro_custo_id: formData.centro_custo_id || null, status: formData.status,
       };
       if (selectedId && !isCreating) {
         const { error } = await (activeClient as any).from("employees").update(payload).eq("id", selectedId);
@@ -243,11 +258,17 @@ export default function Funcionarios() {
                       <div className="flex flex-col gap-1"><label className={LB}>CPF</label><input value={formData.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" className={IC} /></div>
                       <div className="flex flex-col gap-1"><label className={LB}>Data de Nascimento</label><input type="date" value={formData.data_nascimento} onChange={e => set("data_nascimento", e.target.value)} className={IC} /></div>
                     </div>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-5 gap-4">
                       <div className="flex flex-col gap-1"><label className={LB}>Cargo</label><input value={formData.role} onChange={e => set("role", e.target.value)} className={IC} /></div>
                       <div className="flex flex-col gap-1"><label className={LB}>Tipo Contrato</label>
                         <select value={formData.tipo_contrato} onChange={e => set("tipo_contrato", e.target.value)} className={IC}>
                           <option value="clt">CLT</option><option value="pj">PJ</option><option value="autonomo">Autônomo</option><option value="estagio">Estágio</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1"><label className={LB}>Centro de Custo</label>
+                        <select value={formData.centro_custo_id} onChange={e => set("centro_custo_id", e.target.value)} className={IC}>
+                          <option value="">Nenhum</option>
+                          {centrosCusto.map((c: any) => <option key={c.id} value={c.id}>{c.codigo ? `${c.codigo} — ` : ""}{c.descricao}</option>)}
                         </select>
                       </div>
                       <div className="flex flex-col gap-1"><label className={LB}>Data Admissão</label><input type="date" value={formData.hire_date} onChange={e => set("hire_date", e.target.value)} className={IC} /></div>
