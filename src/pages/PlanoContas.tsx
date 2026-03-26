@@ -167,6 +167,7 @@ export default function PlanoContas() {
   // ─── Create handler ───
   const handleAddConta = async () => {
     if (!selectedCompany?.id || !newConta.code || !newConta.name) { toast.error("Código e nome são obrigatórios"); return; }
+    if (contas.some(c => c.code === newConta.code)) { toast.error(`Código ${newConta.code} já existe nesta empresa`); return; }
     try {
       const parent = contas.find(c => c.code === newConta.parent_code);
       const level = newConta.code.split(".").length;
@@ -184,7 +185,11 @@ export default function PlanoContas() {
       queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
       setShowForm(false);
       setNewConta({ code: "", name: "", account_type: "expense", account_nature: "debit", parent_code: "", show_in_dre: true, dre_group: "despesas_operacionais", dre_order: "" });
-    } catch (err: any) { toast.error("Erro: " + (err.message || "Erro desconhecido")); }
+    } catch (err: any) {
+      const msg = err.message || "Erro desconhecido";
+      if (msg.includes("unique_code_per_company")) toast.error(`Código ${newConta.code} já existe nesta empresa`);
+      else toast.error("Erro: " + msg);
+    }
   };
 
   const setNew = (k: string, v: any) => setNewConta(f => ({ ...f, [k]: v }));
