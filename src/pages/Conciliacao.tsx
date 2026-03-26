@@ -1378,53 +1378,20 @@ export default function Conciliacao() {
 
   return (
     <AppLayout title="Conciliacao Bancaria">
-      <div className="w-full mx-auto space-y-4">
+      <div className="space-y-4">
         {/* ── KPIs ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            {
-              label: 'Total importadas',
-              value: totalImportadas,
-              bg: 'bg-[#f0f4f8]',
-              border: 'border-[#1a2e4a]',
-              text: 'text-[#1a2e4a]',
-              icon: <FileText size={18} />,
-            },
-            {
-              label: 'Conciliadas auto',
-              value: conciliadasAuto,
-              bg: 'bg-[#e6f4ec]',
-              border: 'border-[#0a5c2e]',
-              text: 'text-[#0a5c2e]',
-              icon: <CheckCircle2 size={18} />,
-            },
-            {
-              label: 'Pendentes revisao',
-              value: pendentesRevisao,
-              bg: 'bg-[#fffbe6]',
-              border: 'border-[#b8960a]',
-              text: 'text-[#5c3a00]',
-              icon: <AlertTriangle size={18} />,
-            },
-            {
-              label: 'Nao reconhecidas',
-              value: naoReconhecidas,
-              bg: 'bg-[#fdecea]',
-              border: 'border-[#8b0000]',
-              text: 'text-[#8b0000]',
-              icon: <XCircle size={18} />,
-            },
+            { label: 'Total importadas', value: totalImportadas, bg: 'bg-[#f0f4f8]', border: 'border-[#1a2e4a]', text: 'text-[#1a2e4a]', icon: <FileText size={18} /> },
+            { label: 'Conciliadas auto', value: conciliadasAuto, bg: 'bg-[#e6f4ec]', border: 'border-[#0a5c2e]', text: 'text-[#0a5c2e]', icon: <CheckCircle2 size={18} /> },
+            { label: 'Pendentes revisao', value: pendentesRevisao, bg: 'bg-[#fffbe6]', border: 'border-[#b8960a]', text: 'text-[#5c3a00]', icon: <AlertTriangle size={18} /> },
+            { label: 'Nao reconhecidas', value: naoReconhecidas, bg: 'bg-[#fdecea]', border: 'border-[#8b0000]', text: 'text-[#8b0000]', icon: <XCircle size={18} /> },
           ].map((kpi) => (
-            <div
-              key={kpi.label}
-              className={`${kpi.bg} ${kpi.border} ${kpi.text} border rounded-lg p-4 flex items-center gap-3`}
-            >
+            <div key={kpi.label} className={`${kpi.bg} ${kpi.border} ${kpi.text} border rounded-lg p-3 flex items-center gap-3`}>
               {kpi.icon}
               <div>
-                <p className="text-2xl font-bold leading-none">{kpi.value}</p>
-                <p className="text-[11px] uppercase tracking-wide mt-0.5 opacity-80">
-                  {kpi.label}
-                </p>
+                <p className="text-xl font-bold leading-none">{kpi.value}</p>
+                <p className="text-[10px] uppercase tracking-wide mt-0.5 opacity-80">{kpi.label}</p>
               </div>
             </div>
           ))}
@@ -1434,13 +1401,13 @@ export default function Conciliacao() {
         <div className="flex gap-1 border-b border-[#ccc]">
           {[
             { id: 'conciliacao' as const, label: 'Conciliacao', icon: <ListChecks size={14} /> },
-            { id: 'historico' as const, label: 'Arquivos Importados', icon: <History size={14} /> },
-            { id: 'regras' as const, label: 'Regras Salvas', icon: <BookOpen size={14} /> },
+            { id: 'historico' as const, label: 'Importacoes', icon: <History size={14} /> },
+            { id: 'regras' as const, label: 'Regras', icon: <BookOpen size={14} /> },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setAbaAtiva(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
                 abaAtiva === tab.id
                   ? 'border-b-2 border-[#1a2e4a] text-[#1a2e4a]'
                   : 'text-[#555] hover:text-[#1a2e4a]'
@@ -1457,72 +1424,38 @@ export default function Conciliacao() {
            ════════════════════════════════════════════════════════ */}
         {abaAtiva === 'conciliacao' && (
           <>
-            {/* ── Upload OFX Card ─────────────────────────────── */}
-            <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-              <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                  Importar Extrato OFX
-                </h3>
+            {/* ── Upload OFX ─────────────────────────────── */}
+            <div className="border border-[#ccc] rounded-lg overflow-hidden">
+              <div className="bg-[#1a2e4a] px-4 py-2.5">
+                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Importar Extrato OFX</h3>
               </div>
               <div className="p-4 bg-white space-y-3">
-                {/* Conta select */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#0a0a0a] uppercase tracking-wider mb-1">
-                    Conta Bancaria
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={contaSelecionada}
-                      onChange={(e) => setContaSelecionada(e.target.value)}
-                      className="w-full md:w-72 appearance-none border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] pr-8"
-                    >
-                      <option value="">Selecione a conta...</option>
-                      {contas.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} - {c.banco}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={14}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none"
-                    />
-                  </div>
+                <div className="relative w-full max-w-xs">
+                  <select
+                    value={contaSelecionada}
+                    onChange={(e) => setContaSelecionada(e.target.value)}
+                    className="w-full appearance-none border border-[#ccc] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#1a2e4a] pr-8"
+                  >
+                    <option value="">Selecione a conta...</option>
+                    {contas.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} - {c.banco}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
                 </div>
-
-                {/* Drop zone */}
                 <div
                   onDragOver={onDragOver}
                   onDragLeave={onDragLeave}
                   onDrop={onDrop}
-                  className={`relative border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
-                    arrastando
-                      ? 'border-[#1a2e4a] bg-[#f0f4f8]'
-                      : 'border-[#ccc] bg-[#fafafa] hover:border-[#1a2e4a] hover:bg-[#f0f4f8]'
+                  className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
+                    arrastando ? 'border-[#1a2e4a] bg-[#f0f4f8]' : 'border-[#ccc] bg-[#fafafa] hover:border-[#1a2e4a]'
                   } ${!contaSelecionada ? 'opacity-50 pointer-events-none' : ''}`}
                 >
-                  <input
-                    type="file"
-                    accept=".ofx"
-                    onChange={onFileChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    disabled={!contaSelecionada || importando}
-                  />
+                  <input type="file" accept=".ofx" onChange={onFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!contaSelecionada || importando} />
                   {importando ? (
-                    <>
-                      <Loader2 size={28} className="text-[#1a2e4a] animate-spin" />
-                      <p className="text-sm text-[#555]">Processando extrato...</p>
-                    </>
+                    <><Loader2 size={24} className="text-[#1a2e4a] animate-spin" /><p className="text-sm text-[#555]">Processando...</p></>
                   ) : (
-                    <>
-                      <Upload size={28} className="text-[#1a2e4a]" />
-                      <p className="text-sm text-[#555]">
-                        Arraste um arquivo <strong>.ofx</strong> ou clique para selecionar
-                      </p>
-                      <p className="text-[11px] text-[#999]">
-                        O arquivo sera processado e as transacoes importadas automaticamente
-                      </p>
-                    </>
+                    <><Upload size={24} className="text-[#1a2e4a]" /><p className="text-sm text-[#555]">Arraste um <strong>.ofx</strong> ou clique</p></>
                   )}
                 </div>
               </div>
@@ -1531,155 +1464,101 @@ export default function Conciliacao() {
             {/* ── Batch bar ───────────────────────────────────── */}
             {selecionados.size > 0 && (
               <div className="sticky top-0 z-20 bg-[#1a2e4a] text-white rounded-lg px-4 py-3 flex items-center justify-between shadow-lg">
-                <span className="text-sm font-medium">
-                  {selecionados.size} transac{selecionados.size === 1 ? 'ao' : 'oes'}{' '}
-                  selecionada{selecionados.size === 1 ? '' : 's'}
-                </span>
+                <span className="text-sm font-medium">{selecionados.size} selecionada{selecionados.size > 1 ? 's' : ''}</span>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelecionados(new Set())}
-                    className="px-3 py-1.5 text-xs border border-white/30 rounded hover:bg-white/10 transition"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={aprovarSelecionados}
-                    className="px-3 py-1.5 text-xs bg-white text-[#1a2e4a] font-semibold rounded hover:bg-gray-100 transition"
-                  >
-                    Aprovar selecionadas
-                  </button>
+                  <button onClick={() => setSelecionados(new Set())} className="px-3 py-1.5 text-xs border border-white/30 rounded hover:bg-white/10 transition">Cancelar</button>
+                  <button onClick={aprovarSelecionados} className="px-3 py-1.5 text-xs bg-white text-[#1a2e4a] font-semibold rounded hover:bg-gray-100 transition">Aprovar</button>
                 </div>
               </div>
             )}
 
-            {/* ── Review Interface Card ───────────────────────── */}
-            <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+            {/* ── Transacoes ───────────────────────────────────── */}
+            <div className="border border-[#ccc] rounded-lg overflow-hidden">
               <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                  Transacoes & Conciliacao
-                </h3>
-                <button
-                  onClick={() => {
-                    carregarDados()
-                    carregarRegras()
-                  }}
-                  className="text-white/70 hover:text-white transition"
-                  title="Recarregar"
-                >
+                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Transacoes & Conciliacao</h3>
+                <button onClick={() => { carregarDados(); carregarRegras() }} className="text-white/70 hover:text-white transition" title="Recarregar">
                   <RefreshCw size={14} />
                 </button>
               </div>
-              <div className="bg-white">
+              <div className="bg-white overflow-x-auto">
                 {carregando ? (
                   <div className="flex items-center justify-center py-16 gap-2 text-[#555] text-sm">
-                    <Loader2 size={18} className="animate-spin" />
-                    Carregando transacoes...
+                    <Loader2 size={18} className="animate-spin" /> Carregando...
                   </div>
                 ) : matchesEnriquecidos.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
                     <FileText size={32} className="text-[#ccc] mb-2" />
                     Nenhuma transacao importada.
-                    <span className="text-[11px] text-[#999]">
-                      Importe um extrato OFX para comecar.
-                    </span>
                   </div>
                 ) : (
-                  <>
-                    {/* Table header */}
-                    <div className="hidden md:grid md:grid-cols-[32px_80px_1fr_120px_100px_60px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                      <div className="p-2 flex items-center justify-center">
-                        <input
-                          type="checkbox"
-                          checked={selecionados.size === matchesEnriquecidos.length && matchesEnriquecidos.length > 0}
-                          onChange={toggleTodos}
-                          className="w-3.5 h-3.5 accent-[#1a2e4a]"
-                        />
-                      </div>
-                      <div className="p-2">Data</div>
-                      <div className="p-2">Transacao</div>
-                      <div className="p-2 text-right">Valor</div>
-                      <div className="p-2 text-center">IA</div>
-                      <div className="p-2 text-center">Acoes</div>
-                    </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#f9f9f9] border-b border-[#ccc] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                        <th className="p-2 w-8 text-center">
+                          <input type="checkbox" checked={selecionados.size === matchesEnriquecidos.length && matchesEnriquecidos.length > 0} onChange={toggleTodos} className="w-3.5 h-3.5 accent-[#1a2e4a]" />
+                        </th>
+                        <th className="p-2 text-left whitespace-nowrap">Data</th>
+                        <th className="p-2 text-left">Descricao</th>
+                        <th className="p-2 text-left">Favorecido</th>
+                        <th className="p-2 text-right whitespace-nowrap">Valor</th>
+                        <th className="p-2 text-center">Status</th>
+                        <th className="p-2 text-center">IA</th>
+                        <th className="p-2 text-center">Acoes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matchesEnriquecidos.map((item) => {
+                        const tx = item.transacao
+                        const mt = item.match
+                        const status = mt?.status || 'pendente'
+                        const isAprovado = status === 'aprovado' || status === 'ignorado'
+                        const descParts = tx.descricao.split(/[\/\-]/).map(s => s.trim()).filter(Boolean)
+                        const favorecido = item.lancamento
+                          ? item.lancamento.nome
+                          : descParts.length > 1 ? descParts[descParts.length - 1] : '-'
 
-                    {/* Rows */}
-                    {matchesEnriquecidos.map((item) => {
-                      const tx = item.transacao
-                      const mt = item.match
-                      const status = mt?.status || 'pendente'
-                      const isAprovado = status === 'aprovado' || status === 'ignorado'
-
-                      // Extract favorecido from description heuristics
-                      const descParts = tx.descricao.split(/[\/\-]/).map(s => s.trim()).filter(Boolean)
-                      const favorecido = item.lancamento
-                        ? item.lancamento.nome
-                        : descParts.length > 1 ? descParts[descParts.length - 1] : ''
-
-                      return (
-                        <div key={tx.id} className={`border-b border-[#eee] last:border-b-0 ${isAprovado ? 'opacity-50' : ''}`}>
-                          <div className="grid grid-cols-1 md:grid-cols-[32px_80px_1fr_120px_100px_60px] gap-0 items-center">
+                        return (
+                          <tr key={tx.id} className={`border-b border-[#eee] hover:bg-[#fafafa] ${isAprovado ? 'opacity-40' : ''}`}>
                             {/* Checkbox */}
-                            <div className="p-2 flex items-center justify-center">
-                              <input
-                                type="checkbox"
-                                checked={selecionados.has(tx.id)}
-                                onChange={() => toggleSelecao(tx.id)}
-                                className="w-3.5 h-3.5 accent-[#1a2e4a]"
-                                disabled={isAprovado}
-                              />
-                            </div>
-
+                            <td className="p-2 text-center">
+                              <input type="checkbox" checked={selecionados.has(tx.id)} onChange={() => toggleSelecao(tx.id)} className="w-3.5 h-3.5 accent-[#1a2e4a]" disabled={isAprovado} />
+                            </td>
                             {/* Data */}
-                            <div className="p-2">
-                              <p className="text-[11px] text-[#0a0a0a] font-medium">{formatData(tx.data)}</p>
-                              {tx.reconciled_at && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] text-[#0a5c2e] mt-0.5">
-                                  <Clock size={8} />
-                                  {new Date(tx.reconciled_at).toLocaleDateString('pt-BR')}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Transacao (descricao + favorecido merged) */}
-                            <div className="p-2 min-w-0">
-                              <p className="text-sm text-[#0a0a0a] truncate" title={tx.descricao}>
-                                {tx.descricao}
-                              </p>
-                              {favorecido && (
-                                <p className="text-[10px] text-[#777] truncate" title={favorecido}>
-                                  {favorecido}
-                                  {item.lancamento && (
-                                    <span className="ml-1 text-[9px] uppercase text-[#555] font-semibold">
-                                      ({item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} - Venc. {formatData(item.lancamento.data_vencimento)})
-                                    </span>
-                                  )}
-                                </p>
-                              )}
-                              <div className="mt-0.5 flex items-center gap-1 flex-wrap">
-                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded ${
-                                  tx.tipo === 'credito' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
-                                }`}>
-                                  {tx.tipo === 'credito' ? 'C' : 'D'}
-                                </span>
-                                {renderBadge(status, mt?.diferenca ?? null)}
-                              </div>
-                            </div>
-
-                            {/* Valor */}
-                            <div className="p-2 text-right">
-                              <span className={`text-sm font-bold ${
-                                tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
+                            <td className="p-2 whitespace-nowrap">
+                              <span className="text-[11px] text-[#0a0a0a] font-medium">{formatData(tx.data)}</span>
+                            </td>
+                            {/* Descricao */}
+                            <td className="p-2 max-w-[300px]">
+                              <p className="text-[13px] text-[#0a0a0a] truncate" title={tx.descricao}>{tx.descricao}</p>
+                              <span className={`inline-block mt-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                                tx.tipo === 'credito' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
                               }`}>
+                                {tx.tipo === 'credito' ? 'Credito' : 'Debito'}
+                              </span>
+                            </td>
+                            {/* Favorecido */}
+                            <td className="p-2 max-w-[160px]">
+                              <p className="text-[12px] text-[#333] truncate" title={favorecido}>{favorecido}</p>
+                              {item.lancamento && (
+                                <span className="text-[9px] text-[#777]">
+                                  {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} - {formatData(item.lancamento.data_vencimento)}
+                                </span>
+                              )}
+                            </td>
+                            {/* Valor */}
+                            <td className="p-2 text-right whitespace-nowrap">
+                              <span className={`text-[13px] font-bold ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
                                 {tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}
                               </span>
-                            </div>
-
-                            {/* IA column - compact badge/icon */}
-                            <div className="p-2 flex items-center justify-center relative">
+                            </td>
+                            {/* Status */}
+                            <td className="p-2 text-center">{renderBadge(status, mt?.diferenca ?? null)}</td>
+                            {/* IA */}
+                            <td className="p-2 text-center relative">
                               {item.sugestaoIA ? (
                                 <button
                                   onClick={() => setIaCatDropdownOpen(iaCatDropdownOpen === tx.id ? null : tx.id)}
-                                  className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 hover:border-purple-400 transition"
+                                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded bg-purple-50 border border-purple-200 hover:border-purple-400 transition"
                                   title={`IA: ${item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome} (${item.sugestaoIA.confianca}%)`}
                                 >
                                   <Sparkles size={11} className="text-purple-600" />
@@ -1688,20 +1567,17 @@ export default function Conciliacao() {
                               ) : (
                                 <button
                                   onClick={() => setIaCatDropdownOpen(iaCatDropdownOpen === tx.id ? null : tx.id)}
-                                  className="inline-flex items-center justify-center w-6 h-6 rounded bg-gray-50 border border-gray-200 hover:border-gray-400 transition"
+                                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded bg-gray-50 border border-gray-200 hover:border-gray-400 transition text-[10px] text-gray-400"
                                   title="Categorizar"
                                 >
-                                  <span className="text-gray-400 text-[10px]">--</span>
+                                  <ChevronDown size={10} /> Cat.
                                 </button>
                               )}
-                              {/* Dropdown for category selection */}
                               {iaCatDropdownOpen === tx.id && (
                                 <div className="absolute top-full right-0 mt-1 z-30 bg-white border border-[#ccc] rounded-lg shadow-xl w-64 max-h-60 overflow-y-auto">
                                   <div className="sticky top-0 bg-white border-b border-[#eee] px-3 py-2 flex items-center justify-between">
                                     <span className="text-[10px] font-bold text-[#555] uppercase">Categorizar</span>
-                                    <button onClick={() => setIaCatDropdownOpen(null)} className="text-gray-400 hover:text-gray-600">
-                                      <X size={12} />
-                                    </button>
+                                    <button onClick={() => setIaCatDropdownOpen(null)} className="text-gray-400 hover:text-gray-600"><X size={12} /></button>
                                   </div>
                                   {item.sugestaoIA?.categoria_id && (
                                     <button
@@ -1710,117 +1586,67 @@ export default function Conciliacao() {
                                     >
                                       <div className="flex items-center gap-1">
                                         <Sparkles size={10} className="text-purple-600 shrink-0" />
-                                        <span className="font-semibold text-purple-700">Aceitar sugestao IA</span>
+                                        <span className="font-semibold text-purple-700">Aceitar sugestao IA: {item.sugestaoIA.categoria_nome}</span>
                                       </div>
-                                      <p className="text-[10px] text-purple-600 truncate mt-0.5">{item.sugestaoIA.categoria_nome}</p>
                                     </button>
                                   )}
                                   {planoContas.map(cat => (
-                                    <button
-                                      key={cat.id}
-                                      onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null) }}
-                                      className="w-full text-left px-3 py-1.5 text-[11px] text-[#333] hover:bg-[#f0f4f8] transition truncate"
-                                    >
+                                    <button key={cat.id} onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null) }} className="w-full text-left px-3 py-1.5 text-[11px] text-[#333] hover:bg-[#f0f4f8] transition truncate">
                                       {cat.code} - {cat.name}
                                     </button>
                                   ))}
                                 </div>
                               )}
-                            </div>
-
-                            {/* Acoes - icon buttons only */}
-                            <div className="p-2 flex items-center justify-center gap-0.5">
-                              {!isAprovado && (
-                                <>
-                                  {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
-                                    <button
-                                      onClick={() => aprovar(mt.id, item)}
-                                      className="p-1 rounded bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e] hover:bg-[#d0eddb] transition"
-                                      title="Aprovar"
-                                    >
-                                      <CheckCircle2 size={12} />
-                                    </button>
-                                  )}
-                                  {(status === 'nao_reconhecido' || status === 'revisao') && (
-                                    <button
-                                      onClick={() => abrirVincular(tx)}
-                                      className="p-1 rounded bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a] hover:bg-[#e0e8f0] transition"
-                                      title="Vincular a CP/CR"
-                                    >
-                                      <Link2 size={12} />
-                                    </button>
-                                  )}
-                                  {status === 'nao_reconhecido' && (
-                                    <>
-                                      <button
-                                        onClick={() => criarMovimentacao(item)}
-                                        className="p-1 rounded bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a] hover:bg-[#fff5cc] transition"
-                                        title="Criar lancamento"
-                                      >
-                                        <Plus size={12} />
+                            </td>
+                            {/* Acoes */}
+                            <td className="p-2 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {!isAprovado && (
+                                  <>
+                                    {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
+                                      <button onClick={() => aprovar(mt.id, item)} className="p-1.5 rounded bg-[#e6f4ec] text-[#0a5c2e] hover:bg-[#d0eddb] transition" title="Aprovar">
+                                        <CheckCircle2 size={14} />
                                       </button>
-                                      {mt && (
-                                        <button
-                                          onClick={() => ignorar(mt.id)}
-                                          className="p-1 rounded bg-gray-100 text-gray-500 border border-gray-300 hover:bg-gray-200 transition"
-                                          title="Ignorar"
-                                        >
-                                          <EyeOff size={12} />
-                                        </button>
-                                      )}
-                                    </>
-                                  )}
-                                </>
-                              )}
-                              {isAprovado && (
-                                <span title="Conciliado">
-                                  <CheckCircle2 size={12} className="text-[#0a5c2e]" />
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Footer: diff warning */}
-                          {status === 'match_dif' && mt?.diferenca && (
-                            <div className="bg-[#fffbe6] border-t border-[#b8960a] px-4 py-1 text-[11px] text-[#5c3a00]">
-                              <AlertTriangle size={11} className="inline mr-1 -mt-0.5" />
-                              Diferenca de <strong>{formatBRL(Math.abs(mt.diferenca))}</strong>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </>
+                                    )}
+                                    {(status === 'nao_reconhecido' || status === 'revisao' || status === 'pendente') && (
+                                      <button onClick={() => abrirVincular(tx)} className="p-1.5 rounded bg-[#f0f4f8] text-[#1a2e4a] hover:bg-[#e0e8f0] transition" title="Conciliar - vincular a CP/CR">
+                                        <Link2 size={14} />
+                                      </button>
+                                    )}
+                                    {(status === 'nao_reconhecido' || status === 'pendente') && (
+                                      <button onClick={() => criarMovimentacao(item)} className="p-1.5 rounded bg-[#fffbe6] text-[#5c3a00] hover:bg-[#fff5cc] transition" title="Criar lancamento">
+                                        <Plus size={14} />
+                                      </button>
+                                    )}
+                                    {mt && status === 'nao_reconhecido' && (
+                                      <button onClick={() => ignorar(mt.id)} className="p-1.5 rounded bg-gray-100 text-gray-500 hover:bg-gray-200 transition" title="Ignorar">
+                                        <EyeOff size={14} />
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                                {isAprovado && <CheckCircle2 size={14} className="text-[#0a5c2e]" />}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </div>
 
-            {/* ── SALVAR CONCILIACAO Button ─────────────────────── */}
-            {matchesEnriquecidos.some(
-              m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)
-            ) && (
+            {/* ── SALVAR CONCILIACAO ─────────────────────── */}
+            {matchesEnriquecidos.some(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)) && (
               <div className="sticky bottom-4 z-20">
                 <div className="bg-gradient-to-r from-[#0a5c2e] to-[#1a6e3e] rounded-lg px-6 py-4 shadow-xl flex items-center justify-between">
                   <div className="text-white">
-                    <p className="text-sm font-bold">
-                      {matchesEnriquecidos.filter(
-                        m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)
-                      ).length} conciliacoes pendentes
-                    </p>
-                    <p className="text-[11px] text-white/70">
-                      Aprovar todas e baixar lancamentos vinculados
-                    </p>
+                    <p className="text-sm font-bold">{matchesEnriquecidos.filter(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)).length} conciliacoes pendentes</p>
+                    <p className="text-[11px] text-white/70">Aprovar todas e baixar lancamentos vinculados</p>
                   </div>
-                  <button
-                    onClick={salvarConciliacao}
-                    disabled={salvando}
-                    className="px-6 py-3 bg-white text-[#0a5c2e] font-bold text-sm rounded-lg hover:bg-gray-100 transition flex items-center gap-2 shadow-md disabled:opacity-50"
-                  >
-                    {salvando ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <CheckCircle2 size={16} />
-                    )}
+                  <button onClick={salvarConciliacao} disabled={salvando} className="px-6 py-3 bg-white text-[#0a5c2e] font-bold text-sm rounded-lg hover:bg-gray-100 transition flex items-center gap-2 shadow-md disabled:opacity-50">
+                    {salvando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     {salvando ? 'SALVANDO...' : 'SALVAR CONCILIACAO'}
                   </button>
                 </div>
@@ -1829,32 +1655,20 @@ export default function Conciliacao() {
           </>
         )}
 
-
         {/* ════════════════════════════════════════════════════════
-           TAB: ARQUIVOS IMPORTADOS (expandable batches)
+           TAB: IMPORTACOES
            ════════════════════════════════════════════════════════ */}
         {abaAtiva === 'historico' && (
-          <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+          <div className="border border-[#ccc] rounded-lg overflow-hidden">
             <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                Arquivos Importados
-              </h3>
-              <button
-                onClick={carregarImportBatches}
-                className="text-white/70 hover:text-white transition"
-                title="Recarregar"
-              >
-                <RefreshCw size={14} />
-              </button>
+              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Arquivos Importados</h3>
+              <button onClick={carregarImportBatches} className="text-white/70 hover:text-white transition" title="Recarregar"><RefreshCw size={14} /></button>
             </div>
             <div className="bg-white">
               {importBatches.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
                   <FileText size={32} className="text-[#ccc] mb-2" />
                   Nenhum arquivo importado ainda.
-                  <span className="text-[11px] text-[#999]">
-                    Importe um extrato OFX na aba Conciliacao.
-                  </span>
                 </div>
               ) : (
                 <div className="divide-y divide-[#eee]">
@@ -1862,75 +1676,43 @@ export default function Conciliacao() {
                     const isExpanded = batchExpandido === batch.key
                     return (
                       <div key={batch.key}>
-                        {/* Batch row (clickable) */}
-                        <button
-                          onClick={() => expandirBatch(batch)}
-                          className="w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-[#f9f9f9] transition"
-                        >
-                          <ChevronDown
-                            size={16}
-                            className={`text-[#1a2e4a] transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                          />
-                          <Calendar size={16} className="text-[#1a2e4a] shrink-0" />
+                        <button onClick={() => expandirBatch(batch)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[#f9f9f9] transition">
+                          <ChevronDown size={16} className={`text-[#1a2e4a] transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-[#0a0a0a]">
-                              Importacao {new Date(batch.imported_at).toLocaleDateString('pt-BR')}
-                              {' '}
-                              <span className="text-[#999] font-normal">
-                                as {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                              {new Date(batch.imported_at).toLocaleDateString('pt-BR')} <span className="text-[#999] font-normal text-xs">as {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                             </p>
-                            <p className="text-[11px] text-[#555]">
-                              Periodo: {formatData(batch.min_date)} a {formatData(batch.max_date)}
-                            </p>
+                            <p className="text-[11px] text-[#555]">{formatData(batch.min_date)} a {formatData(batch.max_date)}</p>
                           </div>
-                          <span className="text-sm font-bold text-[#1a2e4a] bg-[#f0f4f8] px-3 py-1 rounded">
-                            {batch.count} transacoes
-                          </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); excluirImportBatch(batch.tx_ids) }}
-                            className="p-1.5 rounded text-[#8b0000] hover:bg-[#fdecea] transition"
-                            title="Excluir lote"
-                          >
+                          <span className="text-xs font-bold text-[#1a2e4a] bg-[#f0f4f8] px-2 py-1 rounded shrink-0">{batch.count} tx</span>
+                          <button onClick={(e) => { e.stopPropagation(); excluirImportBatch(batch.tx_ids) }} className="p-1 rounded text-[#8b0000] hover:bg-[#fdecea] transition shrink-0" title="Excluir lote">
                             <Trash2 size={14} />
                           </button>
                         </button>
-
-                        {/* Expanded transactions */}
                         {isExpanded && (
-                          <div className="bg-[#f9f9f9] border-t border-[#eee]">
+                          <div className="bg-[#f9f9f9] border-t border-[#eee] overflow-x-auto">
                             {batchTransacoes.length === 0 ? (
-                              <div className="flex items-center justify-center py-8 text-[#555] text-sm gap-2">
-                                <Loader2 size={16} className="animate-spin" />
-                                Carregando transacoes...
-                              </div>
+                              <div className="flex items-center justify-center py-8 text-[#555] text-sm gap-2"><Loader2 size={16} className="animate-spin" /> Carregando...</div>
                             ) : (
-                              <>
-                                <div className="hidden md:grid md:grid-cols-[100px_1fr_120px_100px] border-b border-[#ddd] bg-[#f0f0f0] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                                  <div className="px-4 py-2">Data</div>
-                                  <div className="px-4 py-2">Descricao</div>
-                                  <div className="px-4 py-2 text-right">Valor</div>
-                                  <div className="px-4 py-2 text-center">Status</div>
-                                </div>
-                                {batchTransacoes.map((tx) => (
-                                  <div key={tx.id} className="grid grid-cols-1 md:grid-cols-[100px_1fr_120px_100px] border-b border-[#eee] last:border-b-0 hover:bg-white">
-                                    <div className="px-4 py-2 text-[11px] text-[#555]">{formatData(tx.data)}</div>
-                                    <div className="px-4 py-2 text-sm text-[#0a0a0a] truncate">{tx.descricao}</div>
-                                    <div className="px-4 py-2 text-right">
-                                      <span className={`text-sm font-semibold ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
-                                        {tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}
+                              <table className="w-full text-sm">
+                                <thead><tr className="bg-[#f0f0f0] text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#ddd]">
+                                  <th className="px-3 py-2 text-left">Data</th><th className="px-3 py-2 text-left">Descricao</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-center">Status</th>
+                                </tr></thead>
+                                <tbody>{batchTransacoes.map((tx) => (
+                                  <tr key={tx.id} className="border-b border-[#eee] hover:bg-white">
+                                    <td className="px-3 py-2 text-[11px] text-[#555] whitespace-nowrap">{formatData(tx.data)}</td>
+                                    <td className="px-3 py-2 text-[#0a0a0a] truncate max-w-[300px]">{tx.descricao}</td>
+                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                      <span className={`font-semibold ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>{tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}</span>
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${tx.status_conciliacao === 'reconciled' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#f0f4f8] text-[#1a2e4a]'}`}>
+                                        {tx.status_conciliacao === 'reconciled' ? 'OK' : 'Pendente'}
                                       </span>
-                                    </div>
-                                    <div className="px-4 py-2 flex items-center justify-center">
-                                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                                        tx.status_conciliacao === 'reconciled' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#f0f4f8] text-[#1a2e4a]'
-                                      }`}>
-                                        {tx.status_conciliacao === 'reconciled' ? 'Conciliado' : 'Pendente'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </>
+                                    </td>
+                                  </tr>
+                                ))}</tbody>
+                              </table>
                             )}
                           </div>
                         )}
@@ -1944,83 +1726,34 @@ export default function Conciliacao() {
         )}
 
         {/* ════════════════════════════════════════════════════════
-           TAB: REGRAS SALVAS
+           TAB: REGRAS
            ════════════════════════════════════════════════════════ */}
         {abaAtiva === 'regras' && (
-          <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+          <div className="border border-[#ccc] rounded-lg overflow-hidden">
             <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                Regras de Conciliacao
-              </h3>
-              <button
-                onClick={carregarRegras}
-                className="text-white/70 hover:text-white transition"
-                title="Recarregar"
-              >
-                <RefreshCw size={14} />
-              </button>
+              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Regras de Conciliacao</h3>
+              <button onClick={carregarRegras} className="text-white/70 hover:text-white transition" title="Recarregar"><RefreshCw size={14} /></button>
             </div>
-            <div className="bg-white">
+            <div className="bg-white overflow-x-auto">
               {regras.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
                   <BookOpen size={32} className="text-[#ccc] mb-2" />
                   Nenhuma regra salva.
-                  <span className="text-[11px] text-[#999]">
-                    Regras sao criadas automaticamente ao classificar transacoes nao
-                    reconhecidas.
-                  </span>
                 </div>
               ) : (
-                <>
-                  {/* Header */}
-                  <div className="hidden md:grid md:grid-cols-[1fr_200px_100px_80px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                    <div className="p-3">Padrao de Descricao</div>
-                    <div className="p-3">Tipo</div>
-                    <div className="p-3 text-center">Vezes Usada</div>
-                    <div className="p-3 text-center">Acao</div>
-                  </div>
-
-                  {regras.map((r) => (
-                    <div
-                      key={r.id}
-                      className="grid grid-cols-1 md:grid-cols-[1fr_200px_100px_80px] border-b border-[#eee] last:border-b-0"
-                    >
-                      <div className="p-3">
-                        <p className="text-sm text-[#0a0a0a] font-medium">
-                          {r.padrao_descricao}
-                        </p>
-                        {!r.ativo && (
-                          <span className="text-[10px] text-[#8b0000] font-semibold">
-                            INATIVA
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                            r.tipo === 'credito'
-                              ? 'bg-[#e6f4ec] text-[#0a5c2e]'
-                              : 'bg-[#fdecea] text-[#8b0000]'
-                          }`}
-                        >
-                          {r.tipo === 'credito' ? 'Credito' : 'Debito'}
-                        </span>
-                      </div>
-                      <div className="p-3 text-center text-sm text-[#0a0a0a] font-semibold">
-                        {r.vezes_usado}
-                      </div>
-                      <div className="p-3 flex items-center justify-center">
-                        <button
-                          onClick={() => excluirRegra(r.id)}
-                          className="p-1.5 rounded text-[#8b0000] hover:bg-[#fdecea] transition"
-                          title="Excluir regra"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </>
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-[#f9f9f9] border-b border-[#ccc] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                    <th className="p-3 text-left">Padrao</th><th className="p-3 text-left">Tipo</th><th className="p-3 text-center">Usos</th><th className="p-3 text-center">Acao</th>
+                  </tr></thead>
+                  <tbody>{regras.map((r) => (
+                    <tr key={r.id} className="border-b border-[#eee]">
+                      <td className="p-3"><p className="text-[#0a0a0a] font-medium">{r.padrao_descricao}</p>{!r.ativo && <span className="text-[10px] text-[#8b0000] font-semibold">INATIVA</span>}</td>
+                      <td className="p-3"><span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${r.tipo === 'credito' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'}`}>{r.tipo === 'credito' ? 'Credito' : 'Debito'}</span></td>
+                      <td className="p-3 text-center font-semibold">{r.vezes_usado}</td>
+                      <td className="p-3 text-center"><button onClick={() => excluirRegra(r.id)} className="p-1.5 rounded text-[#8b0000] hover:bg-[#fdecea] transition" title="Excluir"><Trash2 size={14} /></button></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
               )}
             </div>
           </div>
@@ -2028,112 +1761,104 @@ export default function Conciliacao() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
-         MODAL: Vincular a CP/CR
+         MODAL: Conciliar - Vincular a CP/CR
          ═══════════════════════════════════════════════════════════ */}
       {modalVincular.aberto && modalVincular.transacao && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                Vincular Transacao
-              </h3>
-              <button
-                onClick={() => setModalVincular({ transacao: null, aberto: false })}
-                className="text-white/70 hover:text-white transition"
-              >
-                <X size={16} />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setModalVincular({ transacao: null, aberto: false })}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-white uppercase tracking-widest">Conciliar Transacao</h3>
+                <p className="text-[10px] text-white/60 mt-0.5">Selecione o lancamento CP ou CR para vincular</p>
+              </div>
+              <button onClick={() => setModalVincular({ transacao: null, aberto: false })} className="text-white/70 hover:text-white transition"><X size={18} /></button>
             </div>
-            <div className="p-4 space-y-3">
-              <div className="bg-[#f0f4f8] border border-[#1a2e4a] rounded p-3 text-sm">
-                <p className="font-semibold text-[#1a2e4a]">
-                  {modalVincular.transacao.tipo === 'credito' ? 'Credito' : 'Debito'}:{' '}
-                  {formatBRL(modalVincular.transacao.valor)}
-                </p>
-                <p className="text-xs text-[#555] mt-0.5">
-                  {modalVincular.transacao.descricao} -{' '}
-                  {formatData(modalVincular.transacao.data)}
-                </p>
+
+            <div className="p-5 space-y-4">
+              {/* Transacao info */}
+              <div className="bg-[#f0f4f8] rounded-lg p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#0a0a0a]">{modalVincular.transacao.descricao}</p>
+                  <p className="text-[11px] text-[#555] mt-0.5">{formatData(modalVincular.transacao.data)}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`text-lg font-bold ${modalVincular.transacao.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+                    {modalVincular.transacao.tipo === 'credito' ? '+' : '-'}{formatBRL(modalVincular.transacao.valor)}
+                  </span>
+                  <p className={`text-[10px] font-bold uppercase ${modalVincular.transacao.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+                    {modalVincular.transacao.tipo === 'credito' ? 'Credito' : 'Debito'}
+                  </p>
+                </div>
               </div>
 
+              {/* Busca */}
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Buscar contas a pagar e receber..."
-                  value={buscaVincular}
-                  onChange={(e) => setBuscaVincular(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && buscarCandidatos()}
-                  className="flex-1 border border-[#ccc] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a]"
-                />
-                <button
-                  onClick={buscarCandidatos}
-                  disabled={buscandoVincular}
-                  className="px-3 py-2 bg-[#1a2e4a] text-white rounded text-sm font-semibold hover:bg-[#15253d] transition flex items-center gap-1"
-                >
-                  {buscandoVincular ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Search size={14} />
-                  )}
-                  Buscar
+                <div className="flex-1 relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por nome..."
+                    value={buscaVincular}
+                    onChange={(e) => setBuscaVincular(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && buscarCandidatos()}
+                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20"
+                  />
+                </div>
+                <button onClick={buscarCandidatos} disabled={buscandoVincular} className="px-4 py-2.5 bg-[#1a2e4a] text-white rounded-lg text-sm font-semibold hover:bg-[#15253d] transition shrink-0">
+                  {buscandoVincular ? <Loader2 size={14} className="animate-spin" /> : 'Buscar'}
                 </button>
               </div>
 
+              {/* Loading */}
               {buscandoVincular && candidatosVincular.length === 0 && (
-                <div className="flex items-center justify-center py-6 gap-2 text-[#555] text-sm">
-                  <Loader2 size={16} className="animate-spin" />
-                  Buscando candidatos...
+                <div className="flex items-center justify-center py-8 gap-2 text-[#555] text-sm">
+                  <Loader2 size={16} className="animate-spin" /> Buscando lancamentos...
                 </div>
               )}
 
+              {/* Candidatos */}
               {candidatosVincular.length > 0 && (
-                <div className="max-h-60 overflow-y-auto border border-[#ccc] rounded divide-y divide-[#eee]">
-                  {candidatosVincular.map((c) => {
-                    const diff = Math.round((modalVincular.transacao!.valor - c.valor) * 100) / 100
-                    const absDiff = Math.abs(diff)
-                    return (
-                      <button
-                        key={`${c.tipo}-${c.id}`}
-                        onClick={() => vincular(c)}
-                        className="w-full text-left px-3 py-2.5 hover:bg-[#f0f4f8] transition"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                <div>
+                  <p className="text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">{candidatosVincular.length} lancamentos encontrados</p>
+                  <div className="max-h-[300px] overflow-y-auto border border-[#ddd] rounded-lg divide-y divide-[#eee]">
+                    {candidatosVincular.map((c) => {
+                      const diff = Math.round((modalVincular.transacao!.valor - c.valor) * 100) / 100
+                      const absDiff = Math.abs(diff)
+                      const isExact = absDiff < 0.01
+                      return (
+                        <button
+                          key={`${c.tipo}-${c.id}`}
+                          onClick={() => vincular(c)}
+                          className={`w-full text-left px-4 py-3 hover:bg-[#f0f4f8] transition flex items-center gap-3 ${isExact ? 'bg-[#f0fdf4]' : ''}`}
+                        >
+                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded shrink-0 ${
                             c.tipo === 'cr' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
                           }`}>
                             {c.tipo === 'cr' ? 'CR' : 'CP'}
                           </span>
-                          <p className="text-sm font-medium text-[#0a0a0a] truncate flex-1">{c.nome}</p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-xs text-[#555]">
-                            {formatBRL(c.valor)} - Venc. {formatData(c.data_vencimento)}
-                          </p>
-                          {absDiff >= 0.01 && (
-                            <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
-                              absDiff <= modalVincular.transacao!.valor * 0.05
-                                ? 'bg-[#fffbe6] text-[#5c3a00]'
-                                : 'bg-[#fdecea] text-[#8b0000]'
-                            }`}>
-                              {diff > 0 ? '+' : ''}{formatBRL(diff)} dif.
-                            </span>
-                          )}
-                          {absDiff < 0.01 && (
-                            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-[#e6f4ec] text-[#0a5c2e]">
-                              Valor exato
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-medium text-[#0a0a0a] truncate">{c.nome}</p>
+                            <p className="text-[11px] text-[#777]">Venc. {formatData(c.data_vencimento)}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[13px] font-bold text-[#0a0a0a]">{formatBRL(c.valor)}</p>
+                            {isExact ? (
+                              <span className="text-[9px] font-bold text-[#0a5c2e] bg-[#e6f4ec] px-1.5 py-0.5 rounded">VALOR EXATO</span>
+                            ) : (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${absDiff <= modalVincular.transacao!.valor * 0.05 ? 'bg-[#fffbe6] text-[#5c3a00]' : 'bg-[#fdecea] text-[#8b0000]'}`}>
+                                {diff > 0 ? '+' : ''}{formatBRL(diff)}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 
               {candidatosVincular.length === 0 && !buscandoVincular && (
-                <p className="text-xs text-[#999] text-center py-4">
-                  Nenhum resultado encontrado. Tente outro termo.
-                </p>
+                <p className="text-xs text-[#999] text-center py-6">Nenhum lancamento encontrado. Use o campo acima para buscar.</p>
               )}
             </div>
           </div>
@@ -2147,52 +1872,17 @@ export default function Conciliacao() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden">
             <div className="bg-[#1a2e4a] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                Salvar como Regra?
-              </h3>
-              <button
-                onClick={() =>
-                  setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })
-                }
-                className="text-white/70 hover:text-white text-lg leading-none"
-              >
-                &times;
-              </button>
+              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Salvar como Regra?</h3>
+              <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })} className="text-white/70 hover:text-white text-lg leading-none">&times;</button>
             </div>
             <div className="p-4 space-y-3">
-              <p className="text-sm text-[#555]">
-                Deseja salvar um padrao para classificar automaticamente transacoes semelhantes
-                no futuro?
-              </p>
-
+              <p className="text-sm text-[#555]">Salvar padrao para classificar automaticamente transacoes semelhantes?</p>
               <div>
-                <label className="block text-[11px] font-semibold text-[#0a0a0a] uppercase tracking-wider mb-1">
-                  Padrao de descricao
-                </label>
-                <input
-                  type="text"
-                  value={modalRegra.descricao}
-                  onChange={(e) =>
-                    setModalRegra((prev) => ({ ...prev, descricao: e.target.value }))
-                  }
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a]"
-                  placeholder="Ex: PIX RECEBIDO FULANO"
-                />
-                <p className="text-[10px] text-[#999] mt-1">
-                  Transacoes que contenham esse texto serao classificadas automaticamente.
-                </p>
+                <label className="block text-[11px] font-semibold text-[#0a0a0a] uppercase tracking-wider mb-1">Padrao de descricao</label>
+                <input type="text" value={modalRegra.descricao} onChange={(e) => setModalRegra((prev) => ({ ...prev, descricao: e.target.value }))} className="w-full border border-[#ccc] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a]" placeholder="Ex: PIX RECEBIDO FULANO" />
               </div>
-
               <div className="flex justify-end gap-2 pt-2">
-                <button
-                  onClick={() =>
-                    setModalRegra({
-                      aberto: false,
-                      descricao: '',
-                      tipo: '',
-                      transacaoId: '',
-                    })
-                  }
+                <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })}
                   className="px-4 py-2 text-xs border border-[#ccc] rounded text-[#555] hover:bg-gray-50 transition"
                 >
                   Nao, obrigada
