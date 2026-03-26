@@ -124,7 +124,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 description: product.description,
                 type: product.activity || "produto",
                 family: product.family || NONE,
-                account_id: (product as any).account_id || NONE,
+                account_id: (product as any).conta_contabil_id || (product as any).account_id || NONE,
                 taxation_type: product.taxation_type || "",
                 ncm: product.ncm || "",
                 cest: product.cest || "",
@@ -175,6 +175,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             if (!selectedCompany) throw new Error("Empresa não selecionada");
 
             const familyValue = values.family === NONE ? null : (values.family || null);
+            const contaContabilValue = values.account_id === NONE ? null : (values.account_id || null);
 
             const payload: any = {
                 company_id: selectedCompany.id,
@@ -188,6 +189,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 ncm: values.ncm || null,
                 cest: values.cest || null,
                 is_active: values.is_active === "ativo",
+                conta_contabil_id: contaContabilValue,
             };
 
             if (product) {
