@@ -49,7 +49,7 @@ export default function PlanoContas() {
 
   // Create form
   const [showForm, setShowForm] = useState(false);
-  const [newConta, setNewConta] = useState({ code: "", name: "", account_type: "expense", account_nature: "devedora", parent_code: "", show_in_dre: true, dre_group: "despesas_operacionais", dre_order: "" });
+  const [newConta, setNewConta] = useState({ code: "", name: "", account_type: "expense", account_nature: "debit", parent_code: "", show_in_dre: true, dre_group: "despesas_operacionais", dre_order: "" });
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -183,7 +183,7 @@ export default function PlanoContas() {
       toast.success("Conta criada");
       queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
       setShowForm(false);
-      setNewConta({ code: "", name: "", account_type: "expense", account_nature: "devedora", parent_code: "", show_in_dre: true, dre_group: "despesas_operacionais", dre_order: "" });
+      setNewConta({ code: "", name: "", account_type: "expense", account_nature: "debit", parent_code: "", show_in_dre: true, dre_group: "despesas_operacionais", dre_order: "" });
     } catch (err: any) { toast.error("Erro: " + (err.message || "Erro desconhecido")); }
   };
 
@@ -211,7 +211,7 @@ export default function PlanoContas() {
         <div className="flex flex-col gap-1">
           <label className={LB}>Natureza</label>
           <select value={editForm.account_nature} onChange={e => setEdit("account_nature", e.target.value)} className={IC}>
-            <option value="devedora">Devedora</option><option value="credora">Credora</option>
+            <option value="debit">Devedora</option><option value="credit">Credora</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -303,7 +303,7 @@ export default function PlanoContas() {
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Natureza</label>
                   <select value={newConta.account_nature} onChange={e => setNew("account_nature", e.target.value)} className={IC}>
-                    <option value="devedora">Devedora</option><option value="credora">Credora</option>
+                    <option value="debit">Devedora</option><option value="credit">Credora</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Grupo DRE</label>
