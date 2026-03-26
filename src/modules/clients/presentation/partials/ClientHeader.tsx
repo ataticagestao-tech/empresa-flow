@@ -1,13 +1,14 @@
 
 import { UseFormReturn } from "react-hook-form";
-import { User, Search, Globe } from "lucide-react";
+import { User, Globe } from "lucide-react";
 
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 
 import { ClientFormValues } from "../../domain/schemas/client.schema";
 import { maskCNPJ, maskCPF } from "@/utils/masks";
+import { toTitleCase } from "@/lib/format";
+import { validarDocumento } from "@/lib/validators";
 
 interface ClientHeaderProps {
     form: UseFormReturn<ClientFormValues>;
@@ -16,6 +17,9 @@ interface ClientHeaderProps {
 }
 
 export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeaderProps) {
+    const cpfCnpjValue = form.watch("cpf_cnpj");
+    const docInvalido = cpfCnpjValue && cpfCnpjValue.replace(/\D/g, '').length > 0 && !validarDocumento(cpfCnpjValue);
+
     return (
         <div className="flex flex-col md:flex-row gap-6 items-start bg-[#F8FAFC]/50 p-6 rounded-lg border border-[#F1F5F9] mb-6 transition-all hover:bg-[#F8FAFC]">
             {/* Área do Logo */}
@@ -31,7 +35,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
             {/* Campos Principais */}
             <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-12 gap-4">
 
-                {/* Linha 1: Tipo de Pessoa (Topo Direita) e Razão Social (Topo Esquerda) */}
+                {/* Linha 1: Razão Social e Tipo Pessoa */}
                 <div className="md:col-span-8 space-y-1">
                     <FormField
                         control={form.control}
@@ -40,7 +44,16 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-xs font-bold uppercase">Razão Social / Nome Completo</FormLabel>
                                 <FormControl>
-                                    <Input className="h-10 border-[#E2E8F0] focus:border-green-500 focus:ring-green-500/20" placeholder="Digite o nome principal" {...field} />
+                                    <Input
+                                        className="h-10 border-[#E2E8F0] focus:border-green-500 focus:ring-green-500/20"
+                                        placeholder="Digite o nome principal"
+                                        {...field}
+                                        onBlur={(e) => {
+                                            field.onBlur();
+                                            const formatado = toTitleCase(e.target.value);
+                                            form.setValue('razao_social', formatado, { shouldValidate: false });
+                                        }}
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -101,7 +114,17 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-xs font-bold uppercase">Nome Fantasia (Opcional)</FormLabel>
                                 <FormControl>
-                                    <Input className="h-10 border-[#E2E8F0] focus:border-green-500 focus:ring-green-500/20" placeholder="Nome comercial" {...field} />
+                                    <Input
+                                        className="h-10 border-[#E2E8F0] focus:border-green-500 focus:ring-green-500/20"
+                                        placeholder="Nome comercial"
+                                        {...field}
+                                        onBlur={(e) => {
+                                            field.onBlur();
+                                            if (e.target.value) {
+                                                form.setValue('nome_fantasia', toTitleCase(e.target.value), { shouldValidate: false });
+                                            }
+                                        }}
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -144,6 +167,14 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                             maxLength={18}
                                         />
                                     </FormControl>
+                                    <p className="text-[11px] text-muted-foreground mt-1">
+                                        Opcional — usado para vincular pagamentos automaticamente
+                                    </p>
+                                    {docInvalido && (
+                                        <p className="text-[11px] text-[#8b0000] mt-1">
+                                            CPF ou CNPJ inválido — verifique os dígitos
+                                        </p>
+                                    )}
                                     <FormMessage />
                                 </FormItem>
                             );

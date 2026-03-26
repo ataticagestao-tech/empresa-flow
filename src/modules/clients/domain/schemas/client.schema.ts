@@ -9,13 +9,13 @@ export const ClientSchema = z.object({
     tipo_pessoa: z.enum(["PF", "PJ"]),
     razao_social: z.string().min(1, "Razão social é obrigatória"),
     nome_fantasia: z.string().optional(),
-    cpf_cnpj: z.string().min(1, "CPF/CNPJ é obrigatório"),
+    cpf_cnpj: z.string().optional().or(z.literal("")),
     category_id: z.string().optional(),
 
     // Contato
     contato_nome: z.string().optional(),
     email: z.string().email("Email inválido").optional().or(z.literal("")),
-    telefone: z.string().optional(),
+    telefone: z.string().min(1, "Telefone obrigatório"),
     telefone_2: z.string().optional(),
     celular: z.string().optional(),
     fax: z.string().optional(),

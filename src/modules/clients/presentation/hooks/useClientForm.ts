@@ -11,6 +11,7 @@ import { maskCEP, maskCNPJ, maskCPF, maskPhone, unmask } from "@/utils/masks";
 
 import { ClientSchema, ClientFormValues } from "../../domain/schemas/client.schema";
 import { fetchAddressByCep, fetchCompanyByCnpj } from "../../infra/client.services";
+import { toTitleCase } from "@/lib/format";
 
 type UseClientFormProps = {
     onSuccess: () => void;
@@ -149,8 +150,10 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
             const payload = {
                 ...rest,
                 company_id: selectedCompany.id,
+                razao_social: toTitleCase(values.razao_social),
+                nome_fantasia: values.nome_fantasia ? toTitleCase(values.nome_fantasia) : values.nome_fantasia,
                 endereco_cep: unmask(cep || ""),
-                cpf_cnpj: unmask(values.cpf_cnpj || ""),
+                cpf_cnpj: unmask(values.cpf_cnpj || "") || null,
                 telefone: unmask(values.telefone || ""),
                 telefone_2: unmask(values.telefone_2 || ""),
                 celular: unmask(values.celular || ""),

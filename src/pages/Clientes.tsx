@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import {
-    Plus, Search, Pencil, Trash2, MoreHorizontal, Bell,
-    ArrowUpCircle, ArrowDownCircle, AlertTriangle, Users as UsersIcon, Eye,
+    Plus, Search, Pencil, Trash2, MoreHorizontal, Bell, Eye,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,18 +15,88 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { maskCNPJ, maskCPF, maskPhone } from "@/utils/masks";
-import { formatCurrency } from "@/utils/formatters";
 import { logDeletion } from "@/lib/audit";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
+    Dialog, DialogContent,
 } from "@/components/ui/dialog";
+import { formatBRL, toTitleCase, getIniciais, formatDoc, formatData } from "@/lib/format";
+import { maskPhone } from "@/utils/masks";
+
+/* ─── Componentes visuais inline ────────────────────────────── */
+
+const StatusClienteBadge = ({ status }: { status: string }) => {
+    const estilos: Record<string, string> = {
+        inadimplente: 'text-[#8b0000] border-[#8b0000] bg-[#fdecea]',
+        ativo:        'text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]',
+        em_dia:       'text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]',
+        inativo:      'text-[#555]    border-[#aaa]    bg-[#f5f5f5]',
+    };
+    const labels: Record<string, string> = {
+        inadimplente: 'Inadimplente',
+        ativo:        'Em aberto',
+        em_dia:       'Em dia',
+        inativo:      'Inativo',
+    };
+    return (
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${estilos[status] ?? estilos.inativo}`}>
+            {labels[status] ?? status}
+        </span>
+    );
+};
+
+const PontualidadeBadge = ({ pagosNoPrazo, totalPagos }: { pagosNoPrazo: number; totalPagos: number }) => {
+    if (totalPagos === 0) {
+        return <span className="text-[11px] text-[#555]">—</span>;
+    }
+    const pct = Math.round((pagosNoPrazo / totalPagos) * 100);
+    const estilo =
+        pct >= 80
+            ? 'text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]'
+            : pct >= 50
+            ? 'text-[#5c3a00] border-[#b8960a] bg-[#fffbe6]'
+            : 'text-[#8b0000] border-[#8b0000] bg-[#fdecea]';
+    return (
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border border-[1.5px] ${estilo}`}>
+            {pct}% no prazo
+        </span>
+    );
+};
+
+const KPICard = ({ label, valor, sub }: { label: string; valor: string | number; sub: string }) => (
+    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+        <div className="bg-[#1a2e4a] px-3.5 py-2">
+            <span className="text-[10px] font-bold text-white uppercase tracking-widest">{label}</span>
+        </div>
+        <div className="px-3.5 py-3 bg-white">
+            <div className="text-xl font-bold text-[#0a0a0a] tracking-tight">{valor}</div>
+            <div className="text-[11px] text-[#555] mt-0.5">{sub}</div>
+        </div>
+    </div>
+);
+
+const crStatusBadge = (status: string) => {
+    const map: Record<string, string> = {
+        pago:      'text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]',
+        vencido:   'text-[#8b0000] border-[#8b0000] bg-[#fdecea]',
+        parcial:   'text-[#5c3a00] border-[#b8960a] bg-[#fffbe6]',
+        aberto:    'text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]',
+        cancelado: 'text-[#555] border-[#aaa] bg-[#f5f5f5]',
+    };
+    const labels: Record<string, string> = {
+        pago: 'Pago', vencido: 'Vencido', parcial: 'Parcial', aberto: 'Aberto', cancelado: 'Cancelado',
+    };
+    return (
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${map[status] ?? map.aberto}`}>
+            {labels[status] ?? status}
+        </span>
+    );
+};
+
+/* ─── Interfaces ────────────────────────────────────────────── */
 
 interface FinancialSummary {
     totalReceber: number;
@@ -41,6 +110,17 @@ interface FinancialSummary {
     payables: any[];
 }
 
+interface DetailFinancial {
+    crs: any[];
+    aReceber: number;
+    vencido: number;
+    totalPago: number;
+    pagosNoPrazo: number;
+    totalPagos: number;
+}
+
+/* ─── Componente principal ──────────────────────────────────── */
+
 export default function Clientes() {
     const { selectedCompany } = useCompany();
     const { activeClient, isUsingSecondary, user } = useAuth();
@@ -48,12 +128,16 @@ export default function Clientes() {
     const [editingClient, setEditingClient] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [detailClient, setDetailClient] = useState<any>(null);
+    const [detailFinancial, setDetailFinancial] = useState<DetailFinancial | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
     const { toast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
     const normalizeSearch = (value: unknown) =>
         String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+    /* ─── Queries ───────────────────────────────────────────── */
 
     const { data: clients, isLoading, refetch } = useQuery({
         queryKey: ["clients", selectedCompany?.id, isUsingSecondary],
@@ -76,7 +160,7 @@ export default function Clientes() {
             if (!selectedCompany?.id) return [];
             const { data, error } = await activeClient
                 .from("contas_receber")
-                .select("id, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_vencimento, status")
+                .select("id, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_vencimento, data_pagamento, status")
                 .eq("company_id", selectedCompany.id);
             if (error) throw error;
             return data || [];
@@ -97,6 +181,8 @@ export default function Clientes() {
         },
         enabled: !!selectedCompany?.id,
     });
+
+    /* ─── Mapa financeiro por cliente ───────────────────────── */
 
     const financialByClient = useMemo(() => {
         const map = new Map<string, FinancialSummary>();
@@ -197,6 +283,8 @@ export default function Clientes() {
         };
     };
 
+    /* ─── Totais KPI ────────────────────────────────────────── */
+
     const totals = useMemo(() => {
         let totalReceberAberto = 0;
         let totalVencido = 0;
@@ -212,6 +300,82 @@ export default function Clientes() {
         return { totalReceberAberto, totalVencido, clientesInadimplentes };
     }, [clients, financialByClient]);
 
+    /* ─── Status derivado do cliente ────────────────────────── */
+
+    const getClientStatus = (client: any): string => {
+        const fin = getClientFinancial(client);
+        if (fin.totalReceberVencido > 0) return 'inadimplente';
+        if (fin.totalReceberAberto > 0) return 'ativo';
+        return 'em_dia';
+    };
+
+    /* ─── Busca financeiro detalhado (modal) ────────────────── */
+
+    const buscarFinanceiroCliente = async (cliente: any) => {
+        if (!selectedCompany?.id) return;
+        setDetailLoading(true);
+
+        const docLimpo = (cliente.cpf_cnpj ?? '').replace(/\D/g, '');
+        const docValido = docLimpo.length > 0 && !/^0+$/.test(docLimpo);
+
+        let query = activeClient
+            .from('contas_receber')
+            .select('id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes')
+            .eq('company_id', selectedCompany.id)
+            .order('data_vencimento', { ascending: false });
+
+        if (docValido) {
+            query = query.eq('pagador_cpf_cnpj', cliente.cpf_cnpj!);
+        } else {
+            query = query.ilike('pagador_nome', `%${cliente.razao_social.trim()}%`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('[buscarFinanceiroCliente]', error.message);
+            setDetailFinancial({ crs: [], aReceber: 0, vencido: 0, totalPago: 0, pagosNoPrazo: 0, totalPagos: 0 });
+            setDetailLoading(false);
+            return;
+        }
+
+        const lista = data ?? [];
+
+        const aReceber = lista
+            .filter(cr => !['pago', 'cancelado'].includes(cr.status))
+            .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
+
+        const vencido = lista
+            .filter(cr =>
+                cr.status === 'vencido' ||
+                (!['pago', 'cancelado'].includes(cr.status) &&
+                    cr.data_vencimento != null &&
+                    new Date(cr.data_vencimento) < new Date())
+            )
+            .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
+
+        const pagos = lista.filter(cr => cr.status === 'pago');
+        const totalPago = pagos.reduce((acc, cr) => acc + Number(cr.valor_pago ?? 0), 0);
+
+        const pagosNoPrazo = pagos.filter(cr =>
+            cr.data_pagamento != null &&
+            cr.data_vencimento != null &&
+            new Date(cr.data_pagamento) <= new Date(cr.data_vencimento)
+        ).length;
+
+        setDetailFinancial({
+            crs: lista,
+            aReceber,
+            vencido,
+            totalPago,
+            pagosNoPrazo,
+            totalPagos: pagos.length,
+        });
+        setDetailLoading(false);
+    };
+
+    /* ─── Handlers ──────────────────────────────────────────── */
+
     useEffect(() => {
         if (searchParams.get("new") === "true") {
             handleNew();
@@ -223,6 +387,12 @@ export default function Clientes() {
 
     const handleEdit = (client: any) => { setEditingClient(client); setIsSheetOpen(true); };
     const handleNew = () => { setEditingClient(null); setIsSheetOpen(true); };
+
+    const handleOpenDetail = (client: any) => {
+        setDetailClient(client);
+        setDetailFinancial(null);
+        buscarFinanceiroCliente(client);
+    };
 
     const handleDelete = async (client: any) => {
         const ok = window.confirm(`Excluir o cliente "${client.razao_social}"?`);
@@ -243,33 +413,18 @@ export default function Clientes() {
         }
     };
 
-    const getInitials = (name: string) =>
-        name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+    /* ─── Filtro de busca ───────────────────────────────────── */
 
     const filteredClients = clients?.filter((client) => {
         const needle = normalizeSearch(searchTerm);
         if (!needle) return true;
-        const doc = client.cpf_cnpj || "";
-        const maskedDoc = doc ? (doc.length > 11 ? maskCNPJ(doc) : maskCPF(doc)) : "";
         return normalizeSearch(
-            [client.razao_social, client.nome_fantasia, doc, maskedDoc, client.email,
+            [client.razao_social, client.nome_fantasia, client.cpf_cnpj, client.email,
              client.telefone, client.celular, client.category?.name].filter(Boolean).join(" ")
         ).includes(needle);
     });
 
-    const statusBadge = (status: string) => {
-        const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-            aberto: { label: "Aberto", variant: "outline" },
-            pago: { label: "Pago", variant: "default" },
-            vencido: { label: "Vencido", variant: "destructive" },
-            parcial: { label: "Parcial", variant: "secondary" },
-            cancelado: { label: "Cancelado", variant: "secondary" },
-        };
-        const info = map[status] || { label: status, variant: "outline" as const };
-        return <Badge variant={info.variant} className="text-[10px]">{info.label}</Badge>;
-    };
-
-    const detailFinancial = detailClient ? getClientFinancial(detailClient) : null;
+    /* ─── Render ────────────────────────────────────────────── */
 
     return (
         <AppLayout title="Clientes">
@@ -288,59 +443,11 @@ export default function Clientes() {
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="border-l-4 border-l-blue-500">
-                        <CardContent className="pt-4 pb-3 px-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Total Clientes</p>
-                                    <p className="text-2xl font-bold text-foreground mt-1">{clients?.length || 0}</p>
-                                </div>
-                                <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
-                                    <UsersIcon className="h-5 w-5 text-blue-500" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-emerald-500">
-                        <CardContent className="pt-4 pb-3 px-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">A Receber (Aberto)</p>
-                                    <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(totals.totalReceberAberto)}</p>
-                                </div>
-                                <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center">
-                                    <ArrowUpCircle className="h-5 w-5 text-emerald-500" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-red-500">
-                        <CardContent className="pt-4 pb-3 px-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Vencido</p>
-                                    <p className="text-2xl font-bold text-red-600 mt-1">{formatCurrency(totals.totalVencido)}</p>
-                                </div>
-                                <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center">
-                                    <AlertTriangle className="h-5 w-5 text-red-500" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-l-4 border-l-amber-500">
-                        <CardContent className="pt-4 pb-3 px-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Inadimplentes</p>
-                                    <p className="text-2xl font-bold text-amber-600 mt-1">{totals.clientesInadimplentes}</p>
-                                </div>
-                                <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center">
-                                    <Bell className="h-5 w-5 text-amber-500" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <KPICard label="Total clientes" valor={clients?.length || 0} sub="cadastrados" />
+                    <KPICard label="A receber (aberto)" valor={formatBRL(totals.totalReceberAberto)} sub="em aberto" />
+                    <KPICard label="Vencido" valor={formatBRL(totals.totalVencido)} sub="em atraso" />
+                    <KPICard label="Inadimplentes" valor={totals.clientesInadimplentes} sub="clientes" />
                 </div>
 
                 {/* Table */}
@@ -395,29 +502,30 @@ export default function Clientes() {
                                     filteredClients?.map((client) => {
                                         const fin = getClientFinancial(client);
                                         const hasOverdue = fin.totalReceberVencido > 0;
+                                        const clientStatus = getClientStatus(client);
                                         return (
                                             <TableRow key={client.id} className="group">
                                                 <TableCell>
-                                                    <Avatar className="h-8 w-8 border border-[#E2E8F0]">
-                                                        <AvatarFallback className="bg-[#EFF6FF] text-[#2563EB] text-[11px] font-semibold">
-                                                            {getInitials(client.razao_social)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
+                                                    <div className="w-8 h-8 rounded-full bg-[#1a2e4a] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                                                        {getIniciais(client.razao_social)}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-semibold text-[12.5px] text-foreground">{client.razao_social}</div>
+                                                    <div className="text-[13px] font-semibold text-[#0a0a0a]">
+                                                        {toTitleCase(client.razao_social)}
+                                                    </div>
                                                     {client.nome_fantasia && (
-                                                        <div className="text-[11px] text-muted-foreground mt-0.5">{client.nome_fantasia}</div>
+                                                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                                                            {toTitleCase(client.nome_fantasia)}
+                                                        </div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground font-mono text-[11.5px]">
-                                                    {client.cpf_cnpj
-                                                        ? (client.cpf_cnpj.length > 11 ? maskCNPJ(client.cpf_cnpj) : maskCPF(client.cpf_cnpj))
-                                                        : "-"}
+                                                <TableCell className="text-[12px] text-[#555]">
+                                                    {formatDoc(client.cpf_cnpj)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col text-[12.5px] text-foreground">
-                                                        <span>{client.email || "-"}</span>
+                                                        <span>{client.email || "—"}</span>
                                                         <span className="text-[11px] text-muted-foreground">
                                                             {client.celular ? maskPhone(client.celular) : (client.telefone ? maskPhone(client.telefone) : "")}
                                                         </span>
@@ -425,35 +533,24 @@ export default function Clientes() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {fin.totalReceberAberto > 0 ? (
-                                                        <span className="text-[12px] font-medium text-emerald-600">
-                                                            {formatCurrency(fin.totalReceberAberto)}
+                                                        <span className="text-[12px] font-medium text-[#1a2e4a]">
+                                                            {formatBRL(fin.totalReceberAberto)}
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[11px] text-muted-foreground">-</span>
+                                                        <span className="text-[11px] text-muted-foreground">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {fin.totalPagarAberto > 0 ? (
                                                         <span className="text-[12px] font-medium text-orange-600">
-                                                            {formatCurrency(fin.totalPagarAberto)}
+                                                            {formatBRL(fin.totalPagarAberto)}
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[11px] text-muted-foreground">-</span>
+                                                        <span className="text-[11px] text-muted-foreground">—</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-center">
-                                                    {hasOverdue ? (
-                                                        <Badge variant="destructive" className="text-[10px]">
-                                                            <AlertTriangle className="h-3 w-3 mr-1" />
-                                                            Inadimplente
-                                                        </Badge>
-                                                    ) : fin.totalReceberAberto > 0 ? (
-                                                        <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700">
-                                                            Em dia
-                                                        </Badge>
-                                                    ) : (
-                                                        <span className="text-[11px] text-muted-foreground">-</span>
-                                                    )}
+                                                    <StatusClienteBadge status={clientStatus} />
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>
@@ -465,7 +562,7 @@ export default function Clientes() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                                            <DropdownMenuItem onClick={() => setDetailClient(client)}>
+                                                            <DropdownMenuItem onClick={() => handleOpenDetail(client)}>
                                                                 <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
                                                                 Ver Financeiro
                                                             </DropdownMenuItem>
@@ -496,128 +593,120 @@ export default function Clientes() {
                     </CardContent>
                 </Card>
 
-                {/* Detail Dialog */}
-                <Dialog open={!!detailClient} onOpenChange={(open) => !open && setDetailClient(null)}>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8 border border-[#E2E8F0]">
-                                    <AvatarFallback className="bg-[#EFF6FF] text-[#2563EB] text-[11px] font-semibold">
-                                        {detailClient ? getInitials(detailClient.razao_social) : ""}
-                                    </AvatarFallback>
-                                </Avatar>
-                                {detailClient?.razao_social}
-                            </DialogTitle>
-                        </DialogHeader>
-
-                        {detailFinancial && (
-                            <div className="space-y-6 mt-2">
-                                {/* Summary cards */}
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="rounded-lg border p-3 text-center">
-                                        <p className="text-[10px] text-muted-foreground uppercase">A Receber</p>
-                                        <p className="text-lg font-bold text-emerald-600">{formatCurrency(detailFinancial.totalReceberAberto)}</p>
-                                        <p className="text-[10px] text-muted-foreground">{detailFinancial.countReceber} títulos</p>
-                                    </div>
-                                    <div className="rounded-lg border p-3 text-center">
-                                        <p className="text-[10px] text-muted-foreground uppercase">Vencido</p>
-                                        <p className="text-lg font-bold text-red-600">{formatCurrency(detailFinancial.totalReceberVencido)}</p>
-                                    </div>
-                                    <div className="rounded-lg border p-3 text-center">
-                                        <p className="text-[10px] text-muted-foreground uppercase">A Pagar</p>
-                                        <p className="text-lg font-bold text-orange-600">{formatCurrency(detailFinancial.totalPagarAberto)}</p>
-                                        <p className="text-[10px] text-muted-foreground">{detailFinancial.countPagar} títulos</p>
+                {/* ─── Modal Ver Financeiro ──────────────────────── */}
+                <Dialog open={!!detailClient} onOpenChange={(open) => { if (!open) { setDetailClient(null); setDetailFinancial(null); } }}>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0">
+                        {detailClient && (
+                            <>
+                                {/* Cabeçalho azul marinho */}
+                                <div className="bg-[#1a2e4a] px-5 py-4 flex items-center justify-between rounded-t-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-white/20 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
+                                            {getIniciais(detailClient.razao_social)}
+                                        </div>
+                                        <div>
+                                            <div className="text-[15px] font-bold text-white leading-tight">
+                                                {toTitleCase(detailClient.razao_social)}
+                                            </div>
+                                            <div className="text-[11px] text-[#a8bfd4] mt-0.5">
+                                                {formatDoc(detailClient.cpf_cnpj)}
+                                                {detailClient.telefone ? ` · ${maskPhone(detailClient.telefone)}` : ''}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Receivables */}
-                                {detailFinancial.receivables.length > 0 && (
-                                    <div>
-                                        <h4 className="text-[12px] font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                                            <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />
-                                            Contas a Receber ({detailFinancial.receivables.length})
-                                        </h4>
-                                        <div className="border rounded-lg overflow-hidden">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow className="hover:bg-transparent">
-                                                        <TableHead className="text-[11px]">Vencimento</TableHead>
-                                                        <TableHead className="text-[11px] text-right">Valor</TableHead>
-                                                        <TableHead className="text-[11px] text-right">Pago</TableHead>
-                                                        <TableHead className="text-[11px] text-center">Status</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {detailFinancial.receivables.map((r: any) => (
-                                                        <TableRow key={r.id}>
-                                                            <TableCell className="text-[11.5px]">
-                                                                {r.data_vencimento ? new Date(r.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "-"}
-                                                            </TableCell>
-                                                            <TableCell className="text-[11.5px] text-right font-medium">
-                                                                {formatCurrency(Number(r.valor || 0))}
-                                                            </TableCell>
-                                                            <TableCell className="text-[11.5px] text-right">
-                                                                {formatCurrency(Number(r.valor_pago || 0))}
-                                                            </TableCell>
-                                                            <TableCell className="text-center">{statusBadge(r.status)}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
+                                {detailLoading ? (
+                                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2" />
+                                        Carregando...
                                     </div>
-                                )}
-
-                                {/* Payables */}
-                                {detailFinancial.payables.length > 0 && (
-                                    <div>
-                                        <h4 className="text-[12px] font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                                            <ArrowDownCircle className="h-3.5 w-3.5 text-orange-500" />
-                                            Contas a Pagar ({detailFinancial.payables.length})
-                                        </h4>
-                                        <div className="border rounded-lg overflow-hidden">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow className="hover:bg-transparent">
-                                                        <TableHead className="text-[11px]">Vencimento</TableHead>
-                                                        <TableHead className="text-[11px] text-right">Valor</TableHead>
-                                                        <TableHead className="text-[11px] text-right">Pago</TableHead>
-                                                        <TableHead className="text-[11px] text-center">Status</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {detailFinancial.payables.map((p: any) => (
-                                                        <TableRow key={p.id}>
-                                                            <TableCell className="text-[11.5px]">
-                                                                {p.data_vencimento ? new Date(p.data_vencimento + "T12:00:00").toLocaleDateString("pt-BR") : "-"}
-                                                            </TableCell>
-                                                            <TableCell className="text-[11.5px] text-right font-medium">
-                                                                {formatCurrency(Number(p.valor || 0))}
-                                                            </TableCell>
-                                                            <TableCell className="text-[11.5px] text-right">
-                                                                {formatCurrency(Number(p.valor_pago || 0))}
-                                                            </TableCell>
-                                                            <TableCell className="text-center">{statusBadge(p.status)}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
+                                ) : detailFinancial ? (
+                                    <>
+                                        {/* KPIs do modal */}
+                                        <div className="grid grid-cols-3 gap-2.5 p-4 border-b border-[#eee]">
+                                            {([
+                                                { label: 'A receber', valor: detailFinancial.aReceber, cor: detailFinancial.aReceber > 0 ? '#1a2e4a' : '#555' },
+                                                { label: 'Vencido', valor: detailFinancial.vencido, cor: detailFinancial.vencido > 0 ? '#8b0000' : '#0a5c2e' },
+                                                { label: 'Total pago', valor: detailFinancial.totalPago, cor: '#0a5c2e' },
+                                            ] as const).map(kpi => (
+                                                <div key={kpi.label} className="border border-[#ccc] rounded-lg overflow-hidden">
+                                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                                                            {kpi.label}
+                                                        </span>
+                                                    </div>
+                                                    <div className="px-3 py-2.5 bg-white">
+                                                        <div className="text-lg font-bold leading-tight" style={{ color: kpi.cor }}>
+                                                            {formatBRL(kpi.valor)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                )}
 
-                                {/* Régua action */}
-                                {detailFinancial.totalReceberVencido > 0 && (
-                                    <Button
-                                        variant="outline"
-                                        className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
-                                        onClick={() => { setDetailClient(null); navigate("/regua-cobranca"); }}
-                                    >
-                                        <Bell className="h-4 w-4 mr-2" />
-                                        Configurar Régua de Cobrança
-                                    </Button>
-                                )}
-                            </div>
+                                        {/* Cabeçalho CRs + pontualidade */}
+                                        <div className="px-4 py-2.5 flex items-center justify-between border-b border-[#eee]">
+                                            <span className="text-[11px] font-semibold text-[#555]">
+                                                Contas a Receber ({detailFinancial.crs.length})
+                                            </span>
+                                            <PontualidadeBadge pagosNoPrazo={detailFinancial.pagosNoPrazo} totalPagos={detailFinancial.totalPagos} />
+                                        </div>
+
+                                        {/* Lista de CRs */}
+                                        {detailFinancial.crs.length > 0 ? (
+                                            <div className="px-4 pb-4">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow className="hover:bg-transparent">
+                                                            <TableHead className="text-[11px]">Vencimento</TableHead>
+                                                            <TableHead className="text-[11px] text-right">Valor</TableHead>
+                                                            <TableHead className="text-[11px] text-right">Pago</TableHead>
+                                                            <TableHead className="text-[11px] text-center">Status</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {detailFinancial.crs.map((cr: any) => (
+                                                            <TableRow key={cr.id}>
+                                                                <TableCell className="text-[11.5px]">
+                                                                    {formatData(cr.data_vencimento)}
+                                                                </TableCell>
+                                                                <TableCell className="text-[11.5px] text-right font-medium">
+                                                                    {formatBRL(Number(cr.valor || 0))}
+                                                                </TableCell>
+                                                                <TableCell className="text-[11.5px] text-right">
+                                                                    {formatBRL(Number(cr.valor_pago || 0))}
+                                                                </TableCell>
+                                                                <TableCell className="text-center">
+                                                                    {crStatusBadge(cr.status)}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        ) : (
+                                            <div className="px-4 py-8 text-center text-[12px] text-muted-foreground">
+                                                Nenhuma conta a receber encontrada para este cliente.
+                                            </div>
+                                        )}
+
+                                        {/* Botão régua */}
+                                        {detailFinancial.vencido > 0 && (
+                                            <div className="px-4 pb-4">
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                                                    onClick={() => { setDetailClient(null); navigate("/regua-cobranca"); }}
+                                                >
+                                                    <Bell className="h-4 w-4 mr-2" />
+                                                    Configurar Régua de Cobrança
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : null}
+                            </>
                         )}
                     </DialogContent>
                 </Dialog>

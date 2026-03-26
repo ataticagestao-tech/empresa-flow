@@ -43,7 +43,7 @@ export function TabContact({ form }: TabContactProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-1">
-                                <Phone className="w-3 h-3" /> Telefone Fixo
+                                <Phone className="w-3 h-3" /> Telefone Fixo <span className="text-red-500">*</span>
                             </FormLabel>
                             <FormControl>
                                 <Input
@@ -53,6 +53,7 @@ export function TabContact({ form }: TabContactProps) {
                                     maxLength={15}
                                 />
                             </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
