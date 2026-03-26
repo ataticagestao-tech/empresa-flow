@@ -408,15 +408,23 @@ export default function Conciliacao() {
       const txList = ((transacoes || []) as any[]).map(mapDbToTx)
       const txIds = txList.map((t) => t.id)
 
-      const matches = await safeQuery(
-        async () =>
-          await activeClient
-            .from('bank_reconciliation_matches')
-            .select('*')
-            .eq('company_id', companyId)
-            .in('bank_transaction_id', txIds),
-        'carregar matches'
-      )
+      // Fetch matches in batches to avoid huge IN() queries
+      const allMatches: any[] = []
+      const batchSize = 50
+      for (let i = 0; i < txIds.length; i += batchSize) {
+        const batchIds = txIds.slice(i, i + batchSize)
+        const batchData = await safeQuery(
+          async () =>
+            await activeClient
+              .from('bank_reconciliation_matches')
+              .select('*')
+              .eq('company_id', companyId)
+              .in('bank_transaction_id', batchIds),
+          'carregar matches'
+        )
+        if (batchData) allMatches.push(...(batchData as any[]))
+      }
+      const matches = allMatches
       const matchList = (matches || []) as MatchRecord[]
       const matchMap = new Map<string, MatchRecord>()
       matchList.forEach((m) => matchMap.set(m.bank_transaction_id, m))
@@ -765,8 +773,13 @@ export default function Conciliacao() {
         }
       }
 
-      await carregarDados()
-      await carregarImportBatches()
+      // Update local state instead of reloading
+      setMatchesEnriquecidos(prev => prev.map(m => {
+        if (m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)) {
+          return { ...m, match: { ...m.match, status: 'aprovado' } }
+        }
+        return m
+      }))
       alert(`Conciliacao salva! ${pendentes.length} transacoes aprovadas.`)
     } catch (err) {
       console.error('[SalvarConciliacao]', err)
@@ -774,7 +787,7 @@ export default function Conciliacao() {
     } finally {
       setSalvando(false)
     }
-  }, [companyId, activeClient, matchesEnriquecidos, iaPatterns, carregarDados, carregarImportBatches])
+  }, [companyId, activeClient, matchesEnriquecidos, iaPatterns])
 
   // ── Delete import batch ───────────────────────────────────────
   const excluirImportBatch = useCallback(async (txIds: string[]) => {
@@ -813,12 +826,34 @@ export default function Conciliacao() {
 
   // ── Categorize transaction (set category_id) ──────────────────
   const categorizarTransacao = useCallback(async (txId: string, categoryId: string) => {
-    await activeClient
+    const { error } = await activeClient
       .from('bank_transactions')
       .update({ category_id: categoryId })
       .eq('id', txId)
-    await carregarDados()
-  }, [activeClient, carregarDados])
+    if (error) {
+      console.error('[Categorizar]', error)
+      alert('Erro ao categorizar transacao.')
+      return
+    }
+    // Update local state instead of reloading everything
+    const catName = planoContas.find(c => c.id === categoryId)
+    setMatchesEnriquecidos(prev => prev.map(item => {
+      if (item.transacao.id === txId) {
+        return {
+          ...item,
+          sugestaoIA: catName ? {
+            descricao_similar: '',
+            tipo_lancamento: item.transacao.tipo === 'credito' ? 'cr' as const : 'cp' as const,
+            lancamento_nome: `${catName.code} - ${catName.name}`,
+            confianca: 100,
+            categoria_id: categoryId,
+            categoria_nome: `${catName.code} - ${catName.name}`,
+          } : item.sugestaoIA,
+        }
+      }
+      return item
+    }))
+  }, [activeClient, planoContas])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -1122,7 +1157,13 @@ export default function Conciliacao() {
       }
     }
 
-    await carregarDados()
+    // Update local state
+    setMatchesEnriquecidos(prev => prev.map(m => {
+      if (m.match?.id === matchId) {
+        return { ...m, match: { ...m.match!, status: 'aprovado' } }
+      }
+      return m
+    }))
   }
 
   // ── Batch approval ─────────────────────────────────────────────
@@ -1160,7 +1201,13 @@ export default function Conciliacao() {
       .from('bank_reconciliation_matches')
       .update({ status: 'ignorado' })
       .eq('id', matchId)
-    await carregarDados()
+    // Update local state
+    setMatchesEnriquecidos(prev => prev.map(m => {
+      if (m.match?.id === matchId) {
+        return { ...m, match: { ...m.match!, status: 'ignorado' } }
+      }
+      return m
+    }))
   }
 
   // ── Vincular a CP/CR ───────────────────────────────────────────
@@ -1266,7 +1313,22 @@ export default function Conciliacao() {
     }
 
     setModalVincular({ transacao: null, aberto: false })
-    await carregarDados()
+    // Update local state
+    setMatchesEnriquecidos(prev => prev.map(m => {
+      if (m.transacao.id === tx.id) {
+        const matchRecord: MatchRecord = {
+          id: existing?.match?.id || 'temp-' + Date.now(),
+          company_id: companyId,
+          bank_transaction_id: tx.id,
+          lancamento_id: candidato.id,
+          tipo_lancamento: candidato.tipo,
+          status,
+          diferenca: diff,
+        }
+        return { ...m, match: matchRecord, lancamento: candidato }
+      }
+      return m
+    }))
   }
 
   // ── Criar movimentacao (nao_reconhecido) ───────────────────────
@@ -1319,7 +1381,13 @@ export default function Conciliacao() {
         .eq('id', item.match.id)
     }
 
-    await carregarDados()
+    // Update local state
+    setMatchesEnriquecidos(prev => prev.map(m => {
+      if (m.transacao.id === tx.id && m.match) {
+        return { ...m, match: { ...m.match, status: 'aprovado' } }
+      }
+      return m
+    }))
   }
 
   // ── Salvar regra ───────────────────────────────────────────────
