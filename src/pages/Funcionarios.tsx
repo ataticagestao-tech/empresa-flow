@@ -239,6 +239,7 @@ export default function Funcionarios() {
       if (formData.agencia_folha) payload.agencia_folha = formData.agencia_folha.trim();
       if (formData.conta_folha) payload.conta_folha = formData.conta_folha.trim();
       if (formData.tipo_conta_folha) payload.tipo_conta_folha = formData.tipo_conta_folha;
+      if (formData.chave_pix_folha) payload.chave_pix_folha = formData.chave_pix_folha.trim();
       if (formData.centro_custo_id) payload.centro_custo_id = formData.centro_custo_id;
       // Don't send status on insert — let DB default handle it
       // Only send on update when we know the current value works
@@ -439,6 +440,10 @@ export default function Funcionarios() {
                           <option value="">Selecione</option><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="pix">PIX</option>
                         </select>
                       </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={LB}>Chave PIX</label>
+                      <input value={formData.chave_pix_folha} onChange={e => set("chave_pix_folha", e.target.value)} className={IC} placeholder="CPF, email, telefone ou chave aleatória" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Status {REQ}</label>
