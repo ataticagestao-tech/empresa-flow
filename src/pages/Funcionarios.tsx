@@ -240,56 +240,33 @@ export default function Funcionarios() {
       if (formData.conta_folha) payload.conta_folha = formData.conta_folha.trim();
       if (formData.tipo_conta_folha) payload.tipo_conta_folha = formData.tipo_conta_folha;
       if (formData.centro_custo_id) payload.centro_custo_id = formData.centro_custo_id;
-      payload.status = formData.status;
+      // Don't send status on insert — let DB default handle it
+      // Only send on update when we know the current value works
+      if (selectedId && !isCreating) {
+        payload.status = formData.status;
+      }
 
       console.log("Payload:", JSON.stringify(payload));
 
-      // Try insert/update, if fails with unknown column, retry without problematic cols
-      const tryInsertOrUpdate = async (p: Record<string, any>): Promise<{ error: any }> => {
+      const doSave = async (p: Record<string, any>) => {
         if (selectedId && !isCreating) {
           return await (activeClient as any).from("employees").update(p).eq("id", selectedId);
-        } else {
-          return await (activeClient as any).from("employees").insert(p);
         }
+        return await (activeClient as any).from("employees").insert(p);
       };
 
-      let { error } = await tryInsertOrUpdate(payload);
+      let { error } = await doSave(payload);
 
-      // If error, try without 'nome_completo' (maybe DB uses 'name')
+      // Retry without 'nome_completo' if DB only has 'name'
       if (error && error.message?.includes("nome_completo")) {
         delete payload.nome_completo;
-        const r = await tryInsertOrUpdate(payload);
-        error = r.error;
+        ({ error } = await doSave(payload));
       }
-      // If error, try without 'name' (maybe DB uses 'nome_completo')
-      if (error && error.message?.includes("name")) {
+      // Retry without 'name' if DB only has 'nome_completo'
+      else if (error && error.message?.includes("column") && error.message?.includes("name")) {
         delete payload.name;
         payload.nome_completo = nameVal;
-        const r = await tryInsertOrUpdate(payload);
-        error = r.error;
-      }
-      // If status check fails, try other values
-      if (error && error.message?.includes("status")) {
-        const statusMap: Record<string, string> = { active: "ativo", inactive: "inativo", ativo: "active", inativo: "inactive" };
-        payload.status = statusMap[payload.status] || payload.status;
-        const r = await tryInsertOrUpdate(payload);
-        error = r.error;
-      }
-      // If still error with unknown columns, try minimal payload
-      if (error && (error.code === "PGRST204" || error.message?.includes("column"))) {
-        const minimal: Record<string, any> = { company_id: selectedCompany.id };
-        if (payload.nome_completo) minimal.nome_completo = payload.nome_completo;
-        if (payload.name) minimal.name = payload.name;
-        if (payload.status) minimal.status = payload.status;
-        if (payload.role) minimal.role = payload.role;
-        if (payload.email) minimal.email = payload.email;
-        if (payload.phone) minimal.phone = payload.phone;
-        if (payload.cpf) minimal.cpf = payload.cpf;
-        if (payload.salary != null) minimal.salary = payload.salary;
-        if (payload.hire_date) minimal.hire_date = payload.hire_date;
-        console.log("Trying minimal payload:", JSON.stringify(minimal));
-        const r = await tryInsertOrUpdate(minimal);
-        error = r.error;
+        ({ error } = await doSave(payload));
       }
 
       if (error) throw error;
