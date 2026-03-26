@@ -1203,16 +1203,31 @@ export default function Conciliacao() {
     }
   }
 
-  // ── Ignorar ────────────────────────────────────────────────────
-  const ignorar = async (matchId: string) => {
-    await activeClient
-      .from('bank_reconciliation_matches')
-      .update({ status: 'ignorado' })
-      .eq('id', matchId)
+  // ── Ignorar (com ou sem match existente) ──────────────────────
+  const ignorarTransacao = async (txId: string, matchId: string | null) => {
+    if (matchId) {
+      await activeClient
+        .from('bank_reconciliation_matches')
+        .update({ status: 'ignorado' })
+        .eq('id', matchId)
+    } else if (companyId) {
+      // Create a new match with status ignorado
+      await activeClient.from('bank_reconciliation_matches').insert({
+        company_id: companyId,
+        bank_transaction_id: txId,
+        lancamento_id: null,
+        tipo_lancamento: null,
+        status: 'ignorado',
+        diferenca: null,
+      })
+    }
     // Update local state
     setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.match?.id === matchId) {
-        return { ...m, match: { ...m.match!, status: 'ignorado' } }
+      if (m.transacao.id === txId) {
+        const updatedMatch: MatchRecord = m.match
+          ? { ...m.match, status: 'ignorado' }
+          : { id: 'temp-' + Date.now(), company_id: companyId || '', bank_transaction_id: txId, lancamento_id: null, tipo_lancamento: null, status: 'ignorado', diferenca: null }
+        return { ...m, match: updatedMatch }
       }
       return m
     }))
@@ -1381,18 +1396,30 @@ export default function Conciliacao() {
       transacaoId: tx.id,
     })
 
-    // Update match status
+    // Update match status or create one
     if (item.match) {
       await activeClient
         .from('bank_reconciliation_matches')
         .update({ status: 'aprovado' })
         .eq('id', item.match.id)
+    } else {
+      await activeClient.from('bank_reconciliation_matches').insert({
+        company_id: companyId,
+        bank_transaction_id: tx.id,
+        lancamento_id: null,
+        tipo_lancamento: null,
+        status: 'aprovado',
+        diferenca: null,
+      })
     }
 
     // Update local state
     setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.transacao.id === tx.id && m.match) {
-        return { ...m, match: { ...m.match, status: 'aprovado' } }
+      if (m.transacao.id === tx.id) {
+        const updatedMatch: MatchRecord = m.match
+          ? { ...m.match, status: 'aprovado' }
+          : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: null, status: 'aprovado', diferenca: null }
+        return { ...m, match: updatedMatch }
       }
       return m
     }))
@@ -1731,8 +1758,8 @@ export default function Conciliacao() {
                                         <Plus size={14} />
                                       </button>
                                     )}
-                                    {mt && status === 'nao_reconhecido' && (
-                                      <button onClick={() => ignorar(mt.id)} className="p-1.5 rounded bg-gray-100 text-gray-500 hover:bg-gray-200 transition" title="Ignorar">
+                                    {(status === 'nao_reconhecido' || status === 'pendente') && (
+                                      <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="p-1.5 rounded bg-gray-100 text-gray-500 hover:bg-gray-200 transition" title="Ignorar">
                                         <EyeOff size={14} />
                                       </button>
                                     )}
