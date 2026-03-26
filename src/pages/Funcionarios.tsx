@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 
 interface Employee {
-  id: string; company_id: string; name: string; role: string | null;
+  id: string; company_id: string; nome_completo: string; role: string | null;
   email: string | null; phone: string | null;
   cpf: string | null; rg: string | null; data_nascimento: string | null;
   hire_date: string | null; data_demissao: string | null;
@@ -98,12 +98,12 @@ export default function Funcionarios() {
     enabled: !!selectedCompany?.id,
   });
 
-  const { data: employees = [], isLoading } = useQuery({
+  const { data: employees = [], isLoading, error: employeesError } = useQuery({
     queryKey: ["employees", selectedCompany?.id],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
       const { data, error } = await (activeClient as any)
-        .from("employees").select("*").eq("company_id", selectedCompany.id).order("name");
+        .from("employees").select("*").eq("company_id", selectedCompany.id).order("nome_completo");
       if (error) throw error;
       return data as Employee[];
     },
@@ -113,7 +113,7 @@ export default function Funcionarios() {
   const filtered = employees.filter(e => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return e.name.toLowerCase().includes(q) || (e.role || "").toLowerCase().includes(q) || (e.cpf || "").includes(q);
+    return (e.nome_completo || "").toLowerCase().includes(q) || (e.role || "").toLowerCase().includes(q) || (e.cpf || "").includes(q);
   });
 
   const selected = employees.find(e => e.id === selectedId) || null;
@@ -123,7 +123,7 @@ export default function Funcionarios() {
     setSelectedId(emp.id);
     setIsCreating(false);
     setFormData({
-      name: emp.name || "", role: emp.role || "",
+      name: emp.nome_completo || "", role: emp.role || "",
       email: emp.email || "", phone: emp.phone || "",
       cpf: emp.cpf || "", rg: emp.rg || "", data_nascimento: emp.data_nascimento || "",
       hire_date: emp.hire_date || "", data_demissao: emp.data_demissao || "",
@@ -147,7 +147,7 @@ export default function Funcionarios() {
     try {
       const salarioVal = formData.salary ? parseFloat(formData.salary.replace(",", ".")) : null;
       const payload = {
-        company_id: selectedCompany.id, name: formData.name.trim(),
+        company_id: selectedCompany.id, nome_completo: formData.name.trim(), name: formData.name.trim(),
         role: formData.role || null,
         email: formData.email || null, phone: formData.phone || null,
         cpf: formData.cpf || null, rg: formData.rg || null,
@@ -177,7 +177,7 @@ export default function Funcionarios() {
   };
 
   const handleDelete = async (emp: Employee) => {
-    if (!confirm(`Excluir "${emp.name}"?`)) return;
+    if (!confirm(`Excluir "${emp.nome_completo}"?`)) return;
     try {
       const { error } = await (activeClient as any).from("employees").delete().eq("id", emp.id);
       if (error) throw error;
@@ -194,7 +194,7 @@ export default function Funcionarios() {
   const inssPatronal = Math.round(calcSalario * 0.20 * 100) / 100;
   const custoTotal = Math.round((calcSalario + fgts + inssPatronal) * 100) / 100;
 
-  const initials = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const initials = (name: string) => (name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
   const showDetail = selected || isCreating;
 
   return (
@@ -210,7 +210,8 @@ export default function Funcionarios() {
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className={IC} />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {isLoading ? <p className="text-center py-8 text-sm text-[#555]">Carregando...</p> :
+            {employeesError ? <p className="text-center py-8 text-sm text-[#8b0000]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
+             isLoading ? <p className="text-center py-8 text-sm text-[#555]">Carregando...</p> :
              filtered.length === 0 ? <p className="text-center py-8 text-sm text-[#555]">Nenhum funcionário</p> :
              filtered.map(emp => (
               <div key={emp.id} onClick={() => startEdit(emp)}

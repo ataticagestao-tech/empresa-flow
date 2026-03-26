@@ -55,6 +55,7 @@ import Inventario from "./pages/Inventario";
 import Documentos from "./pages/Documentos";
 import MultiEmpresa from "./pages/MultiEmpresa";
 import ContratosRecorrentes from "./pages/ContratosRecorrentes";
+import EmpresaResumo from "./pages/EmpresaResumo";
 
 const queryClient = new QueryClient();
 
@@ -150,6 +151,7 @@ const App = () => (
                     <Route path="/dashboard/:id" element={<CompanyDashboard />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route path="/empresas" element={<Empresas />} />
+                    <Route path="/empresas/:id" element={<EmpresaResumo />} />
                     <Route path="/clientes" element={<Clientes />} />
                     <Route path="/funcionarios" element={<Funcionarios />} />
                     <Route path="/fornecedores" element={<Fornecedores />} />
