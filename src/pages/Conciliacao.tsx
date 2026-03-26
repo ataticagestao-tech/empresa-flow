@@ -826,14 +826,22 @@ export default function Conciliacao() {
 
   // ── Categorize transaction (set category_id) ──────────────────
   const categorizarTransacao = useCallback(async (txId: string, categoryId: string) => {
-    const { error } = await activeClient
+    // Try category_id first, fallback to conta_contabil_id
+    let { error } = await activeClient
       .from('bank_transactions')
       .update({ category_id: categoryId })
       .eq('id', txId)
     if (error) {
-      console.error('[Categorizar]', error)
-      alert('Erro ao categorizar transacao.')
-      return
+      console.warn('[Categorizar] category_id failed, trying conta_contabil_id:', error.message)
+      const res = await activeClient
+        .from('bank_transactions')
+        .update({ conta_contabil_id: categoryId })
+        .eq('id', txId)
+      if (res.error) {
+        console.error('[Categorizar] both fields failed:', res.error)
+        alert('Erro: ' + (res.error.message || 'coluna category_id nao existe na tabela bank_transactions. Rode a migration 20260324120000.'))
+        return
+      }
     }
     // Update local state instead of reloading everything
     const catName = planoContas.find(c => c.id === categoryId)
