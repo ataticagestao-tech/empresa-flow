@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 
 interface Employee {
-  id: string; company_id: string; nome_completo: string; role: string | null;
-  email: string | null; phone: string | null;
+  id: string; company_id: string;
+  nome_completo?: string | null; name?: string | null;
+  role: string | null; email: string | null; phone: string | null;
   cpf: string | null; rg: string | null; data_nascimento: string | null;
   hire_date: string | null; data_demissao: string | null;
   salary: number | null; salario_base: number | null;
@@ -20,6 +21,8 @@ interface Employee {
   status: string; created_at: string;
 }
 
+const getName = (e: Employee) => e.nome_completo || e.name || "";
+
 const emptyForm = {
   name: "", role: "", email: "", phone: "",
   cpf: "", rg: "", data_nascimento: "",
@@ -27,12 +30,19 @@ const emptyForm = {
   pis: "", ctps_numero: "", ctps_serie: "",
   banco_folha: "", agencia_folha: "", conta_folha: "", tipo_conta_folha: "", chave_pix_folha: "",
   centro_custo_id: "",
-  status: "ativo",
+  status: "active",
 };
 
 const tipoContratoLabels: Record<string, string> = {
   clt: "CLT", pj: "PJ", autonomo: "Autônomo", estagio: "Estágio", temporario: "Temporário",
 };
+
+const BANCOS_BR = [
+  "Banco do Brasil", "Bradesco", "Caixa Econômica Federal", "Itaú Unibanco",
+  "Santander", "Nubank", "Inter", "C6 Bank", "BTG Pactual", "Safra",
+  "Sicoob", "Sicredi", "Banrisul", "Original", "PagBank", "Mercado Pago",
+  "Neon", "Next", "Picpay", "Stone", "Outro",
+];
 
 const INSS_2025 = [
   { min: 0, max: 1518.00, aliq: 0.075 },
@@ -69,8 +79,40 @@ const calcularIRRF = (salario: number, inss: number, dependentes: number) => {
   return 0;
 };
 
+// Formatters
+const titleCase = (str: string) =>
+  str.toLowerCase().replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+
+const formatCPF = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return d.slice(0, 3) + "." + d.slice(3);
+  if (d.length <= 9) return d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6);
+  return d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9);
+};
+
+const formatPhone = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? "(" + d : "";
+  if (d.length <= 6) return "(" + d.slice(0, 2) + ") " + d.slice(2);
+  if (d.length <= 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
+  return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+};
+
+const formatSalary = (v: string) => {
+  const clean = v.replace(/[^\d,]/g, "");
+  const parts = clean.split(",");
+  if (parts.length > 2) return parts[0] + "," + parts.slice(1).join("");
+  if (parts[1] && parts[1].length > 2) return parts[0] + "," + parts[1].slice(0, 2);
+  return clean;
+};
+
+const onlyDigits = (v: string) => v.replace(/\D/g, "");
+
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full";
+const ICE = "border border-[#c00] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-[#fff8f8] focus:border-[#c00] focus:outline-none w-full";
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
+const REQ = <span className="text-[#8b0000]">*</span>;
 
 export default function Funcionarios() {
   const { activeClient } = useAuth();
@@ -85,6 +127,7 @@ export default function Funcionarios() {
   const [saving, setSaving] = useState(false);
   const [calcSalario, setCalcSalario] = useState(0);
   const [calcDependentes, setCalcDependentes] = useState(0);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
 
   const { data: centrosCusto = [] } = useQuery({
     queryKey: ["centros_custo", selectedCompany?.id],
@@ -103,7 +146,7 @@ export default function Funcionarios() {
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
       const { data, error } = await (activeClient as any)
-        .from("employees").select("*").eq("company_id", selectedCompany.id).order("nome_completo");
+        .from("employees").select("*").eq("company_id", selectedCompany.id).order("created_at", { ascending: false });
       if (error) throw error;
       return data as Employee[];
     },
@@ -113,17 +156,22 @@ export default function Funcionarios() {
   const filtered = employees.filter(e => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return (e.nome_completo || "").toLowerCase().includes(q) || (e.role || "").toLowerCase().includes(q) || (e.cpf || "").includes(q);
+    const n = getName(e).toLowerCase();
+    return n.includes(q) || (e.role || "").toLowerCase().includes(q) || (e.cpf || "").includes(q);
   });
 
   const selected = employees.find(e => e.id === selectedId) || null;
-  const set = (k: string, v: string) => setFormData(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: string) => {
+    setFormData(f => ({ ...f, [k]: v }));
+    setErrors(e => ({ ...e, [k]: false }));
+  };
 
   const startEdit = (emp: Employee) => {
     setSelectedId(emp.id);
     setIsCreating(false);
+    setErrors({});
     setFormData({
-      name: emp.nome_completo || "", role: emp.role || "",
+      name: getName(emp), role: emp.role || "",
       email: emp.email || "", phone: emp.phone || "",
       cpf: emp.cpf || "", rg: emp.rg || "", data_nascimento: emp.data_nascimento || "",
       hire_date: emp.hire_date || "", data_demissao: emp.data_demissao || "",
@@ -133,51 +181,130 @@ export default function Funcionarios() {
       banco_folha: emp.banco_folha || "", agencia_folha: emp.agencia_folha || "",
       conta_folha: emp.conta_folha || "", tipo_conta_folha: emp.tipo_conta_folha || "",
       chave_pix_folha: emp.chave_pix_folha || "", centro_custo_id: emp.centro_custo_id || "",
-      status: emp.status || "ativo",
+      status: emp.status || "active",
     });
     setCalcSalario(emp.salario_base || emp.salary || 0);
     setTab("dados");
   };
 
-  const startNew = () => { setSelectedId(null); setIsCreating(true); setFormData(emptyForm); setTab("dados"); };
+  const startNew = () => { setSelectedId(null); setIsCreating(true); setFormData(emptyForm); setErrors({}); setTab("dados"); };
+
+  const validate = () => {
+    const errs: Record<string, boolean> = {};
+    if (!formData.name.trim()) errs.name = true;
+    if (!formData.cpf.trim() || formData.cpf.replace(/\D/g, "").length < 11) errs.cpf = true;
+    if (!formData.data_nascimento) errs.data_nascimento = true;
+    if (!formData.role.trim()) errs.role = true;
+    if (!formData.tipo_contrato) errs.tipo_contrato = true;
+    if (!formData.centro_custo_id) errs.centro_custo_id = true;
+    if (!formData.hire_date) errs.hire_date = true;
+    if (!formData.salary.trim()) errs.salary = true;
+    if (!formData.banco_folha) errs.banco_folha = true;
+    if (!formData.agencia_folha.trim()) errs.agencia_folha = true;
+    if (!formData.conta_folha.trim()) errs.conta_folha = true;
+    if (!formData.tipo_conta_folha) errs.tipo_conta_folha = true;
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return false;
+    }
+    return true;
+  };
 
   const handleSave = async () => {
-    if (!selectedCompany?.id || !formData.name.trim()) { toast.error("Nome é obrigatório"); return; }
+    if (!selectedCompany?.id) return;
+    if (!validate()) return;
     setSaving(true);
     try {
-      const salarioVal = formData.salary ? parseFloat(formData.salary.replace(",", ".")) : null;
-      const payload = {
-        company_id: selectedCompany.id, nome_completo: formData.name.trim(), name: formData.name.trim(),
-        role: formData.role || null,
-        email: formData.email || null, phone: formData.phone || null,
-        cpf: formData.cpf || null, rg: formData.rg || null,
-        data_nascimento: formData.data_nascimento || null,
-        hire_date: formData.hire_date || null, data_demissao: formData.data_demissao || null,
-        salary: salarioVal, salario_base: salarioVal,
-        tipo_contrato: formData.tipo_contrato || null,
-        pis: formData.pis || null, ctps_numero: formData.ctps_numero || null, ctps_serie: formData.ctps_serie || null,
-        banco_folha: formData.banco_folha || null, agencia_folha: formData.agencia_folha || null,
-        conta_folha: formData.conta_folha || null, tipo_conta_folha: formData.tipo_conta_folha || null,
-        chave_pix_folha: formData.chave_pix_folha || null,
-        centro_custo_id: formData.centro_custo_id || null, status: formData.status,
+      const salarioVal = formData.salary ? parseFloat(formData.salary.replace(/\./g, "").replace(",", ".")) : null;
+      const nameVal = titleCase(formData.name.trim());
+
+      // Build payload dynamically — only include fields with values
+      const payload: Record<string, any> = {
+        company_id: selectedCompany.id,
+        nome_completo: nameVal,
+        name: nameVal,
       };
-      if (selectedId && !isCreating) {
-        const { error } = await (activeClient as any).from("employees").update(payload).eq("id", selectedId);
-        if (error) throw error;
-        toast.success("Funcionário atualizado");
-      } else {
-        const { error } = await (activeClient as any).from("employees").insert(payload);
-        if (error) throw error;
-        toast.success("Funcionário cadastrado");
-        setIsCreating(false);
+
+      if (formData.role) payload.role = titleCase(formData.role.trim());
+      if (formData.email) payload.email = formData.email.trim().toLowerCase();
+      if (formData.phone) payload.phone = formData.phone.trim();
+      if (formData.cpf) payload.cpf = formData.cpf.trim();
+      if (formData.data_nascimento) payload.data_nascimento = formData.data_nascimento;
+      if (formData.hire_date) payload.hire_date = formData.hire_date;
+      if (formData.data_demissao) payload.data_demissao = formData.data_demissao;
+      if (salarioVal !== null) { payload.salary = salarioVal; payload.salario_base = salarioVal; }
+      if (formData.tipo_contrato) payload.tipo_contrato = formData.tipo_contrato;
+      if (formData.banco_folha) payload.banco_folha = formData.banco_folha;
+      if (formData.agencia_folha) payload.agencia_folha = formData.agencia_folha.trim();
+      if (formData.conta_folha) payload.conta_folha = formData.conta_folha.trim();
+      if (formData.tipo_conta_folha) payload.tipo_conta_folha = formData.tipo_conta_folha;
+      if (formData.centro_custo_id) payload.centro_custo_id = formData.centro_custo_id;
+      payload.status = formData.status;
+
+      console.log("Payload:", JSON.stringify(payload));
+
+      // Try insert/update, if fails with unknown column, retry without problematic cols
+      const tryInsertOrUpdate = async (p: Record<string, any>): Promise<{ error: any }> => {
+        if (selectedId && !isCreating) {
+          return await (activeClient as any).from("employees").update(p).eq("id", selectedId);
+        } else {
+          return await (activeClient as any).from("employees").insert(p);
+        }
+      };
+
+      let { error } = await tryInsertOrUpdate(payload);
+
+      // If error, try without 'nome_completo' (maybe DB uses 'name')
+      if (error && error.message?.includes("nome_completo")) {
+        delete payload.nome_completo;
+        const r = await tryInsertOrUpdate(payload);
+        error = r.error;
       }
+      // If error, try without 'name' (maybe DB uses 'nome_completo')
+      if (error && error.message?.includes("name")) {
+        delete payload.name;
+        payload.nome_completo = nameVal;
+        const r = await tryInsertOrUpdate(payload);
+        error = r.error;
+      }
+      // If status check fails, try other values
+      if (error && error.message?.includes("status")) {
+        const statusMap: Record<string, string> = { active: "ativo", inactive: "inativo", ativo: "active", inativo: "inactive" };
+        payload.status = statusMap[payload.status] || payload.status;
+        const r = await tryInsertOrUpdate(payload);
+        error = r.error;
+      }
+      // If still error with unknown columns, try minimal payload
+      if (error && (error.code === "PGRST204" || error.message?.includes("column"))) {
+        const minimal: Record<string, any> = { company_id: selectedCompany.id };
+        if (payload.nome_completo) minimal.nome_completo = payload.nome_completo;
+        if (payload.name) minimal.name = payload.name;
+        if (payload.status) minimal.status = payload.status;
+        if (payload.role) minimal.role = payload.role;
+        if (payload.email) minimal.email = payload.email;
+        if (payload.phone) minimal.phone = payload.phone;
+        if (payload.cpf) minimal.cpf = payload.cpf;
+        if (payload.salary != null) minimal.salary = payload.salary;
+        if (payload.hire_date) minimal.hire_date = payload.hire_date;
+        console.log("Trying minimal payload:", JSON.stringify(minimal));
+        const r = await tryInsertOrUpdate(minimal);
+        error = r.error;
+      }
+
+      if (error) throw error;
+      toast.success(selectedId && !isCreating ? "Funcionário atualizado" : "Funcionário cadastrado");
+      if (isCreating) setIsCreating(false);
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-    } catch (err: any) { toast.error("Erro: " + (err.message || "Erro desconhecido")); }
+    } catch (err: any) {
+      console.error("Erro ao salvar:", err);
+      toast.error("Erro: " + (err.message || err.details || err.hint || "Erro desconhecido"));
+    }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (emp: Employee) => {
-    if (!confirm(`Excluir "${emp.nome_completo}"?`)) return;
+    if (!confirm(`Excluir "${getName(emp)}"?`)) return;
     try {
       const { error } = await (activeClient as any).from("employees").delete().eq("id", emp.id);
       if (error) throw error;
@@ -196,6 +323,13 @@ export default function Funcionarios() {
 
   const initials = (name: string) => (name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
   const showDetail = selected || isCreating;
+  const ic = (field: string) => errors[field] ? ICE : IC;
+  const statusLabel = (s: string) => {
+    if (s === "active" || s === "ativo") return "Ativo";
+    if (s === "inactive" || s === "inativo") return "Inativo";
+    return s;
+  };
+  const isActive = (s: string) => s === "active" || s === "ativo";
 
   return (
     <AppLayout title="Funcionários">
@@ -218,16 +352,16 @@ export default function Funcionarios() {
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#f0f0f0] transition-all ${
                   selectedId === emp.id ? "bg-[#f0f4f8] border-l-2 border-l-[#1a2e4a]" : "hover:bg-[#fafafa]"
                 }`}>
-                <div className="w-9 h-9 rounded-full bg-[#1a2e4a] flex items-center justify-center text-white text-xs font-bold shrink-0">{initials(emp.name)}</div>
+                <div className="w-9 h-9 rounded-full bg-[#1a2e4a] flex items-center justify-center text-white text-xs font-bold shrink-0">{initials(getName(emp))}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#0a0a0a] truncate">{emp.name}</p>
+                  <p className="text-sm font-semibold text-[#0a0a0a] truncate">{getName(emp)}</p>
                   <p className="text-[11px] text-[#555] truncate">{emp.role || "Sem cargo"} · {tipoContratoLabels[emp.tipo_contrato || ""] || "—"}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-xs font-bold text-[#0a0a0a]">{formatBRL(emp.salario_base || emp.salary || 0)}</p>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                    emp.status === "ativo" || emp.status === "active" ? "bg-[#e6f4ec] text-[#0a5c2e]" : "bg-[#f0f0f0] text-[#555]"
-                  }`}>{emp.status === "ativo" || emp.status === "active" ? "Ativo" : emp.status}</span>
+                    isActive(emp.status) ? "bg-[#e6f4ec] text-[#0a5c2e]" : "bg-[#f0f0f0] text-[#555]"
+                  }`}>{statusLabel(emp.status)}</span>
                 </div>
               </div>
             ))}
@@ -255,42 +389,84 @@ export default function Funcionarios() {
                 {tab === "dados" && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="flex flex-col gap-1"><label className={LB}>Nome Completo <span className="text-[#8b0000]">*</span></label><input value={formData.name} onChange={e => set("name", e.target.value)} className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>CPF</label><input value={formData.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Data de Nascimento</label><input type="date" value={formData.data_nascimento} onChange={e => set("data_nascimento", e.target.value)} className={IC} /></div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Nome Completo {REQ}</label>
+                        <input value={formData.name} onChange={e => set("name", titleCase(e.target.value))} className={ic("name")} placeholder="Nome Sobrenome" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>CPF {REQ}</label>
+                        <input value={formData.cpf} onChange={e => set("cpf", formatCPF(e.target.value))} className={ic("cpf")} placeholder="000.000.000-00" maxLength={14} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Data de Nascimento {REQ}</label>
+                        <input type="date" value={formData.data_nascimento} onChange={e => set("data_nascimento", e.target.value)} className={ic("data_nascimento")} />
+                      </div>
                     </div>
                     <div className="grid grid-cols-5 gap-4">
-                      <div className="flex flex-col gap-1"><label className={LB}>Cargo</label><input value={formData.role} onChange={e => set("role", e.target.value)} className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Tipo Contrato</label>
-                        <select value={formData.tipo_contrato} onChange={e => set("tipo_contrato", e.target.value)} className={IC}>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Cargo {REQ}</label>
+                        <input value={formData.role} onChange={e => set("role", titleCase(e.target.value))} className={ic("role")} placeholder="Ex: Vendedora" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Tipo Contrato {REQ}</label>
+                        <select value={formData.tipo_contrato} onChange={e => set("tipo_contrato", e.target.value)} className={ic("tipo_contrato")}>
+                          <option value="">Selecione</option>
                           <option value="clt">CLT</option><option value="pj">PJ</option><option value="autonomo">Autônomo</option><option value="estagio">Estágio</option>
                         </select>
                       </div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Centro de Custo</label>
-                        <select value={formData.centro_custo_id} onChange={e => set("centro_custo_id", e.target.value)} className={IC}>
-                          <option value="">Nenhum</option>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Centro de Custo {REQ}</label>
+                        <select value={formData.centro_custo_id} onChange={e => set("centro_custo_id", e.target.value)} className={ic("centro_custo_id")}>
+                          <option value="">Selecione</option>
                           {centrosCusto.map((c: any) => <option key={c.id} value={c.id}>{c.codigo ? `${c.codigo} — ` : ""}{c.descricao}</option>)}
                         </select>
                       </div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Data Admissão</label><input type="date" value={formData.hire_date} onChange={e => set("hire_date", e.target.value)} className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Salário Base (R$)</label><input value={formData.salary} onChange={e => set("salary", e.target.value)} placeholder="0,00" className={IC} /></div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Data Admissão {REQ}</label>
+                        <input type="date" value={formData.hire_date} onChange={e => set("hire_date", e.target.value)} className={ic("hire_date")} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Salário Base (R$) {REQ}</label>
+                        <input value={formData.salary} onChange={e => set("salary", formatSalary(e.target.value))} className={ic("salary")} placeholder="0,00" />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1"><label className={LB}>Email</label><input type="email" value={formData.email} onChange={e => set("email", e.target.value)} className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Telefone</label><input value={formData.phone} onChange={e => set("phone", e.target.value)} className={IC} /></div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Email</label>
+                        <input type="email" value={formData.email} onChange={e => set("email", e.target.value)} className={IC} placeholder="email@exemplo.com" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Telefone</label>
+                        <input value={formData.phone} onChange={e => set("phone", formatPhone(e.target.value))} className={IC} placeholder="(00) 00000-0000" maxLength={15} />
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="flex flex-col gap-1"><label className={LB}>Banco</label><input value={formData.banco_folha} onChange={e => set("banco_folha", e.target.value)} className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Agência / Conta</label><input value={formData.agencia_folha} onChange={e => set("agencia_folha", e.target.value)} placeholder="0000 / 00000-0" className={IC} /></div>
-                      <div className="flex flex-col gap-1"><label className={LB}>Tipo de Conta</label>
-                        <select value={formData.tipo_conta_folha} onChange={e => set("tipo_conta_folha", e.target.value)} className={IC}>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Banco {REQ}</label>
+                        <select value={formData.banco_folha} onChange={e => set("banco_folha", e.target.value)} className={ic("banco_folha")}>
+                          <option value="">Selecione</option>
+                          {BANCOS_BR.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Agência {REQ}</label>
+                        <input value={formData.agencia_folha} onChange={e => set("agencia_folha", onlyDigits(e.target.value))} className={ic("agencia_folha")} placeholder="0000" maxLength={6} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Conta {REQ}</label>
+                        <input value={formData.conta_folha} onChange={e => set("conta_folha", onlyDigits(e.target.value))} className={ic("conta_folha")} placeholder="00000000" maxLength={12} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className={LB}>Tipo de Conta {REQ}</label>
+                        <select value={formData.tipo_conta_folha} onChange={e => set("tipo_conta_folha", e.target.value)} className={ic("tipo_conta_folha")}>
                           <option value="">Selecione</option><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="pix">PIX</option>
                         </select>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1"><label className={LB}>Status</label>
+                    <div className="flex flex-col gap-1">
+                      <label className={LB}>Status {REQ}</label>
                       <select value={formData.status} onChange={e => set("status", e.target.value)} className={`${IC} max-w-[200px]`}>
-                        <option value="ativo">Ativo</option><option value="inativo">Inativo</option><option value="afastado">Afastado</option><option value="ferias">Férias</option>
+                        <option value="active">Ativo</option><option value="inactive">Inativo</option>
                       </select>
                     </div>
                     <button onClick={handleSave} disabled={saving} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
