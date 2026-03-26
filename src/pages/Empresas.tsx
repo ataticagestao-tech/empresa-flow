@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -27,6 +28,7 @@ const emptyForm = {
 
 export default function Empresas() {
   const { user, activeClient } = useAuth();
+  const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const { companies, isLoading, error: companiesError, deleteCompany, refetch } = useCompanies(user?.id);
 
@@ -165,6 +167,8 @@ export default function Empresas() {
   };
 
   const filtered = (companies || []).filter(c => {
+    // Show only the selected company
+    if (selectedCompany && c.id !== selectedCompany.id) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return c.razao_social?.toLowerCase().includes(q) || c.nome_fantasia?.toLowerCase().includes(q) ||
@@ -397,12 +401,14 @@ export default function Empresas() {
             className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <input type="text" placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)}
-            className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none flex-1 min-w-[200px]" />
-          <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]">{companies?.length || 0} empresas</span>
-          <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">{companiesWithCharts.size} configuradas</span>
-        </div>
+        {!selectedCompany && (
+          <div className="flex flex-wrap items-center gap-3">
+            <input type="text" placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)}
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none flex-1 min-w-[200px]" />
+            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]">{companies?.length || 0} empresas</span>
+            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">{companiesWithCharts.size} configuradas</span>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="text-center py-16 text-sm text-[#555]">Carregando empresas...</div>
