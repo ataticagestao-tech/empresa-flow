@@ -11,12 +11,9 @@ ALTER TABLE bank_reconciliation_matches
   ADD COLUMN IF NOT EXISTS tipo_lancamento TEXT,
   ADD COLUMN IF NOT EXISTS diferenca DECIMAL(15, 2);
 
--- 2) Adicionar coluna banco em bank_accounts (código busca 'banco')
+-- 2) Garantir coluna banco em bank_accounts (código busca 'banco')
 ALTER TABLE bank_accounts
   ADD COLUMN IF NOT EXISTS banco TEXT;
-
--- 3) Preencher banco a partir de bank_name onde ainda não tiver
-UPDATE bank_accounts SET banco = bank_name WHERE banco IS NULL AND bank_name IS NOT NULL;
 
 -- 4) Índices para as novas colunas
 CREATE INDEX IF NOT EXISTS idx_brm_lancamento_id ON bank_reconciliation_matches(lancamento_id);
