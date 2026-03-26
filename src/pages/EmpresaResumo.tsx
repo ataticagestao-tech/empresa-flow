@@ -3,10 +3,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, Phone, Mail, Calendar, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt } from "lucide-react";
+import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck } from "lucide-react";
 
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
-const VAL = "text-sm text-[#0a0a0a] font-medium";
 
 const regimeLabels: Record<string, string> = {
   simples_nacional: "Simples Nacional",
@@ -29,6 +28,20 @@ export default function EmpresaResumo() {
       return data;
     },
     enabled: !!id,
+  });
+
+  const { data: qsa = [], isLoading: qsaLoading } = useQuery({
+    queryKey: ["empresa_qsa", company?.cnpj],
+    queryFn: async () => {
+      const cnpj = company.cnpj?.replace(/\D/g, "");
+      if (!cnpj || cnpj.length !== 14) return [];
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!res.ok) return [];
+      const d = await res.json();
+      return (d.qsa || []) as { nome_socio: string; qualificacao_socio: string; data_entrada_sociedade?: string }[];
+    },
+    enabled: !!company?.cnpj,
+    staleTime: 1000 * 60 * 60,
   });
 
   const { data: stats } = useQuery({
@@ -185,17 +198,51 @@ export default function EmpresaResumo() {
             </div>
           </div>
 
-          {/* Responsável */}
+          {/* Responsável + Quadro Societário */}
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
             <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center gap-2">
               <User size={14} className="text-[#a8bfd4]" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Responsável</h3>
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Responsável & Quadro Societário</h3>
             </div>
-            <div className="p-5 bg-white space-y-3">
-              <Row label="Nome" value={company.responsavel_nome} />
-              <Row label="CPF" value={company.responsavel_cpf} />
-              <Row label="Email" value={company.responsavel_email} />
-              <Row label="Telefone" value={company.responsavel_telefone} />
+            <div className="p-5 bg-white space-y-4">
+              <div className="space-y-3">
+                <Row label="Nome" value={company.responsavel_nome} />
+                <Row label="CPF" value={company.responsavel_cpf} />
+                <Row label="Email" value={company.responsavel_email} />
+                <Row label="Telefone" value={company.responsavel_telefone} />
+              </div>
+
+              {/* Quadro Societário */}
+              <div className="border-t border-[#eee] pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <UserCheck size={14} className="text-[#1a2e4a]" />
+                  <span className={LB}>Quadro Societário (Receita Federal)</span>
+                </div>
+                {qsaLoading ? (
+                  <p className="text-xs text-[#555]">Consultando Receita Federal...</p>
+                ) : qsa.length === 0 ? (
+                  <p className="text-xs text-[#999]">Nenhum sócio encontrado</p>
+                ) : (
+                  <div className="space-y-2">
+                    {qsa.map((socio, i) => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-[#f8f9fa] border border-[#eee]">
+                        <div className="w-8 h-8 rounded-full bg-[#1a2e4a] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                          {(socio.nome_socio || "?")[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#0a0a0a] truncate">{socio.nome_socio}</p>
+                          <p className="text-[11px] text-[#555]">{socio.qualificacao_socio || "Sócio"}</p>
+                        </div>
+                        {socio.data_entrada_sociedade && (
+                          <span className="text-[10px] text-[#555] shrink-0">
+                            Desde {new Date(socio.data_entrada_sociedade + "T12:00:00").toLocaleDateString("pt-BR")}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
