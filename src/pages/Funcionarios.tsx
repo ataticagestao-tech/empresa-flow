@@ -366,7 +366,7 @@ export default function Funcionarios() {
               <div className="flex-1 overflow-y-auto p-5">
                 {tab === "dados" && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-[2fr_1fr_1fr] gap-4">
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Nome Completo {REQ}</label>
                         <input value={formData.name} onChange={e => set("name", titleCase(e.target.value))} className={ic("name")} placeholder="Nome Sobrenome" />
