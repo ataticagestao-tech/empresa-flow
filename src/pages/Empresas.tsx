@@ -5,7 +5,7 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const STEPS = ["CNPJ", "Dados Gerais", "Regime Tributário", "Responsável", "Confirmar"];
@@ -43,6 +43,13 @@ export default function Empresas() {
   const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // Redireciona direto para resumo se tem empresa selecionada e não está criando/editando
+  useEffect(() => {
+    if (selectedCompany?.id && mode === "list" && !editingId) {
+      navigate(`/empresas/${selectedCompany.id}`, { replace: true });
+    }
+  }, [selectedCompany?.id, mode, editingId, navigate]);
 
   useEffect(() => {
     if (!companies || companies.length === 0) return;
@@ -166,7 +173,6 @@ export default function Empresas() {
     await deleteCompany(company.id);
   };
 
-  console.log('[Empresas] selectedCompany:', selectedCompany?.id, selectedCompany?.razao_social, '| total companies:', companies?.length)
   const filtered = (companies || []).filter(c => {
     // Show only the selected company
     if (selectedCompany && c.id !== selectedCompany.id) return false;
