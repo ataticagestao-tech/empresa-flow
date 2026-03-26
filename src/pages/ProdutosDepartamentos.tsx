@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Pencil, Trash2 } from "lucide-react";
+import { Search, Pencil, Trash2, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductSheet } from "@/components/products/ProductSheet";
 import { toast } from "sonner";
@@ -28,6 +28,11 @@ export default function ProdutosDepartamentos() {
     const [isProductSheetOpen, setIsProductSheetOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
+    // Department modal state
+    const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+    const [editingDept, setEditingDept] = useState<any>(null);
+    const [deptName, setDeptName] = useState("");
+
     // Delete Mutation
     const deleteProductMutation = useMutation({
         mutationFn: async (id: string) => {
@@ -40,6 +45,47 @@ export default function ProdutosDepartamentos() {
         },
         onError: () => toast.error("Erro ao excluir produto."),
     });
+
+    // Department CRUD
+    const saveDeptMutation = useMutation({
+        mutationFn: async () => {
+            if (!selectedCompany?.id || !deptName.trim()) throw new Error("Nome obrigatório");
+            const payload = { name: deptName.trim(), company_id: selectedCompany.id };
+            if (editingDept) {
+                const { error } = await activeClient.from("departments").update(payload).eq("id", editingDept.id);
+                if (error) throw error;
+            } else {
+                const { error } = await activeClient.from("departments").insert(payload);
+                if (error) throw error;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["departments"] });
+            toast.success(editingDept ? "Departamento atualizado!" : "Departamento criado!");
+            setIsDeptModalOpen(false);
+            setEditingDept(null);
+            setDeptName("");
+        },
+        onError: () => toast.error("Erro ao salvar departamento."),
+    });
+
+    const deleteDeptMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await activeClient.from("departments").delete().eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["departments"] });
+            toast.success("Departamento excluído!");
+        },
+        onError: () => toast.error("Erro ao excluir departamento."),
+    });
+
+    const handleOpenDeptModal = (dept?: any) => {
+        setEditingDept(dept || null);
+        setDeptName(dept?.name || "");
+        setIsDeptModalOpen(true);
+    };
 
     const handleEdit = (product: Product) => {
         setEditingProduct(product);
@@ -302,6 +348,12 @@ export default function ProdutosDepartamentos() {
                             <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
                                 Departamentos / Centros de Custo
                             </h3>
+                            <button
+                                onClick={() => handleOpenDeptModal()}
+                                className="text-[11px] font-bold bg-white text-[#1a2e4a] px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
+                            >
+                                + Novo departamento
+                            </button>
                         </div>
 
                         {/* Toolbar busca */}
@@ -324,7 +376,7 @@ export default function ProdutosDepartamentos() {
                                     <TableRow className="border-b-[1.5px] border-[#0a0a0a]">
                                         <TableHead className={thClass}>Nome do Departamento</TableHead>
                                         <TableHead className={thClass}>Nº de Produtos</TableHead>
-                                        <TableHead className={`${thClass} text-right`}>Status</TableHead>
+                                        <TableHead className={`${thClass} text-right`}>Ações</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -350,15 +402,82 @@ export default function ProdutosDepartamentos() {
                                                     {productCountByFamily(d.name)} produto(s)
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <span className={`${badgeBase} text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]`}>
-                                                        Ativo
-                                                    </span>
+                                                    <div className="flex justify-end gap-1">
+                                                        <button
+                                                            onClick={() => handleOpenDeptModal(d)}
+                                                            className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors"
+                                                            title="Editar"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm("Excluir este departamento?"))
+                                                                    deleteDeptMutation.mutate(d.id);
+                                                            }}
+                                                            className="p-1.5 rounded hover:bg-red-50 text-[#8b0000] transition-colors"
+                                                            title="Excluir"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))
                                     )}
                                 </TableBody>
                             </Table>
+                        </div>
+                    </div>
+                )}
+
+                {/* ════════════ MODAL DEPARTAMENTO ════════════ */}
+                {isDeptModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                        <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
+                            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
+                                <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
+                                    {editingDept ? "Editar Departamento" : "Novo Departamento"}
+                                </h3>
+                                <button onClick={() => { setIsDeptModalOpen(false); setEditingDept(null); setDeptName(""); }} className="text-white/70 hover:text-white">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                                        Nome do Departamento <span className="text-[#8b0000]">*</span>
+                                    </label>
+                                    <input
+                                        value={deptName}
+                                        onChange={(e) => setDeptName(e.target.value)}
+                                        placeholder="Ex: Administrativo, Comercial..."
+                                        className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1a2e4a]"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && deptName.trim()) {
+                                                e.preventDefault();
+                                                saveDeptMutation.mutate();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-2 pt-2 border-t border-[#eee]">
+                                    <button
+                                        onClick={() => { setIsDeptModalOpen(false); setEditingDept(null); setDeptName(""); }}
+                                        className="px-4 py-2 text-[12px] font-bold bg-white border border-[#ccc] text-[#0a0a0a] rounded hover:bg-gray-50"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={() => saveDeptMutation.mutate()}
+                                        disabled={!deptName.trim() || saveDeptMutation.isPending}
+                                        className="px-4 py-2 text-[12px] font-bold bg-[#1a2e4a] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
+                                    >
+                                        {saveDeptMutation.isPending ? "Salvando..." : "Salvar"}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
