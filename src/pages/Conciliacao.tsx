@@ -203,8 +203,9 @@ export default function Conciliacao() {
   // Salvar conciliação
   const [salvando, setSalvando] = useState(false)
 
-  // IA category dropdown (which tx id has dropdown open)
+  // IA category dropdown (which tx id has dropdown open) + search term
   const [iaCatDropdownOpen, setIaCatDropdownOpen] = useState<string | null>(null)
+  const [iaCatBusca, setIaCatBusca] = useState<string>('')
 
   // IA patterns (learned from past reconciliations)
   const [iaPatterns, setIaPatterns] = useState<Array<{
@@ -476,7 +477,10 @@ export default function Conciliacao() {
         if (mt?.lancamento_id) {
           lancamento = crMap.get(mt.lancamento_id) || cpMap.get(mt.lancamento_id) || null
         }
-        const sugestaoIA = (!mt || mt.status === 'nao_reconhecido') ? buscarSugestaoIA(tx.descricao) : null
+        // Suggest IA for any non-approved transaction
+        const statusNorm = mt?.status === 'pending' ? 'pendente' : (mt?.status || 'pendente')
+        const needsSuggestion = !mt || ['nao_reconhecido', 'pendente', 'revisao'].includes(statusNorm)
+        const sugestaoIA = needsSuggestion ? buscarSugestaoIA(tx.descricao) : null
         return { transacao: tx, match: mt, candidatos: [], lancamento, sugestaoIA }
       })
 
@@ -816,15 +820,46 @@ export default function Conciliacao() {
     await carregarDados()
   }, [activeClient, carregarDados])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!companyId) return
     carregarContas()
-    carregarDados()
     carregarRegras()
     carregarHistorico()
     carregarImportBatches()
-    carregarIAPatterns()
     carregarPlanoContas()
-  }, [carregarContas, carregarDados, carregarRegras, carregarHistorico, carregarImportBatches, carregarIAPatterns, carregarPlanoContas])
+    // Load IA patterns first, then data (so suggestions work)
+    carregarIAPatterns().then(() => carregarDados())
+  }, [companyId])
+
+  // Re-enrich with IA suggestions when patterns change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (iaPatterns.length > 0 && matchesEnriquecidos.length > 0) {
+      setMatchesEnriquecidos(prev => prev.map(item => {
+        const statusNorm = item.match?.status === 'pending' ? 'pendente' : (item.match?.status || 'pendente')
+        const needsSuggestion = !item.match || ['nao_reconhecido', 'pendente', 'revisao'].includes(statusNorm)
+        if (needsSuggestion && !item.sugestaoIA) {
+          return { ...item, sugestaoIA: buscarSugestaoIA(item.transacao.descricao) }
+        }
+        return item
+      }))
+    }
+  }, [iaPatterns])
+
+  // Close category dropdown when clicking outside
+  useEffect(() => {
+    if (!iaCatDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-cat-dropdown]')) {
+        setIaCatDropdownOpen(null)
+        setIaCatBusca('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [iaCatDropdownOpen])
 
   // ── Matching Engine ────────────────────────────────────────────
   const executarMatching = useCallback(
@@ -1510,8 +1545,10 @@ export default function Conciliacao() {
                       {matchesEnriquecidos.map((item) => {
                         const tx = item.transacao
                         const mt = item.match
-                        const status = mt?.status || 'pendente'
-                        const isAprovado = status === 'aprovado' || status === 'ignorado'
+                        const rawStatus = mt?.status || tx.status_conciliacao || 'pendente'
+                        // Normalize: DB may have 'pending' (EN) or 'pendente' (PT)
+                        const status = rawStatus === 'pending' ? 'pendente' : rawStatus
+                        const isAprovado = status === 'aprovado' || status === 'ignorado' || status === 'reconciled'
                         const descParts = tx.descricao.split(/[\/\-]/).map(s => s.trim()).filter(Boolean)
                         const favorecido = item.lancamento
                           ? item.lancamento.nome
@@ -1528,8 +1565,8 @@ export default function Conciliacao() {
                               <span className="text-[11px] text-[#0a0a0a] font-medium">{formatData(tx.data)}</span>
                             </td>
                             {/* Descricao */}
-                            <td className="p-2 max-w-[300px]">
-                              <p className="text-[13px] text-[#0a0a0a] truncate" title={tx.descricao}>{tx.descricao}</p>
+                            <td className="p-2">
+                              <p className="text-[13px] text-[#0a0a0a] break-words">{tx.descricao}</p>
                               <span className={`inline-block mt-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
                                 tx.tipo === 'credito' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
                               }`}>
@@ -1537,8 +1574,8 @@ export default function Conciliacao() {
                               </span>
                             </td>
                             {/* Favorecido */}
-                            <td className="p-2 max-w-[160px]">
-                              <p className="text-[12px] text-[#333] truncate" title={favorecido}>{favorecido}</p>
+                            <td className="p-2">
+                              <p className="text-[12px] text-[#333]">{favorecido}</p>
                               {item.lancamento && (
                                 <span className="text-[9px] text-[#777]">
                                   {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} - {formatData(item.lancamento.data_vencimento)}
@@ -1553,50 +1590,50 @@ export default function Conciliacao() {
                             </td>
                             {/* Status */}
                             <td className="p-2 text-center">{renderBadge(status, mt?.diferenca ?? null)}</td>
-                            {/* IA */}
-                            <td className="p-2 text-center relative">
-                              {item.sugestaoIA ? (
+                            {/* IA / Categoria */}
+                            <td className="p-2 relative" style={{ minWidth: 180 }} data-cat-dropdown>
+                              {/* IA suggestion badge */}
+                              {item.sugestaoIA && (
                                 <button
-                                  onClick={() => setIaCatDropdownOpen(iaCatDropdownOpen === tx.id ? null : tx.id)}
-                                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded bg-purple-50 border border-purple-200 hover:border-purple-400 transition"
-                                  title={`IA: ${item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome} (${item.sugestaoIA.confianca}%)`}
+                                  onClick={() => { if (item.sugestaoIA?.categoria_id) categorizarTransacao(tx.id, item.sugestaoIA.categoria_id) }}
+                                  className="mb-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[10px]"
+                                  title={`Aceitar sugestao: ${item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}`}
                                 >
-                                  <Sparkles size={11} className="text-purple-600" />
-                                  <span className="text-[9px] font-bold text-purple-700">{item.sugestaoIA.confianca}%</span>
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => setIaCatDropdownOpen(iaCatDropdownOpen === tx.id ? null : tx.id)}
-                                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded bg-gray-50 border border-gray-200 hover:border-gray-400 transition text-[10px] text-gray-400"
-                                  title="Categorizar"
-                                >
-                                  <ChevronDown size={10} /> Cat.
+                                  <Sparkles size={10} className="text-purple-600" />
+                                  <span className="font-semibold text-purple-700">{item.sugestaoIA.confianca}% {item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}</span>
                                 </button>
                               )}
-                              {iaCatDropdownOpen === tx.id && (
-                                <div className="absolute top-full right-0 mt-1 z-30 bg-white border border-[#ccc] rounded-lg shadow-xl w-64 max-h-60 overflow-y-auto">
-                                  <div className="sticky top-0 bg-white border-b border-[#eee] px-3 py-2 flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-[#555] uppercase">Categorizar</span>
-                                    <button onClick={() => setIaCatDropdownOpen(null)} className="text-gray-400 hover:text-gray-600"><X size={12} /></button>
+                              {/* Searchable category input */}
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder="Digitar categoria..."
+                                  className="w-full text-[11px] border border-[#ddd] rounded px-2 py-1.5 bg-white text-[#333] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20"
+                                  value={iaCatDropdownOpen === tx.id ? (iaCatBusca ?? '') : ''}
+                                  onFocus={() => { setIaCatDropdownOpen(tx.id); setIaCatBusca('') }}
+                                  onChange={(e) => setIaCatBusca(e.target.value)}
+                                />
+                                {iaCatDropdownOpen === tx.id && (
+                                  <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#ccc] rounded-lg shadow-xl w-72 max-h-48 overflow-y-auto">
+                                    {planoContas
+                                      .filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase()))
+                                      .slice(0, 15)
+                                      .map(cat => (
+                                        <button
+                                          key={cat.id}
+                                          onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null); setIaCatBusca('') }}
+                                          className="w-full text-left px-3 py-2 text-[11px] text-[#333] hover:bg-[#f0f4f8] transition"
+                                        >
+                                          <span className="font-semibold">{cat.code}</span> - {cat.name}
+                                        </button>
+                                      ))
+                                    }
+                                    {planoContas.filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase())).length === 0 && (
+                                      <p className="px-3 py-2 text-[11px] text-[#999]">Nenhuma categoria encontrada</p>
+                                    )}
                                   </div>
-                                  {item.sugestaoIA?.categoria_id && (
-                                    <button
-                                      onClick={() => { categorizarTransacao(tx.id, item.sugestaoIA!.categoria_id!); setIaCatDropdownOpen(null) }}
-                                      className="w-full text-left px-3 py-2 text-[11px] bg-purple-50 hover:bg-purple-100 transition border-b border-purple-100"
-                                    >
-                                      <div className="flex items-center gap-1">
-                                        <Sparkles size={10} className="text-purple-600 shrink-0" />
-                                        <span className="font-semibold text-purple-700">Aceitar sugestao IA: {item.sugestaoIA.categoria_nome}</span>
-                                      </div>
-                                    </button>
-                                  )}
-                                  {planoContas.map(cat => (
-                                    <button key={cat.id} onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null) }} className="w-full text-left px-3 py-1.5 text-[11px] text-[#333] hover:bg-[#f0f4f8] transition truncate">
-                                      {cat.code} - {cat.name}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </td>
                             {/* Acoes */}
                             <td className="p-2 text-center">
