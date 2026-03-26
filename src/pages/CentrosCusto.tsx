@@ -42,8 +42,9 @@ export default function CentrosCusto() {
     queryKey: ["emp_counts_by_centro", selectedCompany?.id],
     queryFn: async () => {
       if (!selectedCompany?.id) return {};
-      const { data } = await (activeClient as any)
-        .from("employees").select("centro_custo_id").eq("company_id", selectedCompany.id).eq("status", "ativo");
+      const { data, error } = await (activeClient as any)
+        .from("employees").select("centro_custo_id, status").eq("company_id", selectedCompany.id);
+      console.log("empCounts raw:", JSON.stringify(data), "error:", error);
       const counts: Record<string, number> = {};
       (data || []).forEach((e: any) => { if (e.centro_custo_id) counts[e.centro_custo_id] = (counts[e.centro_custo_id] || 0) + 1; });
       return counts;

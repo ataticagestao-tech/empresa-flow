@@ -5,6 +5,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
+import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
 
 interface Employee {
   id: string; company_id: string;
@@ -30,7 +31,7 @@ const emptyForm = {
   pis: "", ctps_numero: "", ctps_serie: "",
   banco_folha: "", agencia_folha: "", conta_folha: "", tipo_conta_folha: "", chave_pix_folha: "",
   centro_custo_id: "",
-  status: "active",
+  status: "ativo",
 };
 
 const tipoContratoLabels: Record<string, string> = {
@@ -115,7 +116,7 @@ const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
 const REQ = <span className="text-[#8b0000]">*</span>;
 
 export default function Funcionarios() {
-  const { activeClient } = useAuth();
+  const { activeClient, user } = useAuth();
   const { selectedCompany } = useCompany();
   const queryClient = useQueryClient();
 
@@ -181,7 +182,7 @@ export default function Funcionarios() {
       banco_folha: emp.banco_folha || "", agencia_folha: emp.agencia_folha || "",
       conta_folha: emp.conta_folha || "", tipo_conta_folha: emp.tipo_conta_folha || "",
       chave_pix_folha: emp.chave_pix_folha || "", centro_custo_id: emp.centro_custo_id || "",
-      status: emp.status || "active",
+      status: emp.status || "ativo",
     });
     setCalcSalario(emp.salario_base || emp.salary || 0);
     setTab("dados");
@@ -354,7 +355,7 @@ export default function Funcionarios() {
             <>
               <div className="bg-[#1a2e4a] px-4 py-2 flex items-center gap-1">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Histórico de Salários" },
-                  { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }].map(t => (
+                  { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
                     className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
                       tab === t.id ? "bg-white/20 text-white" : "text-[#a8bfd4] hover:text-white"
@@ -448,7 +449,7 @@ export default function Funcionarios() {
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Status {REQ}</label>
                       <select value={formData.status} onChange={e => set("status", e.target.value)} className={`${IC} max-w-[200px]`}>
-                        <option value="active">Ativo</option><option value="inactive">Inativo</option>
+                        <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
                       </select>
                     </div>
                     <button onClick={handleSave} disabled={saving} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
@@ -558,6 +559,16 @@ export default function Funcionarios() {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {tab === "beneficios" && selected && selectedCompany && (
+                  <AbaBeneficios
+                    companyId={selectedCompany.id}
+                    employeeId={selected.id}
+                    employeeNome={getName(selected)}
+                    salarioBase={Number(selected.salario_base ?? selected.salary ?? 0)}
+                    usuarioId={user?.id ?? ""}
+                  />
                 )}
               </div>
             </>
