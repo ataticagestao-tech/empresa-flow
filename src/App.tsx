@@ -190,9 +190,9 @@ const App = () => (
                     <Route path="/documentos/*" element={<Documentos />} />
                     <Route path="/multiempresa" element={<MultiEmpresa />} />
                     <Route path="/multiempresa/*" element={<MultiEmpresa />} />
+                    <Route path="/operacional" element={<ProdutosDepartamentos />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
-                      <Route path="/operacional" element={<ProdutosDepartamentos />} />
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
                     </Route>
                   </Route>
