@@ -192,18 +192,22 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 conta_contabil_id: contaContabilValue,
             };
 
-            if (product) {
-                const { error } = await activeClient
-                    .from("products")
-                    .update(payload)
-                    .eq("id", product.id);
-                if (error) throw error;
-            } else {
-                const { error } = await activeClient
-                    .from("products")
-                    .insert(payload);
-                if (error) throw error;
+            const doSave = async (p: Record<string, any>) => {
+                if (product) {
+                    return await activeClient.from("products").update(p).eq("id", product.id);
+                }
+                return await activeClient.from("products").insert(p);
+            };
+
+            let { error } = await doSave(payload);
+
+            // Retry without conta_contabil_id if column doesn't exist yet
+            if (error && error.message?.includes("conta_contabil_id")) {
+                delete payload.conta_contabil_id;
+                ({ error } = await doSave(payload));
             }
+
+            if (error) throw error;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["products"] });
