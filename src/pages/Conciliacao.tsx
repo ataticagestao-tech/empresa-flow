@@ -22,6 +22,9 @@ import {
   BookOpen,
   Loader2,
   History,
+  Sparkles,
+  Clock,
+  Calendar,
 } from 'lucide-react'
 
 /* ════════════════════════════════════════════════════════════════════
@@ -45,6 +48,7 @@ interface BankTransaction {
   valor: number
   tipo: 'credito' | 'debito'
   status_conciliacao: string
+  reconciled_at?: string | null
 }
 
 interface MatchRecord {
@@ -82,11 +86,28 @@ interface CandidatoLancamento {
   tipo: 'cr' | 'cp'
 }
 
+interface ImportBatch {
+  key: string
+  imported_at: string
+  min_date: string
+  max_date: string
+  count: number
+  tx_ids: string[]
+}
+
+interface IASugestao {
+  descricao_similar: string
+  tipo_lancamento: 'cr' | 'cp'
+  lancamento_nome: string
+  confianca: number // 0-100
+}
+
 interface MatchEnriquecido {
   transacao: BankTransaction
   match: MatchRecord | null
   candidatos: CandidatoLancamento[]
   lancamento: CandidatoLancamento | null
+  sugestaoIA?: IASugestao | null
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -161,6 +182,19 @@ export default function Conciliacao() {
     tipo: string
     transacaoId: string
   }>({ aberto: false, descricao: '', tipo: '', transacaoId: '' })
+
+  // Import history (batches)
+  const [importBatches, setImportBatches] = useState<ImportBatch[]>([])
+
+  // Salvar conciliação
+  const [salvando, setSalvando] = useState(false)
+
+  // IA patterns (learned from past reconciliations)
+  const [iaPatterns, setIaPatterns] = useState<Array<{
+    descricao: string
+    tipo_lancamento: 'cr' | 'cp'
+    lancamento_nome: string
+  }>>([])
 
   // Historico from conciliacao_bancaria
   const [historicoConciliacoes, setHistoricoConciliacoes] = useState<any[]>([])
@@ -423,7 +457,8 @@ export default function Conciliacao() {
         if (mt?.lancamento_id) {
           lancamento = crMap.get(mt.lancamento_id) || cpMap.get(mt.lancamento_id) || null
         }
-        return { transacao: tx, match: mt, candidatos: [], lancamento }
+        const sugestaoIA = (!mt || mt.status === 'nao_reconhecido') ? buscarSugestaoIA(tx.descricao) : null
+        return { transacao: tx, match: mt, candidatos: [], lancamento, sugestaoIA }
       })
 
       setMatchesEnriquecidos(enriquecidos)
@@ -449,12 +484,254 @@ export default function Conciliacao() {
     if (data) setRegras(data as ConciliationRule[])
   }, [companyId, activeClient])
 
+  // ── Load import batches ───────────────────────────────────────
+  const carregarImportBatches = useCallback(async () => {
+    if (!companyId) return
+    const allTx = await safeQuery(
+      async () =>
+        await activeClient
+          .from('bank_transactions')
+          .select('id, date, created_at, fit_id')
+          .eq('company_id', companyId)
+          .order('created_at', { ascending: false }),
+      'carregar import batches'
+    )
+    if (!allTx || !(allTx as any[]).length) {
+      setImportBatches([])
+      return
+    }
+    const groups = new Map<string, ImportBatch>()
+    for (const tx of allTx as any[]) {
+      const createdMinute = tx.created_at?.substring(0, 16) || 'unknown'
+      const groupKey = `import_${createdMinute}`
+      const existing = groups.get(groupKey)
+      if (existing) {
+        existing.count++
+        existing.tx_ids.push(tx.id)
+        if (tx.date < existing.min_date) existing.min_date = tx.date
+        if (tx.date > existing.max_date) existing.max_date = tx.date
+      } else {
+        groups.set(groupKey, {
+          key: groupKey,
+          imported_at: tx.created_at,
+          min_date: tx.date,
+          max_date: tx.date,
+          count: 1,
+          tx_ids: [tx.id],
+        })
+      }
+    }
+    const result = Array.from(groups.values())
+    result.sort((a, b) => new Date(b.imported_at).getTime() - new Date(a.imported_at).getTime())
+    setImportBatches(result)
+  }, [companyId, activeClient])
+
+  // ── Load IA patterns (from past approved reconciliations) ─────
+  const carregarIAPatterns = useCallback(async () => {
+    if (!companyId) return
+    // Load reconciled bank_transactions with their matched CR/CP info
+    const reconciledTx = await safeQuery(
+      async () =>
+        await activeClient
+          .from('bank_transactions')
+          .select('id, description, memo, amount, reconciled_payable_id, reconciled_receivable_id')
+          .eq('company_id', companyId)
+          .eq('status', 'reconciled')
+          .not('description', 'is', null)
+          .limit(500),
+      'carregar padroes IA'
+    )
+    if (!reconciledTx || !(reconciledTx as any[]).length) return
+
+    const patterns: typeof iaPatterns = []
+    const txList = reconciledTx as any[]
+
+    // Gather CR/CP IDs to fetch names
+    const crIds = txList.filter(t => t.reconciled_receivable_id).map(t => t.reconciled_receivable_id)
+    const cpIds = txList.filter(t => t.reconciled_payable_id).map(t => t.reconciled_payable_id)
+
+    const crNomes = new Map<string, string>()
+    const cpNomes = new Map<string, string>()
+
+    if (crIds.length > 0) {
+      const crData = await safeQuery(
+        async () => await activeClient.from('contas_receber').select('id, pagador_nome').in('id', crIds) as any,
+        'buscar nomes CR para IA'
+      )
+      for (const c of (crData || []) as any[]) crNomes.set(c.id, c.pagador_nome || 'Recebimento')
+    }
+    if (cpIds.length > 0) {
+      const cpData = await safeQuery(
+        async () => await activeClient.from('contas_pagar').select('id, credor_nome').in('id', cpIds) as any,
+        'buscar nomes CP para IA'
+      )
+      for (const c of (cpData || []) as any[]) cpNomes.set(c.id, c.credor_nome || 'Pagamento')
+    }
+
+    for (const tx of txList) {
+      const desc = (tx.description || tx.memo || '').trim()
+      if (desc.length < 3) continue
+
+      if (tx.reconciled_receivable_id && crNomes.has(tx.reconciled_receivable_id)) {
+        patterns.push({
+          descricao: desc.toLowerCase(),
+          tipo_lancamento: 'cr',
+          lancamento_nome: crNomes.get(tx.reconciled_receivable_id)!,
+        })
+      } else if (tx.reconciled_payable_id && cpNomes.has(tx.reconciled_payable_id)) {
+        patterns.push({
+          descricao: desc.toLowerCase(),
+          tipo_lancamento: 'cp',
+          lancamento_nome: cpNomes.get(tx.reconciled_payable_id)!,
+        })
+      }
+    }
+
+    setIaPatterns(patterns)
+  }, [companyId, activeClient])
+
+  // ── IA: find suggestion for a description ─────────────────────
+  const buscarSugestaoIA = useCallback(
+    (descricao: string): IASugestao | null => {
+      if (!descricao || iaPatterns.length === 0) return null
+      const descLower = descricao.toLowerCase()
+
+      // 1. Exact match
+      const exact = iaPatterns.find(p => p.descricao === descLower)
+      if (exact) return { ...exact, descricao_similar: exact.descricao, confianca: 100 }
+
+      // 2. Contains match (description contains pattern or vice-versa)
+      const contains = iaPatterns.find(
+        p => descLower.includes(p.descricao) || p.descricao.includes(descLower)
+      )
+      if (contains) return { ...contains, descricao_similar: contains.descricao, confianca: 85 }
+
+      // 3. Word overlap (at least 2 significant words in common)
+      const descWords = descLower.split(/\s+/).filter(w => w.length > 3)
+      if (descWords.length >= 2) {
+        let bestMatch: typeof iaPatterns[0] | null = null
+        let bestScore = 0
+        for (const p of iaPatterns) {
+          const pWords = p.descricao.split(/\s+/).filter(w => w.length > 3)
+          const commonWords = descWords.filter(w => pWords.some(pw => pw.includes(w) || w.includes(pw)))
+          const score = commonWords.length / Math.max(descWords.length, pWords.length)
+          if (score > bestScore && commonWords.length >= 2) {
+            bestScore = score
+            bestMatch = p
+          }
+        }
+        if (bestMatch && bestScore >= 0.4) {
+          return {
+            ...bestMatch,
+            descricao_similar: bestMatch.descricao,
+            confianca: Math.round(bestScore * 80),
+          }
+        }
+      }
+
+      return null
+    },
+    [iaPatterns]
+  )
+
+  // ── Salvar Conciliação (batch approve all matched) ────────────
+  const salvarConciliacao = useCallback(async () => {
+    if (!companyId) return
+    setSalvando(true)
+    try {
+      const agora = new Date().toISOString()
+      const pendentes = matchesEnriquecidos.filter(
+        m => m.match && (m.match.status === 'match_auto' || m.match.status === 'match_regra' || m.match.status === 'match_dif')
+      )
+
+      for (const item of pendentes) {
+        if (!item.match) continue
+
+        // Update match status
+        await activeClient
+          .from('bank_reconciliation_matches')
+          .update({ status: 'aprovado' })
+          .eq('id', item.match.id)
+
+        // Update bank_transaction
+        await activeClient
+          .from('bank_transactions')
+          .update({
+            status: 'reconciled',
+            reconciled_at: agora,
+          })
+          .eq('id', item.transacao.id)
+
+        // If has lancamento, quitar
+        if (item.lancamento && item.match) {
+          const hoje = agora.split('T')[0]
+          if (item.lancamento.tipo === 'cr') {
+            await quitarCR(item.lancamento.id, {
+              valorPago: item.transacao.valor,
+              dataPagamento: hoje,
+              formaRecebimento: 'transferencia',
+              contaBancariaId: item.transacao.conta_bancaria_id,
+            })
+          } else {
+            await quitarCP(item.lancamento.id, {
+              valorPago: item.transacao.valor,
+              dataPagamento: hoje,
+              formaPagamento: 'transferencia',
+              contaBancariaId: item.transacao.conta_bancaria_id,
+            })
+          }
+        }
+
+        // Learn pattern for IA
+        const desc = item.transacao.descricao?.trim()
+        if (desc && desc.length >= 3 && item.lancamento) {
+          const alreadyExists = iaPatterns.some(p => p.descricao === desc.toLowerCase())
+          if (!alreadyExists) {
+            setIaPatterns(prev => [
+              ...prev,
+              {
+                descricao: desc.toLowerCase(),
+                tipo_lancamento: item.lancamento!.tipo as 'cr' | 'cp',
+                lancamento_nome: item.lancamento!.nome,
+              },
+            ])
+          }
+        }
+      }
+
+      await carregarDados()
+      await carregarImportBatches()
+      alert(`Conciliacao salva! ${pendentes.length} transacoes aprovadas.`)
+    } catch (err) {
+      console.error('[SalvarConciliacao]', err)
+      alert('Erro ao salvar conciliacao.')
+    } finally {
+      setSalvando(false)
+    }
+  }, [companyId, activeClient, matchesEnriquecidos, iaPatterns, carregarDados, carregarImportBatches])
+
+  // ── Delete import batch ───────────────────────────────────────
+  const excluirImportBatch = useCallback(async (txIds: string[]) => {
+    if (!confirm(`Excluir ${txIds.length} transacoes deste lote?`)) return
+    const batchSize = 50
+    for (let i = 0; i < txIds.length; i += batchSize) {
+      const batch = txIds.slice(i, i + batchSize)
+      await activeClient.from('bank_transactions').delete().in('id', batch)
+      // Also delete matches
+      await activeClient.from('bank_reconciliation_matches').delete().in('bank_transaction_id', batch)
+    }
+    await carregarDados()
+    await carregarImportBatches()
+  }, [activeClient, carregarDados, carregarImportBatches])
+
   useEffect(() => {
     carregarContas()
     carregarDados()
     carregarRegras()
     carregarHistorico()
-  }, [carregarContas, carregarDados, carregarRegras, carregarHistorico])
+    carregarImportBatches()
+    carregarIAPatterns()
+  }, [carregarContas, carregarDados, carregarRegras, carregarHistorico, carregarImportBatches, carregarIAPatterns])
 
   // ── Matching Engine ────────────────────────────────────────────
   const executarMatching = useCallback(
@@ -601,6 +878,7 @@ export default function Conciliacao() {
     valor: Math.abs(Number(r.amount || 0)),
     tipo: Number(r.amount || 0) >= 0 ? 'credito' : 'debito',
     status_conciliacao: r.status || 'pendente',
+    reconciled_at: r.reconciled_at || null,
   })
 
   // ── Handle OFX Upload ──────────────────────────────────────────
@@ -771,8 +1049,8 @@ export default function Conciliacao() {
     try {
       if (tx.tipo === 'credito') {
         const data = await safeQuery(
-          () =>
-            activeClient
+          async () =>
+            await activeClient
               .from('contas_receber')
               .select('id, pagador_nome, valor, data_vencimento')
               .eq('company_id', companyId)
@@ -792,8 +1070,8 @@ export default function Conciliacao() {
         )
       } else {
         const data = await safeQuery(
-          () =>
-            activeClient
+          async () =>
+            await activeClient
               .from('contas_pagar')
               .select('id, credor_nome, valor, data_vencimento')
               .eq('company_id', companyId)
@@ -1143,6 +1421,64 @@ export default function Conciliacao() {
               </div>
             </div>
 
+            {/* ── Import History ─────────────────────────────── */}
+            {importBatches.length > 0 && (
+              <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
+                <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+                    Historico de Importacoes
+                  </h3>
+                  <span className="text-[10px] text-white/60">{importBatches.length} importacao(oes)</span>
+                </div>
+                <div className="bg-white divide-y divide-[#eee]">
+                  <div className="hidden md:grid md:grid-cols-[1fr_120px_160px_80px_60px] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#ccc]">
+                    <div className="p-3">Data Importacao</div>
+                    <div className="p-3 text-center">Transacoes</div>
+                    <div className="p-3 text-center">Periodo Extrato</div>
+                    <div className="p-3 text-center">Status</div>
+                    <div className="p-3 text-center">Acao</div>
+                  </div>
+                  {importBatches.slice(0, 10).map((batch) => (
+                    <div key={batch.key} className="grid grid-cols-1 md:grid-cols-[1fr_120px_160px_80px_60px] hover:bg-[#fafafa]">
+                      <div className="p-3 flex items-center gap-2">
+                        <Calendar size={14} className="text-[#1a2e4a]" />
+                        <div>
+                          <p className="text-sm text-[#0a0a0a] font-medium">
+                            {new Date(batch.imported_at).toLocaleDateString('pt-BR')}
+                          </p>
+                          <p className="text-[10px] text-[#999]">
+                            {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="p-3 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-[#1a2e4a]">{batch.count}</span>
+                      </div>
+                      <div className="p-3 flex items-center justify-center">
+                        <span className="text-[11px] text-[#555]">
+                          {formatData(batch.min_date)} a {formatData(batch.max_date)}
+                        </span>
+                      </div>
+                      <div className="p-3 flex items-center justify-center">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]">
+                          <CheckCircle2 size={10} /> OK
+                        </span>
+                      </div>
+                      <div className="p-3 flex items-center justify-center">
+                        <button
+                          onClick={() => excluirImportBatch(batch.tx_ids)}
+                          className="p-1.5 rounded text-[#8b0000] hover:bg-[#fdecea] transition"
+                          title="Excluir lote"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Batch bar ───────────────────────────────────── */}
             {selecionados.size > 0 && (
               <div className="sticky top-0 z-20 bg-[#1a2e4a] text-white rounded-lg px-4 py-3 flex items-center justify-between shadow-lg">
@@ -1265,8 +1601,16 @@ export default function Conciliacao() {
                               <p className="text-xs text-[#555] truncate max-w-[400px]">
                                 {tx.descricao}
                               </p>
-                              <div className="mt-1.5">
+                              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                                 {renderBadge(status, mt?.diferenca ?? null)}
+                                {(status === 'aprovado' || tx.reconciled_at) && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-[#555]">
+                                    <Clock size={10} />
+                                    {tx.reconciled_at
+                                      ? new Date(tx.reconciled_at).toLocaleDateString('pt-BR') + ' ' + new Date(tx.reconciled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                                      : 'Data nao registrada'}
+                                  </span>
+                                )}
                               </div>
                             </div>
 
@@ -1286,6 +1630,24 @@ export default function Conciliacao() {
                                       ? 'Conta a Receber'
                                       : 'Conta a Pagar'}
                                   </span>
+                                </div>
+                              ) : item.sugestaoIA ? (
+                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded p-2">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <Sparkles size={12} className="text-purple-600" />
+                                    <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
+                                      Sugestao IA ({item.sugestaoIA.confianca}%)
+                                    </span>
+                                  </div>
+                                  <p className="text-sm font-medium text-[#0a0a0a]">
+                                    {item.sugestaoIA.lancamento_nome}
+                                  </p>
+                                  <p className="text-[10px] text-[#555]">
+                                    Baseado em: "{item.sugestaoIA.descricao_similar}"
+                                  </p>
+                                  <p className="text-[10px] text-purple-600 mt-0.5 uppercase font-semibold">
+                                    {item.sugestaoIA.tipo_lancamento === 'cr' ? 'Conta a Receber' : 'Conta a Pagar'}
+                                  </p>
                                 </div>
                               ) : status === 'match_regra' ? (
                                 <p className="text-xs text-[#555] italic">
@@ -1376,6 +1738,38 @@ export default function Conciliacao() {
                 )}
               </div>
             </div>
+
+            {/* ── SALVAR CONCILIACAO Button ─────────────────────── */}
+            {matchesEnriquecidos.some(
+              m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)
+            ) && (
+              <div className="sticky bottom-4 z-20">
+                <div className="bg-gradient-to-r from-[#0a5c2e] to-[#1a6e3e] rounded-lg px-6 py-4 shadow-xl flex items-center justify-between">
+                  <div className="text-white">
+                    <p className="text-sm font-bold">
+                      {matchesEnriquecidos.filter(
+                        m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)
+                      ).length} conciliacoes pendentes de aprovacao
+                    </p>
+                    <p className="text-[11px] text-white/70">
+                      Clique para aprovar todas as conciliacoes e baixar os lancamentos vinculados
+                    </p>
+                  </div>
+                  <button
+                    onClick={salvarConciliacao}
+                    disabled={salvando}
+                    className="px-6 py-3 bg-white text-[#0a5c2e] font-bold text-sm rounded-lg hover:bg-gray-100 transition flex items-center gap-2 shadow-md disabled:opacity-50"
+                  >
+                    {salvando ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    {salvando ? 'SALVANDO...' : 'SALVAR CONCILIACAO'}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
