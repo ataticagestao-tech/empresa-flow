@@ -100,6 +100,14 @@ interface IASugestao {
   tipo_lancamento: 'cr' | 'cp'
   lancamento_nome: string
   confianca: number // 0-100
+  categoria_id?: string | null
+  categoria_nome?: string | null
+}
+
+interface ChartAccount {
+  id: string
+  code: string
+  name: string
 }
 
 interface MatchEnriquecido {
@@ -185,6 +193,11 @@ export default function Conciliacao() {
 
   // Import history (batches)
   const [importBatches, setImportBatches] = useState<ImportBatch[]>([])
+  const [batchExpandido, setBatchExpandido] = useState<string | null>(null)
+  const [batchTransacoes, setBatchTransacoes] = useState<BankTransaction[]>([])
+
+  // Plano de contas (for IA category suggestions)
+  const [planoContas, setPlanoContas] = useState<ChartAccount[]>([])
 
   // Salvar conciliação
   const [salvando, setSalvando] = useState(false)
@@ -194,6 +207,8 @@ export default function Conciliacao() {
     descricao: string
     tipo_lancamento: 'cr' | 'cp'
     lancamento_nome: string
+    categoria_id?: string | null
+    categoria_nome?: string | null
   }>>([])
 
   // Historico from conciliacao_bancaria
@@ -484,6 +499,22 @@ export default function Conciliacao() {
     if (data) setRegras(data as ConciliationRule[])
   }, [companyId, activeClient])
 
+  // ── Load plano de contas ───────────────────────────────────────
+  const carregarPlanoContas = useCallback(async () => {
+    if (!companyId) return
+    const data = await safeQuery(
+      async () =>
+        await activeClient
+          .from('chart_of_accounts')
+          .select('id, code, name')
+          .eq('company_id', companyId)
+          .eq('is_analytical', true)
+          .order('code', { ascending: true }),
+      'carregar plano de contas'
+    )
+    if (data) setPlanoContas(data as ChartAccount[])
+  }, [companyId, activeClient])
+
   // ── Load import batches ───────────────────────────────────────
   const carregarImportBatches = useCallback(async () => {
     if (!companyId) return
@@ -526,25 +557,36 @@ export default function Conciliacao() {
     setImportBatches(result)
   }, [companyId, activeClient])
 
-  // ── Load IA patterns (from past approved reconciliations) ─────
+  // ── Load IA patterns (from past approved reconciliations + categorized tx) ──
   const carregarIAPatterns = useCallback(async () => {
     if (!companyId) return
-    // Load reconciled bank_transactions with their matched CR/CP info
+    // Load reconciled bank_transactions with their matched CR/CP info + category
     const reconciledTx = await safeQuery(
       async () =>
         await activeClient
           .from('bank_transactions')
-          .select('id, description, memo, amount, reconciled_payable_id, reconciled_receivable_id')
+          .select('id, description, memo, amount, reconciled_payable_id, reconciled_receivable_id, category_id')
           .eq('company_id', companyId)
-          .eq('status', 'reconciled')
           .not('description', 'is', null)
           .limit(500),
       'carregar padroes IA'
     )
     if (!reconciledTx || !(reconciledTx as any[]).length) return
 
+    // Load chart_of_accounts for category name lookup
+    const coaData = await safeQuery(
+      async () =>
+        await activeClient
+          .from('chart_of_accounts')
+          .select('id, code, name')
+          .eq('company_id', companyId),
+      'carregar categorias IA'
+    )
+    const catMap = new Map<string, string>()
+    for (const c of (coaData || []) as any[]) catMap.set(c.id, `${c.code} - ${c.name}`)
+
     const patterns: typeof iaPatterns = []
-    const txList = reconciledTx as any[]
+    const txList = (reconciledTx as any[]).filter(t => t.reconciled_payable_id || t.reconciled_receivable_id || t.category_id)
 
     // Gather CR/CP IDs to fetch names
     const crIds = txList.filter(t => t.reconciled_receivable_id).map(t => t.reconciled_receivable_id)
@@ -572,17 +614,33 @@ export default function Conciliacao() {
       const desc = (tx.description || tx.memo || '').trim()
       if (desc.length < 3) continue
 
+      const catId = tx.category_id || null
+      const catNome = catId ? catMap.get(catId) || null : null
+
       if (tx.reconciled_receivable_id && crNomes.has(tx.reconciled_receivable_id)) {
         patterns.push({
           descricao: desc.toLowerCase(),
           tipo_lancamento: 'cr',
           lancamento_nome: crNomes.get(tx.reconciled_receivable_id)!,
+          categoria_id: catId,
+          categoria_nome: catNome,
         })
       } else if (tx.reconciled_payable_id && cpNomes.has(tx.reconciled_payable_id)) {
         patterns.push({
           descricao: desc.toLowerCase(),
           tipo_lancamento: 'cp',
           lancamento_nome: cpNomes.get(tx.reconciled_payable_id)!,
+          categoria_id: catId,
+          categoria_nome: catNome,
+        })
+      } else if (catId) {
+        // Transaction only has category, no CR/CP match
+        patterns.push({
+          descricao: desc.toLowerCase(),
+          tipo_lancamento: Number(tx.amount || 0) >= 0 ? 'cr' : 'cp',
+          lancamento_nome: catNome || 'Categorizado',
+          categoria_id: catId,
+          categoria_nome: catNome,
         })
       }
     }
@@ -598,13 +656,13 @@ export default function Conciliacao() {
 
       // 1. Exact match
       const exact = iaPatterns.find(p => p.descricao === descLower)
-      if (exact) return { ...exact, descricao_similar: exact.descricao, confianca: 100 }
+      if (exact) return { ...exact, descricao_similar: exact.descricao, confianca: 100, categoria_id: exact.categoria_id, categoria_nome: exact.categoria_nome }
 
       // 2. Contains match (description contains pattern or vice-versa)
       const contains = iaPatterns.find(
         p => descLower.includes(p.descricao) || p.descricao.includes(descLower)
       )
-      if (contains) return { ...contains, descricao_similar: contains.descricao, confianca: 85 }
+      if (contains) return { ...contains, descricao_similar: contains.descricao, confianca: 85, categoria_id: contains.categoria_id, categoria_nome: contains.categoria_nome }
 
       // 3. Word overlap (at least 2 significant words in common)
       const descWords = descLower.split(/\s+/).filter(w => w.length > 3)
@@ -724,6 +782,36 @@ export default function Conciliacao() {
     await carregarImportBatches()
   }, [activeClient, carregarDados, carregarImportBatches])
 
+  // ── Expand batch to show its transactions ──────────────────────
+  const expandirBatch = useCallback(async (batch: ImportBatch) => {
+    if (batchExpandido === batch.key) {
+      setBatchExpandido(null)
+      setBatchTransacoes([])
+      return
+    }
+    setBatchExpandido(batch.key)
+    const batchSize = 50
+    const allTx: any[] = []
+    for (let i = 0; i < batch.tx_ids.length; i += batchSize) {
+      const ids = batch.tx_ids.slice(i, i + batchSize)
+      const data = await safeQuery(
+        async () => await activeClient.from('bank_transactions').select('*').in('id', ids),
+        'carregar transacoes do lote'
+      )
+      if (data) allTx.push(...(data as any[]))
+    }
+    setBatchTransacoes(allTx.map(mapDbToTx))
+  }, [batchExpandido, activeClient])
+
+  // ── Categorize transaction (set category_id) ──────────────────
+  const categorizarTransacao = useCallback(async (txId: string, categoryId: string) => {
+    await activeClient
+      .from('bank_transactions')
+      .update({ category_id: categoryId })
+      .eq('id', txId)
+    await carregarDados()
+  }, [activeClient, carregarDados])
+
   useEffect(() => {
     carregarContas()
     carregarDados()
@@ -731,7 +819,8 @@ export default function Conciliacao() {
     carregarHistorico()
     carregarImportBatches()
     carregarIAPatterns()
-  }, [carregarContas, carregarDados, carregarRegras, carregarHistorico, carregarImportBatches, carregarIAPatterns])
+    carregarPlanoContas()
+  }, [carregarContas, carregarDados, carregarRegras, carregarHistorico, carregarImportBatches, carregarIAPatterns, carregarPlanoContas])
 
   // ── Matching Engine ────────────────────────────────────────────
   const executarMatching = useCallback(
@@ -1327,7 +1416,7 @@ export default function Conciliacao() {
         <div className="flex gap-1 border-b border-[#ccc]">
           {[
             { id: 'conciliacao' as const, label: 'Conciliacao', icon: <ListChecks size={14} /> },
-            { id: 'historico' as const, label: 'Historico', icon: <History size={14} /> },
+            { id: 'historico' as const, label: 'Arquivos Importados', icon: <History size={14} /> },
             { id: 'regras' as const, label: 'Regras Salvas', icon: <BookOpen size={14} /> },
           ].map((tab) => (
             <button
@@ -1421,64 +1510,6 @@ export default function Conciliacao() {
               </div>
             </div>
 
-            {/* ── Import History ─────────────────────────────── */}
-            {importBatches.length > 0 && (
-              <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-                <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                    Historico de Importacoes
-                  </h3>
-                  <span className="text-[10px] text-white/60">{importBatches.length} importacao(oes)</span>
-                </div>
-                <div className="bg-white divide-y divide-[#eee]">
-                  <div className="hidden md:grid md:grid-cols-[1fr_120px_160px_80px_60px] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#ccc]">
-                    <div className="p-3">Data Importacao</div>
-                    <div className="p-3 text-center">Transacoes</div>
-                    <div className="p-3 text-center">Periodo Extrato</div>
-                    <div className="p-3 text-center">Status</div>
-                    <div className="p-3 text-center">Acao</div>
-                  </div>
-                  {importBatches.slice(0, 10).map((batch) => (
-                    <div key={batch.key} className="grid grid-cols-1 md:grid-cols-[1fr_120px_160px_80px_60px] hover:bg-[#fafafa]">
-                      <div className="p-3 flex items-center gap-2">
-                        <Calendar size={14} className="text-[#1a2e4a]" />
-                        <div>
-                          <p className="text-sm text-[#0a0a0a] font-medium">
-                            {new Date(batch.imported_at).toLocaleDateString('pt-BR')}
-                          </p>
-                          <p className="text-[10px] text-[#999]">
-                            {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="p-3 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-[#1a2e4a]">{batch.count}</span>
-                      </div>
-                      <div className="p-3 flex items-center justify-center">
-                        <span className="text-[11px] text-[#555]">
-                          {formatData(batch.min_date)} a {formatData(batch.max_date)}
-                        </span>
-                      </div>
-                      <div className="p-3 flex items-center justify-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]">
-                          <CheckCircle2 size={10} /> OK
-                        </span>
-                      </div>
-                      <div className="p-3 flex items-center justify-center">
-                        <button
-                          onClick={() => excluirImportBatch(batch.tx_ids)}
-                          className="p-1.5 rounded text-[#8b0000] hover:bg-[#fdecea] transition"
-                          title="Excluir lote"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* ── Batch bar ───────────────────────────────────── */}
             {selecionados.size > 0 && (
               <div className="sticky top-0 z-20 bg-[#1a2e4a] text-white rounded-lg px-4 py-3 flex items-center justify-between shadow-lg">
@@ -1537,21 +1568,21 @@ export default function Conciliacao() {
                 ) : (
                   <>
                     {/* Table header */}
-                    <div className="hidden md:grid md:grid-cols-[40px_1fr_1fr_180px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                      <div className="p-3 flex items-center justify-center">
+                    <div className="hidden md:grid md:grid-cols-[36px_90px_1fr_160px_120px_200px_160px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                      <div className="p-2.5 flex items-center justify-center">
                         <input
                           type="checkbox"
-                          checked={
-                            selecionados.size === matchesEnriquecidos.length &&
-                            matchesEnriquecidos.length > 0
-                          }
+                          checked={selecionados.size === matchesEnriquecidos.length && matchesEnriquecidos.length > 0}
                           onChange={toggleTodos}
                           className="w-3.5 h-3.5 accent-[#1a2e4a]"
                         />
                       </div>
-                      <div className="p-3">Extrato Bancario</div>
-                      <div className="p-3">Lancamento no Sistema</div>
-                      <div className="p-3 text-center">Acoes</div>
+                      <div className="p-2.5">Data</div>
+                      <div className="p-2.5">Transacao</div>
+                      <div className="p-2.5">Favorecido</div>
+                      <div className="p-2.5 text-right">Valor</div>
+                      <div className="p-2.5 text-center">Sugestao IA / Categoria</div>
+                      <div className="p-2.5 text-center">Acoes</div>
                     </div>
 
                     {/* Rows */}
@@ -1561,174 +1592,173 @@ export default function Conciliacao() {
                       const status = mt?.status || 'pendente'
                       const isAprovado = status === 'aprovado' || status === 'ignorado'
 
+                      // Extract favorecido from description heuristics
+                      const descParts = tx.descricao.split(/[\/\-]/).map(s => s.trim()).filter(Boolean)
+                      const favorecido = item.lancamento
+                        ? item.lancamento.nome
+                        : descParts.length > 1 ? descParts[descParts.length - 1] : '-'
+
                       return (
-                        <div key={tx.id} className="border-b border-[#eee] last:border-b-0">
-                          <div
-                            className={`grid grid-cols-1 md:grid-cols-[40px_1fr_1fr_180px] gap-0 ${
-                              isAprovado ? 'opacity-60' : ''
-                            }`}
-                          >
+                        <div key={tx.id} className={`border-b border-[#eee] last:border-b-0 ${isAprovado ? 'opacity-50' : ''}`}>
+                          <div className="grid grid-cols-1 md:grid-cols-[36px_90px_1fr_160px_120px_200px_160px] gap-0">
                             {/* Checkbox */}
-                            <div className="p-3 flex items-start justify-center">
+                            <div className="p-2.5 flex items-center justify-center">
                               <input
                                 type="checkbox"
                                 checked={selecionados.has(tx.id)}
                                 onChange={() => toggleSelecao(tx.id)}
-                                className="w-3.5 h-3.5 accent-[#1a2e4a] mt-1"
+                                className="w-3.5 h-3.5 accent-[#1a2e4a]"
                                 disabled={isAprovado}
                               />
                             </div>
 
-                            {/* Extrato */}
-                            <div className="p-3">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span
-                                  className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                                    tx.tipo === 'credito'
-                                      ? 'bg-[#e6f4ec] text-[#0a5c2e]'
-                                      : 'bg-[#fdecea] text-[#8b0000]'
-                                  }`}
-                                >
-                                  {tx.tipo === 'credito' ? 'C' : 'D'}
+                            {/* Data */}
+                            <div className="p-2.5">
+                              <p className="text-[11px] text-[#0a0a0a] font-medium">{formatData(tx.data)}</p>
+                              {tx.reconciled_at && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] text-[#0a5c2e] mt-0.5">
+                                  <Clock size={8} />
+                                  {new Date(tx.reconciled_at).toLocaleDateString('pt-BR')}
                                 </span>
-                                <span className="text-sm font-semibold text-[#0a0a0a]">
-                                  {formatBRL(tx.valor)}
-                                </span>
-                                <span className="text-[11px] text-[#555]">
-                                  {formatData(tx.data)}
-                                </span>
-                              </div>
-                              <p className="text-xs text-[#555] truncate max-w-[400px]">
+                              )}
+                            </div>
+
+                            {/* Transacao (descricao do extrato) */}
+                            <div className="p-2.5">
+                              <p className="text-sm text-[#0a0a0a] truncate" title={tx.descricao}>
                                 {tx.descricao}
                               </p>
-                              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                                  tx.tipo === 'credito' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
+                                }`}>
+                                  {tx.tipo === 'credito' ? 'Credito' : 'Debito'}
+                                </span>
                                 {renderBadge(status, mt?.diferenca ?? null)}
-                                {(status === 'aprovado' || tx.reconciled_at) && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] text-[#555]">
-                                    <Clock size={10} />
-                                    {tx.reconciled_at
-                                      ? new Date(tx.reconciled_at).toLocaleDateString('pt-BR') + ' ' + new Date(tx.reconciled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                                      : 'Data nao registrada'}
-                                  </span>
-                                )}
                               </div>
                             </div>
 
-                            {/* Lancamento */}
-                            <div className="p-3">
-                              {item.lancamento ? (
-                                <div>
-                                  <p className="text-sm font-medium text-[#0a0a0a]">
-                                    {item.lancamento.nome}
-                                  </p>
-                                  <p className="text-xs text-[#555]">
-                                    {formatBRL(item.lancamento.valor)} - Venc.{' '}
-                                    {formatData(item.lancamento.data_vencimento)}
-                                  </p>
-                                  <span className="text-[10px] uppercase text-[#555] font-semibold">
-                                    {item.lancamento.tipo === 'cr'
-                                      ? 'Conta a Receber'
-                                      : 'Conta a Pagar'}
-                                  </span>
-                                </div>
-                              ) : item.sugestaoIA ? (
-                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded p-2">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <Sparkles size={12} className="text-purple-600" />
-                                    <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
-                                      Sugestao IA ({item.sugestaoIA.confianca}%)
+                            {/* Favorecido */}
+                            <div className="p-2.5">
+                              <p className="text-sm text-[#0a0a0a] truncate" title={favorecido}>
+                                {favorecido}
+                              </p>
+                              {item.lancamento && (
+                                <span className="text-[9px] uppercase text-[#555] font-semibold">
+                                  {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} - Venc. {formatData(item.lancamento.data_vencimento)}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Valor */}
+                            <div className="p-2.5 text-right">
+                              <span className={`text-sm font-bold ${
+                                tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
+                              }`}>
+                                {tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}
+                              </span>
+                            </div>
+
+                            {/* Sugestao IA / Categoria */}
+                            <div className="p-2.5">
+                              {item.sugestaoIA ? (
+                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded px-2 py-1.5">
+                                  <div className="flex items-center gap-1 mb-0.5">
+                                    <Sparkles size={10} className="text-purple-600" />
+                                    <span className="text-[9px] font-bold text-purple-700 uppercase">
+                                      IA {item.sugestaoIA.confianca}%
                                     </span>
                                   </div>
-                                  <p className="text-sm font-medium text-[#0a0a0a]">
-                                    {item.sugestaoIA.lancamento_nome}
-                                  </p>
-                                  <p className="text-[10px] text-[#555]">
-                                    Baseado em: "{item.sugestaoIA.descricao_similar}"
-                                  </p>
-                                  <p className="text-[10px] text-purple-600 mt-0.5 uppercase font-semibold">
-                                    {item.sugestaoIA.tipo_lancamento === 'cr' ? 'Conta a Receber' : 'Conta a Pagar'}
-                                  </p>
+                                  {item.sugestaoIA.categoria_nome ? (
+                                    <p className="text-[11px] text-[#0a0a0a] font-medium truncate" title={item.sugestaoIA.categoria_nome}>
+                                      {item.sugestaoIA.categoria_nome}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[11px] text-[#0a0a0a] font-medium truncate">
+                                      {item.sugestaoIA.lancamento_nome}
+                                    </p>
+                                  )}
+                                  {item.sugestaoIA.categoria_id && (
+                                    <button
+                                      onClick={() => categorizarTransacao(tx.id, item.sugestaoIA!.categoria_id!)}
+                                      className="mt-1 text-[9px] text-purple-700 font-semibold hover:underline"
+                                    >
+                                      Aceitar sugestao
+                                    </button>
+                                  )}
                                 </div>
-                              ) : status === 'match_regra' ? (
-                                <p className="text-xs text-[#555] italic">
-                                  Classificado por regra salva
-                                </p>
-                              ) : status === 'revisao' ? (
-                                <p className="text-xs text-[#5c3a00] italic">
-                                  Multiplos candidatos encontrados - vincule manualmente
-                                </p>
                               ) : (
-                                <p className="text-xs text-[#999] italic">
-                                  Sem lancamento vinculado
-                                </p>
+                                <div className="relative">
+                                  <select
+                                    onChange={(e) => {
+                                      if (e.target.value) categorizarTransacao(tx.id, e.target.value)
+                                    }}
+                                    defaultValue=""
+                                    className="w-full text-[11px] border border-[#ddd] rounded px-2 py-1.5 bg-white text-[#555] focus:outline-none focus:border-[#1a2e4a] appearance-none pr-6"
+                                  >
+                                    <option value="">Categorizar...</option>
+                                    {planoContas.map(cat => (
+                                      <option key={cat.id} value={cat.id}>{cat.code} - {cat.name}</option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none" />
+                                </div>
                               )}
                             </div>
 
                             {/* Acoes */}
-                            <div className="p-3 flex items-start justify-center gap-1.5 flex-wrap">
+                            <div className="p-2.5 flex items-center justify-center gap-1 flex-wrap">
                               {!isAprovado && (
                                 <>
-                                  {mt &&
-                                    (status === 'match_auto' ||
-                                      status === 'match_regra' ||
-                                      status === 'match_dif') && (
-                                      <button
-                                        onClick={() => aprovar(mt.id, item)}
-                                        className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e] hover:bg-[#d0eddb] transition"
-                                      >
-                                        Aprovar
-                                      </button>
-                                    )}
+                                  {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
+                                    <button
+                                      onClick={() => aprovar(mt.id, item)}
+                                      className="px-2 py-1 text-[10px] font-semibold rounded bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e] hover:bg-[#d0eddb] transition"
+                                    >
+                                      Aprovar
+                                    </button>
+                                  )}
                                   {(status === 'nao_reconhecido' || status === 'revisao') && (
                                     <button
                                       onClick={() => abrirVincular(tx)}
-                                      className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a] hover:bg-[#e0e8f0] transition flex items-center gap-1"
+                                      className="px-2 py-1 text-[10px] font-semibold rounded bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a] hover:bg-[#e0e8f0] transition flex items-center gap-0.5"
                                     >
-                                      <Link2 size={11} /> Vincular
+                                      <Link2 size={10} /> Vincular
                                     </button>
                                   )}
                                   {status === 'nao_reconhecido' && (
                                     <>
                                       <button
                                         onClick={() => criarMovimentacao(item)}
-                                        className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a] hover:bg-[#fff5cc] transition flex items-center gap-1"
+                                        className="px-2 py-1 text-[10px] font-semibold rounded bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a] hover:bg-[#fff5cc] transition flex items-center gap-0.5"
                                       >
-                                        <Plus size={11} /> Criar
+                                        <Plus size={10} /> Criar
                                       </button>
                                       {mt && (
                                         <button
                                           onClick={() => ignorar(mt.id)}
-                                          className="px-2.5 py-1 text-[11px] font-semibold rounded bg-gray-100 text-gray-500 border border-gray-300 hover:bg-gray-200 transition flex items-center gap-1"
+                                          className="px-2 py-1 text-[10px] font-semibold rounded bg-gray-100 text-gray-500 border border-gray-300 hover:bg-gray-200 transition flex items-center gap-0.5"
                                         >
-                                          <EyeOff size={11} /> Ignorar
+                                          <EyeOff size={10} /> Ignorar
                                         </button>
                                       )}
                                     </>
                                   )}
                                 </>
                               )}
+                              {isAprovado && (
+                                <span className="text-[10px] text-[#0a5c2e] font-semibold">
+                                  <CheckCircle2 size={12} className="inline -mt-0.5" /> OK
+                                </span>
+                              )}
                             </div>
                           </div>
 
-                          {/* Footer: amber for match_dif */}
+                          {/* Footer: diff warning */}
                           {status === 'match_dif' && mt?.diferenca && (
-                            <div className="bg-[#fffbe6] border-t border-[#b8960a] px-4 py-2 text-[11px] text-[#5c3a00]">
-                              <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />
-                              Diferenca de{' '}
-                              <strong>{formatBRL(Math.abs(mt.diferenca))}</strong> entre o
-                              extrato ({formatBRL(tx.valor)}) e o lancamento (
-                              {item.lancamento ? formatBRL(item.lancamento.valor) : '--'}).
-                              Verifique antes de aprovar.
-                            </div>
-                          )}
-
-                          {/* Footer: red for nao_reconhecido */}
-                          {status === 'nao_reconhecido' && (
-                            <div className="bg-[#fdecea] border-t border-[#8b0000] px-4 py-2 text-[11px] text-[#8b0000]">
-                              <XCircle size={12} className="inline mr-1 -mt-0.5" />
-                              Transacao nao encontrada no sistema. Use as acoes acima para
-                              criar uma movimentacao, vincular a um CP/CR existente ou
-                              ignorar.
+                            <div className="bg-[#fffbe6] border-t border-[#b8960a] px-4 py-1.5 text-[11px] text-[#5c3a00]">
+                              <AlertTriangle size={11} className="inline mr-1 -mt-0.5" />
+                              Diferenca de <strong>{formatBRL(Math.abs(mt.diferenca))}</strong>
                             </div>
                           )}
                         </div>
@@ -1749,10 +1779,10 @@ export default function Conciliacao() {
                     <p className="text-sm font-bold">
                       {matchesEnriquecidos.filter(
                         m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)
-                      ).length} conciliacoes pendentes de aprovacao
+                      ).length} conciliacoes pendentes
                     </p>
                     <p className="text-[11px] text-white/70">
-                      Clique para aprovar todas as conciliacoes e baixar os lancamentos vinculados
+                      Aprovar todas e baixar lancamentos vinculados
                     </p>
                   </div>
                   <button
@@ -1775,16 +1805,16 @@ export default function Conciliacao() {
 
 
         {/* ════════════════════════════════════════════════════════
-           TAB: HISTORICO
+           TAB: ARQUIVOS IMPORTADOS (expandable batches)
            ════════════════════════════════════════════════════════ */}
         {abaAtiva === 'historico' && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
             <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                Historico de Conciliacoes
+                Arquivos Importados
               </h3>
               <button
-                onClick={carregarHistorico}
+                onClick={carregarImportBatches}
                 className="text-white/70 hover:text-white transition"
                 title="Recarregar"
               >
@@ -1792,104 +1822,96 @@ export default function Conciliacao() {
               </button>
             </div>
             <div className="bg-white">
-              {carregandoHistorico ? (
-                <div className="flex items-center justify-center py-16 gap-2 text-[#555] text-sm">
-                  <Loader2 size={18} className="animate-spin" />
-                  Carregando historico...
-                </div>
-              ) : historicoConciliacoes.length === 0 ? (
+              {importBatches.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
-                  <History size={32} className="text-[#ccc] mb-2" />
-                  Nenhuma conciliacao realizada ainda.
+                  <FileText size={32} className="text-[#ccc] mb-2" />
+                  Nenhum arquivo importado ainda.
                   <span className="text-[11px] text-[#999]">
-                    Conciliacoes aprovadas aparecerao aqui.
+                    Importe um extrato OFX na aba Conciliacao.
                   </span>
                 </div>
               ) : (
-                <>
-                  <div className="px-4 py-2 bg-[#f9f9f9] border-b border-[#ccc] flex items-center justify-between">
-                    <span className="text-[11px] text-[#555] font-semibold">
-                      {historicoConciliacoes.length} conciliacoes encontradas
-                    </span>
-                  </div>
-                  {/* Header */}
-                  <div className="hidden md:grid md:grid-cols-[1fr_120px_100px_120px_120px_100px_160px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                    <div className="p-3">Descricao</div>
-                    <div className="p-3 text-right">Valor</div>
-                    <div className="p-3 text-center">Data</div>
-                    <div className="p-3 text-center">Status</div>
-                    <div className="p-3 text-center">Origem</div>
-                    <div className="p-3 text-center">Forma</div>
-                    <div className="p-3">Categoria</div>
-                  </div>
-                  {historicoConciliacoes.map((item) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-1 md:grid-cols-[1fr_120px_100px_120px_120px_100px_160px] border-b border-[#eee] last:border-b-0 hover:bg-[#fafafa]"
-                    >
-                      <div className="p-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                              item.tipo === 'credito'
-                                ? 'bg-[#e6f4ec] text-[#0a5c2e]'
-                                : 'bg-[#fdecea] text-[#8b0000]'
-                            }`}
-                          >
-                            {item.tipo === 'credito' ? 'C' : 'D'}
+                <div className="divide-y divide-[#eee]">
+                  {importBatches.map((batch) => {
+                    const isExpanded = batchExpandido === batch.key
+                    return (
+                      <div key={batch.key}>
+                        {/* Batch row (clickable) */}
+                        <button
+                          onClick={() => expandirBatch(batch)}
+                          className="w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-[#f9f9f9] transition"
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={`text-[#1a2e4a] transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          />
+                          <Calendar size={16} className="text-[#1a2e4a] shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-[#0a0a0a]">
+                              Importacao {new Date(batch.imported_at).toLocaleDateString('pt-BR')}
+                              {' '}
+                              <span className="text-[#999] font-normal">
+                                as {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-[#555]">
+                              Periodo: {formatData(batch.min_date)} a {formatData(batch.max_date)}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-[#1a2e4a] bg-[#f0f4f8] px-3 py-1 rounded">
+                            {batch.count} transacoes
                           </span>
-                          <p className="text-sm text-[#0a0a0a] truncate max-w-[400px]">
-                            {item.descricao}
-                          </p>
-                        </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); excluirImportBatch(batch.tx_ids) }}
+                            className="p-1.5 rounded text-[#8b0000] hover:bg-[#fdecea] transition"
+                            title="Excluir lote"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </button>
+
+                        {/* Expanded transactions */}
+                        {isExpanded && (
+                          <div className="bg-[#f9f9f9] border-t border-[#eee]">
+                            {batchTransacoes.length === 0 ? (
+                              <div className="flex items-center justify-center py-8 text-[#555] text-sm gap-2">
+                                <Loader2 size={16} className="animate-spin" />
+                                Carregando transacoes...
+                              </div>
+                            ) : (
+                              <>
+                                <div className="hidden md:grid md:grid-cols-[100px_1fr_120px_100px] border-b border-[#ddd] bg-[#f0f0f0] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                                  <div className="px-4 py-2">Data</div>
+                                  <div className="px-4 py-2">Descricao</div>
+                                  <div className="px-4 py-2 text-right">Valor</div>
+                                  <div className="px-4 py-2 text-center">Status</div>
+                                </div>
+                                {batchTransacoes.map((tx) => (
+                                  <div key={tx.id} className="grid grid-cols-1 md:grid-cols-[100px_1fr_120px_100px] border-b border-[#eee] last:border-b-0 hover:bg-white">
+                                    <div className="px-4 py-2 text-[11px] text-[#555]">{formatData(tx.data)}</div>
+                                    <div className="px-4 py-2 text-sm text-[#0a0a0a] truncate">{tx.descricao}</div>
+                                    <div className="px-4 py-2 text-right">
+                                      <span className={`text-sm font-semibold ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+                                        {tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}
+                                      </span>
+                                    </div>
+                                    <div className="px-4 py-2 flex items-center justify-center">
+                                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                                        tx.status_conciliacao === 'reconciled' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#f0f4f8] text-[#1a2e4a]'
+                                      }`}>
+                                        {tx.status_conciliacao === 'reconciled' ? 'Conciliado' : 'Pendente'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="p-3 text-right">
-                        <span className={`text-sm font-semibold ${
-                          item.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
-                        }`}>
-                          {item.tipo === 'credito' ? '+' : '-'}{formatBRL(Math.abs(item.valor))}
-                        </span>
-                      </div>
-                      <div className="p-3 text-center text-[11px] text-[#555]">
-                        {formatData(item.data)}
-                      </div>
-                      <div className="p-3 flex items-center justify-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
-                          item.status === 'conciliado' || item.status === 'pago'
-                            ? 'bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]'
-                            : item.status === 'parcial'
-                              ? 'bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a]'
-                              : item.status === 'pendente'
-                                ? 'bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a]'
-                                : 'bg-gray-100 text-gray-500 border border-gray-300'
-                        }`}>
-                          <CheckCircle2 size={12} />
-                          {item.status === 'conciliado' ? 'Conciliado'
-                            : item.status === 'pago' ? 'Pago'
-                            : item.status === 'parcial' ? 'Parcial'
-                            : item.status === 'pendente' ? 'Pendente'
-                            : item.status === 'ignorado' ? 'Ignorado'
-                            : item.status}
-                        </span>
-                      </div>
-                      <div className="p-3 text-center">
-                        <span className="text-[10px] text-[#999] uppercase font-semibold">
-                          {item.origem}
-                        </span>
-                      </div>
-                      <div className="p-3 text-center">
-                        <span className="text-[10px] text-[#555]">
-                          {item.forma}
-                        </span>
-                      </div>
-                      <div className="p-3">
-                        <span className="text-[11px] text-[#0a0a0a] truncate block max-w-[150px]">
-                          {item.categoria}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </>
+                    )
+                  })}
+                </div>
               )}
             </div>
           </div>
