@@ -25,6 +25,7 @@ import {
   Sparkles,
   Clock,
   Calendar,
+  X,
 } from 'lucide-react'
 
 /* ════════════════════════════════════════════════════════════════════
@@ -201,6 +202,9 @@ export default function Conciliacao() {
 
   // Salvar conciliação
   const [salvando, setSalvando] = useState(false)
+
+  // IA category dropdown (which tx id has dropdown open)
+  const [iaCatDropdownOpen, setIaCatDropdownOpen] = useState<string | null>(null)
 
   // IA patterns (learned from past reconciliations)
   const [iaPatterns, setIaPatterns] = useState<Array<{
@@ -1129,59 +1133,73 @@ export default function Conciliacao() {
     setModalVincular({ transacao: tx, aberto: true })
     setBuscaVincular('')
     setCandidatosVincular([])
+    // Auto-load candidates on open
+    setTimeout(() => buscarCandidatosParaTx(tx, ''), 100)
   }
 
-  const buscarCandidatos = async () => {
-    if (!companyId || !modalVincular.transacao) return
+  const buscarCandidatosParaTx = async (tx: BankTransaction, termo: string) => {
+    if (!companyId) return
     setBuscandoVincular(true)
-    const tx = modalVincular.transacao
     try {
-      if (tx.tipo === 'credito') {
-        const data = await safeQuery(
-          async () =>
-            await activeClient
-              .from('contas_receber')
-              .select('id, pagador_nome, valor, data_vencimento')
-              .eq('company_id', companyId)
-              .in('status', ['pendente', 'parcial', 'vencido'])
-              .ilike('pagador_nome', `%${buscaVincular}%`)
-              .limit(20),
-          'buscar CRs vincular'
-        )
-        setCandidatosVincular(
-          ((data || []) as any[]).map((c) => ({
-            id: c.id,
-            nome: c.pagador_nome,
-            valor: c.valor,
-            data_vencimento: c.data_vencimento,
-            tipo: 'cr' as const,
-          }))
-        )
-      } else {
-        const data = await safeQuery(
-          async () =>
-            await activeClient
-              .from('contas_pagar')
-              .select('id, credor_nome, valor, data_vencimento')
-              .eq('company_id', companyId)
-              .in('status', ['pendente', 'parcial', 'vencido'])
-              .ilike('credor_nome', `%${buscaVincular}%`)
-              .limit(20),
-          'buscar CPs vincular'
-        )
-        setCandidatosVincular(
-          ((data || []) as any[]).map((c) => ({
-            id: c.id,
-            nome: c.credor_nome,
-            valor: c.valor,
-            data_vencimento: c.data_vencimento,
-            tipo: 'cp' as const,
-          }))
-        )
+      const allCandidatos: CandidatoLancamento[] = []
+
+      // Always fetch both CR and CP
+      const crData = await safeQuery(
+        async () => {
+          let q = activeClient
+            .from('contas_receber')
+            .select('id, pagador_nome, valor, data_vencimento')
+            .eq('company_id', companyId)
+            .in('status', ['pendente', 'parcial', 'vencido'])
+          if (termo) q = q.ilike('pagador_nome', `%${termo}%`)
+          return await q.limit(20)
+        },
+        'buscar CRs vincular'
+      )
+      for (const c of ((crData || []) as any[])) {
+        allCandidatos.push({
+          id: c.id,
+          nome: c.pagador_nome,
+          valor: c.valor,
+          data_vencimento: c.data_vencimento,
+          tipo: 'cr' as const,
+        })
       }
+
+      const cpData = await safeQuery(
+        async () => {
+          let q = activeClient
+            .from('contas_pagar')
+            .select('id, credor_nome, valor, data_vencimento')
+            .eq('company_id', companyId)
+            .in('status', ['pendente', 'parcial', 'vencido'])
+          if (termo) q = q.ilike('credor_nome', `%${termo}%`)
+          return await q.limit(20)
+        },
+        'buscar CPs vincular'
+      )
+      for (const c of ((cpData || []) as any[])) {
+        allCandidatos.push({
+          id: c.id,
+          nome: c.credor_nome,
+          valor: c.valor,
+          data_vencimento: c.data_vencimento,
+          tipo: 'cp' as const,
+        })
+      }
+
+      // Sort by value proximity to transaction
+      allCandidatos.sort((a, b) => Math.abs(a.valor - tx.valor) - Math.abs(b.valor - tx.valor))
+
+      setCandidatosVincular(allCandidatos.slice(0, 20))
     } finally {
       setBuscandoVincular(false)
     }
+  }
+
+  const buscarCandidatos = async () => {
+    if (!modalVincular.transacao) return
+    await buscarCandidatosParaTx(modalVincular.transacao, buscaVincular)
   }
 
   const vincular = async (candidato: CandidatoLancamento) => {
@@ -1360,7 +1378,7 @@ export default function Conciliacao() {
 
   return (
     <AppLayout title="Conciliacao Bancaria">
-      <div className="max-w-[1400px] mx-auto space-y-4">
+      <div className="w-full mx-auto space-y-4">
         {/* ── KPIs ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
@@ -1568,8 +1586,8 @@ export default function Conciliacao() {
                 ) : (
                   <>
                     {/* Table header */}
-                    <div className="hidden md:grid md:grid-cols-[36px_90px_1fr_160px_120px_200px_160px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
-                      <div className="p-2.5 flex items-center justify-center">
+                    <div className="hidden md:grid md:grid-cols-[32px_80px_1fr_120px_100px_60px] border-b border-[#ccc] bg-[#f9f9f9] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                      <div className="p-2 flex items-center justify-center">
                         <input
                           type="checkbox"
                           checked={selecionados.size === matchesEnriquecidos.length && matchesEnriquecidos.length > 0}
@@ -1577,12 +1595,11 @@ export default function Conciliacao() {
                           className="w-3.5 h-3.5 accent-[#1a2e4a]"
                         />
                       </div>
-                      <div className="p-2.5">Data</div>
-                      <div className="p-2.5">Transacao</div>
-                      <div className="p-2.5">Favorecido</div>
-                      <div className="p-2.5 text-right">Valor</div>
-                      <div className="p-2.5 text-center">Sugestao IA / Categoria</div>
-                      <div className="p-2.5 text-center">Acoes</div>
+                      <div className="p-2">Data</div>
+                      <div className="p-2">Transacao</div>
+                      <div className="p-2 text-right">Valor</div>
+                      <div className="p-2 text-center">IA</div>
+                      <div className="p-2 text-center">Acoes</div>
                     </div>
 
                     {/* Rows */}
@@ -1596,13 +1613,13 @@ export default function Conciliacao() {
                       const descParts = tx.descricao.split(/[\/\-]/).map(s => s.trim()).filter(Boolean)
                       const favorecido = item.lancamento
                         ? item.lancamento.nome
-                        : descParts.length > 1 ? descParts[descParts.length - 1] : '-'
+                        : descParts.length > 1 ? descParts[descParts.length - 1] : ''
 
                       return (
                         <div key={tx.id} className={`border-b border-[#eee] last:border-b-0 ${isAprovado ? 'opacity-50' : ''}`}>
-                          <div className="grid grid-cols-1 md:grid-cols-[36px_90px_1fr_160px_120px_200px_160px] gap-0">
+                          <div className="grid grid-cols-1 md:grid-cols-[32px_80px_1fr_120px_100px_60px] gap-0 items-center">
                             {/* Checkbox */}
-                            <div className="p-2.5 flex items-center justify-center">
+                            <div className="p-2 flex items-center justify-center">
                               <input
                                 type="checkbox"
                                 checked={selecionados.has(tx.id)}
@@ -1613,7 +1630,7 @@ export default function Conciliacao() {
                             </div>
 
                             {/* Data */}
-                            <div className="p-2.5">
+                            <div className="p-2">
                               <p className="text-[11px] text-[#0a0a0a] font-medium">{formatData(tx.data)}</p>
                               {tx.reconciled_at && (
                                 <span className="inline-flex items-center gap-0.5 text-[9px] text-[#0a5c2e] mt-0.5">
@@ -1623,35 +1640,33 @@ export default function Conciliacao() {
                               )}
                             </div>
 
-                            {/* Transacao (descricao do extrato) */}
-                            <div className="p-2.5">
+                            {/* Transacao (descricao + favorecido merged) */}
+                            <div className="p-2 min-w-0">
                               <p className="text-sm text-[#0a0a0a] truncate" title={tx.descricao}>
                                 {tx.descricao}
                               </p>
-                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                              {favorecido && (
+                                <p className="text-[10px] text-[#777] truncate" title={favorecido}>
+                                  {favorecido}
+                                  {item.lancamento && (
+                                    <span className="ml-1 text-[9px] uppercase text-[#555] font-semibold">
+                                      ({item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} - Venc. {formatData(item.lancamento.data_vencimento)})
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                              <div className="mt-0.5 flex items-center gap-1 flex-wrap">
+                                <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded ${
                                   tx.tipo === 'credito' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
                                 }`}>
-                                  {tx.tipo === 'credito' ? 'Credito' : 'Debito'}
+                                  {tx.tipo === 'credito' ? 'C' : 'D'}
                                 </span>
                                 {renderBadge(status, mt?.diferenca ?? null)}
                               </div>
                             </div>
 
-                            {/* Favorecido */}
-                            <div className="p-2.5">
-                              <p className="text-sm text-[#0a0a0a] truncate" title={favorecido}>
-                                {favorecido}
-                              </p>
-                              {item.lancamento && (
-                                <span className="text-[9px] uppercase text-[#555] font-semibold">
-                                  {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} - Venc. {formatData(item.lancamento.data_vencimento)}
-                                </span>
-                              )}
-                            </div>
-
                             {/* Valor */}
-                            <div className="p-2.5 text-right">
+                            <div className="p-2 text-right">
                               <span className={`text-sm font-bold ${
                                 tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
                               }`}>
@@ -1659,87 +1674,98 @@ export default function Conciliacao() {
                               </span>
                             </div>
 
-                            {/* Sugestao IA / Categoria */}
-                            <div className="p-2.5">
+                            {/* IA column - compact badge/icon */}
+                            <div className="p-2 flex items-center justify-center relative">
                               {item.sugestaoIA ? (
-                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded px-2 py-1.5">
-                                  <div className="flex items-center gap-1 mb-0.5">
-                                    <Sparkles size={10} className="text-purple-600" />
-                                    <span className="text-[9px] font-bold text-purple-700 uppercase">
-                                      IA {item.sugestaoIA.confianca}%
-                                    </span>
+                                <button
+                                  onClick={() => setIaCatDropdownOpen(iaCatDropdownOpen === tx.id ? null : tx.id)}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 hover:border-purple-400 transition"
+                                  title={`IA: ${item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome} (${item.sugestaoIA.confianca}%)`}
+                                >
+                                  <Sparkles size={11} className="text-purple-600" />
+                                  <span className="text-[9px] font-bold text-purple-700">{item.sugestaoIA.confianca}%</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setIaCatDropdownOpen(iaCatDropdownOpen === tx.id ? null : tx.id)}
+                                  className="inline-flex items-center justify-center w-6 h-6 rounded bg-gray-50 border border-gray-200 hover:border-gray-400 transition"
+                                  title="Categorizar"
+                                >
+                                  <span className="text-gray-400 text-[10px]">--</span>
+                                </button>
+                              )}
+                              {/* Dropdown for category selection */}
+                              {iaCatDropdownOpen === tx.id && (
+                                <div className="absolute top-full right-0 mt-1 z-30 bg-white border border-[#ccc] rounded-lg shadow-xl w-64 max-h-60 overflow-y-auto">
+                                  <div className="sticky top-0 bg-white border-b border-[#eee] px-3 py-2 flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-[#555] uppercase">Categorizar</span>
+                                    <button onClick={() => setIaCatDropdownOpen(null)} className="text-gray-400 hover:text-gray-600">
+                                      <X size={12} />
+                                    </button>
                                   </div>
-                                  {item.sugestaoIA.categoria_nome ? (
-                                    <p className="text-[11px] text-[#0a0a0a] font-medium truncate" title={item.sugestaoIA.categoria_nome}>
-                                      {item.sugestaoIA.categoria_nome}
-                                    </p>
-                                  ) : (
-                                    <p className="text-[11px] text-[#0a0a0a] font-medium truncate">
-                                      {item.sugestaoIA.lancamento_nome}
-                                    </p>
-                                  )}
-                                  {item.sugestaoIA.categoria_id && (
+                                  {item.sugestaoIA?.categoria_id && (
                                     <button
-                                      onClick={() => categorizarTransacao(tx.id, item.sugestaoIA!.categoria_id!)}
-                                      className="mt-1 text-[9px] text-purple-700 font-semibold hover:underline"
+                                      onClick={() => { categorizarTransacao(tx.id, item.sugestaoIA!.categoria_id!); setIaCatDropdownOpen(null) }}
+                                      className="w-full text-left px-3 py-2 text-[11px] bg-purple-50 hover:bg-purple-100 transition border-b border-purple-100"
                                     >
-                                      Aceitar sugestao
+                                      <div className="flex items-center gap-1">
+                                        <Sparkles size={10} className="text-purple-600 shrink-0" />
+                                        <span className="font-semibold text-purple-700">Aceitar sugestao IA</span>
+                                      </div>
+                                      <p className="text-[10px] text-purple-600 truncate mt-0.5">{item.sugestaoIA.categoria_nome}</p>
                                     </button>
                                   )}
-                                </div>
-                              ) : (
-                                <div className="relative">
-                                  <select
-                                    onChange={(e) => {
-                                      if (e.target.value) categorizarTransacao(tx.id, e.target.value)
-                                    }}
-                                    defaultValue=""
-                                    className="w-full text-[11px] border border-[#ddd] rounded px-2 py-1.5 bg-white text-[#555] focus:outline-none focus:border-[#1a2e4a] appearance-none pr-6"
-                                  >
-                                    <option value="">Categorizar...</option>
-                                    {planoContas.map(cat => (
-                                      <option key={cat.id} value={cat.id}>{cat.code} - {cat.name}</option>
-                                    ))}
-                                  </select>
-                                  <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none" />
+                                  {planoContas.map(cat => (
+                                    <button
+                                      key={cat.id}
+                                      onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null) }}
+                                      className="w-full text-left px-3 py-1.5 text-[11px] text-[#333] hover:bg-[#f0f4f8] transition truncate"
+                                    >
+                                      {cat.code} - {cat.name}
+                                    </button>
+                                  ))}
                                 </div>
                               )}
                             </div>
 
-                            {/* Acoes */}
-                            <div className="p-2.5 flex items-center justify-center gap-1 flex-wrap">
+                            {/* Acoes - icon buttons only */}
+                            <div className="p-2 flex items-center justify-center gap-0.5">
                               {!isAprovado && (
                                 <>
                                   {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
                                     <button
                                       onClick={() => aprovar(mt.id, item)}
-                                      className="px-2 py-1 text-[10px] font-semibold rounded bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e] hover:bg-[#d0eddb] transition"
+                                      className="p-1 rounded bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e] hover:bg-[#d0eddb] transition"
+                                      title="Aprovar"
                                     >
-                                      Aprovar
+                                      <CheckCircle2 size={12} />
                                     </button>
                                   )}
                                   {(status === 'nao_reconhecido' || status === 'revisao') && (
                                     <button
                                       onClick={() => abrirVincular(tx)}
-                                      className="px-2 py-1 text-[10px] font-semibold rounded bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a] hover:bg-[#e0e8f0] transition flex items-center gap-0.5"
+                                      className="p-1 rounded bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a] hover:bg-[#e0e8f0] transition"
+                                      title="Vincular a CP/CR"
                                     >
-                                      <Link2 size={10} /> Vincular
+                                      <Link2 size={12} />
                                     </button>
                                   )}
                                   {status === 'nao_reconhecido' && (
                                     <>
                                       <button
                                         onClick={() => criarMovimentacao(item)}
-                                        className="px-2 py-1 text-[10px] font-semibold rounded bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a] hover:bg-[#fff5cc] transition flex items-center gap-0.5"
+                                        className="p-1 rounded bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a] hover:bg-[#fff5cc] transition"
+                                        title="Criar lancamento"
                                       >
-                                        <Plus size={10} /> Criar
+                                        <Plus size={12} />
                                       </button>
                                       {mt && (
                                         <button
                                           onClick={() => ignorar(mt.id)}
-                                          className="px-2 py-1 text-[10px] font-semibold rounded bg-gray-100 text-gray-500 border border-gray-300 hover:bg-gray-200 transition flex items-center gap-0.5"
+                                          className="p-1 rounded bg-gray-100 text-gray-500 border border-gray-300 hover:bg-gray-200 transition"
+                                          title="Ignorar"
                                         >
-                                          <EyeOff size={10} /> Ignorar
+                                          <EyeOff size={12} />
                                         </button>
                                       )}
                                     </>
@@ -1747,8 +1773,8 @@ export default function Conciliacao() {
                                 </>
                               )}
                               {isAprovado && (
-                                <span className="text-[10px] text-[#0a5c2e] font-semibold">
-                                  <CheckCircle2 size={12} className="inline -mt-0.5" /> OK
+                                <span title="Conciliado">
+                                  <CheckCircle2 size={12} className="text-[#0a5c2e]" />
                                 </span>
                               )}
                             </div>
@@ -1756,7 +1782,7 @@ export default function Conciliacao() {
 
                           {/* Footer: diff warning */}
                           {status === 'match_dif' && mt?.diferenca && (
-                            <div className="bg-[#fffbe6] border-t border-[#b8960a] px-4 py-1.5 text-[11px] text-[#5c3a00]">
+                            <div className="bg-[#fffbe6] border-t border-[#b8960a] px-4 py-1 text-[11px] text-[#5c3a00]">
                               <AlertTriangle size={11} className="inline mr-1 -mt-0.5" />
                               Diferenca de <strong>{formatBRL(Math.abs(mt.diferenca))}</strong>
                             </div>
@@ -2013,9 +2039,9 @@ export default function Conciliacao() {
               </h3>
               <button
                 onClick={() => setModalVincular({ transacao: null, aberto: false })}
-                className="text-white/70 hover:text-white text-lg leading-none"
+                className="text-white/70 hover:text-white transition"
               >
-                &times;
+                <X size={16} />
               </button>
             </div>
             <div className="p-4 space-y-3">
@@ -2033,11 +2059,7 @@ export default function Conciliacao() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder={`Buscar ${
-                    modalVincular.transacao.tipo === 'credito'
-                      ? 'contas a receber'
-                      : 'contas a pagar'
-                  }...`}
+                  placeholder="Buscar contas a pagar e receber..."
                   value={buscaVincular}
                   onChange={(e) => setBuscaVincular(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && buscarCandidatos()}
@@ -2057,24 +2079,58 @@ export default function Conciliacao() {
                 </button>
               </div>
 
-              {candidatosVincular.length > 0 && (
-                <div className="max-h-60 overflow-y-auto border border-[#ccc] rounded divide-y divide-[#eee]">
-                  {candidatosVincular.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => vincular(c)}
-                      className="w-full text-left px-3 py-2.5 hover:bg-[#f0f4f8] transition"
-                    >
-                      <p className="text-sm font-medium text-[#0a0a0a]">{c.nome}</p>
-                      <p className="text-xs text-[#555]">
-                        {formatBRL(c.valor)} - Venc. {formatData(c.data_vencimento)}
-                      </p>
-                    </button>
-                  ))}
+              {buscandoVincular && candidatosVincular.length === 0 && (
+                <div className="flex items-center justify-center py-6 gap-2 text-[#555] text-sm">
+                  <Loader2 size={16} className="animate-spin" />
+                  Buscando candidatos...
                 </div>
               )}
 
-              {candidatosVincular.length === 0 && buscaVincular && !buscandoVincular && (
+              {candidatosVincular.length > 0 && (
+                <div className="max-h-60 overflow-y-auto border border-[#ccc] rounded divide-y divide-[#eee]">
+                  {candidatosVincular.map((c) => {
+                    const diff = Math.round((modalVincular.transacao!.valor - c.valor) * 100) / 100
+                    const absDiff = Math.abs(diff)
+                    return (
+                      <button
+                        key={`${c.tipo}-${c.id}`}
+                        onClick={() => vincular(c)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-[#f0f4f8] transition"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                            c.tipo === 'cr' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
+                          }`}>
+                            {c.tipo === 'cr' ? 'CR' : 'CP'}
+                          </span>
+                          <p className="text-sm font-medium text-[#0a0a0a] truncate flex-1">{c.nome}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-[#555]">
+                            {formatBRL(c.valor)} - Venc. {formatData(c.data_vencimento)}
+                          </p>
+                          {absDiff >= 0.01 && (
+                            <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
+                              absDiff <= modalVincular.transacao!.valor * 0.05
+                                ? 'bg-[#fffbe6] text-[#5c3a00]'
+                                : 'bg-[#fdecea] text-[#8b0000]'
+                            }`}>
+                              {diff > 0 ? '+' : ''}{formatBRL(diff)} dif.
+                            </span>
+                          )}
+                          {absDiff < 0.01 && (
+                            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-[#e6f4ec] text-[#0a5c2e]">
+                              Valor exato
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {candidatosVincular.length === 0 && !buscandoVincular && (
                 <p className="text-xs text-[#999] text-center py-4">
                   Nenhum resultado encontrado. Tente outro termo.
                 </p>
