@@ -342,7 +342,7 @@ export default function Conciliacao() {
             .from('bank_transactions')
             .select('*')
             .eq('company_id', companyId)
-            .order('data', { ascending: false }),
+            .order('date', { ascending: false }),
         'carregar transacoes bancarias'
       )
       if (!transacoes || (transacoes as any[]).length === 0) {
@@ -351,7 +351,7 @@ export default function Conciliacao() {
         return
       }
 
-      const txList = transacoes as BankTransaction[]
+      const txList = ((transacoes || []) as any[]).map(mapDbToTx)
       const txIds = txList.map((t) => t.id)
 
       const matches = await safeQuery(
@@ -591,6 +591,18 @@ export default function Conciliacao() {
     [companyId, activeClient]
   )
 
+  // ── Helper: map DB row (English cols) to internal BankTransaction ──
+  const mapDbToTx = (r: any): BankTransaction => ({
+    id: r.id,
+    company_id: r.company_id,
+    conta_bancaria_id: r.bank_account_id,
+    data: r.date,
+    descricao: r.description || r.memo || '',
+    valor: Math.abs(Number(r.amount || 0)),
+    tipo: Number(r.amount || 0) >= 0 ? 'credito' : 'debito',
+    status_conciliacao: r.status || 'pendente',
+  })
+
   // ── Handle OFX Upload ──────────────────────────────────────────
   const handleArquivo = useCallback(
     async (file: File) => {
@@ -611,43 +623,21 @@ export default function Conciliacao() {
           return
         }
 
-        const datas = transacoesOFX.map((t) => t.data).sort()
-
-        // Insert bank_statement_files
-        const { data: stmtFile, error: errStmt } = await activeClient
-          .from('bank_statement_files')
-          .insert({
-            company_id: companyId,
-            conta_bancaria_id: contaSelecionada,
-            nome_arquivo: file.name,
-            data_inicio: datas[0],
-            data_fim: datas[datas.length - 1],
-            total_transacoes: transacoesOFX.length,
-          })
-          .select()
-          .single()
-
-        if (errStmt) {
-          console.error('[Upload OFX] erro statement_file:', errStmt)
-          alert('Erro ao salvar arquivo de extrato.')
-          setImportando(false)
-          return
-        }
-
-        // Insert bank_transactions
+        // Insert bank_transactions with correct DB column names
         const rows = transacoesOFX.map((t) => ({
           company_id: companyId,
-          conta_bancaria_id: contaSelecionada,
-          data: t.data,
-          descricao: t.memo,
-          valor: t.valor,
-          tipo: t.tipo,
-          status_conciliacao: 'pendente',
+          bank_account_id: contaSelecionada,
+          date: t.data,
+          description: t.memo,
+          memo: '',
+          amount: t.tipo === 'debito' ? -Math.abs(t.valor) : Math.abs(t.valor),
+          fit_id: t.fitid || `ofx_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          status: 'pending',
         }))
 
         const { data: insertedTx, error: errTx } = await activeClient
           .from('bank_transactions')
-          .insert(rows)
+          .upsert(rows, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true })
           .select()
 
         if (errTx) {
@@ -657,8 +647,11 @@ export default function Conciliacao() {
           return
         }
 
+        // Map DB rows to internal BankTransaction format
+        const mapped = ((insertedTx || []) as any[]).map(mapDbToTx)
+
         // Run matching
-        await executarMatching(insertedTx as BankTransaction[])
+        await executarMatching(mapped)
 
         // Reload
         await carregarDados()
