@@ -12,4 +12,5 @@ export interface Product {
     taxation_type: string | null;
     is_active: boolean;
     created_at: string;
+    account_id?: string | null;
 }

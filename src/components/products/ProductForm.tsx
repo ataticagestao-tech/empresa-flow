@@ -1,29 +1,81 @@
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
 
+const NONE = "__none__";
+
+/* ── Máscara monetária ── */
+const formatarMoeda = (valor: string): string => {
+    const apenasDigitos = valor.replace(/\D/g, "");
+    if (apenasDigitos === "" || apenasDigitos === "0") return "";
+    const numero = parseInt(apenasDigitos, 10) / 100;
+    return numero.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 2,
+    });
+};
+
+const parseMoeda = (valor: string): number => {
+    if (!valor) return 0;
+    const limpo = valor.replace(/[R$\s.]/g, "").replace(",", ".");
+    const numero = parseFloat(limpo);
+    return isNaN(numero) ? 0 : numero;
+};
+
+const numberToMoeda = (n: number): string => {
+    if (!n || n === 0) return "";
+    return n.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 2,
+    });
+};
+
+/* ── Gerador de código sequencial ── */
+const gerarCodigoProduto = async (client: any, companyId: string): Promise<string> => {
+    try {
+        const { data, error } = await client
+            .from("products")
+            .select("code")
+            .eq("company_id", companyId)
+            .not("code", "is", null)
+            .order("code", { ascending: false })
+            .limit(1);
+
+        if (error || !data || data.length === 0) return "PRD-0001";
+
+        const ultimo = data[0].code as string;
+        const match = ultimo.match(/(\d+)$/);
+        if (!match) return "PRD-0001";
+
+        const proximo = parseInt(match[1]) + 1;
+        return `PRD-${String(proximo).padStart(4, "0")}`;
+    } catch {
+        return "PRD-0001";
+    }
+};
+
+/* ── Schema ── */
 const formSchema = z.object({
-    description: z.string().min(1, "Descrição é obrigatória"),
-    code: z.string().optional(),
-    price: z.coerce.number().min(0, "Preço deve ser positivo"),
-    cost_price: z.coerce.number().min(0, "Custo deve ser positivo"),
+    description: z.string().min(1, "Nome é obrigatório"),
+    type: z.string().min(1, "Tipo é obrigatório"),
+    family: z.string().optional(),
+    account_id: z.string().optional(),
+    taxation_type: z.string().optional(),
     ncm: z.string().optional(),
     cest: z.string().optional(),
-    activity: z.string().optional(),
-    taxation_type: z.string().optional(),
-    family: z.string().optional(),
-    is_active: z.boolean().default(true),
+    is_active: z.string().default("ativo"),
 });
 
 interface ProductFormProps {
@@ -37,46 +89,105 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     const { selectedCompany } = useCompany();
     const queryClient = useQueryClient();
 
+    const [codigoGerado, setCodigoGerado] = useState(product?.code || "");
+    const [preco, setPreco] = useState("");
+    const [custo, setCusto] = useState("");
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             description: "",
-            code: "",
-            price: 0,
-            cost_price: 0,
+            type: "produto",
+            family: NONE,
+            account_id: NONE,
+            taxation_type: "",
             ncm: "",
             cest: "",
-            activity: "",
-            taxation_type: "",
-            family: "",
-            is_active: true,
+            is_active: "ativo",
         },
     });
 
+    // Gerar código automático ao abrir (novo produto)
+    useEffect(() => {
+        if (!product && selectedCompany?.id) {
+            gerarCodigoProduto(activeClient, selectedCompany.id).then(setCodigoGerado);
+        }
+    }, [product, selectedCompany?.id, activeClient]);
+
+    // Preencher form ao editar
     useEffect(() => {
         if (product) {
+            setCodigoGerado(product.code || "");
+            setPreco(numberToMoeda(product.price));
+            setCusto(numberToMoeda(product.cost_price));
             form.reset({
                 description: product.description,
-                code: product.code || "",
-                price: product.price,
-                cost_price: product.cost_price,
+                type: product.activity || "produto",
+                family: product.family || NONE,
+                account_id: (product as any).account_id || NONE,
+                taxation_type: product.taxation_type || "",
                 ncm: product.ncm || "",
                 cest: product.cest || "",
-                activity: product.activity || "",
-                taxation_type: product.taxation_type || "",
-                family: product.family || "",
-                is_active: product.is_active,
+                is_active: product.is_active ? "ativo" : "inativo",
             });
         }
     }, [product, form]);
+
+    // Buscar departamentos para o select de Família
+    const { data: departamentos } = useQuery({
+        queryKey: ["departments-list", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await activeClient
+                .from("departments")
+                .select("id, name")
+                .eq("company_id", selectedCompany.id)
+                .order("name");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    // Buscar plano de contas
+    const { data: contas } = useQuery({
+        queryKey: ["chart_of_accounts-list", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await activeClient
+                .from("chart_of_accounts")
+                .select("id, code, name")
+                .eq("company_id", selectedCompany.id)
+                .order("code");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    // Cálculo do líquido
+    const precoNum = parseMoeda(preco);
+    const custoNum = parseMoeda(custo);
+    const liquido = precoNum - custoNum;
 
     const mutation = useMutation({
         mutationFn: async (values: z.infer<typeof formSchema>) => {
             if (!selectedCompany) throw new Error("Empresa não selecionada");
 
-            const payload = {
-                ...values,
+            const familyValue = values.family === NONE ? null : (values.family || null);
+
+            const payload: any = {
                 company_id: selectedCompany.id,
+                code: codigoGerado,
+                description: values.description.trim(),
+                activity: values.type,
+                family: familyValue,
+                price: parseMoeda(preco),
+                cost_price: parseMoeda(custo),
+                taxation_type: values.taxation_type || null,
+                ncm: values.ncm || null,
+                cest: values.cest || null,
+                is_active: values.is_active === "ativo",
             };
 
             if (product) {
@@ -109,95 +220,81 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
+                {/* Linha 1 — Código + Tipo */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                            Código
+                        </label>
+                        <div className="bg-[#f0f4f8] border-[1.5px] border-[#1a2e4a] rounded px-3 py-2 text-[13px] font-bold text-[#1a2e4a]">
+                            {codigoGerado || "Gerando..."}
+                        </div>
+                    </div>
+                    <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                    Tipo <span className="text-[#8b0000]">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <SelectTrigger className="text-[13px]">
+                                            <SelectValue placeholder="Selecione" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="produto">Produto</SelectItem>
+                                            <SelectItem value="servico">Serviço</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+
+                {/* Linha 2 — Nome */}
                 <FormField
                     control={form.control}
                     name="description"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Descrição *</FormLabel>
+                            <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                Nome / Descrição <span className="text-[#8b0000]">*</span>
+                            </FormLabel>
                             <FormControl>
-                                <Input placeholder="Nome do produto" {...field} />
+                                <Input placeholder="Nome do produto ou serviço" className="text-[13px]" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
                 />
 
+                {/* Linha 3 — Família + Conta contábil */}
                 <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="code"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Código</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="SKU/Ref" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
                     <FormField
                         control={form.control}
                         name="family"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Família/Grupo</FormLabel>
+                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                    Família
+                                </FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Categoria" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="price"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Preço de Venda (R$)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="0.01" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="cost_price"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Preço de Custo (R$)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="0.01" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="activity"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Atividade</FormLabel>
-                                <FormControl>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione" />
+                                    <Select onValueChange={field.onChange} value={field.value || NONE}>
+                                        <SelectTrigger className="text-[13px]">
+                                            <SelectValue placeholder="Selecionar família" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Comércio">Comércio</SelectItem>
-                                            <SelectItem value="Serviço">Serviço</SelectItem>
-                                            <SelectItem value="Indústria">Indústria</SelectItem>
+                                            <SelectItem value={NONE}>Nenhuma</SelectItem>
+                                            {departamentos?.map((d: any) => (
+                                                <SelectItem key={d.id} value={d.name}>
+                                                    {d.name}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </FormControl>
@@ -207,12 +304,26 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     />
                     <FormField
                         control={form.control}
-                        name="taxation_type"
+                        name="account_id"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Tributação</FormLabel>
+                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                    Conta Contábil
+                                </FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Ex: Simples Nacional" {...field} />
+                                    <Select onValueChange={field.onChange} value={field.value || NONE}>
+                                        <SelectTrigger className="text-[13px]">
+                                            <SelectValue placeholder="Selecionar conta" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value={NONE}>Nenhuma</SelectItem>
+                                            {contas?.map((c: any) => (
+                                                <SelectItem key={c.id} value={c.id}>
+                                                    {c.code} - {c.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -220,17 +331,55 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Linha 4 — Custo + Preço + Líquido */}
+                <div className="grid grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                            Custo
+                        </label>
+                        <Input
+                            value={custo}
+                            onChange={(e) => setCusto(formatarMoeda(e.target.value))}
+                            placeholder="R$ 0,00"
+                            className="text-[13px]"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                            Preço <span className="text-[#8b0000]">*</span>
+                        </label>
+                        <Input
+                            value={preco}
+                            onChange={(e) => setPreco(formatarMoeda(e.target.value))}
+                            placeholder="R$ 0,00"
+                            className="text-[13px]"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                            Líquido
+                        </label>
+                        <div className="bg-[#f0f4f8] border border-[#ccc] rounded px-3 py-2 text-[13px] font-bold text-[#1a2e4a]">
+                            {liquido
+                                ? liquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                                : "R$ 0,00"}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Linha 5 — NCM + CEST + Tributação */}
+                <div className="grid grid-cols-3 gap-4">
                     <FormField
                         control={form.control}
                         name="ncm"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>NCM</FormLabel>
+                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                    NCM
+                                </FormLabel>
                                 <FormControl>
-                                    <Input placeholder="0000.00.00" {...field} />
+                                    <Input placeholder="0000.00.00" className="text-[13px]" {...field} />
                                 </FormControl>
-                                <FormMessage />
                             </FormItem>
                         )}
                     />
@@ -239,37 +388,80 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="cest"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>CEST</FormLabel>
+                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                    CEST
+                                </FormLabel>
                                 <FormControl>
-                                    <Input placeholder="00.000.00" {...field} />
+                                    <Input placeholder="00.000.00" className="text-[13px]" {...field} />
                                 </FormControl>
-                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="taxation_type"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                    Tributação
+                                </FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Ex: Simples Nacional" className="text-[13px]" {...field} />
+                                </FormControl>
                             </FormItem>
                         )}
                     />
                 </div>
 
+                {/* Status */}
                 <FormField
                     control={form.control}
                     name="is_active"
                     render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                                <FormLabel className="text-base">Ativo</FormLabel>
-                            </div>
+                        <FormItem>
+                            <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                Status
+                            </FormLabel>
                             <FormControl>
-                                <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
+                                <div className="flex gap-4 mt-1">
+                                    <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value="ativo"
+                                            checked={field.value === "ativo"}
+                                            onChange={() => field.onChange("ativo")}
+                                            className="accent-[#1a2e4a]"
+                                        />
+                                        Ativo
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value="inativo"
+                                            checked={field.value === "inativo"}
+                                            onChange={() => field.onChange("inativo")}
+                                            className="accent-[#1a2e4a]"
+                                        />
+                                        Inativo
+                                    </label>
+                                </div>
                             </FormControl>
                         </FormItem>
                     )}
                 />
 
-                <div className="flex justify-end gap-2 pt-4">
-                    {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>}
-                    <Button type="submit" disabled={mutation.isPending}>
+                {/* Botões */}
+                <div className="flex justify-end gap-2 pt-4 border-t border-[#eee]">
+                    {onCancel && (
+                        <Button type="button" variant="outline" onClick={onCancel}
+                            className="bg-white border-[#ccc] text-[#0a0a0a] text-[12px] font-bold">
+                            Cancelar
+                        </Button>
+                    )}
+                    <Button type="submit" disabled={mutation.isPending}
+                        className="bg-[#1a2e4a] hover:bg-[#0f1f33] text-white text-[12px] font-bold">
                         {mutation.isPending ? "Salvando..." : "Salvar"}
                     </Button>
                 </div>

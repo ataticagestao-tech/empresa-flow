@@ -16,11 +16,13 @@ interface ProductSheetProps {
 export function ProductSheet({ isOpen, onClose, product }: ProductSheetProps) {
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent className="sm:max-w-[540px] overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle>{product ? "Editar Produto" : "Novo Produto"}</SheetTitle>
+            <SheetContent className="sm:max-w-[600px] overflow-y-auto p-0">
+                <SheetHeader className="bg-[#1a2e4a] px-5 py-3.5">
+                    <SheetTitle className="text-white text-[13px] font-bold uppercase tracking-widest">
+                        {product ? "Editar Produto" : "Novo Produto"}
+                    </SheetTitle>
                 </SheetHeader>
-                <div className="mt-6">
+                <div className="mt-2">
                     <ProductForm
                         product={product || undefined}
                         onSuccess={onClose}
