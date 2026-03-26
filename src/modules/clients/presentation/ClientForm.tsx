@@ -10,54 +10,51 @@ import { TabAddress } from "./partials/TabAddress";
 import { TabContact } from "./partials/TabContact";
 import { TabTax } from "./partials/TabTax";
 
-// Interfaces para props
 interface ClientFormProps {
     onSuccess: () => void;
     initialData?: any;
 }
 
-// Mock de CNAEs (Temporário se não estiver vindo de hook)
-const cnaeOptions = [
-    { code: "1234-5/67", description: "Outros" }
-];
+const cnaeOptions: Array<{ codigo: string; descricao: string; origem: "principal" | "secundario" }> = [];
 
-/**
- * Formulário Principal de Clientes (Refatorado - Modular Domain-Driven).
- * Atua como Orquestrador de UI, delegando lógica para hooks e subcomponentes.
- */
 export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
-    // Hook que centraliza toda a lógica de estado e regras de negócio
     const { form, onSubmit, handleCepBlur, handleCnpjLookup, isLoadingAddress, isLoadingCnpj } = useClientForm({ onSuccess, initialData });
-
-    // Estado local apenas para controle visual de abas
     const [activeTab, setActiveTab] = useState("endereco");
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
 
-                {/* 1. Cabeçalho (Dados Principais) */}
                 <ClientHeader
                     form={form}
                     isCnpjLoading={isLoadingCnpj}
                     onCnpjLookup={handleCnpjLookup}
                 />
 
-                {/* 2. Conteúdo em Abas */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="justify-start border-b rounded-none h-auto p-0 bg-transparent space-x-2">
-                        <TabsTrigger value="endereco" className="tab-trigger-style">Endereço</TabsTrigger>
-                        <TabsTrigger value="contato" className="tab-trigger-style">Contatos</TabsTrigger>
-                        <TabsTrigger value="fiscal" className="tab-trigger-style">Dados Fiscais</TabsTrigger>
-                        {/* Outras abas podem ser adicionadas aqui no futuro */}
+                    <TabsList className="justify-start border-b border-[#e0e0e0] rounded-none h-auto p-0 bg-transparent space-x-1">
+                        <TabsTrigger
+                            value="endereco"
+                            className="border-b-2 border-transparent data-[state=active]:border-[#1a2e4a] data-[state=active]:text-[#1a2e4a] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                        >
+                            Endereço
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="contato"
+                            className="border-b-2 border-transparent data-[state=active]:border-[#1a2e4a] data-[state=active]:text-[#1a2e4a] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                        >
+                            Contatos
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="fiscal"
+                            className="border-b-2 border-transparent data-[state=active]:border-[#1a2e4a] data-[state=active]:text-[#1a2e4a] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                        >
+                            Dados Fiscais
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="endereco">
-                        <TabAddress
-                            form={form}
-                            onCepBlur={handleCepBlur}
-                            isLoadingAddress={isLoadingAddress}
-                        />
+                        <TabAddress form={form} onCepBlur={handleCepBlur} isLoadingAddress={isLoadingAddress} />
                     </TabsContent>
 
                     <TabsContent value="contato">
@@ -69,10 +66,11 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                     </TabsContent>
                 </Tabs>
 
-                {/* 3. Rodapé com Ações */}
-                <div className="flex justify-end gap-4 pt-4 border-t">
-                    <Button type="button" variant="outline" onClick={() => onSuccess()}>Cancelar</Button>
-                    <Button type="submit" className="bg-green-600 hover:bg-green-700 min-w-[150px]">
+                <div className="flex justify-end gap-3 pt-4 border-t border-[#e0e0e0]">
+                    <Button type="button" variant="outline" onClick={() => onSuccess()} className="border-[#ccc] text-[#555] hover:bg-[#f5f5f5]">
+                        Cancelar
+                    </Button>
+                    <Button type="submit" className="bg-[#1a2e4a] hover:bg-[#0f1f33] text-white min-w-[150px]">
                         Salvar Cliente
                     </Button>
                 </div>
@@ -80,6 +78,3 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
         </Form>
     );
 }
-
-// Estilos de utilidade locais (Tailwind class abstraction)
-// const tabTriggerStyle = "border-b-2 border-transparent data-[state=active]:border-green-600 data-[state=active]:bg-green-50/10 data-[state=active]:text-green-700 rounded-none px-4 py-2 text-xs font-semibold transition-all";
