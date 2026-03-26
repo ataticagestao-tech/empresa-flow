@@ -166,6 +166,7 @@ export default function Empresas() {
     await deleteCompany(company.id);
   };
 
+  console.log('[Empresas] selectedCompany:', selectedCompany?.id, selectedCompany?.razao_social, '| total companies:', companies?.length)
   const filtered = (companies || []).filter(c => {
     // Show only the selected company
     if (selectedCompany && c.id !== selectedCompany.id) return false;
