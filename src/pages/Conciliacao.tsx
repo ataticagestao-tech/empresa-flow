@@ -10,7 +10,6 @@ import { DEFAULT_KEYWORD_RULES } from '@/modules/finance/presentation/hooks/useD
 import {
   Upload,
   CheckCircle2,
-  AlertTriangle,
   XCircle,
   Search,
   Trash2,
@@ -148,6 +147,14 @@ const parsearOFX = (conteudo: string): TransacaoOFX[] => {
     })
   }
   return transacoes
+}
+
+const calcularTempoRelativo = (isoDate: string): string => {
+  const diff = Date.now() - new Date(isoDate).getTime()
+  const h = Math.floor(diff / 3600000)
+  if (h < 1) return 'menos de 1h'
+  if (h < 24) return `${h}h`
+  return `${Math.floor(h / 24)}d`
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -1594,60 +1601,6 @@ export default function Conciliacao() {
     await carregarRegras()
   }
 
-  // ── Badge helper ───────────────────────────────────────────────
-  const renderBadge = (status: string, diferenca: number | null) => {
-    switch (status) {
-      case 'match_auto':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]">
-            <CheckCircle2 size={12} /> Match automatico
-          </span>
-        )
-      case 'match_regra':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a]">
-            <CheckCircle2 size={12} /> Por regra salva
-          </span>
-        )
-      case 'match_dif':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a]">
-            <AlertTriangle size={12} /> Diferenca de {formatBRL(Math.abs(diferenca || 0))}
-          </span>
-        )
-      case 'nao_reconhecido':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fdecea] text-[#8b0000] border border-[#8b0000]">
-            <XCircle size={12} /> Nao reconhecido
-          </span>
-        )
-      case 'aprovado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]">
-            <CheckCircle2 size={12} /> Aprovado
-          </span>
-        )
-      case 'ignorado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-300">
-            <EyeOff size={12} /> Ignorado
-          </span>
-        )
-      case 'revisao':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a]">
-            <AlertTriangle size={12} /> Pendente revisao
-          </span>
-        )
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-300">
-            Pendente
-          </span>
-        )
-    }
-  }
-
   // ── Filtered lists for sub-tabs ──────────────────────────────
   const pendentes = matchesEnriquecidos.filter(m => {
     const s = m.match?.status || 'pendente'
@@ -1683,211 +1636,219 @@ export default function Conciliacao() {
     )
   }
 
-  // Helper: render row for a single enriched item (card-based layout)
+  // Helper: render row for a single enriched item
   const renderItemCard = (item: MatchEnriquecido) => {
     const tx = item.transacao
     const mt = item.match
     const rawStatus = mt?.status || tx.status_conciliacao || 'pendente'
     const status = rawStatus === 'pending' ? 'pendente' : rawStatus
-    const isAprovado = status === 'aprovado' || status === 'ignorado' || status === 'reconciled'
+    const isAprovado = ['aprovado', 'ignorado', 'reconciled'].includes(status)
     const isExpanded = expandedTxId === tx.id
 
     return (
-      <div key={tx.id} className={`border border-[#e0e0e0] rounded-lg bg-white ${isAprovado ? 'opacity-50' : ''}`}>
-        <div className="flex flex-col lg:flex-row">
-          {/* ── LEFT: Checkbox + Extrato ────────────── */}
-          <div className="flex items-start gap-3 p-4 lg:w-[38%] lg:border-r lg:border-dashed lg:border-[#ccc]">
+      <div key={tx.id} className={`border-b border-[#efefec] last:border-b-0 ${isAprovado ? 'opacity-40' : ''}`}>
+
+        {/* Linha principal */}
+        <div className={`grid grid-cols-1 lg:grid-cols-[1fr_1fr_130px] min-h-[68px] hover:bg-[#fafaf8] transition-colors`}>
+
+          {/* COL 1 — Extrato */}
+          <div className="flex items-start gap-2.5 px-4 py-3 lg:border-r lg:border-dashed lg:border-[#e8e4dc]">
             {!isAprovado && (
               <input
                 type="checkbox"
                 checked={selecionados.has(tx.id)}
                 onChange={() => toggleSelecao(tx.id)}
-                className="w-4 h-4 accent-[#1a2e4a] mt-1 shrink-0"
+                className="w-3.5 h-3.5 accent-[#1e2d3d] mt-1 shrink-0"
               />
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-bold text-[#888] uppercase tracking-wider mb-1">Extrato</p>
-              <p className="text-sm font-semibold text-[#0a0a0a] break-words leading-tight">{tx.descricao}</p>
-              <p className="text-[11px] text-[#777] mt-1">{formatData(tx.data)}</p>
-              <p className={`text-base font-bold mt-1 ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold text-[#bbb] uppercase tracking-wider mb-0.5">Extrato</p>
+              <p className="text-[12px] font-semibold text-[#1a1a1a] leading-snug">{tx.descricao}</p>
+              <p className="text-[10px] text-[#aaa] mt-0.5">{formatData(tx.data)}</p>
+              <p className={`text-[13px] font-bold mt-0.5 ${tx.tipo === 'credito' ? 'text-[#0a5c1e]' : 'text-[#b00000]'}`}>
                 {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
               </p>
             </div>
           </div>
 
-          {/* ── MIDDLE: Lancamento no sistema ──────── */}
-          <div className="flex-1 p-4 lg:border-r lg:border-dashed lg:border-[#ccc]">
-            <p className="text-[9px] font-bold text-[#888] uppercase tracking-wider mb-2">Lancamento no Sistema</p>
+          {/* COL 2 — Lançamento */}
+          <div className="px-4 py-3 lg:border-r lg:border-dashed lg:border-[#e8e4dc]">
+            <p className="text-[9px] font-bold text-[#bbb] uppercase tracking-wider mb-1.5">Lançamento no Sistema</p>
 
-            {/* Badge de status */}
-            <div className="mb-2">{renderBadge(status, mt?.diferenca ?? null)}</div>
+            {/* Badge */}
+            {status === 'match_auto' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#d4f0de] text-[#0a5c1e] border border-[#0a5c1e] mb-1.5">
+                ✓ Match automático
+              </span>
+            )}
+            {status === 'match_regra' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#d4f0de] text-[#0a5c1e] border border-[#0a5c1e] mb-1.5">
+                ✓ Por regra
+              </span>
+            )}
+            {status === 'match_dif' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#fef3cd] text-[#7a4a00] border border-[#c98a00] mb-1.5">
+                ⚠ Diferença de {formatBRL(Math.abs(mt?.diferenca || 0))}
+              </span>
+            )}
+            {(status === 'nao_reconhecido' || (!mt && !isAprovado)) && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#fde8e8] text-[#900] border border-[#900] mb-1.5">
+                Não reconhecido
+              </span>
+            )}
+            {(status === 'pendente' || status === 'pending') && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#f0ede8] text-[#666] border border-[#ccc] mb-1.5">
+                Pendente
+              </span>
+            )}
+            {status === 'aprovado' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#d4f0de] text-[#0a5c1e] border border-[#0a5c1e] mb-1.5">
+                ✓ Aprovado
+              </span>
+            )}
+            {status === 'ignorado' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#f0ede8] text-[#777] border border-[#ccc] mb-1.5">
+                Ignorado
+              </span>
+            )}
 
-            {/* Lancamento vinculado */}
+            {/* Detalhes do lançamento */}
             {item.lancamento ? (
               <div>
-                <p className="text-sm font-medium text-[#0a0a0a]">
+                <p className="text-[12px] font-medium text-[#222]">
                   {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} — {item.lancamento.nome}
                 </p>
-                <p className="text-[11px] text-[#777]">
-                  Vencimento {formatData(item.lancamento.data_vencimento)} · Conta: {item.sugestaoIA?.categoria_nome || '-'}
+                <p className="text-[10px] text-[#999] mt-0.5">
+                  Vencimento {formatData(item.lancamento.data_vencimento)}
+                  {item.sugestaoIA?.categoria_nome ? ` · Conta: ${item.sugestaoIA.categoria_nome.split(' — ')[0]}` : ''}
                 </p>
-                <p className="text-sm font-bold text-[#0a0a0a] mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
+                <p className={`text-[12px] font-bold mt-0.5 ${item.lancamento.tipo === 'cr' ? 'text-[#0a5c1e]' : 'text-[#b00000]'}`}>
+                  R$ {formatBRL(item.lancamento.valor)}
+                </p>
               </div>
-            ) : status === 'nao_reconhecido' || (!mt && !isAprovado) ? (
+            ) : (status === 'nao_reconhecido' || (!mt && !isAprovado)) ? (
               <div>
-                <span className="text-[11px] font-semibold text-[#8b0000]">Nenhum lancamento encontrado</span>
-                <p className="text-[10px] text-[#999]">Sem correspondencia no sistema</p>
-              </div>
-            ) : (
-              <div>
+                <p className="text-[12px] font-semibold text-[#900]">Nenhum lançamento encontrado</p>
+                <p className="text-[10px] text-[#bbb] mt-0.5">Sem correspondência no sistema</p>
                 {item.sugestaoIA && (
                   <button
                     onClick={() => { if (item.sugestaoIA?.categoria_id) categorizarTransacao(tx.id, item.sugestaoIA.categoria_id) }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[11px]"
-                    title={`Aceitar sugestao IA: ${item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}`}
+                    className="inline-flex items-center gap-1 text-[10px] text-purple-600 hover:underline mt-1.5"
                   >
-                    <Sparkles size={12} className="text-purple-600" />
-                    <span className="font-semibold text-purple-700">{item.sugestaoIA.confianca}%</span>
-                    <span className="text-purple-800">{item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}</span>
+                    <Sparkles size={10} />
+                    {item.sugestaoIA.confianca}% — {item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}
                   </button>
                 )}
               </div>
-            )}
-
-            {/* IA suggestion for matched items too */}
-            {item.lancamento && item.sugestaoIA && (
-              <div className="mt-1.5">
-                <button
-                  onClick={() => { if (item.sugestaoIA?.categoria_id) categorizarTransacao(tx.id, item.sugestaoIA.categoria_id) }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[10px]"
-                >
-                  <Sparkles size={10} className="text-purple-600" />
-                  <span className="font-semibold text-purple-700">{item.sugestaoIA.confianca}% {item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}</span>
-                </button>
-              </div>
-            )}
+            ) : item.sugestaoIA ? (
+              <button
+                onClick={() => { if (item.sugestaoIA?.categoria_id) categorizarTransacao(tx.id, item.sugestaoIA.categoria_id) }}
+                className="inline-flex items-center gap-1 text-[10px] text-purple-600 hover:underline"
+              >
+                <Sparkles size={10} />
+                {item.sugestaoIA.confianca}% — {item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}
+              </button>
+            ) : null}
           </div>
 
-          {/* ── RIGHT: Acoes ──────────────────────── */}
-          <div className="flex flex-row lg:flex-col items-center justify-center gap-2 p-4 lg:w-[160px]">
-            {!isAprovado && (
+          {/* COL 3 — Ação */}
+          <div className="flex flex-col items-end justify-center gap-1.5 px-4 py-3">
+            {!isAprovado ? (
               <>
                 {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
                   <>
-                    <button onClick={() => aprovar(mt.id, item)} className="w-full px-3 py-2 rounded-md bg-[#e6f4ec] text-[#0a5c2e] font-semibold text-xs hover:bg-[#d0eddb] transition flex items-center justify-center gap-1.5">
-                      <CheckCircle2 size={14} /> Aprovar
+                    <button onClick={() => aprovar(mt.id, item)} className="text-[12px] font-semibold text-[#0a5c1e] hover:underline">
+                      ✓ Aprovar
                     </button>
-                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-md border border-[#ccc] text-[#555] text-xs hover:bg-gray-50 transition">
+                    <button onClick={() => abrirVincular(tx)} className="text-[12px] text-[#777] hover:underline">
                       Alterar
                     </button>
                   </>
                 )}
-                {status === 'match_dif' && mt?.diferenca && Math.abs(mt.diferenca) > 0 && (
-                  <button onClick={() => aprovar(mt!.id, item)} className="w-full px-3 py-2 rounded-md bg-[#fffbe6] text-[#5c3a00] font-semibold text-xs hover:bg-[#fff5cc] transition flex items-center justify-center gap-1.5">
-                    <AlertTriangle size={14} /> Ajustar
-                  </button>
-                )}
-                {(status === 'nao_reconhecido' || status === 'pendente' || (!mt && !isAprovado)) && (
+                {(status === 'nao_reconhecido' || status === 'pendente' || status === 'pending' || (!mt && !isAprovado)) && (
                   <>
-                    <button onClick={() => setExpandedTxId(isExpanded ? null : tx.id)} className="w-full px-3 py-2 rounded-md bg-[#f0f4f8] text-[#1a2e4a] font-semibold text-xs hover:bg-[#e0e8f0] transition flex items-center justify-center gap-1.5">
-                      <Plus size={14} /> Criar
+                    <button onClick={() => setExpandedTxId(isExpanded ? null : tx.id)} className="text-[12px] font-semibold text-[#1e2d3d] hover:underline">
+                      + Criar
                     </button>
-                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-md border border-[#ccc] text-[#555] text-xs hover:bg-gray-50 transition">
+                    <button onClick={() => abrirVincular(tx)} className="text-[12px] text-[#777] hover:underline">
                       Vincular
                     </button>
-                    <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="w-full px-3 py-2 rounded-md border border-[#ccc] text-[#999] text-xs hover:bg-gray-50 transition">
+                    <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="text-[12px] text-[#ccc] hover:underline">
                       Ignorar
                     </button>
                   </>
                 )}
                 {status === 'revisao' && (
-                  <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-md bg-[#f0f4f8] text-[#1a2e4a] font-semibold text-xs hover:bg-[#e0e8f0] transition flex items-center justify-center gap-1.5">
-                    <Link2 size={14} /> Vincular
+                  <button onClick={() => abrirVincular(tx)} className="text-[12px] font-semibold text-[#1e2d3d] hover:underline">
+                    Vincular
                   </button>
                 )}
               </>
-            )}
-            {isAprovado && (
-              <div className="flex items-center gap-1.5 text-[#0a5c2e]">
-                <CheckCircle2 size={16} />
-                <span className="text-xs font-semibold">{status === 'ignorado' ? 'Ignorado' : 'Aprovado'}</span>
-              </div>
+            ) : (
+              <span className="text-[12px] font-semibold text-[#0a5c1e]">
+                {status === 'ignorado' ? 'Ignorado' : '✓'}
+              </span>
             )}
           </div>
         </div>
 
-        {/* ── Diff warning bar ────────────────────────── */}
+        {/* Faixa de diferença */}
         {mt?.diferenca && Math.abs(mt.diferenca) > 0 && status === 'match_dif' && (
-          <div className="border-t border-[#f0d080] bg-[#fffbe6] px-4 py-2.5 text-[11px] text-[#5c3a00]">
-            <AlertTriangle size={12} className="inline mr-1.5" />
-            Diferenca de {formatBRL(Math.abs(mt.diferenca))} — possivelmente juros ou taxa bancaria. Aprovar lancara {formatBRL(Math.abs(mt.diferenca))} em 4.6.03 — Tarifas bancarias.
+          <div className="px-4 py-2 bg-[#fef9e7] border-t border-[#e6d080] text-[11px] text-[#7a4a00]">
+            ⚠ Diferença de {formatBRL(Math.abs(mt.diferenca))} — possivelmente juros ou taxa bancária.
+            Aprovar lançará {formatBRL(Math.abs(mt.diferenca))} em 4.6.03 — Tarifas bancárias.
           </div>
         )}
 
-        {/* ── Expanded: unrecognized actions ──────────── */}
+        {/* Expansão: não reconhecido */}
         {isExpanded && !isAprovado && (
-          <div className="border-t border-[#e0e0e0] bg-[#fafafa] px-4 py-4">
-            <p className="text-[11px] font-semibold text-[#8b0000] mb-3">O que fazer com este lancamento?</p>
+          <div className="px-4 py-3 bg-[#fff5f5] border-t border-[#f5c0c0]">
+            <p className="text-[11px] font-bold text-[#900] mb-2.5">O que fazer com este lançamento?</p>
             <div className="flex flex-wrap gap-2">
-              {item.sugestaoIA?.categoria_nome && (
-                <button
-                  onClick={() => criarMovimentacao(item)}
-                  className="px-4 py-2.5 rounded-lg border-2 border-[#1a2e4a] bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-[#f0f4f8] transition"
-                >
-                  Criar movimentacao ({item.sugestaoIA.categoria_nome})
-                </button>
-              )}
-              {!item.sugestaoIA?.categoria_nome && (
-                <button
-                  onClick={() => criarMovimentacao(item)}
-                  className="px-4 py-2.5 rounded-lg border-2 border-[#1a2e4a] bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-[#f0f4f8] transition"
-                >
-                  Criar movimentacao
-                </button>
-              )}
+              <button
+                onClick={() => criarMovimentacao(item)}
+                className="px-3.5 py-1.5 text-[12px] font-semibold border-2 border-[#1e2d3d] text-[#1e2d3d] rounded-md bg-white hover:bg-[#f0f4f8] transition"
+              >
+                Criar movimentação{item.sugestaoIA?.categoria_nome ? ` (${item.sugestaoIA.categoria_nome.split(' — ')[0]})` : ''}
+              </button>
               <button
                 onClick={() => { setExpandedTxId(null); abrirVincular(tx) }}
-                className="px-4 py-2.5 rounded-lg border-2 border-[#ccc] bg-white text-[#555] text-xs font-semibold hover:bg-gray-50 transition"
+                className="px-3.5 py-1.5 text-[12px] font-semibold border border-[#ccc] text-[#555] rounded-md bg-white hover:bg-[#f5f5f5] transition"
               >
                 Vincular a CP existente
               </button>
               <button
                 onClick={() => { setExpandedTxId(null); ignorarTransacao(tx.id, mt?.id || null) }}
-                className="px-4 py-2.5 rounded-lg border border-[#ccc] bg-white text-[#999] text-xs hover:bg-gray-50 transition"
+                className="px-3.5 py-1.5 text-[12px] border border-[#e5e5e5] text-[#bbb] rounded-md bg-white hover:bg-[#fafafa] transition"
               >
-                Ignorar (nao lancar)
+                Ignorar (não lançar)
               </button>
             </div>
 
-            {/* IA Category selector */}
+            {/* Selector de categoria manual */}
             <div className="mt-3 relative" data-cat-dropdown>
-              <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-1">Categorizar manualmente</p>
               <input
                 type="text"
-                placeholder="Buscar conta contabil..."
-                className="w-full max-w-sm text-[12px] border border-[#ddd] rounded-lg px-3 py-2 bg-white text-[#333] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20"
-                value={iaCatDropdownOpen === tx.id ? (iaCatBusca ?? '') : ''}
+                placeholder="Categorizar manualmente — buscar conta contábil..."
+                className="text-[11px] border border-[#ddd] rounded-md px-3 py-1.5 w-full max-w-sm bg-white focus:outline-none focus:border-[#1e2d3d] text-[#333]"
+                value={iaCatDropdownOpen === tx.id ? iaCatBusca : ''}
                 onFocus={() => { setIaCatDropdownOpen(tx.id); setIaCatBusca('') }}
-                onChange={(e) => setIaCatBusca(e.target.value)}
+                onChange={e => setIaCatBusca(e.target.value)}
               />
               {iaCatDropdownOpen === tx.id && (
-                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#ccc] rounded-lg shadow-xl w-80 max-h-48 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#ddd] rounded-md shadow-lg w-80 max-h-44 overflow-y-auto">
                   {planoContas
-                    .filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase()))
-                    .slice(0, 15)
-                    .map(cat => (
+                    .filter(c => !iaCatBusca || `${c.code} ${c.name}`.toLowerCase().includes(iaCatBusca.toLowerCase()))
+                    .slice(0, 12)
+                    .map(c => (
                       <button
-                        key={cat.id}
-                        onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null); setIaCatBusca(''); setExpandedTxId(null) }}
-                        className="w-full text-left px-3 py-2 text-[12px] text-[#333] hover:bg-[#f0f4f8] transition"
+                        key={c.id}
+                        onClick={() => { categorizarTransacao(tx.id, c.id); setIaCatDropdownOpen(null); setIaCatBusca(''); setExpandedTxId(null) }}
+                        className="w-full text-left px-3 py-1.5 text-[11px] text-[#333] hover:bg-[#f0f4f8] transition"
                       >
-                        <span className="font-semibold">{cat.code}</span> — {cat.name}
+                        <span className="font-semibold">{c.code}</span> — {c.name}
                       </button>
-                    ))
-                  }
-                  {planoContas.filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase())).length === 0 && (
-                    <p className="px-3 py-2 text-[11px] text-[#999]">Nenhuma categoria encontrada</p>
-                  )}
+                    ))}
                 </div>
               )}
             </div>
@@ -1903,65 +1864,89 @@ export default function Conciliacao() {
         {/* ══════════════════════════════════════════════════════
            KPI CARDS
            ══════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Extrato Importado */}
-          <div className="bg-[#1a2e4a] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Extrato Importado</p>
-            <p className="text-3xl font-bold mt-1">{totalImportadas}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+
+          {/* Card 1 — Extrato Importado */}
+          <div className="bg-[#1e2d3d] border border-[#2a3d52] rounded-xl px-4 py-3.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40 mb-1.5">
+              Extrato Importado
+            </p>
+            <p className="text-[32px] font-semibold leading-none text-white/25">{totalImportadas}</p>
+            <p className="text-[11px] text-white/35 mt-1">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
             {importBatches.length > 0 && (
-              <span className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded">OFX importado</span>
+              <span className="inline-block mt-2.5 text-[10px] font-semibold px-2.5 py-1 rounded-md bg-white/10 text-white/65">
+                ✓ OFX importado
+              </span>
             )}
           </div>
 
-          {/* Conciliados */}
-          <div className="bg-[#0a5c2e] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Conciliados</p>
-            <p className="text-3xl font-bold mt-1">{conciliadasAuto}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">por regras e automatico</p>
-            <span className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded">{pctConciliado}% do extrato</span>
+          {/* Card 2 — Conciliados */}
+          <div className="bg-[#0d3d20] border border-[#1a5c32] rounded-xl px-4 py-3.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40 mb-1.5">
+              Conciliados
+            </p>
+            <p className="text-[32px] font-semibold leading-none text-white/25">{conciliadasAuto}</p>
+            <p className="text-[11px] text-white/35 mt-1">por regras e automático</p>
+            <span className="inline-block mt-2.5 text-[10px] font-semibold px-2.5 py-1 rounded-md bg-white/10 text-white/60">
+              {pctConciliado}% do extrato
+            </span>
           </div>
 
-          {/* Pendentes Revisao */}
-          <div className="bg-[#1a5fb4] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Pendentes Revisao</p>
-            <p className="text-3xl font-bold mt-1">{pendentesRevisao}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">aguardando aprovacao</p>
+          {/* Card 3 — Pendentes Revisão */}
+          <div className="bg-[#f7f6f2] border border-[#ddd9d0] rounded-xl px-4 py-3.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#888] mb-1.5">
+              Pendentes Revisão
+            </p>
+            <p className="text-[32px] font-semibold leading-none text-[#999]">{pendentesRevisao}</p>
+            <p className="text-[11px] text-[#aaa] mt-1">aguardando aprovação</p>
             {pendentesRevisao > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }} className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded hover:bg-white/30 transition">
+              <button
+                onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }}
+                className="inline-block mt-2.5 text-[10px] font-semibold px-2.5 py-1 rounded-md bg-[#fff3cd] text-[#7a4f00] border border-[#e6b84a]"
+              >
                 Revisar
               </button>
             )}
           </div>
 
-          {/* Nao Reconhecidos */}
-          <div className="bg-[#8b0000] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Nao Reconhecidos</p>
-            <p className="text-3xl font-bold mt-1">{naoReconhecidas}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">sem correspondencia</p>
+          {/* Card 4 — Não Reconhecidos */}
+          <div className="bg-[#f7f6f2] border border-[#ddd9d0] rounded-xl px-4 py-3.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#888] mb-1.5">
+              Não Reconhecidos
+            </p>
+            <p className="text-[32px] font-semibold leading-none text-[#999]">{naoReconhecidas}</p>
+            <p className="text-[11px] text-[#aaa] mt-1">sem correspondência</p>
             {naoReconhecidas > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }} className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded hover:bg-white/30 transition">
-                Acao necessaria
+              <button
+                onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }}
+                className="inline-block mt-2.5 text-[10px] font-semibold px-2.5 py-1 rounded-md bg-[#fce8e8] text-[#8b0000] border border-[#d47a7a]"
+              >
+                Ação necessária
               </button>
             )}
           </div>
+
         </div>
 
         {/* ══════════════════════════════════════════════════════
            IMPORT INFO BANNER
            ══════════════════════════════════════════════════════ */}
         {importBatches.length > 0 && (
-          <div className="bg-[#f0f4f8] border border-[#d0d8e0] rounded-lg px-4 py-3 flex items-center gap-3">
-            <FileText size={20} className="text-[#1a2e4a] shrink-0" />
+          <div className="flex items-center gap-3 bg-[#f0f4f0] border border-[#c8d8c8] rounded-lg px-4 py-2.5 mb-3">
+            <FileText size={14} className="text-[#2a6a3a] shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#0a0a0a]">
-                Extrato importado
-              </p>
-              <p className="text-[11px] text-[#555]">
-                {importBatches[0] ? `${formatData(importBatches[0].min_date)} a ${formatData(importBatches[0].max_date)}` : ''} · {totalImportadas} transacoes · importado {importBatches[0] ? new Date(importBatches[0].imported_at).toLocaleDateString('pt-BR') : ''}
-              </p>
+              <span className="text-[12px] font-semibold text-[#2a2a2a]">
+                {importBatches[0]?.min_date
+                  ? `extrato_bb_${new Date(importBatches[0].min_date).toLocaleDateString('pt-BR', {month:'short',year:'2-digit'}).replace(' ','')}.ofx`
+                  : 'extrato.ofx'}
+              </span>
+              <span className="text-[11px] text-[#777] ml-2">
+                · {totalImportadas} transações
+                · {importBatches[0] ? `${formatData(importBatches[0].min_date)} a ${formatData(importBatches[0].max_date)}` : ''}
+                · importado há {importBatches[0] ? calcularTempoRelativo(importBatches[0].imported_at) : ''}
+              </span>
             </div>
-            <label className="text-xs text-[#8b0000] font-semibold cursor-pointer hover:underline shrink-0">
+            <label className="text-[11px] font-semibold text-[#cc0000] cursor-pointer hover:underline shrink-0">
               Trocar arquivo
               <input type="file" accept=".ofx" onChange={onFileChange} className="hidden" disabled={!contaSelecionada || importando} />
             </label>
@@ -2038,115 +2023,142 @@ export default function Conciliacao() {
                REVIEW SECTION
                ══════════════════════════════════════════════════ */}
             {matchesEnriquecidos.length > 0 && (
-              <div className="space-y-3">
-                {/* Header bar */}
-                <div className="bg-[#1a2e4a] rounded-t-lg px-4 py-3 flex items-center justify-between">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Revisao de Conciliacao</h3>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setSubTab('conciliados')} className="text-[11px] text-white/70 hover:text-white transition font-medium">
+              <div>
+                {/* Header */}
+                <div className="bg-[#1e2d3d] rounded-t-xl px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-semibold text-white uppercase tracking-widest">
+                    Revisão de Conciliação
+                  </h3>
+                  <div className="flex items-center gap-5">
+                    <button onClick={() => setSubTab('conciliados')} className="text-[12px] text-white/40 hover:text-white/80 transition">
                       Ver conciliados
                     </button>
                     {pendentes.length > 0 && (
-                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[11px] text-white/70 hover:text-white transition font-medium">
+                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[12px] text-white/40 hover:text-white/80 transition">
                         {salvando ? 'Salvando...' : 'Aprovar todos pendentes'}
                       </button>
                     )}
-                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-white/50 hover:text-white transition" title="Recarregar">
-                      <RefreshCw size={14} />
+                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-white/30 hover:text-white/70 transition">
+                      <RefreshCw size={13} />
                     </button>
                   </div>
                 </div>
 
                 {/* Sub-tabs */}
-                <div className="flex gap-1 bg-[#f5f5f5] rounded-lg p-1">
-                  <button
-                    onClick={() => setSubTab('pendentes')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition ${
-                      subTab === 'pendentes' ? 'bg-white text-[#1a2e4a] shadow-sm' : 'text-[#777] hover:text-[#333]'
-                    }`}
-                  >
-                    Pendentes revisao
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'pendentes' ? 'bg-[#1a5fb4] text-white' : 'bg-[#ddd] text-[#555]'}`}>
-                      {pendentes.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setSubTab('nao_reconhecidos')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition ${
-                      subTab === 'nao_reconhecidos' ? 'bg-white text-[#8b0000] shadow-sm' : 'text-[#777] hover:text-[#333]'
-                    }`}
-                  >
-                    Nao reconhecidos
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'nao_reconhecidos' ? 'bg-[#8b0000] text-white' : 'bg-[#ddd] text-[#555]'}`}>
-                      {naoReconhecidosList.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setSubTab('conciliados')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition ${
-                      subTab === 'conciliados' ? 'bg-white text-[#0a5c2e] shadow-sm' : 'text-[#777] hover:text-[#333]'
-                    }`}
-                  >
-                    Conciliados
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'conciliados' ? 'bg-[#0a5c2e] text-white' : 'bg-[#ddd] text-[#555]'}`}>
-                      {conciliadosList.length}
-                    </span>
-                  </button>
+                <div className="flex bg-[#1e2d3d] border-b border-[#2a3d52] px-4">
+                  {[
+                    {
+                      id: 'pendentes' as const,
+                      label: 'Pendentes revisão',
+                      count: pendentes.length,
+                      activeText: 'text-[#7eb8f7]',
+                      activeBorder: 'border-[#7eb8f7]',
+                      pillActive: 'bg-[#2a4a6a] text-[#7eb8f7]',
+                    },
+                    {
+                      id: 'nao_reconhecidos' as const,
+                      label: 'Não reconhecidos',
+                      count: naoReconhecidosList.length,
+                      activeText: 'text-[#f78b8b]',
+                      activeBorder: 'border-[#f78b8b]',
+                      pillActive: 'bg-[#5a2a2a] text-[#f78b8b]',
+                    },
+                    {
+                      id: 'conciliados' as const,
+                      label: 'Conciliados',
+                      count: conciliadosList.length,
+                      activeText: 'text-[#7ecf9e]',
+                      activeBorder: 'border-[#7ecf9e]',
+                      pillActive: 'bg-[#1a4a2a] text-[#7ecf9e]',
+                    },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSubTab(tab.id)}
+                      className={`flex items-center gap-2 py-2.5 mr-6 text-[12px] font-medium border-b-2 -mb-px transition-colors ${
+                        subTab === tab.id
+                          ? `${tab.activeText} ${tab.activeBorder}`
+                          : 'text-white/35 border-transparent hover:text-white/60'
+                      }`}
+                    >
+                      {tab.label}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        subTab === tab.id ? tab.pillActive : 'bg-[#2a3d52] text-white/30'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  ))}
                 </div>
 
-                {/* ── Batch selection bar ──────────────────── */}
+                {/* Batch selection bar */}
                 {selecionados.size > 0 && (
-                  <div className="bg-[#f0f4f8] border border-[#1a2e4a]/20 rounded-lg px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#1a2e4a]">
-                      {selecionados.size} itens selecionados — Aprovar em lote?
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-[#1e2d3d] border-b border-[#2a3d52]">
+                    <span className="text-[12px] font-medium text-white/70">
+                      {selecionados.size} {selecionados.size === 1 ? 'item selecionado' : 'itens selecionados'} — Aprovar em lote?
                     </span>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => setSelecionados(new Set())} className="text-xs text-[#1a5fb4] font-medium hover:underline">
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => setSelecionados(new Set())} className="text-[12px] text-[#7eb8f7] hover:underline">
                         Desmarcar
                       </button>
-                      <button onClick={aprovarSelecionados} className="px-4 py-2 text-xs bg-[#1a2e4a] text-white font-semibold rounded-lg hover:bg-[#15253d] transition">
-                        Aprovar {selecionados.size} itens
+                      <button
+                        onClick={aprovarSelecionados}
+                        className="px-3 py-1.5 bg-[#2a5080] text-white text-[12px] font-semibold rounded-md hover:bg-[#355f96] transition"
+                      >
+                        Aprovar {selecionados.size} {selecionados.size === 1 ? 'item' : 'itens'}
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* ── Column headers ───────────────────────── */}
-                <div className="hidden lg:flex items-center px-4 py-2 text-[9px] font-bold text-[#888] uppercase tracking-widest">
-                  <div className="w-[38%] pl-7">Extrato Bancario</div>
-                  <div className="flex-1">Lancamento no Sistema</div>
-                  <div className="w-[160px] text-center">Acao</div>
+                {/* Column headers */}
+                <div className="hidden lg:grid grid-cols-[1fr_1fr_130px] bg-[#1e2d3d] border-b border-[#2a3d52]">
+                  <div className="px-4 py-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest">
+                    Extrato Bancário
+                  </div>
+                  <div className="px-4 py-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest border-l border-dashed border-[#2a3d52]">
+                    Lançamento no Sistema
+                  </div>
+                  <div className="px-4 py-2 text-[10px] font-semibold text-white/30 uppercase tracking-widest border-l border-dashed border-[#2a3d52] text-right">
+                    Ação
+                  </div>
                 </div>
 
-                {/* ── Item cards ───────────────────────────── */}
-                {carregando ? (
-                  <div className="flex items-center justify-center py-16 gap-2 text-[#555] text-sm">
-                    <Loader2 size={18} className="animate-spin" /> Carregando...
-                  </div>
-                ) : filteredItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
-                    <FileText size={32} className="text-[#ccc] mb-2" />
-                    {subTab === 'pendentes' && 'Nenhuma transacao pendente de revisao.'}
-                    {subTab === 'nao_reconhecidos' && 'Nenhuma transacao nao reconhecida.'}
-                    {subTab === 'conciliados' && 'Nenhuma transacao conciliada ainda.'}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredItems.map(renderItemCard)}
-                  </div>
-                )}
+                {/* Table wrapper */}
+                <div className="border border-[#d8d4cc] border-t-0 rounded-b-xl overflow-hidden bg-white">
+                  {carregando ? (
+                    <div className="flex items-center justify-center py-12 gap-2 text-[#aaa] text-[12px]">
+                      <Loader2 size={15} className="animate-spin" /> Carregando...
+                    </div>
+                  ) : filteredItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-[#bbb] text-[12px] gap-1">
+                      <FileText size={26} className="text-[#ddd] mb-1" />
+                      {subTab === 'pendentes' && 'Nenhuma transação pendente de revisão.'}
+                      {subTab === 'nao_reconhecidos' && 'Nenhuma transação não reconhecida.'}
+                      {subTab === 'conciliados' && 'Nenhuma transação conciliada ainda.'}
+                    </div>
+                  ) : (
+                    filteredItems.map(renderItemCard)
+                  )}
+                </div>
 
-                {/* ── SALVAR CONCILIACAO sticky bar ─────── */}
-                {matchesEnriquecidos.some(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)) && (
-                  <div className="sticky bottom-4 z-20">
-                    <div className="bg-gradient-to-r from-[#0a5c2e] to-[#1a6e3e] rounded-lg px-6 py-4 shadow-xl flex items-center justify-between">
-                      <div className="text-white">
-                        <p className="text-sm font-bold">{matchesEnriquecidos.filter(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)).length} conciliacoes pendentes</p>
-                        <p className="text-[11px] text-white/70">Aprovar todas e baixar lancamentos vinculados</p>
+                {/* Sticky save bar */}
+                {matchesEnriquecidos.some(m => m.match && ['match_auto','match_regra','match_dif'].includes(m.match.status)) && (
+                  <div className="sticky bottom-4 z-20 mt-4">
+                    <div className="bg-[#0d3d20] rounded-xl px-5 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[13px] font-semibold text-white">
+                          {matchesEnriquecidos.filter(m => m.match && ['match_auto','match_regra','match_dif'].includes(m.match!.status)).length} conciliações pendentes
+                        </p>
+                        <p className="text-[10px] text-white/40">Aprovar todas e baixar lançamentos vinculados</p>
                       </div>
-                      <button onClick={salvarConciliacao} disabled={salvando} className="px-6 py-3 bg-white text-[#0a5c2e] font-bold text-sm rounded-lg hover:bg-gray-100 transition flex items-center gap-2 shadow-md disabled:opacity-50">
-                        {salvando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                        {salvando ? 'SALVANDO...' : 'SALVAR CONCILIACAO'}
+                      <button
+                        onClick={salvarConciliacao}
+                        disabled={salvando}
+                        className="px-5 py-2 bg-white text-[#0d3d20] font-bold text-[12px] rounded-lg hover:bg-gray-50 transition flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {salvando ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                        {salvando ? 'SALVANDO...' : 'SALVAR CONCILIAÇÃO'}
                       </button>
                     </div>
                   </div>
@@ -2269,46 +2281,72 @@ export default function Conciliacao() {
            TAB: REGRAS (always visible at bottom when on conciliacao)
            ════════════════════════════════════════════════════════ */}
         {(abaAtiva === 'regras' || (abaAtiva === 'conciliacao' && regras.length > 0)) && (
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Regras de Conciliacao Salvas</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setModalRegra({ aberto: true, descricao: '', tipo: 'debito', transacaoId: '' })} className="text-[10px] text-white/70 hover:text-white transition font-medium">
-                  + Nova regra
-                </button>
-                <button onClick={carregarRegras} className="text-white/50 hover:text-white transition" title="Recarregar"><RefreshCw size={14} /></button>
+          <div className="border border-[#d8d4cc] rounded-xl overflow-hidden mt-4">
+            <div className="bg-[#1e2d3d] px-4 py-2.5 flex items-center justify-between">
+              <h3 className="text-[10px] font-semibold text-white uppercase tracking-widest">
+                Regras de Conciliação Salvas
+              </h3>
+              <button
+                onClick={() => setModalRegra({ aberto: true, descricao: '', tipo: 'debito', transacaoId: '' })}
+                className="text-[11px] text-white/40 hover:text-white/80 transition"
+              >
+                + Nova regra
+              </button>
+            </div>
+
+            {regras.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-[#bbb] text-[12px]">
+                Nenhuma regra salva.
               </div>
-            </div>
-            <div className="bg-white">
-              {regras.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-[#555] text-sm gap-1">
-                  <BookOpen size={28} className="text-[#ccc] mb-2" />
-                  Nenhuma regra salva.
-                </div>
-              ) : (
-                <div className="divide-y divide-[#eee]">
-                  {regras.map((r) => (
-                    <div key={r.id} className="px-4 py-3 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#0a0a0a]">{(r.palavras_chave || []).join(', ')}</p>
-                        <p className="text-[10px] text-[#777]">
-                          Palavras-chave: &quot;{(r.palavras_chave || []).join('&quot;, &quot;')}&quot; · Confiança: {r.confianca} · Ação: {r.acao}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-semibold text-[#1a2e4a]">
-                          {r.account_id ? planoContas.find(c => c.id === r.account_id)?.code || '' : ''} {r.account_id ? '— ' + (planoContas.find(c => c.id === r.account_id)?.name || '') : ''}
-                        </p>
-                      </div>
-                      <span className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded ${r.ativa ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'}`}>{r.ativa ? 'Ativa' : 'Inativa'}</span>
-                      <button onClick={() => excluirRegra(r.id)} className="text-xs text-[#8b0000] font-semibold hover:underline shrink-0">
-                        Excluir
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#efefec] bg-[#fafaf8]">
+                    <th className="px-4 py-2 text-left text-[9px] font-bold text-[#bbb] uppercase tracking-wider">Condição</th>
+                    <th className="px-4 py-2 text-left text-[9px] font-bold text-[#bbb] uppercase tracking-wider">Conta</th>
+                    <th className="px-4 py-2 text-center text-[9px] font-bold text-[#bbb] uppercase tracking-wider">Usada</th>
+                    <th className="px-4 py-2 w-16"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {regras.map(r => {
+                    const conta = planoContas.find(c => c.id === r.account_id)
+                    const keywords = r.palavras_chave || []
+                    return (
+                      <tr key={r.id} className="border-b border-[#f0ede8] last:border-b-0 hover:bg-[#fafaf8]">
+                        <td className="px-4 py-2.5">
+                          <p className="text-[11px] text-[#666]">
+                            Contém {keywords.map((k, i) => (
+                              <span key={k}>
+                                {i > 0 && ' ou '}
+                                <strong className="font-semibold text-[#444]">"{k}"</strong>
+                              </span>
+                            ))} na descrição do extrato
+                          </p>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {conta ? (
+                            <span className="text-[11px] font-semibold text-[#cc0000]">
+                              {conta.code} — {conta.name}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-[#bbb]">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className="text-[11px] text-[#aaa]">—</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button onClick={() => excluirRegra(r.id)} className="text-[11px] font-semibold text-[#cc0000] hover:underline">
+                            Excluir
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </div>
@@ -2459,7 +2497,7 @@ export default function Conciliacao() {
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-[#fffbe6] flex items-center justify-center">
-                <AlertTriangle size={20} className="text-[#b8960a]" />
+                <span className="text-[20px] leading-none text-[#b8960a]">⚠</span>
               </div>
               <div>
                 <h3 className="text-base font-bold text-[#0a0a0a]">Conciliacoes nao salvas</h3>
