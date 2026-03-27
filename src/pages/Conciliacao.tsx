@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useBlocker } from 'react-router-dom'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -376,6 +377,55 @@ export default function Conciliacao() {
   const naoReconhecidas = matchesEnriquecidos.filter(
     (m) => m.match?.status === 'nao_reconhecido' || !m.match
   ).length
+
+  // ── Detectar conciliações pendentes de aprovação ─────────────
+  const conciliacoesPendentes = useMemo(() =>
+    matchesEnriquecidos.filter(
+      m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)
+    ).length,
+    [matchesEnriquecidos]
+  )
+  const temPendentes = conciliacoesPendentes > 0
+
+  // ── Modal de confirmação ao sair ─────────────────────────────
+  const [modalSairAberto, setModalSairAberto] = useState(false)
+  const salvarENavegar = useRef<(() => void) | null>(null)
+
+  // Browser beforeunload (fechar aba / F5)
+  useEffect(() => {
+    if (!temPendentes) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [temPendentes])
+
+  // React Router navigation guard
+  const blocker = useBlocker(temPendentes)
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      setModalSairAberto(true)
+    }
+  }, [blocker.state])
+
+  const handleSalvarESair = async () => {
+    setModalSairAberto(false)
+    await salvarConciliacao()
+    if (blocker.state === 'blocked') blocker.proceed()
+  }
+
+  const handleSairSemSalvar = () => {
+    setModalSairAberto(false)
+    if (blocker.state === 'blocked') blocker.proceed()
+  }
+
+  const handleCancelarSaida = () => {
+    setModalSairAberto(false)
+    if (blocker.state === 'blocked') blocker.reset()
+  }
 
   // ── Load bank accounts ─────────────────────────────────────────
   const carregarContas = useCallback(async () => {
@@ -2397,6 +2447,54 @@ export default function Conciliacao() {
                   Salvar regra
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ═══════════════════════════════════════════════════════════
+         MODAL: Confirmação ao sair com conciliações pendentes
+         ═══════════════════════════════════════════════════════════ */}
+      {modalSairAberto && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[#fffbe6] flex items-center justify-center">
+                <AlertTriangle size={20} className="text-[#b8960a]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#0a0a0a]">Conciliacoes nao salvas</h3>
+                <p className="text-[11px] text-[#777]">
+                  {conciliacoesPendentes} transac{conciliacoesPendentes === 1 ? 'ao' : 'oes'} aguardando aprovacao
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-[#555] mb-6">
+              Voce tem conciliacoes pendentes que ainda nao foram salvas.
+              Deseja salvar antes de sair?
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSalvarESair}
+                disabled={salvando}
+                className="w-full px-4 py-2.5 bg-[#0a5c2e] text-white font-semibold text-sm rounded-lg hover:bg-[#084d25] transition flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <CheckCircle2 size={16} />
+                {salvando ? 'Salvando...' : 'Salvar e sair'}
+              </button>
+              <button
+                onClick={handleSairSemSalvar}
+                className="w-full px-4 py-2.5 bg-[#fdecea] text-[#8b0000] font-semibold text-sm rounded-lg hover:bg-[#fbd5d0] transition"
+              >
+                Sair sem salvar
+              </button>
+              <button
+                onClick={handleCancelarSaida}
+                className="w-full px-4 py-2.5 border border-[#ccc] text-[#555] font-medium text-sm rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
