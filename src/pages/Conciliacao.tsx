@@ -64,11 +64,12 @@ interface MatchRecord {
 interface ConciliationRule {
   id: string
   company_id: string
-  padrao_descricao: string
-  conta_contabil_id: string | null
-  tipo: string
-  ativo: boolean
-  vezes_usado: number
+  account_id: string | null
+  palavras_chave: string[]
+  confianca: 'Alta' | 'Média' | 'Baixa'
+  acao: 'sugerir' | 'auto-conciliar'
+  ativa: boolean
+  criada_em?: string
 }
 
 interface BankAccount {
@@ -319,7 +320,7 @@ export default function Conciliacao() {
           status: r.status_conciliacao || r.status || 'Importado',
           origem: 'Extrato Bancario',
           forma: '-',
-          categoria: r.category_id ? (contasMap.get(r.category_id) || '-') : '-',
+          categoria: r.sugestao_conta_id ? (contasMap.get(r.sugestao_conta_id) || '-') : '-',
         })
       }
 
@@ -512,9 +513,9 @@ export default function Conciliacao() {
       async () =>
         await activeClient
           .from('conciliation_rules')
-          .select('*')
+          .select('id, company_id, account_id, palavras_chave, confianca, acao, ativa, criada_em')
           .eq('company_id', companyId)
-          .order('vezes_usado', { ascending: false }),
+          .order('criada_em', { ascending: false }),
       'carregar regras'
     )
     if (data) setRegras(data as ConciliationRule[])
@@ -586,7 +587,7 @@ export default function Conciliacao() {
       async () =>
         await activeClient
           .from('bank_transactions')
-          .select('id, description, memo, amount, reconciled_payable_id, reconciled_receivable_id, category_id')
+          .select('id, description, memo, amount, reconciled_payable_id, reconciled_receivable_id, sugestao_conta_id')
           .eq('company_id', companyId)
           .not('description', 'is', null)
           .limit(500),
@@ -607,7 +608,7 @@ export default function Conciliacao() {
     for (const c of (coaData || []) as any[]) catMap.set(c.id, `${c.code} - ${c.name}`)
 
     const patterns: typeof iaPatterns = []
-    const txList = (reconciledTx as any[]).filter(t => t.reconciled_payable_id || t.reconciled_receivable_id || t.category_id)
+    const txList = (reconciledTx as any[]).filter(t => t.reconciled_payable_id || t.reconciled_receivable_id || t.sugestao_conta_id)
 
     // Gather CR/CP IDs to fetch names
     const crIds = txList.filter(t => t.reconciled_receivable_id).map(t => t.reconciled_receivable_id)
@@ -635,7 +636,7 @@ export default function Conciliacao() {
       const desc = (tx.description || tx.memo || '').trim()
       if (desc.length < 3) continue
 
-      const catId = tx.category_id || null
+      const catId = tx.sugestao_conta_id || null
       const catNome = catId ? catMap.get(catId) || null : null
 
       if (tx.reconciled_receivable_id && crNomes.has(tx.reconciled_receivable_id)) {
@@ -854,7 +855,11 @@ export default function Conciliacao() {
   const categorizarTransacao = useCallback(async (txId: string, categoryId: string) => {
     const { error } = await activeClient
       .from('bank_transactions')
-      .update({ category_id: categoryId })
+      .update({
+        sugestao_conta_id: categoryId,
+        metodo_match: 'manual',
+        confianca_match: 100,
+      })
       .eq('id', txId)
     if (error) {
       console.error('[Categorizar] erro:', error)
@@ -931,21 +936,43 @@ export default function Conciliacao() {
         async () =>
           await activeClient
             .from('conciliation_rules')
-            .select('*')
+            .select('id, company_id, account_id, palavras_chave, confianca, acao, ativa')
             .eq('company_id', companyId)
-            .eq('ativo', true),
+            .eq('ativa', true),
         'buscar regras ativas'
       )
       const rules = (ruleData || []) as ConciliationRule[]
 
       for (const tx of transacoes) {
-        // 1. Check rules
-        const regraMatch = rules.find((r) => {
-          const padrao = r.padrao_descricao.toLowerCase()
-          return tx.descricao.toLowerCase().includes(padrao)
-        })
+        // 1. Check rules (palavras_chave array match)
+        const descUpper = tx.descricao.toUpperCase()
+        let regraMatch: ConciliationRule | null = null
+        let melhorScore = 0
+
+        for (const r of rules) {
+          const palavras = r.palavras_chave || []
+          const matches = palavras.filter(kw => descUpper.includes(kw.toUpperCase()))
+          if (matches.length > 0) {
+            const score = Math.round((matches.length / palavras.length) * 100)
+            if (score > melhorScore) {
+              melhorScore = score
+              regraMatch = r
+            }
+          }
+        }
 
         if (regraMatch) {
+          // Gravar sugestão da IA na bank_transaction
+          const confiancaNum = regraMatch.confianca === 'Alta' ? 90 : regraMatch.confianca === 'Média' ? 65 : 40
+          await activeClient
+            .from('bank_transactions')
+            .update({
+              sugestao_conta_id: regraMatch.account_id,
+              confianca_match: Math.max(melhorScore, confiancaNum),
+              metodo_match: 'regra',
+            })
+            .eq('id', tx.id)
+
           await activeClient.from('bank_reconciliation_matches').insert({
             company_id: companyId,
             bank_transaction_id: tx.id,
@@ -954,10 +981,6 @@ export default function Conciliacao() {
             status: 'match_regra',
             diferenca: 0,
           })
-          await activeClient
-            .from('conciliation_rules')
-            .update({ vezes_usado: (regraMatch.vezes_usado || 0) + 1 })
-            .eq('id', regraMatch.id)
           continue
         }
 
@@ -1153,6 +1176,9 @@ export default function Conciliacao() {
 
   // ── Approve single match ───────────────────────────────────────
   const aprovar = async (matchId: string, item: MatchEnriquecido) => {
+    const agora = new Date().toISOString()
+
+    // 1. Atualizar status do match
     const { error } = await activeClient
       .from('bank_reconciliation_matches')
       .update({ status: 'aprovado' })
@@ -1163,9 +1189,23 @@ export default function Conciliacao() {
       return
     }
 
-    // If has lancamento, quitar
+    // 2. Atualizar status da bank_transaction para 'reconciled'
+    const { error: btError } = await activeClient
+      .from('bank_transactions')
+      .update({
+        status: 'reconciled',
+        reconciled_at: agora,
+        reconciled_by: null, // será preenchido se tiver user id
+      })
+      .eq('id', item.transacao.id)
+
+    if (btError) {
+      console.error('[Aprovar] erro ao atualizar bank_transaction:', btError)
+    }
+
+    // 3. If has lancamento, quitar
     if (item.lancamento && item.match) {
-      const hoje = new Date().toISOString().split('T')[0]
+      const hoje = agora.split('T')[0]
       if (item.lancamento.tipo === 'cr') {
         await quitarCR(item.lancamento.id, {
           valorPago: item.transacao.valor,
@@ -1183,10 +1223,14 @@ export default function Conciliacao() {
       }
     }
 
-    // Update local state
+    // 4. Update local state
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.match?.id === matchId) {
-        return { ...m, match: { ...m.match!, status: 'aprovado' } }
+        return {
+          ...m,
+          match: { ...m.match!, status: 'aprovado' },
+          transacao: { ...m.transacao, status_conciliacao: 'reconciled' },
+        }
       }
       return m
     }))
@@ -1239,6 +1283,11 @@ export default function Conciliacao() {
         diferenca: null,
       })
     }
+    // Atualizar bank_transactions.status para 'ignored'
+    await activeClient
+      .from('bank_transactions')
+      .update({ status: 'ignored' })
+      .eq('id', txId)
     // Update local state
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.transacao.id === txId) {
@@ -1431,6 +1480,15 @@ export default function Conciliacao() {
       })
     }
 
+    // Atualizar bank_transactions.status para 'reconciled'
+    await activeClient
+      .from('bank_transactions')
+      .update({
+        status: 'reconciled',
+        reconciled_at: new Date().toISOString(),
+      })
+      .eq('id', tx.id)
+
     // Update local state
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.transacao.id === tx.id) {
@@ -1446,13 +1504,19 @@ export default function Conciliacao() {
   // ── Salvar regra ───────────────────────────────────────────────
   const salvarRegra = async () => {
     if (!companyId || !modalRegra.descricao.trim()) return
+    // Extrair palavras-chave significativas da descrição
+    const palavras = modalRegra.descricao
+      .trim()
+      .toUpperCase()
+      .split(/\s+/)
+      .filter(w => w.length >= 3)
     await activeClient.from('conciliation_rules').insert({
       company_id: companyId,
-      padrao_descricao: modalRegra.descricao.trim().toLowerCase(),
-      conta_contabil_id: null,
-      tipo: modalRegra.tipo,
-      ativo: true,
-      vezes_usado: 1,
+      account_id: null,
+      palavras_chave: palavras.length > 0 ? palavras : [modalRegra.descricao.trim().toUpperCase()],
+      confianca: 'Alta',
+      acao: 'sugerir',
+      ativa: true,
     })
     setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })
     await carregarRegras()
@@ -2160,17 +2224,17 @@ export default function Conciliacao() {
                   {regras.map((r) => (
                     <div key={r.id} className="px-4 py-3 flex items-center gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#0a0a0a]">{r.padrao_descricao}</p>
+                        <p className="text-sm font-semibold text-[#0a0a0a]">{(r.palavras_chave || []).join(', ')}</p>
                         <p className="text-[10px] text-[#777]">
-                          Contem &quot;{r.padrao_descricao.toUpperCase()}&quot; na descricao do extrato
+                          Palavras-chave: &quot;{(r.palavras_chave || []).join('&quot;, &quot;')}&quot; · Confiança: {r.confianca} · Ação: {r.acao}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-xs font-semibold text-[#1a2e4a]">
-                          {r.conta_contabil_id ? planoContas.find(c => c.id === r.conta_contabil_id)?.code || '' : ''} {r.conta_contabil_id ? '— ' + (planoContas.find(c => c.id === r.conta_contabil_id)?.name || '') : ''}
+                          {r.account_id ? planoContas.find(c => c.id === r.account_id)?.code || '' : ''} {r.account_id ? '— ' + (planoContas.find(c => c.id === r.account_id)?.name || '') : ''}
                         </p>
                       </div>
-                      <span className="text-[10px] text-[#999] shrink-0">Usada {r.vezes_usado}x</span>
+                      <span className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded ${r.ativa ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'}`}>{r.ativa ? 'Ativa' : 'Inativa'}</span>
                       <button onClick={() => excluirRegra(r.id)} className="text-xs text-[#8b0000] font-semibold hover:underline shrink-0">
                         Excluir
                       </button>
