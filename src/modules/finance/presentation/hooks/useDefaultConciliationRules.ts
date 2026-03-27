@@ -105,41 +105,37 @@ export function useDefaultConciliationRules() {
             const codeToId = new Map<string, string>();
             (accounts || []).forEach((a: any) => codeToId.set(a.code, a.id));
 
-            // 2. Verificar regras existentes para não duplicar
+            // 2. Verificar regras existentes para não duplicar (schema atual: palavras_chave)
             const { data: existingRules } = await (activeClient as any)
                 .from("conciliation_rules")
-                .select("condition_value")
+                .select("palavras_chave")
                 .eq("company_id", selectedCompany.id)
-                .eq("is_auto_learned", false);
+                .eq("ativa", true);
 
-            const existingValues = new Set(
-                (existingRules || []).map((r: any) => r.condition_value?.toLowerCase())
-            );
+            // Coletar todas as keywords já existentes
+            const existingKeywords = new Set<string>();
+            for (const r of (existingRules || []) as any[]) {
+                for (const kw of (r.palavras_chave || [])) {
+                    existingKeywords.add(kw.toUpperCase());
+                }
+            }
 
-            // 3. Criar regras
+            // 3. Criar regras (uma por conta, com array de keywords agrupado)
             const rulesToInsert: any[] = [];
 
             for (const rule of DEFAULT_KEYWORD_RULES) {
-                // Para cada keyword, criar uma regra separada
-                for (const keyword of rule.keywords) {
-                    if (existingValues.has(keyword.toLowerCase())) continue;
+                // Filtrar keywords que já existem
+                const newKeywords = rule.keywords.filter(kw => !existingKeywords.has(kw.toUpperCase()));
+                if (newKeywords.length === 0) continue;
 
-                    rulesToInsert.push({
-                        company_id: selectedCompany.id,
-                        condition_field: "description",
-                        condition_operator: "contains",
-                        condition_value: keyword,
-                        action_type: rule.action === "auto" ? "create_payable" : "create_receivable",
-                        action_value: codeToId.get(rule.accountCode) || null,
-                        action_description: `${rule.accountCode} - ${rule.accountName}`,
-                        name: `${rule.accountName}: ${keyword}`,
-                        confidence: rule.confidence,
-                        times_applied: 0,
-                        is_active: true,
-                        is_auto_learned: false,
-                        source_description: `Regra padrão da clínica — ${rule.accountCode}`,
-                    });
-                }
+                rulesToInsert.push({
+                    company_id: selectedCompany.id,
+                    account_id: codeToId.get(rule.accountCode) || null,
+                    palavras_chave: newKeywords,
+                    confianca: rule.confidence >= 85 ? "Alta" : rule.confidence >= 65 ? "Média" : "Baixa",
+                    acao: rule.action === "auto" ? "auto-conciliar" : "sugerir",
+                    ativa: true,
+                });
             }
 
             if (rulesToInsert.length === 0) {
@@ -179,5 +175,5 @@ export function useDefaultConciliationRules() {
         },
     });
 
-    return { seedDefaultRules, rulesCount: DEFAULT_KEYWORD_RULES.reduce((acc, r) => acc + r.keywords.length, 0) };
+    return { seedDefaultRules, rulesCount: DEFAULT_KEYWORD_RULES.length };
 }

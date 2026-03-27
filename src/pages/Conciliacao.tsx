@@ -886,6 +886,25 @@ export default function Conciliacao() {
     }))
   }, [activeClient, planoContas])
 
+  // ── Reprocessar transações existentes sem sugestão ────────────
+  const reprocessarTransacoesExistentes = useCallback(async () => {
+    if (!companyId) return
+    const pendentes = await safeQuery(
+      async () =>
+        await activeClient
+          .from('bank_transactions')
+          .select('*')
+          .eq('company_id', companyId)
+          .eq('status', 'pending')
+          .is('sugestao_conta_id', null)
+          .order('date', { ascending: false }),
+      'buscar transacoes sem sugestao'
+    )
+    if (!pendentes || !(pendentes as any[]).length) return
+    const mapped = (pendentes as any[]).map(mapDbToTx)
+    await executarMatching(mapped)
+  }, [companyId, activeClient, executarMatching])
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!companyId) return
@@ -894,8 +913,11 @@ export default function Conciliacao() {
     carregarHistorico()
     carregarImportBatches()
     carregarPlanoContas()
-    // Load IA patterns first, then data (so suggestions work)
-    carregarIAPatterns().then(() => carregarDados())
+    // Load IA patterns first, then data, then retroactive matching
+    carregarIAPatterns().then(async () => {
+      await carregarDados()
+      await reprocessarTransacoesExistentes()
+    })
   }, [companyId])
 
   // Re-enrich with IA suggestions when patterns change
@@ -927,6 +949,37 @@ export default function Conciliacao() {
     return () => document.removeEventListener('mousedown', handler)
   }, [iaCatDropdownOpen])
 
+  // ── Normalizar texto (remover acentos, uppercase) ─────────────
+  const normalizeText = (text: string): string =>
+    (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
+
+  // ── Helper: upsert match (verificar duplicata antes de inserir) ──
+  const upsertMatch = async (
+    txId: string,
+    matchData: { lancamento_id: string | null; tipo_lancamento: string | null; status: string; diferenca: number | null }
+  ) => {
+    const { data: existing } = await activeClient
+      .from('bank_reconciliation_matches')
+      .select('id, status')
+      .eq('bank_transaction_id', txId)
+      .maybeSingle()
+
+    if (!existing) {
+      await activeClient.from('bank_reconciliation_matches').insert({
+        company_id: companyId,
+        bank_transaction_id: txId,
+        ...matchData,
+      })
+    } else if (existing.status === 'nao_reconhecido' || existing.status === 'pendente') {
+      // Atualizar match existente com dados melhores
+      await activeClient
+        .from('bank_reconciliation_matches')
+        .update(matchData)
+        .eq('id', existing.id)
+    }
+    // Se já tem status aprovado/reconciled/match_auto, não sobrescrever
+  }
+
   // ── Matching Engine ────────────────────────────────────────────
   const executarMatching = useCallback(
     async (transacoes: BankTransaction[]) => {
@@ -944,14 +997,14 @@ export default function Conciliacao() {
       const rules = (ruleData || []) as ConciliationRule[]
 
       for (const tx of transacoes) {
-        // 1. Check rules (palavras_chave array match)
-        const descUpper = tx.descricao.toUpperCase()
+        // CAMADA 0: Regras de palavras_chave (OR logic, accent-insensitive)
+        const descNorm = normalizeText(tx.descricao)
         let regraMatch: ConciliationRule | null = null
         let melhorScore = 0
 
         for (const r of rules) {
           const palavras = r.palavras_chave || []
-          const matches = palavras.filter(kw => descUpper.includes(kw.toUpperCase()))
+          const matches = palavras.filter(kw => descNorm.includes(normalizeText(kw)))
           if (matches.length > 0) {
             const score = Math.round((matches.length / palavras.length) * 100)
             if (score > melhorScore) {
@@ -962,8 +1015,9 @@ export default function Conciliacao() {
         }
 
         if (regraMatch) {
-          // Gravar sugestão da IA na bank_transaction
-          const confiancaNum = regraMatch.confianca === 'Alta' ? 90 : regraMatch.confianca === 'Média' ? 65 : 40
+          const confiancaNum = regraMatch.confianca === 'Alta' ? 95 : regraMatch.confianca === 'Média' ? 70 : 50
+
+          // Persistir sugestão na bank_transaction
           await activeClient
             .from('bank_transactions')
             .update({
@@ -973,18 +1027,17 @@ export default function Conciliacao() {
             })
             .eq('id', tx.id)
 
-          await activeClient.from('bank_reconciliation_matches').insert({
-            company_id: companyId,
-            bank_transaction_id: tx.id,
+          // Upsert match (sem duplicata)
+          await upsertMatch(tx.id, {
             lancamento_id: null,
             tipo_lancamento: null,
-            status: 'match_regra',
+            status: regraMatch.acao === 'auto-conciliar' ? 'match_auto' : 'match_regra',
             diferenca: 0,
           })
           continue
         }
 
-        // 2. Search by valor + data +-3 days
+        // CAMADA 1: Buscar por valor + data ±3 dias
         const dataMin = new Date(tx.data)
         dataMin.setDate(dataMin.getDate() - 3)
         const dataMax = new Date(tx.data)
@@ -1022,58 +1075,21 @@ export default function Conciliacao() {
           candidatos = ((cpData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cp' }))
         }
 
-        // Filter by value proximity
-        const valorExatos = candidatos.filter(
-          (c: any) => Math.abs(c.valor - tx.valor) < 0.01
-        )
+        const valorExatos = candidatos.filter((c: any) => Math.abs(c.valor - tx.valor) < 0.01)
         const valorProximos = candidatos.filter(
-          (c: any) =>
-            Math.abs(c.valor - tx.valor) >= 0.01 &&
-            Math.abs(c.valor - tx.valor) <= tx.valor * 0.1
+          (c: any) => Math.abs(c.valor - tx.valor) >= 0.01 && Math.abs(c.valor - tx.valor) <= tx.valor * 0.1
         )
 
         if (valorExatos.length === 1) {
-          // 3. Exact match
           const cand = valorExatos[0]
-          await activeClient.from('bank_reconciliation_matches').insert({
-            company_id: companyId,
-            bank_transaction_id: tx.id,
-            lancamento_id: cand.id,
-            tipo_lancamento: cand.tipo_lanc,
-            status: 'match_auto',
-            diferenca: 0,
-          })
+          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_auto', diferenca: 0 })
         } else if (valorExatos.length > 1) {
-          // 4. Multiple exact: needs review
-          await activeClient.from('bank_reconciliation_matches').insert({
-            company_id: companyId,
-            bank_transaction_id: tx.id,
-            lancamento_id: null,
-            tipo_lancamento: null,
-            status: 'revisao',
-            diferenca: null,
-          })
+          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'revisao', diferenca: null })
         } else if (valorProximos.length === 1) {
-          // Close value match with diff
           const cand = valorProximos[0]
-          await activeClient.from('bank_reconciliation_matches').insert({
-            company_id: companyId,
-            bank_transaction_id: tx.id,
-            lancamento_id: cand.id,
-            tipo_lancamento: cand.tipo_lanc,
-            status: 'match_dif',
-            diferenca: Math.round((tx.valor - cand.valor) * 100) / 100,
-          })
+          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_dif', diferenca: Math.round((tx.valor - cand.valor) * 100) / 100 })
         } else {
-          // 5. None
-          await activeClient.from('bank_reconciliation_matches').insert({
-            company_id: companyId,
-            bank_transaction_id: tx.id,
-            lancamento_id: null,
-            tipo_lancamento: null,
-            status: 'nao_reconhecido',
-            diferenca: null,
-          })
+          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'nao_reconhecido', diferenca: null })
         }
       }
     },
