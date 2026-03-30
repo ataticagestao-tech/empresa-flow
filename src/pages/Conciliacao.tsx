@@ -256,6 +256,9 @@ function ConciliacaoInner() {
   const [iaCatDropdownOpen, setIaCatDropdownOpen] = useState<string | null>(null)
   const [iaCatBusca, setIaCatBusca] = useState<string>('')
 
+  // Preview de candidatos CR/CP na coluna do meio
+  const [candidatosPreview, setCandidatosPreview] = useState<Map<string, CandidatoLancamento>>(new Map())
+
   // IA patterns (learned from past reconciliations)
   const [iaPatterns, setIaPatterns] = useState<Array<{
     descricao: string
@@ -978,6 +981,49 @@ function ConciliacaoInner() {
     }))
   }, [activeClient, planoContas])
 
+  // ── Preview de candidatos CR/CP para coluna do meio ─────────────
+  const carregarCandidatoPreview = useCallback(async (tx: BankTransaction) => {
+    if (!companyId) return
+    const dataMin = new Date(tx.data)
+    dataMin.setDate(dataMin.getDate() - 5)
+    const dataMax = new Date(tx.data)
+    dataMax.setDate(dataMax.getDate() + 5)
+    const dMin = dataMin.toISOString().split('T')[0]
+    const dMax = dataMax.toISOString().split('T')[0]
+
+    const tabela = tx.tipo === 'credito' ? 'contas_receber' : 'contas_pagar'
+    const campoNome = tx.tipo === 'credito' ? 'pagador_nome' : 'credor_nome'
+
+    const data = await safeQuery(
+      async () =>
+        await activeClient
+          .from(tabela)
+          .select(`id, ${campoNome}, valor, data_vencimento`)
+          .eq('company_id', companyId)
+          .in('status', ['pendente', 'parcial', 'vencido'])
+          .gte('data_vencimento', dMin)
+          .lte('data_vencimento', dMax)
+          .limit(5),
+      'preview candidato'
+    )
+    if (!data || !(data as any[]).length) return
+
+    const candidatos = (data as any[]).map(c => ({
+      id: c.id,
+      nome: c[campoNome],
+      valor: c.valor,
+      data_vencimento: c.data_vencimento,
+      tipo: tx.tipo === 'credito' ? 'cr' as const : 'cp' as const,
+    }))
+    candidatos.sort((a, b) => Math.abs(a.valor - tx.valor) - Math.abs(b.valor - tx.valor))
+    const melhor = candidatos[0]
+    const diff = Math.abs(melhor.valor - tx.valor)
+
+    if (diff <= tx.valor * 0.10) {
+      setCandidatosPreview(prev => new Map(prev).set(tx.id, melhor))
+    }
+  }, [companyId, activeClient])
+
   // ── Helper: upsert match (verificar duplicata antes de inserir) ──
   const upsertMatch = async (
     txId: string,
@@ -1146,7 +1192,7 @@ function ConciliacaoInner() {
     })
   }, [companyId])
 
-  // Re-enrich with IA suggestions when patterns change
+  // Re-enrich with IA suggestions when patterns change + load candidate previews
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (iaPatterns.length > 0 && matchesEnriquecidos.length > 0) {
@@ -1158,6 +1204,13 @@ function ConciliacaoInner() {
         }
         return item
       }))
+    }
+    // Load candidate previews for unmatched transactions
+    const semLancamento = matchesEnriquecidos.filter(
+      m => !m.lancamento && !['aprovado', 'ignorado', 'reconciled'].includes(m.match?.status || '')
+    )
+    for (const item of semLancamento) {
+      carregarCandidatoPreview(item.transacao)
     }
   }, [iaPatterns])
 
@@ -1396,55 +1449,43 @@ function ConciliacaoInner() {
     setBuscandoVincular(true)
     try {
       const allCandidatos: CandidatoLancamento[] = []
+      const ehCredito = tx.tipo === 'credito'
 
-      // Always fetch both CR and CP
-      const crData = await safeQuery(
-        async () => {
-          let q = activeClient
-            .from('contas_receber')
-            .select('id, pagador_nome, valor, data_vencimento')
-            .eq('company_id', companyId)
-            .in('status', ['pendente', 'parcial', 'vencido'])
-          if (termo) q = q.ilike('pagador_nome', `%${termo}%`)
-          return await q.limit(20)
-        },
-        'buscar CRs vincular'
-      )
-      for (const c of ((crData || []) as any[])) {
-        allCandidatos.push({
-          id: c.id,
-          nome: c.pagador_nome,
-          valor: c.valor,
-          data_vencimento: c.data_vencimento,
-          tipo: 'cr' as const,
-        })
+      if (ehCredito) {
+        const crData = await safeQuery(
+          async () => {
+            let q = activeClient
+              .from('contas_receber')
+              .select('id, pagador_nome, valor, data_vencimento')
+              .eq('company_id', companyId)
+              .in('status', ['pendente', 'parcial', 'vencido'])
+            if (termo) q = q.ilike('pagador_nome', `%${termo}%`)
+            return await q.limit(20)
+          },
+          'buscar CRs vincular'
+        )
+        for (const c of ((crData || []) as any[])) {
+          allCandidatos.push({ id: c.id, nome: c.pagador_nome, valor: c.valor, data_vencimento: c.data_vencimento, tipo: 'cr' as const })
+        }
+      } else {
+        const cpData = await safeQuery(
+          async () => {
+            let q = activeClient
+              .from('contas_pagar')
+              .select('id, credor_nome, valor, data_vencimento')
+              .eq('company_id', companyId)
+              .in('status', ['pendente', 'parcial', 'vencido'])
+            if (termo) q = q.ilike('credor_nome', `%${termo}%`)
+            return await q.limit(20)
+          },
+          'buscar CPs vincular'
+        )
+        for (const c of ((cpData || []) as any[])) {
+          allCandidatos.push({ id: c.id, nome: c.credor_nome, valor: c.valor, data_vencimento: c.data_vencimento, tipo: 'cp' as const })
+        }
       }
 
-      const cpData = await safeQuery(
-        async () => {
-          let q = activeClient
-            .from('contas_pagar')
-            .select('id, credor_nome, valor, data_vencimento')
-            .eq('company_id', companyId)
-            .in('status', ['pendente', 'parcial', 'vencido'])
-          if (termo) q = q.ilike('credor_nome', `%${termo}%`)
-          return await q.limit(20)
-        },
-        'buscar CPs vincular'
-      )
-      for (const c of ((cpData || []) as any[])) {
-        allCandidatos.push({
-          id: c.id,
-          nome: c.credor_nome,
-          valor: c.valor,
-          data_vencimento: c.data_vencimento,
-          tipo: 'cp' as const,
-        })
-      }
-
-      // Sort by value proximity to transaction
       allCandidatos.sort((a, b) => Math.abs(a.valor - tx.valor) - Math.abs(b.valor - tx.valor))
-
       setCandidatosVincular(allCandidatos.slice(0, 20))
     } finally {
       setBuscandoVincular(false)
@@ -1460,7 +1501,12 @@ function ConciliacaoInner() {
     if (!companyId || !modalVincular.transacao) return
     const tx = modalVincular.transacao
     const diff = Math.round((tx.valor - candidato.valor) * 100) / 100
-    const status = Math.abs(diff) < 0.01 ? 'match_auto' : 'match_dif'
+    const absDiff = Math.abs(diff)
+
+    // Confirmar se diferença > 5%
+    if (absDiff > tx.valor * 0.05 && absDiff >= 0.01) {
+      if (!confirm(`Diferença de R$ ${formatBRL(absDiff)} detectada. Confirmar mesmo assim?`)) return
+    }
 
     const existing = matchesEnriquecidos.find((m) => m.transacao.id === tx.id)
     if (existing?.match) {
@@ -1469,7 +1515,7 @@ function ConciliacaoInner() {
         .update({
           lancamento_id: candidato.id,
           tipo_lancamento: candidato.tipo,
-          status,
+          status: 'aprovado',
           diferenca: diff,
         })
         .eq('id', existing.match.id)
@@ -1479,8 +1525,33 @@ function ConciliacaoInner() {
         bank_transaction_id: tx.id,
         lancamento_id: candidato.id,
         tipo_lancamento: candidato.tipo,
-        status,
+        status: 'aprovado',
         diferenca: diff,
+      })
+    }
+
+    // Aprovar imediatamente: atualizar bank_transaction e quitar CR/CP
+    const agora = new Date().toISOString()
+    const hoje = agora.split('T')[0]
+
+    await activeClient
+      .from('bank_transactions')
+      .update({ status: 'reconciled', reconciled_at: agora })
+      .eq('id', tx.id)
+
+    if (candidato.tipo === 'cr') {
+      await quitarCR(candidato.id, {
+        valorPago: tx.valor,
+        dataPagamento: hoje,
+        formaRecebimento: 'transferencia',
+        contaBancariaId: tx.conta_bancaria_id,
+      })
+    } else {
+      await quitarCP(candidato.id, {
+        valorPago: tx.valor,
+        dataPagamento: hoje,
+        formaPagamento: 'transferencia',
+        contaBancariaId: tx.conta_bancaria_id,
       })
     }
 
@@ -1494,7 +1565,7 @@ function ConciliacaoInner() {
           bank_transaction_id: tx.id,
           lancamento_id: candidato.id,
           tipo_lancamento: candidato.tipo,
-          status,
+          status: 'aprovado',
           diferenca: diff,
         }
         return { ...m, match: matchRecord, lancamento: candidato }
@@ -1503,49 +1574,37 @@ function ConciliacaoInner() {
     }))
   }
 
-  // ── Criar movimentacao (nao_reconhecido) ───────────────────────
-  const criarMovimentacao = async (item: MatchEnriquecido) => {
+  // ── Criar lançamento avulso em movimentacoes ───────────────────
+  const criarLancamentoAvulso = async (item: MatchEnriquecido) => {
     if (!companyId) return
     const tx = item.transacao
-    const hoje = new Date().toISOString().split('T')[0]
+    const agora = new Date().toISOString()
 
-    if (tx.tipo === 'credito') {
-      const { error } = await activeClient.from('contas_receber').insert({
-        company_id: companyId,
-        pagador_nome: tx.descricao.substring(0, 100),
-        valor: tx.valor,
-        data_vencimento: tx.data,
-        status: 'pago',
-        data_pagamento: hoje,
-      })
-      if (error) {
-        console.error('[CriarMov CR]', error)
-        return
-      }
-    } else {
-      const { error } = await activeClient.from('contas_pagar').insert({
-        company_id: companyId,
-        credor_nome: tx.descricao.substring(0, 100),
-        valor: tx.valor,
-        data_vencimento: tx.data,
-        status: 'pago',
-        data_pagamento: hoje,
-      })
-      if (error) {
-        console.error('[CriarMov CP]', error)
-        return
-      }
-    }
-
-    // Ask to save rule
-    setModalRegra({
-      aberto: true,
-      descricao: tx.descricao,
+    // 1. Inserir em movimentacoes
+    const { error } = await activeClient.from('movimentacoes').insert({
+      company_id: companyId,
+      conta_bancaria_id: tx.conta_bancaria_id,
+      data: tx.data,
+      descricao: tx.descricao.substring(0, 200),
+      valor: tx.valor,
       tipo: tx.tipo,
-      transacaoId: tx.id,
+      status_conciliacao: 'conciliado',
+      origem: 'manual',
     })
 
-    // Update match status or create one
+    if (error) {
+      console.error('[CriarAvulso]', error)
+      alert('Erro ao criar lançamento: ' + error.message)
+      return
+    }
+
+    // 2. Atualizar bank_transaction
+    await activeClient
+      .from('bank_transactions')
+      .update({ status: 'reconciled', reconciled_at: agora })
+      .eq('id', tx.id)
+
+    // 3. Criar ou atualizar match como aprovado
     if (item.match) {
       await activeClient
         .from('bank_reconciliation_matches')
@@ -1562,16 +1621,15 @@ function ConciliacaoInner() {
       })
     }
 
-    // Atualizar bank_transactions.status para 'reconciled'
-    await activeClient
-      .from('bank_transactions')
-      .update({
-        status: 'reconciled',
-        reconciled_at: new Date().toISOString(),
-      })
-      .eq('id', tx.id)
+    // 4. Abrir modal de salvar regra
+    setModalRegra({
+      aberto: true,
+      descricao: tx.descricao,
+      tipo: tx.tipo,
+      transacaoId: tx.id,
+    })
 
-    // Update local state
+    // 5. Atualizar estado local
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.transacao.id === tx.id) {
         const updatedMatch: MatchRecord = m.match
@@ -1751,8 +1809,37 @@ function ConciliacaoInner() {
               </div>
             ) : status === 'nao_reconhecido' || (!mt && !isAprovado) ? (
               <div>
-                <span className="text-[11px] font-semibold text-[#8b0000]">Nenhum lancamento encontrado</span>
-                <p className="text-[10px] text-[#999]">Sem correspondencia no sistema</p>
+                {candidatosPreview.get(tx.id) ? (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-[#5c3a00]">Possível correspondência</span>
+                    <button
+                      onClick={() => abrirVincular(tx)}
+                      className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg border border-[#b8960a] bg-[#fffbe6] hover:bg-[#fff5cc] transition"
+                    >
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                        candidatosPreview.get(tx.id)!.tipo === 'cr'
+                          ? 'bg-[#e6f4ec] text-[#0a5c2e]'
+                          : 'bg-[#fdecea] text-[#8b0000]'
+                      }`}>
+                        {candidatosPreview.get(tx.id)!.tipo.toUpperCase()}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-[#0a0a0a] truncate">
+                          {candidatosPreview.get(tx.id)!.nome}
+                        </p>
+                        <p className="text-[10px] text-[#777]">
+                          {formatBRL(candidatosPreview.get(tx.id)!.valor)} · venc. {formatData(candidatosPreview.get(tx.id)!.data_vencimento)}
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-[#5c3a00] font-semibold shrink-0">Vincular →</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#8b0000]">Nenhum lancamento encontrado</span>
+                    <p className="text-[10px] text-[#999]">Sem correspondencia no sistema</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
@@ -1878,10 +1965,10 @@ function ConciliacaoInner() {
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => criarMovimentacao(item)}
+                  onClick={() => criarLancamentoAvulso(item)}
                   className="px-4 py-2.5 rounded-lg border-2 border-[#1a2e4a] bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-[#f0f4f8] transition"
                 >
-                  {tx.tipo === 'credito' ? 'Cadastrar Conta a Receber' : 'Cadastrar Conta a Pagar'}
+                  Registrar como lançamento avulso
                 </button>
                 <button
                   onClick={() => { setExpandedTxId(null); abrirVincular(tx) }}
@@ -2368,7 +2455,11 @@ function ConciliacaoInner() {
             <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase tracking-widest">Conciliar Transacao</h3>
-                <p className="text-[10px] text-white/60 mt-0.5">Selecione o lancamento CP ou CR para vincular</p>
+                <p className="text-[10px] text-white/60 mt-0.5">
+                  {modalVincular.transacao?.tipo === 'credito'
+                    ? 'Buscando em Contas a Receber (CR)'
+                    : 'Buscando em Contas a Pagar (CP)'}
+                </p>
               </div>
               <button onClick={() => setModalVincular({ transacao: null, aberto: false })} className="text-white/70 hover:text-white transition"><X size={18} /></button>
             </div>
