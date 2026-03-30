@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { format, addDays, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
+import { format, addDays, addMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
 import {
   DollarSign, CalendarClock, CalendarDays, CheckCircle2, Plus, X,
   MoreHorizontal, Search, ChevronDown, ChevronUp,
   AlertTriangle, Loader2, FileText, Trash2, SplitSquareVertical,
-  RefreshCw
+  RefreshCw, Download, Paperclip, Archive, Pencil
 } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -13,6 +13,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface ContaPagar {
@@ -28,6 +29,14 @@ interface ContaPagar {
   forma_pagamento: string | null
   conta_contabil_id: string | null
   centro_custo_id: string | null
+  codigo_barras: string | null
+  file_url: string | null
+  competencia: string | null
+}
+
+interface Supplier {
+  id: string
+  razao_social: string
 }
 
 interface BankAccount {
@@ -99,11 +108,49 @@ export default function ContasPagar() {
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('todos')
+  const [datePreset, setDatePreset] = useState<string>('mes_atual')
+  const [dateFrom, setDateFrom] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [dateTo, setDateTo] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [sectorFilter, setSectorFilter] = useState<string>('todos')
+
+  const applyDatePreset = (preset: string) => {
+    setDatePreset(preset)
+    const hoje = new Date()
+    switch (preset) {
+      case 'hoje':
+        setDateFrom(format(hoje, 'yyyy-MM-dd'))
+        setDateTo(format(hoje, 'yyyy-MM-dd'))
+        break
+      case 'semana':
+        setDateFrom(format(hoje, 'yyyy-MM-dd'))
+        setDateTo(format(addDays(hoje, 7), 'yyyy-MM-dd'))
+        break
+      case 'mes_atual':
+        setDateFrom(format(startOfMonth(hoje), 'yyyy-MM-dd'))
+        setDateTo(format(endOfMonth(hoje), 'yyyy-MM-dd'))
+        break
+      case 'proximo_mes':
+        setDateFrom(format(startOfMonth(addMonths(hoje, 1)), 'yyyy-MM-dd'))
+        setDateTo(format(endOfMonth(addMonths(hoje, 1)), 'yyyy-MM-dd'))
+        break
+      case 'trimestre':
+        setDateFrom(format(startOfMonth(hoje), 'yyyy-MM-dd'))
+        setDateTo(format(endOfMonth(addMonths(hoje, 2)), 'yyyy-MM-dd'))
+        break
+      case 'todos':
+        setDateFrom('')
+        setDateTo('')
+        break
+      case 'personalizado':
+        break
+    }
+  }
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -115,6 +162,9 @@ export default function ContasPagar() {
   const [payingCp, setPayingCp] = useState<ContaPagar | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [editingCpId, setEditingCpId] = useState<string | null>(null)
+  const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   // Pay form
   const [payForm, setPayForm] = useState({
@@ -131,13 +181,24 @@ export default function ContasPagar() {
   const [newForm, setNewForm] = useState({
     credorNome: '',
     descricao: '',
+    supplierId: '',
     valor: 0,
     dataVencimento: format(new Date(), 'yyyy-MM-dd'),
+    competencia: '',
     contaContabilId: '',
     centroCustoId: '',
     recorrencia: 'sem' as Recorrencia,
     numParcelas: 3,
+    codigoBarras: '',
+    fileUrl: '',
   })
+
+  const MONTHS = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ]
+  const [competenciaYear, setCompetenciaYear] = useState(new Date().getFullYear())
+  const [showCompetenciaPicker, setShowCompetenciaPicker] = useState(false)
 
   // Batch pay form
   const [batchForm, setBatchForm] = useState({
@@ -154,7 +215,7 @@ export default function ContasPagar() {
     if (!selectedCompany) return
     setLoading(true)
 
-    const [cpData, bankData, chartData, ccData, prodData] = await Promise.all([
+    const [cpData, bankData, chartData, ccData, prodData, supData] = await Promise.all([
       safeQuery(
         () => supabase.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido']).order('data_vencimento', { ascending: true }),
         'listar contas a pagar'
@@ -175,6 +236,10 @@ export default function ContasPagar() {
         () => supabase.from('products').select('id, description, code').eq('company_id', selectedCompany.id).eq('is_active', true).order('description'),
         'listar produtos'
       ),
+      safeQuery(
+        () => supabase.from('suppliers').select('id, razao_social').eq('company_id', selectedCompany.id).order('razao_social'),
+        'listar fornecedores'
+      ),
     ])
 
     setContas((cpData as ContaPagar[]) || [])
@@ -182,6 +247,7 @@ export default function ContasPagar() {
     setChartAccounts((chartData as ChartAccount[]) || [])
     setCentrosCusto((ccData as CentroCusto[]) || [])
     setProducts((prodData as Product[]) || [])
+    setSuppliers((supData as Supplier[]) || [])
     setSelectedIds(new Set())
     setLoading(false)
   }, [selectedCompany])
@@ -197,25 +263,30 @@ export default function ContasPagar() {
     const seteDias = addDays(hoje, 7)
 
     let totalPagar = 0
+    let totalCount = 0
     let venceHoje = 0
+    let hojeCount = 0
     let prox7 = 0
+    let prox7Count = 0
 
     for (const cp of contas) {
       const s = saldo(cp)
       totalPagar += s
+      totalCount++
 
       const venc = parseISO(cp.data_vencimento)
       venc.setHours(0, 0, 0, 0)
 
-      if (isToday(venc) && cp.status === 'aberto') venceHoje += s
-      if ((isToday(venc) || (isAfter(venc, hoje) && (isBefore(venc, seteDias) || venc.getTime() === seteDias.getTime())))) prox7 += s
+      if (isToday(venc) && cp.status === 'aberto') { venceHoje += s; hojeCount++ }
+      if ((isToday(venc) || (isAfter(venc, hoje) && (isBefore(venc, seteDias) || venc.getTime() === seteDias.getTime())))) { prox7 += s; prox7Count++ }
     }
 
-    return { totalPagar, venceHoje, prox7 }
+    return { totalPagar, totalCount, venceHoje, hojeCount, prox7, prox7Count }
   }, [contas])
 
   // Load pago no mes separately (paid CPs not in main query)
   const [pagoNoMes, setPagoNoMes] = useState(0)
+  const [pagoNoMesCount, setPagoNoMesCount] = useState(0)
   useEffect(() => {
     if (!selectedCompany) return
     const hoje = new Date()
@@ -234,6 +305,7 @@ export default function ContasPagar() {
     ).then((data) => {
       if (data && Array.isArray(data)) {
         setPagoNoMes(data.reduce((acc: number, r: any) => acc + (r.valor_pago || 0), 0))
+        setPagoNoMesCount(data.length)
       }
     })
   }, [selectedCompany, contas])
@@ -246,14 +318,28 @@ export default function ContasPagar() {
       list = list.filter(
         (cp) =>
           cp.credor_nome?.toLowerCase().includes(term) ||
-          cp.credor_cpf_cnpj?.toLowerCase().includes(term)
+          cp.credor_cpf_cnpj?.toLowerCase().includes(term) ||
+          String(cp.valor).includes(term)
       )
     }
-    if (statusFilter !== 'todos') {
-      list = list.filter((cp) => cp.status === statusFilter)
+    if (statusFilter === 'aberto') {
+      list = list.filter((cp) => cp.status === 'aberto' || cp.status === 'parcial')
+    } else if (statusFilter === 'vencidos') {
+      list = list.filter((cp) => cp.status === 'vencido' || classifyUrgency(cp.data_vencimento) === 'vencidos')
+    } else if (statusFilter === 'pagos') {
+      list = list.filter((cp) => cp.status === 'pago')
+    }
+    if (dateFrom) {
+      list = list.filter((cp) => cp.data_vencimento >= dateFrom)
+    }
+    if (dateTo) {
+      list = list.filter((cp) => cp.data_vencimento <= dateTo)
+    }
+    if (sectorFilter !== 'todos') {
+      list = list.filter((cp) => cp.centro_custo_id === sectorFilter)
     }
     return list
-  }, [contas, searchTerm, statusFilter])
+  }, [contas, searchTerm, statusFilter, dateFrom, dateTo, sectorFilter])
 
   const groupedContas = useMemo(() => {
     const groups: Record<UrgencyGroup, ContaPagar[]> = { hoje: [], proximos7: [], proximos30: [], vencidos: [] }
@@ -355,55 +441,147 @@ export default function ContasPagar() {
   }
 
   // ─── New CP ───────────────────────────────────────────────────────
+  const resetNewForm = () => ({
+    credorNome: '',
+    descricao: '',
+    supplierId: '',
+    valor: 0,
+    dataVencimento: format(new Date(), 'yyyy-MM-dd'),
+    competencia: '',
+    contaContabilId: '',
+    centroCustoId: '',
+    recorrencia: 'sem' as Recorrencia,
+    numParcelas: 3,
+    codigoBarras: '',
+    fileUrl: '',
+  })
+
   const openNewModal = () => {
+    setNewForm(resetNewForm())
+    setEditingCpId(null)
+    setShowNewModal(true)
+  }
+
+  const openEditModal = (cp: ContaPagar) => {
     setNewForm({
-      credorNome: '',
-      descricao: '',
-      valor: 0,
-      dataVencimento: format(new Date(), 'yyyy-MM-dd'),
-      contaContabilId: '',
-      centroCustoId: '',
+      credorNome: cp.credor_nome || '',
+      descricao: cp.credor_nome || '',
+      supplierId: '',
+      valor: cp.valor || 0,
+      dataVencimento: cp.data_vencimento || format(new Date(), 'yyyy-MM-dd'),
+      competencia: cp.competencia || '',
+      contaContabilId: cp.conta_contabil_id || '',
+      centroCustoId: cp.centro_custo_id || '',
       recorrencia: 'sem',
       numParcelas: 3,
+      codigoBarras: cp.codigo_barras || '',
+      fileUrl: cp.file_url || '',
     })
+    setEditingCpId(cp.id)
+    setDropdownOpen(null)
     setShowNewModal(true)
+  }
+
+  const handleFileUpload = async (file: File) => {
+    if (!selectedCompany) return
+    try {
+      setIsUploading(true)
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
+      const filePath = `${selectedCompany.id}/payables/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath)
+
+      setNewForm(prev => ({ ...prev, fileUrl: publicUrl }))
+    } catch (error) {
+      console.error('[upload]', error)
+      alert('Erro no upload do arquivo')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const handleCreateCP = async () => {
     if (!selectedCompany || !newForm.descricao || !newForm.valor || !newForm.dataVencimento) return
     setSubmitting(true)
 
-    const base = {
+    // Resolver nome do fornecedor
+    let credorNome = newForm.credorNome || newForm.descricao
+    if (newForm.supplierId) {
+      const sup = suppliers.find(s => s.id === newForm.supplierId)
+      if (sup) credorNome = sup.razao_social
+    }
+
+    const base: Record<string, any> = {
       company_id: selectedCompany.id,
-      credor_nome: newForm.credorNome || newForm.descricao,
+      credor_nome: credorNome,
       valor: newForm.valor,
-      valor_pago: 0,
       status: 'aberto',
       conta_contabil_id: newForm.contaContabilId || null,
       centro_custo_id: newForm.centroCustoId || null,
+      competencia: newForm.competencia || null,
+      codigo_barras: newForm.codigoBarras || null,
+      file_url: newForm.fileUrl || null,
     }
 
-    const inserts: any[] = []
-    if (newForm.recorrencia === 'sem') {
-      inserts.push({ ...base, data_vencimento: newForm.dataVencimento })
+    if (editingCpId) {
+      // Edição
+      const { error } = await supabase
+        .from('contas_pagar')
+        .update({
+          ...base,
+          data_vencimento: newForm.dataVencimento,
+        })
+        .eq('id', editingCpId)
+
+      setSubmitting(false)
+      if (error) {
+        console.error('[editarCP]', error)
+        alert('Erro ao editar: ' + error.message)
+      } else {
+        setShowNewModal(false)
+        setEditingCpId(null)
+        await loadData()
+      }
     } else {
-      let dataAtual = newForm.dataVencimento
-      for (let i = 0; i < newForm.numParcelas; i++) {
-        inserts.push({ ...base, data_vencimento: dataAtual })
-        dataAtual = calcularProximoVencimento(dataAtual, newForm.recorrencia)
+      // Criação
+      const inserts: any[] = []
+      if (newForm.recorrencia === 'sem') {
+        inserts.push({ ...base, valor_pago: 0, data_vencimento: newForm.dataVencimento })
+      } else {
+        let dataAtual = newForm.dataVencimento
+        for (let i = 0; i < newForm.numParcelas; i++) {
+          inserts.push({ ...base, valor_pago: 0, data_vencimento: dataAtual })
+          dataAtual = calcularProximoVencimento(dataAtual, newForm.recorrencia)
+        }
+      }
+
+      const { error } = await supabase.from('contas_pagar').insert(inserts)
+      setSubmitting(false)
+
+      if (error) {
+        console.error('[criarCP]', error)
+        alert('Erro ao criar: ' + error.message)
+      } else {
+        setShowNewModal(false)
+        await loadData()
       }
     }
+  }
 
-    const { error } = await supabase.from('contas_pagar').insert(inserts)
-    setSubmitting(false)
-
-    if (error) {
-      console.error('[criarCP]', error)
-      alert('Erro ao criar: ' + error.message)
-    } else {
-      setShowNewModal(false)
-      await loadData()
-    }
+  const handleArquivar = async (cp: ContaPagar) => {
+    if (!confirm(`Arquivar conta de ${cp.credor_nome}?`)) return
+    await supabase.from('contas_pagar').update({ status: 'arquivado' }).eq('id', cp.id)
+    setDropdownOpen(null)
+    await loadData()
   }
 
   // ─── Actions (dropdown) ──────────────────────────────────────────
@@ -476,7 +654,7 @@ export default function ContasPagar() {
   // ─── Status badge ────────────────────────────────────────────────
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { text: string; bg: string; border: string; label: string }> = {
-      aberto: { text: '#5c3a00', bg: '#fffbe6', border: '#b8960a', label: 'Aberto' },
+      aberto: { text: '#5c3a00', bg: '#fffbe6', border: '#b8960a', label: 'Em aberto' },
       parcial: { text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a', label: 'Parcial' },
       vencido: { text: '#8b0000', bg: '#fdecea', border: '#8b0000', label: 'Vencido' },
       pago: { text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e', label: 'Pago' },
@@ -507,25 +685,39 @@ export default function ContasPagar() {
 
   // ─── KPI Card ─────────────────────────────────────────────────────
   const KPICard = ({
-    icon: Icon,
     label,
     value,
-    color,
+    subtitle,
+    badge,
+    headerBg,
+    badgeBg,
+    badgeText,
   }: {
-    icon: any
     label: string
     value: number
-    color: string
+    subtitle: string
+    badge: string
+    headerBg: string
+    badgeBg?: string
+    badgeText?: string
   }) => (
-    <div className="border border-[#ccc] rounded-lg overflow-hidden">
-      <div className="p-4 bg-white flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: color + '18' }}>
-          <Icon size={20} style={{ color }} />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-[#555] uppercase tracking-widest">{label}</p>
-          <p className="text-lg font-bold text-[#0a0a0a]">{formatBRL(value)}</p>
-        </div>
+    <div className="rounded-lg overflow-hidden border border-[#e0e0e0] shadow-sm">
+      <div className="px-4 py-2" style={{ backgroundColor: headerBg }}>
+        <p className="text-[10px] font-bold text-white uppercase tracking-widest">{label}</p>
+      </div>
+      <div className="bg-white px-4 py-3">
+        <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(value)}</p>
+        <p className="text-xs text-[#777] mt-0.5">{subtitle}</p>
+        <span
+          className="inline-block mt-2 text-[10px] font-semibold px-2.5 py-0.5 rounded border"
+          style={{
+            color: badgeText || headerBg,
+            backgroundColor: badgeBg || headerBg + '12',
+            borderColor: badgeText || headerBg,
+          }}
+        >
+          {badge}
+        </span>
       </div>
     </div>
   )
@@ -536,80 +728,181 @@ export default function ContasPagar() {
       <div className="max-w-[1400px] mx-auto space-y-6">
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard icon={DollarSign} label="Total a pagar" value={kpis.totalPagar} color="#1a2e4a" />
-          <KPICard icon={AlertTriangle} label="Vence hoje" value={kpis.venceHoje} color="#8b0000" />
-          <KPICard icon={CalendarDays} label="Proximos 7 dias" value={kpis.prox7} color="#b8960a" />
-          <KPICard icon={CheckCircle2} label="Pago no mes" value={pagoNoMes} color="#0a5c2e" />
+          <KPICard
+            label="Total a pagar"
+            value={kpis.totalPagar}
+            subtitle={`${kpis.totalCount} titulo${kpis.totalCount !== 1 ? 's' : ''} em aberto`}
+            badge="Mes atual"
+            headerBg="#1a2e4a"
+          />
+          <KPICard
+            label="Vence hoje"
+            value={kpis.venceHoje}
+            subtitle={`${kpis.hojeCount} titulo${kpis.hojeCount !== 1 ? 's' : ''}`}
+            badge="Urgente"
+            headerBg="#8b0000"
+          />
+          <KPICard
+            label="Proximos 7 dias"
+            value={kpis.prox7}
+            subtitle={`${kpis.prox7Count} titulo${kpis.prox7Count !== 1 ? 's' : ''}`}
+            badge="Atencao"
+            headerBg="#b8860b"
+            badgeBg="#b8860b18"
+            badgeText="#b8860b"
+          />
+          <KPICard
+            label="Pago no mes"
+            value={pagoNoMes}
+            subtitle={`${pagoNoMesCount} titulo${pagoNoMesCount !== 1 ? 's' : ''} quitado${pagoNoMesCount !== 1 ? 's' : ''}`}
+            badge="Mes atual"
+            headerBg="#0a5c2e"
+          />
         </div>
 
-        {/* Batch selection bar */}
-        {selectedIds.size > 0 && (
-          <div className="sticky top-0 z-30 bg-[#1a2e4a] text-white rounded-lg px-4 py-3 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-3 text-sm">
-              <span className="font-bold">{selectedIds.size}</span>
-              <span>titulo(s) selecionado(s)</span>
-              <span className="font-bold">{formatBRL(selectedTotal)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-xs px-3 py-1.5 rounded border border-white/30 hover:bg-white/10 transition"
-              >
-                Desmarcar
-              </button>
-              <button
-                onClick={openBatchPay}
-                className="text-xs px-3 py-1.5 rounded bg-white text-[#1a2e4a] font-semibold hover:bg-white/90 transition flex items-center gap-1"
-              >
-                Pagar selecionados
-                <ChevronDown size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Toolbar */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Contas a Pagar</h3>
-            <button
-              onClick={openNewModal}
-              className="flex items-center gap-1 text-[10px] font-bold text-white uppercase tracking-widest bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded transition"
-            >
-              <Plus size={14} /> Nova conta
-            </button>
+        <div className="border border-[#e0e0e0] rounded-lg overflow-hidden shadow-sm">
+          {/* Header */}
+          <div className="bg-white px-5 py-4 border-b border-[#e0e0e0]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-bold text-[#1a2e4a] uppercase tracking-widest">Contas a Pagar</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {/* export */}}
+                  className="flex items-center gap-1.5 text-xs font-medium text-[#555] border border-[#ccc] px-3 py-1.5 rounded-lg hover:bg-[#f5f5f5] transition"
+                >
+                  <Download size={14} /> Exportar
+                </button>
+                <button
+                  onClick={openNewModal}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#1a2e4a] px-3 py-1.5 rounded-lg hover:bg-[#0f1f36] transition"
+                >
+                  <Plus size={14} /> Nova conta
+                </button>
+              </div>
+            </div>
+
+            {/* Batch selection bar */}
+            {selectedIds.size > 0 && (
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-[#1a2e4a]">
+                  {selectedIds.size} titulo{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''} — {formatBRL(selectedTotal)}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-[#ccc] text-[#555] hover:bg-[#f5f5f5] transition"
+                  >
+                    Cancelar selecao
+                  </button>
+                  <button
+                    onClick={openBatchPay}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#1a2e4a] text-white font-semibold hover:bg-[#0f1f36] transition"
+                  >
+                    Pagar selecionados
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="p-4 bg-white">
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-              <div className="relative flex-1 w-full">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555]" />
+          <div className="p-5 bg-white">
+            {/* Search */}
+            <div className="mb-4">
+              <div className="relative w-full">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
                 <input
                   type="text"
-                  placeholder="Buscar por credor ou CPF/CNPJ..."
+                  placeholder="Buscar por credor, valor..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-[#fafafa]"
                 />
               </div>
+            </div>
+
+            {/* Status tabs */}
+            <div className="flex items-center gap-1 mb-4">
+              {[
+                { key: 'todos', label: 'Todos' },
+                { key: 'aberto', label: 'Em aberto' },
+                { key: 'vencidos', label: 'Vencidos' },
+                { key: 'pagos', label: 'Pagos' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setStatusFilter(tab.key)}
+                  className={`text-xs font-semibold px-4 py-2 rounded-lg border transition ${
+                    statusFilter === tab.key
+                      ? 'bg-[#1a2e4a] text-white border-[#1a2e4a]'
+                      : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date filter */}
+            <div className="mb-4">
+              <label className="block text-[10px] font-bold text-[#888] uppercase tracking-wider mb-1.5">Periodo</label>
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-sm border border-[#ccc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
+                value={datePreset}
+                onChange={(e) => applyDatePreset(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-[#fafafa] mb-3"
               >
-                <option value="todos">Todos os status</option>
-                <option value="aberto">Aberto</option>
-                <option value="parcial">Parcial</option>
-                <option value="vencido">Vencido</option>
+                <option value="hoje">Hoje</option>
+                <option value="semana">Proximos 7 dias</option>
+                <option value="mes_atual">Mes atual</option>
+                <option value="proximo_mes">Proximo mes</option>
+                <option value="trimestre">Trimestre</option>
+                <option value="todos">Todas as datas</option>
+                <option value="personalizado">Personalizado</option>
               </select>
-              <button
-                onClick={loadData}
-                className="flex items-center gap-1 text-sm text-[#555] hover:text-[#1a2e4a] transition"
-                title="Atualizar"
+
+              {datePreset === 'personalizado' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#888] uppercase tracking-wider mb-1">De</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-[#fafafa]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#888] uppercase tracking-wider mb-1">Ate</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-[#fafafa]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {datePreset !== 'personalizado' && datePreset !== 'todos' && dateFrom && dateTo && (
+                <p className="text-[10px] text-[#999] mt-1">
+                  {format(parseISO(dateFrom), 'dd/MM/yyyy')} ate {format(parseISO(dateTo), 'dd/MM/yyyy')}
+                </p>
+              )}
+            </div>
+
+            {/* Sector filter */}
+            <div className="mb-4">
+              <select
+                value={sectorFilter}
+                onChange={(e) => setSectorFilter(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-[#fafafa] appearance-none"
+                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23999\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
               >
-                <RefreshCw size={16} />
-              </button>
+                <option value="todos">Todos os setores</option>
+                {centrosCusto.map((cc) => (
+                  <option key={cc.id} value={cc.id}>{cc.descricao}</option>
+                ))}
+              </select>
             </div>
 
             {/* Loading */}
@@ -634,9 +927,10 @@ export default function ContasPagar() {
               const config = urgencyConfig[group]
               const groupTotal = items.reduce((acc, cp) => acc + saldo(cp), 0)
               const isCollapsed = collapsedGroups.has(group)
+              const todayStr = format(new Date(), 'dd/MM/yyyy')
 
               return (
-                <div key={group} className="mb-5">
+                <div key={group} className="mb-6">
                   {/* Group header */}
                   <button
                     onClick={() => {
@@ -647,27 +941,19 @@ export default function ContasPagar() {
                         return next
                       })
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg mb-1 transition hover:opacity-80"
-                    style={{ backgroundColor: config.bgColor, borderLeft: `3px solid ${config.borderColor}` }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 mb-2 transition hover:opacity-80"
+                    style={{ borderBottom: `2px solid ${config.borderColor}` }}
                   >
                     <div className="flex items-center gap-2">
-                      {isCollapsed ? (
-                        <ChevronDown size={16} style={{ color: config.textColor }} />
-                      ) : (
-                        <ChevronUp size={16} style={{ color: config.textColor }} />
+                      {(group === 'hoje' || group === 'vencidos') && (
+                        <AlertTriangle size={14} style={{ color: config.textColor }} />
                       )}
                       <span className="text-xs font-bold uppercase tracking-wider" style={{ color: config.textColor }}>
-                        {config.label}
-                      </span>
-                      <span
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{ color: config.textColor, backgroundColor: config.borderColor + '20' }}
-                      >
-                        {items.length} titulo(s)
+                        {config.label} — {todayStr}
                       </span>
                     </div>
                     <span className="text-xs font-bold" style={{ color: config.textColor }}>
-                      {formatBRL(groupTotal)}
+                      {formatBRL(groupTotal)} · {items.length} titulo{items.length !== 1 ? 's' : ''}
                     </span>
                   </button>
 
@@ -676,8 +962,8 @@ export default function ContasPagar() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-[#ccc]">
-                            <th className="py-2 px-2 text-left w-8">
+                          <tr className="border-b border-[#e0e0e0]">
+                            <th className="py-2.5 px-3 text-left w-8">
                               <input
                                 type="checkbox"
                                 checked={items.every((cp) => selectedIds.has(cp.id))}
@@ -695,65 +981,84 @@ export default function ContasPagar() {
                                 className="rounded border-[#ccc]"
                               />
                             </th>
-                            <th className="py-2 px-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-wider">Credor</th>
-                            <th className="py-2 px-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-wider">Categoria</th>
-                            <th className="py-2 px-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-wider">Vencimento</th>
-                            <th className="py-2 px-2 text-right text-[10px] font-bold text-[#555] uppercase tracking-wider">Valor</th>
-                            <th className="py-2 px-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-wider">Centro de custo</th>
-                            <th className="py-2 px-2 text-center text-[10px] font-bold text-[#555] uppercase tracking-wider">Status</th>
-                            <th className="py-2 px-2 text-center text-[10px] font-bold text-[#555] uppercase tracking-wider">Acoes</th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-[#888] uppercase tracking-wider">Credor</th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-[#888] uppercase tracking-wider">Categoria</th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-[#888] uppercase tracking-wider">Vencimento</th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-[#888] uppercase tracking-wider">Valor</th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-[#888] uppercase tracking-wider">Centro de custo</th>
+                            <th className="py-2.5 px-3 text-left text-[10px] font-bold text-[#888] uppercase tracking-wider">Status</th>
+                            <th className="py-2.5 px-3 text-right text-[10px] font-bold text-[#888] uppercase tracking-wider">Acoes</th>
                           </tr>
                         </thead>
                         <tbody>
                           {items.map((cp) => {
-                            const isHoje = group === 'hoje'
+                            const isHoje = isToday(parseISO(cp.data_vencimento))
+                            const categoria = inferCategoria(cp)
+                            const ccLabel = cp.centro_custo_id
+                              ? (centrosCusto.find(c => c.id === cp.centro_custo_id)?.descricao || '\u2014')
+                              : '\u2014'
                             return (
                               <tr
                                 key={cp.id}
-                                className="border-b border-[#ccc]/50 hover:bg-[#f0f4f8]/50 transition"
+                                className="border-b border-[#f0f0f0] hover:bg-[#fafafa] transition"
                                 style={isHoje ? { borderLeft: '3px solid #1a2e4a' } : undefined}
                               >
-                                <td className="py-2.5 px-2">
+                                <td className="py-3 px-3">
                                   <input
                                     type="checkbox"
                                     checked={selectedIds.has(cp.id)}
                                     onChange={() => toggleSelect(cp.id)}
-                                    className="rounded border-[#ccc]"
+                                    className="rounded border-[#ccc] w-4 h-4 accent-[#1a2e4a]"
                                   />
                                 </td>
-                                <td className="py-2.5 px-2">
-                                  <div className="font-medium text-[#0a0a0a]">{cp.credor_nome}</div>
+                                <td className="py-3 px-3">
+                                  <div className="font-semibold text-[#0a0a0a]">{cp.credor_nome}</div>
                                   {cp.credor_cpf_cnpj && (
-                                    <div className="text-[10px] text-[#555]">{cp.credor_cpf_cnpj}</div>
+                                    <div className="text-[10px] text-[#999] mt-0.5">{cp.credor_cpf_cnpj}</div>
                                   )}
                                 </td>
-                                <td className="py-2.5 px-2">
-                                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f0f0] text-[#555] border border-[#ccc]">
-                                    {inferCategoria(cp)}
+                                <td className="py-3 px-3">
+                                  <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full bg-[#f5f5f5] text-[#555] border border-[#ddd]">
+                                    {categoria}
                                   </span>
                                 </td>
-                                <td className="py-2.5 px-2 text-[#0a0a0a]">
-                                  {formatData(cp.data_vencimento)}
+                                <td className="py-3 px-3">
+                                  {isHoje ? (
+                                    <span className="font-bold text-[#8b0000]">Hoje</span>
+                                  ) : (
+                                    <span className="text-[#0a0a0a]">{formatData(cp.data_vencimento)}</span>
+                                  )}
                                 </td>
-                                <td className="py-2.5 px-2 text-right font-semibold text-[#0a0a0a]">
-                                  {formatBRL(saldo(cp))}
+                                <td className="py-3 px-3">
+                                  <div className="font-semibold text-[#0a0a0a]">
+                                    {formatBRL(saldo(cp))}
+                                  </div>
                                   {cp.valor_pago > 0 && (
-                                    <div className="text-[10px] text-[#555]">
+                                    <div className="text-[10px] text-[#999]">
                                       total: {formatBRL(cp.valor)}
                                     </div>
                                   )}
                                 </td>
-                                <td className="py-2.5 px-2 text-[#555] text-xs">
-                                  {cp.centro_custo_id ? centroCustoMap[cp.centro_custo_id] || '\u2014' : '\u2014'}
+                                <td className="py-3 px-3 text-xs text-[#555]">
+                                  {ccLabel}
                                 </td>
-                                <td className="py-2.5 px-2 text-center">
-                                  <StatusBadge status={cp.status} />
+                                <td className="py-3 px-3">
+                                  <span
+                                    className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border"
+                                    style={{
+                                      color: cp.status === 'aberto' ? '#5c3a00' : cp.status === 'vencido' ? '#8b0000' : cp.status === 'pago' ? '#0a5c2e' : '#1a2e4a',
+                                      backgroundColor: cp.status === 'aberto' ? '#fffbe6' : cp.status === 'vencido' ? '#fdecea' : cp.status === 'pago' ? '#e6f4ec' : '#f0f4f8',
+                                      borderColor: cp.status === 'aberto' ? '#b8960a' : cp.status === 'vencido' ? '#8b0000' : cp.status === 'pago' ? '#0a5c2e' : '#1a2e4a',
+                                    }}
+                                  >
+                                    {cp.status === 'aberto' ? 'Em aberto' : cp.status === 'vencido' ? 'Vencido' : cp.status === 'pago' ? 'Pago' : cp.status === 'parcial' ? 'Parcial' : cp.status}
+                                  </span>
                                 </td>
-                                <td className="py-2.5 px-2 text-center">
-                                  <div className="flex items-center justify-center gap-1">
+                                <td className="py-3 px-3 text-right">
+                                  <div className="flex items-center justify-end gap-1">
                                     <button
                                       onClick={() => openPayModal(cp)}
-                                      className="text-[10px] font-semibold px-2.5 py-1 rounded bg-[#1a2e4a] text-white hover:bg-[#0f1f36] transition"
+                                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#1a2e4a] text-[#1a2e4a] hover:bg-[#1a2e4a] hover:text-white transition"
                                     >
                                       Pagar
                                     </button>
@@ -763,30 +1068,42 @@ export default function ContasPagar() {
                                           e.stopPropagation()
                                           setDropdownOpen(dropdownOpen === cp.id ? null : cp.id)
                                         }}
-                                        className="p-1 rounded hover:bg-[#f0f0f0] transition"
+                                        className="p-1.5 rounded-lg hover:bg-[#f0f0f0] transition"
                                       >
                                         <MoreHorizontal size={16} className="text-[#555]" />
                                       </button>
                                       {dropdownOpen === cp.id && (
                                         <div
-                                          className="absolute right-0 top-full mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg py-1 z-40 min-w-[180px]"
+                                          className="absolute right-0 top-full mt-1 bg-white border border-[#e0e0e0] rounded-lg shadow-lg py-1 z-40 min-w-[180px]"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <button
+                                            onClick={() => openEditModal(cp)}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f5f5f5] transition flex items-center gap-2 text-[#0a0a0a]"
+                                          >
+                                            <Pencil size={14} /> Editar
+                                          </button>
+                                          <button
+                                            onClick={() => handleArquivar(cp)}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f5f5f5] transition flex items-center gap-2 text-[#0a0a0a]"
+                                          >
+                                            <Archive size={14} /> Arquivar boleto
+                                          </button>
+                                          <button
                                             onClick={() => handleRenegociar(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f0f4f8] transition flex items-center gap-2 text-[#0a0a0a]"
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f5f5f5] transition flex items-center gap-2 text-[#0a0a0a]"
                                           >
                                             <CalendarClock size={14} /> Renegociar
                                           </button>
                                           <button
                                             onClick={() => handleCancelar(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f0f4f8] transition flex items-center gap-2 text-[#8b0000]"
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f5f5f5] transition flex items-center gap-2 text-[#8b0000]"
                                           >
                                             <Trash2 size={14} /> Cancelar
                                           </button>
                                           <button
                                             onClick={() => handleDividir(cp)}
-                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f0f4f8] transition flex items-center gap-2 text-[#0a0a0a]"
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f5f5f5] transition flex items-center gap-2 text-[#0a0a0a]"
                                           >
                                             <SplitSquareVertical size={14} /> Dividir lancamento
                                           </button>
@@ -1005,47 +1322,66 @@ export default function ContasPagar() {
           </div>
         )}
 
-        {/* ─── Modal: Nova CP ───────────────────────────────────────── */}
+        {/* ─── Modal: Nova / Editar CP ──────────────────────────────── */}
         {showNewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowNewModal(false)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setShowNewModal(false); setEditingCpId(null) }}>
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="bg-[#1a2e4a] px-5 py-3 rounded-t-xl flex items-center justify-between sticky top-0 z-10">
-                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Nova Conta a Pagar</h3>
-                <button onClick={() => setShowNewModal(false)} className="text-white/70 hover:text-white">
+                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+                  {editingCpId ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar'}
+                </h3>
+                <button onClick={() => { setShowNewModal(false); setEditingCpId(null) }} className="text-white/70 hover:text-white">
                   <X size={18} />
                 </button>
               </div>
               <div className="p-5 space-y-4">
+                {/* Descrição */}
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Credor (nome)</label>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Descrição *</label>
                   <input
                     type="text"
-                    value={newForm.credorNome}
-                    onChange={(e) => setNewForm({ ...newForm, credorNome: e.target.value })}
-                    placeholder="Nome do credor"
+                    value={newForm.descricao}
+                    onChange={(e) => setNewForm({ ...newForm, descricao: e.target.value })}
+                    placeholder="Ex: Aluguel janeiro, Material escritório..."
                     className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
                   />
                 </div>
 
+                {/* Fornecedor */}
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Descricao (Produto/Servico) *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider">Fornecedor</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsSupplierSheetOpen(true)}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-green-600 hover:text-green-700 transition"
+                    >
+                      <Plus size={12} /> Novo
+                    </button>
+                  </div>
                   <select
-                    value={newForm.descricao}
-                    onChange={(e) => setNewForm({ ...newForm, descricao: e.target.value })}
+                    value={newForm.supplierId}
+                    onChange={(e) => {
+                      const sup = suppliers.find(s => s.id === e.target.value)
+                      setNewForm({
+                        ...newForm,
+                        supplierId: e.target.value,
+                        credorNome: sup?.razao_social || newForm.credorNome,
+                      })
+                    }}
                     className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
                   >
-                    <option value="">Selecione um produto/servico...</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.description}>
-                        {p.code ? `${p.code} - ` : ''}{p.description}
-                      </option>
+                    <option value="">Selecione um fornecedor...</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.razao_social}</option>
                     ))}
                   </select>
                 </div>
 
+                {/* Valor + Vencimento */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Valor *</label>
+                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Valor (R$) *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -1066,20 +1402,69 @@ export default function ContasPagar() {
                   </div>
                 </div>
 
+                {/* Competência */}
+                <div className="relative">
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Competência (mês/ano)</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompetenciaPicker(!showCompetenciaPicker)}
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white flex items-center justify-between"
+                  >
+                    <span className={newForm.competencia ? 'text-[#0a0a0a]' : 'text-[#999]'}>
+                      {newForm.competencia || 'Selecione mês/ano'}
+                    </span>
+                    <CalendarDays size={14} className="text-[#999]" />
+                  </button>
+                  {showCompetenciaPicker && (
+                    <div className="absolute z-20 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg p-3 w-[280px]">
+                      <div className="flex items-center justify-between mb-3">
+                        <button type="button" onClick={() => setCompetenciaYear(y => y - 1)} className="text-xs px-2 py-1 hover:bg-[#f0f0f0] rounded">&lt;</button>
+                        <span className="text-sm font-semibold">{competenciaYear}</span>
+                        <button type="button" onClick={() => setCompetenciaYear(y => y + 1)} className="text-xs px-2 py-1 hover:bg-[#f0f0f0] rounded">&gt;</button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {MONTHS.map((month, idx) => {
+                          const val = `${String(idx + 1).padStart(2, '0')}/${competenciaYear}`
+                          const isSelected = newForm.competencia === val
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setNewForm({ ...newForm, competencia: val })
+                                setShowCompetenciaPicker(false)
+                              }}
+                              className={`text-xs px-2 py-1.5 rounded border transition ${
+                                isSelected
+                                  ? 'bg-[#1a2e4a] text-white border-[#1a2e4a]'
+                                  : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'
+                              }`}
+                            >
+                              {month.slice(0, 3)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Conta contábil */}
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta contabil</label>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta contábil</label>
                   <select
                     value={newForm.contaContabilId}
                     onChange={(e) => setNewForm({ ...newForm, contaContabilId: e.target.value })}
                     className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
                   >
-                    <option value="">Nenhuma</option>
+                    <option value="">Selecione do plano de contas...</option>
                     {chartAccounts.map((ca) => (
                       <option key={ca.id} value={ca.id}>{ca.code} - {ca.name}</option>
                     ))}
                   </select>
                 </div>
 
+                {/* Centro de custo */}
                 <div>
                   <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Centro de custo</label>
                   <select
@@ -1094,48 +1479,111 @@ export default function ContasPagar() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Recorrencia</label>
-                    <select
-                      value={newForm.recorrencia}
-                      onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })}
-                      className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
-                    >
-                      <option value="sem">Sem recorrencia</option>
-                      <option value="mensal">Mensal</option>
-                      <option value="trimestral">Trimestral</option>
-                      <option value="anual">Anual</option>
-                    </select>
-                  </div>
-                  {newForm.recorrencia !== 'sem' && (
+                {/* Recorrência */}
+                {!editingCpId && (
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Num. parcelas</label>
-                      <input
-                        type="number"
-                        min={2}
-                        max={60}
-                        value={newForm.numParcelas}
-                        onChange={(e) => setNewForm({ ...newForm, numParcelas: parseInt(e.target.value) || 2 })}
-                        className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
-                      />
+                      <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Recorrência</label>
+                      <select
+                        value={newForm.recorrencia}
+                        onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })}
+                        className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
+                      >
+                        <option value="sem">Sem recorrência</option>
+                        <option value="mensal">Mensal</option>
+                        <option value="trimestral">Trimestral</option>
+                        <option value="anual">Anual</option>
+                      </select>
                     </div>
-                  )}
-                </div>
+                    {newForm.recorrencia !== 'sem' && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Num. parcelas</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={60}
+                          value={newForm.numParcelas}
+                          onChange={(e) => setNewForm({ ...newForm, numParcelas: parseInt(e.target.value) || 2 })}
+                          className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                {newForm.recorrencia !== 'sem' && (
+                {!editingCpId && newForm.recorrencia !== 'sem' && (
                   <div className="bg-[#fffbe6] border border-[#b8960a] rounded-lg p-3">
                     <p className="text-xs text-[#5c3a00]">
-                      Serao geradas <strong>{newForm.numParcelas}</strong> parcelas de{' '}
+                      Serão geradas <strong>{newForm.numParcelas}</strong> parcelas de{' '}
                       <strong>{formatBRL(newForm.valor)}</strong> com vencimento{' '}
                       {newForm.recorrencia === 'mensal' ? 'mensal' : newForm.recorrencia === 'trimestral' ? 'trimestral' : 'anual'}.
                     </p>
                   </div>
                 )}
 
+                {/* Código de Barras */}
+                <div>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Código de Barras</label>
+                  <input
+                    type="text"
+                    value={newForm.codigoBarras}
+                    onChange={(e) => setNewForm({ ...newForm, codigoBarras: e.target.value })}
+                    placeholder="Linha digitável do boleto"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
+                  />
+                </div>
+
+                {/* Anexar arquivo */}
+                <div className="rounded-lg border border-dashed border-[#ccc] p-4">
+                  <input
+                    type="file"
+                    className="hidden"
+                    id="file-upload-cp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file)
+                    }}
+                    disabled={isUploading}
+                  />
+                  {!newForm.fileUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('file-upload-cp')?.click()}
+                      disabled={isUploading}
+                      className="w-full flex items-center justify-center gap-2 text-sm text-[#555] border border-[#ccc] rounded-lg px-3 py-2.5 hover:bg-[#f5f5f5] transition disabled:opacity-50"
+                    >
+                      {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                      {isUploading ? 'Enviando...' : 'Anexar Boleto / Comprovante'}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                      <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-[#1a2e4a] hover:underline flex-1 truncate">
+                        Arquivo anexado — clique para visualizar
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('file-upload-cp')?.click()}
+                        disabled={isUploading}
+                        className="text-xs px-3 py-1.5 border border-[#ccc] rounded-lg text-[#555] hover:bg-[#f5f5f5] transition"
+                      >
+                        Trocar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewForm({ ...newForm, fileUrl: '' })}
+                        className="text-xs px-2 py-1.5 text-[#8b0000] hover:bg-[#fdecea] rounded-lg transition"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botões */}
                 <div className="flex items-center gap-3 pt-2">
                   <button
-                    onClick={() => setShowNewModal(false)}
+                    onClick={() => { setShowNewModal(false); setEditingCpId(null) }}
                     className="flex-1 py-2.5 border border-[#ccc] rounded-lg text-sm font-medium text-[#555] hover:bg-[#f0f0f0] transition"
                   >
                     Cancelar
@@ -1146,13 +1594,26 @@ export default function ContasPagar() {
                     className="flex-1 py-2.5 bg-[#1a2e4a] text-white rounded-lg text-sm font-semibold hover:bg-[#0f1f36] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
-                    {newForm.recorrencia !== 'sem' ? `Criar ${newForm.numParcelas} parcelas` : 'Criar conta'}
+                    {editingCpId
+                      ? 'Salvar alterações'
+                      : newForm.recorrencia !== 'sem'
+                        ? `Criar ${newForm.numParcelas} parcelas`
+                        : 'Criar conta'}
                   </button>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* ─── Supplier Sheet ──────────────────────────────────────── */}
+        <SupplierSheet
+          isOpen={isSupplierSheetOpen}
+          onClose={() => {
+            setIsSupplierSheetOpen(false)
+            loadData()
+          }}
+        />
       </div>
     </AppLayout>
   )
