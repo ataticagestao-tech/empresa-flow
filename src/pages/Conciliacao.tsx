@@ -489,6 +489,7 @@ function ConciliacaoInner() {
             .from('bank_transactions')
             .select('*')
             .eq('company_id', companyId)
+            .not('status', 'in', '("reconciled","ignored")')
             .order('date', { ascending: false }),
         'carregar transacoes bancarias'
       )
@@ -1388,7 +1389,7 @@ function ConciliacaoInner() {
     const { error } = await activeClient.from('contas_pagar').insert({
       company_id: companyId,
       credor_nome: beneficiario,
-      descricao: tx.descricao.substring(0, 200),
+      observacoes: tx.descricao.substring(0, 200),
       valor: tx.valor,
       valor_pago: tx.valor,
       data_vencimento: tx.data,
@@ -1448,7 +1449,7 @@ function ConciliacaoInner() {
     const { error } = await activeClient.from('contas_receber').insert({
       company_id: companyId,
       pagador_nome: beneficiario,
-      descricao: tx.descricao.substring(0, 200),
+      observacoes: tx.descricao.substring(0, 200),
       valor: tx.valor,
       valor_pago: tx.valor,
       data_vencimento: tx.data,
