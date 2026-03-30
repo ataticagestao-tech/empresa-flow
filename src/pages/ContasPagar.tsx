@@ -39,6 +39,19 @@ interface Supplier {
   razao_social: string
 }
 
+interface Employee {
+  id: string
+  nome_completo: string | null
+  name: string | null
+}
+
+interface Client {
+  id: string
+  razao_social: string
+}
+
+type CredorTipo = 'fornecedor' | 'funcionario' | 'cliente'
+
 interface BankAccount {
   id: string
   company_id: string
@@ -109,6 +122,8 @@ export default function ContasPagar() {
   const [products, setProducts] = useState<Product[]>([])
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -181,7 +196,8 @@ export default function ContasPagar() {
   const [newForm, setNewForm] = useState({
     credorNome: '',
     descricao: '',
-    supplierId: '',
+    credorTipo: 'fornecedor' as CredorTipo,
+    credorId: '',
     valor: 0,
     dataVencimento: format(new Date(), 'yyyy-MM-dd'),
     competencia: '',
@@ -215,7 +231,7 @@ export default function ContasPagar() {
     if (!selectedCompany) return
     setLoading(true)
 
-    const [cpData, bankData, chartData, ccData, prodData, supData] = await Promise.all([
+    const [cpData, bankData, chartData, ccData, prodData, supData, empData, cliData] = await Promise.all([
       safeQuery(
         () => supabase.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido']).order('data_vencimento', { ascending: true }),
         'listar contas a pagar'
@@ -225,7 +241,7 @@ export default function ContasPagar() {
         'listar contas bancarias'
       ),
       safeQuery(
-        () => supabase.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).eq('type', 'expense'),
+        () => supabase.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).in('type', ['expense', 'despesa']),
         'listar plano de contas'
       ),
       safeQuery(
@@ -240,6 +256,14 @@ export default function ContasPagar() {
         () => supabase.from('suppliers').select('id, razao_social').eq('company_id', selectedCompany.id).order('razao_social'),
         'listar fornecedores'
       ),
+      safeQuery(
+        () => supabase.from('employees').select('id, nome_completo, name').eq('company_id', selectedCompany.id).eq('status', 'ativo'),
+        'listar funcionarios'
+      ),
+      safeQuery(
+        () => supabase.from('clients').select('id, razao_social').eq('company_id', selectedCompany.id).eq('is_active', true).order('razao_social'),
+        'listar clientes'
+      ),
     ])
 
     setContas((cpData as ContaPagar[]) || [])
@@ -248,6 +272,8 @@ export default function ContasPagar() {
     setCentrosCusto((ccData as CentroCusto[]) || [])
     setProducts((prodData as Product[]) || [])
     setSuppliers((supData as Supplier[]) || [])
+    setEmployees((empData as Employee[]) || [])
+    setClients((cliData as Client[]) || [])
     setSelectedIds(new Set())
     setLoading(false)
   }, [selectedCompany])
@@ -466,7 +492,8 @@ export default function ContasPagar() {
     setNewForm({
       credorNome: cp.credor_nome || '',
       descricao: cp.credor_nome || '',
-      supplierId: '',
+      credorTipo: 'fornecedor',
+      credorId: '',
       valor: cp.valor || 0,
       dataVencimento: cp.data_vencimento || format(new Date(), 'yyyy-MM-dd'),
       competencia: cp.competencia || '',
@@ -513,11 +540,19 @@ export default function ContasPagar() {
     if (!selectedCompany || !newForm.descricao || !newForm.valor || !newForm.dataVencimento) return
     setSubmitting(true)
 
-    // Resolver nome do fornecedor
+    // Resolver nome do credor baseado no tipo selecionado
     let credorNome = newForm.credorNome || newForm.descricao
-    if (newForm.supplierId) {
-      const sup = suppliers.find(s => s.id === newForm.supplierId)
-      if (sup) credorNome = sup.razao_social
+    if (newForm.credorId) {
+      if (newForm.credorTipo === 'fornecedor') {
+        const sup = suppliers.find(s => s.id === newForm.credorId)
+        if (sup) credorNome = sup.razao_social
+      } else if (newForm.credorTipo === 'funcionario') {
+        const emp = employees.find(e => e.id === newForm.credorId)
+        if (emp) credorNome = emp.nome_completo || emp.name || credorNome
+      } else if (newForm.credorTipo === 'cliente') {
+        const cli = clients.find(c => c.id === newForm.credorId)
+        if (cli) credorNome = cli.razao_social
+      }
     }
 
     const base: Record<string, any> = {
@@ -1347,33 +1382,72 @@ export default function ContasPagar() {
                   />
                 </div>
 
-                {/* Fornecedor */}
+                {/* Fornecedor / Funcionário / Cliente */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider">Fornecedor</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsSupplierSheetOpen(true)}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-green-600 hover:text-green-700 transition"
-                    >
-                      <Plus size={12} /> Novo
-                    </button>
+                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider">Credor</label>
+                    {newForm.credorTipo === 'fornecedor' && (
+                      <button
+                        type="button"
+                        onClick={() => setIsSupplierSheetOpen(true)}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-green-600 hover:text-green-700 transition"
+                      >
+                        <Plus size={12} /> Novo fornecedor
+                      </button>
+                    )}
                   </div>
+                  {/* Tipo de credor */}
+                  <div className="flex gap-1 mb-2">
+                    {([
+                      { key: 'fornecedor' as CredorTipo, label: 'Fornecedores' },
+                      { key: 'funcionario' as CredorTipo, label: 'Funcionários' },
+                      { key: 'cliente' as CredorTipo, label: 'Clientes' },
+                    ]).map((tipo) => (
+                      <button
+                        key={tipo.key}
+                        type="button"
+                        onClick={() => setNewForm({ ...newForm, credorTipo: tipo.key, credorId: '', credorNome: '' })}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+                          newForm.credorTipo === tipo.key
+                            ? 'bg-[#1a2e4a] text-white border-[#1a2e4a]'
+                            : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'
+                        }`}
+                      >
+                        {tipo.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Lista de nomes */}
                   <select
-                    value={newForm.supplierId}
+                    value={newForm.credorId}
                     onChange={(e) => {
-                      const sup = suppliers.find(s => s.id === e.target.value)
-                      setNewForm({
-                        ...newForm,
-                        supplierId: e.target.value,
-                        credorNome: sup?.razao_social || newForm.credorNome,
-                      })
+                      const id = e.target.value
+                      let nome = ''
+                      if (newForm.credorTipo === 'fornecedor') {
+                        nome = suppliers.find(s => s.id === id)?.razao_social || ''
+                      } else if (newForm.credorTipo === 'funcionario') {
+                        const emp = employees.find(e => e.id === id)
+                        nome = emp?.nome_completo || emp?.name || ''
+                      } else if (newForm.credorTipo === 'cliente') {
+                        nome = clients.find(c => c.id === id)?.razao_social || ''
+                      }
+                      setNewForm({ ...newForm, credorId: id, credorNome: nome })
                     }}
                     className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] bg-white"
                   >
-                    <option value="">Selecione um fornecedor...</option>
-                    {suppliers.map((s) => (
+                    <option value="">
+                      {newForm.credorTipo === 'fornecedor' ? 'Selecione um fornecedor...' :
+                       newForm.credorTipo === 'funcionario' ? 'Selecione um funcionário...' :
+                       'Selecione um cliente...'}
+                    </option>
+                    {newForm.credorTipo === 'fornecedor' && suppliers.map((s) => (
                       <option key={s.id} value={s.id}>{s.razao_social}</option>
+                    ))}
+                    {newForm.credorTipo === 'funcionario' && employees.map((e) => (
+                      <option key={e.id} value={e.id}>{e.nome_completo || e.name}</option>
+                    ))}
+                    {newForm.credorTipo === 'cliente' && clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.razao_social}</option>
                     ))}
                   </select>
                 </div>
