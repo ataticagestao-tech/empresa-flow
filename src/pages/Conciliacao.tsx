@@ -106,6 +106,8 @@ interface IASugestao {
   categoria_nome?: string | null
 }
 
+type IASugestoes = IASugestao[]
+
 interface ChartAccount {
   id: string
   code: string
@@ -117,7 +119,7 @@ interface MatchEnriquecido {
   match: MatchRecord | null
   candidatos: CandidatoLancamento[]
   lancamento: CandidatoLancamento | null
-  sugestaoIA?: IASugestao | null
+  sugestoesIA?: IASugestoes
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -544,8 +546,8 @@ export default function Conciliacao() {
         // Suggest IA for any non-approved transaction
         const statusNorm = mt?.status === 'pending' ? 'pendente' : (mt?.status || 'pendente')
         const needsSuggestion = !mt || ['nao_reconhecido', 'pendente', 'revisao'].includes(statusNorm)
-        const sugestaoIA = needsSuggestion ? buscarSugestaoIA(tx.descricao) : null
-        return { transacao: tx, match: mt, candidatos: [], lancamento, sugestaoIA }
+        const sugestoesIA = needsSuggestion ? buscarSugestoesIA(tx.descricao) : []
+        return { transacao: tx, match: mt, candidatos: [], lancamento, sugestoesIA }
       })
 
       setMatchesEnriquecidos(enriquecidos)
@@ -721,66 +723,78 @@ export default function Conciliacao() {
   }, [companyId, activeClient])
 
   // ── IA: find suggestion for a description ─────────────────────
-  const buscarSugestaoIA = useCallback(
-    (descricao: string): IASugestao | null => {
-      if (!descricao) return null
+  const buscarSugestoesIA = useCallback(
+    (descricao: string): IASugestoes => {
+      if (!descricao) return []
       const descLower = descricao.toLowerCase()
       const descUpper = descricao.toUpperCase()
+      const allSuggestions: IASugestao[] = []
 
       // 0. Check DEFAULT_KEYWORD_RULES first (always available, no history needed)
       for (const rule of DEFAULT_KEYWORD_RULES) {
         for (const keyword of rule.keywords) {
           if (descUpper.includes(keyword)) {
-            // Find matching plano de contas entry
             const catMatch = planoContas.find(c => c.code === rule.accountCode)
-            return {
+            allSuggestions.push({
               descricao_similar: keyword,
               tipo_lancamento: rule.accountCode.startsWith('1') ? 'cr' as const : 'cp' as const,
               lancamento_nome: `${rule.accountCode} — ${rule.accountName}`,
               confianca: rule.confidence,
               categoria_id: catMatch?.id || null,
               categoria_nome: catMatch ? `${catMatch.code} - ${catMatch.name}` : `${rule.accountCode} - ${rule.accountName}`,
+            })
+          }
+        }
+      }
+
+      if (iaPatterns.length > 0) {
+        // 1. Exact matches from history
+        for (const p of iaPatterns) {
+          if (p.descricao === descLower) {
+            allSuggestions.push({ ...p, descricao_similar: p.descricao, confianca: 100, categoria_id: p.categoria_id, categoria_nome: p.categoria_nome })
+          }
+        }
+
+        // 2. Contains matches (description contains pattern or vice-versa)
+        for (const p of iaPatterns) {
+          if (descLower.includes(p.descricao) || p.descricao.includes(descLower)) {
+            if (p.descricao !== descLower) { // avoid duplicating exact matches
+              allSuggestions.push({ ...p, descricao_similar: p.descricao, confianca: 85, categoria_id: p.categoria_id, categoria_nome: p.categoria_nome })
+            }
+          }
+        }
+
+        // 3. Word overlap (at least 2 significant words in common)
+        const descWords = descLower.split(/\s+/).filter(w => w.length > 3)
+        if (descWords.length >= 2) {
+          for (const p of iaPatterns) {
+            const pWords = p.descricao.split(/\s+/).filter(w => w.length > 3)
+            const commonWords = descWords.filter(w => pWords.some(pw => pw.includes(w) || w.includes(pw)))
+            const score = commonWords.length / Math.max(descWords.length, pWords.length)
+            if (score >= 0.4 && commonWords.length >= 2) {
+              allSuggestions.push({
+                ...p,
+                descricao_similar: p.descricao,
+                confianca: Math.round(score * 80),
+              })
             }
           }
         }
       }
 
-      if (iaPatterns.length === 0) return null
-
-      // 1. Exact match from history
-      const exact = iaPatterns.find(p => p.descricao === descLower)
-      if (exact) return { ...exact, descricao_similar: exact.descricao, confianca: 100, categoria_id: exact.categoria_id, categoria_nome: exact.categoria_nome }
-
-      // 2. Contains match (description contains pattern or vice-versa)
-      const contains = iaPatterns.find(
-        p => descLower.includes(p.descricao) || p.descricao.includes(descLower)
-      )
-      if (contains) return { ...contains, descricao_similar: contains.descricao, confianca: 85, categoria_id: contains.categoria_id, categoria_nome: contains.categoria_nome }
-
-      // 3. Word overlap (at least 2 significant words in common)
-      const descWords = descLower.split(/\s+/).filter(w => w.length > 3)
-      if (descWords.length >= 2) {
-        let bestMatch: typeof iaPatterns[0] | null = null
-        let bestScore = 0
-        for (const p of iaPatterns) {
-          const pWords = p.descricao.split(/\s+/).filter(w => w.length > 3)
-          const commonWords = descWords.filter(w => pWords.some(pw => pw.includes(w) || w.includes(pw)))
-          const score = commonWords.length / Math.max(descWords.length, pWords.length)
-          if (score > bestScore && commonWords.length >= 2) {
-            bestScore = score
-            bestMatch = p
-          }
-        }
-        if (bestMatch && bestScore >= 0.4) {
-          return {
-            ...bestMatch,
-            descricao_similar: bestMatch.descricao,
-            confianca: Math.round(bestScore * 80),
-          }
-        }
+      // Sort by confidence descending, deduplicate by categoria_id, return top 3
+      allSuggestions.sort((a, b) => b.confianca - a.confianca)
+      const seen = new Set<string>()
+      const deduped: IASugestao[] = []
+      for (const sug of allSuggestions) {
+        const key = sug.categoria_id || sug.lancamento_nome
+        if (seen.has(key)) continue
+        seen.add(key)
+        deduped.push(sug)
+        if (deduped.length >= 3) break
       }
 
-      return null
+      return deduped
     },
     [iaPatterns, planoContas]
   )
@@ -922,14 +936,14 @@ export default function Conciliacao() {
       if (item.transacao.id === txId) {
         return {
           ...item,
-          sugestaoIA: catName ? {
+          sugestoesIA: catName ? [{
             descricao_similar: '',
             tipo_lancamento: item.transacao.tipo === 'credito' ? 'cr' as const : 'cp' as const,
             lancamento_nome: `${catName.code} - ${catName.name}`,
             confianca: 100,
             categoria_id: categoryId,
             categoria_nome: `${catName.code} - ${catName.name}`,
-          } : item.sugestaoIA,
+          }] : item.sugestoesIA,
         }
       }
       return item
@@ -977,8 +991,8 @@ export default function Conciliacao() {
       setMatchesEnriquecidos(prev => prev.map(item => {
         const statusNorm = item.match?.status === 'pending' ? 'pendente' : (item.match?.status || 'pendente')
         const needsSuggestion = !item.match || ['nao_reconhecido', 'pendente', 'revisao'].includes(statusNorm)
-        if (needsSuggestion && !item.sugestaoIA) {
-          return { ...item, sugestaoIA: buscarSugestaoIA(item.transacao.descricao) }
+        if (needsSuggestion && (!item.sugestoesIA || item.sugestoesIA.length === 0)) {
+          return { ...item, sugestoesIA: buscarSugestoesIA(item.transacao.descricao) }
         }
         return item
       }))
@@ -1729,7 +1743,7 @@ export default function Conciliacao() {
                   {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} — {item.lancamento.nome}
                 </p>
                 <p className="text-[11px] text-[#777]">
-                  Vencimento {formatData(item.lancamento.data_vencimento)} · Conta: {item.sugestaoIA?.categoria_nome || '-'}
+                  Vencimento {formatData(item.lancamento.data_vencimento)} · Conta: {item.sugestoesIA?.[0]?.categoria_nome || '-'}
                 </p>
                 <p className="text-sm font-bold text-[#0a0a0a] mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
               </div>
@@ -1740,29 +1754,29 @@ export default function Conciliacao() {
               </div>
             ) : (
               <div>
-                {item.sugestaoIA && (
+                {item.sugestoesIA?.[0] && (
                   <button
-                    onClick={() => { if (item.sugestaoIA?.categoria_id) categorizarTransacao(tx.id, item.sugestaoIA.categoria_id) }}
+                    onClick={() => { if (item.sugestoesIA?.[0]?.categoria_id) categorizarTransacao(tx.id, item.sugestoesIA[0].categoria_id) }}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[11px]"
-                    title={`Aceitar sugestao IA: ${item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}`}
+                    title={`Aceitar sugestao IA: ${item.sugestoesIA[0].categoria_nome || item.sugestoesIA[0].lancamento_nome}`}
                   >
                     <Sparkles size={12} className="text-purple-600" />
-                    <span className="font-semibold text-purple-700">{item.sugestaoIA.confianca}%</span>
-                    <span className="text-purple-800">{item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}</span>
+                    <span className="font-semibold text-purple-700">{item.sugestoesIA[0].confianca}%</span>
+                    <span className="text-purple-800">{item.sugestoesIA[0].categoria_nome || item.sugestoesIA[0].lancamento_nome}</span>
                   </button>
                 )}
               </div>
             )}
 
             {/* IA suggestion for matched items too */}
-            {item.lancamento && item.sugestaoIA && (
+            {item.lancamento && item.sugestoesIA?.[0] && (
               <div className="mt-1.5">
                 <button
-                  onClick={() => { if (item.sugestaoIA?.categoria_id) categorizarTransacao(tx.id, item.sugestaoIA.categoria_id) }}
+                  onClick={() => { if (item.sugestoesIA?.[0]?.categoria_id) categorizarTransacao(tx.id, item.sugestoesIA[0].categoria_id) }}
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[10px]"
                 >
                   <Sparkles size={10} className="text-purple-600" />
-                  <span className="font-semibold text-purple-700">{item.sugestaoIA.confianca}% {item.sugestaoIA.categoria_nome || item.sugestaoIA.lancamento_nome}</span>
+                  <span className="font-semibold text-purple-700">{item.sugestoesIA[0].confianca}% {item.sugestoesIA[0].categoria_nome || item.sugestoesIA[0].lancamento_nome}</span>
                 </button>
               </div>
             )}
@@ -1827,39 +1841,69 @@ export default function Conciliacao() {
         {/* ── Expanded: unrecognized actions ──────────── */}
         {isExpanded && !isAprovado && (
           <div className="border-t border-[#e0e0e0] bg-[#fafafa] px-4 py-4">
-            <p className="text-[11px] font-semibold text-[#8b0000] mb-3">O que fazer com este lancamento?</p>
-            <div className="flex flex-wrap gap-2">
-              {item.sugestaoIA?.categoria_nome && (
+            <p className="text-[11px] font-semibold text-[#8b0000] mb-3">O que fazer com este lançamento?</p>
+
+            {/* OPÇÃO 1 — Sugestão IA (3 sugestões) */}
+            {item.sugestoesIA && item.sugestoesIA.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-2">
+                  <Sparkles size={10} className="inline mr-1 text-purple-500" />
+                  Sugestões da IA
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {item.sugestoesIA.slice(0, 3).map((sug, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => { if (sug.categoria_id) categorizarTransacao(tx.id, sug.categoria_id) }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-purple-200 bg-white hover:bg-purple-50 transition text-left"
+                    >
+                      <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">
+                        {sug.confianca}%
+                      </span>
+                      <span className="text-[12px] text-[#333]">
+                        {sug.categoria_nome || sug.lancamento_nome}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* OPÇÃO 2 — Incluir lançamento (CP ou CR) */}
+            <div className="mb-4">
+              <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-2">
+                Incluir lançamento
+              </p>
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => criarMovimentacao(item)}
                   className="px-4 py-2.5 rounded-lg border-2 border-[#1a2e4a] bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-[#f0f4f8] transition"
                 >
-                  Criar movimentacao ({item.sugestaoIA.categoria_nome})
+                  {tx.tipo === 'credito' ? 'Cadastrar Conta a Receber' : 'Cadastrar Conta a Pagar'}
                 </button>
-              )}
-              {!item.sugestaoIA?.categoria_nome && (
                 <button
-                  onClick={() => criarMovimentacao(item)}
-                  className="px-4 py-2.5 rounded-lg border-2 border-[#1a2e4a] bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-[#f0f4f8] transition"
+                  onClick={() => { setExpandedTxId(null); abrirVincular(tx) }}
+                  className="px-4 py-2.5 rounded-lg border border-[#ccc] bg-white text-[#555] text-xs font-semibold hover:bg-gray-50 transition"
                 >
-                  Criar movimentacao
+                  Vincular a {tx.tipo === 'credito' ? 'CR' : 'CP'} existente
                 </button>
-              )}
-              <button
-                onClick={() => { setExpandedTxId(null); abrirVincular(tx) }}
-                className="px-4 py-2.5 rounded-lg border-2 border-[#ccc] bg-white text-[#555] text-xs font-semibold hover:bg-gray-50 transition"
-              >
-                Vincular a CP existente
-              </button>
+              </div>
+            </div>
+
+            {/* OPÇÃO 3 — Movimentação entre contas */}
+            <div className="mb-3">
+              <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-2">
+                Movimentação entre contas
+              </p>
               <button
                 onClick={() => { setExpandedTxId(null); ignorarTransacao(tx.id, mt?.id || null) }}
-                className="px-4 py-2.5 rounded-lg border border-[#ccc] bg-white text-[#999] text-xs hover:bg-gray-50 transition"
+                className="px-4 py-2.5 rounded-lg border border-[#ccc] bg-white text-[#555] text-xs hover:bg-gray-50 transition"
               >
-                Ignorar (nao lancar)
+                Registrar como transferência interna (sem valor financeiro)
               </button>
             </div>
 
-            {/* IA Category selector */}
+            {/* Categorizar manualmente (dropdown de plano de contas) */}
             <div className="mt-3 relative" data-cat-dropdown>
               <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-1">Categorizar manualmente</p>
               <input
