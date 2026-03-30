@@ -152,6 +152,25 @@ const parsearOFX = (conteudo: string): TransacaoOFX[] => {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   Helpers (pure functions — hoisted before component)
+   ════════════════════════════════════════════════════════════════════ */
+
+const mapDbToTx = (r: any): BankTransaction => ({
+  id: r.id,
+  company_id: r.company_id,
+  conta_bancaria_id: r.bank_account_id,
+  data: r.date,
+  descricao: r.description || r.memo || '',
+  valor: Math.abs(Number(r.amount || 0)),
+  tipo: Number(r.amount || 0) >= 0 ? 'credito' : 'debito',
+  status_conciliacao: r.status || 'pendente',
+  reconciled_at: r.reconciled_at || null,
+})
+
+const normalizeText = (text: string): string =>
+  (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
+
+/* ════════════════════════════════════════════════════════════════════
    Component
    ════════════════════════════════════════════════════════════════════ */
 
@@ -959,6 +978,140 @@ function ConciliacaoInner() {
     }))
   }, [activeClient, planoContas])
 
+  // ── Helper: upsert match (verificar duplicata antes de inserir) ──
+  const upsertMatch = async (
+    txId: string,
+    matchData: { lancamento_id: string | null; tipo_lancamento: string | null; status: string; diferenca: number | null }
+  ) => {
+    const { data: existing } = await activeClient
+      .from('bank_reconciliation_matches')
+      .select('id, status')
+      .eq('bank_transaction_id', txId)
+      .maybeSingle()
+
+    if (!existing) {
+      await activeClient.from('bank_reconciliation_matches').insert({
+        company_id: companyId,
+        bank_transaction_id: txId,
+        ...matchData,
+      })
+    } else if (existing.status === 'nao_reconhecido' || existing.status === 'pendente') {
+      await activeClient
+        .from('bank_reconciliation_matches')
+        .update(matchData)
+        .eq('id', existing.id)
+    }
+  }
+
+  // ── Matching Engine ────────────────────────────────────────────
+  const executarMatching = useCallback(
+    async (transacoes: BankTransaction[]) => {
+      if (!companyId) return
+
+      const ruleData = await safeQuery(
+        async () =>
+          await activeClient
+            .from('conciliation_rules')
+            .select('id, company_id, account_id, palavras_chave, confianca, acao, ativa')
+            .eq('company_id', companyId)
+            .eq('ativa', true),
+        'buscar regras ativas'
+      )
+      const rules = (ruleData || []) as ConciliationRule[]
+
+      for (const tx of transacoes) {
+        const descNorm = normalizeText(tx.descricao)
+        let regraMatch: ConciliationRule | null = null
+        let melhorScore = 0
+
+        for (const r of rules) {
+          const palavras = r.palavras_chave || []
+          const matches = palavras.filter(kw => descNorm.includes(normalizeText(kw)))
+          if (matches.length > 0) {
+            const score = Math.round((matches.length / palavras.length) * 100)
+            if (score > melhorScore) {
+              melhorScore = score
+              regraMatch = r
+            }
+          }
+        }
+
+        if (regraMatch) {
+          const confiancaNum = regraMatch.confianca === 'Alta' ? 95 : regraMatch.confianca === 'Média' ? 70 : 50
+          await activeClient
+            .from('bank_transactions')
+            .update({
+              sugestao_conta_id: regraMatch.account_id,
+              confianca_match: Math.max(melhorScore, confiancaNum),
+              metodo_match: 'regra',
+            })
+            .eq('id', tx.id)
+          await upsertMatch(tx.id, {
+            lancamento_id: null,
+            tipo_lancamento: null,
+            status: regraMatch.acao === 'auto-conciliar' ? 'match_auto' : 'match_regra',
+            diferenca: 0,
+          })
+          continue
+        }
+
+        const dataMin = new Date(tx.data)
+        dataMin.setDate(dataMin.getDate() - 3)
+        const dataMax = new Date(tx.data)
+        dataMax.setDate(dataMax.getDate() + 3)
+        const dMin = dataMin.toISOString().split('T')[0]
+        const dMax = dataMax.toISOString().split('T')[0]
+
+        let candidatos: any[] = []
+        if (tx.tipo === 'credito') {
+          const crData = await safeQuery(
+            async () =>
+              await activeClient
+                .from('contas_receber')
+                .select('id, pagador_nome, valor, data_vencimento')
+                .eq('company_id', companyId)
+                .in('status', ['pendente', 'parcial', 'vencido'])
+                .gte('data_vencimento', dMin)
+                .lte('data_vencimento', dMax),
+            'buscar CRs candidatos'
+          )
+          candidatos = ((crData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cr' }))
+        } else {
+          const cpData = await safeQuery(
+            async () =>
+              await activeClient
+                .from('contas_pagar')
+                .select('id, credor_nome, valor, data_vencimento')
+                .eq('company_id', companyId)
+                .in('status', ['pendente', 'parcial', 'vencido'])
+                .gte('data_vencimento', dMin)
+                .lte('data_vencimento', dMax),
+            'buscar CPs candidatos'
+          )
+          candidatos = ((cpData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cp' }))
+        }
+
+        const valorExatos = candidatos.filter((c: any) => Math.abs(c.valor - tx.valor) < 0.01)
+        const valorProximos = candidatos.filter(
+          (c: any) => Math.abs(c.valor - tx.valor) >= 0.01 && Math.abs(c.valor - tx.valor) <= tx.valor * 0.1
+        )
+
+        if (valorExatos.length === 1) {
+          const cand = valorExatos[0]
+          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_auto', diferenca: 0 })
+        } else if (valorExatos.length > 1) {
+          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'revisao', diferenca: null })
+        } else if (valorProximos.length === 1) {
+          const cand = valorProximos[0]
+          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_dif', diferenca: Math.round((tx.valor - cand.valor) * 100) / 100 })
+        } else {
+          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'nao_reconhecido', diferenca: null })
+        }
+      }
+    },
+    [companyId, activeClient]
+  )
+
   // ── Reprocessar transações existentes sem sugestão ────────────
   const reprocessarTransacoesExistentes = useCallback(async () => {
     if (!companyId) return
@@ -1021,166 +1174,6 @@ function ConciliacaoInner() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [iaCatDropdownOpen])
-
-  // ── Normalizar texto (remover acentos, uppercase) ─────────────
-  const normalizeText = (text: string): string =>
-    (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
-
-  // ── Helper: upsert match (verificar duplicata antes de inserir) ──
-  const upsertMatch = async (
-    txId: string,
-    matchData: { lancamento_id: string | null; tipo_lancamento: string | null; status: string; diferenca: number | null }
-  ) => {
-    const { data: existing } = await activeClient
-      .from('bank_reconciliation_matches')
-      .select('id, status')
-      .eq('bank_transaction_id', txId)
-      .maybeSingle()
-
-    if (!existing) {
-      await activeClient.from('bank_reconciliation_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: txId,
-        ...matchData,
-      })
-    } else if (existing.status === 'nao_reconhecido' || existing.status === 'pendente') {
-      // Atualizar match existente com dados melhores
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update(matchData)
-        .eq('id', existing.id)
-    }
-    // Se já tem status aprovado/reconciled/match_auto, não sobrescrever
-  }
-
-  // ── Matching Engine ────────────────────────────────────────────
-  const executarMatching = useCallback(
-    async (transacoes: BankTransaction[]) => {
-      if (!companyId) return
-
-      const ruleData = await safeQuery(
-        async () =>
-          await activeClient
-            .from('conciliation_rules')
-            .select('id, company_id, account_id, palavras_chave, confianca, acao, ativa')
-            .eq('company_id', companyId)
-            .eq('ativa', true),
-        'buscar regras ativas'
-      )
-      const rules = (ruleData || []) as ConciliationRule[]
-
-      for (const tx of transacoes) {
-        // CAMADA 0: Regras de palavras_chave (OR logic, accent-insensitive)
-        const descNorm = normalizeText(tx.descricao)
-        let regraMatch: ConciliationRule | null = null
-        let melhorScore = 0
-
-        for (const r of rules) {
-          const palavras = r.palavras_chave || []
-          const matches = palavras.filter(kw => descNorm.includes(normalizeText(kw)))
-          if (matches.length > 0) {
-            const score = Math.round((matches.length / palavras.length) * 100)
-            if (score > melhorScore) {
-              melhorScore = score
-              regraMatch = r
-            }
-          }
-        }
-
-        if (regraMatch) {
-          const confiancaNum = regraMatch.confianca === 'Alta' ? 95 : regraMatch.confianca === 'Média' ? 70 : 50
-
-          // Persistir sugestão na bank_transaction
-          await activeClient
-            .from('bank_transactions')
-            .update({
-              sugestao_conta_id: regraMatch.account_id,
-              confianca_match: Math.max(melhorScore, confiancaNum),
-              metodo_match: 'regra',
-            })
-            .eq('id', tx.id)
-
-          // Upsert match (sem duplicata)
-          await upsertMatch(tx.id, {
-            lancamento_id: null,
-            tipo_lancamento: null,
-            status: regraMatch.acao === 'auto-conciliar' ? 'match_auto' : 'match_regra',
-            diferenca: 0,
-          })
-          continue
-        }
-
-        // CAMADA 1: Buscar por valor + data ±3 dias
-        const dataMin = new Date(tx.data)
-        dataMin.setDate(dataMin.getDate() - 3)
-        const dataMax = new Date(tx.data)
-        dataMax.setDate(dataMax.getDate() + 3)
-        const dMin = dataMin.toISOString().split('T')[0]
-        const dMax = dataMax.toISOString().split('T')[0]
-
-        let candidatos: any[] = []
-
-        if (tx.tipo === 'credito') {
-          const crData = await safeQuery(
-            async () =>
-              await activeClient
-                .from('contas_receber')
-                .select('id, pagador_nome, valor, data_vencimento')
-                .eq('company_id', companyId)
-                .in('status', ['pendente', 'parcial', 'vencido'])
-                .gte('data_vencimento', dMin)
-                .lte('data_vencimento', dMax),
-            'buscar CRs candidatos'
-          )
-          candidatos = ((crData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cr' }))
-        } else {
-          const cpData = await safeQuery(
-            async () =>
-              await activeClient
-                .from('contas_pagar')
-                .select('id, credor_nome, valor, data_vencimento')
-                .eq('company_id', companyId)
-                .in('status', ['pendente', 'parcial', 'vencido'])
-                .gte('data_vencimento', dMin)
-                .lte('data_vencimento', dMax),
-            'buscar CPs candidatos'
-          )
-          candidatos = ((cpData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cp' }))
-        }
-
-        const valorExatos = candidatos.filter((c: any) => Math.abs(c.valor - tx.valor) < 0.01)
-        const valorProximos = candidatos.filter(
-          (c: any) => Math.abs(c.valor - tx.valor) >= 0.01 && Math.abs(c.valor - tx.valor) <= tx.valor * 0.1
-        )
-
-        if (valorExatos.length === 1) {
-          const cand = valorExatos[0]
-          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_auto', diferenca: 0 })
-        } else if (valorExatos.length > 1) {
-          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'revisao', diferenca: null })
-        } else if (valorProximos.length === 1) {
-          const cand = valorProximos[0]
-          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_dif', diferenca: Math.round((tx.valor - cand.valor) * 100) / 100 })
-        } else {
-          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'nao_reconhecido', diferenca: null })
-        }
-      }
-    },
-    [companyId, activeClient]
-  )
-
-  // ── Helper: map DB row (English cols) to internal BankTransaction ──
-  const mapDbToTx = (r: any): BankTransaction => ({
-    id: r.id,
-    company_id: r.company_id,
-    conta_bancaria_id: r.bank_account_id,
-    data: r.date,
-    descricao: r.description || r.memo || '',
-    valor: Math.abs(Number(r.amount || 0)),
-    tipo: Number(r.amount || 0) >= 0 ? 'credito' : 'debito',
-    status_conciliacao: r.status || 'pendente',
-    reconciled_at: r.reconciled_at || null,
-  })
 
   // ── Handle OFX Upload ──────────────────────────────────────────
   const handleArquivo = useCallback(
