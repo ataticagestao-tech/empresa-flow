@@ -183,7 +183,7 @@ class ConciliacaoErrorBoundary extends Component<{ children: ReactNode }, { erro
       return (
         <div className="p-8 text-center">
           <h2 className="text-lg font-bold text-red-600 mb-2">Erro na Conciliação</h2>
-          <p className="text-sm text-gray-600 mb-4">{this.state.error}</p>
+          <p className="text-sm text-black/70 mb-4">{this.state.error}</p>
           <button onClick={() => { this.setState({ error: null }); window.location.reload() }} className="px-4 py-2 bg-[#1a2e4a] text-white rounded-lg text-sm">Recarregar</button>
         </div>
       )
@@ -1697,25 +1697,25 @@ function ConciliacaoInner() {
         )
       case 'aprovado':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0]">
             <CheckCircle2 size={12} /> Aprovado
           </span>
         )
       case 'ignorado':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F4] text-black border border-[#E8E6E1]">
             <EyeOff size={12} /> Ignorado
           </span>
         )
       case 'revisao':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a]">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
             <AlertTriangle size={12} /> Pendente revisao
           </span>
         )
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F4] text-black border border-[#E8E6E1]">
             Pendente
           </span>
         )
@@ -1750,7 +1750,7 @@ function ConciliacaoInner() {
   if (!companyId) {
     return (
       <AppLayout title="Conciliacao Bancaria">
-        <div className="flex items-center justify-center h-64 text-[#555] text-sm">
+        <div className="flex items-center justify-center h-64 text-black text-sm">
           Selecione uma empresa para acessar a conciliacao bancaria.
         </div>
       </AppLayout>
@@ -1767,31 +1767,31 @@ function ConciliacaoInner() {
     const isExpanded = expandedTxId === tx.id
 
     return (
-      <div key={tx.id} className={`border border-[#e0e0e0] rounded-lg bg-white ${isAprovado ? 'opacity-50' : ''}`}>
+      <div key={tx.id} className={`bg-white rounded-xl border border-[#E8E6E1] shadow-sm ${isAprovado ? 'opacity-50' : ''}`}>
         <div className="flex flex-col lg:flex-row">
           {/* ── LEFT: Checkbox + Extrato ────────────── */}
-          <div className="flex items-start gap-3 p-4 lg:w-[38%] lg:border-r lg:border-dashed lg:border-[#ccc]">
+          <div className="flex items-start gap-3 p-5 lg:w-[38%] lg:border-r lg:border-dashed lg:border-[#E8E6E1]">
             {!isAprovado && (
               <input
                 type="checkbox"
                 checked={selecionados.has(tx.id)}
                 onChange={() => toggleSelecao(tx.id)}
-                className="w-4 h-4 accent-[#1a2e4a] mt-1 shrink-0"
+                className="w-4 h-4 accent-[#1C3D6B] mt-1 shrink-0"
               />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-bold text-[#888] uppercase tracking-wider mb-1">Extrato</p>
-              <p className="text-sm font-semibold text-[#0a0a0a] break-words leading-tight">{tx.descricao}</p>
-              <p className="text-[11px] text-[#777] mt-1">{formatData(tx.data)}</p>
-              <p className={`text-base font-bold mt-1 ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-1">Extrato</p>
+              <p className="text-sm font-semibold text-black break-words leading-tight">{tx.descricao}</p>
+              <p className="text-[11px] text-black/60 mt-1">{formatData(tx.data)}</p>
+              <p className={`text-base font-bold mt-1 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
                 {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
               </p>
             </div>
           </div>
 
           {/* ── MIDDLE: Lancamento no sistema ──────── */}
-          <div className="flex-1 p-4 lg:border-r lg:border-dashed lg:border-[#ccc]">
-            <p className="text-[9px] font-bold text-[#888] uppercase tracking-wider mb-2">Lancamento no Sistema</p>
+          <div className="flex-1 p-5 lg:border-r lg:border-dashed lg:border-[#E8E6E1]">
+            <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">Lancamento no Sistema</p>
 
             {/* Badge de status */}
             <div className="mb-2">{renderBadge(status, mt?.diferenca ?? null)}</div>
@@ -1799,45 +1799,45 @@ function ConciliacaoInner() {
             {/* Lancamento vinculado */}
             {item.lancamento ? (
               <div>
-                <p className="text-sm font-medium text-[#0a0a0a]">
+                <p className="text-sm font-medium text-black">
                   {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} — {item.lancamento.nome}
                 </p>
-                <p className="text-[11px] text-[#777]">
+                <p className="text-[11px] text-black/60">
                   Vencimento {formatData(item.lancamento.data_vencimento)} · Conta: {item.sugestoesIA?.[0]?.categoria_nome || '-'}
                 </p>
-                <p className="text-sm font-bold text-[#0a0a0a] mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
+                <p className="text-sm font-bold text-black mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
               </div>
             ) : status === 'nao_reconhecido' || (!mt && !isAprovado) ? (
               <div>
                 {candidatosPreview.get(tx.id) ? (
                   <div className="space-y-1.5">
-                    <span className="text-[11px] font-semibold text-[#5c3a00]">Possível correspondência</span>
+                    <span className="text-[11px] font-medium text-[#D97706]">Possível correspondência</span>
                     <button
                       onClick={() => abrirVincular(tx)}
-                      className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg border border-[#b8960a] bg-[#fffbe6] hover:bg-[#fff5cc] transition"
+                      className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] hover:bg-[#FEF3C7] transition"
                     >
-                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
                         candidatosPreview.get(tx.id)!.tipo === 'cr'
-                          ? 'bg-[#e6f4ec] text-[#0a5c2e]'
-                          : 'bg-[#fdecea] text-[#8b0000]'
+                          ? 'bg-[#F0FDF4] text-[#16A34A]'
+                          : 'bg-[#FEF2F2] text-[#DC2626]'
                       }`}>
                         {candidatosPreview.get(tx.id)!.tipo.toUpperCase()}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium text-[#0a0a0a] truncate">
+                        <p className="text-[12px] font-medium text-black truncate">
                           {candidatosPreview.get(tx.id)!.nome}
                         </p>
-                        <p className="text-[10px] text-[#777]">
+                        <p className="text-[10px] text-black/60">
                           {formatBRL(candidatosPreview.get(tx.id)!.valor)} · venc. {formatData(candidatosPreview.get(tx.id)!.data_vencimento)}
                         </p>
                       </div>
-                      <span className="text-[10px] text-[#5c3a00] font-semibold shrink-0">Vincular →</span>
+                      <span className="text-[10px] text-[#D97706] font-semibold shrink-0">Vincular →</span>
                     </button>
                   </div>
                 ) : (
                   <div>
-                    <span className="text-[11px] font-semibold text-[#8b0000]">Nenhum lancamento encontrado</span>
-                    <p className="text-[10px] text-[#999]">Sem correspondencia no sistema</p>
+                    <span className="text-[11px] font-medium text-[#DC2626]">Nenhum lancamento encontrado</span>
+                    <p className="text-[10px] text-black/60">Sem correspondencia no sistema</p>
                   </div>
                 )}
               </div>
@@ -1872,48 +1872,48 @@ function ConciliacaoInner() {
           </div>
 
           {/* ── RIGHT: Acoes ──────────────────────── */}
-          <div className="flex flex-row lg:flex-col items-center justify-center gap-2 p-4 lg:w-[160px]">
+          <div className="flex flex-row lg:flex-col items-center justify-center gap-2 p-5 lg:w-[160px]">
             {!isAprovado && (
               <>
                 {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
                   <>
-                    <button onClick={() => aprovar(mt.id, item)} className="w-full px-3 py-2 rounded-md bg-[#e6f4ec] text-[#0a5c2e] font-semibold text-xs hover:bg-[#d0eddb] transition flex items-center justify-center gap-1.5">
+                    <button onClick={() => aprovar(mt.id, item)} className="w-full px-3 py-2 rounded-lg bg-[#F0FDF4] text-[#16A34A] font-semibold text-xs hover:bg-[#DCFCE7] border border-[#BBF7D0] transition flex items-center justify-center gap-1.5">
                       <CheckCircle2 size={14} /> Aprovar
                     </button>
-                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-md border border-[#ccc] text-[#555] text-xs hover:bg-gray-50 transition">
+                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black text-xs hover:bg-[#F5F5F4] transition">
                       Alterar
                     </button>
                   </>
                 )}
                 {status === 'match_dif' && mt?.diferenca && Math.abs(mt.diferenca) > 0 && (
-                  <button onClick={() => aprovar(mt!.id, item)} className="w-full px-3 py-2 rounded-md bg-[#fffbe6] text-[#5c3a00] font-semibold text-xs hover:bg-[#fff5cc] transition flex items-center justify-center gap-1.5">
+                  <button onClick={() => aprovar(mt!.id, item)} className="w-full px-3 py-2 rounded-lg bg-[#FFFBEB] text-[#D97706] font-semibold text-xs hover:bg-[#FEF3C7] border border-[#FDE68A] transition flex items-center justify-center gap-1.5">
                     <AlertTriangle size={14} /> Ajustar
                   </button>
                 )}
                 {(status === 'nao_reconhecido' || status === 'pendente' || (!mt && !isAprovado)) && (
                   <>
-                    <button onClick={() => setExpandedTxId(isExpanded ? null : tx.id)} className="w-full px-3 py-2 rounded-md bg-[#f0f4f8] text-[#1a2e4a] font-semibold text-xs hover:bg-[#e0e8f0] transition flex items-center justify-center gap-1.5">
+                    <button onClick={() => setExpandedTxId(isExpanded ? null : tx.id)} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
                       <Plus size={14} /> Criar
                     </button>
-                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-md border border-[#ccc] text-[#555] text-xs hover:bg-gray-50 transition">
+                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black text-xs hover:bg-[#F5F5F4] transition">
                       Vincular
                     </button>
-                    <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="w-full px-3 py-2 rounded-md border border-[#ccc] text-[#999] text-xs hover:bg-gray-50 transition">
+                    <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black/60 text-xs hover:bg-[#F5F5F4] transition">
                       Ignorar
                     </button>
                   </>
                 )}
                 {status === 'revisao' && (
-                  <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-md bg-[#f0f4f8] text-[#1a2e4a] font-semibold text-xs hover:bg-[#e0e8f0] transition flex items-center justify-center gap-1.5">
+                  <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
                     <Link2 size={14} /> Vincular
                   </button>
                 )}
               </>
             )}
             {isAprovado && (
-              <div className="flex items-center gap-1.5 text-[#0a5c2e]">
+              <div className="flex items-center gap-1.5 text-[#16A34A]">
                 <CheckCircle2 size={16} />
-                <span className="text-xs font-semibold">{status === 'ignorado' ? 'Ignorado' : 'Aprovado'}</span>
+                <span className="text-xs font-medium">{status === 'ignorado' ? 'Ignorado' : 'Aprovado'}</span>
               </div>
             )}
           </div>
@@ -1921,7 +1921,7 @@ function ConciliacaoInner() {
 
         {/* ── Diff warning bar ────────────────────────── */}
         {mt?.diferenca && Math.abs(mt.diferenca) > 0 && status === 'match_dif' && (
-          <div className="border-t border-[#f0d080] bg-[#fffbe6] px-4 py-2.5 text-[11px] text-[#5c3a00]">
+          <div className="border-t border-[#FDE68A] bg-[#FFFBEB] px-5 py-3 text-[11px] text-[#D97706]">
             <AlertTriangle size={12} className="inline mr-1.5" />
             Diferenca de {formatBRL(Math.abs(mt.diferenca))} — possivelmente juros ou taxa bancaria. Aprovar lancara {formatBRL(Math.abs(mt.diferenca))} em 4.6.03 — Tarifas bancarias.
           </div>
@@ -1929,13 +1929,13 @@ function ConciliacaoInner() {
 
         {/* ── Expanded: unrecognized actions ──────────── */}
         {isExpanded && !isAprovado && (
-          <div className="border-t border-[#e0e0e0] bg-[#fafafa] px-4 py-4">
-            <p className="text-[11px] font-semibold text-[#8b0000] mb-3">O que fazer com este lançamento?</p>
+          <div className="border-t border-[#E8E6E1] bg-[#FAFAF9] px-5 py-5">
+            <p className="text-[11px] font-medium text-[#DC2626] mb-3">O que fazer com este lançamento?</p>
 
             {/* OPÇÃO 1 — Sugestão IA (3 sugestões) */}
             {item.sugestoesIA && item.sugestoesIA.length > 0 && (
               <div className="mb-4">
-                <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-2">
+                <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">
                   <Sparkles size={10} className="inline mr-1 text-purple-500" />
                   Sugestões da IA
                 </p>
@@ -1944,12 +1944,12 @@ function ConciliacaoInner() {
                     <button
                       key={idx}
                       onClick={() => { if (sug.categoria_id) categorizarTransacao(tx.id, sug.categoria_id) }}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-purple-200 bg-white hover:bg-purple-50 transition text-left"
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#E8E6E1] bg-white hover:bg-purple-50 transition text-left"
                     >
-                      <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">
                         {sug.confianca}%
                       </span>
-                      <span className="text-[12px] text-[#333]">
+                      <span className="text-[12px] text-black">
                         {sug.categoria_nome || sug.lancamento_nome}
                       </span>
                     </button>
@@ -1960,19 +1960,19 @@ function ConciliacaoInner() {
 
             {/* OPÇÃO 2 — Incluir lançamento (CP ou CR) */}
             <div className="mb-4">
-              <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-2">
+              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">
                 Incluir lançamento
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => criarLancamentoAvulso(item)}
-                  className="px-4 py-2.5 rounded-lg border-2 border-[#1a2e4a] bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-[#f0f4f8] transition"
+                  className="px-4 py-2.5 rounded-lg border border-[#1C3D6B] bg-white text-[#1C3D6B] text-xs font-semibold hover:bg-[#F0F4F8] transition"
                 >
                   Registrar como lançamento avulso
                 </button>
                 <button
                   onClick={() => { setExpandedTxId(null); abrirVincular(tx) }}
-                  className="px-4 py-2.5 rounded-lg border border-[#ccc] bg-white text-[#555] text-xs font-semibold hover:bg-gray-50 transition"
+                  className="px-4 py-2.5 rounded-lg border border-[#E8E6E1] bg-white text-black text-xs font-semibold hover:bg-[#F5F5F4] transition"
                 >
                   Vincular a {tx.tipo === 'credito' ? 'CR' : 'CP'} existente
                 </button>
@@ -1981,12 +1981,12 @@ function ConciliacaoInner() {
 
             {/* OPÇÃO 3 — Movimentação entre contas */}
             <div className="mb-3">
-              <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-2">
+              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">
                 Movimentação entre contas
               </p>
               <button
                 onClick={() => { setExpandedTxId(null); ignorarTransacao(tx.id, mt?.id || null) }}
-                className="px-4 py-2.5 rounded-lg border border-[#ccc] bg-white text-[#555] text-xs hover:bg-gray-50 transition"
+                className="px-4 py-2.5 rounded-lg border border-[#E8E6E1] bg-white text-black text-xs hover:bg-[#F5F5F4] transition"
               >
                 Registrar como transferência interna (sem valor financeiro)
               </button>
@@ -1994,17 +1994,17 @@ function ConciliacaoInner() {
 
             {/* Categorizar manualmente (dropdown de plano de contas) */}
             <div className="mt-3 relative" data-cat-dropdown>
-              <p className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-1">Categorizar manualmente</p>
+              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-1">Categorizar manualmente</p>
               <input
                 type="text"
                 placeholder="Buscar conta contabil..."
-                className="w-full max-w-sm text-[12px] border border-[#ddd] rounded-lg px-3 py-2 bg-white text-[#333] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20"
+                className="w-full max-w-sm text-[12px] border border-[#E8E6E1] rounded-lg px-3 py-2.5 bg-white text-black focus:outline-none focus:border-[#1C3D6B] focus:ring-1 focus:ring-[#1C3D6B]/20"
                 value={iaCatDropdownOpen === tx.id ? (iaCatBusca ?? '') : ''}
                 onFocus={() => { setIaCatDropdownOpen(tx.id); setIaCatBusca('') }}
                 onChange={(e) => setIaCatBusca(e.target.value)}
               />
               {iaCatDropdownOpen === tx.id && (
-                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#ccc] rounded-lg shadow-xl w-80 max-h-48 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E8E6E1] rounded-xl shadow-lg w-80 max-h-48 overflow-y-auto">
                   {planoContas
                     .filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase()))
                     .slice(0, 15)
@@ -2012,14 +2012,14 @@ function ConciliacaoInner() {
                       <button
                         key={cat.id}
                         onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null); setIaCatBusca(''); setExpandedTxId(null) }}
-                        className="w-full text-left px-3 py-2 text-[12px] text-[#333] hover:bg-[#f0f4f8] transition"
+                        className="w-full text-left px-3 py-2.5 text-[12px] text-black hover:bg-[#F5F5F4] transition"
                       >
                         <span className="font-semibold">{cat.code}</span> — {cat.name}
                       </button>
                     ))
                   }
                   {planoContas.filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase())).length === 0 && (
-                    <p className="px-3 py-2 text-[11px] text-[#999]">Nenhuma categoria encontrada</p>
+                    <p className="px-3 py-2 text-[11px] text-black/60">Nenhuma categoria encontrada</p>
                   )}
                 </div>
               )}
@@ -2032,48 +2032,48 @@ function ConciliacaoInner() {
 
   return (
     <AppLayout title="Conciliacao Bancaria">
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* ══════════════════════════════════════════════════════
            KPI CARDS
            ══════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Extrato Importado */}
-          <div className="bg-[#1a2e4a] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Extrato Importado</p>
-            <p className="text-3xl font-bold mt-1">{totalImportadas}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#1C3D6B]">
+            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Extrato Importado</p>
+            <p className="text-3xl font-bold mt-1 text-black">{totalImportadas}</p>
+            <p className="text-[11px] text-black/60 mt-0.5">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
             {importBatches.length > 0 && (
-              <span className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded">OFX importado</span>
+              <span className="inline-block mt-2 text-[9px] font-medium bg-[#1C3D6B]/10 text-[#1C3D6B] px-2 py-0.5 rounded-full">OFX importado</span>
             )}
           </div>
 
           {/* Conciliados */}
-          <div className="bg-[#0a5c2e] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Conciliados</p>
-            <p className="text-3xl font-bold mt-1">{conciliadasAuto}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">por regras e automatico</p>
-            <span className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded">{pctConciliado}% do extrato</span>
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#16A34A]">
+            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Conciliados</p>
+            <p className="text-3xl font-bold mt-1 text-black">{conciliadasAuto}</p>
+            <p className="text-[11px] text-black/60 mt-0.5">por regras e automatico</p>
+            <span className="inline-block mt-2 text-[9px] font-medium bg-[#16A34A]/10 text-[#16A34A] px-2 py-0.5 rounded-full">{pctConciliado}% do extrato</span>
           </div>
 
           {/* Pendentes Revisao */}
-          <div className="bg-[#1a5fb4] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Pendentes Revisao</p>
-            <p className="text-3xl font-bold mt-1">{pendentesRevisao}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">aguardando aprovacao</p>
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#D97706]">
+            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Pendentes Revisao</p>
+            <p className="text-3xl font-bold mt-1 text-black">{pendentesRevisao}</p>
+            <p className="text-[11px] text-black/60 mt-0.5">aguardando aprovacao</p>
             {pendentesRevisao > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }} className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded hover:bg-white/30 transition">
+              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }} className="inline-block mt-2 text-[9px] font-medium bg-[#D97706]/10 text-[#D97706] px-2 py-0.5 rounded-full hover:bg-[#D97706]/20 transition">
                 Revisar
               </button>
             )}
           </div>
 
           {/* Nao Reconhecidos */}
-          <div className="bg-[#8b0000] text-white rounded-lg p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Nao Reconhecidos</p>
-            <p className="text-3xl font-bold mt-1">{naoReconhecidas}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">sem correspondencia</p>
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#DC2626]">
+            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Nao Reconhecidos</p>
+            <p className="text-3xl font-bold mt-1 text-black">{naoReconhecidas}</p>
+            <p className="text-[11px] text-black/60 mt-0.5">sem correspondencia</p>
             {naoReconhecidas > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }} className="inline-block mt-1.5 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded hover:bg-white/30 transition">
+              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }} className="inline-block mt-2 text-[9px] font-medium bg-[#DC2626]/10 text-[#DC2626] px-2 py-0.5 rounded-full hover:bg-[#DC2626]/20 transition">
                 Acao necessaria
               </button>
             )}
@@ -2084,17 +2084,17 @@ function ConciliacaoInner() {
            IMPORT INFO BANNER
            ══════════════════════════════════════════════════════ */}
         {importBatches.length > 0 && (
-          <div className="bg-[#f0f4f8] border border-[#d0d8e0] rounded-lg px-4 py-3 flex items-center gap-3">
-            <FileText size={20} className="text-[#1a2e4a] shrink-0" />
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm px-5 py-4 flex items-center gap-3">
+            <FileText size={20} className="text-[#1C3D6B] shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#0a0a0a]">
+              <p className="text-sm font-semibold text-black">
                 Extrato importado
               </p>
-              <p className="text-[11px] text-[#555]">
+              <p className="text-[11px] text-black">
                 {importBatches[0] ? `${formatData(importBatches[0].min_date)} a ${formatData(importBatches[0].max_date)}` : ''} · {totalImportadas} transacoes · importado {importBatches[0] ? new Date(importBatches[0].imported_at).toLocaleDateString('pt-BR') : ''}
               </p>
             </div>
-            <label className="text-xs text-[#8b0000] font-semibold cursor-pointer hover:underline shrink-0">
+            <label className="text-xs text-[#1C3D6B] font-medium cursor-pointer hover:underline shrink-0">
               Trocar arquivo
               <input type="file" accept=".ofx" onChange={onFileChange} className="hidden" disabled={!contaSelecionada || importando} />
             </label>
@@ -2102,7 +2102,7 @@ function ConciliacaoInner() {
         )}
 
         {/* ── Tabs ───────────────────────────────────────────────── */}
-        <div className="flex gap-1 border-b border-[#ccc]">
+        <div className="flex gap-1 border-b border-[#E8E6E1]">
           {[
             { id: 'conciliacao' as const, label: 'Conciliacao', icon: <ListChecks size={14} /> },
             { id: 'historico' as const, label: 'Importacoes', icon: <History size={14} /> },
@@ -2111,10 +2111,10 @@ function ConciliacaoInner() {
             <button
               key={tab.id}
               onClick={() => setAbaAtiva(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium uppercase tracking-wider transition-colors ${
                 abaAtiva === tab.id
-                  ? 'border-b-2 border-[#1a2e4a] text-[#1a2e4a]'
-                  : 'text-[#555] hover:text-[#1a2e4a]'
+                  ? 'border-b-2 border-[#1C3D6B] text-[#1C3D6B]'
+                  : 'text-black hover:text-[#1C3D6B]'
               }`}
             >
               {tab.icon}
@@ -2130,37 +2130,37 @@ function ConciliacaoInner() {
           <>
             {/* ── Upload OFX (only when no transactions) ──── */}
             {matchesEnriquecidos.length === 0 && (
-              <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                <div className="bg-[#1a2e4a] px-4 py-2.5">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Importar Extrato OFX</h3>
+              <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#E8E6E1]">
+                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Importar Extrato OFX</h3>
                 </div>
-                <div className="p-4 bg-white space-y-3">
+                <div className="p-5 space-y-3">
                   <div className="relative w-full max-w-xs">
                     <select
                       value={contaSelecionada}
                       onChange={(e) => setContaSelecionada(e.target.value)}
-                      className="w-full appearance-none border border-[#ccc] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#1a2e4a] pr-8"
+                      className="w-full appearance-none border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-[#1C3D6B] pr-8"
                     >
                       <option value="">Selecione a conta...</option>
                       {contas.map((c) => (
                         <option key={c.id} value={c.id}>{c.name} - {c.banco}</option>
                       ))}
                     </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black pointer-events-none" />
                   </div>
                   <div
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
-                    className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
-                      arrastando ? 'border-[#1a2e4a] bg-[#f0f4f8]' : 'border-[#ccc] bg-[#fafafa] hover:border-[#1a2e4a]'
+                    className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
+                      arrastando ? 'border-[#1C3D6B] bg-[#1C3D6B]/5' : 'border-[#E8E6E1] bg-[#FAFAF9] hover:border-[#1C3D6B]'
                     } ${!contaSelecionada ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     <input type="file" accept=".ofx" onChange={onFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!contaSelecionada || importando} />
                     {importando ? (
-                      <><Loader2 size={24} className="text-[#1a2e4a] animate-spin" /><p className="text-sm text-[#555]">Processando...</p></>
+                      <><Loader2 size={24} className="text-[#1C3D6B] animate-spin" /><p className="text-sm text-black">Processando...</p></>
                     ) : (
-                      <><Upload size={24} className="text-[#1a2e4a]" /><p className="text-sm text-[#555]">Arraste um <strong>.ofx</strong> ou clique</p></>
+                      <><Upload size={24} className="text-[#1C3D6B]" /><p className="text-sm text-black">Arraste um <strong>.ofx</strong> ou clique</p></>
                     )}
                   </div>
                 </div>
@@ -2173,55 +2173,55 @@ function ConciliacaoInner() {
             {matchesEnriquecidos.length > 0 && (
               <div className="space-y-3">
                 {/* Header bar */}
-                <div className="bg-[#1a2e4a] rounded-t-lg px-4 py-3 flex items-center justify-between">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Revisao de Conciliacao</h3>
+                <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm px-5 py-3.5 flex items-center justify-between">
+                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Revisao de Conciliacao</h3>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setSubTab('conciliados')} className="text-[11px] text-white/70 hover:text-white transition font-medium">
+                    <button onClick={() => setSubTab('conciliados')} className="text-[11px] text-black hover:text-[#1C3D6B] transition font-medium">
                       Ver conciliados
                     </button>
                     {pendentes.length > 0 && (
-                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[11px] text-white/70 hover:text-white transition font-medium">
+                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[11px] text-black hover:text-[#1C3D6B] transition font-medium">
                         {salvando ? 'Salvando...' : 'Aprovar todos pendentes'}
                       </button>
                     )}
-                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-white/50 hover:text-white transition" title="Recarregar">
+                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-black/60 hover:text-[#1C3D6B] transition" title="Recarregar">
                       <RefreshCw size={14} />
                     </button>
                   </div>
                 </div>
 
                 {/* Sub-tabs */}
-                <div className="flex gap-1 bg-[#f5f5f5] rounded-lg p-1">
+                <div className="flex gap-1.5 bg-[#F5F5F4] rounded-xl p-1.5">
                   <button
                     onClick={() => setSubTab('pendentes')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition ${
-                      subTab === 'pendentes' ? 'bg-white text-[#1a2e4a] shadow-sm' : 'text-[#777] hover:text-[#333]'
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                      subTab === 'pendentes' ? 'bg-white text-[#1C3D6B] shadow-sm' : 'text-black hover:text-black'
                     }`}
                   >
                     Pendentes revisao
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'pendentes' ? 'bg-[#1a5fb4] text-white' : 'bg-[#ddd] text-[#555]'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'pendentes' ? 'bg-[#1C3D6B] text-white' : 'bg-[#E8E6E1] text-black'}`}>
                       {pendentes.length}
                     </span>
                   </button>
                   <button
                     onClick={() => setSubTab('nao_reconhecidos')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition ${
-                      subTab === 'nao_reconhecidos' ? 'bg-white text-[#8b0000] shadow-sm' : 'text-[#777] hover:text-[#333]'
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                      subTab === 'nao_reconhecidos' ? 'bg-white text-[#DC2626] shadow-sm' : 'text-black hover:text-black'
                     }`}
                   >
                     Nao reconhecidos
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'nao_reconhecidos' ? 'bg-[#8b0000] text-white' : 'bg-[#ddd] text-[#555]'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'nao_reconhecidos' ? 'bg-[#DC2626] text-white' : 'bg-[#E8E6E1] text-black'}`}>
                       {naoReconhecidosList.length}
                     </span>
                   </button>
                   <button
                     onClick={() => setSubTab('conciliados')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition ${
-                      subTab === 'conciliados' ? 'bg-white text-[#0a5c2e] shadow-sm' : 'text-[#777] hover:text-[#333]'
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
+                      subTab === 'conciliados' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-black hover:text-black'
                     }`}
                   >
                     Conciliados
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'conciliados' ? 'bg-[#0a5c2e] text-white' : 'bg-[#ddd] text-[#555]'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'conciliados' ? 'bg-[#16A34A] text-white' : 'bg-[#E8E6E1] text-black'}`}>
                       {conciliadosList.length}
                     </span>
                   </button>
@@ -2229,15 +2229,15 @@ function ConciliacaoInner() {
 
                 {/* ── Batch selection bar ──────────────────── */}
                 {selecionados.size > 0 && (
-                  <div className="bg-[#f0f4f8] border border-[#1a2e4a]/20 rounded-lg px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#1a2e4a]">
+                  <div className="bg-white border border-[#1C3D6B]/20 rounded-xl px-5 py-3.5 flex items-center justify-between shadow-sm">
+                    <span className="text-sm font-medium text-[#1C3D6B]">
                       {selecionados.size} itens selecionados — Aprovar em lote?
                     </span>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setSelecionados(new Set())} className="text-xs text-[#1a5fb4] font-medium hover:underline">
+                      <button onClick={() => setSelecionados(new Set())} className="text-xs text-[#1C3D6B] font-medium hover:underline">
                         Desmarcar
                       </button>
-                      <button onClick={aprovarSelecionados} className="px-4 py-2 text-xs bg-[#1a2e4a] text-white font-semibold rounded-lg hover:bg-[#15253d] transition">
+                      <button onClick={aprovarSelecionados} className="px-4 py-2 text-xs bg-[#1C3D6B] text-white font-semibold rounded-lg hover:bg-[#163256] transition">
                         Aprovar {selecionados.size} itens
                       </button>
                     </div>
@@ -2245,7 +2245,7 @@ function ConciliacaoInner() {
                 )}
 
                 {/* ── Column headers ───────────────────────── */}
-                <div className="hidden lg:flex items-center px-4 py-2 text-[9px] font-bold text-[#888] uppercase tracking-widest">
+                <div className="hidden lg:flex items-center px-5 py-2 text-[11px] font-medium text-black uppercase tracking-wider">
                   <div className="w-[38%] pl-7">Extrato Bancario</div>
                   <div className="flex-1">Lancamento no Sistema</div>
                   <div className="w-[160px] text-center">Acao</div>
@@ -2253,18 +2253,18 @@ function ConciliacaoInner() {
 
                 {/* ── Item cards ───────────────────────────── */}
                 {carregando ? (
-                  <div className="flex items-center justify-center py-16 gap-2 text-[#555] text-sm">
+                  <div className="flex items-center justify-center py-16 gap-2 text-black text-sm">
                     <Loader2 size={18} className="animate-spin" /> Carregando...
                   </div>
                 ) : filteredItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
-                    <FileText size={32} className="text-[#ccc] mb-2" />
+                  <div className="flex flex-col items-center justify-center py-16 text-black text-sm gap-1">
+                    <FileText size={32} className="text-[#E8E6E1] mb-2" />
                     {subTab === 'pendentes' && 'Nenhuma transacao pendente de revisao.'}
                     {subTab === 'nao_reconhecidos' && 'Nenhuma transacao nao reconhecida.'}
                     {subTab === 'conciliados' && 'Nenhuma transacao conciliada ainda.'}
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {filteredItems.map(renderItemCard)}
                   </div>
                 )}
@@ -2272,12 +2272,12 @@ function ConciliacaoInner() {
                 {/* ── SALVAR CONCILIACAO sticky bar ─────── */}
                 {matchesEnriquecidos.some(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)) && (
                   <div className="sticky bottom-4 z-20">
-                    <div className="bg-gradient-to-r from-[#0a5c2e] to-[#1a6e3e] rounded-lg px-6 py-4 shadow-xl flex items-center justify-between">
-                      <div className="text-white">
-                        <p className="text-sm font-bold">{matchesEnriquecidos.filter(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)).length} conciliacoes pendentes</p>
-                        <p className="text-[11px] text-white/70">Aprovar todas e baixar lancamentos vinculados</p>
+                    <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-lg px-6 py-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-black">{matchesEnriquecidos.filter(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)).length} conciliacoes pendentes</p>
+                        <p className="text-[11px] text-black">Aprovar todas e baixar lancamentos vinculados</p>
                       </div>
-                      <button onClick={salvarConciliacao} disabled={salvando} className="px-6 py-3 bg-white text-[#0a5c2e] font-bold text-sm rounded-lg hover:bg-gray-100 transition flex items-center gap-2 shadow-md disabled:opacity-50">
+                      <button onClick={salvarConciliacao} disabled={salvando} className="px-6 py-3 bg-[#16A34A] text-white font-bold text-sm rounded-lg hover:bg-[#15803D] transition flex items-center gap-2 shadow-sm disabled:opacity-50">
                         {salvando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                         {salvando ? 'SALVANDO...' : 'SALVAR CONCILIACAO'}
                       </button>
@@ -2289,37 +2289,37 @@ function ConciliacaoInner() {
 
             {/* Upload when we have data but want to add more */}
             {matchesEnriquecidos.length > 0 && (
-              <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                <div className="bg-[#1a2e4a] px-4 py-2.5">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Importar Extrato OFX</h3>
+              <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#E8E6E1]">
+                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Importar Extrato OFX</h3>
                 </div>
-                <div className="p-4 bg-white space-y-3">
+                <div className="p-5 space-y-3">
                   <div className="relative w-full max-w-xs">
                     <select
                       value={contaSelecionada}
                       onChange={(e) => setContaSelecionada(e.target.value)}
-                      className="w-full appearance-none border border-[#ccc] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#1a2e4a] pr-8"
+                      className="w-full appearance-none border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-[#1C3D6B] pr-8"
                     >
                       <option value="">Selecione a conta...</option>
                       {contas.map((c) => (
                         <option key={c.id} value={c.id}>{c.name} - {c.banco}</option>
                       ))}
                     </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black pointer-events-none" />
                   </div>
                   <div
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
-                    className={`relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
-                      arrastando ? 'border-[#1a2e4a] bg-[#f0f4f8]' : 'border-[#ccc] bg-[#fafafa] hover:border-[#1a2e4a]'
+                    className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
+                      arrastando ? 'border-[#1C3D6B] bg-[#1C3D6B]/5' : 'border-[#E8E6E1] bg-[#FAFAF9] hover:border-[#1C3D6B]'
                     } ${!contaSelecionada ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     <input type="file" accept=".ofx" onChange={onFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!contaSelecionada || importando} />
                     {importando ? (
-                      <><Loader2 size={24} className="text-[#1a2e4a] animate-spin" /><p className="text-sm text-[#555]">Processando...</p></>
+                      <><Loader2 size={24} className="text-[#1C3D6B] animate-spin" /><p className="text-sm text-black">Processando...</p></>
                     ) : (
-                      <><Upload size={24} className="text-[#1a2e4a]" /><p className="text-sm text-[#555]">Arraste um <strong>.ofx</strong> ou clique</p></>
+                      <><Upload size={24} className="text-[#1C3D6B]" /><p className="text-sm text-black">Arraste um <strong>.ofx</strong> ou clique</p></>
                     )}
                   </div>
                 </div>
@@ -2332,54 +2332,54 @@ function ConciliacaoInner() {
            TAB: IMPORTACOES
            ════════════════════════════════════════════════════════ */}
         {abaAtiva === 'historico' && (
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Arquivos Importados</h3>
-              <button onClick={carregarImportBatches} className="text-white/70 hover:text-white transition" title="Recarregar"><RefreshCw size={14} /></button>
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-[#E8E6E1] flex items-center justify-between">
+              <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Arquivos Importados</h3>
+              <button onClick={carregarImportBatches} className="text-black/60 hover:text-[#1C3D6B] transition" title="Recarregar"><RefreshCw size={14} /></button>
             </div>
             <div className="bg-white">
               {importBatches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-[#555] text-sm gap-1">
-                  <FileText size={32} className="text-[#ccc] mb-2" />
+                <div className="flex flex-col items-center justify-center py-16 text-black text-sm gap-1">
+                  <FileText size={32} className="text-[#E8E6E1] mb-2" />
                   Nenhum arquivo importado ainda.
                 </div>
               ) : (
-                <div className="divide-y divide-[#eee]">
+                <div className="divide-y divide-[#E8E6E1]">
                   {importBatches.map((batch) => {
                     const isExpanded = batchExpandido === batch.key
                     return (
                       <div key={batch.key}>
-                        <button onClick={() => expandirBatch(batch)} className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[#f9f9f9] transition">
-                          <ChevronDown size={16} className={`text-[#1a2e4a] transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                        <button onClick={() => expandirBatch(batch)} className="w-full text-left px-5 py-3.5 flex items-center gap-3 hover:bg-[#FAFAF9] transition">
+                          <ChevronDown size={16} className={`text-[#1C3D6B] transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[#0a0a0a]">
-                              {new Date(batch.imported_at).toLocaleDateString('pt-BR')} <span className="text-[#999] font-normal text-xs">as {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <p className="text-sm font-semibold text-black">
+                              {new Date(batch.imported_at).toLocaleDateString('pt-BR')} <span className="text-black/60 font-normal text-xs">as {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                             </p>
-                            <p className="text-[11px] text-[#555]">{formatData(batch.min_date)} a {formatData(batch.max_date)}</p>
+                            <p className="text-[11px] text-black">{formatData(batch.min_date)} a {formatData(batch.max_date)}</p>
                           </div>
-                          <span className="text-xs font-bold text-[#1a2e4a] bg-[#f0f4f8] px-2 py-1 rounded shrink-0">{batch.count} tx</span>
-                          <button onClick={(e) => { e.stopPropagation(); excluirImportBatch(batch.tx_ids) }} className="p-1 rounded text-[#8b0000] hover:bg-[#fdecea] transition shrink-0" title="Excluir lote">
+                          <span className="text-xs font-medium text-[#1C3D6B] bg-[#1C3D6B]/10 px-2.5 py-1 rounded-full shrink-0">{batch.count} tx</span>
+                          <button onClick={(e) => { e.stopPropagation(); excluirImportBatch(batch.tx_ids) }} className="p-1.5 rounded-lg text-[#DC2626] hover:bg-[#FEF2F2] transition shrink-0" title="Excluir lote">
                             <Trash2 size={14} />
                           </button>
                         </button>
                         {isExpanded && (
-                          <div className="bg-[#f9f9f9] border-t border-[#eee] overflow-x-auto">
+                          <div className="bg-[#FAFAF9] border-t border-[#E8E6E1] overflow-x-auto">
                             {batchTransacoes.length === 0 ? (
-                              <div className="flex items-center justify-center py-8 text-[#555] text-sm gap-2"><Loader2 size={16} className="animate-spin" /> Carregando...</div>
+                              <div className="flex items-center justify-center py-8 text-black text-sm gap-2"><Loader2 size={16} className="animate-spin" /> Carregando...</div>
                             ) : (
                               <table className="w-full text-sm">
-                                <thead><tr className="bg-[#f0f0f0] text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#ddd]">
+                                <thead><tr className="bg-[#F5F5F4] text-[11px] font-medium text-black uppercase tracking-wider border-b border-[#E8E6E1]">
                                   <th className="px-3 py-2 text-left">Data</th><th className="px-3 py-2 text-left">Descricao</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-center">Status</th>
                                 </tr></thead>
                                 <tbody>{batchTransacoes.map((tx) => (
-                                  <tr key={tx.id} className="border-b border-[#eee] hover:bg-white">
-                                    <td className="px-3 py-2 text-[11px] text-[#555] whitespace-nowrap">{formatData(tx.data)}</td>
-                                    <td className="px-3 py-2 text-[#0a0a0a] truncate max-w-[300px]">{tx.descricao}</td>
-                                    <td className="px-3 py-2 text-right whitespace-nowrap">
-                                      <span className={`font-semibold ${tx.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>{tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}</span>
+                                  <tr key={tx.id} className="border-b border-[#E8E6E1] hover:bg-white">
+                                    <td className="px-3 py-2.5 text-[11px] text-black whitespace-nowrap">{formatData(tx.data)}</td>
+                                    <td className="px-3 py-2.5 text-black truncate max-w-[300px]">{tx.descricao}</td>
+                                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                      <span className={`font-semibold ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}</span>
                                     </td>
-                                    <td className="px-3 py-2 text-center">
-                                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${tx.status_conciliacao === 'reconciled' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#f0f4f8] text-[#1a2e4a]'}`}>
+                                    <td className="px-3 py-2.5 text-center">
+                                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${tx.status_conciliacao === 'reconciled' ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#F5F5F4] text-black'}`}>
                                         {tx.status_conciliacao === 'reconciled' ? 'OK' : 'Pendente'}
                                       </span>
                                     </td>
@@ -2402,39 +2402,39 @@ function ConciliacaoInner() {
            TAB: REGRAS (always visible at bottom when on conciliacao)
            ════════════════════════════════════════════════════════ */}
         {abaAtiva === 'regras' && (
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Regras de Conciliacao Salvas</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setModalRegra({ aberto: true, descricao: '', tipo: 'debito', transacaoId: '' })} className="text-[10px] text-white/70 hover:text-white transition font-medium">
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-[#E8E6E1] flex items-center justify-between">
+              <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Regras de Conciliacao Salvas</h3>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setModalRegra({ aberto: true, descricao: '', tipo: 'debito', transacaoId: '' })} className="text-[11px] text-[#1C3D6B] hover:text-[#163256] transition font-medium">
                   + Nova regra
                 </button>
-                <button onClick={carregarRegras} className="text-white/50 hover:text-white transition" title="Recarregar"><RefreshCw size={14} /></button>
+                <button onClick={carregarRegras} className="text-black/60 hover:text-[#1C3D6B] transition" title="Recarregar"><RefreshCw size={14} /></button>
               </div>
             </div>
             <div className="bg-white">
               {regras.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-[#555] text-sm gap-1">
-                  <BookOpen size={28} className="text-[#ccc] mb-2" />
+                <div className="flex flex-col items-center justify-center py-10 text-black text-sm gap-1">
+                  <BookOpen size={28} className="text-[#E8E6E1] mb-2" />
                   Nenhuma regra salva.
                 </div>
               ) : (
-                <div className="divide-y divide-[#eee]">
+                <div className="divide-y divide-[#E8E6E1]">
                   {regras.map((r) => (
-                    <div key={r.id} className="px-4 py-3 flex items-center gap-4">
+                    <div key={r.id} className="px-5 py-3.5 flex items-center gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#0a0a0a]">{(r.palavras_chave || []).join(', ')}</p>
-                        <p className="text-[10px] text-[#777]">
+                        <p className="text-sm font-semibold text-black">{(r.palavras_chave || []).join(', ')}</p>
+                        <p className="text-[10px] text-black/60">
                           Palavras-chave: &quot;{(r.palavras_chave || []).join('&quot;, &quot;')}&quot; · Confiança: {r.confianca} · Ação: {r.acao}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xs font-semibold text-[#1a2e4a]">
+                        <p className="text-xs font-medium text-[#1C3D6B]">
                           {r.account_id ? planoContas.find(c => c.id === r.account_id)?.code || '' : ''} {r.account_id ? '— ' + (planoContas.find(c => c.id === r.account_id)?.name || '') : ''}
                         </p>
                       </div>
-                      <span className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded ${r.ativa ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'}`}>{r.ativa ? 'Ativa' : 'Inativa'}</span>
-                      <button onClick={() => excluirRegra(r.id)} className="text-xs text-[#8b0000] font-semibold hover:underline shrink-0">
+                      <span className={`text-[10px] shrink-0 px-2 py-0.5 rounded-full font-medium ${r.ativa ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'}`}>{r.ativa ? 'Ativa' : 'Inativa'}</span>
+                      <button onClick={() => excluirRegra(r.id)} className="text-xs text-[#DC2626] font-medium hover:underline shrink-0">
                         Excluir
                       </button>
                     </div>
@@ -2450,32 +2450,32 @@ function ConciliacaoInner() {
          MODAL: Conciliar - Vincular a CP/CR
          ═══════════════════════════════════════════════════════════ */}
       {modalVincular.aberto && modalVincular.transacao && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setModalVincular({ transacao: null, aberto: false })}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setModalVincular({ transacao: null, aberto: false })}>
+          <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-xl mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-widest">Conciliar Transacao</h3>
-                <p className="text-[10px] text-white/60 mt-0.5">
+                <h3 className="text-sm font-semibold text-[#1C1917]">Conciliar Transacao</h3>
+                <p className="text-[11px] text-[#78716C] mt-0.5">
                   {modalVincular.transacao?.tipo === 'credito'
                     ? 'Buscando em Contas a Receber (CR)'
                     : 'Buscando em Contas a Pagar (CP)'}
                 </p>
               </div>
-              <button onClick={() => setModalVincular({ transacao: null, aberto: false })} className="text-white/70 hover:text-white transition"><X size={18} /></button>
+              <button onClick={() => setModalVincular({ transacao: null, aberto: false })} className="text-[#A8A29E] hover:text-[#1C1917] transition"><X size={18} /></button>
             </div>
 
             <div className="p-5 space-y-4">
               {/* Transacao info */}
-              <div className="bg-[#f0f4f8] rounded-lg p-4 flex items-center justify-between">
+              <div className="bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-[13px] font-semibold text-[#0a0a0a]">{modalVincular.transacao.descricao}</p>
-                  <p className="text-[11px] text-[#555] mt-0.5">{formatData(modalVincular.transacao.data)}</p>
+                  <p className="text-[13px] font-semibold text-[#1C1917]">{modalVincular.transacao.descricao}</p>
+                  <p className="text-[11px] text-[#78716C] mt-0.5">{formatData(modalVincular.transacao.data)}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`text-lg font-bold ${modalVincular.transacao.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+                  <span className={`text-lg font-bold ${modalVincular.transacao.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
                     {modalVincular.transacao.tipo === 'credito' ? '+' : '-'}{formatBRL(modalVincular.transacao.valor)}
                   </span>
-                  <p className={`text-[10px] font-bold uppercase ${modalVincular.transacao.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+                  <p className={`text-[10px] font-bold uppercase ${modalVincular.transacao.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
                     {modalVincular.transacao.tipo === 'credito' ? 'Credito' : 'Debito'}
                   </p>
                 </div>
@@ -2484,24 +2484,24 @@ function ConciliacaoInner() {
               {/* Busca */}
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
                   <input
                     type="text"
                     placeholder="Filtrar por nome..."
                     value={buscaVincular}
                     onChange={(e) => setBuscaVincular(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && buscarCandidatos()}
-                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20"
+                    className="w-full border border-[#E8E6E1] rounded-lg pl-9 pr-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] focus:ring-1 focus:ring-[#1C3D6B]/20"
                   />
                 </div>
-                <button onClick={buscarCandidatos} disabled={buscandoVincular} className="px-4 py-2.5 bg-[#1a2e4a] text-white rounded-lg text-sm font-semibold hover:bg-[#15253d] transition shrink-0">
+                <button onClick={buscarCandidatos} disabled={buscandoVincular} className="px-4 py-2.5 bg-[#1C3D6B] text-white rounded-lg text-sm font-semibold hover:bg-[#163256] transition shrink-0">
                   {buscandoVincular ? <Loader2 size={14} className="animate-spin" /> : 'Buscar'}
                 </button>
               </div>
 
               {/* Loading */}
               {buscandoVincular && candidatosVincular.length === 0 && (
-                <div className="flex items-center justify-center py-8 gap-2 text-[#555] text-sm">
+                <div className="flex items-center justify-center py-8 gap-2 text-[#78716C] text-sm">
                   <Loader2 size={16} className="animate-spin" /> Buscando lancamentos...
                 </div>
               )}
@@ -2509,8 +2509,8 @@ function ConciliacaoInner() {
               {/* Candidatos */}
               {candidatosVincular.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">{candidatosVincular.length} lancamentos encontrados</p>
-                  <div className="max-h-[300px] overflow-y-auto border border-[#ddd] rounded-lg divide-y divide-[#eee]">
+                  <p className="text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-2">{candidatosVincular.length} lancamentos encontrados</p>
+                  <div className="max-h-[300px] overflow-y-auto border border-[#E8E6E1] rounded-xl divide-y divide-[#E8E6E1]">
                     {candidatosVincular.map((c) => {
                       const diff = Math.round((modalVincular.transacao!.valor - c.valor) * 100) / 100
                       const absDiff = Math.abs(diff)
@@ -2519,23 +2519,23 @@ function ConciliacaoInner() {
                         <button
                           key={`${c.tipo}-${c.id}`}
                           onClick={() => vincular(c)}
-                          className={`w-full text-left px-4 py-3 hover:bg-[#f0f4f8] transition flex items-center gap-3 ${isExact ? 'bg-[#f0fdf4]' : ''}`}
+                          className={`w-full text-left px-4 py-3.5 hover:bg-[#FAFAF9] transition flex items-center gap-3 ${isExact ? 'bg-[#F0FDF4]' : ''}`}
                         >
-                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded shrink-0 ${
-                            c.tipo === 'cr' ? 'bg-[#e6f4ec] text-[#0a5c2e]' : 'bg-[#fdecea] text-[#8b0000]'
+                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full shrink-0 ${
+                            c.tipo === 'cr' ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'
                           }`}>
                             {c.tipo === 'cr' ? 'CR' : 'CP'}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-medium text-[#0a0a0a] truncate">{c.nome}</p>
-                            <p className="text-[11px] text-[#777]">Venc. {formatData(c.data_vencimento)}</p>
+                            <p className="text-[13px] font-medium text-[#1C1917] truncate">{c.nome}</p>
+                            <p className="text-[11px] text-[#A8A29E]">Venc. {formatData(c.data_vencimento)}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[13px] font-bold text-[#0a0a0a]">{formatBRL(c.valor)}</p>
+                            <p className="text-[13px] font-bold text-[#1C1917]">{formatBRL(c.valor)}</p>
                             {isExact ? (
-                              <span className="text-[9px] font-bold text-[#0a5c2e] bg-[#e6f4ec] px-1.5 py-0.5 rounded">VALOR EXATO</span>
+                              <span className="text-[9px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">VALOR EXATO</span>
                             ) : (
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${absDiff <= modalVincular.transacao!.valor * 0.05 ? 'bg-[#fffbe6] text-[#5c3a00]' : 'bg-[#fdecea] text-[#8b0000]'}`}>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${absDiff <= modalVincular.transacao!.valor * 0.05 ? 'bg-[#FFFBEB] text-[#D97706]' : 'bg-[#FEF2F2] text-[#DC2626]'}`}>
                                 {diff > 0 ? '+' : ''}{formatBRL(diff)}
                               </span>
                             )}
@@ -2548,7 +2548,7 @@ function ConciliacaoInner() {
               )}
 
               {candidatosVincular.length === 0 && !buscandoVincular && (
-                <p className="text-xs text-[#999] text-center py-6">Nenhum lancamento encontrado. Use o campo acima para buscar.</p>
+                <p className="text-xs text-[#A8A29E] text-center py-6">Nenhum lancamento encontrado. Use o campo acima para buscar.</p>
               )}
             </div>
           </div>
@@ -2559,27 +2559,27 @@ function ConciliacaoInner() {
          MODAL: Salvar Regra
          ═══════════════════════════════════════════════════════════ */}
       {modalRegra.aberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Salvar como Regra?</h3>
-              <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })} className="text-white/70 hover:text-white text-lg leading-none">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#1C1917]">Salvar como Regra?</h3>
+              <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })} className="text-[#A8A29E] hover:text-[#1C1917] text-lg leading-none">&times;</button>
             </div>
-            <div className="p-4 space-y-3">
-              <p className="text-sm text-[#555]">Salvar padrao para classificar automaticamente transacoes semelhantes?</p>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-[#78716C]">Salvar padrao para classificar automaticamente transacoes semelhantes?</p>
               <div>
-                <label className="block text-[11px] font-semibold text-[#0a0a0a] uppercase tracking-wider mb-1">Padrao de descricao</label>
-                <input type="text" value={modalRegra.descricao} onChange={(e) => setModalRegra((prev) => ({ ...prev, descricao: e.target.value }))} className="w-full border border-[#ccc] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a]" placeholder="Ex: PIX RECEBIDO FULANO" />
+                <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1.5">Padrao de descricao</label>
+                <input type="text" value={modalRegra.descricao} onChange={(e) => setModalRegra((prev) => ({ ...prev, descricao: e.target.value }))} className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] focus:ring-1 focus:ring-[#1C3D6B]/20" placeholder="Ex: PIX RECEBIDO FULANO" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })}
-                  className="px-4 py-2 text-xs border border-[#ccc] rounded text-[#555] hover:bg-gray-50 transition"
+                  className="px-4 py-2.5 text-xs border border-[#E8E6E1] rounded-lg text-[#78716C] hover:bg-[#F5F5F4] transition"
                 >
                   Nao, obrigada
                 </button>
                 <button
                   onClick={salvarRegra}
-                  className="px-4 py-2 text-xs bg-[#1a2e4a] text-white font-semibold rounded hover:bg-[#15253d] transition"
+                  className="px-4 py-2.5 text-xs bg-[#1C3D6B] text-white font-semibold rounded-lg hover:bg-[#163256] transition"
                 >
                   Salvar regra
                 </button>
@@ -2592,43 +2592,43 @@ function ConciliacaoInner() {
          MODAL: Confirmação ao sair com conciliações pendentes
          ═══════════════════════════════════════════════════════════ */}
       {modalSairAberto && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] p-6 w-full max-w-md mx-4">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-[#fffbe6] flex items-center justify-center">
-                <AlertTriangle size={20} className="text-[#b8960a]" />
+              <div className="w-10 h-10 rounded-full bg-[#FFFBEB] flex items-center justify-center">
+                <AlertTriangle size={20} className="text-[#D97706]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#0a0a0a]">Conciliacoes nao salvas</h3>
-                <p className="text-[11px] text-[#777]">
+                <h3 className="text-base font-bold text-[#1C1917]">Conciliacoes nao salvas</h3>
+                <p className="text-[11px] text-[#78716C]">
                   {conciliacoesPendentes} transac{conciliacoesPendentes === 1 ? 'ao' : 'oes'} aguardando aprovacao
                 </p>
               </div>
             </div>
 
-            <p className="text-sm text-[#555] mb-6">
+            <p className="text-sm text-[#78716C] mb-6">
               Voce tem conciliacoes pendentes que ainda nao foram salvas.
               Deseja salvar antes de sair?
             </p>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <button
                 onClick={handleSalvarESair}
                 disabled={salvando}
-                className="w-full px-4 py-2.5 bg-[#0a5c2e] text-white font-semibold text-sm rounded-lg hover:bg-[#084d25] transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full px-4 py-2.5 bg-[#16A34A] text-white font-semibold text-sm rounded-lg hover:bg-[#15803D] transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <CheckCircle2 size={16} />
                 {salvando ? 'Salvando...' : 'Salvar e sair'}
               </button>
               <button
                 onClick={handleSairSemSalvar}
-                className="w-full px-4 py-2.5 bg-[#fdecea] text-[#8b0000] font-semibold text-sm rounded-lg hover:bg-[#fbd5d0] transition"
+                className="w-full px-4 py-2.5 bg-[#FEF2F2] text-[#DC2626] font-semibold text-sm rounded-lg hover:bg-[#FEE2E2] transition"
               >
                 Sair sem salvar
               </button>
               <button
                 onClick={handleCancelarSaida}
-                className="w-full px-4 py-2.5 border border-[#ccc] text-[#555] font-medium text-sm rounded-lg hover:bg-gray-50 transition"
+                className="w-full px-4 py-2.5 border border-[#E8E6E1] text-[#78716C] font-medium text-sm rounded-lg hover:bg-[#F5F5F4] transition"
               >
                 Cancelar
               </button>
