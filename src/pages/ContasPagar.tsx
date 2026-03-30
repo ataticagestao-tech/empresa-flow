@@ -231,49 +231,27 @@ export default function ContasPagar() {
     if (!selectedCompany) return
     setLoading(true)
 
-    const [cpData, bankData, chartData, ccData, prodData, supData, empData, cliData] = await Promise.all([
-      safeQuery(
-        () => supabase.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido']).order('data_vencimento', { ascending: true }),
-        'listar contas a pagar'
-      ),
-      safeQuery(
-        () => supabase.from('bank_accounts').select('id, company_id, name, banco').eq('company_id', selectedCompany.id),
-        'listar contas bancarias'
-      ),
-      safeQuery(
-        () => supabase.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
-        'listar plano de contas'
-      ),
-      safeQuery(
-        () => supabase.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
-        'listar centros de custo'
-      ),
-      safeQuery(
-        () => supabase.from('products').select('id, description, code').eq('company_id', selectedCompany.id).eq('is_active', true).order('description'),
-        'listar produtos'
-      ),
-      safeQuery(
-        () => supabase.from('suppliers').select('id, razao_social').eq('company_id', selectedCompany.id).order('razao_social'),
-        'listar fornecedores'
-      ),
-      safeQuery(
-        () => supabase.from('employees').select('id, nome_completo, name').eq('company_id', selectedCompany.id),
-        'listar funcionarios'
-      ),
-      safeQuery(
-        () => supabase.from('clients').select('id, razao_social').eq('company_id', selectedCompany.id).eq('is_active', true).order('razao_social'),
-        'listar clientes'
-      ),
+    const db = activeClient as any
+
+    const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
+      db.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido']).order('data_vencimento', { ascending: true }),
+      db.from('bank_accounts').select('id, company_id, name, banco').eq('company_id', selectedCompany.id),
+      db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
+      db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
+      db.from('products').select('id, description, code').eq('company_id', selectedCompany.id).eq('is_active', true).order('description'),
+      db.from('suppliers').select('id, razao_social').eq('company_id', selectedCompany.id).order('razao_social'),
+      db.from('employees').select('id, nome_completo, name').eq('company_id', selectedCompany.id),
+      db.from('clients').select('id, razao_social').eq('company_id', selectedCompany.id).eq('is_active', true).order('razao_social'),
     ])
 
-    setContas((cpData as ContaPagar[]) || [])
-    setBankAccounts((bankData as BankAccount[]) || [])
-    setChartAccounts((chartData as ChartAccount[]) || [])
-    setCentrosCusto((ccData as CentroCusto[]) || [])
-    setProducts((prodData as Product[]) || [])
-    setSuppliers((supData as Supplier[]) || [])
-    setEmployees((empData as Employee[]) || [])
-    setClients((cliData as Client[]) || [])
+    setContas(cpRes.data || [])
+    setBankAccounts(bankRes.data || [])
+    setChartAccounts(chartRes.data || [])
+    setCentrosCusto(ccRes.data || [])
+    setProducts(prodRes.data || [])
+    setSuppliers(supRes.data || [])
+    setEmployees(empRes.data || [])
+    setClients(cliRes.data || [])
     setSelectedIds(new Set())
     setLoading(false)
   }, [selectedCompany])
