@@ -260,7 +260,23 @@ function ConciliacaoInner() {
   const [modalNovoLancamento, setModalNovoLancamento] = useState<{
     aberto: boolean
     item: MatchEnriquecido | null
-  }>({ aberto: false, item: null })
+    step: 'escolha' | 'form_cp' | 'form_cr'
+  }>({ aberto: false, item: null, step: 'escolha' })
+
+  // Form fields for CP/CR creation inside modal
+  const [formNovo, setFormNovo] = useState({
+    credorNome: '',
+    descricao: '',
+    valor: 0,
+    dataVencimento: '',
+    contaContabilId: '',
+    centroCustoId: '',
+    observacoes: '',
+  })
+  const [salvandoNovo, setSalvandoNovo] = useState(false)
+
+  // Centros de custo
+  const [centrosCusto, setCentrosCusto] = useState<{ id: string; nome: string }[]>([])
 
 
   // IA patterns (learned from past reconciliations)
@@ -623,6 +639,21 @@ function ConciliacaoInner() {
       'carregar plano de contas'
     )
     if (data) setPlanoContas(data as ChartAccount[])
+  }, [companyId, activeClient])
+
+  // ── Load centros de custo ───────────────────────────────────────
+  const carregarCentrosCusto = useCallback(async () => {
+    if (!companyId) return
+    const data = await safeQuery(
+      async () =>
+        await activeClient
+          .from('centros_custo')
+          .select('id, nome')
+          .eq('company_id', companyId)
+          .order('nome', { ascending: true }),
+      'carregar centros de custo'
+    )
+    if (data) setCentrosCusto(data as { id: string; nome: string }[])
   }, [companyId, activeClient])
 
   // ── Load import batches ───────────────────────────────────────
@@ -1149,6 +1180,7 @@ function ConciliacaoInner() {
     carregarHistorico()
     carregarImportBatches()
     carregarPlanoContas()
+    carregarCentrosCusto()
     // Load IA patterns first, then data, then retroactive matching
     carregarIAPatterns().then(async () => {
       await carregarDados()
@@ -1378,124 +1410,149 @@ function ConciliacaoInner() {
     }))
   }
 
-  // ── Criar como Conta a Pagar ────────────────────────────────────
-  const criarComoCP = async (item: MatchEnriquecido) => {
-    if (!companyId) return
+  // ── Abrir form CP/CR com dados pré-preenchidos ──────────────────
+  const abrirFormCP = (item: MatchEnriquecido) => {
     const tx = item.transacao
-    const agora = new Date().toISOString()
-    const hoje = agora.split('T')[0]
-    const beneficiario = extractBeneficiary(tx.descricao) || tx.descricao.substring(0, 100)
-
-    const { error } = await activeClient.from('contas_pagar').insert({
-      company_id: companyId,
-      credor_nome: beneficiario,
-      observacoes: tx.descricao.substring(0, 200),
+    const beneficiario = extractBeneficiary(tx.descricao) || ''
+    setFormNovo({
+      credorNome: beneficiario,
+      descricao: tx.descricao.substring(0, 200),
       valor: tx.valor,
-      valor_pago: tx.valor,
-      data_vencimento: tx.data,
-      data_pagamento: hoje,
-      status: 'pago',
-      forma_pagamento: 'transferencia',
+      dataVencimento: tx.data,
+      contaContabilId: '',
+      centroCustoId: '',
+      observacoes: tx.descricao.substring(0, 200),
     })
-
-    if (error) {
-      console.error('[CriarCP]', error)
-      alert('Erro ao criar conta a pagar: ' + error.message)
-      return
-    }
-
-    await activeClient
-      .from('bank_transactions')
-      .update({ status: 'reconciled', reconciled_at: agora })
-      .eq('id', tx.id)
-
-    if (item.match) {
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update({ status: 'aprovado' })
-        .eq('id', item.match.id)
-    } else {
-      await activeClient.from('bank_reconciliation_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: tx.id,
-        lancamento_id: null,
-        tipo_lancamento: 'cp',
-        status: 'aprovado',
-        diferenca: null,
-      })
-    }
-
-    setModalNovoLancamento({ aberto: false, item: null })
-    setModalRegra({ aberto: true, descricao: tx.descricao, tipo: tx.tipo, transacaoId: tx.id })
-    setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.transacao.id === tx.id) {
-        const updatedMatch: MatchRecord = m.match
-          ? { ...m.match, status: 'aprovado' }
-          : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cp', status: 'aprovado', diferenca: null }
-        return { ...m, match: updatedMatch }
-      }
-      return m
-    }))
+    setModalNovoLancamento({ aberto: true, item, step: 'form_cp' })
   }
 
-  // ── Criar como Conta a Receber ─────────────────────────────────
-  const criarComoCR = async (item: MatchEnriquecido) => {
-    if (!companyId) return
+  const abrirFormCR = (item: MatchEnriquecido) => {
+    const tx = item.transacao
+    const beneficiario = extractBeneficiary(tx.descricao) || ''
+    setFormNovo({
+      credorNome: beneficiario,
+      descricao: tx.descricao.substring(0, 200),
+      valor: tx.valor,
+      dataVencimento: tx.data,
+      contaContabilId: '',
+      centroCustoId: '',
+      observacoes: tx.descricao.substring(0, 200),
+    })
+    setModalNovoLancamento({ aberto: true, item, step: 'form_cr' })
+  }
+
+  // ── Salvar CP a partir do form ─────────────────────────────────
+  const salvarFormCP = async () => {
+    if (!companyId || !modalNovoLancamento.item) return
+    if (!formNovo.credorNome.trim()) return alert('Informe o credor.')
+    if (!formNovo.valor || formNovo.valor <= 0) return alert('Informe o valor.')
+
+    setSalvandoNovo(true)
+    const item = modalNovoLancamento.item
     const tx = item.transacao
     const agora = new Date().toISOString()
     const hoje = agora.split('T')[0]
-    const beneficiario = extractBeneficiary(tx.descricao) || tx.descricao.substring(0, 100)
 
-    const { error } = await activeClient.from('contas_receber').insert({
-      company_id: companyId,
-      pagador_nome: beneficiario,
-      observacoes: tx.descricao.substring(0, 200),
-      valor: tx.valor,
-      valor_pago: tx.valor,
-      data_vencimento: tx.data,
-      data_pagamento: hoje,
-      status: 'pago',
-      forma_recebimento: 'transferencia',
-    })
-
-    if (error) {
-      console.error('[CriarCR]', error)
-      alert('Erro ao criar conta a receber: ' + error.message)
-      return
-    }
-
-    await activeClient
-      .from('bank_transactions')
-      .update({ status: 'reconciled', reconciled_at: agora })
-      .eq('id', tx.id)
-
-    if (item.match) {
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update({ status: 'aprovado' })
-        .eq('id', item.match.id)
-    } else {
-      await activeClient.from('bank_reconciliation_matches').insert({
+    try {
+      const { error } = await activeClient.from('contas_pagar').insert({
         company_id: companyId,
-        bank_transaction_id: tx.id,
-        lancamento_id: null,
-        tipo_lancamento: 'cr',
-        status: 'aprovado',
-        diferenca: null,
+        credor_nome: formNovo.credorNome.trim(),
+        observacoes: formNovo.observacoes || null,
+        valor: formNovo.valor,
+        valor_pago: formNovo.valor,
+        data_vencimento: formNovo.dataVencimento,
+        data_pagamento: hoje,
+        status: 'pago',
+        forma_pagamento: 'transferencia',
+        conta_contabil_id: formNovo.contaContabilId || null,
+        centro_custo_id: formNovo.centroCustoId || null,
       })
-    }
 
-    setModalNovoLancamento({ aberto: false, item: null })
-    setModalRegra({ aberto: true, descricao: tx.descricao, tipo: tx.tipo, transacaoId: tx.id })
-    setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.transacao.id === tx.id) {
-        const updatedMatch: MatchRecord = m.match
-          ? { ...m.match, status: 'aprovado' }
-          : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cr', status: 'aprovado', diferenca: null }
-        return { ...m, match: updatedMatch }
+      if (error) throw error
+
+      // Reconciliar
+      await activeClient.from('bank_transactions').update({ status: 'reconciled', reconciled_at: agora }).eq('id', tx.id)
+      if (item.match) {
+        await activeClient.from('bank_reconciliation_matches').update({ status: 'aprovado' }).eq('id', item.match.id)
+      } else {
+        await activeClient.from('bank_reconciliation_matches').insert({
+          company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cp', status: 'aprovado', diferenca: null,
+        })
       }
-      return m
-    }))
+
+      setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
+      setMatchesEnriquecidos(prev => prev.map(m => {
+        if (m.transacao.id === tx.id) {
+          const updatedMatch: MatchRecord = m.match
+            ? { ...m.match, status: 'aprovado' }
+            : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cp', status: 'aprovado', diferenca: null }
+          return { ...m, match: updatedMatch }
+        }
+        return m
+      }))
+    } catch (err: any) {
+      console.error('[SalvarCP]', err)
+      alert('Erro ao criar conta a pagar: ' + (err.message || ''))
+    } finally {
+      setSalvandoNovo(false)
+    }
+  }
+
+  // ── Salvar CR a partir do form ─────────────────────────────────
+  const salvarFormCR = async () => {
+    if (!companyId || !modalNovoLancamento.item) return
+    if (!formNovo.credorNome.trim()) return alert('Informe o pagador.')
+    if (!formNovo.valor || formNovo.valor <= 0) return alert('Informe o valor.')
+
+    setSalvandoNovo(true)
+    const item = modalNovoLancamento.item
+    const tx = item.transacao
+    const agora = new Date().toISOString()
+    const hoje = agora.split('T')[0]
+
+    try {
+      const { error } = await activeClient.from('contas_receber').insert({
+        company_id: companyId,
+        pagador_nome: formNovo.credorNome.trim(),
+        observacoes: formNovo.observacoes || null,
+        valor: formNovo.valor,
+        valor_pago: formNovo.valor,
+        data_vencimento: formNovo.dataVencimento,
+        data_pagamento: hoje,
+        status: 'pago',
+        forma_recebimento: 'transferencia',
+        conta_contabil_id: formNovo.contaContabilId || null,
+        centro_custo_id: formNovo.centroCustoId || null,
+      })
+
+      if (error) throw error
+
+      // Reconciliar
+      await activeClient.from('bank_transactions').update({ status: 'reconciled', reconciled_at: agora }).eq('id', tx.id)
+      if (item.match) {
+        await activeClient.from('bank_reconciliation_matches').update({ status: 'aprovado' }).eq('id', item.match.id)
+      } else {
+        await activeClient.from('bank_reconciliation_matches').insert({
+          company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cr', status: 'aprovado', diferenca: null,
+        })
+      }
+
+      setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
+      setMatchesEnriquecidos(prev => prev.map(m => {
+        if (m.transacao.id === tx.id) {
+          const updatedMatch: MatchRecord = m.match
+            ? { ...m.match, status: 'aprovado' }
+            : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cr', status: 'aprovado', diferenca: null }
+          return { ...m, match: updatedMatch }
+        }
+        return m
+      }))
+    } catch (err: any) {
+      console.error('[SalvarCR]', err)
+      alert('Erro ao criar conta a receber: ' + (err.message || ''))
+    } finally {
+      setSalvandoNovo(false)
+    }
   }
 
   // ── Criar como Movimentação entre contas ───────────────────────
@@ -1542,7 +1599,7 @@ function ConciliacaoInner() {
       })
     }
 
-    setModalNovoLancamento({ aberto: false, item: null })
+    setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.transacao.id === tx.id) {
         const updatedMatch: MatchRecord = m.match
@@ -1769,7 +1826,7 @@ function ConciliacaoInner() {
                 )}
                 {(status === 'nao_reconhecido' || status === 'pendente' || status === 'revisao' || (!mt && !isAprovado)) && (
                   <>
-                    <button onClick={() => setModalNovoLancamento({ aberto: true, item })} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
+                    <button onClick={() => setModalNovoLancamento({ aberto: true, item, step: 'escolha' })} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
                       <Plus size={14} /> Criar
                     </button>
                     <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black/60 text-xs hover:bg-[#F5F5F4] transition">
@@ -2222,61 +2279,198 @@ function ConciliacaoInner() {
       {modalNovoLancamento.aberto && modalNovoLancamento.item && (() => {
         const tx = modalNovoLancamento.item!.transacao
         const beneficiario = extractBeneficiary(tx.descricao)
+        const closeModal = () => setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
+        const isFormStep = modalNovoLancamento.step === 'form_cp' || modalNovoLancamento.step === 'form_cr'
+        const isCP = modalNovoLancamento.step === 'form_cp'
+
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setModalNovoLancamento({ aberto: false, item: null })}>
-            <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={closeModal}>
+            <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between sticky top-0 bg-white z-10">
                 <div>
-                  <h3 className="text-sm font-semibold text-[#1C1917]">Registrar novo lançamento</h3>
-                  <p className="text-[11px] text-[#78716C] mt-0.5">Escolha o tipo de lançamento para esta transação</p>
+                  <h3 className="text-sm font-semibold text-[#1C1917]">
+                    {modalNovoLancamento.step === 'escolha' && 'Registrar novo lançamento'}
+                    {modalNovoLancamento.step === 'form_cp' && 'Nova Conta a Pagar'}
+                    {modalNovoLancamento.step === 'form_cr' && 'Novo Titulo a Receber'}
+                  </h3>
+                  <p className="text-[11px] text-[#78716C] mt-0.5">
+                    {modalNovoLancamento.step === 'escolha' && 'Escolha o tipo de lançamento'}
+                    {isFormStep && `${tx.descricao.substring(0, 60)}${tx.descricao.length > 60 ? '...' : ''}`}
+                  </p>
                 </div>
-                <button onClick={() => setModalNovoLancamento({ aberto: false, item: null })} className="text-[#A8A29E] hover:text-[#1C1917] transition"><X size={18} /></button>
+                <button onClick={closeModal} className="text-[#A8A29E] hover:text-[#1C1917] transition"><X size={18} /></button>
               </div>
 
               <div className="p-5 space-y-4">
-                {/* Transação info */}
-                <div className="bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] p-4">
-                  <p className="text-[13px] font-semibold text-[#1C1917]">{tx.descricao}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#78716C]">
-                    <span>{formatData(tx.data)}</span>
-                    {beneficiario && (
-                      <>
-                        <span className="text-black/30">·</span>
-                        <span className="font-medium text-[#1C1917]">{beneficiario}</span>
-                      </>
-                    )}
-                  </div>
-                  <p className={`text-lg font-bold mt-1.5 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                    {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
-                  </p>
-                </div>
+                {/* ── STEP: Escolha ────────────────────── */}
+                {modalNovoLancamento.step === 'escolha' && (
+                  <>
+                    {/* Transação info */}
+                    <div className="bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] p-4">
+                      <p className="text-[13px] font-semibold text-[#1C1917]">{tx.descricao}</p>
+                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#78716C]">
+                        <span>{formatData(tx.data)}</span>
+                        {beneficiario && (
+                          <>
+                            <span className="text-black/30">·</span>
+                            <span className="font-medium text-[#1C1917]">{beneficiario}</span>
+                          </>
+                        )}
+                      </div>
+                      <p className={`text-lg font-bold mt-1.5 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+                        {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
+                      </p>
+                    </div>
 
-                {/* Opções */}
-                <div className="space-y-2.5">
-                  <button
-                    onClick={() => criarComoCP(modalNovoLancamento.item!)}
-                    className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#DC2626] hover:bg-[#FEF2F2] transition group"
-                  >
-                    <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#DC2626]">Conta a Pagar</p>
-                    <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como despesa / pagamento realizado</p>
-                  </button>
+                    <div className="space-y-2.5">
+                      <button
+                        onClick={() => abrirFormCP(modalNovoLancamento.item!)}
+                        className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#DC2626] hover:bg-[#FEF2F2] transition group"
+                      >
+                        <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#DC2626]">Conta a Pagar</p>
+                        <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como despesa / pagamento realizado</p>
+                      </button>
+                      <button
+                        onClick={() => abrirFormCR(modalNovoLancamento.item!)}
+                        className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#16A34A] hover:bg-[#F0FDF4] transition group"
+                      >
+                        <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#16A34A]">Conta a Receber</p>
+                        <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como receita / recebimento realizado</p>
+                      </button>
+                      <button
+                        onClick={() => criarComoMovimentacao(modalNovoLancamento.item!)}
+                        className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#1C3D6B] hover:bg-[#F0F4F8] transition group"
+                      >
+                        <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#1C3D6B]">Movimentação entre contas</p>
+                        <p className="text-[11px] text-[#78716C] mt-0.5">Transferência interna (sem impacto financeiro)</p>
+                      </button>
+                    </div>
+                  </>
+                )}
 
-                  <button
-                    onClick={() => criarComoCR(modalNovoLancamento.item!)}
-                    className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#16A34A] hover:bg-[#F0FDF4] transition group"
-                  >
-                    <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#16A34A]">Conta a Receber</p>
-                    <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como receita / recebimento realizado</p>
-                  </button>
+                {/* ── STEP: Formulário CP ou CR ───────── */}
+                {isFormStep && (
+                  <>
+                    {/* Info do extrato (resumo) */}
+                    <div className="bg-[#FAFAF9] rounded-lg border border-[#E8E6E1] px-4 py-3 flex items-center justify-between">
+                      <div className="text-[11px] text-[#78716C]">
+                        <span className="font-medium text-[#1C1917]">{formatData(tx.data)}</span>
+                        <span className="mx-2">·</span>
+                        <span>Banco: {contas.find(c => c.id === tx.conta_bancaria_id)?.name || '-'}</span>
+                      </div>
+                      <span className={`text-sm font-bold ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+                        {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
+                      </span>
+                    </div>
 
-                  <button
-                    onClick={() => criarComoMovimentacao(modalNovoLancamento.item!)}
-                    className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#1C3D6B] hover:bg-[#F0F4F8] transition group"
-                  >
-                    <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#1C3D6B]">Movimentação entre contas</p>
-                    <p className="text-[11px] text-[#78716C] mt-0.5">Transferência interna (sem impacto financeiro)</p>
-                  </button>
-                </div>
+                    {/* Descrição (do extrato) */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Descrição</label>
+                      <input
+                        type="text"
+                        value={formNovo.descricao}
+                        onChange={(e) => setFormNovo(prev => ({ ...prev, descricao: e.target.value }))}
+                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] bg-[#FAFAF9] focus:outline-none focus:border-[#1C3D6B]"
+                      />
+                    </div>
+
+                    {/* Credor / Pagador */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">
+                        {isCP ? 'Credor *' : 'Pagador *'}
+                      </label>
+                      <input
+                        type="text"
+                        value={formNovo.credorNome}
+                        onChange={(e) => setFormNovo(prev => ({ ...prev, credorNome: e.target.value }))}
+                        placeholder={isCP ? 'Nome do fornecedor / credor' : 'Nome do pagador / cliente'}
+                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
+                      />
+                    </div>
+
+                    {/* Valor + Vencimento */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Valor (R$) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formNovo.valor}
+                          onChange={(e) => setFormNovo(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
+                          className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Vencimento *</label>
+                        <input
+                          type="date"
+                          value={formNovo.dataVencimento}
+                          onChange={(e) => setFormNovo(prev => ({ ...prev, dataVencimento: e.target.value }))}
+                          className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Conta Contábil */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Conta Contábil</label>
+                      <select
+                        value={formNovo.contaContabilId}
+                        onChange={(e) => setFormNovo(prev => ({ ...prev, contaContabilId: e.target.value }))}
+                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] bg-white"
+                      >
+                        <option value="">Selecione do plano de contas...</option>
+                        {planoContas.map(c => (
+                          <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Centro de Custo */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Centro de Custo</label>
+                      <select
+                        value={formNovo.centroCustoId}
+                        onChange={(e) => setFormNovo(prev => ({ ...prev, centroCustoId: e.target.value }))}
+                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] bg-white"
+                      >
+                        <option value="">Nenhum</option>
+                        {centrosCusto.map(c => (
+                          <option key={c.id} value={c.id}>{c.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Observações */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Observações</label>
+                      <input
+                        type="text"
+                        value={formNovo.observacoes}
+                        onChange={(e) => setFormNovo(prev => ({ ...prev, observacoes: e.target.value }))}
+                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
+                      />
+                    </div>
+
+                    {/* Botões */}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => setModalNovoLancamento(prev => ({ ...prev, step: 'escolha' }))}
+                        className="px-4 py-2.5 text-xs border border-[#E8E6E1] rounded-lg text-[#78716C] hover:bg-[#F5F5F4] transition"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        onClick={isCP ? salvarFormCP : salvarFormCR}
+                        disabled={salvandoNovo}
+                        className="px-5 py-2.5 text-xs bg-[#1C3D6B] text-white font-semibold rounded-lg hover:bg-[#163256] transition disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {salvandoNovo ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                        {salvandoNovo ? 'Salvando...' : isCP ? 'Lançar Conta a Pagar' : 'Lançar Conta a Receber'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
