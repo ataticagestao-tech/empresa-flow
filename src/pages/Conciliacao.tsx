@@ -11,9 +11,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  Search,
   Trash2,
-  Link2,
   Plus,
   EyeOff,
   ChevronDown,
@@ -170,6 +168,23 @@ const mapDbToTx = (r: any): BankTransaction => ({
 const normalizeText = (text: string): string =>
   (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
 
+const extractBeneficiary = (descricao: string): string => {
+  if (!descricao) return ''
+  // Pattern: "... / NOME )"
+  const slashMatch = descricao.match(/\/\s*([^)]+)\)/)
+  if (slashMatch) return slashMatch[1].trim()
+  // Pattern: "PIX RECEBIDO - NOME" or "TED - NOME"
+  const dashMatch = descricao.match(/(?:PIX|TED|DOC|TRANSF)[^-–]*[-–]\s*(.+)/i)
+  if (dashMatch) return dashMatch[1].trim()
+  // Last segment after separator
+  const parts = descricao.split(/[-–\/]/)
+  if (parts.length > 1) {
+    const last = parts[parts.length - 1].trim()
+    if (last.length >= 3) return last
+  }
+  return ''
+}
+
 /* ════════════════════════════════════════════════════════════════════
    Component
    ════════════════════════════════════════════════════════════════════ */
@@ -218,15 +233,6 @@ function ConciliacaoInner() {
   // Regras
   const [regras, setRegras] = useState<ConciliationRule[]>([])
 
-  // Modal vincular
-  const [modalVincular, setModalVincular] = useState<{
-    transacao: BankTransaction | null
-    aberto: boolean
-  }>({ transacao: null, aberto: false })
-  const [buscaVincular, setBuscaVincular] = useState('')
-  const [candidatosVincular, setCandidatosVincular] = useState<CandidatoLancamento[]>([])
-  const [buscandoVincular, setBuscandoVincular] = useState(false)
-
   // Modal salvar regra
   const [modalRegra, setModalRegra] = useState<{
     aberto: boolean
@@ -249,15 +255,13 @@ function ConciliacaoInner() {
   // Sub-tab for filtering review items
   const [subTab, setSubTab] = useState<'pendentes' | 'nao_reconhecidos' | 'conciliados'>('pendentes')
 
-  // Expanded unrecognized transaction actions
-  const [expandedTxId, setExpandedTxId] = useState<string | null>(null)
 
-  // IA category dropdown (which tx id has dropdown open) + search term
-  const [iaCatDropdownOpen, setIaCatDropdownOpen] = useState<string | null>(null)
-  const [iaCatBusca, setIaCatBusca] = useState<string>('')
+  // Modal novo lançamento (popup para escolher CP/CR/Movimentação)
+  const [modalNovoLancamento, setModalNovoLancamento] = useState<{
+    aberto: boolean
+    item: MatchEnriquecido | null
+  }>({ aberto: false, item: null })
 
-  // Preview de candidatos CR/CP na coluna do meio
-  const [candidatosPreview, setCandidatosPreview] = useState<Map<string, CandidatoLancamento>>(new Map())
 
   // IA patterns (learned from past reconciliations)
   const [iaPatterns, setIaPatterns] = useState<Array<{
@@ -981,48 +985,7 @@ function ConciliacaoInner() {
     }))
   }, [activeClient, planoContas])
 
-  // ── Preview de candidatos CR/CP para coluna do meio ─────────────
-  const carregarCandidatoPreview = useCallback(async (tx: BankTransaction) => {
-    if (!companyId) return
-    const dataMin = new Date(tx.data)
-    dataMin.setDate(dataMin.getDate() - 5)
-    const dataMax = new Date(tx.data)
-    dataMax.setDate(dataMax.getDate() + 5)
-    const dMin = dataMin.toISOString().split('T')[0]
-    const dMax = dataMax.toISOString().split('T')[0]
 
-    const tabela = tx.tipo === 'credito' ? 'contas_receber' : 'contas_pagar'
-    const campoNome = tx.tipo === 'credito' ? 'pagador_nome' : 'credor_nome'
-
-    const data = await safeQuery(
-      async () =>
-        await activeClient
-          .from(tabela)
-          .select(`id, ${campoNome}, valor, data_vencimento`)
-          .eq('company_id', companyId)
-          .in('status', ['pendente', 'parcial', 'vencido'])
-          .gte('data_vencimento', dMin)
-          .lte('data_vencimento', dMax)
-          .limit(5),
-      'preview candidato'
-    )
-    if (!data || !(data as any[]).length) return
-
-    const candidatos = (data as any[]).map(c => ({
-      id: c.id,
-      nome: c[campoNome],
-      valor: c.valor,
-      data_vencimento: c.data_vencimento,
-      tipo: tx.tipo === 'credito' ? 'cr' as const : 'cp' as const,
-    }))
-    candidatos.sort((a, b) => Math.abs(a.valor - tx.valor) - Math.abs(b.valor - tx.valor))
-    const melhor = candidatos[0]
-    const diff = Math.abs(melhor.valor - tx.valor)
-
-    if (diff <= tx.valor * 0.10) {
-      setCandidatosPreview(prev => new Map(prev).set(tx.id, melhor))
-    }
-  }, [companyId, activeClient])
 
   // ── Helper: upsert match (verificar duplicata antes de inserir) ──
   const upsertMatch = async (
@@ -1205,28 +1168,7 @@ function ConciliacaoInner() {
         return item
       }))
     }
-    // Load candidate previews for unmatched transactions
-    const semLancamento = matchesEnriquecidos.filter(
-      m => !m.lancamento && !['aprovado', 'ignorado', 'reconciled'].includes(m.match?.status || '')
-    )
-    for (const item of semLancamento) {
-      carregarCandidatoPreview(item.transacao)
-    }
   }, [iaPatterns])
-
-  // Close category dropdown when clicking outside
-  useEffect(() => {
-    if (!iaCatDropdownOpen) return
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest('[data-cat-dropdown]')) {
-        setIaCatDropdownOpen(null)
-        setIaCatBusca('')
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [iaCatDropdownOpen])
 
   // ── Handle OFX Upload ──────────────────────────────────────────
   const handleArquivo = useCallback(
@@ -1435,152 +1377,132 @@ function ConciliacaoInner() {
     }))
   }
 
-  // ── Vincular a CP/CR ───────────────────────────────────────────
-  const abrirVincular = (tx: BankTransaction) => {
-    setModalVincular({ transacao: tx, aberto: true })
-    setBuscaVincular('')
-    setCandidatosVincular([])
-    // Auto-load candidates on open
-    setTimeout(() => buscarCandidatosParaTx(tx, ''), 100)
-  }
-
-  const buscarCandidatosParaTx = async (tx: BankTransaction, termo: string) => {
+  // ── Criar como Conta a Pagar ────────────────────────────────────
+  const criarComoCP = async (item: MatchEnriquecido) => {
     if (!companyId) return
-    setBuscandoVincular(true)
-    try {
-      const allCandidatos: CandidatoLancamento[] = []
-      const ehCredito = tx.tipo === 'credito'
-
-      if (ehCredito) {
-        const crData = await safeQuery(
-          async () => {
-            let q = activeClient
-              .from('contas_receber')
-              .select('id, pagador_nome, valor, data_vencimento')
-              .eq('company_id', companyId)
-              .in('status', ['pendente', 'parcial', 'vencido'])
-            if (termo) q = q.ilike('pagador_nome', `%${termo}%`)
-            return await q.limit(20)
-          },
-          'buscar CRs vincular'
-        )
-        for (const c of ((crData || []) as any[])) {
-          allCandidatos.push({ id: c.id, nome: c.pagador_nome, valor: c.valor, data_vencimento: c.data_vencimento, tipo: 'cr' as const })
-        }
-      } else {
-        const cpData = await safeQuery(
-          async () => {
-            let q = activeClient
-              .from('contas_pagar')
-              .select('id, credor_nome, valor, data_vencimento')
-              .eq('company_id', companyId)
-              .in('status', ['pendente', 'parcial', 'vencido'])
-            if (termo) q = q.ilike('credor_nome', `%${termo}%`)
-            return await q.limit(20)
-          },
-          'buscar CPs vincular'
-        )
-        for (const c of ((cpData || []) as any[])) {
-          allCandidatos.push({ id: c.id, nome: c.credor_nome, valor: c.valor, data_vencimento: c.data_vencimento, tipo: 'cp' as const })
-        }
-      }
-
-      allCandidatos.sort((a, b) => Math.abs(a.valor - tx.valor) - Math.abs(b.valor - tx.valor))
-      setCandidatosVincular(allCandidatos.slice(0, 20))
-    } finally {
-      setBuscandoVincular(false)
-    }
-  }
-
-  const buscarCandidatos = async () => {
-    if (!modalVincular.transacao) return
-    await buscarCandidatosParaTx(modalVincular.transacao, buscaVincular)
-  }
-
-  const vincular = async (candidato: CandidatoLancamento) => {
-    if (!companyId || !modalVincular.transacao) return
-    const tx = modalVincular.transacao
-    const diff = Math.round((tx.valor - candidato.valor) * 100) / 100
-    const absDiff = Math.abs(diff)
-
-    // Confirmar se diferença > 5%
-    if (absDiff > tx.valor * 0.05 && absDiff >= 0.01) {
-      if (!confirm(`Diferença de R$ ${formatBRL(absDiff)} detectada. Confirmar mesmo assim?`)) return
-    }
-
-    const existing = matchesEnriquecidos.find((m) => m.transacao.id === tx.id)
-    if (existing?.match) {
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update({
-          lancamento_id: candidato.id,
-          tipo_lancamento: candidato.tipo,
-          status: 'aprovado',
-          diferenca: diff,
-        })
-        .eq('id', existing.match.id)
-    } else {
-      await activeClient.from('bank_reconciliation_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: tx.id,
-        lancamento_id: candidato.id,
-        tipo_lancamento: candidato.tipo,
-        status: 'aprovado',
-        diferenca: diff,
-      })
-    }
-
-    // Aprovar imediatamente: atualizar bank_transaction e quitar CR/CP
+    const tx = item.transacao
     const agora = new Date().toISOString()
     const hoje = agora.split('T')[0]
+    const beneficiario = extractBeneficiary(tx.descricao) || tx.descricao.substring(0, 100)
+
+    const { error } = await activeClient.from('contas_pagar').insert({
+      company_id: companyId,
+      credor_nome: beneficiario,
+      descricao: tx.descricao.substring(0, 200),
+      valor: tx.valor,
+      valor_pago: tx.valor,
+      data_vencimento: tx.data,
+      data_pagamento: hoje,
+      status: 'pago',
+      forma_pagamento: 'transferencia',
+    })
+
+    if (error) {
+      console.error('[CriarCP]', error)
+      alert('Erro ao criar conta a pagar: ' + error.message)
+      return
+    }
 
     await activeClient
       .from('bank_transactions')
       .update({ status: 'reconciled', reconciled_at: agora })
       .eq('id', tx.id)
 
-    if (candidato.tipo === 'cr') {
-      await quitarCR(candidato.id, {
-        valorPago: tx.valor,
-        dataPagamento: hoje,
-        formaRecebimento: 'transferencia',
-        contaBancariaId: tx.conta_bancaria_id,
-      })
+    if (item.match) {
+      await activeClient
+        .from('bank_reconciliation_matches')
+        .update({ status: 'aprovado' })
+        .eq('id', item.match.id)
     } else {
-      await quitarCP(candidato.id, {
-        valorPago: tx.valor,
-        dataPagamento: hoje,
-        formaPagamento: 'transferencia',
-        contaBancariaId: tx.conta_bancaria_id,
+      await activeClient.from('bank_reconciliation_matches').insert({
+        company_id: companyId,
+        bank_transaction_id: tx.id,
+        lancamento_id: null,
+        tipo_lancamento: 'cp',
+        status: 'aprovado',
+        diferenca: null,
       })
     }
 
-    setModalVincular({ transacao: null, aberto: false })
-    // Update local state
+    setModalNovoLancamento({ aberto: false, item: null })
+    setModalRegra({ aberto: true, descricao: tx.descricao, tipo: tx.tipo, transacaoId: tx.id })
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.transacao.id === tx.id) {
-        const matchRecord: MatchRecord = {
-          id: existing?.match?.id || 'temp-' + Date.now(),
-          company_id: companyId,
-          bank_transaction_id: tx.id,
-          lancamento_id: candidato.id,
-          tipo_lancamento: candidato.tipo,
-          status: 'aprovado',
-          diferenca: diff,
-        }
-        return { ...m, match: matchRecord, lancamento: candidato }
+        const updatedMatch: MatchRecord = m.match
+          ? { ...m.match, status: 'aprovado' }
+          : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cp', status: 'aprovado', diferenca: null }
+        return { ...m, match: updatedMatch }
       }
       return m
     }))
   }
 
-  // ── Criar lançamento avulso em movimentacoes ───────────────────
-  const criarLancamentoAvulso = async (item: MatchEnriquecido) => {
+  // ── Criar como Conta a Receber ─────────────────────────────────
+  const criarComoCR = async (item: MatchEnriquecido) => {
+    if (!companyId) return
+    const tx = item.transacao
+    const agora = new Date().toISOString()
+    const hoje = agora.split('T')[0]
+    const beneficiario = extractBeneficiary(tx.descricao) || tx.descricao.substring(0, 100)
+
+    const { error } = await activeClient.from('contas_receber').insert({
+      company_id: companyId,
+      pagador_nome: beneficiario,
+      descricao: tx.descricao.substring(0, 200),
+      valor: tx.valor,
+      valor_pago: tx.valor,
+      data_vencimento: tx.data,
+      data_pagamento: hoje,
+      status: 'pago',
+      forma_recebimento: 'transferencia',
+    })
+
+    if (error) {
+      console.error('[CriarCR]', error)
+      alert('Erro ao criar conta a receber: ' + error.message)
+      return
+    }
+
+    await activeClient
+      .from('bank_transactions')
+      .update({ status: 'reconciled', reconciled_at: agora })
+      .eq('id', tx.id)
+
+    if (item.match) {
+      await activeClient
+        .from('bank_reconciliation_matches')
+        .update({ status: 'aprovado' })
+        .eq('id', item.match.id)
+    } else {
+      await activeClient.from('bank_reconciliation_matches').insert({
+        company_id: companyId,
+        bank_transaction_id: tx.id,
+        lancamento_id: null,
+        tipo_lancamento: 'cr',
+        status: 'aprovado',
+        diferenca: null,
+      })
+    }
+
+    setModalNovoLancamento({ aberto: false, item: null })
+    setModalRegra({ aberto: true, descricao: tx.descricao, tipo: tx.tipo, transacaoId: tx.id })
+    setMatchesEnriquecidos(prev => prev.map(m => {
+      if (m.transacao.id === tx.id) {
+        const updatedMatch: MatchRecord = m.match
+          ? { ...m.match, status: 'aprovado' }
+          : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cr', status: 'aprovado', diferenca: null }
+        return { ...m, match: updatedMatch }
+      }
+      return m
+    }))
+  }
+
+  // ── Criar como Movimentação entre contas ───────────────────────
+  const criarComoMovimentacao = async (item: MatchEnriquecido) => {
     if (!companyId) return
     const tx = item.transacao
     const agora = new Date().toISOString()
 
-    // 1. Inserir em movimentacoes
     const { error } = await activeClient.from('movimentacoes').insert({
       company_id: companyId,
       conta_bancaria_id: tx.conta_bancaria_id,
@@ -1589,22 +1511,20 @@ function ConciliacaoInner() {
       valor: tx.valor,
       tipo: tx.tipo,
       status_conciliacao: 'conciliado',
-      origem: 'manual',
+      origem: 'transferencia_interna',
     })
 
     if (error) {
-      console.error('[CriarAvulso]', error)
-      alert('Erro ao criar lançamento: ' + error.message)
+      console.error('[CriarMov]', error)
+      alert('Erro ao criar movimentação: ' + error.message)
       return
     }
 
-    // 2. Atualizar bank_transaction
     await activeClient
       .from('bank_transactions')
       .update({ status: 'reconciled', reconciled_at: agora })
       .eq('id', tx.id)
 
-    // 3. Criar ou atualizar match como aprovado
     if (item.match) {
       await activeClient
         .from('bank_reconciliation_matches')
@@ -1621,15 +1541,7 @@ function ConciliacaoInner() {
       })
     }
 
-    // 4. Abrir modal de salvar regra
-    setModalRegra({
-      aberto: true,
-      descricao: tx.descricao,
-      tipo: tx.tipo,
-      transacaoId: tx.id,
-    })
-
-    // 5. Atualizar estado local
+    setModalNovoLancamento({ aberto: false, item: null })
     setMatchesEnriquecidos(prev => prev.map(m => {
       if (m.transacao.id === tx.id) {
         const updatedMatch: MatchRecord = m.match
@@ -1764,7 +1676,6 @@ function ConciliacaoInner() {
     const rawStatus = mt?.status || tx.status_conciliacao || 'pendente'
     const status = rawStatus === 'pending' ? 'pendente' : rawStatus
     const isAprovado = status === 'aprovado' || status === 'ignorado' || status === 'reconciled'
-    const isExpanded = expandedTxId === tx.id
 
     return (
       <div key={tx.id} className={`bg-white rounded-xl border border-[#E8E6E1] shadow-sm ${isAprovado ? 'opacity-50' : ''}`}>
@@ -1782,91 +1693,66 @@ function ConciliacaoInner() {
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-1">Extrato</p>
               <p className="text-sm font-semibold text-black break-words leading-tight">{tx.descricao}</p>
-              <p className="text-[11px] text-black/60 mt-1">{formatData(tx.data)}</p>
+              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-black/60">
+                <span>{formatData(tx.data)}</span>
+                {extractBeneficiary(tx.descricao) && (
+                  <>
+                    <span className="text-black/30">·</span>
+                    <span className="font-medium text-black/80">{extractBeneficiary(tx.descricao)}</span>
+                  </>
+                )}
+              </div>
               <p className={`text-base font-bold mt-1 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
                 {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
               </p>
             </div>
           </div>
 
-          {/* ── MIDDLE: Lancamento no sistema ──────── */}
+          {/* ── MIDDLE: Status + Sugestões IA ──────── */}
           <div className="flex-1 p-5 lg:border-r lg:border-dashed lg:border-[#E8E6E1]">
-            <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">Lancamento no Sistema</p>
-
             {/* Badge de status */}
             <div className="mb-2">{renderBadge(status, mt?.diferenca ?? null)}</div>
 
             {/* Lancamento vinculado */}
-            {item.lancamento ? (
-              <div>
-                <p className="text-sm font-medium text-black">
+            {item.lancamento && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-[#1C1917]">
                   {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} — {item.lancamento.nome}
                 </p>
-                <p className="text-[11px] text-black/60">
+                <p className="text-[11px] text-[#78716C]">
                   Vencimento {formatData(item.lancamento.data_vencimento)} · Conta: {item.sugestoesIA?.[0]?.categoria_nome || '-'}
                 </p>
-                <p className="text-sm font-bold text-black mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
-              </div>
-            ) : status === 'nao_reconhecido' || (!mt && !isAprovado) ? (
-              <div>
-                {candidatosPreview.get(tx.id) ? (
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-medium text-[#D97706]">Possível correspondência</span>
-                    <button
-                      onClick={() => abrirVincular(tx)}
-                      className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] hover:bg-[#FEF3C7] transition"
-                    >
-                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
-                        candidatosPreview.get(tx.id)!.tipo === 'cr'
-                          ? 'bg-[#F0FDF4] text-[#16A34A]'
-                          : 'bg-[#FEF2F2] text-[#DC2626]'
-                      }`}>
-                        {candidatosPreview.get(tx.id)!.tipo.toUpperCase()}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium text-black truncate">
-                          {candidatosPreview.get(tx.id)!.nome}
-                        </p>
-                        <p className="text-[10px] text-black/60">
-                          {formatBRL(candidatosPreview.get(tx.id)!.valor)} · venc. {formatData(candidatosPreview.get(tx.id)!.data_vencimento)}
-                        </p>
-                      </div>
-                      <span className="text-[10px] text-[#D97706] font-semibold shrink-0">Vincular →</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <span className="text-[11px] font-medium text-[#DC2626]">Nenhum lancamento encontrado</span>
-                    <p className="text-[10px] text-black/60">Sem correspondencia no sistema</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                {item.sugestoesIA?.[0] && (
-                  <button
-                    onClick={() => { if (item.sugestoesIA?.[0]?.categoria_id) categorizarTransacao(tx.id, item.sugestoesIA[0].categoria_id) }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[11px]"
-                    title={`Aceitar sugestao IA: ${item.sugestoesIA[0].categoria_nome || item.sugestoesIA[0].lancamento_nome}`}
-                  >
-                    <Sparkles size={12} className="text-purple-600" />
-                    <span className="font-semibold text-purple-700">{item.sugestoesIA[0].confianca}%</span>
-                    <span className="text-purple-800">{item.sugestoesIA[0].categoria_nome || item.sugestoesIA[0].lancamento_nome}</span>
-                  </button>
-                )}
+                <p className="text-sm font-bold text-[#1C1917] mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
               </div>
             )}
 
-            {/* IA suggestion for matched items too */}
-            {item.lancamento && item.sugestoesIA?.[0] && (
-              <div className="mt-1.5">
-                <button
-                  onClick={() => { if (item.sugestoesIA?.[0]?.categoria_id) categorizarTransacao(tx.id, item.sugestoesIA[0].categoria_id) }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 border border-purple-200 hover:bg-purple-100 transition text-[10px]"
-                >
-                  <Sparkles size={10} className="text-purple-600" />
-                  <span className="font-semibold text-purple-700">{item.sugestoesIA[0].confianca}% {item.sugestoesIA[0].categoria_nome || item.sugestoesIA[0].lancamento_nome}</span>
-                </button>
+            {!item.lancamento && !isAprovado && (
+              <p className="text-[11px] text-black/50 mb-2">Sem correspondencia no sistema</p>
+            )}
+
+            {/* 3 Sugestões da IA (sempre visíveis quando disponíveis) */}
+            {item.sugestoesIA && item.sugestoesIA.length > 0 && (
+              <div>
+                <p className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">
+                  <Sparkles size={10} className="inline mr-1 text-purple-500" />
+                  Sugestões da IA
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {item.sugestoesIA.slice(0, 3).map((sug, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => { if (sug.categoria_id) categorizarTransacao(tx.id, sug.categoria_id) }}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-purple-100 bg-purple-50/50 hover:bg-purple-100 transition text-left"
+                    >
+                      <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full shrink-0">
+                        {sug.confianca}%
+                      </span>
+                      <span className="text-[11px] text-purple-800 truncate">
+                        {sug.categoria_nome || sug.lancamento_nome}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1876,37 +1762,19 @@ function ConciliacaoInner() {
             {!isAprovado && (
               <>
                 {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
-                  <>
-                    <button onClick={() => aprovar(mt.id, item)} className="w-full px-3 py-2 rounded-lg bg-[#F0FDF4] text-[#16A34A] font-semibold text-xs hover:bg-[#DCFCE7] border border-[#BBF7D0] transition flex items-center justify-center gap-1.5">
-                      <CheckCircle2 size={14} /> Aprovar
-                    </button>
-                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black text-xs hover:bg-[#F5F5F4] transition">
-                      Alterar
-                    </button>
-                  </>
-                )}
-                {status === 'match_dif' && mt?.diferenca && Math.abs(mt.diferenca) > 0 && (
-                  <button onClick={() => aprovar(mt!.id, item)} className="w-full px-3 py-2 rounded-lg bg-[#FFFBEB] text-[#D97706] font-semibold text-xs hover:bg-[#FEF3C7] border border-[#FDE68A] transition flex items-center justify-center gap-1.5">
-                    <AlertTriangle size={14} /> Ajustar
+                  <button onClick={() => aprovar(mt.id, item)} className="w-full px-3 py-2 rounded-lg bg-[#F0FDF4] text-[#16A34A] font-semibold text-xs hover:bg-[#DCFCE7] border border-[#BBF7D0] transition flex items-center justify-center gap-1.5">
+                    <CheckCircle2 size={14} /> Aprovar
                   </button>
                 )}
-                {(status === 'nao_reconhecido' || status === 'pendente' || (!mt && !isAprovado)) && (
+                {(status === 'nao_reconhecido' || status === 'pendente' || status === 'revisao' || (!mt && !isAprovado)) && (
                   <>
-                    <button onClick={() => setExpandedTxId(isExpanded ? null : tx.id)} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
+                    <button onClick={() => setModalNovoLancamento({ aberto: true, item })} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
                       <Plus size={14} /> Criar
-                    </button>
-                    <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black text-xs hover:bg-[#F5F5F4] transition">
-                      Vincular
                     </button>
                     <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black/60 text-xs hover:bg-[#F5F5F4] transition">
                       Ignorar
                     </button>
                   </>
-                )}
-                {status === 'revisao' && (
-                  <button onClick={() => abrirVincular(tx)} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
-                    <Link2 size={14} /> Vincular
-                  </button>
                 )}
               </>
             )}
@@ -1927,105 +1795,6 @@ function ConciliacaoInner() {
           </div>
         )}
 
-        {/* ── Expanded: unrecognized actions ──────────── */}
-        {isExpanded && !isAprovado && (
-          <div className="border-t border-[#E8E6E1] bg-[#FAFAF9] px-5 py-5">
-            <p className="text-[11px] font-medium text-[#DC2626] mb-3">O que fazer com este lançamento?</p>
-
-            {/* OPÇÃO 1 — Sugestão IA (3 sugestões) */}
-            {item.sugestoesIA && item.sugestoesIA.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">
-                  <Sparkles size={10} className="inline mr-1 text-purple-500" />
-                  Sugestões da IA
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {item.sugestoesIA.slice(0, 3).map((sug, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => { if (sug.categoria_id) categorizarTransacao(tx.id, sug.categoria_id) }}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#E8E6E1] bg-white hover:bg-purple-50 transition text-left"
-                    >
-                      <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">
-                        {sug.confianca}%
-                      </span>
-                      <span className="text-[12px] text-black">
-                        {sug.categoria_nome || sug.lancamento_nome}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* OPÇÃO 2 — Incluir lançamento (CP ou CR) */}
-            <div className="mb-4">
-              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">
-                Incluir lançamento
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => criarLancamentoAvulso(item)}
-                  className="px-4 py-2.5 rounded-lg border border-[#1C3D6B] bg-white text-[#1C3D6B] text-xs font-semibold hover:bg-[#F0F4F8] transition"
-                >
-                  Registrar como lançamento avulso
-                </button>
-                <button
-                  onClick={() => { setExpandedTxId(null); abrirVincular(tx) }}
-                  className="px-4 py-2.5 rounded-lg border border-[#E8E6E1] bg-white text-black text-xs font-semibold hover:bg-[#F5F5F4] transition"
-                >
-                  Vincular a {tx.tipo === 'credito' ? 'CR' : 'CP'} existente
-                </button>
-              </div>
-            </div>
-
-            {/* OPÇÃO 3 — Movimentação entre contas */}
-            <div className="mb-3">
-              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-2">
-                Movimentação entre contas
-              </p>
-              <button
-                onClick={() => { setExpandedTxId(null); ignorarTransacao(tx.id, mt?.id || null) }}
-                className="px-4 py-2.5 rounded-lg border border-[#E8E6E1] bg-white text-black text-xs hover:bg-[#F5F5F4] transition"
-              >
-                Registrar como transferência interna (sem valor financeiro)
-              </button>
-            </div>
-
-            {/* Categorizar manualmente (dropdown de plano de contas) */}
-            <div className="mt-3 relative" data-cat-dropdown>
-              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-1">Categorizar manualmente</p>
-              <input
-                type="text"
-                placeholder="Buscar conta contabil..."
-                className="w-full max-w-sm text-[12px] border border-[#E8E6E1] rounded-lg px-3 py-2.5 bg-white text-black focus:outline-none focus:border-[#1C3D6B] focus:ring-1 focus:ring-[#1C3D6B]/20"
-                value={iaCatDropdownOpen === tx.id ? (iaCatBusca ?? '') : ''}
-                onFocus={() => { setIaCatDropdownOpen(tx.id); setIaCatBusca('') }}
-                onChange={(e) => setIaCatBusca(e.target.value)}
-              />
-              {iaCatDropdownOpen === tx.id && (
-                <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-[#E8E6E1] rounded-xl shadow-lg w-80 max-h-48 overflow-y-auto">
-                  {planoContas
-                    .filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase()))
-                    .slice(0, 15)
-                    .map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => { categorizarTransacao(tx.id, cat.id); setIaCatDropdownOpen(null); setIaCatBusca(''); setExpandedTxId(null) }}
-                        className="w-full text-left px-3 py-2.5 text-[12px] text-black hover:bg-[#F5F5F4] transition"
-                      >
-                        <span className="font-semibold">{cat.code}</span> — {cat.name}
-                      </button>
-                    ))
-                  }
-                  {planoContas.filter(cat => !iaCatBusca || `${cat.code} ${cat.name}`.toLowerCase().includes((iaCatBusca || '').toLowerCase())).length === 0 && (
-                    <p className="px-3 py-2 text-[11px] text-black/60">Nenhuma categoria encontrada</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     )
   }
@@ -2038,42 +1807,42 @@ function ConciliacaoInner() {
            ══════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Extrato Importado */}
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#1C3D6B]">
-            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Extrato Importado</p>
-            <p className="text-3xl font-bold mt-1 text-black">{totalImportadas}</p>
-            <p className="text-[11px] text-black/60 mt-0.5">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
+          <div className="bg-[#1C3D6B] rounded-xl p-5 text-white">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Extrato Importado</p>
+            <p className="text-3xl font-bold mt-1">{totalImportadas}</p>
+            <p className="text-[11px] opacity-60 mt-0.5">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
             {importBatches.length > 0 && (
-              <span className="inline-block mt-2 text-[9px] font-medium bg-[#1C3D6B]/10 text-[#1C3D6B] px-2 py-0.5 rounded-full">OFX importado</span>
+              <span className="inline-block mt-2 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">OFX importado</span>
             )}
           </div>
 
           {/* Conciliados */}
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#16A34A]">
-            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Conciliados</p>
-            <p className="text-3xl font-bold mt-1 text-black">{conciliadasAuto}</p>
-            <p className="text-[11px] text-black/60 mt-0.5">por regras e automatico</p>
-            <span className="inline-block mt-2 text-[9px] font-medium bg-[#16A34A]/10 text-[#16A34A] px-2 py-0.5 rounded-full">{pctConciliado}% do extrato</span>
+          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5">
+            <p className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest">Conciliados</p>
+            <p className="text-3xl font-bold mt-1 text-[#1C1917]">{conciliadasAuto}</p>
+            <p className="text-[11px] text-[#78716C] mt-0.5">por regras e automatico</p>
+            <span className="inline-block mt-2 text-[9px] font-semibold bg-[#16A34A]/10 text-[#16A34A] px-2 py-0.5 rounded-full border border-[#16A34A]/20">{pctConciliado}% do extrato</span>
           </div>
 
           {/* Pendentes Revisao */}
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#D97706]">
-            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Pendentes Revisao</p>
-            <p className="text-3xl font-bold mt-1 text-black">{pendentesRevisao}</p>
-            <p className="text-[11px] text-black/60 mt-0.5">aguardando aprovacao</p>
+          <div className="bg-[#D97706] rounded-xl p-5 text-white">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Pendentes Revisao</p>
+            <p className="text-3xl font-bold mt-1">{pendentesRevisao}</p>
+            <p className="text-[11px] opacity-60 mt-0.5">aguardando aprovacao</p>
             {pendentesRevisao > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }} className="inline-block mt-2 text-[9px] font-medium bg-[#D97706]/10 text-[#D97706] px-2 py-0.5 rounded-full hover:bg-[#D97706]/20 transition">
+              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }} className="inline-block mt-2 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded-full hover:bg-white/30 transition">
                 Revisar
               </button>
             )}
           </div>
 
           {/* Nao Reconhecidos */}
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5 border-l-4 border-l-[#DC2626]">
-            <p className="text-[11px] font-medium text-black uppercase tracking-wider">Nao Reconhecidos</p>
-            <p className="text-3xl font-bold mt-1 text-black">{naoReconhecidas}</p>
-            <p className="text-[11px] text-black/60 mt-0.5">sem correspondencia</p>
+          <div className="bg-[#DC2626] rounded-xl p-5 text-white">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Nao Reconhecidos</p>
+            <p className="text-3xl font-bold mt-1">{naoReconhecidas}</p>
+            <p className="text-[11px] opacity-60 mt-0.5">sem correspondencia</p>
             {naoReconhecidas > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }} className="inline-block mt-2 text-[9px] font-medium bg-[#DC2626]/10 text-[#DC2626] px-2 py-0.5 rounded-full hover:bg-[#DC2626]/20 transition">
+              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }} className="inline-block mt-2 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded-full hover:bg-white/30 transition">
                 Acao necessaria
               </button>
             )}
@@ -2173,18 +1942,18 @@ function ConciliacaoInner() {
             {matchesEnriquecidos.length > 0 && (
               <div className="space-y-3">
                 {/* Header bar */}
-                <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm px-5 py-3.5 flex items-center justify-between">
-                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Revisao de Conciliacao</h3>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setSubTab('conciliados')} className="text-[11px] text-black hover:text-[#1C3D6B] transition font-medium">
+                <div className="bg-[#1C3D6B] rounded-t-xl px-5 py-3.5 flex items-center justify-between">
+                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Revisao de Conciliacao</h3>
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setSubTab('conciliados')} className="text-[11px] text-white/70 hover:text-white transition font-medium">
                       Ver conciliados
                     </button>
                     {pendentes.length > 0 && (
-                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[11px] text-black hover:text-[#1C3D6B] transition font-medium">
+                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[11px] text-white/70 hover:text-white transition font-medium">
                         {salvando ? 'Salvando...' : 'Aprovar todos pendentes'}
                       </button>
                     )}
-                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-black/60 hover:text-[#1C3D6B] transition" title="Recarregar">
+                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-white/50 hover:text-white transition" title="Recarregar">
                       <RefreshCw size={14} />
                     </button>
                   </div>
@@ -2447,113 +2216,71 @@ function ConciliacaoInner() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
-         MODAL: Conciliar - Vincular a CP/CR
+         MODAL: Registrar Novo Lançamento (CP / CR / Movimentação)
          ═══════════════════════════════════════════════════════════ */}
-      {modalVincular.aberto && modalVincular.transacao && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setModalVincular({ transacao: null, aberto: false })}>
-          <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-xl mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-[#1C1917]">Conciliar Transacao</h3>
-                <p className="text-[11px] text-[#78716C] mt-0.5">
-                  {modalVincular.transacao?.tipo === 'credito'
-                    ? 'Buscando em Contas a Receber (CR)'
-                    : 'Buscando em Contas a Pagar (CP)'}
-                </p>
-              </div>
-              <button onClick={() => setModalVincular({ transacao: null, aberto: false })} className="text-[#A8A29E] hover:text-[#1C1917] transition"><X size={18} /></button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {/* Transacao info */}
-              <div className="bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] p-4 flex items-center justify-between">
+      {modalNovoLancamento.aberto && modalNovoLancamento.item && (() => {
+        const tx = modalNovoLancamento.item!.transacao
+        const beneficiario = extractBeneficiary(tx.descricao)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setModalNovoLancamento({ aberto: false, item: null })}>
+            <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between">
                 <div>
-                  <p className="text-[13px] font-semibold text-[#1C1917]">{modalVincular.transacao.descricao}</p>
-                  <p className="text-[11px] text-[#78716C] mt-0.5">{formatData(modalVincular.transacao.data)}</p>
+                  <h3 className="text-sm font-semibold text-[#1C1917]">Registrar novo lançamento</h3>
+                  <p className="text-[11px] text-[#78716C] mt-0.5">Escolha o tipo de lançamento para esta transação</p>
                 </div>
-                <div className="text-right">
-                  <span className={`text-lg font-bold ${modalVincular.transacao.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                    {modalVincular.transacao.tipo === 'credito' ? '+' : '-'}{formatBRL(modalVincular.transacao.valor)}
-                  </span>
-                  <p className={`text-[10px] font-bold uppercase ${modalVincular.transacao.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                    {modalVincular.transacao.tipo === 'credito' ? 'Credito' : 'Debito'}
+                <button onClick={() => setModalNovoLancamento({ aberto: false, item: null })} className="text-[#A8A29E] hover:text-[#1C1917] transition"><X size={18} /></button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Transação info */}
+                <div className="bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] p-4">
+                  <p className="text-[13px] font-semibold text-[#1C1917]">{tx.descricao}</p>
+                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#78716C]">
+                    <span>{formatData(tx.data)}</span>
+                    {beneficiario && (
+                      <>
+                        <span className="text-black/30">·</span>
+                        <span className="font-medium text-[#1C1917]">{beneficiario}</span>
+                      </>
+                    )}
+                  </div>
+                  <p className={`text-lg font-bold mt-1.5 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+                    {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
                   </p>
                 </div>
+
+                {/* Opções */}
+                <div className="space-y-2.5">
+                  <button
+                    onClick={() => criarComoCP(modalNovoLancamento.item!)}
+                    className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#DC2626] hover:bg-[#FEF2F2] transition group"
+                  >
+                    <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#DC2626]">Conta a Pagar</p>
+                    <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como despesa / pagamento realizado</p>
+                  </button>
+
+                  <button
+                    onClick={() => criarComoCR(modalNovoLancamento.item!)}
+                    className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#16A34A] hover:bg-[#F0FDF4] transition group"
+                  >
+                    <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#16A34A]">Conta a Receber</p>
+                    <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como receita / recebimento realizado</p>
+                  </button>
+
+                  <button
+                    onClick={() => criarComoMovimentacao(modalNovoLancamento.item!)}
+                    className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#1C3D6B] hover:bg-[#F0F4F8] transition group"
+                  >
+                    <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#1C3D6B]">Movimentação entre contas</p>
+                    <p className="text-[11px] text-[#78716C] mt-0.5">Transferência interna (sem impacto financeiro)</p>
+                  </button>
+                </div>
               </div>
-
-              {/* Busca */}
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
-                  <input
-                    type="text"
-                    placeholder="Filtrar por nome..."
-                    value={buscaVincular}
-                    onChange={(e) => setBuscaVincular(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && buscarCandidatos()}
-                    className="w-full border border-[#E8E6E1] rounded-lg pl-9 pr-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] focus:ring-1 focus:ring-[#1C3D6B]/20"
-                  />
-                </div>
-                <button onClick={buscarCandidatos} disabled={buscandoVincular} className="px-4 py-2.5 bg-[#1C3D6B] text-white rounded-lg text-sm font-semibold hover:bg-[#163256] transition shrink-0">
-                  {buscandoVincular ? <Loader2 size={14} className="animate-spin" /> : 'Buscar'}
-                </button>
-              </div>
-
-              {/* Loading */}
-              {buscandoVincular && candidatosVincular.length === 0 && (
-                <div className="flex items-center justify-center py-8 gap-2 text-[#78716C] text-sm">
-                  <Loader2 size={16} className="animate-spin" /> Buscando lancamentos...
-                </div>
-              )}
-
-              {/* Candidatos */}
-              {candidatosVincular.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-2">{candidatosVincular.length} lancamentos encontrados</p>
-                  <div className="max-h-[300px] overflow-y-auto border border-[#E8E6E1] rounded-xl divide-y divide-[#E8E6E1]">
-                    {candidatosVincular.map((c) => {
-                      const diff = Math.round((modalVincular.transacao!.valor - c.valor) * 100) / 100
-                      const absDiff = Math.abs(diff)
-                      const isExact = absDiff < 0.01
-                      return (
-                        <button
-                          key={`${c.tipo}-${c.id}`}
-                          onClick={() => vincular(c)}
-                          className={`w-full text-left px-4 py-3.5 hover:bg-[#FAFAF9] transition flex items-center gap-3 ${isExact ? 'bg-[#F0FDF4]' : ''}`}
-                        >
-                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full shrink-0 ${
-                            c.tipo === 'cr' ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'
-                          }`}>
-                            {c.tipo === 'cr' ? 'CR' : 'CP'}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-medium text-[#1C1917] truncate">{c.nome}</p>
-                            <p className="text-[11px] text-[#A8A29E]">Venc. {formatData(c.data_vencimento)}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[13px] font-bold text-[#1C1917]">{formatBRL(c.valor)}</p>
-                            {isExact ? (
-                              <span className="text-[9px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-full">VALOR EXATO</span>
-                            ) : (
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${absDiff <= modalVincular.transacao!.valor * 0.05 ? 'bg-[#FFFBEB] text-[#D97706]' : 'bg-[#FEF2F2] text-[#DC2626]'}`}>
-                                {diff > 0 ? '+' : ''}{formatBRL(diff)}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {candidatosVincular.length === 0 && !buscandoVincular && (
-                <p className="text-xs text-[#A8A29E] text-center py-6">Nenhum lancamento encontrado. Use o campo acima para buscar.</p>
-              )}
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ═══════════════════════════════════════════════════════════
          MODAL: Salvar Regra
