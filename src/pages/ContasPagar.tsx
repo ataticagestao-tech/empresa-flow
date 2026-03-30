@@ -241,7 +241,7 @@ export default function ContasPagar() {
         'listar contas bancarias'
       ),
       safeQuery(
-        () => supabase.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).in('type', ['expense', 'despesa']),
+        () => supabase.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
         'listar plano de contas'
       ),
       safeQuery(
@@ -257,7 +257,7 @@ export default function ContasPagar() {
         'listar fornecedores'
       ),
       safeQuery(
-        () => supabase.from('employees').select('id, nome_completo, name').eq('company_id', selectedCompany.id).eq('status', 'ativo'),
+        () => supabase.from('employees').select('id, nome_completo, name').eq('company_id', selectedCompany.id),
         'listar funcionarios'
       ),
       safeQuery(
