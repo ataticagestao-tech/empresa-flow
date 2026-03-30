@@ -2401,7 +2401,7 @@ function ConciliacaoInner() {
         {/* ════════════════════════════════════════════════════════
            TAB: REGRAS (always visible at bottom when on conciliacao)
            ════════════════════════════════════════════════════════ */}
-        {(abaAtiva === 'regras' || (abaAtiva === 'conciliacao' && regras.length > 0)) && (
+        {abaAtiva === 'regras' && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
             <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Regras de Conciliacao Salvas</h3>
