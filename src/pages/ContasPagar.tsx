@@ -4,7 +4,7 @@ import {
   DollarSign, CalendarClock, CalendarDays, CheckCircle2, Plus, X,
   MoreHorizontal, Search, ChevronDown, ChevronUp,
   AlertTriangle, Loader2, FileText, Trash2, SplitSquareVertical,
-  RefreshCw, Download, Paperclip, Archive, Pencil
+  RefreshCw, Download, Paperclip, Archive, Pencil, ScanLine
 } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -180,6 +180,7 @@ export default function ContasPagar() {
   const [editingCpId, setEditingCpId] = useState<string | null>(null)
   const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isReadingBoleto, setIsReadingBoleto] = useState(false)
 
   // Pay form
   const [payForm, setPayForm] = useState({
@@ -487,7 +488,7 @@ export default function ContasPagar() {
     setShowNewModal(true)
   }
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, autoRead = false) => {
     if (!selectedCompany) return
     try {
       setIsUploading(true)
@@ -506,11 +507,62 @@ export default function ContasPagar() {
         .getPublicUrl(filePath)
 
       setNewForm(prev => ({ ...prev, fileUrl: publicUrl }))
+
+      // Leitura automática do boleto
+      if (autoRead) {
+        await handleLerBoleto(file)
+      }
     } catch (error) {
       console.error('[upload]', error)
       alert('Erro no upload do arquivo')
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const handleLerBoleto = async (file: File) => {
+    try {
+      setIsReadingBoleto(true)
+
+      // Converter arquivo para base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          // Remover o prefixo "data:...;base64,"
+          resolve(result.split(',')[1])
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      const mimeType = file.type || 'image/png'
+
+      // Chamar Edge Function
+      const { data, error } = await supabase.functions.invoke('ler-boleto', {
+        body: { fileBase64: base64, mimeType },
+      })
+
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+
+      // Preencher formulário com dados extraídos
+      setNewForm(prev => ({
+        ...prev,
+        descricao: data.descricao || prev.descricao,
+        credorNome: data.fornecedor || prev.credorNome,
+        valor: data.valor || prev.valor,
+        dataVencimento: data.vencimento || prev.dataVencimento,
+        competencia: data.competencia || prev.competencia,
+        codigoBarras: data.codigo_barras || prev.codigoBarras,
+      }))
+
+      alert('Boleto lido com sucesso! Verifique os campos preenchidos.')
+    } catch (error: any) {
+      console.error('[lerBoleto]', error)
+      alert('Erro ao ler boleto: ' + (error.message || 'Tente novamente'))
+    } finally {
+      setIsReadingBoleto(false)
     }
   }
 
@@ -1585,49 +1637,91 @@ export default function ContasPagar() {
                   />
                 </div>
 
-                {/* Anexar arquivo */}
-                <div className="rounded-lg border border-dashed border-[#ccc] p-4">
+                {/* Anexar arquivo + Leitura automática */}
+                <div className="rounded-lg border border-dashed border-[#ccc] p-4 space-y-3">
                   <input
                     type="file"
                     className="hidden"
                     id="file-upload-cp"
+                    accept="image/*,application/pdf"
                     onChange={(e) => {
                       const file = e.target.files?.[0]
                       if (file) handleFileUpload(file)
                     }}
-                    disabled={isUploading}
+                    disabled={isUploading || isReadingBoleto}
+                  />
+                  <input
+                    type="file"
+                    className="hidden"
+                    id="file-upload-cp-auto"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file, true)
+                    }}
+                    disabled={isUploading || isReadingBoleto}
                   />
                   {!newForm.fileUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById('file-upload-cp')?.click()}
-                      disabled={isUploading}
-                      className="w-full flex items-center justify-center gap-2 text-sm text-[#555] border border-[#ccc] rounded-lg px-3 py-2.5 hover:bg-[#f5f5f5] transition disabled:opacity-50"
-                    >
-                      {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
-                      {isUploading ? 'Enviando...' : 'Anexar Boleto / Comprovante'}
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                      <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-[#1a2e4a] hover:underline flex-1 truncate">
-                        Arquivo anexado — clique para visualizar
-                      </a>
+                    <div className="space-y-2">
+                      {/* Botão principal: Ler boleto automaticamente */}
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
+                        disabled={isUploading || isReadingBoleto}
+                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-lg px-3 py-2.5 hover:bg-[#0f1f36] transition disabled:opacity-50"
+                      >
+                        {isReadingBoleto ? (
+                          <><Loader2 size={14} className="animate-spin" /> Lendo boleto com IA...</>
+                        ) : isUploading ? (
+                          <><Loader2 size={14} className="animate-spin" /> Enviando...</>
+                        ) : (
+                          <><ScanLine size={14} /> Ler Boleto Automaticamente</>
+                        )}
+                      </button>
+                      {/* Botão secundário: Apenas anexar */}
                       <button
                         type="button"
                         onClick={() => document.getElementById('file-upload-cp')?.click()}
-                        disabled={isUploading}
-                        className="text-xs px-3 py-1.5 border border-[#ccc] rounded-lg text-[#555] hover:bg-[#f5f5f5] transition"
+                        disabled={isUploading || isReadingBoleto}
+                        className="w-full flex items-center justify-center gap-2 text-xs text-[#555] border border-[#ccc] rounded-lg px-3 py-2 hover:bg-[#f5f5f5] transition disabled:opacity-50"
                       >
-                        Trocar
+                        <Paperclip size={12} /> Apenas anexar (sem leitura)
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setNewForm({ ...newForm, fileUrl: '' })}
-                        className="text-xs px-2 py-1.5 text-[#8b0000] hover:bg-[#fdecea] rounded-lg transition"
-                      >
-                        <X size={14} />
-                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                        <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-[#1a2e4a] hover:underline flex-1 truncate">
+                          Arquivo anexado — clique para visualizar
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setNewForm({ ...newForm, fileUrl: '' })}
+                          className="text-xs px-2 py-1.5 text-[#8b0000] hover:bg-[#fdecea] rounded-lg transition"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
+                          disabled={isUploading || isReadingBoleto}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#1a2e4a] border border-[#1a2e4a] rounded-lg px-2 py-1.5 hover:bg-[#f0f4f8] transition disabled:opacity-50"
+                        >
+                          {isReadingBoleto ? <Loader2 size={12} className="animate-spin" /> : <ScanLine size={12} />}
+                          {isReadingBoleto ? 'Lendo...' : 'Trocar e ler'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('file-upload-cp')?.click()}
+                          disabled={isUploading}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs text-[#555] border border-[#ccc] rounded-lg px-2 py-1.5 hover:bg-[#f5f5f5] transition"
+                        >
+                          <Paperclip size={12} /> Trocar arquivo
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
