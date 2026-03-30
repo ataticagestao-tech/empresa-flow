@@ -388,7 +388,7 @@ export default function ContasPagar() {
       contaBancariaId: bankAccounts[0]?.id || '',
       juros: 0,
       desconto: 0,
-      observacao: '',
+      observacao: cp.codigo_barras || '',
     })
     setShowPayModal(true)
   }
