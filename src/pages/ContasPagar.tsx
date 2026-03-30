@@ -1281,12 +1281,13 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Comprovante / Observacao</label>
-                  <textarea
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Código de Barras</label>
+                  <input
+                    type="text"
                     value={payForm.observacao}
                     onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
-                    rows={2}
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a] resize-none"
+                    placeholder="Linha digitável do boleto"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1a2e4a] text-[#0a0a0a]"
                   />
                 </div>
 
