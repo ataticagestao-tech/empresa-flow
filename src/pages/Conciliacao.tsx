@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-// useBlocker removido — requer createBrowserRouter (app usa BrowserRouter)
+import { useState, useEffect, useCallback, useMemo, useRef, Component, type ReactNode } from 'react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -156,7 +155,29 @@ const parsearOFX = (conteudo: string): TransacaoOFX[] => {
    Component
    ════════════════════════════════════════════════════════════════════ */
 
-export default function Conciliacao() {
+class ConciliacaoErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null }
+  static getDerivedStateFromError(error: Error) { return { error: error.message } }
+  componentDidCatch(error: Error) { console.error('[Conciliacao crash]', error) }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-8 text-center">
+          <h2 className="text-lg font-bold text-red-600 mb-2">Erro na Conciliação</h2>
+          <p className="text-sm text-gray-600 mb-4">{this.state.error}</p>
+          <button onClick={() => { this.setState({ error: null }); window.location.reload() }} className="px-4 py-2 bg-[#1a2e4a] text-white rounded-lg text-sm">Recarregar</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+export default function ConciliacaoWrapper() {
+  return <ConciliacaoErrorBoundary><ConciliacaoInner /></ConciliacaoErrorBoundary>
+}
+
+function ConciliacaoInner() {
   const { selectedCompany } = useCompany()
   const { activeClient } = useAuth()
   const companyId = selectedCompany?.id
