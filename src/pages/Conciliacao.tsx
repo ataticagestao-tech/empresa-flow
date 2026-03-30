@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useBlocker } from 'react-router-dom'
+// useBlocker removido — requer createBrowserRouter (app usa BrowserRouter)
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -404,29 +404,17 @@ export default function Conciliacao() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [temPendentes])
 
-  // React Router navigation guard
-  const blocker = useBlocker(temPendentes)
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setModalSairAberto(true)
-    }
-  }, [blocker.state])
-
   const handleSalvarESair = async () => {
     setModalSairAberto(false)
     await salvarConciliacao()
-    if (blocker.state === 'blocked') blocker.proceed()
   }
 
   const handleSairSemSalvar = () => {
     setModalSairAberto(false)
-    if (blocker.state === 'blocked') blocker.proceed()
   }
 
   const handleCancelarSaida = () => {
     setModalSairAberto(false)
-    if (blocker.state === 'blocked') blocker.reset()
   }
 
   // ── Load bank accounts ─────────────────────────────────────────
