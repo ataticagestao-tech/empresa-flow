@@ -49,6 +49,8 @@ interface BankTransaction {
   reconciled_at?: string | null
   category_id?: string | null
   sugestao_conta_id?: string | null
+  reconciled_payable_id?: string | null
+  reconciled_receivable_id?: string | null
 }
 
 interface MatchRecord {
@@ -167,6 +169,8 @@ const mapDbToTx = (r: any): BankTransaction => ({
   reconciled_at: r.reconciled_at || null,
   category_id: r.category_id || null,
   sugestao_conta_id: r.sugestao_conta_id || null,
+  reconciled_payable_id: r.reconciled_payable_id || null,
+  reconciled_receivable_id: r.reconciled_receivable_id || null,
 })
 
 const normalizeText = (text: string): string =>
@@ -983,7 +987,56 @@ function ConciliacaoInner() {
       )
       if (data) allTx.push(...(data as any[]))
     }
-    setBatchTransacoes(allTx.map(mapDbToTx))
+    let txList = allTx.map(mapDbToTx)
+
+    // For reconciled transactions without sugestao_conta_id, fetch category from linked CP/CR
+    const txSemCategoria = txList.filter(t => t.status_conciliacao === 'reconciled' && !t.sugestao_conta_id && !t.category_id)
+    if (txSemCategoria.length > 0) {
+      const crIds = txSemCategoria.filter(t => t.reconciled_receivable_id).map(t => t.reconciled_receivable_id!)
+      const cpIds = txSemCategoria.filter(t => t.reconciled_payable_id).map(t => t.reconciled_payable_id!)
+
+      const catFromCR = new Map<string, string>()
+      const catFromCP = new Map<string, string>()
+
+      if (crIds.length > 0) {
+        for (let i = 0; i < crIds.length; i += batchSize) {
+          const batch = crIds.slice(i, i + batchSize)
+          const crData = await safeQuery(
+            async () => await activeClient.from('contas_receber').select('id, conta_contabil_id').in('id', batch) as any,
+            'buscar categorias CR'
+          )
+          for (const c of (crData || []) as any[]) {
+            if (c.conta_contabil_id) catFromCR.set(c.id, c.conta_contabil_id)
+          }
+        }
+      }
+      if (cpIds.length > 0) {
+        for (let i = 0; i < cpIds.length; i += batchSize) {
+          const batch = cpIds.slice(i, i + batchSize)
+          const cpData = await safeQuery(
+            async () => await activeClient.from('contas_pagar').select('id, conta_contabil_id').in('id', batch) as any,
+            'buscar categorias CP'
+          )
+          for (const c of (cpData || []) as any[]) {
+            if (c.conta_contabil_id) catFromCP.set(c.id, c.conta_contabil_id)
+          }
+        }
+      }
+
+      // Merge categories into transactions
+      txList = txList.map(t => {
+        if (t.sugestao_conta_id || t.category_id) return t
+        if (t.reconciled_receivable_id && catFromCR.has(t.reconciled_receivable_id)) {
+          return { ...t, sugestao_conta_id: catFromCR.get(t.reconciled_receivable_id)! }
+        }
+        if (t.reconciled_payable_id && catFromCP.has(t.reconciled_payable_id)) {
+          return { ...t, sugestao_conta_id: catFromCP.get(t.reconciled_payable_id)! }
+        }
+        return t
+      })
+    }
+
+    setBatchTransacoes(txList)
   }, [batchExpandido, activeClient])
 
   // ── Categorize transaction (set category_id) ──────────────────
