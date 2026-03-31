@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { PLANO_PATRIMONIAL, GRUPO_LABELS, type ContaModelo } from "@/data/planoContasPatrimonial";
+import { BookOpen, Plus, X, Check, ChevronRight, ChevronDown, Download } from "lucide-react";
 
 interface Conta {
   id: string; code: string; name: string; level: number;
@@ -31,6 +33,9 @@ const DRE_GROUPS = [
 
 function getBadge(c: Conta) {
   if (c.account_type === "revenue") return { label: "Receita", cls: "border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]" };
+  if (c.account_type === "asset") return { label: "Ativo", cls: "border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]" };
+  if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
+  if (c.account_type === "equity") return { label: "PL", cls: "border-[#4a1a6b] bg-[#f3e8ff] text-[#4a1a6b]" };
   if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#b8960a] bg-[#fffbe6] text-[#5c3a00]" };
   if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
   if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]" };
@@ -56,6 +61,12 @@ export default function PlanoContas() {
   const [editForm, setEditForm] = useState({ name: "", account_type: "", account_nature: "", dre_group: "", dre_order: "", show_in_dre: true });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Modelo padrão panel
+  const [showModelo, setShowModelo] = useState(false);
+  const [modeloExpandidos, setModeloExpandidos] = useState<Set<string>>(new Set());
+  const [modeloSearch, setModeloSearch] = useState("");
+  const [addingCodes, setAddingCodes] = useState<Set<string>>(new Set());
+
   const { data: contas = [], isLoading } = useQuery({
     queryKey: ["chart_of_accounts", selectedCompany?.id],
     queryFn: async () => {
@@ -76,6 +87,9 @@ export default function PlanoContas() {
     enabled: !!selectedCompany?.id,
   });
 
+  // Set of existing codes for checking duplicates in the modelo panel
+  const existingCodes = useMemo(() => new Set(contas.map(c => c.code)), [contas]);
+
   const filteredContas = useMemo(() => {
     let result = contas;
     if (search.trim()) {
@@ -86,6 +100,7 @@ export default function PlanoContas() {
     else if (filterType === "custos") result = result.filter(c => c.dre_group === "custos");
     else if (filterType === "despesas") result = result.filter(c => c.dre_group === "despesas_operacionais" || c.dre_group === "outras_despesas");
     else if (filterType === "analiticas") result = result.filter(c => c.is_analytical);
+    else if (filterType === "patrimoniais") result = result.filter(c => ["asset", "liability", "equity"].includes(c.account_type));
     return result;
   }, [contas, search, filterType]);
 
@@ -192,8 +207,175 @@ export default function PlanoContas() {
     }
   };
 
+  // ─── Add single account from modelo ───
+  const addFromModelo = async (item: ContaModelo) => {
+    if (!selectedCompany?.id) return;
+    if (existingCodes.has(item.code)) { toast.error(`Código ${item.code} já existe`); return; }
+
+    setAddingCodes(prev => new Set(prev).add(item.code));
+    try {
+      // Find parent in existing contas
+      const codeParts = item.code.split(".");
+      const parentCode = codeParts.slice(0, -1).join(".");
+      const parent = contas.find(c => c.code === parentCode);
+
+      const payload = {
+        company_id: selectedCompany.id,
+        code: item.code,
+        name: item.name,
+        level: item.level,
+        account_type: item.account_type,
+        account_nature: item.account_nature,
+        is_analytical: item.is_analytical,
+        is_synthetic: !item.is_analytical,
+        accepts_manual_entry: item.is_analytical,
+        show_in_dre: false,
+        dre_group: null,
+        dre_order: null,
+        parent_id: parent?.id || null,
+        status: "active",
+      };
+
+      const { error } = await (activeClient as any).from("chart_of_accounts").insert(payload);
+      if (error) throw error;
+
+      toast.success(`${item.code} — ${item.name} adicionada`);
+      queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+    } catch (err: any) {
+      toast.error("Erro: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setAddingCodes(prev => { const next = new Set(prev); next.delete(item.code); return next; });
+    }
+  };
+
+  // ─── Add entire grupo from modelo ───
+  const addGrupoFromModelo = async (grupoCode: string) => {
+    if (!selectedCompany?.id) return;
+    const items = PLANO_PATRIMONIAL.filter(c => c.code === grupoCode || c.code.startsWith(grupoCode + "."));
+    const toAdd = items.filter(c => !existingCodes.has(c.code));
+
+    if (toAdd.length === 0) { toast.info("Todas as contas deste grupo já existem"); return; }
+    if (!confirm(`Adicionar ${toAdd.length} contas do grupo "${items[0]?.name}" à empresa?`)) return;
+
+    let added = 0;
+    // Insert level by level to ensure parents exist for parent_id resolution
+    for (const lvl of [1, 2, 3]) {
+      const batch = toAdd.filter(c => c.level === lvl);
+      for (const item of batch) {
+        try {
+          // Re-fetch parent after each insert to get the correct parent_id
+          const codeParts = item.code.split(".");
+          const parentCode = codeParts.slice(0, -1).join(".");
+          let parentId = null;
+          if (parentCode) {
+            const { data: parentData } = await (activeClient as any)
+              .from("chart_of_accounts")
+              .select("id")
+              .eq("company_id", selectedCompany.id)
+              .eq("code", parentCode)
+              .eq("status", "active")
+              .single();
+            parentId = parentData?.id || null;
+          }
+
+          const { error } = await (activeClient as any).from("chart_of_accounts").insert({
+            company_id: selectedCompany.id,
+            code: item.code,
+            name: item.name,
+            level: item.level,
+            account_type: item.account_type,
+            account_nature: item.account_nature,
+            is_analytical: item.is_analytical,
+            is_synthetic: !item.is_analytical,
+            accepts_manual_entry: item.is_analytical,
+            show_in_dre: false,
+            parent_id: parentId,
+            status: "active",
+          });
+          if (!error) added++;
+        } catch { /* skip duplicates */ }
+      }
+    }
+
+    toast.success(`${added} contas adicionadas`);
+    queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+  };
+
+  // ─── Add ALL patrimonial accounts ───
+  const addAllPatrimonial = async () => {
+    if (!selectedCompany?.id) return;
+    const toAdd = PLANO_PATRIMONIAL.filter(c => !existingCodes.has(c.code));
+    if (toAdd.length === 0) { toast.info("Todas as contas do modelo já existem"); return; }
+    if (!confirm(`Adicionar ${toAdd.length} contas patrimoniais à empresa? Contas existentes NÃO serão substituídas.`)) return;
+
+    let added = 0;
+    for (const lvl of [1, 2, 3]) {
+      const batch = toAdd.filter(c => c.level === lvl);
+      for (const item of batch) {
+        try {
+          const codeParts = item.code.split(".");
+          const parentCode = codeParts.slice(0, -1).join(".");
+          let parentId = null;
+          if (parentCode) {
+            const { data: parentData } = await (activeClient as any)
+              .from("chart_of_accounts")
+              .select("id")
+              .eq("company_id", selectedCompany.id)
+              .eq("code", parentCode)
+              .eq("status", "active")
+              .single();
+            parentId = parentData?.id || null;
+          }
+
+          const { error } = await (activeClient as any).from("chart_of_accounts").insert({
+            company_id: selectedCompany.id,
+            code: item.code,
+            name: item.name,
+            level: item.level,
+            account_type: item.account_type,
+            account_nature: item.account_nature,
+            is_analytical: item.is_analytical,
+            is_synthetic: !item.is_analytical,
+            accepts_manual_entry: item.is_analytical,
+            show_in_dre: false,
+            parent_id: parentId,
+            status: "active",
+          });
+          if (!error) added++;
+        } catch { /* skip */ }
+      }
+    }
+
+    toast.success(`${added} contas patrimoniais adicionadas!`);
+    queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+    setShowModelo(false);
+  };
+
   const setNew = (k: string, v: any) => setNewConta(f => ({ ...f, [k]: v }));
   const setEdit = (k: string, v: any) => setEditForm(f => ({ ...f, [k]: v }));
+
+  const toggleModelo = (code: string) => {
+    setModeloExpandidos(prev => { const next = new Set(prev); next.has(code) ? next.delete(code) : next.add(code); return next; });
+  };
+
+  // ─── Modelo padrão filtered tree ───
+  const modeloFiltered = useMemo(() => {
+    if (!modeloSearch.trim()) return PLANO_PATRIMONIAL;
+    const q = modeloSearch.toLowerCase();
+    return PLANO_PATRIMONIAL.filter(c => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+  }, [modeloSearch]);
+
+  const modeloTree = useMemo(() => {
+    const grupos = modeloFiltered.filter(c => c.level === 1);
+    const subs = modeloFiltered.filter(c => c.level === 2);
+    const analiticas = modeloFiltered.filter(c => c.level === 3);
+    return grupos.map(g => ({
+      ...g,
+      filhos: subs
+        .filter(s => s.code.startsWith(g.code + "."))
+        .map(s => ({ ...s, filhos: analiticas.filter(a => a.code.startsWith(s.code + ".")) })),
+    }));
+  }, [modeloFiltered]);
 
   // ─── Inline edit row ───
   const renderEditRow = (conta: Conta) => (
@@ -211,6 +393,7 @@ export default function PlanoContas() {
           <label className={LB}>Tipo</label>
           <select value={editForm.account_type} onChange={e => setEdit("account_type", e.target.value)} className={IC}>
             <option value="revenue">Receita</option><option value="expense">Despesa</option><option value="cost">Custo</option>
+            <option value="asset">Ativo</option><option value="liability">Passivo</option><option value="equity">PL</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -279,17 +462,132 @@ export default function PlanoContas() {
           <input type="text" placeholder="Buscar por nome ou código..." value={search}
             onChange={e => setSearch(e.target.value)}
             className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none flex-1 min-w-[200px]" />
-          {["todas", "receitas", "custos", "despesas", "analiticas"].map(f => (
+          {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas"].map(f => (
             <button key={f} onClick={() => setFilterType(f)}
               className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-all ${
                 filterType === f ? "bg-[#1a2e4a] text-white border-[#1a2e4a]" : "bg-white text-[#555] border-[#ccc] hover:border-[#1a2e4a]"
-              }`}>{f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : "Analíticas"}</button>
+              }`}>
+              {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : "Analíticas"}
+            </button>
           ))}
           <button onClick={expandAll} className="text-[10px] font-bold text-[#1a2e4a] px-2 py-1.5 hover:underline">Expandir</button>
           <button onClick={collapseAll} className="text-[10px] font-bold text-[#555] px-2 py-1.5 hover:underline">Recolher</button>
+          <button onClick={() => setShowModelo(!showModelo)}
+            className={`flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-md transition-all ${
+              showModelo
+                ? "bg-[#b8960a] text-white"
+                : "bg-white text-[#b8960a] border border-[#b8960a] hover:bg-[#fffbe6]"
+            }`}>
+            <BookOpen size={14} /> Modelo Padrão
+          </button>
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); }}
             className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Conta</button>
         </div>
+
+        {/* Modelo Padrão Panel */}
+        {showModelo && (
+          <div className="border border-[#b8960a] rounded-lg overflow-hidden">
+            <div className="bg-[#b8960a] px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen size={16} className="text-white" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Plano de Contas Patrimoniais — Modelo Padrão</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={addAllPatrimonial}
+                  className="flex items-center gap-1.5 bg-white text-[#b8960a] text-[10px] font-bold px-3 py-1.5 rounded-md hover:bg-[#fffbe6] transition-colors">
+                  <Download size={12} /> Aplicar Modelo Completo
+                </button>
+                <button onClick={() => setShowModelo(false)} className="text-white/70 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-[#fffbe6] border-b border-[#e6c200] px-4 py-2.5 flex items-center gap-3">
+              <input type="text" placeholder="Buscar no modelo..." value={modeloSearch}
+                onChange={e => setModeloSearch(e.target.value)}
+                className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#b8960a] focus:outline-none flex-1" />
+              <span className="text-[10px] font-bold text-[#5c3a00] shrink-0">
+                {PLANO_PATRIMONIAL.length} contas no modelo · {PLANO_PATRIMONIAL.filter(c => existingCodes.has(c.code)).length} já adicionadas
+              </span>
+            </div>
+
+            <div className="bg-white max-h-[500px] overflow-y-auto">
+              {modeloTree.map(grupo => {
+                const grupoInfo = GRUPO_LABELS[grupo.grupo];
+                const grupoExists = existingCodes.has(grupo.code);
+                return (
+                  <div key={grupo.code}>
+                    {/* Grupo header */}
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#eee] cursor-pointer hover:bg-[#fafafa]"
+                      style={{ backgroundColor: grupoInfo?.bg || "#f5f5f5" }}>
+                      <button onClick={() => toggleModelo(grupo.code)} className="text-xs text-[#555]">
+                        {modeloExpandidos.has(grupo.code) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                      <span className="text-xs font-bold w-6" style={{ color: grupoInfo?.color }}>{grupo.code}</span>
+                      <span className="text-sm font-bold flex-1" style={{ color: grupoInfo?.color }}>{grupo.name}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ color: grupoInfo?.color, borderColor: grupoInfo?.color }}>
+                        {grupo.filhos.reduce((a, s) => a + s.filhos.length, 0) + grupo.filhos.length} contas
+                      </span>
+                      {grupoExists ? (
+                        <span className="text-[10px] font-bold text-[#0a5c2e] flex items-center gap-1"><Check size={12} /> Existe</span>
+                      ) : (
+                        <button onClick={() => addGrupoFromModelo(grupo.code)}
+                          className="flex items-center gap-1 text-[10px] font-bold text-[#1a2e4a] px-2 py-1 rounded border border-[#1a2e4a] hover:bg-[#f0f4f8] transition-colors">
+                          <Plus size={12} /> Grupo
+                        </button>
+                      )}
+                    </div>
+
+                    {modeloExpandidos.has(grupo.code) && grupo.filhos.map(sub => (
+                      <div key={sub.code}>
+                        {/* Subgrupo */}
+                        <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-[#f0f0f0] cursor-pointer hover:bg-[#fafafa]"
+                          onClick={() => toggleModelo(sub.code)}>
+                          <span className="text-xs text-[#999]">
+                            {modeloExpandidos.has(sub.code) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                          </span>
+                          <span className="text-xs text-[#999] w-8">{sub.code}</span>
+                          <span className="text-sm text-[#0a0a0a] flex-1">{sub.name}</span>
+                          <span className="text-[10px] text-[#555]">{sub.filhos.length}</span>
+                          {existingCodes.has(sub.code) ? (
+                            <Check size={12} className="text-[#0a5c2e]" />
+                          ) : (
+                            <button onClick={e => { e.stopPropagation(); addFromModelo(sub); }}
+                              disabled={addingCodes.has(sub.code)}
+                              className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#f0f4f8] text-[#1a2e4a] transition-all">
+                              <Plus size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        {modeloExpandidos.has(sub.code) && sub.filhos.map(analitica => (
+                          <div key={analitica.code}
+                            className="flex items-center gap-2 pl-14 pr-4 py-1.5 border-b border-[#f8f8f8] hover:bg-[#fafafa]">
+                            <span className="text-xs text-[#999] font-mono w-12">{analitica.code}</span>
+                            <span className="text-sm text-[#0a0a0a] flex-1">{analitica.name}</span>
+                            <span className="text-[10px] text-[#999]">{analitica.account_nature === "debit" ? "D" : "C"}</span>
+                            {existingCodes.has(analitica.code) ? (
+                              <Check size={12} className="text-[#0a5c2e]" />
+                            ) : (
+                              <button onClick={() => addFromModelo(analitica)}
+                                disabled={addingCodes.has(analitica.code)}
+                                className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#f0f4f8] text-[#1a2e4a] transition-all">
+                                {addingCodes.has(analitica.code)
+                                  ? <div className="w-3 h-3 border-2 border-[#1a2e4a]/30 border-t-[#1a2e4a] rounded-full animate-spin" />
+                                  : <Plus size={14} />}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* New account form */}
         {showForm && (
@@ -304,6 +602,7 @@ export default function PlanoContas() {
                 <div className="flex flex-col gap-1"><label className={LB}>Tipo</label>
                   <select value={newConta.account_type} onChange={e => setNew("account_type", e.target.value)} className={IC}>
                     <option value="revenue">Receita</option><option value="expense">Despesa</option><option value="cost">Custo</option>
+                    <option value="asset">Ativo</option><option value="liability">Passivo</option><option value="equity">PL</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1"><label className={LB}>Natureza</label>
