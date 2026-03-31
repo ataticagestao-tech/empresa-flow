@@ -244,12 +244,6 @@ export default function ContasPagar() {
       db.from('clients').select('id, razao_social').eq('company_id', selectedCompany.id).eq('is_active', true).order('razao_social'),
     ])
 
-    // Debug: logar erros de cada query
-    const queries = { cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes }
-    for (const [name, res] of Object.entries(queries)) {
-      if (res.error) console.error(`[ContasPagar] ${name} ERRO:`, res.error.message)
-    }
-
     setContas(cpRes.data || [])
     setBankAccounts(bankRes.data || [])
     setChartAccounts(chartRes.data || [])
