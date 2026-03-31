@@ -6,7 +6,6 @@ import {
   AlertTriangle, Loader2, FileText, Trash2, SplitSquareVertical,
   RefreshCw, Download, Paperclip, Archive, Pencil, ScanLine
 } from 'lucide-react'
-import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -299,7 +298,7 @@ export default function ContasPagar() {
     const fim = format(endOfMonth(hoje), 'yyyy-MM-dd')
 
     safeQuery(
-      () => supabase
+      () => (activeClient as any)
         .from('contas_pagar')
         .select('valor_pago')
         .eq('company_id', selectedCompany.id)
@@ -496,13 +495,13 @@ export default function ContasPagar() {
       const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`
       const filePath = `${selectedCompany.id}/payables/${fileName}`
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await (activeClient as any).storage
         .from('documents')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = (activeClient as any).storage
         .from('documents')
         .getPublicUrl(filePath)
 
@@ -539,7 +538,7 @@ export default function ContasPagar() {
       const mimeType = file.type || 'image/png'
 
       // Chamar Edge Function
-      const { data, error } = await supabase.functions.invoke('ler-boleto', {
+      const { data, error } = await (activeClient as any).functions.invoke('ler-boleto', {
         body: { fileBase64: base64, mimeType },
       })
 
@@ -599,7 +598,7 @@ export default function ContasPagar() {
 
     if (editingCpId) {
       // Edição
-      const { error } = await supabase
+      const { error } = await (activeClient as any)
         .from('contas_pagar')
         .update({
           ...base,
@@ -629,7 +628,7 @@ export default function ContasPagar() {
         }
       }
 
-      const { error } = await supabase.from('contas_pagar').insert(inserts)
+      const { error } = await (activeClient as any).from('contas_pagar').insert(inserts)
       setSubmitting(false)
 
       if (error) {
@@ -644,7 +643,7 @@ export default function ContasPagar() {
 
   const handleArquivar = async (cp: ContaPagar) => {
     if (!confirm(`Arquivar conta de ${cp.credor_nome}?`)) return
-    await supabase.from('contas_pagar').update({ status: 'arquivado' }).eq('id', cp.id)
+    await (activeClient as any).from('contas_pagar').update({ status: 'arquivado' }).eq('id', cp.id)
     setDropdownOpen(null)
     await loadData()
   }
@@ -652,7 +651,7 @@ export default function ContasPagar() {
   // ─── Actions (dropdown) ──────────────────────────────────────────
   const handleCancelar = async (cp: ContaPagar) => {
     if (!confirm(`Cancelar conta de ${cp.credor_nome}?`)) return
-    await supabase.from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
+    await (activeClient as any).from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
     setDropdownOpen(null)
     await loadData()
   }
@@ -660,7 +659,7 @@ export default function ContasPagar() {
   const handleRenegociar = async (cp: ContaPagar) => {
     const novaData = prompt('Nova data de vencimento (YYYY-MM-DD):', cp.data_vencimento)
     if (!novaData) return
-    await supabase.from('contas_pagar').update({ data_vencimento: novaData }).eq('id', cp.id)
+    await (activeClient as any).from('contas_pagar').update({ data_vencimento: novaData }).eq('id', cp.id)
     setDropdownOpen(null)
     await loadData()
   }
@@ -689,8 +688,8 @@ export default function ContasPagar() {
       dataAtual = calcularProximoVencimento(dataAtual, 'mensal')
     }
 
-    await supabase.from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
-    await supabase.from('contas_pagar').insert(inserts)
+    await (activeClient as any).from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
+    await (activeClient as any).from('contas_pagar').insert(inserts)
     setDropdownOpen(null)
     await loadData()
   }
