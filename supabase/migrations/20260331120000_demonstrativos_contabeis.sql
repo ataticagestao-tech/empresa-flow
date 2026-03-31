@@ -124,27 +124,32 @@ ALTER TABLE public.cont_saldos_patrimoniais ENABLE ROW LEVEL SECURITY;
 
 -- Padrão do projeto: company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid())
 
+DROP POLICY IF EXISTS "Users can manage cont_periodos of their companies" ON public.cont_periodos_contabeis;
 CREATE POLICY "Users can manage cont_periodos of their companies"
   ON public.cont_periodos_contabeis FOR ALL
   USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
   WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can manage cont_linha of their companies" ON public.cont_linha_demonstrativo;
 CREATE POLICY "Users can manage cont_linha of their companies"
   ON public.cont_linha_demonstrativo FOR ALL
   USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
   WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can manage cont_mapeamento of their companies" ON public.cont_mapeamento_contas;
 CREATE POLICY "Users can manage cont_mapeamento of their companies"
   ON public.cont_mapeamento_contas FOR ALL
   USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
   WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can manage cont_saldos of their companies" ON public.cont_saldos_patrimoniais;
 CREATE POLICY "Users can manage cont_saldos of their companies"
   ON public.cont_saldos_patrimoniais FOR ALL
   USING (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()))
   WITH CHECK (company_id IN (SELECT id FROM public.companies WHERE owner_id = auth.uid()));
 
 -- Template tenant pode ser lido por todos autenticados
+DROP POLICY IF EXISTS "Anyone can read template lines" ON public.cont_linha_demonstrativo;
 CREATE POLICY "Anyone can read template lines"
   ON public.cont_linha_demonstrativo FOR SELECT
   TO authenticated
