@@ -63,6 +63,8 @@ export default function PlanoContas() {
 
   // Modelo padrão panel
   const [showModelo, setShowModelo] = useState(false);
+  const [showModeloPopup, setShowModeloPopup] = useState(false);
+  const [replacingAll, setReplacingAll] = useState(false);
   const [modeloExpandidos, setModeloExpandidos] = useState<Set<string>>(new Set());
   const [modeloSearch, setModeloSearch] = useState("");
   const [addingCodes, setAddingCodes] = useState<Set<string>>(new Set());
@@ -349,6 +351,70 @@ export default function PlanoContas() {
     toast.success(`${added} contas patrimoniais adicionadas!`);
     queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
     setShowModelo(false);
+    setShowModeloPopup(false);
+  };
+
+  // ─── Replace ALL accounts with modelo ───
+  const replaceAllWithModelo = async () => {
+    if (!selectedCompany?.id) return;
+    setReplacingAll(true);
+    try {
+      // Deactivate all existing accounts
+      const { error: deactivateErr } = await (activeClient as any)
+        .from("chart_of_accounts")
+        .update({ status: "inactive" })
+        .eq("company_id", selectedCompany.id)
+        .eq("status", "active");
+      if (deactivateErr) throw deactivateErr;
+
+      // Insert all modelo accounts level by level
+      let added = 0;
+      for (const lvl of [1, 2, 3]) {
+        const batch = PLANO_PATRIMONIAL.filter(c => c.level === lvl);
+        for (const item of batch) {
+          try {
+            const codeParts = item.code.split(".");
+            const parentCode = codeParts.slice(0, -1).join(".");
+            let parentId = null;
+            if (parentCode) {
+              const { data: parentData } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .select("id")
+                .eq("company_id", selectedCompany.id)
+                .eq("code", parentCode)
+                .eq("status", "active")
+                .single();
+              parentId = parentData?.id || null;
+            }
+
+            const { error } = await (activeClient as any).from("chart_of_accounts").insert({
+              company_id: selectedCompany.id,
+              code: item.code,
+              name: item.name,
+              level: item.level,
+              account_type: item.account_type,
+              account_nature: item.account_nature,
+              is_analytical: item.is_analytical,
+              is_synthetic: !item.is_analytical,
+              accepts_manual_entry: item.is_analytical,
+              show_in_dre: false,
+              parent_id: parentId,
+              status: "active",
+            });
+            if (!error) added++;
+          } catch { /* skip */ }
+        }
+      }
+
+      toast.success(`Plano substituído! ${added} contas patrimoniais aplicadas.`);
+      queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+      setShowModelo(false);
+      setShowModeloPopup(false);
+    } catch (err: any) {
+      toast.error("Erro ao substituir: " + (err.message || "Tente novamente."));
+    } finally {
+      setReplacingAll(false);
+    }
   };
 
   const setNew = (k: string, v: any) => setNewConta(f => ({ ...f, [k]: v }));
@@ -472,12 +538,8 @@ export default function PlanoContas() {
           ))}
           <button onClick={expandAll} className="text-[10px] font-bold text-[#1a2e4a] px-2 py-1.5 hover:underline">Expandir</button>
           <button onClick={collapseAll} className="text-[10px] font-bold text-[#555] px-2 py-1.5 hover:underline">Recolher</button>
-          <button onClick={() => setShowModelo(!showModelo)}
-            className={`flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-md transition-all ${
-              showModelo
-                ? "bg-[#b8960a] text-white"
-                : "bg-white text-[#b8960a] border border-[#b8960a] hover:bg-[#fffbe6]"
-            }`}>
+          <button onClick={() => setShowModeloPopup(true)}
+            className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-md transition-all bg-white text-[#b8960a] border border-[#b8960a] hover:bg-[#fffbe6]">
             <BookOpen size={14} /> Modelo Padrão
           </button>
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); }}
@@ -697,6 +759,69 @@ export default function PlanoContas() {
           </div>
         )}
       </div>
+
+      {/* ─── Popup: Escolher modo de aplicação ─── */}
+      {showModeloPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !replacingAll && setShowModeloPopup(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-[#1a2e4a] px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen size={18} className="text-white" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Modelo Padrão Patrimonial</h2>
+              </div>
+              <button onClick={() => !replacingAll && setShowModeloPopup(false)} className="text-white/70 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-[#555]">
+                Como deseja aplicar o modelo padrão de contas patrimoniais?
+              </p>
+
+              {/* Option 1: Replace all */}
+              <button
+                onClick={replaceAllWithModelo}
+                disabled={replacingAll}
+                className="w-full text-left border border-[#8b0000] rounded-lg p-4 hover:bg-[#fdecea] transition-colors group disabled:opacity-60"
+              >
+                <div className="flex items-center gap-3 mb-1.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#8b0000] flex items-center justify-center shrink-0">
+                    <Download size={16} className="text-white" />
+                  </div>
+                  <span className="text-sm font-bold text-[#8b0000]">
+                    {replacingAll ? "Substituindo..." : "Substituir plano inteiro"}
+                  </span>
+                </div>
+                <p className="text-xs text-[#555] ml-11">
+                  Remove todas as contas atuais e aplica o modelo padrão completo.
+                  <span className="font-bold text-[#8b0000]"> Atenção: as contas existentes serão desativadas.</span>
+                </p>
+              </button>
+
+              {/* Option 2: Add only missing */}
+              <button
+                onClick={() => { setShowModeloPopup(false); setShowModelo(true); }}
+                disabled={replacingAll}
+                className="w-full text-left border border-[#1a2e4a] rounded-lg p-4 hover:bg-[#f0f4f8] transition-colors group disabled:opacity-60"
+              >
+                <div className="flex items-center gap-3 mb-1.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#1a2e4a] flex items-center justify-center shrink-0">
+                    <Plus size={16} className="text-white" />
+                  </div>
+                  <span className="text-sm font-bold text-[#1a2e4a]">Escolher categorias para adicionar</span>
+                </div>
+                <p className="text-xs text-[#555] ml-11">
+                  Abre o painel de referência para você selecionar quais contas ou grupos adicionar.
+                  <span className="font-bold text-[#0a5c2e]"> Contas existentes não serão alteradas.</span>
+                </p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
