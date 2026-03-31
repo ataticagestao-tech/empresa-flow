@@ -32,6 +32,9 @@ import {
   CheckSquare,
   Calendar,
   Receipt,
+  Briefcase,
+  Palmtree,
+  UserPlus,
   LucideIcon
 } from "lucide-react";
 
@@ -97,6 +100,18 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Apuracao de Impostos', icon: Calculator, url: '/apuracao-impostos', isHardcoded: true },
       { titleKey: 'Calendario Fiscal', icon: Calendar, url: '/calendario-fiscal', isHardcoded: true },
       { titleKey: 'Importacao XML', icon: Upload, url: '/importacao-xml', isHardcoded: true },
+    ]
+  },
+  {
+    id: 'rh',
+    labelKey: 'RH & Folha',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Folha de Pagamento', icon: Briefcase, url: '/folha-pagamento', isHardcoded: true },
+      { titleKey: 'Ponto Eletronico', icon: Clock, url: '/ponto-eletronico', isHardcoded: true },
+      { titleKey: 'Ferias e Afastamentos', icon: Palmtree, url: '/ferias-afastamentos', isHardcoded: true },
+      { titleKey: 'Encargos', icon: Calculator, url: '/encargos', isHardcoded: true },
+      { titleKey: 'Admissoes e Demissoes', icon: UserPlus, url: '/admissoes-demissoes', isHardcoded: true },
     ]
   },
   {

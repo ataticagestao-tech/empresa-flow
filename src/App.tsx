@@ -60,6 +60,11 @@ import NotasFiscais from "./pages/NotasFiscais";
 import ApuracaoImpostos from "./pages/ApuracaoImpostos";
 import CalendarioFiscal from "./pages/CalendarioFiscal";
 import ImportacaoXML from "./pages/ImportacaoXML";
+import FolhaPagamento from "./pages/FolhaPagamento";
+import PontoEletronico from "./pages/PontoEletronico";
+import FeriasAfastamentos from "./pages/FeriasAfastamentos";
+import EncargosRH from "./pages/EncargosRH";
+import AdmissoesDemissoes from "./pages/AdmissoesDemissoes";
 
 const queryClient = new QueryClient();
 
@@ -198,6 +203,11 @@ const App = () => (
                     <Route path="/apuracao-impostos" element={<ApuracaoImpostos />} />
                     <Route path="/calendario-fiscal" element={<CalendarioFiscal />} />
                     <Route path="/importacao-xml" element={<ImportacaoXML />} />
+                    <Route path="/folha-pagamento" element={<FolhaPagamento />} />
+                    <Route path="/ponto-eletronico" element={<PontoEletronico />} />
+                    <Route path="/ferias-afastamentos" element={<FeriasAfastamentos />} />
+                    <Route path="/encargos" element={<EncargosRH />} />
+                    <Route path="/admissoes-demissoes" element={<AdmissoesDemissoes />} />
                     <Route path="/operacional" element={<ProdutosDepartamentos />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
