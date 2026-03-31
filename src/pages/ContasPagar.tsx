@@ -254,7 +254,7 @@ export default function ContasPagar() {
     setClients(cliRes.data || [])
     setSelectedIds(new Set())
     setLoading(false)
-  }, [selectedCompany])
+  }, [selectedCompany, activeClient])
 
   useEffect(() => {
     loadData()
