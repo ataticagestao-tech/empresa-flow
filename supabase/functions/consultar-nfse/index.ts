@@ -17,20 +17,18 @@ serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    const { emissao_id, justificativa } = await req.json();
-    if (!emissao_id || !justificativa) throw new Error("emissao_id e justificativa obrigatorios");
-    if (justificativa.length < 15) throw new Error("Justificativa deve ter pelo menos 15 caracteres");
+    const { emissao_id } = await req.json();
+    if (!emissao_id) throw new Error("emissao_id obrigatorio");
 
     // Buscar emissao
     const { data: emissao } = await supabase
       .from("nfse_emissoes")
-      .select("*")
+      .select("*, nfse_configuracoes!configuracao_id(*)")
       .eq("id", emissao_id)
       .single();
     if (!emissao) throw new Error("Emissao nao encontrada");
-    if (emissao.status !== "autorizada") throw new Error("Apenas NFSe autorizadas podem ser canceladas");
 
-    // Buscar config
+    // Buscar config para token
     const { data: config } = await supabase
       .from("nfse_configuracoes")
       .select("*")
@@ -46,15 +44,11 @@ serve(async (req: Request) => {
       ? "https://api.focusnfe.com.br/v2"
       : "https://homologacao.focusnfe.com.br/v2";
 
-    // Cancelar no Focus NF-e
+    // Consultar Focus NF-e
     const ref = emissao.referencia;
     const resp = await fetch(`${baseUrl}/nfse/${ref}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${btoa(token + ":")}`,
-      },
-      body: JSON.stringify({ justificativa }),
+      headers: { Authorization: `Basic ${btoa(token + ":")}` },
+      signal: AbortSignal.timeout(15000),
     });
 
     const data = await resp.json();
@@ -63,29 +57,54 @@ serve(async (req: Request) => {
     await supabase.from("nfse_eventos").insert({
       company_id: emissao.company_id,
       emissao_id,
-      tipo: "cancelamento",
-      request_payload: { justificativa },
+      tipo: "consulta",
       response_payload: data,
       http_status: resp.status,
-      mensagem: data.status || data.mensagem || null,
+      mensagem: data.status || null,
     });
 
-    // Atualizar emissao
-    await supabase.from("nfse_emissoes").update({
-      status: "cancelada",
-      cancelada_em: new Date().toISOString(),
-      justificativa_cancelamento: justificativa,
-      url_xml_cancelamento: data.caminho_xml_cancelamento || null,
-    }).eq("id", emissao_id);
+    // Atualizar emissao conforme status
+    if (data.status === "autorizado") {
+      await supabase.from("nfse_emissoes").update({
+        status: "autorizada",
+        numero_nfse: data.numero || null,
+        codigo_verificacao: data.codigo_verificacao || null,
+        url_xml: data.caminho_xml_nota_fiscal || data.url_xml || null,
+        url_pdf: data.url || null,
+        mensagem_retorno: "Autorizada",
+      }).eq("id", emissao_id);
 
+      return new Response(JSON.stringify({
+        status: "autorizada",
+        numero: data.numero,
+        codigo_verificacao: data.codigo_verificacao,
+        url_pdf: data.url,
+        url_xml: data.caminho_xml_nota_fiscal || data.url_xml,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (data.status === "erro_autorizacao") {
+      await supabase.from("nfse_emissoes").update({
+        status: "erro_autorizacao",
+        mensagem_retorno: data.erros?.[0]?.mensagem || data.mensagem || "Erro na autorizacao",
+        erros_validacao: data.erros || null,
+      }).eq("id", emissao_id);
+
+      return new Response(JSON.stringify({
+        status: "erro_autorizacao",
+        erro: data.erros?.[0]?.mensagem || data.mensagem,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Ainda processando
     return new Response(JSON.stringify({
-      sucesso: true,
-      status: "cancelada",
+      status: data.status || "processando",
+      mensagem: "Aguardando autorizacao da prefeitura",
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {
-    console.error("[cancelar-nfse]", error);
-    return new Response(JSON.stringify({ sucesso: false, erro: error.message }), {
+    console.error("[consultar-nfse]", error);
+    return new Response(JSON.stringify({ status: "erro", erro: error.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
