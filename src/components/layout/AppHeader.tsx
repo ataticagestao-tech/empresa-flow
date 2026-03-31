@@ -20,8 +20,8 @@ export function AppHeader({ title }: AppHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-[#2a2a2a] bg-[#121212] px-5 shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
-      <SidebarTrigger className="text-white/60 hover:text-white transition-colors" />
+    <header className="sticky top-0 z-10 flex h-12 sm:h-14 items-center gap-2 sm:gap-3 border-b border-[#2a2a2a] bg-[#121212] px-3 sm:px-5 shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+      <SidebarTrigger className="text-white/60 hover:text-white transition-colors flex-shrink-0" />
 
       {location.pathname !== "/" && (
         <Button
@@ -29,17 +29,17 @@ export function AppHeader({ title }: AppHeaderProps) {
           size="icon"
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="h-8 w-8 text-white/60 hover:text-white"
+          className="h-7 w-7 sm:h-8 sm:w-8 text-white/60 hover:text-white flex-shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
       )}
 
       {title && (
-        <h1 className="text-[13px] font-semibold text-white">{title}</h1>
+        <h1 className="text-[11px] sm:text-[13px] font-semibold text-white truncate min-w-0">{title}</h1>
       )}
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
         <CompanySelector />
 
         <div className="relative flex items-center">
