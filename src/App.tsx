@@ -56,6 +56,10 @@ import Documentos from "./pages/Documentos";
 import MultiEmpresa from "./pages/MultiEmpresa";
 import ContratosRecorrentes from "./pages/ContratosRecorrentes";
 import EmpresaResumo from "./pages/EmpresaResumo";
+import NotasFiscais from "./pages/NotasFiscais";
+import ApuracaoImpostos from "./pages/ApuracaoImpostos";
+import CalendarioFiscal from "./pages/CalendarioFiscal";
+import ImportacaoXML from "./pages/ImportacaoXML";
 
 const queryClient = new QueryClient();
 
@@ -190,6 +194,10 @@ const App = () => (
                     <Route path="/documentos/*" element={<Documentos />} />
                     <Route path="/multiempresa" element={<MultiEmpresa />} />
                     <Route path="/multiempresa/*" element={<MultiEmpresa />} />
+                    <Route path="/notas-fiscais" element={<NotasFiscais />} />
+                    <Route path="/apuracao-impostos" element={<ApuracaoImpostos />} />
+                    <Route path="/calendario-fiscal" element={<CalendarioFiscal />} />
+                    <Route path="/importacao-xml" element={<ImportacaoXML />} />
                     <Route path="/operacional" element={<ProdutosDepartamentos />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />

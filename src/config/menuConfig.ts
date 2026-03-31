@@ -30,6 +30,8 @@ import {
   Clock,
   GitMerge,
   CheckSquare,
+  Calendar,
+  Receipt,
   LucideIcon
 } from "lucide-react";
 
@@ -84,6 +86,17 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
       { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
       { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
+    ]
+  },
+  {
+    id: 'fiscal',
+    labelKey: 'Fiscal',
+    isHardcodedLabel: true,
+    items: [
+      { titleKey: 'Notas Fiscais', icon: Receipt, url: '/notas-fiscais', isHardcoded: true },
+      { titleKey: 'Apuracao de Impostos', icon: Calculator, url: '/apuracao-impostos', isHardcoded: true },
+      { titleKey: 'Calendario Fiscal', icon: Calendar, url: '/calendario-fiscal', isHardcoded: true },
+      { titleKey: 'Importacao XML', icon: Upload, url: '/importacao-xml', isHardcoded: true },
     ]
   },
   {
