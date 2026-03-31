@@ -5,7 +5,7 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useNavigate, Navigate, useLocation } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const STEPS = ["CNPJ", "Dados Gerais", "Regime Tributário", "Responsável", "Confirmar"];
@@ -30,7 +30,6 @@ export default function Empresas() {
   const { user, activeClient } = useAuth();
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
-  const location = useLocation();
   const { companies, isLoading, error: companiesError, deleteCompany, refetch } = useCompanies(user?.id);
 
   const [mode, setMode] = useState<"list" | "create">("list");
@@ -45,26 +44,12 @@ export default function Empresas() {
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  // Abre modo edição quando vem do resumo com state.editId
-  useEffect(() => {
-    const editId = (location.state as any)?.editId;
-    if (editId && companies?.length) {
-      const company = companies.find(c => c.id === editId);
-      if (company) {
-        handleEdit(company);
-        // Limpa o state para não re-disparar
-        navigate(location.pathname, { replace: true, state: {} });
-      }
-    }
-  }, [location.state, companies]);
-
   // Redireciona direto para resumo se tem empresa selecionada e não está criando/editando
   useEffect(() => {
-    const editId = (location.state as any)?.editId;
-    if (selectedCompany?.id && mode === "list" && !editingId && !editId) {
+    if (selectedCompany?.id && mode === "list" && !editingId) {
       navigate(`/empresas/${selectedCompany.id}`, { replace: true });
     }
-  }, [selectedCompany?.id, mode, editingId, navigate, location.state]);
+  }, [selectedCompany?.id, mode, editingId, navigate]);
 
   useEffect(() => {
     if (!companies || companies.length === 0) return;

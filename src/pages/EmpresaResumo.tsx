@@ -3,8 +3,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera } from "lucide-react";
-import { useRef, useState } from "react";
+import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera, Check, X } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { toast } from "sonner";
 
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
 
@@ -15,6 +16,13 @@ const regimeLabels: Record<string, string> = {
   mei: "MEI",
 };
 
+const regimeOptions = [
+  { id: "simples_nacional", label: "Simples Nacional" },
+  { id: "lucro_presumido", label: "Lucro Presumido" },
+  { id: "lucro_real", label: "Lucro Real" },
+  { id: "mei", label: "MEI" },
+];
+
 export default function EmpresaResumo() {
   const { id } = useParams<{ id: string }>();
   const { activeClient } = useAuth();
@@ -23,19 +31,22 @@ export default function EmpresaResumo() {
   const db = activeClient as any;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !id) return;
 
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert("Arquivo muito grande. Máximo 2MB.");
+      toast.error("Arquivo muito grande. Máximo 2MB.");
       return;
     }
 
     if (!file.type.startsWith("image/")) {
-      alert("Selecione um arquivo de imagem.");
+      toast.error("Selecione um arquivo de imagem.");
       return;
     }
 
@@ -44,7 +55,6 @@ export default function EmpresaResumo() {
       const ext = file.name.split(".").pop();
       const path = `${id}/logo.${ext}`;
 
-      // Remove old logo if exists
       await db.storage.from("company-logos").remove([path]);
 
       const { error: uploadError } = await db.storage
@@ -67,9 +77,10 @@ export default function EmpresaResumo() {
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ["empresa_resumo", id] });
+      toast.success("Logo atualizado!");
     } catch (err: any) {
       console.error("Upload error:", err);
-      alert("Erro ao enviar logo: " + (err.message || "Tente novamente."));
+      toast.error("Erro ao enviar logo: " + (err.message || "Tente novamente."));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -119,6 +130,74 @@ export default function EmpresaResumo() {
     enabled: !!id,
   });
 
+  // Populate form when entering edit mode
+  useEffect(() => {
+    if (editing && company) {
+      setForm({
+        razao_social: company.razao_social || "",
+        nome_fantasia: company.nome_fantasia || "",
+        cnpj: company.cnpj || "",
+        data_abertura: company.data_abertura || "",
+        inscricao_municipal: company.inscricao_municipal || "",
+        inscricao_estadual: company.inscricao_estadual || "",
+        endereco_logradouro: company.endereco_logradouro || "",
+        endereco_numero: company.endereco_numero || "",
+        endereco_bairro: company.endereco_bairro || "",
+        endereco_cidade: company.endereco_cidade || "",
+        endereco_estado: company.endereco_estado || "",
+        endereco_cep: company.endereco_cep || "",
+        email: company.email || "",
+        telefone: company.telefone || "",
+        regime_tributario: company.regime_tributario || "",
+        responsavel_nome: company.responsavel_nome || "",
+        responsavel_cpf: company.responsavel_cpf || "",
+        responsavel_email: company.responsavel_email || "",
+        responsavel_telefone: company.responsavel_telefone || "",
+      });
+    }
+  }, [editing, company]);
+
+  const handleSave = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const payload = {
+        razao_social: form.razao_social || null,
+        nome_fantasia: form.nome_fantasia || null,
+        cnpj: form.cnpj?.replace(/\D/g, "") || null,
+        data_abertura: form.data_abertura || null,
+        inscricao_municipal: form.inscricao_municipal || null,
+        inscricao_estadual: form.inscricao_estadual || null,
+        endereco_logradouro: form.endereco_logradouro || null,
+        endereco_numero: form.endereco_numero || null,
+        endereco_bairro: form.endereco_bairro || null,
+        endereco_cidade: form.endereco_cidade || null,
+        endereco_estado: form.endereco_estado || null,
+        endereco_cep: form.endereco_cep || null,
+        email: form.email || null,
+        telefone: form.telefone || null,
+        regime_tributario: form.regime_tributario || null,
+        responsavel_nome: form.responsavel_nome || null,
+        responsavel_cpf: form.responsavel_cpf || null,
+        responsavel_email: form.responsavel_email || null,
+        responsavel_telefone: form.responsavel_telefone || null,
+      };
+
+      const { error } = await db.from("companies").update(payload).eq("id", id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["empresa_resumo", id] });
+      setEditing(false);
+      toast.success("Empresa atualizada!");
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err.message || "Tente novamente."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
+
   if (isLoading) {
     return (
       <AppLayout title="Empresa">
@@ -156,10 +235,23 @@ export default function EmpresaResumo() {
               className="flex items-center gap-1.5 bg-[#1a2e4a] text-white text-xs font-bold px-4 py-2 rounded-md hover:bg-[#253d5e] transition-colors">
               <BarChart3 size={14} /> Dashboard Financeiro
             </button>
-            <button onClick={() => navigate("/empresas", { state: { editId: id } })}
-              className="flex items-center gap-1.5 bg-white text-[#1a2e4a] border border-[#1a2e4a] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f0f4f8] transition-colors">
-              <Pencil size={14} /> Editar
-            </button>
+            {editing ? (
+              <>
+                <button onClick={() => setEditing(false)} disabled={saving}
+                  className="flex items-center gap-1.5 bg-white text-[#555] border border-[#ccc] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f5f5f5] transition-colors">
+                  <X size={14} /> Cancelar
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  className="flex items-center gap-1.5 bg-[#0a5c2e] text-white text-xs font-bold px-4 py-2 rounded-md hover:bg-[#08491f] transition-colors">
+                  <Check size={14} /> {saving ? "Salvando..." : "Salvar"}
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setEditing(true)}
+                className="flex items-center gap-1.5 bg-white text-[#1a2e4a] border border-[#1a2e4a] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f0f4f8] transition-colors">
+                <Pencil size={14} /> Editar
+              </button>
+            )}
           </div>
         </div>
 
@@ -235,12 +327,25 @@ export default function EmpresaResumo() {
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">Dados Cadastrais</h3>
             </div>
             <div className="p-5 bg-white space-y-3">
-              <Row label="Razão Social" value={company.razao_social} />
-              <Row label="Nome Fantasia" value={company.nome_fantasia} />
-              <Row label="CNPJ" value={company.cnpj ? maskCNPJ(company.cnpj) : null} />
-              <Row label="Data de Abertura" value={company.data_abertura ? new Date(company.data_abertura + "T12:00:00").toLocaleDateString("pt-BR") : null} />
-              <Row label="Inscrição Municipal" value={company.inscricao_municipal} />
-              <Row label="Inscrição Estadual" value={company.inscricao_estadual} />
+              {editing ? (
+                <>
+                  <EditRow label="Razão Social" value={form.razao_social} onChange={v => set("razao_social", v)} />
+                  <EditRow label="Nome Fantasia" value={form.nome_fantasia} onChange={v => set("nome_fantasia", v)} />
+                  <EditRow label="CNPJ" value={form.cnpj} onChange={v => set("cnpj", maskCNPJ(v))} />
+                  <EditRow label="Data de Abertura" value={form.data_abertura} onChange={v => set("data_abertura", v)} type="date" />
+                  <EditRow label="Inscrição Municipal" value={form.inscricao_municipal} onChange={v => set("inscricao_municipal", v)} />
+                  <EditRow label="Inscrição Estadual" value={form.inscricao_estadual} onChange={v => set("inscricao_estadual", v)} />
+                </>
+              ) : (
+                <>
+                  <Row label="Razão Social" value={company.razao_social} />
+                  <Row label="Nome Fantasia" value={company.nome_fantasia} />
+                  <Row label="CNPJ" value={company.cnpj ? maskCNPJ(company.cnpj) : null} />
+                  <Row label="Data de Abertura" value={company.data_abertura ? new Date(company.data_abertura + "T12:00:00").toLocaleDateString("pt-BR") : null} />
+                  <Row label="Inscrição Municipal" value={company.inscricao_municipal} />
+                  <Row label="Inscrição Estadual" value={company.inscricao_estadual} />
+                </>
+              )}
             </div>
           </div>
 
@@ -251,11 +356,30 @@ export default function EmpresaResumo() {
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">Endereço</h3>
             </div>
             <div className="p-5 bg-white space-y-3">
-              <Row label="Logradouro" value={enderecoFull || null} />
-              <Row label="Cidade / UF" value={cidadeUf || null} />
-              <Row label="CEP" value={company.endereco_cep} />
-              <Row label="Email" value={company.email} />
-              <Row label="Telefone" value={company.telefone} />
+              {editing ? (
+                <>
+                  <EditRow label="Logradouro" value={form.endereco_logradouro} onChange={v => set("endereco_logradouro", v)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <EditRow label="Número" value={form.endereco_numero} onChange={v => set("endereco_numero", v)} />
+                    <EditRow label="Bairro" value={form.endereco_bairro} onChange={v => set("endereco_bairro", v)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <EditRow label="Cidade" value={form.endereco_cidade} onChange={v => set("endereco_cidade", v)} />
+                    <EditRow label="UF" value={form.endereco_estado} onChange={v => set("endereco_estado", v)} />
+                  </div>
+                  <EditRow label="CEP" value={form.endereco_cep} onChange={v => set("endereco_cep", v)} />
+                  <EditRow label="Email" value={form.email} onChange={v => set("email", v)} type="email" />
+                  <EditRow label="Telefone" value={form.telefone} onChange={v => set("telefone", v)} />
+                </>
+              ) : (
+                <>
+                  <Row label="Logradouro" value={enderecoFull || null} />
+                  <Row label="Cidade / UF" value={cidadeUf || null} />
+                  <Row label="CEP" value={company.endereco_cep} />
+                  <Row label="Email" value={company.email} />
+                  <Row label="Telefone" value={company.telefone} />
+                </>
+              )}
             </div>
           </div>
 
@@ -266,7 +390,22 @@ export default function EmpresaResumo() {
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">Regime Tributário</h3>
             </div>
             <div className="p-5 bg-white">
-              {company.regime_tributario ? (
+              {editing ? (
+                <div className="flex flex-wrap gap-2">
+                  {regimeOptions.map(r => (
+                    <button key={r.id} type="button"
+                      onClick={() => set("regime_tributario", r.id)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-md border transition-colors ${
+                        form.regime_tributario === r.id
+                          ? "border-[#1a2e4a] bg-[#1a2e4a] text-white"
+                          : "border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a] hover:text-[#1a2e4a]"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              ) : company.regime_tributario ? (
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-bold text-[#1a2e4a] px-3 py-1.5 rounded-md border border-[#1a2e4a] bg-[#f0f4f8]">
                     {regimeLabels[company.regime_tributario] || company.regime_tributario}
@@ -286,10 +425,21 @@ export default function EmpresaResumo() {
             </div>
             <div className="p-5 bg-white space-y-4">
               <div className="space-y-3">
-                <Row label="Nome" value={company.responsavel_nome} />
-                <Row label="CPF" value={company.responsavel_cpf} />
-                <Row label="Email" value={company.responsavel_email} />
-                <Row label="Telefone" value={company.responsavel_telefone} />
+                {editing ? (
+                  <>
+                    <EditRow label="Nome" value={form.responsavel_nome} onChange={v => set("responsavel_nome", v)} />
+                    <EditRow label="CPF" value={form.responsavel_cpf} onChange={v => set("responsavel_cpf", v)} />
+                    <EditRow label="Email" value={form.responsavel_email} onChange={v => set("responsavel_email", v)} type="email" />
+                    <EditRow label="Telefone" value={form.responsavel_telefone} onChange={v => set("responsavel_telefone", v)} />
+                  </>
+                ) : (
+                  <>
+                    <Row label="Nome" value={company.responsavel_nome} />
+                    <Row label="CPF" value={company.responsavel_cpf} />
+                    <Row label="Email" value={company.responsavel_email} />
+                    <Row label="Telefone" value={company.responsavel_telefone} />
+                  </>
+                )}
               </div>
 
               {/* Quadro Societário */}
@@ -336,6 +486,25 @@ function Row({ label, value }: { label: string; value: string | null | undefined
     <div className="flex justify-between items-center py-1.5 border-b border-[#f0f0f0] last:border-0">
       <span className="text-[10px] font-bold uppercase tracking-wider text-[#555]">{label}</span>
       <span className="text-sm text-[#0a0a0a]">{value || "—"}</span>
+    </div>
+  );
+}
+
+function EditRow({ label, value, onChange, type = "text" }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full h-9 px-3 text-sm border border-[#ccc] rounded-md bg-white focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20 outline-none transition-colors"
+      />
     </div>
   );
 }
