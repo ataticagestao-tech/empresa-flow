@@ -226,7 +226,7 @@ export default function NotasFiscais() {
       const valorServicos = formTotais.valorServicos
       const impostos = calcularImpostosNFSe(empresa.regime_tributario, valorServicos)
 
-      // INSERT nota fiscal
+      // 1. INSERT nota fiscal (rascunho)
       const { data: nf, error } = await db.from('notas_fiscais').insert({
         empresa_id: selectedCompany.id,
         tipo: 'nfse',
@@ -250,7 +250,7 @@ export default function NotasFiscais() {
 
       if (error) throw error
 
-      // INSERT itens
+      // 2. INSERT itens
       if (nf) {
         const itensData = emitirForm.itens.filter(i => i.descricao.trim()).map(i => ({
           nota_fiscal_id: nf.id,
@@ -267,7 +267,39 @@ export default function NotasFiscais() {
         }
       }
 
-      toast.success('NFS-e criada com sucesso')
+      // 3. Enviar para Focus NF-e via Edge Function
+      if (nf) {
+        toast.info('Enviando para a prefeitura via Focus NF-e...')
+
+        const { data: focusResult, error: focusError } = await db.functions.invoke('emitir-nfse', {
+          body: {
+            nota_fiscal_id: nf.id,
+            empresa_id: selectedCompany.id,
+            cnpj: empresa.cnpj || '',
+            inscricao_municipal: empresa.inscricao_municipal || '',
+            codigo_municipio: empresa.cidade || '',
+            razao_social: '',
+            tomador_nome: emitirForm.tomador_nome,
+            tomador_cpf_cnpj: unmask(emitirForm.tomador_cpf_cnpj),
+            tomador_email: emitirForm.tomador_email || undefined,
+            itens: emitirForm.itens.filter(i => i.descricao.trim()),
+            valor_servicos: valorServicos,
+            valor_iss: impostos.valor_iss,
+            aliquota_iss: impostos.aliquota_iss,
+            enviar_email_tomador: emitirForm.enviar_email,
+          },
+        })
+
+        if (focusError) {
+          console.error('Focus NF-e error:', focusError)
+          toast.error('NF salva como rascunho. Erro ao enviar para Focus: ' + focusError.message)
+        } else if (focusResult?.sucesso) {
+          toast.success(`NFS-e ${focusResult.status === 'autorizada' ? 'autorizada' : 'enviada'}!${focusResult.numero ? ` Numero: ${focusResult.numero}` : ''}`)
+        } else {
+          toast.error('NF salva. Focus retornou: ' + (focusResult?.erro || 'Erro desconhecido'))
+        }
+      }
+
       setShowEmitirModal(false)
       resetEmitirForm()
       loadData()
@@ -291,16 +323,25 @@ export default function NotasFiscais() {
     const db = activeClient as any
 
     try {
-      const { error } = await db.from('notas_fiscais')
-        .update({
-          status: 'cancelada',
-          motivo_cancelamento: motivoCancelamento,
-        })
-        .eq('id', cancelandoNf.id)
+      // Cancelar via Edge Function (Focus NF-e)
+      const { data: cancelResult, error: cancelError } = await db.functions.invoke('cancelar-nfse', {
+        body: {
+          nota_fiscal_id: cancelandoNf.id,
+          motivo: motivoCancelamento,
+        },
+      })
 
-      if (error) throw error
-
-      toast.success('NF cancelada com sucesso')
+      if (cancelError) {
+        // Fallback: cancelar localmente se Edge Function falhar
+        await db.from('notas_fiscais')
+          .update({ status: 'cancelada', motivo_cancelamento: motivoCancelamento })
+          .eq('id', cancelandoNf.id)
+        toast.success('NF cancelada localmente (Focus NF-e indisponivel)')
+      } else if (cancelResult?.sucesso) {
+        toast.success('NF cancelada com sucesso')
+      } else {
+        throw new Error(cancelResult?.erro || 'Erro ao cancelar')
+      }
       setShowCancelarModal(false)
       setCancelendoNf(null)
       setMotivoCancelamento('')
