@@ -47,6 +47,8 @@ interface BankTransaction {
   tipo: 'credito' | 'debito'
   status_conciliacao: string
   reconciled_at?: string | null
+  category_id?: string | null
+  sugestao_conta_id?: string | null
 }
 
 interface MatchRecord {
@@ -163,6 +165,8 @@ const mapDbToTx = (r: any): BankTransaction => ({
   tipo: Number(r.amount || 0) >= 0 ? 'credito' : 'debito',
   status_conciliacao: r.status || 'pendente',
   reconciled_at: r.reconciled_at || null,
+  category_id: r.category_id || null,
+  sugestao_conta_id: r.sugestao_conta_id || null,
 })
 
 const normalizeText = (text: string): string =>
@@ -2196,12 +2200,42 @@ function ConciliacaoInner() {
                             ) : (
                               <table className="w-full text-sm">
                                 <thead><tr className="bg-[#F5F5F4] text-[11px] font-medium text-black uppercase tracking-wider border-b border-[#E8E6E1]">
-                                  <th className="px-3 py-2 text-left">Data</th><th className="px-3 py-2 text-left">Descricao</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-center">Status</th>
+                                  <th className="px-3 py-2 text-left">Data</th><th className="px-3 py-2 text-left">Descricao</th><th className="px-3 py-2 text-left">Categoria</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-center">Status</th>
                                 </tr></thead>
-                                <tbody>{batchTransacoes.map((tx) => (
+                                <tbody>{batchTransacoes.map((tx) => {
+                                  const catId = tx.category_id || tx.sugestao_conta_id
+                                  const catObj = catId ? planoContas.find(c => c.id === catId) : null
+                                  return (
                                   <tr key={tx.id} className="border-b border-[#E8E6E1] hover:bg-white">
                                     <td className="px-3 py-2.5 text-[11px] text-black whitespace-nowrap">{formatData(tx.data)}</td>
                                     <td className="px-3 py-2.5 text-black truncate max-w-[300px]">{tx.descricao}</td>
+                                    <td className="px-3 py-2.5">
+                                      <select
+                                        value={catId || ''}
+                                        onChange={async (e) => {
+                                          const newCatId = e.target.value
+                                          if (!newCatId) return
+                                          const { error } = await activeClient
+                                            .from('bank_transactions')
+                                            .update({ sugestao_conta_id: newCatId, metodo_match: 'manual', confianca_match: 100 })
+                                            .eq('id', tx.id)
+                                          if (error) {
+                                            console.error('[Categoria batch] erro:', error)
+                                            alert('Erro ao atualizar categoria: ' + error.message)
+                                            return
+                                          }
+                                          setBatchTransacoes(prev => prev.map(t =>
+                                            t.id === tx.id ? { ...t, sugestao_conta_id: newCatId } : t
+                                          ))
+                                        }}
+                                        className="w-full text-[11px] bg-transparent border border-[#E8E6E1] rounded px-1.5 py-1 text-black focus:outline-none focus:border-[#1C3D6B] cursor-pointer hover:border-[#1C3D6B]/50 transition max-w-[220px]"
+                                      >
+                                        <option value="">{catObj ? '' : '— Sem categoria —'}</option>
+                                        {planoContas.map(c => (
+                                          <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+                                        ))}
+                                      </select>
+                                    </td>
                                     <td className="px-3 py-2.5 text-right whitespace-nowrap">
                                       <span className={`font-semibold ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}</span>
                                     </td>
@@ -2211,7 +2245,8 @@ function ConciliacaoInner() {
                                       </span>
                                     </td>
                                   </tr>
-                                ))}</tbody>
+                                  )
+                                })}</tbody>
                               </table>
                             )}
                           </div>
