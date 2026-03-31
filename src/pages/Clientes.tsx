@@ -2,13 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import {
-    Plus, Search, Pencil, Trash2, MoreHorizontal, Bell, Eye,
+    Plus, Search, Pencil, Trash2, Bell, ShoppingCart,
+    Receipt, DollarSign, Stethoscope, FileText, StickyNote,
+    CreditCard, Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,87 +14,19 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { logDeletion } from "@/lib/audit";
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-    DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { formatBRL, toTitleCase, getIniciais, formatDoc, formatData } from "@/lib/format";
+import { maskPhone } from "@/utils/masks";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     Dialog, DialogContent,
 } from "@/components/ui/dialog";
-import { formatBRL, toTitleCase, getIniciais, formatDoc, formatData } from "@/lib/format";
-import { maskPhone } from "@/utils/masks";
 
-/* ─── Componentes visuais inline ────────────────────────────── */
+/* ─── Tipos de filtro ──────────────────────────────────────── */
 
-const StatusClienteBadge = ({ status }: { status: string }) => {
-    const estilos: Record<string, string> = {
-        inadimplente: 'text-[#8b0000] border-[#8b0000] bg-[#fdecea]',
-        ativo:        'text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]',
-        em_dia:       'text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]',
-        inativo:      'text-[#555]    border-[#aaa]    bg-[#f5f5f5]',
-    };
-    const labels: Record<string, string> = {
-        inadimplente: 'Inadimplente',
-        ativo:        'Em aberto',
-        em_dia:       'Em dia',
-        inativo:      'Inativo',
-    };
-    return (
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${estilos[status] ?? estilos.inativo}`}>
-            {labels[status] ?? status}
-        </span>
-    );
-};
+type FilterTab = "todos" | "ativos" | "inadimplentes" | "inativos";
+type DetailTab = "historico" | "dados" | "anotacoes";
 
-const PontualidadeBadge = ({ pagosNoPrazo, totalPagos }: { pagosNoPrazo: number; totalPagos: number }) => {
-    if (totalPagos === 0) {
-        return <span className="text-[11px] text-[#555]">—</span>;
-    }
-    const pct = Math.round((pagosNoPrazo / totalPagos) * 100);
-    const estilo =
-        pct >= 80
-            ? 'text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]'
-            : pct >= 50
-            ? 'text-[#5c3a00] border-[#b8960a] bg-[#fffbe6]'
-            : 'text-[#8b0000] border-[#8b0000] bg-[#fdecea]';
-    return (
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border border-[1.5px] ${estilo}`}>
-            {pct}% no prazo
-        </span>
-    );
-};
-
-const KPICard = ({ label, valor, sub }: { label: string; valor: string | number; sub: string }) => (
-    <div className="border border-[#ccc] rounded-lg overflow-hidden">
-        <div className="bg-[#1a2e4a] px-3.5 py-2">
-            <span className="text-[10px] font-bold text-white uppercase tracking-widest">{label}</span>
-        </div>
-        <div className="px-3.5 py-3 bg-white">
-            <div className="text-xl font-bold text-[#0a0a0a] tracking-tight">{valor}</div>
-            <div className="text-[11px] text-[#555] mt-0.5">{sub}</div>
-        </div>
-    </div>
-);
-
-const crStatusBadge = (status: string) => {
-    const map: Record<string, string> = {
-        pago:      'text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]',
-        vencido:   'text-[#8b0000] border-[#8b0000] bg-[#fdecea]',
-        parcial:   'text-[#5c3a00] border-[#b8960a] bg-[#fffbe6]',
-        aberto:    'text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]',
-        cancelado: 'text-[#555] border-[#aaa] bg-[#f5f5f5]',
-    };
-    const labels: Record<string, string> = {
-        pago: 'Pago', vencido: 'Vencido', parcial: 'Parcial', aberto: 'Aberto', cancelado: 'Cancelado',
-    };
-    return (
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${map[status] ?? map.aberto}`}>
-            {labels[status] ?? status}
-        </span>
-    );
-};
-
-/* ─── Interfaces ────────────────────────────────────────────── */
+/* ─── Interfaces ───────────────────────────────────────────── */
 
 interface FinancialSummary {
     totalReceber: number;
@@ -117,9 +47,92 @@ interface DetailFinancial {
     totalPago: number;
     pagosNoPrazo: number;
     totalPagos: number;
+    ultimaCompra: string | null;
+    totalComprado: number;
+    totalCompras: number;
 }
 
-/* ─── Componente principal ──────────────────────────────────── */
+/* ─── Helpers de dias ──────────────────────────────────────── */
+
+const diasAtras = (data: string | null): string => {
+    if (!data) return "";
+    const diff = Math.floor((Date.now() - new Date(data).getTime()) / 86400000);
+    if (diff === 0) return "hoje";
+    if (diff === 1) return "há 1 dia";
+    return `há ${diff} dias`;
+};
+
+const diasAtraso = (data: string | null): string => {
+    if (!data) return "";
+    const diff = Math.floor((Date.now() - new Date(data).getTime()) / 86400000);
+    if (diff <= 0) return "";
+    if (diff === 1) return "1 dia em atraso";
+    return `${diff} dias em atraso`;
+};
+
+/* ─── Badge de status ──────────────────────────────────────── */
+
+const StatusBadge = ({ status }: { status: string }) => {
+    const estilos: Record<string, string> = {
+        inadimplente: "text-[#8b0000] border-[#8b0000] bg-[#fdecea]",
+        ativo:        "text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]",
+        inativo:      "text-[#666] border-[#aaa] bg-[#f5f5f5]",
+    };
+    const labels: Record<string, string> = {
+        inadimplente: "Inadimplente",
+        ativo:        "Ativo",
+        inativo:      "Inativo",
+    };
+    return (
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${estilos[status] ?? estilos.inativo}`}>
+            {labels[status] ?? status}
+        </span>
+    );
+};
+
+/* ─── Badge de CR status ───────────────────────────────────── */
+
+const CRStatusBadge = ({ status }: { status: string }) => {
+    const map: Record<string, string> = {
+        pago:          "text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]",
+        vencido:       "text-[#8b0000] border-[#8b0000] bg-[#fdecea]",
+        parcial:       "text-[#5c3a00] border-[#b8960a] bg-[#fffbe6]",
+        aberto:        "text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]",
+        em_andamento:  "text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]",
+        cancelado:     "text-[#555] border-[#aaa] bg-[#f5f5f5]",
+    };
+    const labels: Record<string, string> = {
+        pago: "Pago", vencido: "Vencido", parcial: "Parcial",
+        aberto: "Aberto", em_andamento: "Em andamento", cancelado: "Cancelado",
+    };
+    return (
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${map[status] ?? map.aberto}`}>
+            {labels[status] ?? status}
+        </span>
+    );
+};
+
+/* ─── Icone do historico ───────────────────────────────────── */
+
+const HistoryIcon = ({ status }: { status: string }) => {
+    if (status === "pago") return (
+        <div className="w-9 h-9 rounded-full bg-[#e6f4ec] flex items-center justify-center flex-shrink-0">
+            <DollarSign className="h-4 w-4 text-[#0a5c2e]" />
+        </div>
+    );
+    if (status === "vencido") return (
+        <div className="w-9 h-9 rounded-full bg-[#fdecea] flex items-center justify-center flex-shrink-0">
+            <Receipt className="h-4 w-4 text-[#8b0000]" />
+        </div>
+    );
+    return (
+        <div className="w-9 h-9 rounded-full bg-[#f0f4f8] flex items-center justify-center flex-shrink-0">
+            <ShoppingCart className="h-4 w-4 text-[#1a2e4a]" />
+        </div>
+    );
+};
+
+/* ─── Componente principal ─────────────────────────────────── */
 
 export default function Clientes() {
     const { selectedCompany } = useCompany();
@@ -127,9 +140,11 @@ export default function Clientes() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const [detailClient, setDetailClient] = useState<any>(null);
+    const [filterTab, setFilterTab] = useState<FilterTab>("todos");
+    const [selectedClient, setSelectedClient] = useState<any>(null);
     const [detailFinancial, setDetailFinancial] = useState<DetailFinancial | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [detailTab, setDetailTab] = useState<DetailTab>("historico");
     const { toast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -160,7 +175,7 @@ export default function Clientes() {
             if (!selectedCompany?.id) return [];
             const { data, error } = await activeClient
                 .from("contas_receber")
-                .select("id, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_vencimento, data_pagamento, status")
+                .select("id, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes, forma_recebimento")
                 .eq("company_id", selectedCompany.id);
             if (error) throw error;
             return data || [];
@@ -283,58 +298,41 @@ export default function Clientes() {
         };
     };
 
-    /* ─── Totais KPI ────────────────────────────────────────── */
-
-    const totals = useMemo(() => {
-        let totalReceberAberto = 0;
-        let totalVencido = 0;
-        let clientesInadimplentes = 0;
-
-        clients?.forEach((c: any) => {
-            const fin = getClientFinancial(c);
-            totalReceberAberto += fin.totalReceberAberto;
-            totalVencido += fin.totalReceberVencido;
-            if (fin.totalReceberVencido > 0) clientesInadimplentes++;
-        });
-
-        return { totalReceberAberto, totalVencido, clientesInadimplentes };
-    }, [clients, financialByClient]);
-
-    /* ─── Status derivado do cliente ────────────────────────── */
+    /* ─── Status derivado ──────────────────────────────────── */
 
     const getClientStatus = (client: any): string => {
+        if (client.status === "inativo") return "inativo";
         const fin = getClientFinancial(client);
-        if (fin.totalReceberVencido > 0) return 'inadimplente';
-        if (fin.totalReceberAberto > 0) return 'ativo';
-        return 'em_dia';
+        if (fin.totalReceberVencido > 0) return "inadimplente";
+        return "ativo";
     };
 
-    /* ─── Busca financeiro detalhado (modal) ────────────────── */
+    /* ─── Busca financeiro detalhado ───────────────────────── */
 
     const buscarFinanceiroCliente = async (cliente: any) => {
         if (!selectedCompany?.id) return;
         setDetailLoading(true);
 
-        const docLimpo = (cliente.cpf_cnpj ?? '').replace(/\D/g, '');
+        const docLimpo = (cliente.cpf_cnpj ?? "").replace(/\D/g, "");
         const docValido = docLimpo.length > 0 && !/^0+$/.test(docLimpo);
 
         let query = activeClient
-            .from('contas_receber')
-            .select('id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes')
-            .eq('company_id', selectedCompany.id)
-            .order('data_vencimento', { ascending: false });
+            .from("contas_receber")
+            .select("id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes")
+            .eq("company_id", selectedCompany.id)
+            .order("data_vencimento", { ascending: false });
 
         if (docValido) {
-            query = query.eq('pagador_cpf_cnpj', cliente.cpf_cnpj!);
+            query = query.eq("pagador_cpf_cnpj", cliente.cpf_cnpj!);
         } else {
-            query = query.ilike('pagador_nome', `%${cliente.razao_social.trim()}%`);
+            query = query.ilike("pagador_nome", `%${cliente.razao_social.trim()}%`);
         }
 
         const { data, error } = await query;
 
         if (error) {
-            console.error('[buscarFinanceiroCliente]', error.message);
-            setDetailFinancial({ crs: [], aReceber: 0, vencido: 0, totalPago: 0, pagosNoPrazo: 0, totalPagos: 0 });
+            console.error("[buscarFinanceiroCliente]", error.message);
+            setDetailFinancial({ crs: [], aReceber: 0, vencido: 0, totalPago: 0, pagosNoPrazo: 0, totalPagos: 0, ultimaCompra: null, totalComprado: 0, totalCompras: 0 });
             setDetailLoading(false);
             return;
         }
@@ -342,19 +340,19 @@ export default function Clientes() {
         const lista = data ?? [];
 
         const aReceber = lista
-            .filter(cr => !['pago', 'cancelado'].includes(cr.status))
+            .filter(cr => !["pago", "cancelado"].includes(cr.status))
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
 
         const vencido = lista
             .filter(cr =>
-                cr.status === 'vencido' ||
-                (!['pago', 'cancelado'].includes(cr.status) &&
+                cr.status === "vencido" ||
+                (!["pago", "cancelado"].includes(cr.status) &&
                     cr.data_vencimento != null &&
                     new Date(cr.data_vencimento) < new Date())
             )
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
 
-        const pagos = lista.filter(cr => cr.status === 'pago');
+        const pagos = lista.filter(cr => cr.status === "pago");
         const totalPago = pagos.reduce((acc, cr) => acc + Number(cr.valor_pago ?? 0), 0);
 
         const pagosNoPrazo = pagos.filter(cr =>
@@ -363,6 +361,13 @@ export default function Clientes() {
             new Date(cr.data_pagamento) <= new Date(cr.data_vencimento)
         ).length;
 
+        const totalComprado = lista.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0);
+
+        const sortedByDate = [...lista].sort((a, b) =>
+            (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "")
+        );
+        const ultimaCompra = sortedByDate[0]?.data_vencimento ?? null;
+
         setDetailFinancial({
             crs: lista,
             aReceber,
@@ -370,6 +375,9 @@ export default function Clientes() {
             totalPago,
             pagosNoPrazo,
             totalPagos: pagos.length,
+            ultimaCompra,
+            totalComprado,
+            totalCompras: lista.length,
         });
         setDetailLoading(false);
     };
@@ -388,9 +396,10 @@ export default function Clientes() {
     const handleEdit = (client: any) => { setEditingClient(client); setIsSheetOpen(true); };
     const handleNew = () => { setEditingClient(null); setIsSheetOpen(true); };
 
-    const handleOpenDetail = (client: any) => {
-        setDetailClient(client);
+    const handleSelectClient = (client: any) => {
+        setSelectedClient(client);
         setDetailFinancial(null);
+        setDetailTab("historico");
         buscarFinanceiroCliente(client);
     };
 
@@ -401,6 +410,7 @@ export default function Clientes() {
         if (!error) {
             refetch();
             toast({ title: "Sucesso", description: "Cliente excluído" });
+            if (selectedClient?.id === client.id) setSelectedClient(null);
             if (user?.id) {
                 await logDeletion(activeClient, {
                     userId: user.id, companyId: selectedCompany?.id || null,
@@ -413,304 +423,495 @@ export default function Clientes() {
         }
     };
 
-    /* ─── Filtro de busca ───────────────────────────────────── */
+    /* ─── Filtros ───────────────────────────────────────────── */
 
-    const filteredClients = clients?.filter((client) => {
+    const filteredClients = useMemo(() => {
+        let list = clients ?? [];
+
+        // Busca textual
         const needle = normalizeSearch(searchTerm);
-        if (!needle) return true;
-        return normalizeSearch(
-            [client.razao_social, client.nome_fantasia, client.cpf_cnpj, client.email,
-             client.telefone, client.celular, client.category?.name].filter(Boolean).join(" ")
-        ).includes(needle);
-    });
+        if (needle) {
+            list = list.filter((client: any) =>
+                normalizeSearch(
+                    [client.razao_social, client.nome_fantasia, client.cpf_cnpj, client.email,
+                     client.telefone, client.celular, client.category?.name].filter(Boolean).join(" ")
+                ).includes(needle)
+            );
+        }
+
+        // Filtro por aba
+        if (filterTab !== "todos") {
+            list = list.filter((client: any) => {
+                const status = getClientStatus(client);
+                if (filterTab === "ativos") return status === "ativo";
+                if (filterTab === "inadimplentes") return status === "inadimplente";
+                if (filterTab === "inativos") return status === "inativo";
+                return true;
+            });
+        }
+
+        return list;
+    }, [clients, searchTerm, filterTab, financialByClient]);
+
+    /* ─── Contagens por aba ─────────────────────────────────── */
+
+    const tabCounts = useMemo(() => {
+        const all = clients ?? [];
+        let ativos = 0, inadimplentes = 0, inativos = 0;
+        all.forEach((c: any) => {
+            const s = getClientStatus(c);
+            if (s === "ativo") ativos++;
+            else if (s === "inadimplente") inadimplentes++;
+            else if (s === "inativo") inativos++;
+        });
+        return { todos: all.length, ativos, inadimplentes, inativos };
+    }, [clients, financialByClient]);
+
+    /* ─── Pontualidade ──────────────────────────────────────── */
+
+    const pontualidade = useMemo(() => {
+        if (!detailFinancial || detailFinancial.totalPagos === 0) return null;
+        return Math.round((detailFinancial.pagosNoPrazo / detailFinancial.totalPagos) * 100);
+    }, [detailFinancial]);
+
+    /* ─── Descricao do CR para historico ────────────────────── */
+
+    const crDescription = (cr: any) => {
+        const obs = cr.observacoes ?? "";
+        if (obs.trim()) return obs;
+        if (cr.forma_recebimento) return `Pagamento — ${cr.forma_recebimento}`;
+        return "Conta a receber";
+    };
+
+    const crSubtext = (cr: any) => {
+        const today = new Date();
+        const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
+
+        if (cr.status === "pago" && cr.data_pagamento) {
+            return `Pago em ${formatData(cr.data_pagamento)}${cr.forma_recebimento ? ` · ${cr.forma_recebimento}` : ""}`;
+        }
+        if (cr.status === "vencido" || (venc && venc < today && cr.status !== "pago" && cr.status !== "cancelado")) {
+            return `Venceu em ${formatData(cr.data_vencimento)} · ${diasAtraso(cr.data_vencimento)}`;
+        }
+        if (cr.status === "parcial") {
+            return `Parcial — Vence em ${formatData(cr.data_vencimento)}`;
+        }
+        return `Vence em ${formatData(cr.data_vencimento)}`;
+    };
+
+    const getCRDisplayStatus = (cr: any) => {
+        const today = new Date();
+        const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
+        if (cr.status === "pago") return "pago";
+        if (cr.status === "vencido" || (venc && venc < today && cr.status !== "cancelado")) return "vencido";
+        if (cr.status === "parcial") return "em_andamento";
+        return "aberto";
+    };
 
     /* ─── Render ────────────────────────────────────────────── */
 
+    const tabs: { key: FilterTab; label: string }[] = [
+        { key: "todos", label: "Todos" },
+        { key: "ativos", label: "Ativos" },
+        { key: "inadimplentes", label: "Inadimp." },
+        { key: "inativos", label: "Inativos" },
+    ];
+
     return (
         <AppLayout title="Clientes">
-            <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className="text-lg font-bold tracking-tight text-foreground">Clientes</h2>
-                        <p className="text-[12.5px] text-muted-foreground mt-0.5">
-                            Base de clientes com resumo financeiro de contas a pagar e receber.
-                        </p>
+            <div className="flex h-[calc(100vh-80px)] gap-0 animate-in fade-in duration-500">
+
+                {/* ═══ PAINEL ESQUERDO — Lista ═══ */}
+                <div className="w-full md:w-[420px] lg:w-[440px] flex-shrink-0 border-r border-[#e5e7eb] bg-white flex flex-col">
+
+                    {/* Header */}
+                    <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+                        <h2 className="text-lg font-bold tracking-tight text-[#0a0a0a] uppercase">Clientes</h2>
+                        <Button onClick={handleNew} size="sm" className="bg-[#1a2e4a] hover:bg-[#243d5f] text-white">
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Novo cliente
+                        </Button>
                     </div>
-                    <Button onClick={handleNew}>
-                        <Plus className="h-3.5 w-3.5" />
-                        Novo Cliente
-                    </Button>
-                </div>
 
-                {/* KPI Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    <KPICard label="Total clientes" valor={clients?.length || 0} sub="cadastrados" />
-                    <KPICard label="A receber (aberto)" valor={formatBRL(totals.totalReceberAberto)} sub="em aberto" />
-                    <KPICard label="Vencido" valor={formatBRL(totals.totalVencido)} sub="em atraso" />
-                    <KPICard label="Inadimplentes" valor={totals.clientesInadimplentes} sub="clientes" />
-                </div>
+                    {/* Busca */}
+                    <div className="px-5 pb-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#999] pointer-events-none" />
+                            <Input
+                                placeholder="Buscar por nome, CPF/CNPJ..."
+                                className="pl-9 h-10 text-[13px] border-[#ddd] rounded-lg bg-[#fafafa] focus:bg-white"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
-                {/* Table */}
-                <Card>
-                    <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 border-b border-[#F1F5F9]">
-                        <div className="text-[12.5px] font-medium text-muted-foreground">
-                            Total de {filteredClients?.length || 0} clientes
-                        </div>
-                        <div className="relative w-full sm:w-72">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                            <Input placeholder="Buscar clientes..." className="pl-8 h-8 text-[12.5px]"
-                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead className="w-[50px]"></TableHead>
-                                    <TableHead>Razão Social / Nome</TableHead>
-                                    <TableHead>CPF/CNPJ</TableHead>
-                                    <TableHead>Contato</TableHead>
-                                    <TableHead className="text-right">A Receber</TableHead>
-                                    <TableHead className="text-right">A Pagar</TableHead>
-                                    <TableHead className="text-center">Status</TableHead>
-                                    <TableHead className="w-[60px] text-right"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {!selectedCompany?.id ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                                            Selecione uma empresa para visualizar os clientes.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
-                                            <div className="flex items-center justify-center text-muted-foreground">
-                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2" />
-                                                Carregando...
+                    {/* Tabs de filtro */}
+                    <div className="px-5 pb-3 flex gap-1">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setFilterTab(tab.key)}
+                                className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                                    filterTab === tab.key
+                                        ? "bg-[#1a2e4a] text-white"
+                                        : "bg-[#f0f0f0] text-[#555] hover:bg-[#e0e0e0]"
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Lista de clientes */}
+                    <ScrollArea className="flex-1">
+                        <div className="px-3 pb-3">
+                            {!selectedCompany?.id ? (
+                                <div className="py-12 text-center text-[13px] text-[#999]">
+                                    Selecione uma empresa para visualizar os clientes.
+                                </div>
+                            ) : isLoading ? (
+                                <div className="py-12 flex items-center justify-center text-[#999]">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#1a2e4a] border-t-transparent mr-2" />
+                                    Carregando...
+                                </div>
+                            ) : filteredClients.length === 0 ? (
+                                <div className="py-12 text-center text-[13px] text-[#999]">
+                                    Nenhum cliente encontrado.
+                                </div>
+                            ) : (
+                                filteredClients.map((client: any) => {
+                                    const fin = getClientFinancial(client);
+                                    const status = getClientStatus(client);
+                                    const isSelected = selectedClient?.id === client.id;
+                                    const hasOpen = fin.totalReceberAberto > 0;
+                                    const hasOverdue = fin.totalReceberVencido > 0;
+
+                                    return (
+                                        <div
+                                            key={client.id}
+                                            onClick={() => handleSelectClient(client)}
+                                            className={`flex items-center gap-3 px-3 py-3.5 rounded-xl cursor-pointer transition-all mb-0.5 ${
+                                                isSelected
+                                                    ? "bg-[#1a2e4a]/5 border-l-[3px] border-l-[#1a2e4a]"
+                                                    : "hover:bg-[#f8f9fa] border-l-[3px] border-l-transparent"
+                                            }`}
+                                        >
+                                            {/* Avatar */}
+                                            <div className={`w-10 h-10 rounded-full text-white text-[12px] font-bold flex items-center justify-center flex-shrink-0 ${
+                                                status === "inadimplente" ? "bg-[#8b0000]"
+                                                : status === "inativo" ? "bg-[#999]"
+                                                : "bg-[#1a2e4a]"
+                                            }`}>
+                                                {getIniciais(client.razao_social)}
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : filteredClients?.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                                            Nenhum cliente encontrado.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredClients?.map((client) => {
-                                        const fin = getClientFinancial(client);
-                                        const hasOverdue = fin.totalReceberVencido > 0;
-                                        const clientStatus = getClientStatus(client);
-                                        return (
-                                            <TableRow key={client.id} className="group">
-                                                <TableCell>
-                                                    <div className="w-8 h-8 rounded-full bg-[#1a2e4a] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
-                                                        {getIniciais(client.razao_social)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="text-[13px] font-semibold text-[#0a0a0a]">
-                                                        {toTitleCase(client.razao_social)}
-                                                    </div>
-                                                    {client.nome_fantasia && (
-                                                        <div className="text-[11px] text-muted-foreground mt-0.5">
-                                                            {toTitleCase(client.nome_fantasia)}
-                                                        </div>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-[12px] text-[#555]">
-                                                    {formatDoc(client.cpf_cnpj)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col text-[12.5px] text-foreground">
-                                                        <span>{client.email || "—"}</span>
-                                                        <span className="text-[11px] text-muted-foreground">
-                                                            {client.celular ? maskPhone(client.celular) : (client.telefone ? maskPhone(client.telefone) : "")}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {fin.totalReceberAberto > 0 ? (
-                                                        <span className="text-[12px] font-medium text-[#1a2e4a]">
-                                                            {formatBRL(fin.totalReceberAberto)}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[11px] text-muted-foreground">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {fin.totalPagarAberto > 0 ? (
-                                                        <span className="text-[12px] font-medium text-orange-600">
-                                                            {formatBRL(fin.totalPagarAberto)}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[11px] text-muted-foreground">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <StatusClienteBadge status={clientStatus} />
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <span className="sr-only">Abrir menu</span>
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                                            <DropdownMenuItem onClick={() => handleOpenDetail(client)}>
-                                                                <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                                Ver Financeiro
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleEdit(client)}>
-                                                                <Pencil className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                                Editar
-                                                            </DropdownMenuItem>
-                                                            {hasOverdue && (
-                                                                <DropdownMenuItem onClick={() => navigate("/regua-cobranca")}>
-                                                                    <Bell className="mr-2 h-4 w-4 text-amber-500" />
-                                                                    Régua de Cobrança
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => handleDelete(client)} className="text-[#EF4444]">
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Excluir
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
 
-                {/* ─── Modal Ver Financeiro ──────────────────────── */}
-                <Dialog open={!!detailClient} onOpenChange={(open) => { if (!open) { setDetailClient(null); setDetailFinancial(null); } }}>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0">
-                        {detailClient && (
-                            <>
-                                {/* Cabeçalho azul marinho */}
-                                <div className="bg-[#1a2e4a] px-5 py-4 flex items-center justify-between rounded-t-lg">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-white/20 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
-                                            {getIniciais(detailClient.razao_social)}
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[13px] font-semibold text-[#0a0a0a] truncate">
+                                                        {toTitleCase(client.razao_social)}
+                                                    </span>
+                                                    {hasOverdue && (
+                                                        <span className="text-[11px] font-bold text-[#8b0000] whitespace-nowrap">
+                                                            {formatBRL(fin.totalReceberVencido)} em aberto
+                                                        </span>
+                                                    )}
+                                                    {!hasOverdue && hasOpen && (
+                                                        <span className="text-[11px] font-bold text-[#1a2e4a] whitespace-nowrap">
+                                                            {formatBRL(fin.totalReceberAberto)} a receber
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 mt-1">
+                                                    <span className="text-[11px] text-[#888]">
+                                                        {client.cpf_cnpj ? (formatDoc(client.cpf_cnpj).length > 14 ? "CNPJ: " : "CPF: ") : ""}
+                                                        {formatDoc(client.cpf_cnpj)}
+                                                    </span>
+                                                    <StatusBadge status={status} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </ScrollArea>
+                </div>
+
+                {/* ═══ PAINEL DIREITO — Detalhe ═══ */}
+                <div className="hidden md:flex flex-1 flex-col bg-[#fafbfc] overflow-hidden">
+                    {!selectedClient ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="text-center">
+                                <div className="w-16 h-16 rounded-full bg-[#e8ecf0] flex items-center justify-center mx-auto mb-4">
+                                    <Search className="h-7 w-7 text-[#aab4be]" />
+                                </div>
+                                <p className="text-[14px] text-[#888] font-medium">Selecione um cliente para ver os detalhes</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Header do cliente */}
+                            <div className="bg-white border-b border-[#e5e7eb] px-6 py-5">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
+                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#8b0000]"
+                                            : getClientStatus(selectedClient) === "inativo" ? "bg-[#999]"
+                                            : "bg-[#1a2e4a]"
+                                        }`}>
+                                            {getIniciais(selectedClient.razao_social)}
                                         </div>
                                         <div>
-                                            <div className="text-[15px] font-bold text-white leading-tight">
-                                                {toTitleCase(detailClient.razao_social)}
+                                            <h3 className="text-[17px] font-bold text-[#0a0a0a]">
+                                                {toTitleCase(selectedClient.razao_social)}
+                                            </h3>
+                                            <div className="text-[12px] text-[#888] mt-0.5 space-y-0.5">
+                                                <div>
+                                                    {formatDoc(selectedClient.cpf_cnpj).length > 14 ? "CNPJ: " : "CPF: "}
+                                                    {formatDoc(selectedClient.cpf_cnpj)}
+                                                </div>
+                                                {selectedClient.email && (
+                                                    <div>{selectedClient.email}</div>
+                                                )}
+                                                {(selectedClient.celular || selectedClient.telefone) && (
+                                                    <div>{maskPhone(selectedClient.celular || selectedClient.telefone)}</div>
+                                                )}
                                             </div>
-                                            <div className="text-[11px] text-[#a8bfd4] mt-0.5">
-                                                {formatDoc(detailClient.cpf_cnpj)}
-                                                {detailClient.telefone ? ` · ${maskPhone(detailClient.telefone)}` : ''}
-                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEdit(selectedClient)}
+                                            className="text-[12px] border-[#ddd]"
+                                        >
+                                            <Pencil className="h-3 w-3 mr-1.5" />
+                                            Editar
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => navigate(`/vendas?cliente=${selectedClient.id}`)}
+                                            className="text-[12px] bg-[#1a2e4a] hover:bg-[#243d5f]"
+                                        >
+                                            <Plus className="h-3 w-3 mr-1.5" />
+                                            Nova venda
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* KPIs do cliente */}
+                            <div className="grid grid-cols-4 gap-3 px-6 py-4 bg-white border-b border-[#e5e7eb]">
+                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
+                                    </div>
+                                    <div className="px-3 py-2.5 bg-white">
+                                        <div className="text-[17px] font-bold text-[#0a0a0a]">
+                                            {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
+                                        </div>
+                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                            {detailLoading ? "" : `${detailFinancial?.totalCompras ?? 0} compras`}
                                         </div>
                                     </div>
                                 </div>
-
-                                {detailLoading ? (
-                                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2" />
-                                        Carregando...
+                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
-                                ) : detailFinancial ? (
-                                    <>
-                                        {/* KPIs do modal */}
-                                        <div className="grid grid-cols-3 gap-2.5 p-4 border-b border-[#eee]">
-                                            {([
-                                                { label: 'A receber', valor: detailFinancial.aReceber, cor: detailFinancial.aReceber > 0 ? '#1a2e4a' : '#555' },
-                                                { label: 'Vencido', valor: detailFinancial.vencido, cor: detailFinancial.vencido > 0 ? '#8b0000' : '#0a5c2e' },
-                                                { label: 'Total pago', valor: detailFinancial.totalPago, cor: '#0a5c2e' },
-                                            ] as const).map(kpi => (
-                                                <div key={kpi.label} className="border border-[#ccc] rounded-lg overflow-hidden">
-                                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
-                                                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">
-                                                            {kpi.label}
-                                                        </span>
-                                                    </div>
-                                                    <div className="px-3 py-2.5 bg-white">
-                                                        <div className="text-lg font-bold leading-tight" style={{ color: kpi.cor }}>
-                                                            {formatBRL(kpi.valor)}
+                                    <div className="px-3 py-2.5 bg-white">
+                                        <div className={`text-[17px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#8b0000]" : "text-[#0a5c2e]"}`}>
+                                            {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
+                                        </div>
+                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                            {detailLoading ? "" : detailFinancial?.vencido && detailFinancial.vencido > 0
+                                                ? `${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length} título${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""} vencido${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""}`
+                                                : "em dia"
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Última Compra</span>
+                                    </div>
+                                    <div className="px-3 py-2.5 bg-white">
+                                        <div className="text-[17px] font-bold text-[#0a0a0a]">
+                                            {detailLoading ? "..." : detailFinancial?.ultimaCompra ? formatData(detailFinancial.ultimaCompra) : "—"}
+                                        </div>
+                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                            {detailLoading ? "" : detailFinancial?.ultimaCompra ? diasAtras(detailFinancial.ultimaCompra) : ""}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
+                                    </div>
+                                    <div className="px-3 py-2.5 bg-white">
+                                        <div className={`text-[17px] font-bold ${
+                                            pontualidade === null ? "text-[#888]"
+                                            : pontualidade >= 80 ? "text-[#0a5c2e]"
+                                            : pontualidade >= 50 ? "text-[#b8960a]"
+                                            : "text-[#8b0000]"
+                                        }`}>
+                                            {detailLoading ? "..." : pontualidade !== null ? `${pontualidade}%` : "—"}
+                                        </div>
+                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                            {detailLoading ? "" : detailFinancial ? `${detailFinancial.pagosNoPrazo} de ${detailFinancial.totalPagos}` : ""}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tabs do detalhe */}
+                            <div className="flex border-b border-[#e5e7eb] bg-white px-6">
+                                {([
+                                    { key: "historico" as DetailTab, label: "Histórico financeiro" },
+                                    { key: "dados" as DetailTab, label: "Dados cadastrais" },
+                                    { key: "anotacoes" as DetailTab, label: "Anotações" },
+                                ]).map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => setDetailTab(tab.key)}
+                                        className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-all ${
+                                            detailTab === tab.key
+                                                ? "border-[#1a2e4a] text-[#1a2e4a]"
+                                                : "border-transparent text-[#888] hover:text-[#555]"
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Conteúdo das tabs */}
+                            <ScrollArea className="flex-1">
+                                {detailTab === "historico" && (
+                                    <div className="p-6">
+                                        {detailLoading ? (
+                                            <div className="flex items-center justify-center py-12 text-[#999]">
+                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#1a2e4a] border-t-transparent mr-2" />
+                                                Carregando...
+                                            </div>
+                                        ) : detailFinancial && detailFinancial.crs.length > 0 ? (
+                                            <div className="space-y-1">
+                                                {detailFinancial.crs.map((cr: any) => {
+                                                    const displayStatus = getCRDisplayStatus(cr);
+                                                    return (
+                                                        <div
+                                                            key={cr.id}
+                                                            className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl hover:bg-white transition-all border border-transparent hover:border-[#e5e7eb]"
+                                                        >
+                                                            <HistoryIcon status={displayStatus} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-[13px] font-semibold text-[#0a0a0a] truncate">
+                                                                    {crDescription(cr)}
+                                                                </div>
+                                                                <div className="text-[11px] text-[#888] mt-0.5">
+                                                                    {crSubtext(cr)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 flex-shrink-0">
+                                                                <CRStatusBadge status={displayStatus} />
+                                                                <span className="text-[12px] font-semibold text-[#0a0a0a] min-w-[80px] text-right">
+                                                                    {formatBRL(Number(cr.valor ?? 0))}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Cabeçalho CRs + pontualidade */}
-                                        <div className="px-4 py-2.5 flex items-center justify-between border-b border-[#eee]">
-                                            <span className="text-[11px] font-semibold text-[#555]">
-                                                Contas a Receber ({detailFinancial.crs.length})
-                                            </span>
-                                            <PontualidadeBadge pagosNoPrazo={detailFinancial.pagosNoPrazo} totalPagos={detailFinancial.totalPagos} />
-                                        </div>
-
-                                        {/* Lista de CRs */}
-                                        {detailFinancial.crs.length > 0 ? (
-                                            <div className="px-4 pb-4">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow className="hover:bg-transparent">
-                                                            <TableHead className="text-[11px]">Vencimento</TableHead>
-                                                            <TableHead className="text-[11px] text-right">Valor</TableHead>
-                                                            <TableHead className="text-[11px] text-right">Pago</TableHead>
-                                                            <TableHead className="text-[11px] text-center">Status</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {detailFinancial.crs.map((cr: any) => (
-                                                            <TableRow key={cr.id}>
-                                                                <TableCell className="text-[11.5px]">
-                                                                    {formatData(cr.data_vencimento)}
-                                                                </TableCell>
-                                                                <TableCell className="text-[11.5px] text-right font-medium">
-                                                                    {formatBRL(Number(cr.valor || 0))}
-                                                                </TableCell>
-                                                                <TableCell className="text-[11.5px] text-right">
-                                                                    {formatBRL(Number(cr.valor_pago || 0))}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {crStatusBadge(cr.status)}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
-                                            <div className="px-4 py-8 text-center text-[12px] text-muted-foreground">
-                                                Nenhuma conta a receber encontrada para este cliente.
+                                            <div className="py-12 text-center text-[13px] text-[#999]">
+                                                Nenhum registro financeiro encontrado.
                                             </div>
                                         )}
 
-                                        {/* Botão régua */}
-                                        {detailFinancial.vencido > 0 && (
-                                            <div className="px-4 pb-4">
+                                        {/* Botão régua de cobrança */}
+                                        {detailFinancial && detailFinancial.vencido > 0 && (
+                                            <div className="mt-4">
                                                 <Button
                                                     variant="outline"
                                                     className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
-                                                    onClick={() => { setDetailClient(null); navigate("/regua-cobranca"); }}
+                                                    onClick={() => navigate("/regua-cobranca")}
                                                 >
                                                     <Bell className="h-4 w-4 mr-2" />
                                                     Configurar Régua de Cobrança
                                                 </Button>
                                             </div>
                                         )}
-                                    </>
-                                ) : null}
-                            </>
-                        )}
-                    </DialogContent>
-                </Dialog>
+                                    </div>
+                                )}
 
+                                {detailTab === "dados" && (
+                                    <div className="p-6 space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {([
+                                                { label: "Razão Social", value: selectedClient.razao_social },
+                                                { label: "Nome Fantasia", value: selectedClient.nome_fantasia },
+                                                { label: "CPF/CNPJ", value: formatDoc(selectedClient.cpf_cnpj) },
+                                                { label: "Email", value: selectedClient.email },
+                                                { label: "Telefone", value: selectedClient.telefone ? maskPhone(selectedClient.telefone) : null },
+                                                { label: "Celular", value: selectedClient.celular ? maskPhone(selectedClient.celular) : null },
+                                                { label: "Endereço", value: [selectedClient.endereco, selectedClient.cidade, selectedClient.estado].filter(Boolean).join(", ") || null },
+                                                { label: "CEP", value: selectedClient.cep },
+                                                { label: "Categoria", value: selectedClient.category?.name },
+                                                { label: "Observações", value: selectedClient.observacoes },
+                                            ]).map((item, i) => (
+                                                <div key={i} className="bg-white rounded-lg border border-[#e5e7eb] p-3.5">
+                                                    <div className="text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1">
+                                                        {item.label}
+                                                    </div>
+                                                    <div className="text-[13px] text-[#0a0a0a]">
+                                                        {item.value || "—"}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex gap-2 pt-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleEdit(selectedClient)}
+                                                className="text-[12px]"
+                                            >
+                                                <Pencil className="h-3 w-3 mr-1.5" />
+                                                Editar dados
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleDelete(selectedClient)}
+                                                className="text-[12px] text-[#EF4444] border-[#fca5a5] hover:bg-[#fef2f2]"
+                                            >
+                                                <Trash2 className="h-3 w-3 mr-1.5" />
+                                                Excluir
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {detailTab === "anotacoes" && (
+                                    <div className="p-6">
+                                        <div className="py-12 text-center">
+                                            <StickyNote className="h-8 w-8 text-[#ccc] mx-auto mb-3" />
+                                            <p className="text-[13px] text-[#999]">
+                                                Nenhuma anotação registrada para este cliente.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </>
+                    )}
+                </div>
+
+                {/* ═══ ClientSheet (novo/editar) ═══ */}
                 <ClientSheet
                     isOpen={isSheetOpen}
                     onClose={() => { setIsSheetOpen(false); setEditingClient(null); }}

@@ -34,6 +34,7 @@ const REGIMES: { value: RegimeTrabalho; label: string }[] = [
   { value: "seg_sex", label: "Seg–Sex" },
   { value: "seg_sab", label: "Seg–Sáb" },
   { value: "escala_6x1", label: "Escala 6×1" },
+  { value: "manual", label: "Manual" },
 ];
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -65,6 +66,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
   const [vaValorDia, setVaValorDia] = useState(0);
   const [regime, setRegime] = useState<RegimeTrabalho>("seg_sex");
   const [faltas, setFaltas] = useState(0);
+  const [diasManuais, setDiasManuais] = useState<Set<string>>(new Set());
   const [salvando, setSalvando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
 
@@ -79,8 +81,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
   }, [cfgDb]);
 
   const { diasUteis, diasDetalhados } = useMemo(
-    () => calcularDiasUteis(ano, mes, regime),
-    [ano, mes, regime]
+    () => calcularDiasUteis(ano, mes, regime, regime === "manual" ? diasManuais : undefined),
+    [ano, mes, regime, diasManuais]
   );
 
   const diasConsiderados = Math.max(0, diasUteis - faltas);
@@ -130,6 +132,16 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
     }
   };
 
+  const toggleDiaManual = (dataStr: string, tipoAtual: string) => {
+    if (regime !== "manual" || tipoAtual === "feriado") return;
+    setDiasManuais((prev) => {
+      const next = new Set(prev);
+      if (next.has(dataStr)) next.delete(dataStr);
+      else next.add(dataStr);
+      return next;
+    });
+  };
+
   const offset = new Date(ano, mes - 1, 1).getDay();
 
   if (loadingCfg) return <div className="p-8 text-center text-sm text-[#555]">Carregando configuração...</div>;
@@ -140,17 +152,17 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       <div className="flex items-end gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
           <label className={LB}>Mês</label>
-          <select value={mes} onChange={(e) => { setMes(Number(e.target.value)); setFaltas(0); }} className={IC_EDIT} style={{ width: 150 }}>
+          <select value={mes} onChange={(e) => { setMes(Number(e.target.value)); setFaltas(0); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 150 }}>
             {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Ano</label>
-          <input type="number" value={ano} onChange={(e) => { setAno(Number(e.target.value)); setFaltas(0); }} className={IC_EDIT} style={{ width: 90 }} />
+          <input type="number" value={ano} onChange={(e) => { setAno(Number(e.target.value)); setFaltas(0); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 90 }} />
         </div>
         <div className="flex flex-col gap-1">
           <label className={LB}>Regime</label>
-          <select value={regime} onChange={(e) => setRegime(e.target.value as RegimeTrabalho)} className={IC_EDIT} style={{ width: 140 }}>
+          <select value={regime} onChange={(e) => { setRegime(e.target.value as RegimeTrabalho); setDiasManuais(new Set()); }} className={IC_EDIT} style={{ width: 140 }}>
             {REGIMES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
@@ -167,7 +179,13 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         <div className="grid grid-cols-7 gap-1">
           {Array.from({ length: offset }).map((_, i) => <div key={`e${i}`} />)}
           {diasDetalhados.map((d) => (
-            <div key={d.data} className={`rounded text-center text-[11px] py-1 ${diaClasse(d.tipo)}`}>
+            <div
+              key={d.data}
+              onClick={() => toggleDiaManual(d.data, d.tipo)}
+              className={`rounded text-center text-[11px] py-1 ${diaClasse(d.tipo)} ${
+                regime === "manual" && d.tipo !== "feriado" ? "cursor-pointer hover:ring-2 hover:ring-[#1a2e4a]" : ""
+              }`}
+            >
               {Number(d.data.split("-")[2])}
             </div>
           ))}
@@ -177,6 +195,9 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#f5f5f5]" /> FDS</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#fdecea] border border-[#8b0000]" /> Feriado</span>
         </div>
+        {regime === "manual" && (
+          <p className="text-[10px] text-[#555] mt-2">Clique nos dias para marcar/desmarcar como dia útil.</p>
+        )}
       </div>
 
       {/* Config VT + VA */}

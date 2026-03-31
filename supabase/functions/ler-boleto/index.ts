@@ -92,7 +92,7 @@ serve(async (req: Request) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error("Claude API error:", errText);
-      throw new Error(`Claude API error: ${response.status}`);
+      throw new Error(`Claude API ${response.status}: ${errText}`);
     }
 
     const result = await response.json();

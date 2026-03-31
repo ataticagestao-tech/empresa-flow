@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck } from "lucide-react";
+import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera } from "lucide-react";
+import { useRef, useState } from "react";
 
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
 
@@ -18,7 +19,62 @@ export default function EmpresaResumo() {
   const { id } = useParams<{ id: string }>();
   const { activeClient } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const db = activeClient as any;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      alert("Arquivo muito grande. Máximo 2MB.");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Selecione um arquivo de imagem.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${id}/logo.${ext}`;
+
+      // Remove old logo if exists
+      await db.storage.from("company-logos").remove([path]);
+
+      const { error: uploadError } = await db.storage
+        .from("company-logos")
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = db.storage
+        .from("company-logos")
+        .getPublicUrl(path);
+
+      const logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await db
+        .from("companies")
+        .update({ logo_url: logoUrl })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ["empresa_resumo", id] });
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("Erro ao enviar logo: " + (err.message || "Tente novamente."));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const { data: company, isLoading } = useQuery({
     queryKey: ["empresa_resumo", id],
@@ -100,7 +156,7 @@ export default function EmpresaResumo() {
               className="flex items-center gap-1.5 bg-[#1a2e4a] text-white text-xs font-bold px-4 py-2 rounded-md hover:bg-[#253d5e] transition-colors">
               <BarChart3 size={14} /> Dashboard Financeiro
             </button>
-            <button onClick={() => navigate("/empresas")}
+            <button onClick={() => navigate("/empresas", { state: { editId: id } })}
               className="flex items-center gap-1.5 bg-white text-[#1a2e4a] border border-[#1a2e4a] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f0f4f8] transition-colors">
               <Pencil size={14} /> Editar
             </button>
@@ -110,9 +166,33 @@ export default function EmpresaResumo() {
         {/* Company Header */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
           <div className="bg-[#1a2e4a] px-6 py-4 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center text-white text-xl font-bold">
-              {(company.razao_social || "E")[0]}
-            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="relative w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center text-white text-xl font-bold overflow-hidden group shrink-0"
+              title="Alterar logo"
+            >
+              {company.logo_url ? (
+                <img src={company.logo_url} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                (company.razao_social || "E")[0]
+              )}
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {uploading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Camera size={18} className="text-white" />
+                )}
+              </div>
+            </button>
             <div>
               <h1 className="text-lg font-bold text-white">{company.razao_social}</h1>
               {company.nome_fantasia && <p className="text-sm text-[#a8bfd4]">{company.nome_fantasia}</p>}

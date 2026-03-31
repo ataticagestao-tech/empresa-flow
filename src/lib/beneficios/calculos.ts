@@ -57,12 +57,13 @@ export interface DiaMes {
   tipo: TipoDia
 }
 
-export type RegimeTrabalho = 'seg_sex' | 'seg_sab' | 'escala_6x1'
+export type RegimeTrabalho = 'seg_sex' | 'seg_sab' | 'escala_6x1' | 'manual'
 
 export const calcularDiasUteis = (
   ano: number,
   mes: number,
-  regime: RegimeTrabalho
+  regime: RegimeTrabalho,
+  diasManuais?: Set<string>
 ): { diasUteis: number; diasDetalhados: DiaMes[] } => {
   const feriados = feriadosNacionais(ano)
   const totalDias = new Date(ano, mes, 0).getDate()
@@ -77,6 +78,8 @@ export const calcularDiasUteis = (
 
     if (feriados.has(dataStr)) {
       tipo = 'feriado'
+    } else if (regime === 'manual') {
+      tipo = diasManuais?.has(dataStr) ? 'util' : 'fds'
     } else if (regime === 'seg_sex' && (semana === 0 || semana === 6)) {
       tipo = 'fds'
     } else if (regime === 'seg_sab' && semana === 0) {

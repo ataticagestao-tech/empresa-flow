@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
-import { formatBRL, formatData } from '@/lib/format'
+import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   format,
   parseISO,
   startOfMonth,
   endOfMonth,
+  isToday,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -22,6 +23,9 @@ import {
   AlertTriangle,
   Landmark,
   Loader2,
+  Download,
+  ChevronDown,
+  Eye,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -92,6 +96,16 @@ const ORIGEM_LABELS: Record<string, string> = {
   conciliacao: 'Conciliacao',
 }
 
+const ORIGEM_ACTION_LABELS: Record<string, string> = {
+  cr: 'Ver CR',
+  cp: 'Ver CP',
+  venda: 'Ver venda',
+  manual: 'Ver',
+  conciliacao: 'Ver',
+}
+
+type TipoFilter = 'todos' | 'entradas' | 'saidas' | 'transferencias'
+
 function normalizeSearch(value: string): string {
   return value
     .toLowerCase()
@@ -101,7 +115,6 @@ function normalizeSearch(value: string): string {
 }
 
 function maskAccount(name: string): string {
-  // Show last 4 digits if name has numbers, else just return name
   const digits = name.replace(/\D/g, '')
   if (digits.length >= 4) {
     return `${name.split(/\d/)[0].trim()} ····${digits.slice(-4)}`
@@ -128,6 +141,7 @@ export default function Movimentacoes() {
 
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos')
   const [dateStart, setDateStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [dateEnd, setDateEnd] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
 
@@ -225,11 +239,20 @@ export default function Movimentacoes() {
     return movimentacoes.filter((m) => m.conta_bancaria_id === selectedBankId)
   }, [movimentacoes, selectedBankId])
 
+  // Filter by tipo
+  const afterTipoFilter = useMemo(() => {
+    if (tipoFilter === 'todos') return afterBankFilter
+    if (tipoFilter === 'entradas') return afterBankFilter.filter((m) => m.tipo === 'credito')
+    if (tipoFilter === 'saidas') return afterBankFilter.filter((m) => m.tipo === 'debito')
+    // transferencias - for now show manual/conciliacao as transfers
+    return afterBankFilter.filter((m) => m.origem === 'conciliacao' || m.origem === 'manual')
+  }, [afterBankFilter, tipoFilter])
+
   // Filter by search
   const filtered = useMemo(() => {
     const needle = normalizeSearch(searchTerm)
-    if (!needle) return afterBankFilter
-    return afterBankFilter.filter((m) => {
+    if (!needle) return afterTipoFilter
+    return afterTipoFilter.filter((m) => {
       const haystack = [
         m.descricao,
         m.conta_bancaria?.name,
@@ -241,7 +264,7 @@ export default function Movimentacoes() {
         .join(' ')
       return normalizeSearch(haystack).includes(needle)
     })
-  }, [afterBankFilter, searchTerm])
+  }, [afterTipoFilter, searchTerm])
 
   // Running balance: sorted ascending by date, then compute cumulative
   const withRunningBalance = useMemo(() => {
@@ -260,14 +283,14 @@ export default function Movimentacoes() {
   // Group by day (display order: newest first)
   const dayGroups = useMemo(() => {
     const map = new Map<string, DayGroup>()
-    // withRunningBalance is sorted ascending; we iterate to build groups
     for (const row of withRunningBalance) {
       const dateKey = row.data
       if (!map.has(dateKey)) {
         const d = parseISO(dateKey)
+        const todayPrefix = isToday(d) ? 'HOJE — ' : ''
         map.set(dateKey, {
           date: dateKey,
-          label: format(d, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
+          label: todayPrefix + format(d, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }).toUpperCase(),
           entradas: 0,
           saidas: 0,
           saldo: 0,
@@ -280,11 +303,9 @@ export default function Movimentacoes() {
       group.saldo = group.entradas - group.saidas
       group.rows.push(row)
     }
-    // Reverse rows within each group so newest appears first
     for (const g of map.values()) {
       g.rows.reverse()
     }
-    // Return groups sorted newest first
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date))
   }, [withRunningBalance])
 
@@ -301,6 +322,39 @@ export default function Movimentacoes() {
     }
     return { total, perBank: map }
   }, [movimentacoes])
+
+  // KPI calculations
+  const entradasMes = useMemo(() => movimentacoes.filter((m) => m.tipo === 'credito').reduce((s, m) => s + m.valor, 0), [movimentacoes])
+  const saidasMes = useMemo(() => movimentacoes.filter((m) => m.tipo === 'debito').reduce((s, m) => s + m.valor, 0), [movimentacoes])
+  const qtdEntradas = useMemo(() => movimentacoes.filter((m) => m.tipo === 'credito').length, [movimentacoes])
+  const qtdSaidas = useMemo(() => movimentacoes.filter((m) => m.tipo === 'debito').length, [movimentacoes])
+  const resultadoMes = entradasMes - saidasMes
+
+  // Per-bank running balance map for display
+  const bankRunningBalances = useMemo(() => {
+    const balances = new Map<string, number>()
+    const sorted = [...movimentacoes].sort((a, b) => {
+      const cmp = a.data.localeCompare(b.data)
+      if (cmp !== 0) return cmp
+      return (a.created_at || '').localeCompare(b.created_at || '')
+    })
+    for (const m of sorted) {
+      if (m.conta_bancaria_id) {
+        const current = balances.get(m.conta_bancaria_id) || 0
+        balances.set(m.conta_bancaria_id, current + (m.tipo === 'credito' ? m.valor : -m.valor))
+      }
+    }
+    return balances
+  }, [movimentacoes])
+
+  // Bank name lookup
+  const bankNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const ba of bankAccounts) {
+      map.set(ba.id, ba.name)
+    }
+    return map
+  }, [bankAccounts])
 
   // ---- Modal submit ----
   const handleSubmit = async () => {
@@ -326,7 +380,6 @@ export default function Movimentacoes() {
         console.error('[Movimentacoes] insert error:', error)
         return
       }
-      // Reset form & close
       resetForm()
       setModalOpen(false)
       fetchData()
@@ -349,6 +402,30 @@ export default function Movimentacoes() {
   const openModal = () => {
     resetForm()
     setModalOpen(true)
+  }
+
+  // ---- Export CSV ----
+  const exportCSV = () => {
+    if (filtered.length === 0) return
+    const header = 'Data;Descricao;Tipo;Valor;Conta Bancaria;Categoria;Origem\n'
+    const rows = filtered.map((m) => {
+      const d = m.data ? format(parseISO(m.data), 'dd/MM/yyyy') : ''
+      const desc = (m.descricao || '').replace(/;/g, ',')
+      const tipo = m.tipo === 'credito' ? 'Entrada' : 'Saida'
+      const valor = m.valor.toFixed(2).replace('.', ',')
+      const banco = m.conta_bancaria?.name || '-'
+      const cat = m.conta_contabil ? `${m.conta_contabil.code} - ${m.conta_contabil.name}` : '-'
+      const origem = ORIGEM_LABELS[m.origem] || m.origem
+      return `${d};${desc};${tipo};${valor};${banco};${cat};${origem}`
+    })
+    const csv = header + rows.join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `movimentacoes_${dateStart}_${dateEnd}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   // ---- Render helpers ----
@@ -387,89 +464,186 @@ export default function Movimentacoes() {
     <AppLayout title="Movimentacoes">
       <div className="space-y-5">
 
-        {/* ====== BANK ACCOUNT CHIPS ====== */}
-        <div className="flex flex-wrap gap-2">
-          {/* "Todas" chip */}
-          <button
-            onClick={() => setSelectedBankId(null)}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-              ${!selectedBankId
-                ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
-                : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a]'
-              }`}
-          >
-            <Landmark className="w-3.5 h-3.5" />
-            Todas as contas
-            <span className="font-bold">{formatBRL(bankTotals.total)}</span>
-          </button>
-          {bankAccounts.map((ba) => {
-            const bal = bankTotals.perBank.get(ba.id) || 0
-            const active = selectedBankId === ba.id
-            return (
+        {/* ====== KPI CARDS ====== */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Saldo Atual */}
+          <div className="border border-[#1a2e4a] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#1a2e4a] uppercase tracking-widest mb-1">Saldo Atual</p>
+            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(bankTotals.total)}</p>
+            <p className="text-[11px] text-[#777] mt-1">Todas as contas</p>
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#0a5c2e] bg-[#e6f4ec] px-2 py-0.5 rounded">
+              Atualizado agora
+            </span>
+          </div>
+
+          {/* Entradas do Mes */}
+          <div className="border border-[#0a5c2e] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#0a5c2e] uppercase tracking-widest mb-1">Entradas do Mes</p>
+            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(entradasMes)}</p>
+            <p className="text-[11px] text-[#777] mt-1">{qtdEntradas} lancamento{qtdEntradas !== 1 ? 's' : ''}</p>
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#0a5c2e] bg-[#e6f4ec] px-2 py-0.5 rounded">
+              +{formatBRL(entradasMes)}
+            </span>
+          </div>
+
+          {/* Saidas do Mes */}
+          <div className="border border-[#8b0000] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#8b0000] uppercase tracking-widest mb-1">Saidas do Mes</p>
+            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(saidasMes)}</p>
+            <p className="text-[11px] text-[#777] mt-1">{qtdSaidas} lancamento{qtdSaidas !== 1 ? 's' : ''}</p>
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#8b0000] bg-[#fdecea] px-2 py-0.5 rounded">
+              -{formatBRL(saidasMes)}
+            </span>
+          </div>
+
+          {/* Resultado do Mes */}
+          <div className={`border rounded-lg p-4 bg-white ${resultadoMes >= 0 ? 'border-[#0a5c2e]' : 'border-[#8b0000]'}`}>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${resultadoMes >= 0 ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+              Resultado do Mes
+            </p>
+            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(Math.abs(resultadoMes))}</p>
+            <p className="text-[11px] text-[#777] mt-1">Entradas - saidas</p>
+            <span className={`inline-block mt-2 text-[10px] font-semibold px-2 py-0.5 rounded ${
+              resultadoMes >= 0 ? 'text-[#0a5c2e] bg-[#e6f4ec]' : 'text-[#8b0000] bg-[#fdecea]'
+            }`}>
+              {resultadoMes >= 0 ? '\u25B2 positivo' : '\u25BC negativo'}
+            </span>
+          </div>
+        </div>
+
+        {/* ====== MOVIMENTACOES CARD ====== */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden">
+
+          {/* Header */}
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+              Movimentacoes
+            </h3>
+            <div className="flex items-center gap-2">
               <button
-                key={ba.id}
-                onClick={() => setSelectedBankId(active ? null : ba.id)}
+                onClick={exportCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 text-white text-xs font-medium hover:bg-white/20 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Exportar
+              </button>
+              <button
+                onClick={openModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-gray-100 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Lancamento manual
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white">
+
+            {/* Bank account chips */}
+            <div className="px-4 pt-4 pb-2 flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedBankId(null)}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-                  ${active
+                  ${!selectedBankId
                     ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
                     : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a]'
                   }`}
               >
-                {maskAccount(ba.name)}
-                <span className="font-bold">{formatBRL(bal)}</span>
+                <Landmark className="w-3.5 h-3.5" />
+                Todas as contas
+                <span className="font-bold">{formatBRL(bankTotals.total)}</span>
               </button>
-            )
-          })}
-        </div>
+              {bankAccounts.map((ba) => {
+                const bal = bankTotals.perBank.get(ba.id) || 0
+                const active = selectedBankId === ba.id
+                return (
+                  <button
+                    key={ba.id}
+                    onClick={() => setSelectedBankId(active ? null : ba.id)}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+                      ${active
+                        ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
+                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a]'
+                      }`}
+                  >
+                    {maskAccount(ba.name)}
+                    <span className="font-bold">{formatBRL(bal)}</span>
+                  </button>
+                )
+              })}
+            </div>
 
-        {/* ====== DATE RANGE + SEARCH + NEW BUTTON ====== */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-[#555] font-medium">De</label>
-            <input
-              type="date"
-              value={dateStart}
-              onChange={(e) => setDateStart(e.target.value)}
-              className="border border-[#ccc] rounded px-2 py-1.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
-            />
-            <label className="text-xs text-[#555] font-medium">Ate</label>
-            <input
-              type="date"
-              value={dateEnd}
-              onChange={(e) => setDateEnd(e.target.value)}
-              className="border border-[#ccc] rounded px-2 py-1.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
-            />
-          </div>
-          <div className="relative flex-1 min-w-0 w-full md:w-auto">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999]" />
-            <input
-              type="text"
-              placeholder="Buscar descricao, conta, valor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full border border-[#ccc] rounded pl-8 pr-3 py-1.5 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
-            />
-          </div>
-          <button
-            onClick={openModal}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-[#1a2e4a] text-white text-sm font-medium hover:bg-[#15243a] transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Lancamento Manual
-          </button>
-        </div>
+            {/* Search */}
+            <div className="px-4 pb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999]" />
+                <input
+                  type="text"
+                  placeholder="Buscar descricao..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full border border-[#ccc] rounded-lg pl-9 pr-3 py-2.5 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                />
+              </div>
+            </div>
 
-        {/* ====== MAIN CARD ====== */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-              Extrato de Movimentacoes
-            </h3>
-            <span className="text-[10px] text-white/70">
-              {filtered.length} lancamento{filtered.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="bg-white">
+            {/* Type filter tabs */}
+            <div className="px-4 pb-3 flex gap-1">
+              {([
+                { id: 'todos' as TipoFilter, label: 'Todos' },
+                { id: 'entradas' as TipoFilter, label: 'Entradas' },
+                { id: 'saidas' as TipoFilter, label: 'Saidas' },
+                { id: 'transferencias' as TipoFilter, label: 'Transferencias' },
+              ]).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTipoFilter(tab.id)}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold border transition-colors ${
+                    tipoFilter === tab.id
+                      ? 'border-[#1a2e4a] bg-[#1a2e4a] text-white'
+                      : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a] hover:text-[#1a2e4a]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date range */}
+            <div className="px-4 pb-3 space-y-2">
+              <input
+                type="date"
+                value={dateStart}
+                onChange={(e) => setDateStart(e.target.value)}
+                className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+              />
+              <p className="text-[11px] text-[#999]">ate</p>
+              <input
+                type="date"
+                value={dateEnd}
+                onChange={(e) => setDateEnd(e.target.value)}
+                className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+              />
+            </div>
+
+            {/* Account dropdown filter */}
+            <div className="px-4 pb-4">
+              <div className="relative">
+                <select
+                  value={selectedBankId || ''}
+                  onChange={(e) => setSelectedBankId(e.target.value || null)}
+                  className="w-full appearance-none border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] pr-8"
+                >
+                  <option value="">Todas as contas</option>
+                  {bankAccounts.map((ba) => (
+                    <option key={ba.id} value={ba.id}>{ba.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555] pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Day groups */}
             {loading ? (
               <div className="flex items-center justify-center py-16 text-[#555]">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -483,16 +657,16 @@ export default function Movimentacoes() {
               dayGroups.map((group) => (
                 <div key={group.date}>
                   {/* Day header */}
-                  <div className="bg-[#f0f4f8] px-4 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#ccc]">
-                    <span className="text-xs font-semibold text-[#1a2e4a] capitalize">
+                  <div className="bg-[#f0f4f8] px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#ccc]">
+                    <span className="text-[11px] font-bold text-[#1a2e4a] tracking-wide">
                       {group.label}
                     </span>
-                    <div className="flex items-center gap-3 text-[11px]">
-                      <span className="text-[#0a5c2e] font-medium">
-                        Entradas: +{formatBRL(group.entradas)}
+                    <div className="flex items-center gap-4 text-[11px]">
+                      <span className="text-[#0a5c2e] font-semibold">
+                        +{formatBRL(group.entradas)}
                       </span>
-                      <span className="text-[#8b0000] font-medium">
-                        Saidas: -{formatBRL(group.saidas)}
+                      <span className="text-[#8b0000] font-semibold">
+                        -{formatBRL(group.saidas)}
                       </span>
                       <span
                         className={`font-bold ${
@@ -506,56 +680,79 @@ export default function Movimentacoes() {
                   </div>
 
                   {/* Rows */}
-                  {group.rows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="flex items-center gap-3 px-4 py-2.5 border-b border-[#eee] hover:bg-[#fafafa] transition-colors"
-                    >
-                      {/* Icon */}
-                      <TypeIcon tipo={row.tipo} />
+                  {group.rows.map((row) => {
+                    const bankName = row.conta_bancaria_id ? bankNameMap.get(row.conta_bancaria_id) : null
+                    const bankBal = row.conta_bancaria_id ? bankRunningBalances.get(row.conta_bancaria_id) : null
+                    const maskedName = bankName ? maskAccount(bankName) : '-'
 
-                      {/* Description + origem + conta contabil */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-[#0a0a0a] truncate">
-                            {row.descricao || '(sem descricao)'}
-                          </span>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#f0f0f0] text-[#555] border border-[#ddd]">
-                            {ORIGEM_LABELS[row.origem] || row.origem}
-                          </span>
+                    return (
+                      <div
+                        key={row.id}
+                        className="flex items-center gap-3 px-4 py-3 border-b border-[#eee] hover:bg-[#fafafa] transition-colors"
+                      >
+                        {/* Icon */}
+                        <TypeIcon tipo={row.tipo} />
+
+                        {/* Description + badge + category */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-[#0a0a0a] truncate">
+                              {row.descricao || '(sem descricao)'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              row.origem === 'cr' ? 'bg-[#e6f4ec] text-[#0a5c2e]' :
+                              row.origem === 'cp' ? 'bg-[#fdecea] text-[#8b0000]' :
+                              row.origem === 'venda' ? 'bg-[#e8eaf6] text-[#283593]' :
+                              'bg-[#f0f0f0] text-[#555]'
+                            }`}>
+                              {ORIGEM_LABELS[row.origem] || row.origem}
+                              {row.origem === 'venda' && row.origem_id ? ` #${row.origem_id.substring(0, 4)}` : ''}
+                            </span>
+                            {row.conta_contabil && (
+                              <span className="text-[10px] text-[#777]">
+                                {row.conta_contabil.code} — {row.conta_contabil.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {row.conta_contabil && (
-                          <span className="text-[11px] text-[#777]">
-                            {row.conta_contabil.code} - {row.conta_contabil.name}
-                          </span>
-                        )}
-                      </div>
 
-                      {/* Bank account */}
-                      <div className="hidden sm:block text-xs text-[#555] text-right w-28 truncate">
-                        {row.conta_bancaria?.name || '-'}
-                      </div>
+                        {/* Bank account */}
+                        <div className="hidden sm:block text-xs text-[#555] text-right w-28 truncate">
+                          {maskedName}
+                        </div>
 
-                      {/* Value */}
-                      <div
-                        className={`text-sm font-bold text-right w-28 whitespace-nowrap ${
-                          row.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
-                        }`}
-                      >
-                        {row.tipo === 'credito' ? '+' : '-'}
-                        {formatBRL(row.valor)}
-                      </div>
+                        {/* Value */}
+                        <div
+                          className={`text-sm font-bold text-right w-28 whitespace-nowrap ${
+                            row.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
+                          }`}
+                        >
+                          {row.tipo === 'credito' ? '+' : '-'}
+                          {formatBRL(row.valor)}
+                        </div>
 
-                      {/* Running balance */}
-                      <div
-                        className={`text-xs font-medium text-right w-28 whitespace-nowrap hidden md:block ${
-                          row.runningBalance >= 0 ? 'text-[#1a2e4a]' : 'text-[#8b0000]'
-                        }`}
-                      >
-                        {formatBRL(row.runningBalance)}
+                        {/* Per-bank running balance */}
+                        <div className="hidden md:block text-right w-28">
+                          {bankName && bankBal != null && (
+                            <>
+                              <p className="text-[10px] text-[#999]">Saldo {bankName.split(/\s/)[0]}</p>
+                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#1a2e4a]' : 'text-[#8b0000]'}`}>
+                                {formatBRL(bankBal)}
+                              </p>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Action button */}
+                        <button className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[#ccc] text-xs font-medium text-[#555] hover:border-[#1a2e4a] hover:text-[#1a2e4a] transition-colors whitespace-nowrap">
+                          <Eye className="w-3 h-3" />
+                          {ORIGEM_ACTION_LABELS[row.origem] || 'Ver'}
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ))
             )}

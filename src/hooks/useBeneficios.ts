@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { RegimeTrabalho } from '@/lib/beneficios/calculos'
 
 export interface BeneficiosConfig {
   id?: string
@@ -8,7 +9,7 @@ export interface BeneficiosConfig {
   vtValorUnitario: number
   vaAtivo: boolean
   vaValorDia: number
-  regimeTrabalho: 'seg_sex' | 'seg_sab' | 'escala_6x1'
+  regimeTrabalho: RegimeTrabalho
 }
 
 export const useBeneficiosConfig = (

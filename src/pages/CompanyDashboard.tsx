@@ -8,7 +8,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, AreaChart, Area,
 } from "recharts";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown } from "lucide-react";
 import {
     startOfMonth, endOfMonth, subMonths, addDays, format,
     differenceInDays,
@@ -23,6 +23,7 @@ const C = {
     goldBorder: "#E8D5A0",
     green: "#2e7d32",
     greenSoft: "#e8f5e9",
+    greenBadge: "#16a34a",
     red: "#c62828",
     redSoft: "#fde8e8",
     redBg: "#B91C1C",
@@ -156,6 +157,28 @@ export default function CompanyDashboard() {
     const resultadoMes = receitaMes - despesaMes;
     const margemMes = receitaMes > 0 ? (resultadoMes / receitaMes) * 100 : 0;
 
+    // ─── Previous month receita (para comparação) ─────────
+    const prevMonthStart = format(startOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
+    const prevMonthEnd = format(endOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
+    const prevMonthLabel = format(subMonths(today, 1), "MMMM", { locale: ptBR });
+
+    const { data: receitaMesAnterior = 0 } = useQuery({
+        queryKey: ["dash_receita_prev", cId, prevMonthStart, transferAccountIds],
+        queryFn: async () => {
+            const { data } = await db.from("contas_receber")
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId)
+                .eq("status", "pago")
+                .is("deleted_at", null)
+                .gte("data_pagamento", prevMonthStart)
+                .lte("data_pagamento", prevMonthEnd);
+            return (data || [])
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+        },
+        enabled: !!cId,
+    });
+
     // ─── Payables next 7 days ───────────────────────────────
     const next7 = format(addDays(today, 7), "yyyy-MM-dd");
     const payables7d = useMemo(() =>
@@ -201,7 +224,7 @@ export default function CompanyDashboard() {
     // ─── Alert banner ───────────────────────────────────────
     const alertItems: string[] = [];
     if (vencem_hoje_pagar > 0) alertItems.push(`${vencem_hoje_pagar} conta${vencem_hoje_pagar > 1 ? "s" : ""} a pagar vence${vencem_hoje_pagar > 1 ? "m" : ""} hoje`);
-    if (receivablesAging.overdue.length > 0) alertItems.push(`${receivablesAging.overdue.length} título${receivablesAging.overdue.length > 1 ? "s" : ""} a receber com mais de 60 dias em atraso`);
+    if (receivablesAging.overdue.length > 0) alertItems.push(`${receivablesAging.overdue.length} titulo${receivablesAging.overdue.length > 1 ? "s" : ""} a receber com mais de 60 dias em atraso`);
 
     // ─── Receita x Despesa 6 meses (chart) ──────────────────
     const { data: chartRevExp } = useQuery({
@@ -286,36 +309,56 @@ export default function CompanyDashboard() {
     const daysUntilDue = (dateStr: string) => {
         const diff = differenceInDays(new Date(dateStr), today);
         if (diff === 0) return "Vence hoje";
-        if (diff < 0) return `${Math.abs(diff)} dias atrás`;
+        if (diff < 0) return `${Math.abs(diff)} dias atras`;
         return `Vence em ${diff} dia${diff > 1 ? "s" : ""}`;
     };
+
+    const companyName = selectedCompany?.razao_social || selectedCompany?.nome_fantasia || "Empresa";
 
     return (
         <AppLayout title="Dashboard">
             <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "var(--font-base)" }}>
 
-                {/* ── Header: Period Filter ── */}
+                {/* ── Header: Company + Period Filter ── */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
-                        {([
-                            { key: "hoje", label: "Hoje" },
-                            { key: "mes", label: "Este mês" },
-                            { key: "trimestre", label: "Trimestre" },
-                            { key: "ano", label: "Ano" },
-                        ] as { key: Period; label: string }[]).map((p) => (
-                            <button key={p.key} onClick={() => setPeriod(p.key)} style={{
-                                padding: "8px 18px", fontSize: 13, fontWeight: period === p.key ? 700 : 400,
-                                background: period === p.key ? C.text1 : C.surface,
-                                color: period === p.key ? "#fff" : C.text2,
-                                border: "none", cursor: "pointer",
-                                borderRight: `1px solid ${C.border}`,
-                            }}>
-                                {p.label}
-                            </button>
-                        ))}
+                    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                        {/* Company Selector */}
+                        <button
+                            onClick={() => navigate("/dashboard")}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                padding: "8px 16px", borderRadius: 8,
+                                border: `1px solid ${C.border}`, background: C.surface,
+                                fontSize: 14, fontWeight: 600, color: C.text1,
+                                cursor: "pointer",
+                            }}
+                        >
+                            {companyName}
+                            <ChevronDown size={14} style={{ color: C.textMuted }} />
+                        </button>
+
+                        {/* Period Filter */}
+                        <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
+                            {([
+                                { key: "hoje", label: "Hoje" },
+                                { key: "mes", label: "Este mes" },
+                                { key: "trimestre", label: "Trimestre" },
+                                { key: "ano", label: "Ano" },
+                            ] as { key: Period; label: string }[]).map((p) => (
+                                <button key={p.key} onClick={() => setPeriod(p.key)} style={{
+                                    padding: "8px 18px", fontSize: 13, fontWeight: period === p.key ? 700 : 400,
+                                    background: period === p.key ? C.text1 : C.surface,
+                                    color: period === p.key ? "#fff" : C.text2,
+                                    border: "none", cursor: "pointer",
+                                    borderRight: `1px solid ${C.border}`,
+                                }}>
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     <span style={{ fontSize: 12, color: C.textMuted }}>
-                        Atualizado às {format(today, "HH:mm")}
+                        Atualizado as {format(today, "HH:mm")}
                     </span>
                 </div>
 
@@ -351,25 +394,25 @@ export default function CompanyDashboard() {
                         </p>
                         <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(saldoCaixa)}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                            {(bankAccounts || []).length} conta{(bankAccounts || []).length !== 1 ? "s" : ""} bancária{(bankAccounts || []).length !== 1 ? "s" : ""}
+                            {(bankAccounts || []).length} conta{(bankAccounts || []).length !== 1 ? "s" : ""} bancaria{(bankAccounts || []).length !== 1 ? "s" : ""}
                         </p>
                     </div>
 
-                    {/* Receita do Mês */}
+                    {/* Receita do Mes */}
                     <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
-                            Faturamento do Mês
+                            Receita do Mes
                         </p>
                         <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(receitaMes)}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                            Despesas pagas: {fmt(despesaMes)}
+                            Despesas: {fmt(despesaMes)}
                         </p>
                     </div>
 
-                    {/* Resultado do Mês */}
+                    {/* Resultado do Mes */}
                     <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
-                            Resultado do Mês
+                            Resultado do Mes
                         </p>
                         <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6, color: resultadoMes >= 0 ? "#4ade80" : "#f87171" }}>
                             {fmt(resultadoMes)}
@@ -377,6 +420,16 @@ export default function CompanyDashboard() {
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
                             Margem {fmtPct(margemMes)}
                         </p>
+                        {receitaMesAnterior > 0 && (
+                            <span style={{
+                                display: "inline-block", marginTop: 6, padding: "2px 10px",
+                                borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                background: receitaMes >= receitaMesAnterior ? C.greenBadge : C.redBg,
+                                color: "#fff",
+                            }}>
+                                {receitaMes >= receitaMesAnterior ? "\u25B2" : "\u25BC"} vs {prevMonthLabel}
+                            </span>
+                        )}
                     </div>
 
                     {/* A Pagar — 7 Dias */}
@@ -386,7 +439,7 @@ export default function CompanyDashboard() {
                         </p>
                         <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(totalPagar7d)}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                            {payables7d.length} título{payables7d.length !== 1 ? "s" : ""} vencendo
+                            {payables7d.length} titulo{payables7d.length !== 1 ? "s" : ""} vencendo
                         </p>
                         {vencem_hoje_pagar > 0 && (
                             <span style={{
@@ -427,22 +480,22 @@ export default function CompanyDashboard() {
                         </ResponsiveContainer>
                         <div style={{ display: "flex", gap: 20, marginTop: 8 }}>
                             <span style={{ fontSize: 11, color: C.text2, display: "flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ width: 10, height: 10, background: C.text1, borderRadius: 2, display: "inline-block" }} /> Receita
+                                <span style={{ width: 10, height: 3, background: C.text1, borderRadius: 2, display: "inline-block" }} /> Receita
                             </span>
                             <span style={{ fontSize: 11, color: C.text2, display: "flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ width: 10, height: 10, background: "#d1d5db", borderRadius: 2, display: "inline-block" }} /> Despesa
+                                <span style={{ width: 10, height: 3, background: "#d1d5db", borderRadius: 2, display: "inline-block" }} /> Despesa
                             </span>
                         </div>
                     </div>
 
-                    {/* Fluxo de Caixa 30 dias */}
-                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
+                    {/* Fluxo de Caixa 30 dias — Dark Background */}
+                    <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#fff" }}>
                                 Fluxo de Caixa — 30 Dias
                             </p>
                             <button onClick={() => navigate("/fluxo-caixa-projetado")} style={{
-                                fontSize: 12, color: C.text2, background: "none", border: "none", cursor: "pointer",
+                                fontSize: 12, color: C.textMuted, background: "none", border: "none", cursor: "pointer",
                                 display: "flex", alignItems: "center", gap: 2,
                             }}>
                                 Ver completo <ArrowRight size={12} />
@@ -452,12 +505,12 @@ export default function CompanyDashboard() {
                             <AreaChart data={chartCashflow?.days || []}>
                                 <defs>
                                     <linearGradient id="cfGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={C.gold} stopOpacity={0.3} />
-                                        <stop offset="100%" stopColor={C.gold} stopOpacity={0} />
+                                        <stop offset="0%" stopColor={C.gold} stopOpacity={0.4} />
+                                        <stop offset="100%" stopColor={C.gold} stopOpacity={0.05} />
                                     </linearGradient>
                                 </defs>
-                                <XAxis dataKey="dia" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval={6} />
-                                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: C.textMuted }} axisLine={false} tickLine={false} interval={6} />
+                                <YAxis tick={{ fontSize: 10, fill: C.textMuted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmtFull(v)} />
                                 <Area type="monotone" dataKey="saldo" stroke={C.gold} fill="url(#cfGrad)" strokeWidth={2} />
                             </AreaChart>
@@ -471,14 +524,16 @@ export default function CompanyDashboard() {
                                 fontSize: 12, color: "#92400e",
                             }}>
                                 <AlertTriangle size={14} />
-                                Projeção indica possível saldo negativo em {chartCashflow.negativeDay.dia}
+                                Projecao indica possivel saldo negativo em {chartCashflow.negativeDay.dia}
                             </div>
                         )}
 
-                        <div style={{ display: "flex", gap: 24, marginTop: 10, fontSize: 12, color: C.text2 }}>
-                            <span>Projetado: <strong>{fmt(chartCashflow?.projected || 0)}</strong></span>
-                            <span>Entradas: <strong>{fmt(chartCashflow?.totalIn || 0)}</strong></span>
-                            <span>Saídas: <strong>{fmt(chartCashflow?.totalOut || 0)}</strong></span>
+                        <div style={{ display: "flex", gap: 24, marginTop: 10, fontSize: 12, color: C.textMuted }}>
+                            <span>Projetado: <strong style={{ color: "#fff" }}>{fmt(chartCashflow?.projected || 0)}</strong></span>
+                            <span>Entradas: <strong style={{ color: "#fff" }}>{fmt(chartCashflow?.totalIn || 0)}</strong></span>
+                        </div>
+                        <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                            Saidas: <strong style={{ color: "#fff" }}>{fmt(chartCashflow?.totalOut || 0)}</strong>
                         </div>
                     </div>
                 </div>
@@ -486,11 +541,11 @@ export default function CompanyDashboard() {
                 {/* ── 2 Detail Cards ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
 
-                    {/* A Pagar — Próximos 7 Dias */}
+                    {/* A Pagar — Proximos 7 Dias */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                             <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                                A Pagar — Próximos 7 Dias
+                                A Pagar — Proximos 7 Dias
                             </p>
                             <button onClick={() => navigate("/contas-pagar")} style={{
                                 fontSize: 12, color: C.text2, background: "none", border: "none", cursor: "pointer",
@@ -502,7 +557,7 @@ export default function CompanyDashboard() {
 
                         {payables7d.length === 0 ? (
                             <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "24px 0" }}>
-                                Nenhuma conta a pagar nos próximos 7 dias.
+                                Nenhuma conta a pagar nos proximos 7 dias.
                             </p>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -547,26 +602,26 @@ export default function CompanyDashboard() {
                         {/* Aging Buckets */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
                             <div style={{ padding: "10px 12px", borderRadius: 8, background: "#16a34a", color: "#fff", textAlign: "center" }}>
-                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Até 30 dias</p>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Ate 30 dias</p>
                                 <p style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{fmt(receivablesAging.buckets.ate30.total)}</p>
-                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.ate30.count} título{receivablesAging.buckets.ate30.count !== 1 ? "s" : ""}</p>
+                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.ate30.count} titulo{receivablesAging.buckets.ate30.count !== 1 ? "s" : ""}</p>
                             </div>
                             <div style={{ padding: "10px 12px", borderRadius: 8, background: "#ca8a04", color: "#fff", textAlign: "center" }}>
                                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>31 a 60 dias</p>
                                 <p style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{fmt(receivablesAging.buckets.de31a60.total)}</p>
-                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.de31a60.count} título{receivablesAging.buckets.de31a60.count !== 1 ? "s" : ""}</p>
+                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.de31a60.count} titulo{receivablesAging.buckets.de31a60.count !== 1 ? "s" : ""}</p>
                             </div>
                             <div style={{ padding: "10px 12px", borderRadius: 8, background: C.redBg, color: "#fff", textAlign: "center" }}>
                                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Acima de 60 dias</p>
                                 <p style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{fmt(receivablesAging.buckets.acima60.total)}</p>
-                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.acima60.count} título{receivablesAging.buckets.acima60.count !== 1 ? "s" : ""}</p>
+                                <p style={{ fontSize: 11, opacity: 0.8 }}>{receivablesAging.buckets.acima60.count} titulo{receivablesAging.buckets.acima60.count !== 1 ? "s" : ""}</p>
                             </div>
                         </div>
 
                         {/* Total */}
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, color: C.text1, marginBottom: 12 }}>
                             <span>Total em aberto</span>
-                            <span>{fmt(receivablesAging.totalAberto)} · {receivablesAging.totalCount} título{receivablesAging.totalCount !== 1 ? "s" : ""}</span>
+                            <span>{fmt(receivablesAging.totalAberto)} · {receivablesAging.totalCount} titulo{receivablesAging.totalCount !== 1 ? "s" : ""}</span>
                         </div>
 
                         {/* Overdue List */}
