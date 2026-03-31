@@ -1,2651 +1,1547 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Component, type ReactNode } from 'react'
-import { useCompany } from '@/contexts/CompanyContext'
-import { useAuth } from '@/contexts/AuthContext'
-import { safeQuery } from '@/lib/supabaseQuery'
-import { formatBRL, formatData } from '@/lib/format'
-import { quitarCR, quitarCP } from '@/lib/financeiro/transacao'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { DEFAULT_KEYWORD_RULES } from '@/modules/finance/presentation/hooks/useDefaultConciliationRules'
+
+import { useState, useRef, useMemo } from "react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
+import { useBankReconciliation, SystemTransaction } from "@/modules/finance/presentation/hooks/useBankReconciliation";
+import { useConciliationEngine, MatchSuggestion } from "@/modules/finance/presentation/hooks/useConciliationEngine";
+import { useDefaultConciliationRules } from "@/modules/finance/presentation/hooks/useDefaultConciliationRules";
+import { useSearchParams } from "react-router-dom";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
-  Upload,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Trash2,
-  Plus,
-  EyeOff,
-  ChevronDown,
-  RefreshCw,
-  FileText,
-  ListChecks,
-  BookOpen,
-  Loader2,
-  History,
-  Sparkles,
-  X,
-} from 'lucide-react'
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+    Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
+    Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
+    Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
+    DollarSign, Clock, Bot, CreditCard
+} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { BankTransaction } from "@/modules/finance/domain/schemas/bank-reconciliation.schema";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useToast } from "@/components/ui/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCategorySuggestion, ExternalSuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
+import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
+import { useAiRecategorization } from "@/modules/finance/presentation/hooks/useAiRecategorization";
+import { useHistoricalCategorySuggestion } from "@/modules/finance/presentation/hooks/useHistoricalCategorySuggestion";
 
-/* ════════════════════════════════════════════════════════════════════
-   Types
-   ════════════════════════════════════════════════════════════════════ */
-
-interface TransacaoOFX {
-  tipo: 'credito' | 'debito'
-  data: string
-  valor: number
-  memo: string
-  fitid: string
+function ScoreBadge({ score }: { score: number }) {
+    if (score >= 85) return (
+        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1">
+            <Zap className="h-3 w-3" /> {score}%
+        </Badge>
+    );
+    if (score >= 50) return (
+        <Badge className="bg-amber-100 text-amber-700 border-amber-200 gap-1">
+            <Eye className="h-3 w-3" /> {score}%
+        </Badge>
+    );
+    if (score > 0) return (
+        <Badge className="bg-slate-100 text-slate-500 border-slate-200 gap-1">
+            <HelpCircle className="h-3 w-3" /> {score}%
+        </Badge>
+    );
+    return null;
 }
 
-interface BankTransaction {
-  id: string
-  company_id: string
-  conta_bancaria_id: string
-  data: string
-  descricao: string
-  valor: number
-  tipo: 'credito' | 'debito'
-  status_conciliacao: string
-  reconciled_at?: string | null
-  category_id?: string | null
-  sugestao_conta_id?: string | null
-  reconciled_payable_id?: string | null
-  reconciled_receivable_id?: string | null
-}
-
-interface MatchRecord {
-  id: string
-  company_id: string
-  bank_transaction_id: string
-  lancamento_id: string | null
-  tipo_lancamento: string | null
-  status: string
-  diferenca: number | null
-}
-
-interface ConciliationRule {
-  id: string
-  company_id: string
-  account_id: string | null
-  palavras_chave: string[]
-  confianca: 'Alta' | 'Média' | 'Baixa'
-  acao: 'sugerir' | 'auto-conciliar'
-  ativa: boolean
-  criada_em?: string
-}
-
-interface BankAccount {
-  id: string
-  company_id: string
-  name: string
-  banco: string
-}
-
-interface CandidatoLancamento {
-  id: string
-  nome: string
-  valor: number
-  data_vencimento: string
-  tipo: 'cr' | 'cp'
-}
-
-interface ImportBatch {
-  key: string
-  imported_at: string
-  min_date: string
-  max_date: string
-  count: number
-  tx_ids: string[]
-}
-
-interface IASugestao {
-  descricao_similar: string
-  tipo_lancamento: 'cr' | 'cp'
-  lancamento_nome: string
-  confianca: number // 0-100
-  categoria_id?: string | null
-  categoria_nome?: string | null
-}
-
-type IASugestoes = IASugestao[]
-
-interface ChartAccount {
-  id: string
-  code: string
-  name: string
-}
-
-interface MatchEnriquecido {
-  transacao: BankTransaction
-  match: MatchRecord | null
-  candidatos: CandidatoLancamento[]
-  lancamento: CandidatoLancamento | null
-  sugestoesIA?: IASugestoes
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   OFX Parser
-   ════════════════════════════════════════════════════════════════════ */
-
-const parsearOFX = (conteudo: string): TransacaoOFX[] => {
-  const transacoes: TransacaoOFX[] = []
-  const regex = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/g
-  let match
-  while ((match = regex.exec(conteudo)) !== null) {
-    const bloco = match[1]
-    const get = (tag: string) => {
-      const m = new RegExp(`<${tag}>([^<]+)`).exec(bloco)
-      return m ? m[1].trim() : ''
-    }
-    const raw = get('DTPOSTED').substring(0, 8)
-    const dataFormatada =
-      raw.length === 8
-        ? `${raw.substring(0, 4)}-${raw.substring(4, 6)}-${raw.substring(6, 8)}`
-        : ''
-    transacoes.push({
-      tipo: get('TRNTYPE') === 'CREDIT' ? 'credito' : 'debito',
-      data: dataFormatada,
-      valor: Math.abs(parseFloat(get('TRNAMT')) || 0),
-      memo: get('MEMO') || get('NAME'),
-      fitid: get('FITID'),
-    })
-  }
-  return transacoes
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   Helpers (pure functions — hoisted before component)
-   ════════════════════════════════════════════════════════════════════ */
-
-const mapDbToTx = (r: any): BankTransaction => ({
-  id: r.id,
-  company_id: r.company_id,
-  conta_bancaria_id: r.bank_account_id,
-  data: r.date,
-  descricao: r.description || r.memo || '',
-  valor: Math.abs(Number(r.amount || 0)),
-  tipo: Number(r.amount || 0) >= 0 ? 'credito' : 'debito',
-  status_conciliacao: r.status || 'pendente',
-  reconciled_at: r.reconciled_at || null,
-  category_id: r.category_id || null,
-  sugestao_conta_id: r.sugestao_conta_id || null,
-  reconciled_payable_id: r.reconciled_payable_id || null,
-  reconciled_receivable_id: r.reconciled_receivable_id || null,
-})
-
-const normalizeText = (text: string): string =>
-  (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
-
-const extractBeneficiary = (descricao: string): string => {
-  if (!descricao) return ''
-  // Pattern: "... / NOME )"
-  const slashMatch = descricao.match(/\/\s*([^)]+)\)/)
-  if (slashMatch) return slashMatch[1].trim()
-  // Pattern: "PIX RECEBIDO - NOME" or "TED - NOME"
-  const dashMatch = descricao.match(/(?:PIX|TED|DOC|TRANSF)[^-–]*[-–]\s*(.+)/i)
-  if (dashMatch) return dashMatch[1].trim()
-  // Last segment after separator
-  const parts = descricao.split(/[-–\/]/)
-  if (parts.length > 1) {
-    const last = parts[parts.length - 1].trim()
-    if (last.length >= 3) return last
-  }
-  return ''
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   Component
-   ════════════════════════════════════════════════════════════════════ */
-
-class ConciliacaoErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
-  state = { error: null as string | null }
-  static getDerivedStateFromError(error: Error) { return { error: error.message } }
-  componentDidCatch(error: Error) { console.error('[Conciliacao crash]', error) }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="p-8 text-center">
-          <h2 className="text-lg font-bold text-red-600 mb-2">Erro na Conciliação</h2>
-          <p className="text-sm text-black/70 mb-4">{this.state.error}</p>
-          <button onClick={() => { this.setState({ error: null }); window.location.reload() }} className="px-4 py-2 bg-[#1a2e4a] text-white rounded-lg text-sm">Recarregar</button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
-export default function ConciliacaoWrapper() {
-  return <ConciliacaoErrorBoundary><ConciliacaoInner /></ConciliacaoErrorBoundary>
-}
-
-function ConciliacaoInner() {
-  const { selectedCompany } = useCompany()
-  const { activeClient } = useAuth()
-  const companyId = selectedCompany?.id
-
-  // ── State ───────────────────────────────────────────────────────
-  const [abaAtiva, setAbaAtiva] = useState<'conciliacao' | 'historico' | 'regras'>('conciliacao')
-  const [carregando, setCarregando] = useState(false)
-  const [importando, setImportando] = useState(false)
-
-  // Upload
-  const [contas, setContas] = useState<BankAccount[]>([])
-  const [contaSelecionada, setContaSelecionada] = useState('')
-  const [arrastando, setArrastando] = useState(false)
-
-  // Transactions & matches
-  const [matchesEnriquecidos, setMatchesEnriquecidos] = useState<MatchEnriquecido[]>([])
-  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
-
-  // Regras
-  const [regras, setRegras] = useState<ConciliationRule[]>([])
-
-  // Modal salvar regra
-  const [modalRegra, setModalRegra] = useState<{
-    aberto: boolean
-    descricao: string
-    tipo: string
-    transacaoId: string
-  }>({ aberto: false, descricao: '', tipo: '', transacaoId: '' })
-
-  // Import history (batches)
-  const [importBatches, setImportBatches] = useState<ImportBatch[]>([])
-  const [batchExpandido, setBatchExpandido] = useState<string | null>(null)
-  const [batchTransacoes, setBatchTransacoes] = useState<BankTransaction[]>([])
-
-  // Plano de contas (for IA category suggestions)
-  const [planoContas, setPlanoContas] = useState<ChartAccount[]>([])
-
-  // Salvar conciliação
-  const [salvando, setSalvando] = useState(false)
-
-  // Sub-tab for filtering review items
-  const [subTab, setSubTab] = useState<'pendentes' | 'nao_reconhecidos' | 'conciliados'>('pendentes')
-
-
-  // Modal novo lançamento (popup para escolher CP/CR/Movimentação)
-  const [modalNovoLancamento, setModalNovoLancamento] = useState<{
-    aberto: boolean
-    item: MatchEnriquecido | null
-    step: 'escolha' | 'form_cp' | 'form_cr'
-  }>({ aberto: false, item: null, step: 'escolha' })
-
-  // Form fields for CP/CR creation inside modal
-  const [formNovo, setFormNovo] = useState({
-    credorNome: '',
-    descricao: '',
-    valor: 0,
-    dataVencimento: '',
-    contaContabilId: '',
-    centroCustoId: '',
-    observacoes: '',
-  })
-  const [salvandoNovo, setSalvandoNovo] = useState(false)
-
-  // Centros de custo
-  const [centrosCusto, setCentrosCusto] = useState<{ id: string; nome: string }[]>([])
-
-
-  // IA patterns (learned from past reconciliations)
-  const [iaPatterns, setIaPatterns] = useState<Array<{
-    descricao: string
-    tipo_lancamento: 'cr' | 'cp'
-    lancamento_nome: string
-    categoria_id?: string | null
-    categoria_nome?: string | null
-  }>>([])
-
-  // Historico from conciliacao_bancaria
-  const [historicoConciliacoes, setHistoricoConciliacoes] = useState<any[]>([])
-  const [carregandoHistorico, setCarregandoHistorico] = useState(false)
-
-  const carregarHistorico = useCallback(async () => {
-    if (!companyId) return
-    setCarregandoHistorico(true)
-    const items: any[] = []
-
-    // Helper: safe fetch from any table
-    const safeFetch = async (table: string, filters?: Record<string, any>) => {
-      try {
-        let q = activeClient.from(table).select('*').eq('company_id', companyId)
-        if (filters) {
-          for (const [key, val] of Object.entries(filters)) {
-            if (Array.isArray(val)) q = q.in(key, val)
-            else q = q.eq(key, val)
-          }
-        }
-        const { data, error } = await q
-        if (error) {
-          console.warn('[Hist] ' + table + ' erro:', error.message)
-          return []
-        }
-        return data || []
-      } catch {
-        return []
-      }
-    }
-
-    try {
-      // 0) Load chart_of_accounts for name lookup
-      const contasMap = new Map<string, string>()
-      const coaRows = await safeFetch('chart_of_accounts')
-      for (const c of coaRows) {
-        contasMap.set(c.id, c.code + ' - ' + c.name)
-      }
-
-      // 1) CR pagas
-      const crRows = await safeFetch('contas_receber', { status: ['pago', 'parcial'] })
-      for (const r of crRows) {
-        items.push({
-          id: 'cr-' + r.id,
-          descricao: (r.pagador_nome || '-') + (r.observacoes ? ' \u2014 ' + r.observacoes : ''),
-          valor: r.valor_pago || r.valor,
-          data: r.data_pagamento || r.data_vencimento,
-          tipo: 'credito',
-          status: r.status === 'pago' ? 'Pago' : 'Parcial',
-          origem: 'Conta a Receber',
-          forma: r.forma_recebimento || '-',
-          categoria: r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
-        })
-      }
-
-      // 2) CP pagas
-      const cpRows = await safeFetch('contas_pagar', { status: ['pago', 'parcial'] })
-      for (const r of cpRows) {
-        items.push({
-          id: 'cp-' + r.id,
-          descricao: (r.credor_nome || '-') + (r.observacoes ? ' \u2014 ' + r.observacoes : ''),
-          valor: r.valor_pago || r.valor,
-          data: r.data_pagamento || r.data_vencimento,
-          tipo: 'debito',
-          status: r.status === 'pago' ? 'Pago' : 'Parcial',
-          origem: 'Conta a Pagar',
-          forma: r.forma_pagamento || '-',
-          categoria: r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
-        })
-      }
-
-      // 3) Movimentacoes
-      const movRows = await safeFetch('movimentacoes')
-      for (const r of movRows) {
-        items.push({
-          id: 'mov-' + r.id,
-          descricao: r.descricao || '-',
-          valor: r.valor,
-          data: r.data,
-          tipo: r.tipo || 'debito',
-          status: r.status_conciliacao === 'conciliado' ? 'Conciliado' : 'Registrado',
-          origem: 'Movimentacao',
-          forma: r.origem || '-',
-          categoria: r.conta_contabil_id ? (contasMap.get(r.conta_contabil_id) || '-') : '-',
-        })
-      }
-
-      // 4) bank_transactions
-      const btRows = await safeFetch('bank_transactions')
-      for (const r of btRows) {
-        items.push({
-          id: 'bt-' + r.id,
-          descricao: r.descricao || r.description || r.memo || '-',
-          valor: r.valor != null ? r.valor : Math.abs(r.amount || 0),
-          data: r.data || r.date,
-          tipo: r.tipo || (r.amount != null ? (r.amount >= 0 ? 'credito' : 'debito') : 'debito'),
-          status: r.status_conciliacao || r.status || 'Importado',
-          origem: 'Extrato Bancario',
-          forma: '-',
-          categoria: r.sugestao_conta_id ? (contasMap.get(r.sugestao_conta_id) || '-') : '-',
-        })
-      }
-
-      // 5) conciliacao_bancaria
-      const cbRows = await safeFetch('conciliacao_bancaria')
-      for (const r of cbRows) {
-        items.push({
-          id: 'cb-' + r.id,
-          descricao: r.descricao_extrato || '-',
-          valor: r.valor_extrato,
-          data: r.data_extrato,
-          tipo: r.tipo_extrato || 'debito',
-          status: r.status === 'conciliado' ? 'Conciliado' : r.status || '-',
-          origem: 'Conciliacao OFX',
-          forma: '-',
-          categoria: '-',
-        })
-      }
-
-      // 6) bank_reconciliation_matches
-      const brmRows = await safeFetch('bank_reconciliation_matches')
-      for (const r of brmRows) {
-        items.push({
-          id: 'brm-' + r.id,
-          descricao: r.note || 'Match #' + (r.id || '').substring(0, 8),
-          valor: r.matched_amount || 0,
-          data: r.matched_date || (r.created_at ? r.created_at.substring(0, 10) : '-'),
-          tipo: r.receivable_id ? 'credito' : 'debito',
-          status: r.status === 'matched' ? 'Conciliado' : r.status || '-',
-          origem: 'Match Bancario',
-          forma: r.match_type || '-',
-          categoria: '-',
-        })
-      }
-
-      items.sort((a: any, b: any) => (b.data || '').localeCompare(a.data || ''))
-      setHistoricoConciliacoes(items)
-    } catch (err: any) {
-      console.error('[Hist] erro geral:', err)
-    } finally {
-      setCarregandoHistorico(false)
-    }
-  }, [companyId, activeClient])
-
-    // ── KPIs ────────────────────────────────────────────────────────
-  const totalImportadas = matchesEnriquecidos.length
-  const conciliadasAuto = matchesEnriquecidos.filter(
-    (m) => m.match?.status === 'match_auto' || m.match?.status === 'match_regra'
-  ).length
-  const pendentesRevisao = matchesEnriquecidos.filter(
-    (m) => m.match?.status === 'match_dif' || m.match?.status === 'revisao'
-  ).length
-  const naoReconhecidas = matchesEnriquecidos.filter(
-    (m) => m.match?.status === 'nao_reconhecido' || !m.match
-  ).length
-
-  // ── Detectar conciliações pendentes de aprovação ─────────────
-  const conciliacoesPendentes = useMemo(() =>
-    matchesEnriquecidos.filter(
-      m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)
-    ).length,
-    [matchesEnriquecidos]
-  )
-  const temPendentes = conciliacoesPendentes > 0
-
-  // ── Modal de confirmação ao sair ─────────────────────────────
-  const [modalSairAberto, setModalSairAberto] = useState(false)
-  const salvarENavegar = useRef<(() => void) | null>(null)
-
-  // Browser beforeunload (fechar aba / F5)
-  useEffect(() => {
-    if (!temPendentes) return
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = ''
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [temPendentes])
-
-  const handleSalvarESair = async () => {
-    setModalSairAberto(false)
-    await salvarConciliacao()
-  }
-
-  const handleSairSemSalvar = () => {
-    setModalSairAberto(false)
-  }
-
-  const handleCancelarSaida = () => {
-    setModalSairAberto(false)
-  }
-
-  // ── Load bank accounts ─────────────────────────────────────────
-  const carregarContas = useCallback(async () => {
-    if (!companyId) return
-    const data = await safeQuery(
-      async () =>
-        await activeClient
-          .from('bank_accounts')
-          .select('id, company_id, name, banco')
-          .eq('company_id', companyId),
-      'carregar contas bancarias'
-    )
-    if (data) setContas(data as BankAccount[])
-  }, [companyId, activeClient])
-
-  // ── Load existing transactions & matches ───────────────────────
-  const carregarDados = useCallback(async () => {
-    if (!companyId) return
-    setCarregando(true)
-    try {
-      const transacoes = await safeQuery(
-        async () =>
-          await activeClient
-            .from('bank_transactions')
-            .select('*')
-            .eq('company_id', companyId)
-            .not('status', 'in', '("reconciled","ignored")')
-            .order('date', { ascending: false }),
-        'carregar transacoes bancarias'
-      )
-      if (!transacoes || (transacoes as any[]).length === 0) {
-        setMatchesEnriquecidos([])
-        setCarregando(false)
-        return
-      }
-
-      const txList = ((transacoes || []) as any[]).map(mapDbToTx)
-      const txIds = txList.map((t) => t.id)
-
-      // Fetch matches in batches to avoid huge IN() queries
-      const allMatches: any[] = []
-      const batchSize = 50
-      for (let i = 0; i < txIds.length; i += batchSize) {
-        const batchIds = txIds.slice(i, i + batchSize)
-        const batchData = await safeQuery(
-          async () =>
-            await activeClient
-              .from('bank_reconciliation_matches')
-              .select('*')
-              .eq('company_id', companyId)
-              .in('bank_transaction_id', batchIds),
-          'carregar matches'
-        )
-        if (batchData) allMatches.push(...(batchData as any[]))
-      }
-      const matches = allMatches
-      const matchList = (matches || []) as MatchRecord[]
-      const matchMap = new Map<string, MatchRecord>()
-      matchList.forEach((m) => matchMap.set(m.bank_transaction_id, m))
-
-      // Enrich with lancamento info
-      const lancIds = matchList
-        .filter((m) => m.lancamento_id)
-        .map((m) => ({ id: m.lancamento_id!, tipo: m.tipo_lancamento }))
-
-      const crIds = lancIds.filter((l) => l.tipo === 'cr').map((l) => l.id)
-      const cpIds = lancIds.filter((l) => l.tipo === 'cp').map((l) => l.id)
-
-      const crMap = new Map<string, CandidatoLancamento>()
-      const cpMap = new Map<string, CandidatoLancamento>()
-
-      if (crIds.length > 0) {
-        const crData = await safeQuery(
-          async () =>
-            await activeClient
-              .from('contas_receber')
-              .select('id, pagador_nome, valor, data_vencimento')
-              .in('id', crIds),
-          'buscar CRs'
-        )
-        ;((crData || []) as any[]).forEach((cr: any) =>
-          crMap.set(cr.id, {
-            id: cr.id,
-            nome: cr.pagador_nome,
-            valor: cr.valor,
-            data_vencimento: cr.data_vencimento,
-            tipo: 'cr',
-          })
-        )
-      }
-      if (cpIds.length > 0) {
-        const cpData = await safeQuery(
-          async () =>
-            await activeClient
-              .from('contas_pagar')
-              .select('id, credor_nome, valor, data_vencimento')
-              .in('id', cpIds),
-          'buscar CPs'
-        )
-        ;((cpData || []) as any[]).forEach((cp: any) =>
-          cpMap.set(cp.id, {
-            id: cp.id,
-            nome: cp.credor_nome,
-            valor: cp.valor,
-            data_vencimento: cp.data_vencimento,
-            tipo: 'cp',
-          })
-        )
-      }
-
-      const enriquecidos: MatchEnriquecido[] = txList.map((tx) => {
-        const mt = matchMap.get(tx.id) || null
-        let lancamento: CandidatoLancamento | null = null
-        if (mt?.lancamento_id) {
-          lancamento = crMap.get(mt.lancamento_id) || cpMap.get(mt.lancamento_id) || null
-        }
-        // Suggest IA for any non-approved transaction
-        const statusNorm = mt?.status === 'pending' ? 'pendente' : (mt?.status || 'pendente')
-        const needsSuggestion = !mt || ['nao_reconhecido', 'pendente', 'revisao'].includes(statusNorm)
-        const sugestoesIA = needsSuggestion ? buscarSugestoesIA(tx.descricao) : []
-        return { transacao: tx, match: mt, candidatos: [], lancamento, sugestoesIA }
-      })
-
-      setMatchesEnriquecidos(enriquecidos)
-    } catch (err) {
-      console.error('[Conciliacao] erro carregar dados:', err)
-    } finally {
-      setCarregando(false)
-    }
-  }, [companyId, activeClient])
-
-  // ── Load rules ─────────────────────────────────────────────────
-  const carregarRegras = useCallback(async () => {
-    if (!companyId) return
-    const data = await safeQuery(
-      async () =>
-        await activeClient
-          .from('conciliation_rules')
-          .select('id, company_id, account_id, palavras_chave, confianca, acao, ativa, criada_em')
-          .eq('company_id', companyId)
-          .order('criada_em', { ascending: false }),
-      'carregar regras'
-    )
-    if (data) setRegras(data as ConciliationRule[])
-  }, [companyId, activeClient])
-
-  // ── Load plano de contas ───────────────────────────────────────
-  const carregarPlanoContas = useCallback(async () => {
-    if (!companyId) return
-    const data = await safeQuery(
-      async () =>
-        await activeClient
-          .from('chart_of_accounts')
-          .select('id, code, name')
-          .eq('company_id', companyId)
-          .eq('is_analytical', true)
-          .order('code', { ascending: true }),
-      'carregar plano de contas'
-    )
-    if (data) setPlanoContas(data as ChartAccount[])
-  }, [companyId, activeClient])
-
-  // ── Load centros de custo ───────────────────────────────────────
-  const carregarCentrosCusto = useCallback(async () => {
-    if (!companyId) return
-    const data = await safeQuery(
-      async () =>
-        await activeClient
-          .from('centros_custo')
-          .select('id, nome')
-          .eq('company_id', companyId)
-          .order('nome', { ascending: true }),
-      'carregar centros de custo'
-    )
-    if (data) setCentrosCusto(data as { id: string; nome: string }[])
-  }, [companyId, activeClient])
-
-  // ── Load import batches ───────────────────────────────────────
-  const carregarImportBatches = useCallback(async () => {
-    if (!companyId) return
-    const allTx = await safeQuery(
-      async () =>
-        await activeClient
-          .from('bank_transactions')
-          .select('id, date, created_at, fit_id')
-          .eq('company_id', companyId)
-          .order('created_at', { ascending: false }),
-      'carregar import batches'
-    )
-    if (!allTx || !(allTx as any[]).length) {
-      setImportBatches([])
-      return
-    }
-    const groups = new Map<string, ImportBatch>()
-    for (const tx of allTx as any[]) {
-      const createdMinute = tx.created_at?.substring(0, 16) || 'unknown'
-      const groupKey = `import_${createdMinute}`
-      const existing = groups.get(groupKey)
-      if (existing) {
-        existing.count++
-        existing.tx_ids.push(tx.id)
-        if (tx.date < existing.min_date) existing.min_date = tx.date
-        if (tx.date > existing.max_date) existing.max_date = tx.date
-      } else {
-        groups.set(groupKey, {
-          key: groupKey,
-          imported_at: tx.created_at,
-          min_date: tx.date,
-          max_date: tx.date,
-          count: 1,
-          tx_ids: [tx.id],
-        })
-      }
-    }
-    const result = Array.from(groups.values())
-    result.sort((a, b) => new Date(b.imported_at).getTime() - new Date(a.imported_at).getTime())
-    setImportBatches(result)
-  }, [companyId, activeClient])
-
-  // ── Load IA patterns (from past approved reconciliations + categorized tx) ──
-  const carregarIAPatterns = useCallback(async () => {
-    if (!companyId) return
-    // Load reconciled bank_transactions with their matched CR/CP info + category
-    const reconciledTx = await safeQuery(
-      async () =>
-        await activeClient
-          .from('bank_transactions')
-          .select('id, description, memo, amount, reconciled_payable_id, reconciled_receivable_id, sugestao_conta_id')
-          .eq('company_id', companyId)
-          .not('description', 'is', null)
-          .limit(500),
-      'carregar padroes IA'
-    )
-    if (!reconciledTx || !(reconciledTx as any[]).length) return
-
-    // Load chart_of_accounts for category name lookup
-    const coaData = await safeQuery(
-      async () =>
-        await activeClient
-          .from('chart_of_accounts')
-          .select('id, code, name')
-          .eq('company_id', companyId),
-      'carregar categorias IA'
-    )
-    const catMap = new Map<string, string>()
-    for (const c of (coaData || []) as any[]) catMap.set(c.id, `${c.code} - ${c.name}`)
-
-    const patterns: typeof iaPatterns = []
-    const txList = (reconciledTx as any[]).filter(t => t.reconciled_payable_id || t.reconciled_receivable_id || t.sugestao_conta_id)
-
-    // Gather CR/CP IDs to fetch names
-    const crIds = txList.filter(t => t.reconciled_receivable_id).map(t => t.reconciled_receivable_id)
-    const cpIds = txList.filter(t => t.reconciled_payable_id).map(t => t.reconciled_payable_id)
-
-    const crNomes = new Map<string, string>()
-    const cpNomes = new Map<string, string>()
-
-    if (crIds.length > 0) {
-      const crData = await safeQuery(
-        async () => await activeClient.from('contas_receber').select('id, pagador_nome').in('id', crIds) as any,
-        'buscar nomes CR para IA'
-      )
-      for (const c of (crData || []) as any[]) crNomes.set(c.id, c.pagador_nome || 'Recebimento')
-    }
-    if (cpIds.length > 0) {
-      const cpData = await safeQuery(
-        async () => await activeClient.from('contas_pagar').select('id, credor_nome').in('id', cpIds) as any,
-        'buscar nomes CP para IA'
-      )
-      for (const c of (cpData || []) as any[]) cpNomes.set(c.id, c.credor_nome || 'Pagamento')
-    }
-
-    for (const tx of txList) {
-      const desc = (tx.description || tx.memo || '').trim()
-      if (desc.length < 3) continue
-
-      const catId = tx.sugestao_conta_id || null
-      const catNome = catId ? catMap.get(catId) || null : null
-
-      if (tx.reconciled_receivable_id && crNomes.has(tx.reconciled_receivable_id)) {
-        patterns.push({
-          descricao: desc.toLowerCase(),
-          tipo_lancamento: 'cr',
-          lancamento_nome: crNomes.get(tx.reconciled_receivable_id)!,
-          categoria_id: catId,
-          categoria_nome: catNome,
-        })
-      } else if (tx.reconciled_payable_id && cpNomes.has(tx.reconciled_payable_id)) {
-        patterns.push({
-          descricao: desc.toLowerCase(),
-          tipo_lancamento: 'cp',
-          lancamento_nome: cpNomes.get(tx.reconciled_payable_id)!,
-          categoria_id: catId,
-          categoria_nome: catNome,
-        })
-      } else if (catId) {
-        // Transaction only has category, no CR/CP match
-        patterns.push({
-          descricao: desc.toLowerCase(),
-          tipo_lancamento: Number(tx.amount || 0) >= 0 ? 'cr' : 'cp',
-          lancamento_nome: catNome || 'Categorizado',
-          categoria_id: catId,
-          categoria_nome: catNome,
-        })
-      }
-    }
-
-    setIaPatterns(patterns)
-  }, [companyId, activeClient])
-
-  // ── IA: find suggestion for a description ─────────────────────
-  const buscarSugestoesIA = useCallback(
-    (descricao: string): IASugestoes => {
-      if (!descricao) return []
-      const descLower = descricao.toLowerCase()
-      const descUpper = descricao.toUpperCase()
-      const allSuggestions: IASugestao[] = []
-
-      // 0. Check DEFAULT_KEYWORD_RULES first (always available, no history needed)
-      for (const rule of DEFAULT_KEYWORD_RULES) {
-        for (const keyword of rule.keywords) {
-          if (descUpper.includes(keyword)) {
-            const catMatch = planoContas.find(c => c.code === rule.accountCode)
-            allSuggestions.push({
-              descricao_similar: keyword,
-              tipo_lancamento: rule.accountCode.startsWith('1') ? 'cr' as const : 'cp' as const,
-              lancamento_nome: `${rule.accountCode} — ${rule.accountName}`,
-              confianca: rule.confidence,
-              categoria_id: catMatch?.id || null,
-              categoria_nome: catMatch ? `${catMatch.code} - ${catMatch.name}` : `${rule.accountCode} - ${rule.accountName}`,
-            })
-          }
-        }
-      }
-
-      if (iaPatterns.length > 0) {
-        // 1. Exact matches from history
-        for (const p of iaPatterns) {
-          if (p.descricao === descLower) {
-            allSuggestions.push({ ...p, descricao_similar: p.descricao, confianca: 100, categoria_id: p.categoria_id, categoria_nome: p.categoria_nome })
-          }
-        }
-
-        // 2. Contains matches (description contains pattern or vice-versa)
-        for (const p of iaPatterns) {
-          if (descLower.includes(p.descricao) || p.descricao.includes(descLower)) {
-            if (p.descricao !== descLower) { // avoid duplicating exact matches
-              allSuggestions.push({ ...p, descricao_similar: p.descricao, confianca: 85, categoria_id: p.categoria_id, categoria_nome: p.categoria_nome })
+export default function Conciliacao() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const accountIdFromUrl = searchParams.get("conta") || "";
+    const [selectedAccountId, setSelectedAccountId] = useState(accountIdFromUrl);
+    const [selectedBankTx, setSelectedBankTx] = useState<BankTransaction | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showImportHistory, setShowImportHistory] = useState(false);
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [showRulesPanel, setShowRulesPanel] = useState(false);
+    const [newEntry, setNewEntry] = useState({ description: "", category_id: "" });
+    const [isCreating, setIsCreating] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
+    const [showNewCategory, setShowNewCategory] = useState(false);
+    const [newCatName, setNewCatName] = useState("");
+    const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [expandedBatchKey, setExpandedBatchKey] = useState<string | null>(null);
+    const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
+
+    const { activeClient } = useAuth();
+    const { selectedCompany } = useCompany();
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
+
+    const handleAccountChange = (val: string) => {
+        setSelectedAccountId(val);
+        setSearchParams({ conta: val });
+        setSelectedIds(new Set());
+    };
+
+    const { accounts } = useBankAccounts();
+    const {
+        bankTransactions,
+        systemTransactions,
+        importHistory,
+        uploadOFX,
+        uploadCreditCardPDF,
+        matchTransaction,
+        deleteImportBatch
+    } = useBankReconciliation(selectedAccountId);
+
+    const selectedAccount = accounts?.find((a: any) => a.id === selectedAccountId);
+    const isCreditCard = selectedAccount?.type === 'credit_card';
+
+    const {
+        suggestions,
+        rules,
+        scoreSummary,
+        learnRule,
+        createRule,
+        deleteRule,
+    } = useConciliationEngine(selectedAccountId, bankTransactions, systemTransactions);
+
+    const { seedDefaultRules, rulesCount: defaultRulesCount } = useDefaultConciliationRules();
+
+    // Faturamento conciliado vs a conciliar
+    const { data: reconciledTx } = useQuery({
+        queryKey: ["reconciled_transactions", selectedAccountId],
+        queryFn: async () => {
+            if (!selectedAccountId) return [];
+            const { data, error } = await (activeClient as any)
+                .from("bank_transactions")
+                .select("id, amount, status, date")
+                .eq("bank_account_id", selectedAccountId)
+                .eq("status", "reconciled");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedAccountId,
+    });
+
+    // Query: fetch full details of a batch when expanded
+    const { data: expandedBatchTx } = useQuery({
+        queryKey: ["batch_details", expandedBatchKey],
+        queryFn: async () => {
+            if (!expandedBatchKey) return [];
+            const batch = importHistory?.find((b: any) => b.key === expandedBatchKey);
+            if (!batch?.tx_ids?.length) return [];
+
+            // Fetch bank_transactions with full details (including direct category_id)
+            const { data: txs, error } = await (activeClient as any)
+                .from("bank_transactions")
+                .select("id, date, amount, description, memo, status, category_id, reconciled_payable_id, reconciled_receivable_id")
+                .in("id", batch.tx_ids)
+                .order("date", { ascending: true });
+            if (error) throw error;
+
+            // For reconciled ones, fetch category from accounts_payable/receivable
+            const payableIds = (txs || []).map((t: any) => t.reconciled_payable_id).filter(Boolean);
+            const receivableIds = (txs || []).map((t: any) => t.reconciled_receivable_id).filter(Boolean);
+
+            let payableMap: Record<string, any> = {};
+            let receivableMap: Record<string, any> = {};
+
+            if (payableIds.length > 0) {
+                const { data: payables } = await (activeClient as any)
+                    .from("contas_pagar")
+                    .select("id, conta_contabil_id, credor_nome")
+                    .in("id", payableIds);
+                (payables || []).forEach((p: any) => { payableMap[p.id] = { ...p, category_id: p.conta_contabil_id, description: p.credor_nome }; });
             }
-          }
-        }
-
-        // 3. Word overlap (at least 2 significant words in common)
-        const descWords = descLower.split(/\s+/).filter(w => w.length > 3)
-        if (descWords.length >= 2) {
-          for (const p of iaPatterns) {
-            const pWords = p.descricao.split(/\s+/).filter(w => w.length > 3)
-            const commonWords = descWords.filter(w => pWords.some(pw => pw.includes(w) || w.includes(pw)))
-            const score = commonWords.length / Math.max(descWords.length, pWords.length)
-            if (score >= 0.4 && commonWords.length >= 2) {
-              allSuggestions.push({
-                ...p,
-                descricao_similar: p.descricao,
-                confianca: Math.round(score * 80),
-              })
+            if (receivableIds.length > 0) {
+                const { data: receivables } = await (activeClient as any)
+                    .from("contas_receber")
+                    .select("id, conta_contabil_id, pagador_nome")
+                    .in("id", receivableIds);
+                (receivables || []).forEach((r: any) => { receivableMap[r.id] = { ...r, category_id: r.conta_contabil_id, description: r.pagador_nome }; });
             }
-          }
-        }
-      }
 
-      // Sort by confidence descending, deduplicate by categoria_id, return top 3
-      allSuggestions.sort((a, b) => b.confianca - a.confianca)
-      const seen = new Set<string>()
-      const deduped: IASugestao[] = []
-      for (const sug of allSuggestions) {
-        const key = sug.categoria_id || sug.lancamento_nome
-        if (seen.has(key)) continue
-        seen.add(key)
-        deduped.push(sug)
-        if (deduped.length >= 3) break
-      }
+            return (txs || []).map((t: any) => {
+                const linked = t.reconciled_payable_id
+                    ? payableMap[t.reconciled_payable_id]
+                    : t.reconciled_receivable_id
+                        ? receivableMap[t.reconciled_receivable_id]
+                        : null;
+                return {
+                    ...t,
+                    linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
+                    linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
+                    category_id: t.category_id || linked?.category_id || null,
+                };
+            });
+        },
+        enabled: !!expandedBatchKey && !!importHistory,
+    });
 
-      return deduped
-    },
-    [iaPatterns, planoContas]
-  )
-
-  // ── Salvar Conciliação (batch approve all matched) ────────────
-  const salvarConciliacao = useCallback(async () => {
-    if (!companyId) return
-    setSalvando(true)
-    try {
-      const agora = new Date().toISOString()
-      const pendentes = matchesEnriquecidos.filter(
-        m => m.match && (m.match.status === 'match_auto' || m.match.status === 'match_regra' || m.match.status === 'match_dif')
-      )
-
-      for (const item of pendentes) {
-        if (!item.match) continue
-
-        // Update match status
-        await activeClient
-          .from('bank_reconciliation_matches')
-          .update({ status: 'aprovado' })
-          .eq('id', item.match.id)
-
-        // Update bank_transaction
-        await activeClient
-          .from('bank_transactions')
-          .update({
-            status: 'reconciled',
-            reconciled_at: agora,
-          })
-          .eq('id', item.transacao.id)
-
-        // If has lancamento, quitar
-        if (item.lancamento && item.match) {
-          const hoje = agora.split('T')[0]
-          if (item.lancamento.tipo === 'cr') {
-            await quitarCR(item.lancamento.id, {
-              valorPago: item.transacao.valor,
-              dataPagamento: hoje,
-              formaRecebimento: 'transferencia',
-              contaBancariaId: item.transacao.conta_bancaria_id,
-            })
-          } else {
-            await quitarCP(item.lancamento.id, {
-              valorPago: item.transacao.valor,
-              dataPagamento: hoje,
-              formaPagamento: 'transferencia',
-              contaBancariaId: item.transacao.conta_bancaria_id,
-            })
-          }
+    // Mutation: update category — works on linked payable/receivable OR directly on bank_transactions
+    const updateLinkedCategory = async (linkedTable: string | null, linkedId: string | null, newCategoryId: string, bankTxId?: string) => {
+        // Always save category_id directly on the bank_transaction
+        if (bankTxId) {
+            await (activeClient as any)
+                .from("bank_transactions")
+                .update({ category_id: newCategoryId })
+                .eq("id", bankTxId);
         }
 
-        // Learn pattern for IA
-        const desc = item.transacao.descricao?.trim()
-        if (desc && desc.length >= 3 && item.lancamento) {
-          const alreadyExists = iaPatterns.some(p => p.descricao === desc.toLowerCase())
-          if (!alreadyExists) {
-            setIaPatterns(prev => [
-              ...prev,
-              {
-                descricao: desc.toLowerCase(),
-                tipo_lancamento: item.lancamento!.tipo as 'cr' | 'cp',
-                lancamento_nome: item.lancamento!.nome,
-              },
-            ])
-          }
-        }
-      }
-
-      // Update local state instead of reloading
-      setMatchesEnriquecidos(prev => prev.map(m => {
-        if (m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)) {
-          return { ...m, match: { ...m.match, status: 'aprovado' } }
-        }
-        return m
-      }))
-      alert(`Conciliacao salva! ${pendentes.length} transacoes aprovadas.`)
-    } catch (err) {
-      console.error('[SalvarConciliacao]', err)
-      alert('Erro ao salvar conciliacao.')
-    } finally {
-      setSalvando(false)
-    }
-  }, [companyId, activeClient, matchesEnriquecidos, iaPatterns])
-
-  // ── Delete import batch ───────────────────────────────────────
-  const excluirImportBatch = useCallback(async (txIds: string[]) => {
-    if (!confirm(`Excluir ${txIds.length} transacoes deste lote?`)) return
-    const batchSize = 50
-    for (let i = 0; i < txIds.length; i += batchSize) {
-      const batch = txIds.slice(i, i + batchSize)
-      await activeClient.from('bank_transactions').delete().in('id', batch)
-      // Also delete matches
-      await activeClient.from('bank_reconciliation_matches').delete().in('bank_transaction_id', batch)
-    }
-    await carregarDados()
-    await carregarImportBatches()
-  }, [activeClient, carregarDados, carregarImportBatches])
-
-  // ── Expand batch to show its transactions ──────────────────────
-  const expandirBatch = useCallback(async (batch: ImportBatch) => {
-    if (batchExpandido === batch.key) {
-      setBatchExpandido(null)
-      setBatchTransacoes([])
-      return
-    }
-    setBatchExpandido(batch.key)
-    const batchSize = 50
-    const allTx: any[] = []
-    for (let i = 0; i < batch.tx_ids.length; i += batchSize) {
-      const ids = batch.tx_ids.slice(i, i + batchSize)
-      const data = await safeQuery(
-        async () => await activeClient.from('bank_transactions').select('*').in('id', ids),
-        'carregar transacoes do lote'
-      )
-      if (data) allTx.push(...(data as any[]))
-    }
-    let txList = allTx.map(mapDbToTx)
-
-    // For reconciled transactions without sugestao_conta_id, fetch category from linked CP/CR
-    const txSemCategoria = txList.filter(t => t.status_conciliacao === 'reconciled' && !t.sugestao_conta_id && !t.category_id)
-    if (txSemCategoria.length > 0) {
-      const crIds = txSemCategoria.filter(t => t.reconciled_receivable_id).map(t => t.reconciled_receivable_id!)
-      const cpIds = txSemCategoria.filter(t => t.reconciled_payable_id).map(t => t.reconciled_payable_id!)
-
-      const catFromCR = new Map<string, string>()
-      const catFromCP = new Map<string, string>()
-
-      if (crIds.length > 0) {
-        for (let i = 0; i < crIds.length; i += batchSize) {
-          const batch = crIds.slice(i, i + batchSize)
-          const crData = await safeQuery(
-            async () => await activeClient.from('contas_receber').select('id, conta_contabil_id').in('id', batch) as any,
-            'buscar categorias CR'
-          )
-          for (const c of (crData || []) as any[]) {
-            if (c.conta_contabil_id) catFromCR.set(c.id, c.conta_contabil_id)
-          }
-        }
-      }
-      if (cpIds.length > 0) {
-        for (let i = 0; i < cpIds.length; i += batchSize) {
-          const batch = cpIds.slice(i, i + batchSize)
-          const cpData = await safeQuery(
-            async () => await activeClient.from('contas_pagar').select('id, conta_contabil_id').in('id', batch) as any,
-            'buscar categorias CP'
-          )
-          for (const c of (cpData || []) as any[]) {
-            if (c.conta_contabil_id) catFromCP.set(c.id, c.conta_contabil_id)
-          }
-        }
-      }
-
-      // Merge categories into transactions
-      txList = txList.map(t => {
-        if (t.sugestao_conta_id || t.category_id) return t
-        if (t.reconciled_receivable_id && catFromCR.has(t.reconciled_receivable_id)) {
-          return { ...t, sugestao_conta_id: catFromCR.get(t.reconciled_receivable_id)! }
-        }
-        if (t.reconciled_payable_id && catFromCP.has(t.reconciled_payable_id)) {
-          return { ...t, sugestao_conta_id: catFromCP.get(t.reconciled_payable_id)! }
-        }
-        return t
-      })
-    }
-
-    setBatchTransacoes(txList)
-  }, [batchExpandido, activeClient])
-
-  // ── Categorize transaction (set category_id) ──────────────────
-  const categorizarTransacao = useCallback(async (txId: string, categoryId: string) => {
-    const { error } = await activeClient
-      .from('bank_transactions')
-      .update({
-        sugestao_conta_id: categoryId,
-        metodo_match: 'manual',
-        confianca_match: 100,
-      })
-      .eq('id', txId)
-    if (error) {
-      console.error('[Categorizar] erro:', error)
-      alert('Erro ao categorizar: ' + error.message)
-      return
-    }
-    // Update local state instead of reloading everything
-    const catName = planoContas.find(c => c.id === categoryId)
-    setMatchesEnriquecidos(prev => prev.map(item => {
-      if (item.transacao.id === txId) {
-        return {
-          ...item,
-          sugestoesIA: catName ? [{
-            descricao_similar: '',
-            tipo_lancamento: item.transacao.tipo === 'credito' ? 'cr' as const : 'cp' as const,
-            lancamento_nome: `${catName.code} - ${catName.name}`,
-            confianca: 100,
-            categoria_id: categoryId,
-            categoria_nome: `${catName.code} - ${catName.name}`,
-          }] : item.sugestoesIA,
-        }
-      }
-      return item
-    }))
-  }, [activeClient, planoContas])
-
-
-
-  // ── Helper: upsert match (verificar duplicata antes de inserir) ──
-  const upsertMatch = async (
-    txId: string,
-    matchData: { lancamento_id: string | null; tipo_lancamento: string | null; status: string; diferenca: number | null }
-  ) => {
-    const { data: existing } = await activeClient
-      .from('bank_reconciliation_matches')
-      .select('id, status')
-      .eq('bank_transaction_id', txId)
-      .maybeSingle()
-
-    if (!existing) {
-      await activeClient.from('bank_reconciliation_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: txId,
-        ...matchData,
-      })
-    } else if (existing.status === 'nao_reconhecido' || existing.status === 'pendente') {
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update(matchData)
-        .eq('id', existing.id)
-    }
-  }
-
-  // ── Matching Engine ────────────────────────────────────────────
-  const executarMatching = useCallback(
-    async (transacoes: BankTransaction[]) => {
-      if (!companyId) return
-
-      const ruleData = await safeQuery(
-        async () =>
-          await activeClient
-            .from('conciliation_rules')
-            .select('id, company_id, account_id, palavras_chave, confianca, acao, ativa')
-            .eq('company_id', companyId)
-            .eq('ativa', true),
-        'buscar regras ativas'
-      )
-      const rules = (ruleData || []) as ConciliationRule[]
-
-      for (const tx of transacoes) {
-        const descNorm = normalizeText(tx.descricao)
-        let regraMatch: ConciliationRule | null = null
-        let melhorScore = 0
-
-        for (const r of rules) {
-          const palavras = r.palavras_chave || []
-          const matches = palavras.filter(kw => descNorm.includes(normalizeText(kw)))
-          if (matches.length > 0) {
-            const score = Math.round((matches.length / palavras.length) * 100)
-            if (score > melhorScore) {
-              melhorScore = score
-              regraMatch = r
+        // If linked to payable/receivable, also update there
+        if (linkedTable && linkedId) {
+            const gestapTable = linkedTable === "accounts_payable" ? "contas_pagar" : "contas_receber";
+            const { error } = await (activeClient as any)
+                .from(gestapTable)
+                .update({ conta_contabil_id: newCategoryId })
+                .eq("id", linkedId);
+            if (error) {
+                toast({ title: "Erro", description: "Não foi possível atualizar a categoria.", variant: "destructive" });
+                return;
             }
-          }
+            const txField = linkedTable === "accounts_payable" ? "conta_pagar_id" : "conta_receber_id";
+            await (activeClient as any)
+                .from("movimentacoes")
+                .update({ conta_contabil_id: newCategoryId })
+                .eq(txField, linkedId);
         }
 
-        if (regraMatch) {
-          const confiancaNum = regraMatch.confianca === 'Alta' ? 95 : regraMatch.confianca === 'Média' ? 70 : 50
-          await activeClient
-            .from('bank_transactions')
-            .update({
-              sugestao_conta_id: regraMatch.account_id,
-              confianca_match: Math.max(melhorScore, confiancaNum),
-              metodo_match: 'regra',
-            })
-            .eq('id', tx.id)
-          await upsertMatch(tx.id, {
-            lancamento_id: null,
-            tipo_lancamento: null,
-            status: regraMatch.acao === 'auto-conciliar' ? 'match_auto' : 'match_regra',
-            diferenca: 0,
-          })
-          continue
+        toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
+        queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_dre_detailed"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_service"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard_revenue_by_payment"] });
+        queryClient.invalidateQueries({ queryKey: ["historical_categorized_tx"] });
+        setEditingCategoryTxId(null);
+    };
+
+    const billingStats = useMemo(() => {
+        const conciliado = (reconciledTx || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
+        const aConciliar = (bankTransactions || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
+        const withAiSupport = suggestions.filter(s => s.score > 0).length;
+        const aiPercent = suggestions.length > 0 ? Math.round((withAiSupport / suggestions.length) * 100) : 0;
+
+        // Período: min/max date de todas as transações (pendentes + reconciliadas)
+        const allDates: string[] = [
+            ...(bankTransactions || []).map((t: any) => t.date).filter(Boolean),
+            ...(reconciledTx || []).map((t: any) => t.date).filter(Boolean),
+        ];
+        let periodoLabel = "";
+        if (allDates.length > 0) {
+            const sorted = allDates.sort();
+            const minDate = sorted[0];
+            const maxDate = sorted[sorted.length - 1];
+            try {
+                const fmtMin = format(parseISO(minDate), "dd/MM/yyyy", { locale: ptBR });
+                const fmtMax = format(parseISO(maxDate), "dd/MM/yyyy", { locale: ptBR });
+                periodoLabel = fmtMin === fmtMax ? fmtMin : `${fmtMin} — ${fmtMax}`;
+            } catch { periodoLabel = ""; }
         }
 
-        const dataMin = new Date(tx.data)
-        dataMin.setDate(dataMin.getDate() - 3)
-        const dataMax = new Date(tx.data)
-        dataMax.setDate(dataMax.getDate() + 3)
-        const dMin = dataMin.toISOString().split('T')[0]
-        const dMax = dataMax.toISOString().split('T')[0]
-
-        let candidatos: any[] = []
-        if (tx.tipo === 'credito') {
-          const crData = await safeQuery(
-            async () =>
-              await activeClient
-                .from('contas_receber')
-                .select('id, pagador_nome, valor, data_vencimento')
-                .eq('company_id', companyId)
-                .in('status', ['pendente', 'parcial', 'vencido'])
-                .gte('data_vencimento', dMin)
-                .lte('data_vencimento', dMax),
-            'buscar CRs candidatos'
-          )
-          candidatos = ((crData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cr' }))
-        } else {
-          const cpData = await safeQuery(
-            async () =>
-              await activeClient
-                .from('contas_pagar')
-                .select('id, credor_nome, valor, data_vencimento')
-                .eq('company_id', companyId)
-                .in('status', ['pendente', 'parcial', 'vencido'])
-                .gte('data_vencimento', dMin)
-                .lte('data_vencimento', dMax),
-            'buscar CPs candidatos'
-          )
-          candidatos = ((cpData || []) as any[]).map((c: any) => ({ ...c, tipo_lanc: 'cp' }))
-        }
-
-        const valorExatos = candidatos.filter((c: any) => Math.abs(c.valor - tx.valor) < 0.01)
-        const valorProximos = candidatos.filter(
-          (c: any) => Math.abs(c.valor - tx.valor) >= 0.01 && Math.abs(c.valor - tx.valor) <= tx.valor * 0.1
-        )
-
-        if (valorExatos.length === 1) {
-          const cand = valorExatos[0]
-          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_auto', diferenca: 0 })
-        } else if (valorExatos.length > 1) {
-          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'revisao', diferenca: null })
-        } else if (valorProximos.length === 1) {
-          const cand = valorProximos[0]
-          await upsertMatch(tx.id, { lancamento_id: cand.id, tipo_lancamento: cand.tipo_lanc, status: 'match_dif', diferenca: Math.round((tx.valor - cand.valor) * 100) / 100 })
-        } else {
-          await upsertMatch(tx.id, { lancamento_id: null, tipo_lancamento: null, status: 'nao_reconhecido', diferenca: null })
-        }
-      }
-    },
-    [companyId, activeClient]
-  )
-
-  // ── Reprocessar transações existentes sem sugestão ────────────
-  const reprocessarTransacoesExistentes = useCallback(async () => {
-    if (!companyId) return
-    const pendentes = await safeQuery(
-      async () =>
-        await activeClient
-          .from('bank_transactions')
-          .select('*')
-          .eq('company_id', companyId)
-          .eq('status', 'pending')
-          .is('sugestao_conta_id', null)
-          .order('date', { ascending: false }),
-      'buscar transacoes sem sugestao'
-    )
-    if (!pendentes || !(pendentes as any[]).length) return
-    const mapped = (pendentes as any[]).map(mapDbToTx)
-    await executarMatching(mapped)
-  }, [companyId, activeClient, executarMatching])
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!companyId) return
-    carregarContas()
-    carregarRegras()
-    carregarHistorico()
-    carregarImportBatches()
-    carregarPlanoContas()
-    carregarCentrosCusto()
-    // Load IA patterns first, then data, then retroactive matching
-    carregarIAPatterns().then(async () => {
-      await carregarDados()
-      await reprocessarTransacoesExistentes()
-    })
-  }, [companyId])
-
-  // Re-enrich with IA suggestions when patterns change + load candidate previews
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (iaPatterns.length > 0 && matchesEnriquecidos.length > 0) {
-      setMatchesEnriquecidos(prev => prev.map(item => {
-        const statusNorm = item.match?.status === 'pending' ? 'pendente' : (item.match?.status || 'pendente')
-        const needsSuggestion = !item.match || ['nao_reconhecido', 'pendente', 'revisao'].includes(statusNorm)
-        if (needsSuggestion && (!item.sugestoesIA || item.sugestoesIA.length === 0)) {
-          return { ...item, sugestoesIA: buscarSugestoesIA(item.transacao.descricao) }
-        }
-        return item
-      }))
-    }
-  }, [iaPatterns])
-
-  // ── Handle OFX Upload ──────────────────────────────────────────
-  const handleArquivo = useCallback(
-    async (file: File) => {
-      if (!companyId || !contaSelecionada) return
-      if (!file.name.toLowerCase().endsWith('.ofx')) {
-        alert('Selecione um arquivo .ofx')
-        return
-      }
-
-      setImportando(true)
-      try {
-        const conteudo = await file.text()
-        const transacoesOFX = parsearOFX(conteudo)
-
-        if (transacoesOFX.length === 0) {
-          alert('Nenhuma transacao encontrada no arquivo OFX.')
-          setImportando(false)
-          return
-        }
-
-        // Insert bank_transactions with correct DB column names
-        const rows = transacoesOFX.map((t) => ({
-          company_id: companyId,
-          bank_account_id: contaSelecionada,
-          date: t.data,
-          description: t.memo,
-          memo: '',
-          amount: t.tipo === 'debito' ? -Math.abs(t.valor) : Math.abs(t.valor),
-          fit_id: t.fitid || `ofx_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-          status: 'pending',
-        }))
-
-        const { data: insertedTx, error: errTx } = await activeClient
-          .from('bank_transactions')
-          .upsert(rows, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true })
-          .select()
-
-        if (errTx) {
-          console.error('[Upload OFX] erro transactions:', errTx)
-          alert('Erro ao inserir transacoes.')
-          setImportando(false)
-          return
-        }
-
-        // Map DB rows to internal BankTransaction format
-        const mapped = ((insertedTx || []) as any[]).map(mapDbToTx)
-
-        // Run matching
-        await executarMatching(mapped)
-
-        // Reload
-        await carregarDados()
-        await carregarRegras()
-      } catch (err) {
-        console.error('[Upload OFX]', err)
-        alert('Erro ao processar arquivo OFX.')
-      } finally {
-        setImportando(false)
-      }
-    },
-    [companyId, contaSelecionada, activeClient, executarMatching, carregarDados, carregarRegras]
-  )
-
-  // ── Drag & drop handlers ───────────────────────────────────────
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setArrastando(true)
-  }
-  const onDragLeave = () => setArrastando(false)
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setArrastando(false)
-    const f = e.dataTransfer.files[0]
-    if (f) handleArquivo(f)
-  }
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (f) handleArquivo(f)
-    e.target.value = ''
-  }
-
-  // ── Approve single match ───────────────────────────────────────
-  const aprovar = async (matchId: string, item: MatchEnriquecido) => {
-    const agora = new Date().toISOString()
-
-    // 1. Atualizar status do match
-    const { error } = await activeClient
-      .from('bank_reconciliation_matches')
-      .update({ status: 'aprovado' })
-      .eq('id', matchId)
-
-    if (error) {
-      console.error('[Aprovar]', error)
-      return
-    }
-
-    // 2. Atualizar status da bank_transaction para 'reconciled'
-    const { error: btError } = await activeClient
-      .from('bank_transactions')
-      .update({
-        status: 'reconciled',
-        reconciled_at: agora,
-        reconciled_by: null, // será preenchido se tiver user id
-      })
-      .eq('id', item.transacao.id)
-
-    if (btError) {
-      console.error('[Aprovar] erro ao atualizar bank_transaction:', btError)
-    }
-
-    // 3. If has lancamento, quitar
-    if (item.lancamento && item.match) {
-      const hoje = agora.split('T')[0]
-      if (item.lancamento.tipo === 'cr') {
-        await quitarCR(item.lancamento.id, {
-          valorPago: item.transacao.valor,
-          dataPagamento: hoje,
-          formaRecebimento: 'transferencia',
-          contaBancariaId: item.transacao.conta_bancaria_id,
-        })
-      } else {
-        await quitarCP(item.lancamento.id, {
-          valorPago: item.transacao.valor,
-          dataPagamento: hoje,
-          formaPagamento: 'transferencia',
-          contaBancariaId: item.transacao.conta_bancaria_id,
-        })
-      }
-    }
-
-    // 4. Update local state
-    setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.match?.id === matchId) {
-        return {
-          ...m,
-          match: { ...m.match!, status: 'aprovado' },
-          transacao: { ...m.transacao, status_conciliacao: 'reconciled' },
-        }
-      }
-      return m
-    }))
-  }
-
-  // ── Batch approval ─────────────────────────────────────────────
-  const aprovarSelecionados = async () => {
-    const itens = matchesEnriquecidos.filter(
-      (m) => selecionados.has(m.transacao.id) && m.match && m.match.status !== 'aprovado'
-    )
-    for (const item of itens) {
-      if (item.match) await aprovar(item.match.id, item)
-    }
-    setSelecionados(new Set())
-  }
-
-  // ── Toggle selection ───────────────────────────────────────────
-  const toggleSelecao = (txId: string) => {
-    setSelecionados((prev) => {
-      const next = new Set(prev)
-      if (next.has(txId)) next.delete(txId)
-      else next.add(txId)
-      return next
-    })
-  }
-
-  const toggleTodos = () => {
-    if (selecionados.size === matchesEnriquecidos.length) {
-      setSelecionados(new Set())
-    } else {
-      setSelecionados(new Set(matchesEnriquecidos.map((m) => m.transacao.id)))
-    }
-  }
-
-  // ── Ignorar (com ou sem match existente) ──────────────────────
-  const ignorarTransacao = async (txId: string, matchId: string | null) => {
-    if (matchId) {
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update({ status: 'ignorado' })
-        .eq('id', matchId)
-    } else if (companyId) {
-      // Create a new match with status ignorado
-      await activeClient.from('bank_reconciliation_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: txId,
-        lancamento_id: null,
-        tipo_lancamento: null,
-        status: 'ignorado',
-        diferenca: null,
-      })
-    }
-    // Atualizar bank_transactions.status para 'ignored'
-    await activeClient
-      .from('bank_transactions')
-      .update({ status: 'ignored' })
-      .eq('id', txId)
-    // Update local state
-    setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.transacao.id === txId) {
-        const updatedMatch: MatchRecord = m.match
-          ? { ...m.match, status: 'ignorado' }
-          : { id: 'temp-' + Date.now(), company_id: companyId || '', bank_transaction_id: txId, lancamento_id: null, tipo_lancamento: null, status: 'ignorado', diferenca: null }
-        return { ...m, match: updatedMatch }
-      }
-      return m
-    }))
-  }
-
-  // ── Abrir form CP/CR com dados pré-preenchidos ──────────────────
-  const abrirFormCP = (item: MatchEnriquecido) => {
-    const tx = item.transacao
-    const beneficiario = extractBeneficiary(tx.descricao) || ''
-    setFormNovo({
-      credorNome: beneficiario,
-      descricao: tx.descricao.substring(0, 200),
-      valor: tx.valor,
-      dataVencimento: tx.data,
-      contaContabilId: '',
-      centroCustoId: '',
-      observacoes: tx.descricao.substring(0, 200),
-    })
-    setModalNovoLancamento({ aberto: true, item, step: 'form_cp' })
-  }
-
-  const abrirFormCR = (item: MatchEnriquecido) => {
-    const tx = item.transacao
-    const beneficiario = extractBeneficiary(tx.descricao) || ''
-    setFormNovo({
-      credorNome: beneficiario,
-      descricao: tx.descricao.substring(0, 200),
-      valor: tx.valor,
-      dataVencimento: tx.data,
-      contaContabilId: '',
-      centroCustoId: '',
-      observacoes: tx.descricao.substring(0, 200),
-    })
-    setModalNovoLancamento({ aberto: true, item, step: 'form_cr' })
-  }
-
-  // ── Salvar CP a partir do form ─────────────────────────────────
-  const salvarFormCP = async () => {
-    if (!companyId || !modalNovoLancamento.item) return
-    if (!formNovo.credorNome.trim()) return alert('Informe o credor.')
-    if (!formNovo.valor || formNovo.valor <= 0) return alert('Informe o valor.')
-
-    setSalvandoNovo(true)
-    const item = modalNovoLancamento.item
-    const tx = item.transacao
-    const agora = new Date().toISOString()
-    const hoje = agora.split('T')[0]
-
-    try {
-      const { error } = await activeClient.from('contas_pagar').insert({
-        company_id: companyId,
-        credor_nome: formNovo.credorNome.trim(),
-        observacoes: formNovo.observacoes || null,
-        valor: formNovo.valor,
-        valor_pago: formNovo.valor,
-        data_vencimento: formNovo.dataVencimento,
-        data_pagamento: hoje,
-        status: 'pago',
-        forma_pagamento: 'transferencia',
-        conta_contabil_id: formNovo.contaContabilId || null,
-        centro_custo_id: formNovo.centroCustoId || null,
-      })
-
-      if (error) throw error
-
-      // Reconciliar
-      await activeClient.from('bank_transactions').update({ status: 'reconciled', reconciled_at: agora }).eq('id', tx.id)
-      if (item.match) {
-        await activeClient.from('bank_reconciliation_matches').update({ status: 'aprovado' }).eq('id', item.match.id)
-      } else {
-        await activeClient.from('bank_reconciliation_matches').insert({
-          company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cp', status: 'aprovado', diferenca: null,
-        })
-      }
-
-      setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
-      setMatchesEnriquecidos(prev => prev.map(m => {
-        if (m.transacao.id === tx.id) {
-          const updatedMatch: MatchRecord = m.match
-            ? { ...m.match, status: 'aprovado' }
-            : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cp', status: 'aprovado', diferenca: null }
-          return { ...m, match: updatedMatch }
-        }
-        return m
-      }))
-    } catch (err: any) {
-      console.error('[SalvarCP]', err)
-      alert('Erro ao criar conta a pagar: ' + (err.message || ''))
-    } finally {
-      setSalvandoNovo(false)
-    }
-  }
-
-  // ── Salvar CR a partir do form ─────────────────────────────────
-  const salvarFormCR = async () => {
-    if (!companyId || !modalNovoLancamento.item) return
-    if (!formNovo.credorNome.trim()) return alert('Informe o pagador.')
-    if (!formNovo.valor || formNovo.valor <= 0) return alert('Informe o valor.')
-
-    setSalvandoNovo(true)
-    const item = modalNovoLancamento.item
-    const tx = item.transacao
-    const agora = new Date().toISOString()
-    const hoje = agora.split('T')[0]
-
-    try {
-      const { error } = await activeClient.from('contas_receber').insert({
-        company_id: companyId,
-        pagador_nome: formNovo.credorNome.trim(),
-        observacoes: formNovo.observacoes || null,
-        valor: formNovo.valor,
-        valor_pago: formNovo.valor,
-        data_vencimento: formNovo.dataVencimento,
-        data_pagamento: hoje,
-        status: 'pago',
-        forma_recebimento: 'transferencia',
-        conta_contabil_id: formNovo.contaContabilId || null,
-        centro_custo_id: formNovo.centroCustoId || null,
-      })
-
-      if (error) throw error
-
-      // Reconciliar
-      await activeClient.from('bank_transactions').update({ status: 'reconciled', reconciled_at: agora }).eq('id', tx.id)
-      if (item.match) {
-        await activeClient.from('bank_reconciliation_matches').update({ status: 'aprovado' }).eq('id', item.match.id)
-      } else {
-        await activeClient.from('bank_reconciliation_matches').insert({
-          company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cr', status: 'aprovado', diferenca: null,
-        })
-      }
-
-      setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
-      setMatchesEnriquecidos(prev => prev.map(m => {
-        if (m.transacao.id === tx.id) {
-          const updatedMatch: MatchRecord = m.match
-            ? { ...m.match, status: 'aprovado' }
-            : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: 'cr', status: 'aprovado', diferenca: null }
-          return { ...m, match: updatedMatch }
-        }
-        return m
-      }))
-    } catch (err: any) {
-      console.error('[SalvarCR]', err)
-      alert('Erro ao criar conta a receber: ' + (err.message || ''))
-    } finally {
-      setSalvandoNovo(false)
-    }
-  }
-
-  // ── Criar como Movimentação entre contas ───────────────────────
-  const criarComoMovimentacao = async (item: MatchEnriquecido) => {
-    if (!companyId) return
-    const tx = item.transacao
-    const agora = new Date().toISOString()
-
-    const { error } = await activeClient.from('movimentacoes').insert({
-      company_id: companyId,
-      conta_bancaria_id: tx.conta_bancaria_id,
-      data: tx.data,
-      descricao: tx.descricao.substring(0, 200),
-      valor: tx.valor,
-      tipo: tx.tipo,
-      status_conciliacao: 'conciliado',
-      origem: 'transferencia_interna',
-    })
-
-    if (error) {
-      console.error('[CriarMov]', error)
-      alert('Erro ao criar movimentação: ' + error.message)
-      return
-    }
-
-    await activeClient
-      .from('bank_transactions')
-      .update({ status: 'reconciled', reconciled_at: agora })
-      .eq('id', tx.id)
-
-    if (item.match) {
-      await activeClient
-        .from('bank_reconciliation_matches')
-        .update({ status: 'aprovado' })
-        .eq('id', item.match.id)
-    } else {
-      await activeClient.from('bank_reconciliation_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: tx.id,
-        lancamento_id: null,
-        tipo_lancamento: null,
-        status: 'aprovado',
-        diferenca: null,
-      })
-    }
-
-    setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
-    setMatchesEnriquecidos(prev => prev.map(m => {
-      if (m.transacao.id === tx.id) {
-        const updatedMatch: MatchRecord = m.match
-          ? { ...m.match, status: 'aprovado' }
-          : { id: 'temp-' + Date.now(), company_id: companyId, bank_transaction_id: tx.id, lancamento_id: null, tipo_lancamento: null, status: 'aprovado', diferenca: null }
-        return { ...m, match: updatedMatch }
-      }
-      return m
-    }))
-  }
-
-  // ── Salvar regra ───────────────────────────────────────────────
-  const salvarRegra = async () => {
-    if (!companyId || !modalRegra.descricao.trim()) return
-    // Extrair palavras-chave significativas da descrição
-    const palavras = modalRegra.descricao
-      .trim()
-      .toUpperCase()
-      .split(/\s+/)
-      .filter(w => w.length >= 3)
-    await activeClient.from('conciliation_rules').insert({
-      company_id: companyId,
-      account_id: null,
-      palavras_chave: palavras.length > 0 ? palavras : [modalRegra.descricao.trim().toUpperCase()],
-      confianca: 'Alta',
-      acao: 'sugerir',
-      ativa: true,
-    })
-    setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })
-    await carregarRegras()
-  }
-
-  // ── Excluir regra ──────────────────────────────────────────────
-  const excluirRegra = async (id: string) => {
-    await activeClient.from('conciliation_rules').delete().eq('id', id)
-    await carregarRegras()
-  }
-
-  // ── Badge helper ───────────────────────────────────────────────
-  const renderBadge = (status: string, diferenca: number | null) => {
-    switch (status) {
-      case 'match_auto':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#e6f4ec] text-[#0a5c2e] border border-[#0a5c2e]">
-            <CheckCircle2 size={12} /> Match automatico
-          </span>
-        )
-      case 'match_regra':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#f0f4f8] text-[#1a2e4a] border border-[#1a2e4a]">
-            <CheckCircle2 size={12} /> Por regra salva
-          </span>
-        )
-      case 'match_dif':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fffbe6] text-[#5c3a00] border border-[#b8960a]">
-            <AlertTriangle size={12} /> Diferenca de {formatBRL(Math.abs(diferenca || 0))}
-          </span>
-        )
-      case 'nao_reconhecido':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fdecea] text-[#8b0000] border border-[#8b0000]">
-            <XCircle size={12} /> Nao reconhecido
-          </span>
-        )
-      case 'aprovado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0]">
-            <CheckCircle2 size={12} /> Aprovado
-          </span>
-        )
-      case 'ignorado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F4] text-black border border-[#E8E6E1]">
-            <EyeOff size={12} /> Ignorado
-          </span>
-        )
-      case 'revisao':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
-            <AlertTriangle size={12} /> Pendente revisao
-          </span>
-        )
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F5F5F4] text-black border border-[#E8E6E1]">
-            Pendente
-          </span>
-        )
-    }
-  }
-
-  // ── Filtered lists for sub-tabs ──────────────────────────────
-  const pendentes = matchesEnriquecidos.filter(m => {
-    const s = m.match?.status || 'pendente'
-    return ['match_auto', 'match_regra', 'match_dif', 'revisao', 'pendente', 'pending'].includes(s)
-  })
-  const naoReconhecidosList = matchesEnriquecidos.filter(m => {
-    const s = m.match?.status
-    return s === 'nao_reconhecido' || (!m.match && !['reconciled', 'aprovado', 'ignorado'].includes(m.transacao.status_conciliacao))
-  })
-  const conciliadosList = matchesEnriquecidos.filter(m => {
-    const s = m.match?.status || m.transacao.status_conciliacao
-    return s === 'aprovado' || s === 'reconciled' || s === 'ignorado'
-  })
-
-  const filteredItems = subTab === 'pendentes' ? pendentes
-    : subTab === 'nao_reconhecidos' ? naoReconhecidosList
-    : conciliadosList
-
-  // ── Percentage conciliated ────────────────────────────────────
-  const pctConciliado = totalImportadas > 0 ? Math.round((conciliadasAuto / totalImportadas) * 100) : 0
-
-  // ════════════════════════════════════════════════════════════════
-  // RENDER
-  // ════════════════════════════════════════════════════════════════
-
-  if (!companyId) {
-    return (
-      <AppLayout title="Conciliacao Bancaria">
-        <div className="flex items-center justify-center h-64 text-black text-sm">
-          Selecione uma empresa para acessar a conciliacao bancaria.
-        </div>
-      </AppLayout>
-    )
-  }
-
-  // Helper: render row for a single enriched item (card-based layout)
-  const renderItemCard = (item: MatchEnriquecido) => {
-    const tx = item.transacao
-    const mt = item.match
-    const rawStatus = mt?.status || tx.status_conciliacao || 'pendente'
-    const status = rawStatus === 'pending' ? 'pendente' : rawStatus
-    const isAprovado = status === 'aprovado' || status === 'ignorado' || status === 'reconciled'
-
-    return (
-      <div key={tx.id} className={`bg-white rounded-xl border border-[#E8E6E1] shadow-sm ${isAprovado ? 'opacity-50' : ''}`}>
-        <div className="flex flex-col lg:flex-row">
-          {/* ── LEFT: Checkbox + Extrato ────────────── */}
-          <div className="flex items-start gap-3 p-5 lg:w-[38%] lg:border-r lg:border-dashed lg:border-[#E8E6E1]">
-            {!isAprovado && (
-              <input
-                type="checkbox"
-                checked={selecionados.has(tx.id)}
-                onChange={() => toggleSelecao(tx.id)}
-                className="w-4 h-4 accent-[#1C3D6B] mt-1 shrink-0"
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-black uppercase tracking-wider mb-1">Extrato</p>
-              <p className="text-sm font-semibold text-black break-words leading-tight">{tx.descricao}</p>
-              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-black/60">
-                <span>{formatData(tx.data)}</span>
-                {extractBeneficiary(tx.descricao) && (
-                  <>
-                    <span className="text-black/30">·</span>
-                    <span className="font-medium text-black/80">{extractBeneficiary(tx.descricao)}</span>
-                  </>
-                )}
-              </div>
-              <p className={`text-base font-bold mt-1 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
-              </p>
-            </div>
-          </div>
-
-          {/* ── MIDDLE: Status + Sugestões IA ──────── */}
-          <div className="flex-1 p-5 lg:border-r lg:border-dashed lg:border-[#E8E6E1]">
-            {/* Badge de status */}
-            <div className="mb-2">{renderBadge(status, mt?.diferenca ?? null)}</div>
-
-            {/* Lancamento vinculado */}
-            {item.lancamento && (
-              <div className="mb-3">
-                <p className="text-sm font-medium text-[#1C1917]">
-                  {item.lancamento.tipo === 'cr' ? 'CR' : 'CP'} — {item.lancamento.nome}
-                </p>
-                <p className="text-[11px] text-[#78716C]">
-                  Vencimento {formatData(item.lancamento.data_vencimento)} · Conta: {item.sugestoesIA?.[0]?.categoria_nome || '-'}
-                </p>
-                <p className="text-sm font-bold text-[#1C1917] mt-0.5">R$ {formatBRL(item.lancamento.valor)}</p>
-              </div>
-            )}
-
-            {!item.lancamento && !isAprovado && (
-              <p className="text-[11px] text-black/50 mb-2">Sem correspondencia no sistema</p>
-            )}
-
-            {/* 3 Sugestões da IA (sempre visíveis quando disponíveis) */}
-            {item.sugestoesIA && item.sugestoesIA.length > 0 && (
-              <div>
-                <p className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">
-                  <Sparkles size={10} className="inline mr-1 text-purple-500" />
-                  Sugestões da IA
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {item.sugestoesIA.slice(0, 3).map((sug, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => { if (sug.categoria_id) categorizarTransacao(tx.id, sug.categoria_id) }}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-purple-100 bg-purple-50/50 hover:bg-purple-100 transition text-left"
-                    >
-                      <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full shrink-0">
-                        {sug.confianca}%
-                      </span>
-                      <span className="text-[11px] text-purple-800 truncate">
-                        {sug.categoria_nome || sug.lancamento_nome}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── RIGHT: Acoes ──────────────────────── */}
-          <div className="flex flex-row lg:flex-col items-center justify-center gap-2 p-5 lg:w-[160px]">
-            {!isAprovado && (
-              <>
-                {mt && ['match_auto', 'match_regra', 'match_dif'].includes(status) && (
-                  <button onClick={() => aprovar(mt.id, item)} className="w-full px-3 py-2 rounded-lg bg-[#F0FDF4] text-[#16A34A] font-semibold text-xs hover:bg-[#DCFCE7] border border-[#BBF7D0] transition flex items-center justify-center gap-1.5">
-                    <CheckCircle2 size={14} /> Aprovar
-                  </button>
-                )}
-                {(status === 'nao_reconhecido' || status === 'pendente' || status === 'revisao' || (!mt && !isAprovado)) && (
-                  <>
-                    <button onClick={() => setModalNovoLancamento({ aberto: true, item, step: 'escolha' })} className="w-full px-3 py-2 rounded-lg bg-[#1C3D6B] text-white font-semibold text-xs hover:bg-[#163256] transition flex items-center justify-center gap-1.5">
-                      <Plus size={14} /> Criar
-                    </button>
-                    <button onClick={() => ignorarTransacao(tx.id, mt?.id || null)} className="w-full px-3 py-2 rounded-lg border border-[#E8E6E1] text-black/60 text-xs hover:bg-[#F5F5F4] transition">
-                      Ignorar
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-            {isAprovado && (
-              <div className="flex items-center gap-1.5 text-[#16A34A]">
-                <CheckCircle2 size={16} />
-                <span className="text-xs font-medium">{status === 'ignorado' ? 'Ignorado' : 'Aprovado'}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Diff warning bar ────────────────────────── */}
-        {mt?.diferenca && Math.abs(mt.diferenca) > 0 && status === 'match_dif' && (
-          <div className="border-t border-[#FDE68A] bg-[#FFFBEB] px-5 py-3 text-[11px] text-[#D97706]">
-            <AlertTriangle size={12} className="inline mr-1.5" />
-            Diferenca de {formatBRL(Math.abs(mt.diferenca))} — possivelmente juros ou taxa bancaria. Aprovar lancara {formatBRL(Math.abs(mt.diferenca))} em 4.6.03 — Tarifas bancarias.
-          </div>
-        )}
-
-      </div>
-    )
-  }
-
-  return (
-    <AppLayout title="Conciliacao Bancaria">
-      <div className="space-y-5">
-        {/* ══════════════════════════════════════════════════════
-           KPI CARDS
-           ══════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Extrato Importado */}
-          <div className="bg-[#1C3D6B] rounded-xl p-5 text-white">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Extrato Importado</p>
-            <p className="text-3xl font-bold mt-1">{totalImportadas}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">itens · {importBatches.length > 0 ? `${importBatches.length} lote(s)` : 'nenhum lote'}</p>
-            {importBatches.length > 0 && (
-              <span className="inline-block mt-2 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">OFX importado</span>
-            )}
-          </div>
-
-          {/* Conciliados */}
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm p-5">
-            <p className="text-[10px] font-bold text-[#78716C] uppercase tracking-widest">Conciliados</p>
-            <p className="text-3xl font-bold mt-1 text-[#1C1917]">{conciliadasAuto}</p>
-            <p className="text-[11px] text-[#78716C] mt-0.5">por regras e automatico</p>
-            <span className="inline-block mt-2 text-[9px] font-semibold bg-[#16A34A]/10 text-[#16A34A] px-2 py-0.5 rounded-full border border-[#16A34A]/20">{pctConciliado}% do extrato</span>
-          </div>
-
-          {/* Pendentes Revisao */}
-          <div className="bg-[#D97706] rounded-xl p-5 text-white">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Pendentes Revisao</p>
-            <p className="text-3xl font-bold mt-1">{pendentesRevisao}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">aguardando aprovacao</p>
-            {pendentesRevisao > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('pendentes') }} className="inline-block mt-2 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded-full hover:bg-white/30 transition">
-                Revisar
-              </button>
-            )}
-          </div>
-
-          {/* Nao Reconhecidos */}
-          <div className="bg-[#DC2626] rounded-xl p-5 text-white">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Nao Reconhecidos</p>
-            <p className="text-3xl font-bold mt-1">{naoReconhecidas}</p>
-            <p className="text-[11px] opacity-60 mt-0.5">sem correspondencia</p>
-            {naoReconhecidas > 0 && (
-              <button onClick={() => { setAbaAtiva('conciliacao'); setSubTab('nao_reconhecidos') }} className="inline-block mt-2 text-[9px] font-semibold bg-white/20 px-2 py-0.5 rounded-full hover:bg-white/30 transition">
-                Acao necessaria
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ══════════════════════════════════════════════════════
-           IMPORT INFO BANNER
-           ══════════════════════════════════════════════════════ */}
-        {importBatches.length > 0 && (
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm px-5 py-4 flex items-center gap-3">
-            <FileText size={20} className="text-[#1C3D6B] shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-black">
-                Extrato importado
-              </p>
-              <p className="text-[11px] text-black">
-                {importBatches[0] ? `${formatData(importBatches[0].min_date)} a ${formatData(importBatches[0].max_date)}` : ''} · {totalImportadas} transacoes · importado {importBatches[0] ? new Date(importBatches[0].imported_at).toLocaleDateString('pt-BR') : ''}
-              </p>
-            </div>
-            <label className="text-xs text-[#1C3D6B] font-medium cursor-pointer hover:underline shrink-0">
-              Trocar arquivo
-              <input type="file" accept=".ofx" onChange={onFileChange} className="hidden" disabled={!contaSelecionada || importando} />
-            </label>
-          </div>
-        )}
-
-        {/* ── Tabs ───────────────────────────────────────────────── */}
-        <div className="flex gap-1 border-b border-[#E8E6E1]">
-          {[
-            { id: 'conciliacao' as const, label: 'Conciliacao', icon: <ListChecks size={14} /> },
-            { id: 'historico' as const, label: 'Importacoes', icon: <History size={14} /> },
-            { id: 'regras' as const, label: 'Regras', icon: <BookOpen size={14} /> },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setAbaAtiva(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium uppercase tracking-wider transition-colors ${
-                abaAtiva === tab.id
-                  ? 'border-b-2 border-[#1C3D6B] text-[#1C3D6B]'
-                  : 'text-black hover:text-[#1C3D6B]'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ════════════════════════════════════════════════════════
-           TAB: CONCILIACAO
-           ════════════════════════════════════════════════════════ */}
-        {abaAtiva === 'conciliacao' && (
-          <>
-            {/* ── Upload OFX (only when no transactions) ──── */}
-            {matchesEnriquecidos.length === 0 && (
-              <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#E8E6E1]">
-                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Importar Extrato OFX</h3>
-                </div>
-                <div className="p-5 space-y-3">
-                  <div className="relative w-full max-w-xs">
-                    <select
-                      value={contaSelecionada}
-                      onChange={(e) => setContaSelecionada(e.target.value)}
-                      className="w-full appearance-none border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-[#1C3D6B] pr-8"
-                    >
-                      <option value="">Selecione a conta...</option>
-                      {contas.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name} - {c.banco}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black pointer-events-none" />
-                  </div>
-                  <div
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
-                      arrastando ? 'border-[#1C3D6B] bg-[#1C3D6B]/5' : 'border-[#E8E6E1] bg-[#FAFAF9] hover:border-[#1C3D6B]'
-                    } ${!contaSelecionada ? 'opacity-50 pointer-events-none' : ''}`}
-                  >
-                    <input type="file" accept=".ofx" onChange={onFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!contaSelecionada || importando} />
-                    {importando ? (
-                      <><Loader2 size={24} className="text-[#1C3D6B] animate-spin" /><p className="text-sm text-black">Processando...</p></>
-                    ) : (
-                      <><Upload size={24} className="text-[#1C3D6B]" /><p className="text-sm text-black">Arraste um <strong>.ofx</strong> ou clique</p></>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ══════════════════════════════════════════════════
-               REVIEW SECTION
-               ══════════════════════════════════════════════════ */}
-            {matchesEnriquecidos.length > 0 && (
-              <div className="space-y-3">
-                {/* Header bar */}
-                <div className="bg-[#1C3D6B] rounded-t-xl px-5 py-3.5 flex items-center justify-between">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Revisao de Conciliacao</h3>
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => setSubTab('conciliados')} className="text-[11px] text-white/70 hover:text-white transition font-medium">
-                      Ver conciliados
-                    </button>
-                    {pendentes.length > 0 && (
-                      <button onClick={salvarConciliacao} disabled={salvando} className="text-[11px] text-white/70 hover:text-white transition font-medium">
-                        {salvando ? 'Salvando...' : 'Aprovar todos pendentes'}
-                      </button>
-                    )}
-                    <button onClick={() => { carregarDados(); carregarRegras() }} className="text-white/50 hover:text-white transition" title="Recarregar">
-                      <RefreshCw size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sub-tabs */}
-                <div className="flex gap-1.5 bg-[#F5F5F4] rounded-xl p-1.5">
-                  <button
-                    onClick={() => setSubTab('pendentes')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                      subTab === 'pendentes' ? 'bg-white text-[#1C3D6B] shadow-sm' : 'text-black hover:text-black'
-                    }`}
-                  >
-                    Pendentes revisao
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'pendentes' ? 'bg-[#1C3D6B] text-white' : 'bg-[#E8E6E1] text-black'}`}>
-                      {pendentes.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setSubTab('nao_reconhecidos')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                      subTab === 'nao_reconhecidos' ? 'bg-white text-[#DC2626] shadow-sm' : 'text-black hover:text-black'
-                    }`}
-                  >
-                    Nao reconhecidos
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'nao_reconhecidos' ? 'bg-[#DC2626] text-white' : 'bg-[#E8E6E1] text-black'}`}>
-                      {naoReconhecidosList.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setSubTab('conciliados')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                      subTab === 'conciliados' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-black hover:text-black'
-                    }`}
-                  >
-                    Conciliados
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${subTab === 'conciliados' ? 'bg-[#16A34A] text-white' : 'bg-[#E8E6E1] text-black'}`}>
-                      {conciliadosList.length}
-                    </span>
-                  </button>
-                </div>
-
-                {/* ── Batch selection bar ──────────────────── */}
-                {selecionados.size > 0 && (
-                  <div className="bg-white border border-[#1C3D6B]/20 rounded-xl px-5 py-3.5 flex items-center justify-between shadow-sm">
-                    <span className="text-sm font-medium text-[#1C3D6B]">
-                      {selecionados.size} itens selecionados — Aprovar em lote?
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => setSelecionados(new Set())} className="text-xs text-[#1C3D6B] font-medium hover:underline">
-                        Desmarcar
-                      </button>
-                      <button onClick={aprovarSelecionados} className="px-4 py-2 text-xs bg-[#1C3D6B] text-white font-semibold rounded-lg hover:bg-[#163256] transition">
-                        Aprovar {selecionados.size} itens
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Column headers ───────────────────────── */}
-                <div className="hidden lg:flex items-center px-5 py-2 text-[11px] font-medium text-black uppercase tracking-wider">
-                  <div className="w-[38%] pl-7">Extrato Bancario</div>
-                  <div className="flex-1">Lancamento no Sistema</div>
-                  <div className="w-[160px] text-center">Acao</div>
-                </div>
-
-                {/* ── Item cards ───────────────────────────── */}
-                {carregando ? (
-                  <div className="flex items-center justify-center py-16 gap-2 text-black text-sm">
-                    <Loader2 size={18} className="animate-spin" /> Carregando...
-                  </div>
-                ) : filteredItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-black text-sm gap-1">
-                    <FileText size={32} className="text-[#E8E6E1] mb-2" />
-                    {subTab === 'pendentes' && 'Nenhuma transacao pendente de revisao.'}
-                    {subTab === 'nao_reconhecidos' && 'Nenhuma transacao nao reconhecida.'}
-                    {subTab === 'conciliados' && 'Nenhuma transacao conciliada ainda.'}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredItems.map(renderItemCard)}
-                  </div>
-                )}
-
-                {/* ── SALVAR CONCILIACAO sticky bar ─────── */}
-                {matchesEnriquecidos.some(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match.status)) && (
-                  <div className="sticky bottom-4 z-20">
-                    <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-lg px-6 py-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-black">{matchesEnriquecidos.filter(m => m.match && ['match_auto', 'match_regra', 'match_dif'].includes(m.match!.status)).length} conciliacoes pendentes</p>
-                        <p className="text-[11px] text-black">Aprovar todas e baixar lancamentos vinculados</p>
-                      </div>
-                      <button onClick={salvarConciliacao} disabled={salvando} className="px-6 py-3 bg-[#16A34A] text-white font-bold text-sm rounded-lg hover:bg-[#15803D] transition flex items-center gap-2 shadow-sm disabled:opacity-50">
-                        {salvando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                        {salvando ? 'SALVANDO...' : 'SALVAR CONCILIACAO'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Upload when we have data but want to add more */}
-            {matchesEnriquecidos.length > 0 && (
-              <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#E8E6E1]">
-                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Importar Extrato OFX</h3>
-                </div>
-                <div className="p-5 space-y-3">
-                  <div className="relative w-full max-w-xs">
-                    <select
-                      value={contaSelecionada}
-                      onChange={(e) => setContaSelecionada(e.target.value)}
-                      className="w-full appearance-none border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-[#1C3D6B] pr-8"
-                    >
-                      <option value="">Selecione a conta...</option>
-                      {contas.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name} - {c.banco}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black pointer-events-none" />
-                  </div>
-                  <div
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
-                      arrastando ? 'border-[#1C3D6B] bg-[#1C3D6B]/5' : 'border-[#E8E6E1] bg-[#FAFAF9] hover:border-[#1C3D6B]'
-                    } ${!contaSelecionada ? 'opacity-50 pointer-events-none' : ''}`}
-                  >
-                    <input type="file" accept=".ofx" onChange={onFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!contaSelecionada || importando} />
-                    {importando ? (
-                      <><Loader2 size={24} className="text-[#1C3D6B] animate-spin" /><p className="text-sm text-black">Processando...</p></>
-                    ) : (
-                      <><Upload size={24} className="text-[#1C3D6B]" /><p className="text-sm text-black">Arraste um <strong>.ofx</strong> ou clique</p></>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ════════════════════════════════════════════════════════
-           TAB: IMPORTACOES
-           ════════════════════════════════════════════════════════ */}
-        {abaAtiva === 'historico' && (
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-[#E8E6E1] flex items-center justify-between">
-              <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Arquivos Importados</h3>
-              <button onClick={carregarImportBatches} className="text-black/60 hover:text-[#1C3D6B] transition" title="Recarregar"><RefreshCw size={14} /></button>
-            </div>
-            <div className="bg-white">
-              {importBatches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-black text-sm gap-1">
-                  <FileText size={32} className="text-[#E8E6E1] mb-2" />
-                  Nenhum arquivo importado ainda.
-                </div>
-              ) : (
-                <div className="divide-y divide-[#E8E6E1]">
-                  {importBatches.map((batch) => {
-                    const isExpanded = batchExpandido === batch.key
-                    return (
-                      <div key={batch.key}>
-                        <button onClick={() => expandirBatch(batch)} className="w-full text-left px-5 py-3.5 flex items-center gap-3 hover:bg-[#FAFAF9] transition">
-                          <ChevronDown size={16} className={`text-[#1C3D6B] transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-black">
-                              {new Date(batch.imported_at).toLocaleDateString('pt-BR')} <span className="text-black/60 font-normal text-xs">as {new Date(batch.imported_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                            </p>
-                            <p className="text-[11px] text-black">{formatData(batch.min_date)} a {formatData(batch.max_date)}</p>
-                          </div>
-                          <span className="text-xs font-medium text-[#1C3D6B] bg-[#1C3D6B]/10 px-2.5 py-1 rounded-full shrink-0">{batch.count} tx</span>
-                          <button onClick={(e) => { e.stopPropagation(); excluirImportBatch(batch.tx_ids) }} className="p-1.5 rounded-lg text-[#DC2626] hover:bg-[#FEF2F2] transition shrink-0" title="Excluir lote">
-                            <Trash2 size={14} />
-                          </button>
-                        </button>
-                        {isExpanded && (
-                          <div className="bg-[#FAFAF9] border-t border-[#E8E6E1] overflow-x-auto">
-                            {batchTransacoes.length === 0 ? (
-                              <div className="flex items-center justify-center py-8 text-black text-sm gap-2"><Loader2 size={16} className="animate-spin" /> Carregando...</div>
-                            ) : (
-                              <table className="w-full text-sm">
-                                <thead><tr className="bg-[#F5F5F4] text-[11px] font-medium text-black uppercase tracking-wider border-b border-[#E8E6E1]">
-                                  <th className="px-3 py-2 text-left">Data</th><th className="px-3 py-2 text-left">Descricao</th><th className="px-3 py-2 text-left">Categoria</th><th className="px-3 py-2 text-right">Valor</th><th className="px-3 py-2 text-center">Status</th>
-                                </tr></thead>
-                                <tbody>{batchTransacoes.map((tx) => {
-                                  const catId = tx.category_id || tx.sugestao_conta_id
-                                  const catObj = catId ? planoContas.find(c => c.id === catId) : null
-                                  return (
-                                  <tr key={tx.id} className="border-b border-[#E8E6E1] hover:bg-white">
-                                    <td className="px-3 py-2.5 text-[11px] text-black whitespace-nowrap">{formatData(tx.data)}</td>
-                                    <td className="px-3 py-2.5 text-black truncate max-w-[300px]">{tx.descricao}</td>
-                                    <td className="px-3 py-2.5">
-                                      <select
-                                        value={catId || ''}
-                                        onChange={async (e) => {
-                                          const newCatId = e.target.value
-                                          if (!newCatId) return
-                                          const { error } = await activeClient
-                                            .from('bank_transactions')
-                                            .update({ sugestao_conta_id: newCatId, metodo_match: 'manual', confianca_match: 100 })
-                                            .eq('id', tx.id)
-                                          if (error) {
-                                            console.error('[Categoria batch] erro:', error)
-                                            alert('Erro ao atualizar categoria: ' + error.message)
-                                            return
-                                          }
-                                          setBatchTransacoes(prev => prev.map(t =>
-                                            t.id === tx.id ? { ...t, sugestao_conta_id: newCatId } : t
-                                          ))
-                                        }}
-                                        className="w-full text-[11px] bg-transparent border border-[#E8E6E1] rounded px-1.5 py-1 text-black focus:outline-none focus:border-[#1C3D6B] cursor-pointer hover:border-[#1C3D6B]/50 transition max-w-[220px]"
-                                      >
-                                        <option value="">{catObj ? '' : '— Sem categoria —'}</option>
-                                        {planoContas.map(c => (
-                                          <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                                      <span className={`font-semibold ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{tx.tipo === 'credito' ? '+' : '-'}{formatBRL(tx.valor)}</span>
-                                    </td>
-                                    <td className="px-3 py-2.5 text-center">
-                                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${tx.status_conciliacao === 'reconciled' ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#F5F5F4] text-black'}`}>
-                                        {tx.status_conciliacao === 'reconciled' ? 'OK' : 'Pendente'}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                  )
-                                })}</tbody>
-                              </table>
-                            )}
-                          </div>
-                        )}
-                      </div>
+        return { conciliado, aConciliar, withAiSupport, aiPercent, totalPending: suggestions.length, periodoLabel };
+    }, [reconciledTx, bankTransactions, suggestions]);
+
+    // Build lookup: bankTxId -> suggestion
+    const suggestionMap = useMemo(() => {
+        const map = new Map<string, MatchSuggestion>();
+        suggestions.forEach(s => map.set(s.bankTransaction.id, s));
+        return map;
+    }, [suggestions]);
+
+    // Filtered by score bucket
+    const filteredBankTransactions = useMemo(() => {
+        if (!bankTransactions) return [];
+        if (scoreFilter === "all") return bankTransactions;
+
+        return bankTransactions.filter(bt => {
+            const s = suggestionMap.get(bt.id);
+            if (!s) return scoreFilter === "review";
+            if (scoreFilter === "auto") return s.score >= 85;
+            if (scoreFilter === "suggested") return s.score >= 50 && s.score < 85;
+            if (scoreFilter === "review") return s.score < 50;
+            return true;
+        });
+    }, [bankTransactions, scoreFilter, suggestionMap]);
+
+    // Categories for create form — all accounts (analytical + synthetic)
+    const { data: allChartAccounts } = useQuery({
+        queryKey: ["chart_of_accounts_all", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .select("*")
+                .eq("company_id", selectedCompany.id)
+                .order("code");
+            if (error) return [];
+            return (data || []).map((c: any) => ({
+                id: c.id, code: c.code, name: c.name,
+                type: c.type || (
+                    ['expense', 'cost'].includes(c.account_type) ? 'despesa'
+                    : c.account_type === 'revenue' && c.account_nature === 'debit' ? 'despesa'
+                    : c.account_type === 'revenue' ? 'receita'
+                    : c.account_type
+                ),
+                account_type: c.account_type,
+                account_nature: c.account_nature,
+                is_analytical: c.is_analytic === true || c.is_analytical === true,
+                is_synthetic: !c.is_analytic && !c.is_analytical,
+                parent_id: c.parent_id,
+            }));
+        },
+        enabled: !!selectedCompany?.id
+    });
+
+    // Analytical accounts (for category picker)
+    const chartCategories = useMemo(() =>
+        (allChartAccounts || []).filter((c: any) => c.is_analytical),
+    [allChartAccounts]);
+
+    const createDescription = showCreateForm ? (newEntry.description || selectedBankTx?.description || "") : "";
+    const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
+
+    // Synthetic (parent) groups for "criar categoria" — filtered by createType
+    // Despesa includes: expense, cost, and revenue-debit (deduções)
+    // Patrimonial/asset/liability/equity groups appear in both views
+    const parentGroups = useMemo(() => {
+        if (!allChartAccounts) return [];
+        const standardTypes = ['expense', 'cost', 'revenue'];
+        const patrimonialGroups = allChartAccounts.filter((c: any) =>
+            c.is_synthetic && !standardTypes.includes(c.account_type)
+        );
+        if (createType === "despesa") {
+            return [
+                ...allChartAccounts.filter((c: any) =>
+                    c.is_synthetic && (
+                        c.account_type === 'expense' ||
+                        c.account_type === 'cost' ||
+                        (c.account_type === 'revenue' && c.account_nature === 'debit')
                     )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                ),
+                ...patrimonialGroups
+            ];
+        }
+        return [
+            ...allChartAccounts.filter((c: any) =>
+                c.is_synthetic && c.account_type === 'revenue' && c.account_nature === 'credit'
+            ),
+            ...patrimonialGroups
+        ];
+    }, [allChartAccounts, createType]);
 
-        {/* ════════════════════════════════════════════════════════
-           TAB: REGRAS (always visible at bottom when on conciliacao)
-           ════════════════════════════════════════════════════════ */}
-        {abaAtiva === 'regras' && (
-          <div className="bg-white rounded-xl border border-[#E8E6E1] shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-[#E8E6E1] flex items-center justify-between">
-              <h3 className="text-[11px] font-medium text-black uppercase tracking-wider">Regras de Conciliacao Salvas</h3>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setModalRegra({ aberto: true, descricao: '', tipo: 'debito', transacaoId: '' })} className="text-[11px] text-[#1C3D6B] hover:text-[#163256] transition font-medium">
-                  + Nova regra
-                </button>
-                <button onClick={carregarRegras} className="text-black/60 hover:text-[#1C3D6B] transition" title="Recarregar"><RefreshCw size={14} /></button>
-              </div>
-            </div>
-            <div className="bg-white">
-              {regras.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-black text-sm gap-1">
-                  <BookOpen size={28} className="text-[#E8E6E1] mb-2" />
-                  Nenhuma regra salva.
-                </div>
-              ) : (
-                <div className="divide-y divide-[#E8E6E1]">
-                  {regras.map((r) => (
-                    <div key={r.id} className="px-5 py-3.5 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-black">{(r.palavras_chave || []).join(', ')}</p>
-                        <p className="text-[10px] text-black/60">
-                          Palavras-chave: &quot;{(r.palavras_chave || []).join('&quot;, &quot;')}&quot; · Confiança: {r.confianca} · Ação: {r.acao}
+    // Auto-generate next available code under selected parent group
+    const [selectedParentId, setSelectedParentId] = useState("");
+    const nextCatCode = useMemo(() => {
+        if (!selectedParentId || !allChartAccounts) return "";
+        const parent = allChartAccounts.find((c: any) => c.id === selectedParentId);
+        if (!parent) return "";
+        const prefix = parent.code + ".";
+        const existing = allChartAccounts
+            .filter((c: any) => c.code.startsWith(prefix) && c.code.split(".").length === parent.code.split(".").length + 1)
+            .map((c: any) => {
+                const lastPart = c.code.substring(prefix.length);
+                return parseInt(lastPart, 10);
+            })
+            .filter((n: number) => !isNaN(n));
+        const nextNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+        return `${prefix}${String(nextNum).padStart(2, "0")}`;
+    }, [selectedParentId, allChartAccounts]);
+
+    // Historical suggestions from past categorized transactions
+    const { historicalSuggestions } = useHistoricalCategorySuggestion(
+        createDescription, createType as "receita" | "despesa"
+    );
+
+    // Build external suggestions from: engine rules + historical data
+    const externalSuggestions = useMemo<ExternalSuggestion[]>(() => {
+        const result: ExternalSuggestion[] = [];
+
+        // 1. Engine suggestion (from conciliation_rules learned patterns)
+        if (selectedBankTx && showCreateForm) {
+            const engineSuggestion = suggestionMap.get(selectedBankTx.id);
+            if (engineSuggestion?.accountId) {
+                result.push({
+                    accountId: engineSuggestion.accountId,
+                    reason: `Regra: ${engineSuggestion.ruleName || "padrão aprendido"}`,
+                    score: 15,
+                });
+            }
+        }
+
+        // 2. Historical suggestions (from past categorized transactions)
+        for (const hs of historicalSuggestions) {
+            if (!result.some(r => r.accountId === hs.accountId)) {
+                result.push(hs);
+            }
+        }
+
+        return result;
+    }, [selectedBankTx, showCreateForm, suggestionMap, historicalSuggestions]);
+
+    const { suggestions: createSuggestions } = useCategorySuggestion(
+        createDescription, chartCategories || [], createType as "receita" | "despesa", externalSuggestions
+    );
+
+    // AI recategorization for reconciled batches
+    const aiRecat = useAiRecategorization(chartCategories || []);
+
+    // ============================================================
+    // HANDLERS
+    // ============================================================
+
+    const ccFileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadOFX.mutate(file);
+    };
+
+    const handleCCFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadCreditCardPDF.mutate(file);
+    };
+
+    const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
+        matchTransaction.mutate({ bankTx: bt, sysTx });
+        // MEMORIZAÇÃO IMEDIATA: aprender regra com beneficiário
+        learnRule.mutate({ bankTx: bt });
+    };
+
+    const handleCreateAndReconcile = async () => {
+        if (!selectedBankTx || !selectedCompany?.id) return;
+
+        // Verificar se esta bank_transaction já foi conciliada (evitar duplicatas)
+        const { data: existingMatch } = await (activeClient as any)
+            .from("bank_reconciliation_matches")
+            .select("id")
+            .eq("bank_transaction_id", selectedBankTx.id)
+            .eq("status", "matched")
+            .limit(1);
+        if (existingMatch && existingMatch.length > 0) {
+            toast({ title: "Já conciliada", description: "Esta transação bancária já possui um lançamento vinculado.", variant: "destructive" });
+            return;
+        }
+
+        const isExpense = selectedBankTx.amount < 0;
+        const table = isExpense ? "contas_pagar" : "contas_receber";
+        const nameCol = isExpense ? "credor_nome" : "pagador_nome";
+        const entryDescription = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
+        const amount = Math.abs(selectedBankTx.amount);
+
+        setIsCreating(true);
+        try {
+            const payload: Record<string, any> = {
+                company_id: selectedCompany.id,
+                [nameCol]: entryDescription,
+                valor: amount,
+                data_vencimento: selectedBankTx.date,
+                status: "aberto",
+            };
+            if (newEntry.category_id && newEntry.category_id !== "none") {
+                payload.conta_contabil_id = newEntry.category_id;
+            }
+
+            const { data: created, error: createError } = await (activeClient as any)
+                .from(table).insert(payload)
+                .select(`id, ${nameCol}, valor, data_vencimento, status`).single();
+            if (createError) throw createError;
+
+            const sysTx: SystemTransaction = {
+                id: created.id,
+                type: isExpense ? "payable" : "receivable",
+                description: created[nameCol] || '',
+                amount: Number(created.valor || 0),
+                date: created.data_vencimento,
+                status: created.status,
+                entity_name: "Criado via conciliação",
+                original_table_id: created.id,
+            };
+
+            matchTransaction.mutate({ bankTx: selectedBankTx, sysTx });
+            // MEMORIZAÇÃO IMEDIATA: beneficiário → categoria selecionada
+            learnRule.mutate({ bankTx: selectedBankTx, categoryId: newEntry.category_id || undefined });
+
+            toast({ title: "Sucesso", description: `${isExpense ? "Despesa" : "Receita"} criada e conciliada!` });
+            setSelectedBankTx(null);
+            setShowCreateForm(false);
+            setNewEntry({ description: "", category_id: "" });
+        } catch (err: any) {
+            toast({ title: "Erro", description: err.message, variant: "destructive" });
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    // Batch approval: conciliar selecionados (com sysTx existente OU criando lançamento via sugestão IA)
+    const handleBatchApprove = async () => {
+        const toApprove = Array.from(selectedIds)
+            .map(id => suggestionMap.get(id))
+            .filter((s): s is MatchSuggestion => !!s && (!!s.systemTransaction || s.score > 0));
+
+        if (toApprove.length === 0) {
+            toast({ title: "Nenhum item elegível", description: "Selecione transações que tenham sugestão.", variant: "destructive" });
+            return;
+        }
+
+        let success = 0;
+        let failed = 0;
+
+        for (const suggestion of toApprove) {
+            try {
+                const bt = suggestion.bankTransaction;
+
+                // Verificar se já foi conciliada (evitar duplicatas)
+                const { data: alreadyMatched } = await (activeClient as any)
+                    .from("bank_reconciliation_matches")
+                    .select("id")
+                    .eq("bank_transaction_id", bt.id)
+                    .eq("status", "matched")
+                    .limit(1);
+                if (alreadyMatched && alreadyMatched.length > 0) {
+                    failed++;
+                    continue;
+                }
+
+                if (suggestion.systemTransaction) {
+                    // Caso 1: Já tem lançamento do sistema → conciliar direto
+                    await matchTransaction.mutateAsync({
+                        bankTx: bt,
+                        sysTx: suggestion.systemTransaction,
+                    });
+                } else {
+                    // Caso 2: Sugestão IA (categoria) → criar lançamento + conciliar
+                    const isExpense = bt.amount < 0;
+                    const table = isExpense ? "contas_pagar" : "contas_receber";
+                    const batchNameCol = isExpense ? "credor_nome" : "pagador_nome";
+
+                    const payload: Record<string, any> = {
+                        company_id: selectedCompany?.id,
+                        [batchNameCol]: bt.description || "Lançamento via conciliação IA",
+                        valor: Math.abs(bt.amount),
+                        data_vencimento: bt.date,
+                        status: "aberto",
+                    };
+                    if (suggestion.accountId) {
+                        payload.conta_contabil_id = suggestion.accountId;
+                    }
+
+                    const { data: created, error: createError } = await (activeClient as any)
+                        .from(table).insert(payload)
+                        .select(`id, ${batchNameCol}, valor, data_vencimento, status`).single();
+                    if (createError) throw createError;
+
+                    const sysTx: SystemTransaction = {
+                        id: created.id,
+                        type: isExpense ? "payable" : "receivable",
+                        description: created[batchNameCol] || '',
+                        amount: Number(created.valor || 0),
+                        date: created.data_vencimento,
+                        status: created.status,
+                        entity_name: "Criado via conciliação IA",
+                        original_table_id: created.id,
+                    };
+
+                    await matchTransaction.mutateAsync({ bankTx: bt, sysTx });
+                }
+
+                // Aprender regra com conta sugerida
+                learnRule.mutate({
+                    bankTx: suggestion.bankTransaction,
+                    categoryId: suggestion.accountId,
+                });
+                success++;
+            } catch {
+                failed++;
+            }
+        }
+
+        setSelectedIds(new Set());
+        toast({
+            title: "Aprovação em lote",
+            description: `${success} conciliado(s)${failed > 0 ? `, ${failed} falha(s)` : ""}`,
+        });
+    };
+
+    const handleSelectHighConfidence = () => {
+        const highConf = suggestions
+            .filter(s => s.score >= 85)
+            .map(s => s.bankTransaction.id);
+        setSelectedIds(new Set(highConf));
+    };
+
+    const toggleSelect = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        setSelectedIds(next);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredBankTransactions.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredBankTransactions.map(bt => bt.id)));
+        }
+    };
+
+    const handleCreateCategory = async () => {
+        if (!nextCatCode || !newCatName.trim() || !selectedCompany?.id || !selectedParentId) return;
+        setIsCreatingCategory(true);
+        try {
+            const parent = allChartAccounts?.find((c: any) => c.id === selectedParentId);
+            const accountType = parent?.account_type || (createType === "despesa" ? "expense" : "revenue");
+            const accountNature = parent?.account_nature || (createType === "despesa" ? "debit" : "credit");
+            const parentLevel = parent?.code.split(".").length || 1;
+            const { data, error } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .insert({
+                    company_id: selectedCompany.id,
+                    code: nextCatCode,
+                    name: newCatName.trim(),
+                    account_type: accountType,
+                    account_nature: accountNature,
+                    is_analytical: true,
+                    is_synthetic: false,
+                    status: "active",
+                    level: parentLevel + 1,
+                    parent_id: selectedParentId,
+                })
+                .select("id")
+                .single();
+            if (error) throw error;
+            toast({ title: "Categoria criada", description: `${nextCatCode} - ${newCatName.trim()}` });
+            queryClient.invalidateQueries({ queryKey: ["chart_of_accounts_all"] });
+            queryClient.invalidateQueries({ queryKey: ["chart_accounts_analytical"] });
+            setNewEntry({ ...newEntry, category_id: data.id });
+            setShowNewCategory(false);
+            setSelectedParentId("");
+            setNewCatName("");
+        } catch (err: any) {
+            toast({ title: "Erro ao criar categoria", description: err.message, variant: "destructive" });
+        } finally {
+            setIsCreatingCategory(false);
+        }
+    };
+
+    // Filtered system transactions for manual search
+    const filteredSystemTransactions = systemTransactions?.filter(st => {
+        const needle = searchTerm.toLowerCase();
+        const matchesSearch = st.description.toLowerCase().includes(needle) ||
+            st.entity_name?.toLowerCase().includes(needle) ||
+            String(st.amount).includes(needle);
+        if (selectedBankTx) {
+            const compatibleType = selectedBankTx.amount < 0 ? 'payable' : 'receivable';
+            return matchesSearch && st.type === compatibleType;
+        }
+        return matchesSearch;
+    });
+
+    const formatBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+    return (
+        <AppLayout title="Conciliação Bancária">
+            <div className="space-y-6 animate-in fade-in duration-500">
+
+                {/* Header */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#E2E8F0] shadow-sm">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <Select value={selectedAccountId} onValueChange={handleAccountChange}>
+                                <SelectTrigger className="w-[280px] h-10 text-lg font-medium border-[#E2E8F0]">
+                                    <SelectValue placeholder="Selecione uma conta..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {accounts.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id || ""}>
+                                            {acc.type === 'credit_card' ? '💳 ' : ''}{acc.name} - {acc.banco}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <p className="text-sm text-muted-foreground ml-1">
+                            Selecione a conta para visualizar e importar extratos.
                         </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-medium text-[#1C3D6B]">
-                          {r.account_id ? planoContas.find(c => c.id === r.account_id)?.code || '' : ''} {r.account_id ? '— ' + (planoContas.find(c => c.id === r.account_id)?.name || '') : ''}
-                        </p>
-                      </div>
-                      <span className={`text-[10px] shrink-0 px-2 py-0.5 rounded-full font-medium ${r.ativa ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-[#FEF2F2] text-[#DC2626]'}`}>{r.ativa ? 'Ativa' : 'Inativa'}</span>
-                      <button onClick={() => excluirRegra(r.id)} className="text-xs text-[#DC2626] font-medium hover:underline shrink-0">
-                        Excluir
-                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════
-         MODAL: Registrar Novo Lançamento (CP / CR / Movimentação)
-         ═══════════════════════════════════════════════════════════ */}
-      {modalNovoLancamento.aberto && modalNovoLancamento.item && (() => {
-        const tx = modalNovoLancamento.item!.transacao
-        const beneficiario = extractBeneficiary(tx.descricao)
-        const closeModal = () => setModalNovoLancamento({ aberto: false, item: null, step: 'escolha' })
-        const isFormStep = modalNovoLancamento.step === 'form_cp' || modalNovoLancamento.step === 'form_cr'
-        const isCP = modalNovoLancamento.step === 'form_cp'
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={closeModal}>
-            <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between sticky top-0 bg-white z-10">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#1C1917]">
-                    {modalNovoLancamento.step === 'escolha' && 'Registrar novo lançamento'}
-                    {modalNovoLancamento.step === 'form_cp' && 'Nova Conta a Pagar'}
-                    {modalNovoLancamento.step === 'form_cr' && 'Novo Titulo a Receber'}
-                  </h3>
-                  <p className="text-[11px] text-[#78716C] mt-0.5">
-                    {modalNovoLancamento.step === 'escolha' && 'Escolha o tipo de lançamento'}
-                    {isFormStep && `${tx.descricao.substring(0, 60)}${tx.descricao.length > 60 ? '...' : ''}`}
-                  </p>
-                </div>
-                <button onClick={closeModal} className="text-[#A8A29E] hover:text-[#1C1917] transition"><X size={18} /></button>
-              </div>
-
-              <div className="p-5 space-y-4">
-                {/* ── STEP: Escolha ────────────────────── */}
-                {modalNovoLancamento.step === 'escolha' && (
-                  <>
-                    {/* Transação info */}
-                    <div className="bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] p-4">
-                      <p className="text-[13px] font-semibold text-[#1C1917]">{tx.descricao}</p>
-                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#78716C]">
-                        <span>{formatData(tx.data)}</span>
-                        {beneficiario && (
-                          <>
-                            <span className="text-black/30">·</span>
-                            <span className="font-medium text-[#1C1917]">{beneficiario}</span>
-                          </>
+                    <div className="flex items-center gap-3">
+                        <input type="file" accept=".ofx" className="hidden" ref={fileInputRef}
+                            onChange={handleFileChange} disabled={!selectedAccountId || uploadOFX.isPending} />
+                        <input type="file" accept=".pdf" className="hidden" ref={ccFileInputRef}
+                            onChange={handleCCFileChange} disabled={!selectedAccountId || uploadCreditCardPDF.isPending} />
+                        <Button variant="outline" className="border-[#E2E8F0]"
+                            onClick={() => setShowRulesPanel(!showRulesPanel)}>
+                            <Brain className="mr-2 h-4 w-4" />
+                            Regras ({rules.length})
+                        </Button>
+                        {isCreditCard ? (
+                            <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                onClick={() => ccFileInputRef.current?.click()}
+                                disabled={!selectedAccountId || uploadCreditCardPDF.isPending}>
+                                {uploadCreditCardPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                Importar Fatura (PDF)
+                            </Button>
+                        ) : (
+                            <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={!selectedAccountId || uploadOFX.isPending}>
+                                {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                Importar OFX
+                            </Button>
                         )}
-                      </div>
-                      <p className={`text-lg font-bold mt-1.5 ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                        {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
-                      </p>
                     </div>
+                </div>
 
-                    <div className="space-y-2.5">
-                      <button
-                        onClick={() => abrirFormCP(modalNovoLancamento.item!)}
-                        className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#DC2626] hover:bg-[#FEF2F2] transition group"
-                      >
-                        <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#DC2626]">Conta a Pagar</p>
-                        <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como despesa / pagamento realizado</p>
-                      </button>
-                      <button
-                        onClick={() => abrirFormCR(modalNovoLancamento.item!)}
-                        className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#16A34A] hover:bg-[#F0FDF4] transition group"
-                      >
-                        <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#16A34A]">Conta a Receber</p>
-                        <p className="text-[11px] text-[#78716C] mt-0.5">Registrar como receita / recebimento realizado</p>
-                      </button>
-                      <button
-                        onClick={() => criarComoMovimentacao(modalNovoLancamento.item!)}
-                        className="w-full text-left px-4 py-4 rounded-xl border border-[#E8E6E1] hover:border-[#1C3D6B] hover:bg-[#F0F4F8] transition group"
-                      >
-                        <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#1C3D6B]">Movimentação entre contas</p>
-                        <p className="text-[11px] text-[#78716C] mt-0.5">Transferência interna (sem impacto financeiro)</p>
-                      </button>
+                {!selectedAccountId ? (
+                    <div className="flex flex-col items-center justify-center p-16 bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0] text-center">
+                        <div className="bg-white p-4 rounded-full mb-4 shadow-sm">
+                            <ArrowLeft className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-foreground mb-2">Selecione uma conta acima</h3>
+                        <p className="text-muted-foreground max-w-md">
+                            Para iniciar a conciliação, escolha qual conta bancária você deseja gerenciar.
+                        </p>
                     </div>
-                  </>
+                ) : (
+                    <div className="grid gap-6">
+
+                        {/* Faturamento Cards — sempre visíveis no topo */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Card className="border-emerald-200 bg-emerald-50/50">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento Conciliado</p>
+                                            <p className="text-2xl font-bold text-emerald-600 mt-1">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.conciliado)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {reconciledTx?.length || 0} transações reconciliadas
+                                            </p>
+                                            {billingStats.periodoLabel && (
+                                                <p className="text-xs text-emerald-600/80 mt-1 flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    Período: {billingStats.periodoLabel}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                            <DollarSign className="h-6 w-6 text-emerald-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-amber-200 bg-amber-50/50">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento a Conciliar</p>
+                                            <p className="text-2xl font-bold text-amber-600 mt-1">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.aConciliar)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {billingStats.totalPending} transações pendentes
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                                            <Clock className="h-6 w-6 text-amber-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-purple-200 bg-purple-50/50">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suporte IA</p>
+                                            <p className="text-2xl font-bold text-purple-600 mt-1">
+                                                {billingStats.aiPercent}%
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {billingStats.withAiSupport} de {billingStats.totalPending} com sugestão automática
+                                            </p>
+                                        </div>
+                                        <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                                            <Bot className="h-6 w-6 text-purple-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Painel de Regras Aprendidas */}
+                        {showRulesPanel && (
+                            <Card className="border-[#E2E8F0]">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Brain className="h-5 w-5 text-purple-600" />
+                                        Regras de Conciliação Memorizadas
+                                        <Badge variant="secondary" className="ml-2">{rules.length}</Badge>
+                                    </CardTitle>
+                                    <CardDescription>
+                                        O sistema aprende automaticamente quando você concilia manualmente. Regras são aplicadas nas próximas importações.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {/* Botão para aplicar regras padrão */}
+                                    <div className="flex items-center justify-between mb-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+                                        <div className="flex items-center gap-2 text-sm text-blue-700">
+                                            <Zap className="h-4 w-4" />
+                                            <span><strong>{defaultRulesCount}</strong> regras padrão disponíveis (keywords da clínica)</span>
+                                        </div>
+                                        <Button size="sm" variant="outline"
+                                            className="border-blue-200 text-blue-700 hover:bg-blue-100"
+                                            onClick={() => seedDefaultRules.mutate()}
+                                            disabled={seedDefaultRules.isPending}
+                                        >
+                                            {seedDefaultRules.isPending ? <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                                            Aplicar Regras Padrão
+                                        </Button>
+                                    </div>
+
+                                    {rules.length === 0 ? (
+                                        <div className="text-center py-6 text-muted-foreground text-sm">
+                                            <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                            Nenhuma regra ainda. Aplique as regras padrão ou concilie manualmente para o sistema memorizar.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                            {rules.map(rule => {
+                                                const kws = (rule.palavras_chave || []).join(", ");
+                                                const confiancaScore = rule.confianca === "Alta" ? 95 : rule.confianca === "Média" ? 70 : 50;
+                                                return (
+                                                <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-white transition-colors">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="outline" className={`text-[10px] ${rule.acao === "auto-conciliar" ? "border-emerald-200 text-emerald-600 bg-emerald-50" : "border-amber-200 text-amber-600 bg-amber-50"}`}>
+                                                                {rule.acao === "auto-conciliar" ? "Auto" : "Sugerir"}
+                                                            </Badge>
+                                                            <span className="font-medium text-sm truncate">{kws}</span>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Keywords: <strong>{kws}</strong>
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 ml-4">
+                                                        <Badge className="bg-emerald-100 text-emerald-700">{confiancaScore}%</Badge>
+                                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-400 hover:text-red-600"
+                                                            onClick={() => deleteRule.mutate(rule.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Histórico de Importações (colapsado por padrão) */}
+                        <Card className="border-[#E2E8F0]">
+                            <CardHeader className="pb-3">
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowImportHistory(!showImportHistory)}>
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <FileText className="h-5 w-5 text-primary" />
+                                        Histórico de Importações
+                                        <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9] ml-2">
+                                            {importHistory?.length || 0}
+                                        </Badge>
+                                    </CardTitle>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                        {showImportHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            {showImportHistory && (
+                                <CardContent className="pt-0">
+                                    {!importHistory?.length ? (
+                                        <div className="text-center py-6 text-muted-foreground text-sm">
+                                            Nenhuma importação registrada para esta conta.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {importHistory.map((imp) => {
+                                                const isExpanded = expandedBatchKey === imp.key;
+                                                return (
+                                                <div key={imp.key} className="rounded-lg border border-[#E2E8F0] overflow-hidden">
+                                                    <div
+                                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#F8FAFC] cursor-pointer hover:bg-[#F1F5F9] transition-colors"
+                                                        onClick={() => setExpandedBatchKey(isExpanded ? null : imp.key)}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${imp.source === 'pdf' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                                <FileText className="h-4 w-4" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium">{imp.source.toUpperCase()}</p>
+                                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                    <Calendar className="h-3 w-3" />
+                                                                    {format(parseISO(imp.imported_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 ml-12 sm:ml-0">
+                                                            <div className="text-right">
+                                                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Período</p>
+                                                                <p className="text-sm font-medium">
+                                                                    {format(parseISO(imp.min_date), 'dd/MM/yy')} — {format(parseISO(imp.max_date), 'dd/MM/yy')}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
+                                                                <p className="text-sm font-bold">{imp.count}</p>
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0"
+                                                                onClick={(e) => { e.stopPropagation(); }}
+                                                            >
+                                                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm(`Excluir ${imp.count} transações deste extrato?`)) {
+                                                                        deleteImportBatch.mutate(imp.tx_ids);
+                                                                    }
+                                                                }}
+                                                                disabled={deleteImportBatch.isPending}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expanded: transaction details */}
+                                                    {isExpanded && (
+                                                        <div className="border-t border-[#E2E8F0] bg-white">
+                                                            {!expandedBatchTx?.length ? (
+                                                                <div className="text-center py-6 text-muted-foreground text-sm">
+                                                                    Carregando transações...
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    {/* Batch-level AI button */}
+                                                                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAFBFC] border-b border-[#E2E8F0]">
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {expandedBatchTx.filter((t: any) => t.status === "reconciled").length} transações conciliadas
+                                                                        </span>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            className="h-7 text-xs gap-1.5 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700 hover:from-amber-100 hover:to-orange-100 hover:border-amber-300"
+                                                                            onClick={() => aiRecat.suggestForBatch(expandedBatchTx)}
+                                                                            disabled={aiRecat.processing}
+                                                                        >
+                                                                            <Bot className="h-3.5 w-3.5" />
+                                                                            {aiRecat.processing ? "Analisando..." : "Recategorizar com IA"}
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    <Table>
+                                                                        <TableHeader>
+                                                                            <TableRow>
+                                                                                <TableHead className="text-xs w-[70px]"></TableHead>
+                                                                                <TableHead className="text-xs">Data</TableHead>
+                                                                                <TableHead className="text-xs">Descrição</TableHead>
+                                                                                <TableHead className="text-xs text-right">Valor</TableHead>
+                                                                                <TableHead className="text-xs">Status</TableHead>
+                                                                                <TableHead className="text-xs">Categoria</TableHead>
+                                                                            </TableRow>
+                                                                        </TableHeader>
+                                                                        <TableBody>
+                                                                            {expandedBatchTx.map((tx: any) => {
+                                                                                const catAccount = chartCategories?.find((c: any) => c.id === tx.category_id);
+                                                                                const isEditingThis = editingCategoryTxId === tx.id;
+                                                                                const isReconciled = tx.status === "reconciled";
+                                                                                const aiResult = aiRecat.results[tx.id];
+                                                                                return (
+                                                                                    <TableRow key={tx.id} className="group align-top">
+                                                                                        {/* Ações à ESQUERDA */}
+                                                                                        <TableCell className="py-2">
+                                                                                            <div className="flex items-center gap-0.5">
+                                                                                                {isReconciled && tx.linked_id && (
+                                                                                                    <>
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="sm"
+                                                                                                            className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                                                                            onClick={() => {
+                                                                                                                aiRecat.suggestForBatch([{
+                                                                                                                    id: tx.id,
+                                                                                                                    description: tx.description || tx.memo || "",
+                                                                                                                    amount: Number(tx.amount),
+                                                                                                                    date: tx.date,
+                                                                                                                    linked_table: tx.linked_table,
+                                                                                                                    linked_id: tx.linked_id,
+                                                                                                                    status: tx.status,
+                                                                                                                }]);
+                                                                                                            }}
+                                                                                                            title="Sugerir categoria com IA"
+                                                                                                        >
+                                                                                                            <Bot className="h-3.5 w-3.5" />
+                                                                                                        </Button>
+                                                                                                        <Button
+                                                                                                            variant="ghost"
+                                                                                                            size="sm"
+                                                                                                            className="h-7 w-7 p-0"
+                                                                                                            onClick={() => setEditingCategoryTxId(isEditingThis ? null : tx.id)}
+                                                                                                            title="Editar categoria manualmente"
+                                                                                                        >
+                                                                                                            <BookOpen className="h-3.5 w-3.5" />
+                                                                                                        </Button>
+                                                                                                    </>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs whitespace-nowrap py-2">
+                                                                                            {tx.date ? format(parseISO(tx.date), "dd/MM/yy") : "—"}
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs py-2">
+                                                                                            <div className="whitespace-normal break-words text-[12px] leading-snug">
+                                                                                                {tx.description || tx.memo || "—"}
+                                                                                            </div>
+                                                                                            {/* AI suggestions inline */}
+                                                                                            {aiResult && aiResult.suggestions.length > 0 && (
+                                                                                                <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                                                                                                    <span className="flex items-center gap-0.5 text-[9px] font-semibold text-amber-600 uppercase tracking-wider">
+                                                                                                        <Sparkles className="h-2.5 w-2.5" />
+                                                                                                        IA:
+                                                                                                    </span>
+                                                                                                    {aiResult.suggestions.map((s) => (
+                                                                                                        <Badge
+                                                                                                            key={s.account.id}
+                                                                                                            variant="outline"
+                                                                                                            className={`cursor-pointer text-[10px] font-medium transition-all hover:scale-105 ${
+                                                                                                                tx.category_id === s.account.id
+                                                                                                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                                                                                                    : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                                                                                                            }`}
+                                                                                                            title={`${s.reason} (score: ${s.score})`}
+                                                                                                            onClick={() => {
+                                                                                                                if (tx.linked_table && tx.linked_id) {
+                                                                                                                    updateLinkedCategory(tx.linked_table, tx.linked_id, s.account.id);
+                                                                                                                }
+                                                                                                            }}
+                                                                                                        >
+                                                                                                            {s.account.code} {s.account.name}
+                                                                                                        </Badge>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </TableCell>
+                                                                                        <TableCell className={`text-xs text-right font-medium whitespace-nowrap py-2 ${Number(tx.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                                            {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                                        </TableCell>
+                                                                                        <TableCell className="py-2">
+                                                                                            <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
+                                                                                                {isReconciled ? "Conciliado" : "Pendente"}
+                                                                                            </Badge>
+                                                                                        </TableCell>
+                                                                                        <TableCell className="text-xs py-2">
+                                                                                            {isEditingThis ? (
+                                                                                                <div className="relative">
+                                                                                                    <Command className="rounded-lg border shadow-md" shouldFilter={true}>
+                                                                                                        <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                                                                                                        <CommandList>
+                                                                                                            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada</CommandEmpty>
+                                                                                                            <CommandGroup className="max-h-[200px] overflow-y-auto">
+                                                                                                                {(chartCategories || []).map((cat: any) => (
+                                                                                                                    <CommandItem
+                                                                                                                        key={cat.id}
+                                                                                                                        value={`${cat.code} ${cat.name}`}
+                                                                                                                        onSelect={() => {
+                                                                                                                            if (tx.linked_table && tx.linked_id) {
+                                                                                                                                updateLinkedCategory(tx.linked_table, tx.linked_id, cat.id);
+                                                                                                                            }
+                                                                                                                        }}
+                                                                                                                        className="text-xs cursor-pointer"
+                                                                                                                    >
+                                                                                                                        <span className="font-medium text-muted-foreground mr-1.5">{cat.code}</span>
+                                                                                                                        <span>{cat.name}</span>
+                                                                                                                        {tx.category_id === cat.id && (
+                                                                                                                            <Check className="ml-auto h-3 w-3 text-emerald-600" />
+                                                                                                                        )}
+                                                                                                                    </CommandItem>
+                                                                                                                ))}
+                                                                                                            </CommandGroup>
+                                                                                                        </CommandList>
+                                                                                                    </Command>
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <span className="text-muted-foreground whitespace-normal text-[11.5px] leading-snug">
+                                                                                                    {catAccount ? `${catAccount.code} — ${catAccount.name}` : "Sem categoria"}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </TableCell>
+                                                                                    </TableRow>
+                                                                                );
+                                                                            })}
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            )}
+                        </Card>
+
+                        {/* Score Summary Cards */}
+                        {scoreSummary.total > 0 && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "auto" ? "ring-2 ring-emerald-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter(scoreFilter === "auto" ? "all" : "auto")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                            <Zap className="h-5 w-5 text-emerald-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-emerald-600">{scoreSummary.auto}</p>
+                                            <p className="text-xs text-muted-foreground">Auto-conciliar</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "suggested" ? "ring-2 ring-amber-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter(scoreFilter === "suggested" ? "all" : "suggested")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                                            <Eye className="h-5 w-5 text-amber-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-amber-600">{scoreSummary.suggested}</p>
+                                            <p className="text-xs text-muted-foreground">Sugeridos</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "review" ? "ring-2 ring-slate-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter(scoreFilter === "review" ? "all" : "review")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                            <HelpCircle className="h-5 w-5 text-slate-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-slate-600">{scoreSummary.review}</p>
+                                            <p className="text-xs text-muted-foreground">Revisar</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={`cursor-pointer transition-all ${scoreFilter === "all" ? "ring-2 ring-blue-400" : "hover:shadow-md"}`}
+                                    onClick={() => setScoreFilter("all")}
+                                >
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                            <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-blue-600">{scoreSummary.total}</p>
+                                            <p className="text-xs text-muted-foreground">Total pendentes</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Transactions Table */}
+                        <Card className="border-[#E2E8F0]">
+                            <CardHeader>
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2">
+                                            Transações do Extrato (Pendentes)
+                                            <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9]">
+                                                {filteredBankTransactions.length} itens
+                                            </Badge>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Itens importados do banco pendentes de conciliação.
+                                        </CardDescription>
+                                    </div>
+                                    {selectedIds.size > 0 && (
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-sm py-1">
+                                                {selectedIds.size} selecionado(s)
+                                            </Badge>
+                                            <Button size="sm" variant="outline" onClick={handleSelectHighConfidence}
+                                                className="gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                                                <Zap className="h-3.5 w-3.5" />
+                                                Selecionar Alta Confiança
+                                            </Button>
+                                            <Button size="sm" onClick={handleBatchApprove}
+                                                className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                                <CheckSquare className="h-3.5 w-3.5" />
+                                                Aprovar Selecionados
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {selectedIds.size === 0 && scoreSummary.auto > 0 && (
+                                        <Button size="sm" variant="outline" onClick={handleSelectHighConfidence}
+                                            className="gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                                            <Zap className="h-3.5 w-3.5" />
+                                            Selecionar Alta Confiança ({scoreSummary.auto})
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {!filteredBankTransactions.length ? (
+                                    <div className="text-center py-12">
+                                        <Check className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
+                                        <h3 className="text-lg font-medium text-foreground">Tudo em dia!</h3>
+                                        <p className="text-muted-foreground">Não há transações pendentes para conciliar.</p>
+                                    </div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-[#F8FAFC]">
+                                                <TableHead className="w-10">
+                                                    <Checkbox
+                                                        checked={selectedIds.size === filteredBankTransactions.length && filteredBankTransactions.length > 0}
+                                                        onCheckedChange={toggleSelectAll}
+                                                    />
+                                                </TableHead>
+                                                <TableHead className="w-20">Data</TableHead>
+                                                <TableHead>Descrição Banco</TableHead>
+                                                <TableHead className="w-28">Valor</TableHead>
+                                                <TableHead>Sugestão IA</TableHead>
+                                                <TableHead className="w-16 text-center">Score</TableHead>
+                                                <TableHead className="text-right w-32">Ações</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredBankTransactions.map((bt) => {
+                                                const suggestion = suggestionMap.get(bt.id);
+                                                const bestMatch = suggestion?.systemTransaction;
+                                                const score = suggestion?.score || 0;
+
+                                                return (
+                                                    <TableRow key={bt.id} className="group hover:bg-[#F8FAFC] transition-colors">
+                                                        <TableCell>
+                                                            <Checkbox
+                                                                checked={selectedIds.has(bt.id)}
+                                                                onCheckedChange={() => toggleSelect(bt.id)}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="font-medium text-muted-foreground whitespace-nowrap">
+                                                            {format(parseISO(bt.date), 'dd/MM')}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="font-medium">{bt.description}</div>
+                                                            {bt.memo && <div className="text-xs text-muted-foreground">{bt.memo}</div>}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
+                                                                {formatBRL(bt.amount)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {bestMatch ? (
+                                                                <div className="flex flex-col gap-1 items-start">
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={`cursor-pointer ${score >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : score >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
+                                                                        onClick={() => handleMatch(bt, bestMatch)}
+                                                                    >
+                                                                        <Check className="h-3 w-3 mr-1" />
+                                                                        {bestMatch.entity_name} - {bestMatch.description}
+                                                                    </Badge>
+                                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                                        {suggestion?.method === "rule" && <><Sparkles className="h-3 w-3 text-purple-500" /> {suggestion.ruleName}</>}
+                                                                        {suggestion?.method !== "rule" && <>Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</>}
+                                                                    </span>
+                                                                </div>
+                                                            ) : suggestion?.method === "rule" && suggestion?.label ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Sparkles className="h-3 w-3 text-purple-500" />
+                                                                    <span className="text-xs text-purple-600">{suggestion.label}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground italic">Sem sugestão</span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <ScoreBadge score={score} />
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                {bestMatch && (
+                                                                    <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                        onClick={() => handleMatch(bt, bestMatch)}>
+                                                                        Aceitar
+                                                                    </Button>
+                                                                )}
+                                                                <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"
+                                                                    onClick={() => { setSelectedBankTx(bt); setSearchTerm(""); }}>
+                                                                    Buscar
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 )}
 
-                {/* ── STEP: Formulário CP ou CR ───────── */}
-                {isFormStep && (
-                  <>
-                    {/* Info do extrato (resumo) */}
-                    <div className="bg-[#FAFAF9] rounded-lg border border-[#E8E6E1] px-4 py-3 flex items-center justify-between">
-                      <div className="text-[11px] text-[#78716C]">
-                        <span className="font-medium text-[#1C1917]">{formatData(tx.data)}</span>
-                        <span className="mx-2">·</span>
-                        <span>Banco: {contas.find(c => c.id === tx.conta_bancaria_id)?.name || '-'}</span>
-                      </div>
-                      <span className={`text-sm font-bold ${tx.tipo === 'credito' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                        {tx.tipo === 'credito' ? '+' : '-'}R$ {formatBRL(tx.valor)}
-                      </span>
-                    </div>
+                {/* Modal de Conciliação Manual */}
+                <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }
+                }}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Conciliar Manualmente</DialogTitle>
+                            <DialogDescription>Selecione um lançamento existente ou crie um novo.</DialogDescription>
+                        </DialogHeader>
 
-                    {/* Descrição (do extrato) */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Descrição</label>
-                      <input
-                        type="text"
-                        value={formNovo.descricao}
-                        onChange={(e) => setFormNovo(prev => ({ ...prev, descricao: e.target.value }))}
-                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] bg-[#FAFAF9] focus:outline-none focus:border-[#1C3D6B]"
-                      />
-                    </div>
+                        {selectedBankTx && (
+                            <div className="space-y-4">
+                                {/* Info da transação bancária */}
+                                <div className="bg-[#F8FAFC] p-4 rounded-lg flex justify-between items-center border border-[#F1F5F9]">
+                                    <div>
+                                        <p className="font-semibold text-foreground">{selectedBankTx.description}</p>
+                                        <p className="text-sm text-muted-foreground">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
+                                            {formatBRL(selectedBankTx.amount)}
+                                        </span>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {selectedBankTx.amount < 0 ? "Saída → Conta a Pagar" : "Entrada → Conta a Receber"}
+                                        </p>
+                                    </div>
+                                </div>
 
-                    {/* Credor / Pagador */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">
-                        {isCP ? 'Credor *' : 'Pagador *'}
-                      </label>
-                      <input
-                        type="text"
-                        value={formNovo.credorNome}
-                        onChange={(e) => setFormNovo(prev => ({ ...prev, credorNome: e.target.value }))}
-                        placeholder={isCP ? 'Nome do fornecedor / credor' : 'Nome do pagador / cliente'}
-                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
-                      />
-                    </div>
+                                {/* Aviso de memorização */}
+                                <div className="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 p-2 rounded-md border border-purple-100">
+                                    <Brain className="h-4 w-4 flex-shrink-0" />
+                                    <span>O sistema irá <strong>memorizar</strong> este padrão para sugerir automaticamente na próxima vez.</span>
+                                </div>
 
-                    {/* Valor + Vencimento */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Valor (R$) *</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formNovo.valor}
-                          onChange={(e) => setFormNovo(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
-                          className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Vencimento *</label>
-                        <input
-                          type="date"
-                          value={formNovo.dataVencimento}
-                          onChange={(e) => setFormNovo(prev => ({ ...prev, dataVencimento: e.target.value }))}
-                          className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Conta Contábil */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Conta Contábil</label>
-                      <select
-                        value={formNovo.contaContabilId}
-                        onChange={(e) => setFormNovo(prev => ({ ...prev, contaContabilId: e.target.value }))}
-                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] bg-white"
-                      >
-                        <option value="">Selecione do plano de contas...</option>
-                        {planoContas.map(c => (
-                          <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Centro de Custo */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Centro de Custo</label>
-                      <select
-                        value={formNovo.centroCustoId}
-                        onChange={(e) => setFormNovo(prev => ({ ...prev, centroCustoId: e.target.value }))}
-                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] bg-white"
-                      >
-                        <option value="">Nenhum</option>
-                        {centrosCusto.map(c => (
-                          <option key={c.id} value={c.id}>{c.nome}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Observações */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1">Observações</label>
-                      <input
-                        type="text"
-                        value={formNovo.observacoes}
-                        onChange={(e) => setFormNovo(prev => ({ ...prev, observacoes: e.target.value }))}
-                        className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B]"
-                      />
-                    </div>
-
-                    {/* Botões */}
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button
-                        onClick={() => setModalNovoLancamento(prev => ({ ...prev, step: 'escolha' }))}
-                        className="px-4 py-2.5 text-xs border border-[#E8E6E1] rounded-lg text-[#78716C] hover:bg-[#F5F5F4] transition"
-                      >
-                        Voltar
-                      </button>
-                      <button
-                        onClick={isCP ? salvarFormCP : salvarFormCR}
-                        disabled={salvandoNovo}
-                        className="px-5 py-2.5 text-xs bg-[#1C3D6B] text-white font-semibold rounded-lg hover:bg-[#163256] transition disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {salvandoNovo ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                        {salvandoNovo ? 'Salvando...' : isCP ? 'Lançar Conta a Pagar' : 'Lançar Conta a Receber'}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+                                {!showCreateForm ? (
+                                    <>
+                                        <div className="space-y-2">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input placeholder="Buscar lançamentos..." className="pl-9"
+                                                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                            </div>
+                                            <ScrollArea className="h-[250px] border rounded-md p-2">
+                                                {!filteredSystemTransactions?.length && (
+                                                    <div className="text-center py-8 text-muted-foreground text-sm">
+                                                        Nenhum lançamento compatível encontrado.
+                                                    </div>
+                                                )}
+                                                <div className="space-y-1">
+                                                    {filteredSystemTransactions?.map((st) => (
+                                                        <div key={`${st.type}-${st.id}`}
+                                                            className="flex items-center justify-between p-3 hover:bg-[#F8FAFC] rounded-md cursor-pointer border border-transparent hover:border-[#E2E8F0] transition-all"
+                                                            onClick={() => {
+                                                                handleMatch(selectedBankTx, st);
+                                                                setSelectedBankTx(null);
+                                                            }}>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
+                                                                        {st.type === 'payable' ? 'Pagar' : 'Receber'}
+                                                                    </Badge>
+                                                                    <span className="font-medium text-muted-foreground">{st.description}</span>
+                                                                </div>
+                                                                <p className="text-xs text-muted-foreground pl-1 mt-1">
+                                                                    {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
+                                                                </p>
+                                                            </div>
+                                                            <span className="font-bold text-foreground">{formatBRL(st.amount)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </ScrollArea>
+                                        </div>
+                                        <Separator />
+                                        <Button variant="outline"
+                                            className="w-full border-dashed border-2 border-primary/30 text-primary hover:bg-primary/5 h-11"
+                                            onClick={() => {
+                                                setShowCreateForm(true);
+                                                // Pre-fill category from engine suggestion (learned rules)
+                                                const engineSuggestion = suggestionMap.get(selectedBankTx.id);
+                                                const prefilledCategoryId = engineSuggestion?.accountId || "";
+                                                setNewEntry({ description: selectedBankTx.description || "", category_id: prefilledCategoryId });
+                                            }}>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Criar {selectedBankTx.amount < 0 ? "Nova Despesa" : "Nova Receita"} e Conciliar
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="space-y-4 p-4 border border-primary/20 rounded-lg bg-primary/[0.02]">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${selectedBankTx.amount < 0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                    <Plus className="h-4 w-4" />
+                                                </div>
+                                                <h4 className="text-sm font-semibold">
+                                                    Criar {selectedBankTx.amount < 0 ? "Conta a Pagar" : "Conta a Receber"}
+                                                </h4>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-medium">Descrição</Label>
+                                                    <Input value={newEntry.description}
+                                                        onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
+                                                        placeholder="Descrição do lançamento" />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs font-medium">Valor</Label>
+                                                        <Input value={formatBRL(Math.abs(selectedBankTx.amount))} disabled className="bg-muted font-bold" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs font-medium">Data</Label>
+                                                        <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted" />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
+                                                        {!showNewCategory && (
+                                                            <button
+                                                                type="button"
+                                                                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                                                                onClick={() => setShowNewCategory(true)}>
+                                                                <Plus className="h-3 w-3" />
+                                                                Criar categoria
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {newEntry.category_id && (
+                                                        <div className="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/50">
+                                                            <span className="text-sm font-medium">
+                                                                {(() => {
+                                                                    const cat = chartCategories?.find((c: any) => c.id === newEntry.category_id);
+                                                                    return cat ? `${cat.code} - ${cat.name}` : "";
+                                                                })()}
+                                                            </span>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600"
+                                                                onClick={() => setNewEntry({ ...newEntry, category_id: "" })}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                    {showNewCategory ? (
+                                                        <div className="rounded-md border p-3 space-y-3 bg-blue-50/50">
+                                                            <p className="text-xs font-semibold text-primary flex items-center gap-1">
+                                                                <Plus className="h-3 w-3" /> Nova Categoria
+                                                            </p>
+                                                            <div className="space-y-1.5">
+                                                                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Grupo (conta pai)</Label>
+                                                                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                        <SelectValue placeholder="Selecione o grupo..." />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {parentGroups.map((g: any) => (
+                                                                            <SelectItem key={g.id} value={g.id} className="text-xs">
+                                                                                {g.code} - {g.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            {selectedParentId && (
+                                                                <div className="space-y-1.5">
+                                                                    <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                                        Código (automático): <span className="text-primary font-bold">{nextCatCode}</span>
+                                                                    </Label>
+                                                                    <Input placeholder="Nome da nova categoria"
+                                                                        value={newCatName}
+                                                                        onChange={e => setNewCatName(e.target.value)}
+                                                                        className="text-xs h-8"
+                                                                        autoFocus />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex gap-2">
+                                                                <Button variant="outline" size="sm" className="h-7 text-xs flex-1"
+                                                                    onClick={() => { setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); }}>
+                                                                    Cancelar
+                                                                </Button>
+                                                                <Button size="sm" className="h-7 text-xs flex-1 bg-primary text-white"
+                                                                    onClick={handleCreateCategory}
+                                                                    disabled={isCreatingCategory || !selectedParentId || !nextCatCode || !newCatName.trim()}>
+                                                                    {isCreatingCategory ? <RefreshCw className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
+                                                                    Criar {nextCatCode}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Command className="rounded-md border">
+                                                            <CommandInput placeholder="Buscar categoria..." />
+                                                            <CommandList className="max-h-[150px]">
+                                                                <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {chartCategories?.filter((c: any) => c.type === createType || !['despesa', 'receita'].includes(c.type))
+                                                                        .map((c: any) => (
+                                                                            <CommandItem
+                                                                                key={c.id}
+                                                                                value={`${c.code} ${c.name}`}
+                                                                                onSelect={() => setNewEntry({ ...newEntry, category_id: c.id })}>
+                                                                                <Check className={`mr-2 h-4 w-4 ${newEntry.category_id === c.id ? "opacity-100" : "opacity-0"}`} />
+                                                                                {c.code} - {c.name}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    )}
+                                                    <CategorySuggestions suggestions={createSuggestions}
+                                                        onSelect={(id) => setNewEntry({ ...newEntry, category_id: id })}
+                                                        currentValue={newEntry.category_id} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" className="flex-1"
+                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }}>
+                                                Voltar
+                                            </Button>
+                                            <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                                onClick={handleCreateAndReconcile}
+                                                disabled={isCreating || !newEntry.description}>
+                                                {isCreating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                                                Criar e Conciliar
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
             </div>
-          </div>
-        )
-      })()}
-
-      {/* ═══════════════════════════════════════════════════════════
-         MODAL: Salvar Regra
-         ═══════════════════════════════════════════════════════════ */}
-      {modalRegra.aberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] w-full max-w-md mx-4 overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#E8E6E1] flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[#1C1917]">Salvar como Regra?</h3>
-              <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })} className="text-[#A8A29E] hover:text-[#1C1917] text-lg leading-none">&times;</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <p className="text-sm text-[#78716C]">Salvar padrao para classificar automaticamente transacoes semelhantes?</p>
-              <div>
-                <label className="block text-[11px] font-medium text-[#78716C] uppercase tracking-wider mb-1.5">Padrao de descricao</label>
-                <input type="text" value={modalRegra.descricao} onChange={(e) => setModalRegra((prev) => ({ ...prev, descricao: e.target.value }))} className="w-full border border-[#E8E6E1] rounded-lg px-3 py-2.5 text-sm text-[#1C1917] focus:outline-none focus:border-[#1C3D6B] focus:ring-1 focus:ring-[#1C3D6B]/20" placeholder="Ex: PIX RECEBIDO FULANO" />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button onClick={() => setModalRegra({ aberto: false, descricao: '', tipo: '', transacaoId: '' })}
-                  className="px-4 py-2.5 text-xs border border-[#E8E6E1] rounded-lg text-[#78716C] hover:bg-[#F5F5F4] transition"
-                >
-                  Nao, obrigada
-                </button>
-                <button
-                  onClick={salvarRegra}
-                  className="px-4 py-2.5 text-xs bg-[#1C3D6B] text-white font-semibold rounded-lg hover:bg-[#163256] transition"
-                >
-                  Salvar regra
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ═══════════════════════════════════════════════════════════
-         MODAL: Confirmação ao sair com conciliações pendentes
-         ═══════════════════════════════════════════════════════════ */}
-      {modalSairAberto && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl border border-[#E8E6E1] p-6 w-full max-w-md mx-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-[#FFFBEB] flex items-center justify-center">
-                <AlertTriangle size={20} className="text-[#D97706]" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-[#1C1917]">Conciliacoes nao salvas</h3>
-                <p className="text-[11px] text-[#78716C]">
-                  {conciliacoesPendentes} transac{conciliacoesPendentes === 1 ? 'ao' : 'oes'} aguardando aprovacao
-                </p>
-              </div>
-            </div>
-
-            <p className="text-sm text-[#78716C] mb-6">
-              Voce tem conciliacoes pendentes que ainda nao foram salvas.
-              Deseja salvar antes de sair?
-            </p>
-
-            <div className="flex flex-col gap-2.5">
-              <button
-                onClick={handleSalvarESair}
-                disabled={salvando}
-                className="w-full px-4 py-2.5 bg-[#16A34A] text-white font-semibold text-sm rounded-lg hover:bg-[#15803D] transition flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <CheckCircle2 size={16} />
-                {salvando ? 'Salvando...' : 'Salvar e sair'}
-              </button>
-              <button
-                onClick={handleSairSemSalvar}
-                className="w-full px-4 py-2.5 bg-[#FEF2F2] text-[#DC2626] font-semibold text-sm rounded-lg hover:bg-[#FEE2E2] transition"
-              >
-                Sair sem salvar
-              </button>
-              <button
-                onClick={handleCancelarSaida}
-                className="w-full px-4 py-2.5 border border-[#E8E6E1] text-[#78716C] font-medium text-sm rounded-lg hover:bg-[#F5F5F4] transition"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </AppLayout>
-  )
+        </AppLayout>
+    );
 }
