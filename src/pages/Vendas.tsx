@@ -774,7 +774,7 @@ export default function Vendas() {
             {/* Ações */}
             <div className="flex gap-2">
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null) }}
                 className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors"
               >
                 <Upload size={14} /> Importar
@@ -1479,6 +1479,93 @@ export default function Vendas() {
             </div>
 
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              {/* Tela inicial — instruções + modelo */}
+              {importRows.length === 0 && !importError && !importResult && (
+                <div className="space-y-4">
+                  <p className="text-sm text-[#333]">
+                    Importe suas vendas faturadas em outro sistema através de uma planilha <strong>.xlsx</strong>, <strong>.xls</strong> ou <strong>.csv</strong>.
+                  </p>
+
+                  <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                    <div className="bg-[#f5f5f5] px-4 py-2">
+                      <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas obrigatórias</h4>
+                    </div>
+                    <div className="p-4">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-[#eee]">
+                            <th className="text-left py-1.5 text-xs font-bold text-[#555] uppercase">Coluna</th>
+                            <th className="text-left py-1.5 text-xs font-bold text-[#555] uppercase">Descrição</th>
+                            <th className="text-left py-1.5 text-xs font-bold text-[#555] uppercase">Exemplo</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#f0f0f0]">
+                          {[
+                            ['cliente_nome', 'Nome do cliente', 'João Silva'],
+                            ['descricao', 'Descrição do item/serviço', 'Consultoria mensal'],
+                            ['quantidade', 'Quantidade', '1'],
+                            ['valor_unitario', 'Valor unitário', '1500,00'],
+                            ['data_venda', 'Data da venda (DD/MM/AAAA)', '01/04/2026'],
+                            ['forma_pagamento', 'Forma de pagamento', 'pix'],
+                          ].map(([col, desc, ex]) => (
+                            <tr key={col}>
+                              <td className="py-1.5 font-mono text-xs font-semibold text-[#1a2e4a]">{col}</td>
+                              <td className="py-1.5 text-[#333]">{desc}</td>
+                              <td className="py-1.5 text-[#999] italic">{ex}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                    <div className="bg-[#f5f5f5] px-4 py-2">
+                      <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas opcionais</h4>
+                    </div>
+                    <div className="p-4">
+                      <table className="w-full text-sm">
+                        <tbody className="divide-y divide-[#f0f0f0]">
+                          {[
+                            ['cliente_cpf_cnpj', 'CPF ou CNPJ do cliente', '12345678900'],
+                            ['tipo', 'Tipo: servico, produto, pacote, contrato', 'servico'],
+                            ['desconto', 'Valor do desconto', '50,00'],
+                            ['parcelas', 'Nº de parcelas (quando parcelado)', '3'],
+                            ['observacoes', 'Observações da venda', 'Ref. março/2026'],
+                          ].map(([col, desc, ex]) => (
+                            <tr key={col}>
+                              <td className="py-1.5 font-mono text-xs font-semibold text-[#999]">{col}</td>
+                              <td className="py-1.5 text-[#333]">{desc}</td>
+                              <td className="py-1.5 text-[#999] italic">{ex}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#f0f4f8] border border-[#c5d5e8] rounded-lg p-4">
+                    <p className="text-xs text-[#555] mb-1"><strong>Formas de pagamento aceitas:</strong></p>
+                    <p className="text-xs text-[#777]">pix, dinheiro, cartao_credito, cartao_debito, boleto, parcelado</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      onClick={baixarModeloPlanilha}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors"
+                    >
+                      <Download size={14} /> Baixar modelo CSV
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
+                    >
+                      <Upload size={14} /> Selecionar planilha
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Error de parse */}
               {importError && !importResult && (
                 <div className="p-4 bg-[#fdecea] border border-[#e57373] rounded-lg">
