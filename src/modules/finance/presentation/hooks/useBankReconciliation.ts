@@ -85,14 +85,25 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (payError) throw payError;
 
-            // Buscar Contas a Receber Pendentes
+            // Buscar Contas a Receber pendentes (aberto, parcial)
             const { data: receivables, error: recError } = await (activeClient as any)
                 .from('contas_receber')
-                .select('id, pagador_nome, valor, data_vencimento, status')
+                .select('id, pagador_nome, valor, valor_pago, data_vencimento, status, venda_id, forma_recebimento')
                 .eq('company_id', companyId)
-                .eq('status', 'aberto');
+                .in('status', ['aberto', 'parcial']);
 
             if (recError) throw recError;
+
+            // Buscar vendas concluídas que não têm CRs abertos (já quitadas mas não conciliadas no banco)
+            const receivableVendaIds = new Set((receivables || []).map((r: any) => r.venda_id).filter(Boolean));
+
+            const { data: vendasConcluidas, error: vendasErr } = await (activeClient as any)
+                .from('vendas')
+                .select('id, cliente_nome, cliente_cpf_cnpj, valor_total, data_venda, forma_pagamento, contas_receber(id, status)')
+                .eq('company_id', companyId)
+                .eq('status', 'concluida');
+
+            if (vendasErr) throw vendasErr;
 
             // Normalizar
             const normalized: SystemTransaction[] = [];
@@ -120,6 +131,25 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     status: r.status,
                     entity_name: r.pagador_nome || 'Cliente avulso',
                     original_table_id: r.id
+                });
+            });
+
+            // Adicionar vendas que tiveram CRs quitados mas não foram conciliadas no banco
+            // (evita duplicar com CRs já listados acima)
+            (vendasConcluidas || []).forEach((v: any) => {
+                if (receivableVendaIds.has(v.id)) return; // já tem CR aberto listado
+                const crs = v.contas_receber || [];
+                const allPago = crs.length > 0 && crs.every((c: any) => c.status === 'pago');
+                if (!allPago && crs.length > 0) return; // tem CRs não pagos, já listados ou pendentes
+                normalized.push({
+                    id: crs.length > 0 ? crs[0].id : v.id,
+                    type: 'receivable',
+                    description: `Venda: ${v.cliente_nome}`,
+                    amount: Number(v.valor_total || 0),
+                    date: v.data_venda,
+                    status: 'pago',
+                    entity_name: v.cliente_nome || 'Cliente avulso',
+                    original_table_id: crs.length > 0 ? crs[0].id : v.id,
                 });
             });
 
