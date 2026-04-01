@@ -186,8 +186,8 @@ export default function Vendas() {
   const [novoClienteEmail, setNovoClienteEmail] = useState('')
   const [salvandoCliente, setSalvandoCliente] = useState(false)
 
-  // ─── Product search state per item row ───────────────────────
-  const [produtoDropdownIdx, setProdutoDropdownIdx] = useState<number | null>(null)
+  // ─── Product modal state ──────────────────────────────────────
+  const [modalProdutoIdx, setModalProdutoIdx] = useState<number | null>(null)
   const [produtoSearchTerm, setProdutoSearchTerm] = useState('')
 
   // ─── Computed ────────────────────────────────────────────────
@@ -1004,58 +1004,19 @@ export default function Vendas() {
                       {formItens.map((it, idx) => (
                         <tr key={idx} className="border-t border-[#eee]">
                           <td className="px-2 py-1.5">
-                            <div className="relative">
-                              <Package size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none z-10" />
-                              <input
-                                type="text"
-                                value={it.descricao}
-                                onChange={e => {
-                                  updateItem(idx, 'descricao', e.target.value)
-                                  setProdutoSearchTerm(e.target.value)
-                                  setProdutoDropdownIdx(idx)
-                                }}
-                                onFocus={() => {
-                                  setProdutoDropdownIdx(idx)
-                                  setProdutoSearchTerm(it.descricao || '')
-                                }}
-                                onBlur={() => {
-                                  setTimeout(() => setProdutoDropdownIdx(prev => prev === idx ? null : prev), 200)
-                                }}
-                                placeholder="Buscar no catálogo..."
-                                className="w-full pl-7 pr-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
-                              />
-                              {/* Product dropdown from catalog */}
-                              {produtoDropdownIdx === idx && (
-                                <div className="absolute z-20 mt-1 left-0 right-0 bg-white border border-[#ccc] rounded-md shadow-lg max-h-52 overflow-y-auto">
-                                  {produtosFiltrados.length === 0 ? (
-                                    <div className="px-3 py-3 text-xs text-[#999] text-center">
-                                      Nenhum produto encontrado no catálogo
-                                    </div>
-                                  ) : (
-                                    produtosFiltrados.map(p => (
-                                      <button
-                                        key={p.id}
-                                        onMouseDown={e => e.preventDefault()}
-                                        onClick={() => selectProduto(idx, p)}
-                                        className="w-full text-left px-3 py-2 hover:bg-[#f0f4f8] transition-colors border-b border-[#eee] last:border-b-0"
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-sm text-[#0a0a0a]">
-                                            {p.code && <span className="text-[10px] text-white bg-[#1a2e4a] rounded px-1 py-0.5 mr-1.5">{p.code}</span>}
-                                            {p.description}
-                                          </span>
-                                          {p.price != null && p.price > 0 && (
-                                            <span className="text-xs font-semibold text-[#0a5c2e] ml-2 whitespace-nowrap">
-                                              {formatBRL(p.price)}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </button>
-                                    ))
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalProdutoIdx(idx)
+                                setProdutoSearchTerm('')
+                              }}
+                              className="w-full flex items-center gap-2 px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-left hover:border-[#1a2e4a] hover:bg-[#f8fafc] transition-colors"
+                            >
+                              <Package size={13} className="text-[#999] shrink-0" />
+                              <span className={it.descricao ? 'text-[#0a0a0a]' : 'text-[#999]'}>
+                                {it.descricao || 'Selecionar do catálogo...'}
+                              </span>
+                            </button>
                           </td>
                           <td className="px-2 py-1.5">
                             <input
@@ -1467,6 +1428,94 @@ export default function Vendas() {
           </div>
         </div>
       )}
+      {/* ================================================================
+         MODAL SELEÇÃO DE PRODUTO/SERVIÇO DO CATÁLOGO
+         ================================================================ */}
+      {modalProdutoIdx !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                <Package size={16} /> Catálogo de Produtos e Serviços
+              </h2>
+              <button onClick={() => setModalProdutoIdx(null)} className="text-white/70 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 border-b border-[#eee]">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={produtoSearchTerm}
+                  onChange={e => setProdutoSearchTerm(e.target.value)}
+                  placeholder="Buscar por nome ou código..."
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                />
+              </div>
+              <p className="text-[10px] text-[#999] mt-1.5">{produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}</p>
+            </div>
+
+            {/* Product list */}
+            <div className="flex-1 overflow-y-auto">
+              {produtosFiltrados.length === 0 ? (
+                <div className="text-center py-8 text-[#999] text-sm">
+                  Nenhum produto encontrado
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-[#f5f5f5] sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Código</th>
+                      <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Nome</th>
+                      <th className="text-right px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Preço</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#eee]">
+                    {produtosFiltrados.map(p => (
+                      <tr
+                        key={p.id}
+                        onClick={() => {
+                          selectProduto(modalProdutoIdx, p)
+                          setModalProdutoIdx(null)
+                        }}
+                        className="cursor-pointer hover:bg-[#f0f4f8] transition-colors"
+                      >
+                        <td className="px-4 py-2.5">
+                          {p.code ? (
+                            <span className="text-[10px] text-white bg-[#1a2e4a] rounded px-1.5 py-0.5 font-mono">{p.code}</span>
+                          ) : (
+                            <span className="text-[#ccc]">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 font-medium text-[#0a0a0a]">{p.description}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-[#0a5c2e] whitespace-nowrap">
+                          {p.price != null && p.price > 0 ? formatBRL(p.price) : <span className="text-[#ccc]">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-[#eee] px-5 py-3 flex justify-end bg-[#fafafa] rounded-b-lg">
+              <button
+                onClick={() => setModalProdutoIdx(null)}
+                className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================================================================
          MODAL IMPORTAÇÃO DE PLANILHA
          ================================================================ */}
