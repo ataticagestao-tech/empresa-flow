@@ -306,15 +306,10 @@ export default function Vendas() {
   useEffect(() => { fetchAuxData() }, [fetchAuxData])
 
   // ─── Close dropdowns on outside click ────────────────────────
-  const produtoDropdownRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) {
         setClienteDropdownOpen(false)
-      }
-      if (produtoDropdownRef.current && !produtoDropdownRef.current.contains(e.target as Node)) {
-        setProdutoDropdownIdx(null)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -1009,7 +1004,7 @@ export default function Vendas() {
                       {formItens.map((it, idx) => (
                         <tr key={idx} className="border-t border-[#eee]">
                           <td className="px-2 py-1.5">
-                            <div className="relative" ref={produtoDropdownIdx === idx ? produtoDropdownRef : undefined}>
+                            <div className="relative">
                               <Package size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none z-10" />
                               <input
                                 type="text"
@@ -1022,6 +1017,9 @@ export default function Vendas() {
                                 onFocus={() => {
                                   setProdutoDropdownIdx(idx)
                                   setProdutoSearchTerm(it.descricao || '')
+                                }}
+                                onBlur={() => {
+                                  setTimeout(() => setProdutoDropdownIdx(prev => prev === idx ? null : prev), 200)
                                 }}
                                 placeholder="Buscar no catálogo..."
                                 className="w-full pl-7 pr-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
