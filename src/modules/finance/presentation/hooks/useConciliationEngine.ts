@@ -164,20 +164,22 @@ function runMatchingEngine(
         };
     }
 
-    // ─── Helper: calcula diferença percentual considerando taxa de maquininha ───
-    // O extrato sempre vem MENOR que o CR (valor bruto - taxa).
-    // Taxas típicas: 1-6% (débito ~1.5%, crédito ~3-5%, antecipação ~6%).
-    // diffPct = quanto o extrato é menor que o CR (positivo = extrato menor).
-    // Ex: CR=1000, extrato=950 → diffPct=0.05 (5% de taxa).
+    // ─── Helper: taxa de maquininha ───────────────────────────────
+    // Vendas por maquininha: extrato SEMPRE menor que o CR (valor - taxa 2-7%).
+    // Repasse pode ser D+1 (débito) ou D+30 (crédito).
+    // Descrição no extrato é genérica ("CREDITO", "STONE", "DOMCRED").
+    // Nome do cliente NUNCA aparece — matching é só por valor + janela de data.
     const calcDiff = (stAmount: number) => {
-        const diff = Number(stAmount) - absAmount;  // negativo = extrato menor
-        const pct = stAmount > 0 ? Math.abs(diff) / stAmount : 1;
-        return { diff, pct, extratoMenor: diff < -0.01 };
+        const stVal = Number(stAmount);
+        const diff = stVal - absAmount;        // negativo = extrato menor
+        const pct = stVal > 0 ? Math.abs(diff) / stVal : 1;
+        return { diff, pct, extratoMenor: diff < -0.01, exato: Math.abs(diff) < 0.01 };
     };
 
-    // ===== CAMADA 1: Valor exato + data exata (95%) =====
+    // ===== CAMADA 1: Valor exato + data exata (95%) — PIX, transferência =====
     for (const st of candidates) {
-        if (Math.abs(Number(st.amount) - absAmount) < 0.01 && st.date === bt.date) {
+        const { exato } = calcDiff(Number(st.amount));
+        if (exato && st.date === bt.date) {
             return {
                 ...base,
                 systemTransaction: st,
@@ -188,26 +190,26 @@ function runMatchingEngine(
         }
     }
 
-    // ===== CAMADA 2: Valor com taxa de maquininha (até 7%) + data exata (90%) =====
+    // ===== CAMADA 2: Valor exato + data ±3 dias (90%) =====
     for (const st of candidates) {
-        const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && st.date === bt.date) {
-            const taxaPct = (pct * 100).toFixed(1);
+        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
+        const { exato } = calcDiff(Number(st.amount));
+        if (exato && diffDays <= 3) {
             return {
                 ...base,
                 systemTransaction: st,
                 score: 90,
-                method: "taxa_maquininha",
-                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%)`,
+                method: "exact_amount",
+                label: `${st.entity_name} - ${st.description}`,
             };
         }
     }
 
-    // ===== CAMADA 3: Valor com taxa (até 7%) + data ±3 dias (85%) =====
+    // ===== CAMADA 3: Taxa maquininha (até 7%) + data ±1 dia — repasse D+1 (85%) =====
     for (const st of candidates) {
         const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
         const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && diffDays <= 3) {
+        if (extratoMenor && pct <= 0.07 && diffDays <= 1) {
             const taxaPct = (pct * 100).toFixed(1);
             return {
                 ...base,
@@ -219,71 +221,65 @@ function runMatchingEngine(
         }
     }
 
-    // ===== CAMADA 4: Valor com taxa (até 7%) + data ±7 dias (75%) =====
+    // ===== CAMADA 4: Taxa maquininha (até 7%) + data ±3 dias (80%) =====
     for (const st of candidates) {
         const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
         const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && diffDays <= 7) {
+        if (extratoMenor && pct <= 0.07 && diffDays <= 3) {
             const taxaPct = (pct * 100).toFixed(1);
             return {
                 ...base,
                 systemTransaction: st,
-                score: 75,
+                score: 80,
                 method: "taxa_maquininha",
                 label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%)`,
             };
         }
     }
 
-    // ===== CAMADA 5: Valor exato + data ±7 dias (70%) =====
+    // ===== CAMADA 5: Taxa maquininha (até 7%) + data ±35 dias — repasse D+30 crédito (70%) =====
     for (const st of candidates) {
         const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        if (Math.abs(Number(st.amount) - absAmount) < 0.01 && diffDays <= 7) {
+        const { pct, extratoMenor } = calcDiff(Number(st.amount));
+        if (extratoMenor && pct <= 0.07 && diffDays <= 35) {
+            const taxaPct = (pct * 100).toFixed(1);
             return {
                 ...base,
                 systemTransaction: st,
                 score: 70,
-                method: "exact_amount",
-                label: `${st.entity_name} - ${st.description}`,
+                method: "taxa_maquininha",
+                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%, D+${Math.round(diffDays)})`,
             };
         }
     }
 
-    // ===== CAMADA 6: Nome do beneficiário + valor ±10% (60%) =====
-    const beneficiary = extractBeneficiary(bt.description || "");
-    if (beneficiary) {
-        const benefNorm = normalizeText(beneficiary);
-        for (const st of candidates) {
-            const entityNorm = normalizeText(st.entity_name || "");
-            if (!entityNorm) continue;
-            const nameMatch = entityNorm.includes(benefNorm) || benefNorm.includes(entityNorm)
-                || benefNorm.split(" ").some(w => w.length > 3 && entityNorm.includes(w));
-            const { pct } = calcDiff(Number(st.amount));
-            if (nameMatch && pct <= 0.10) {
-                const taxaPct = (pct * 100).toFixed(1);
-                return {
-                    ...base,
-                    systemTransaction: st,
-                    score: 60,
-                    method: "name_amount",
-                    label: `${st.entity_name} - ${st.description} (dif. ~${taxaPct}%)`,
-                };
-            }
+    // ===== CAMADA 6: Valor exato + data ±35 dias (60%) — parcelas =====
+    for (const st of candidates) {
+        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
+        const { exato } = calcDiff(Number(st.amount));
+        if (exato && diffDays <= 35) {
+            return {
+                ...base,
+                systemTransaction: st,
+                score: 60,
+                method: "exact_amount",
+                label: `${st.entity_name} - ${st.description} (D+${Math.round(diffDays)})`,
+            };
         }
     }
 
-    // ===== CAMADA 7: Valor ±10% + data ±5 dias (50%) =====
+    // ===== CAMADA 7: Taxa maquininha (até 7%) + data ±60 dias — antecipação (50%) =====
     for (const st of candidates) {
         const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { pct } = calcDiff(Number(st.amount));
-        if (pct <= 0.10 && diffDays <= 5) {
+        const { pct, extratoMenor } = calcDiff(Number(st.amount));
+        if (extratoMenor && pct <= 0.07 && diffDays <= 60) {
             const taxaPct = (pct * 100).toFixed(1);
             return {
                 ...base,
                 systemTransaction: st,
                 score: 50,
-                method: "approx_amount",
-                label: `${st.entity_name} - ${st.description} (dif. ~${taxaPct}%)`,
+                method: "taxa_maquininha",
+                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%, D+${Math.round(diffDays)})`,
             };
         }
     }
