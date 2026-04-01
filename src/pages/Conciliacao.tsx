@@ -77,6 +77,8 @@ export default function Conciliacao() {
     const [expandedBatchKey, setExpandedBatchKey] = useState<string | null>(null);
     const [expandedBatchTxIds, setExpandedBatchTxIds] = useState<string[]>([]);
     const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
+    const [filterDateFrom, setFilterDateFrom] = useState("");
+    const [filterDateTo, setFilterDateTo] = useState("");
 
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
@@ -626,18 +628,29 @@ export default function Conciliacao() {
         }
     };
 
-    // Filtered system transactions for manual search
-    const filteredSystemTransactions = systemTransactions?.filter(st => {
-        const needle = searchTerm.toLowerCase();
-        const matchesSearch = st.description.toLowerCase().includes(needle) ||
-            st.entity_name?.toLowerCase().includes(needle) ||
-            String(st.amount).includes(needle);
-        if (selectedBankTx) {
-            const compatibleType = selectedBankTx.amount < 0 ? 'payable' : 'receivable';
-            return matchesSearch && st.type === compatibleType;
-        }
-        return matchesSearch;
-    });
+    // Filtered system transactions for manual search (with date filter)
+    const filteredSystemTransactions = useMemo(() => {
+        if (!systemTransactions) return [];
+        return systemTransactions.filter(st => {
+            // Type filter
+            if (selectedBankTx) {
+                const compatibleType = selectedBankTx.amount < 0 ? 'payable' : 'receivable';
+                if (st.type !== compatibleType) return false;
+            }
+            // Text search
+            if (searchTerm) {
+                const needle = searchTerm.toLowerCase();
+                const matchesSearch = st.description.toLowerCase().includes(needle) ||
+                    st.entity_name?.toLowerCase().includes(needle) ||
+                    String(st.amount).includes(needle);
+                if (!matchesSearch) return false;
+            }
+            // Date filter
+            if (filterDateFrom && st.date < filterDateFrom) return false;
+            if (filterDateTo && st.date > filterDateTo) return false;
+            return true;
+        });
+    }, [systemTransactions, selectedBankTx, searchTerm, filterDateFrom, filterDateTo]);
 
     const formatBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
@@ -1310,7 +1323,16 @@ export default function Conciliacao() {
                                                                     </Button>
                                                                 )}
                                                                 <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"
-                                                                    onClick={() => { setSelectedBankTx(bt); setSearchTerm(""); }}>
+                                                                    onClick={() => {
+                                                                    setSelectedBankTx(bt);
+                                                                    setSearchTerm("");
+                                                                    // Pre-set date filter: 60 days before bank tx date
+                                                                    const txDate = bt.date;
+                                                                    const from = new Date(txDate);
+                                                                    from.setDate(from.getDate() - 60);
+                                                                    setFilterDateFrom(format(from, 'yyyy-MM-dd'));
+                                                                    setFilterDateTo(txDate);
+                                                                }}>
                                                                     Buscar
                                                                 </Button>
                                                             </div>
@@ -1328,7 +1350,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); }
                 }}>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
@@ -1363,10 +1385,31 @@ export default function Conciliacao() {
                                 {!showCreateForm ? (
                                     <>
                                         <div className="space-y-2">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                <Input placeholder="Buscar lançamentos..." className="pl-9"
-                                                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                            {/* Filtros de data + busca */}
+                                            <div className="grid grid-cols-[1fr_1fr_2fr] gap-2">
+                                                <div>
+                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">De</Label>
+                                                    <Input type="date" value={filterDateFrom}
+                                                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                                                        className="text-xs h-9" />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Até</Label>
+                                                    <Input type="date" value={filterDateTo}
+                                                        onChange={(e) => setFilterDateTo(e.target.value)}
+                                                        className="text-xs h-9" />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Buscar</Label>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-2 h-4 w-4 text-muted-foreground" />
+                                                        <Input placeholder="Nome, descrição ou valor..." className="pl-9 h-9 text-xs"
+                                                            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] text-muted-foreground">
+                                                {filteredSystemTransactions.length} lançamento{filteredSystemTransactions.length !== 1 ? 's' : ''} encontrado{filteredSystemTransactions.length !== 1 ? 's' : ''}
                                             </div>
                                             <ScrollArea className="h-[250px] border rounded-md p-2">
                                                 {!filteredSystemTransactions?.length && (

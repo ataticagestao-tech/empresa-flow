@@ -509,15 +509,8 @@ export default function Vendas() {
 
         if (crsErr) throw crsErr
 
-        // 4. If à vista, quitar immediately
-        if (FORMAS_A_VISTA_SET.has(row.forma_pagamento) && crsData?.length > 0) {
-          await quitarCR(crsData[0].id, {
-            valorPago: crsData[0].valor,
-            dataPagamento: row.data_venda,
-            formaRecebimento: row.forma_pagamento,
-            contaBancariaId: importContaBancaria,
-          })
-        }
+        // 4. CRs ficam "aberto" para serem conciliadas com o extrato bancário.
+        //    Não quitar automaticamente — a quitação acontece na conciliação.
 
         ok++
       } catch (err: any) {
