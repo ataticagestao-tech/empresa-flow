@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
@@ -126,6 +127,7 @@ const LABEL_TIPO: Record<string, string> = {
 
 export default function Vendas() {
   const { selectedCompany } = useCompany()
+  const { activeClient } = useAuth()
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
@@ -289,11 +291,12 @@ export default function Vendas() {
   const fetchAuxData = useCallback(async () => {
     if (!companyId) return
 
+    const ac = activeClient as any
     const [banksRes, centrosRes, clientesRes, produtosRes] = await Promise.all([
-      db.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
-      db.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
-      db.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
-      db.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).eq('is_active', true).order('description'),
+      ac.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
+      ac.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
+      ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
+      ac.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).eq('is_active', true).order('description'),
     ])
 
     setBankAccounts((banksRes.data as BankAccount[]) || [])
