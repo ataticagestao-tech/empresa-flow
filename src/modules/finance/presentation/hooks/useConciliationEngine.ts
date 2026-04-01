@@ -205,6 +205,58 @@ function runMatchingEngine(
         }
     }
 
+    // ===== CAMADA 4: Valor aproximado (±5%) + data ±7 dias (60%) =====
+    for (const st of candidates) {
+        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
+        const diffPct = absAmount > 0 ? Math.abs(Number(st.amount) - absAmount) / absAmount : 1;
+        if (diffPct <= 0.05 && diffDays <= 7) {
+            return {
+                ...base,
+                systemTransaction: st,
+                score: 60,
+                method: "approx_amount",
+                label: `${st.entity_name} - ${st.description} (≈${Math.round(diffPct * 100)}% dif.)`,
+            };
+        }
+    }
+
+    // ===== CAMADA 5: Nome do beneficiário no extrato + valor ±10% (55%) =====
+    const beneficiary = extractBeneficiary(bt.description || "");
+    if (beneficiary) {
+        const benefNorm = normalizeText(beneficiary);
+        for (const st of candidates) {
+            const entityNorm = normalizeText(st.entity_name || "");
+            if (!entityNorm) continue;
+            const nameMatch = entityNorm.includes(benefNorm) || benefNorm.includes(entityNorm)
+                || benefNorm.split(" ").some(w => w.length > 3 && entityNorm.includes(w));
+            const diffPct = absAmount > 0 ? Math.abs(Number(st.amount) - absAmount) / absAmount : 1;
+            if (nameMatch && diffPct <= 0.10) {
+                return {
+                    ...base,
+                    systemTransaction: st,
+                    score: 55,
+                    method: "name_amount",
+                    label: `${st.entity_name} - ${st.description}`,
+                };
+            }
+        }
+    }
+
+    // ===== CAMADA 6: Valor aproximado (±10%) + data ±3 dias (50%) =====
+    for (const st of candidates) {
+        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
+        const diffPct = absAmount > 0 ? Math.abs(Number(st.amount) - absAmount) / absAmount : 1;
+        if (diffPct <= 0.10 && diffDays <= 3) {
+            return {
+                ...base,
+                systemTransaction: st,
+                score: 50,
+                method: "approx_amount_close",
+                label: `${st.entity_name} - ${st.description} (≈${Math.round(diffPct * 100)}% dif.)`,
+            };
+        }
+    }
+
     // ===== SEM MATCH =====
     return base;
 }
