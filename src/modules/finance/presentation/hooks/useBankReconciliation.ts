@@ -85,26 +85,35 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (payError) throw payError;
 
-            // Buscar TODAS as Contas a Receber (qualquer status)
+            // Buscar TODAS as Contas a Receber (qualquer status exceto cancelado)
             const { data: receivables, error: recError } = await (activeClient as any)
                 .from('contas_receber')
                 .select('id, pagador_nome, valor, valor_pago, data_vencimento, status, venda_id, forma_recebimento')
                 .eq('company_id', companyId)
-                .neq('status', 'cancelado');
+                .in('status', ['aberto', 'pago', 'parcial', 'vencido']);
 
-            if (recError) throw recError;
+            if (recError) {
+                console.error('[systemTransactions] Erro ao buscar contas_receber:', recError);
+                throw recError;
+            }
+            console.log('[systemTransactions] contas_receber encontradas:', receivables?.length || 0);
 
             // Buscar CRs já conciliados no banco para excluí-los
-            const { data: reconciledCRs } = await (activeClient as any)
+            const { data: reconciledCRs, error: reconciledErr } = await (activeClient as any)
                 .from('bank_transactions')
                 .select('reconciled_receivable_id')
                 .eq('company_id', companyId)
                 .eq('status', 'reconciled')
                 .not('reconciled_receivable_id', 'is', null);
 
+            if (reconciledErr) {
+                console.error('[systemTransactions] Erro ao buscar reconciliados:', reconciledErr);
+            }
+
             const reconciledCRIds = new Set(
                 (reconciledCRs || []).map((r: any) => r.reconciled_receivable_id)
             );
+            console.log('[systemTransactions] CRs já conciliados:', reconciledCRIds.size);
 
             // Normalizar
             const normalized: SystemTransaction[] = [];
