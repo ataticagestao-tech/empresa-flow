@@ -1006,6 +1006,7 @@ export default function Vendas() {
                         <tr key={idx} className="border-t border-[#eee]">
                           <td className="px-2 py-1.5">
                             <div className="relative">
+                              <Package size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none" />
                               <input
                                 type="text"
                                 value={it.descricao}
@@ -1016,31 +1017,40 @@ export default function Vendas() {
                                 }}
                                 onFocus={() => {
                                   setProdutoDropdownIdx(idx)
-                                  setProdutoSearchTerm(it.descricao)
+                                  setProdutoSearchTerm(it.descricao || '')
                                 }}
-                                placeholder="Buscar produto/serviço..."
-                                className="w-full px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                                placeholder="Buscar no catálogo..."
+                                className="w-full pl-7 pr-2 py-1 text-sm border border-[#ccc] rounded bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a]"
                               />
-                              {/* Product dropdown */}
-                              {produtoDropdownIdx === idx && produtosFiltrados.length > 0 && (
-                                <div className="absolute z-20 mt-1 left-0 right-0 bg-white border border-[#ccc] rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                  {produtosFiltrados.map(p => (
-                                    <button
-                                      key={p.id}
-                                      onClick={() => selectProduto(idx, p)}
-                                      className="w-full text-left px-3 py-2 hover:bg-[#f0f4f8] transition-colors border-b border-[#eee] last:border-b-0"
-                                    >
-                                      <div className="text-sm text-[#0a0a0a]">
-                                        {p.code && <span className="text-[#555] mr-1">[{p.code}]</span>}
-                                        {p.description}
-                                      </div>
-                                      {p.price != null && (
-                                        <div className="text-[11px] text-[#555]">
-                                          {formatBRL(p.price)} {p.unidade_medida && `/ ${p.unidade_medida}`}
+                              {/* Product dropdown from catalog */}
+                              {produtoDropdownIdx === idx && (
+                                <div className="absolute z-20 mt-1 left-0 right-0 bg-white border border-[#ccc] rounded-md shadow-lg max-h-52 overflow-y-auto">
+                                  {produtosFiltrados.length === 0 ? (
+                                    <div className="px-3 py-3 text-xs text-[#999] text-center">
+                                      Nenhum produto encontrado no catálogo
+                                    </div>
+                                  ) : (
+                                    produtosFiltrados.map(p => (
+                                      <button
+                                        key={p.id}
+                                        onMouseDown={e => e.preventDefault()}
+                                        onClick={() => selectProduto(idx, p)}
+                                        className="w-full text-left px-3 py-2 hover:bg-[#f0f4f8] transition-colors border-b border-[#eee] last:border-b-0"
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-[#0a0a0a]">
+                                            {p.code && <span className="text-[10px] text-white bg-[#1a2e4a] rounded px-1 py-0.5 mr-1.5">{p.code}</span>}
+                                            {p.description}
+                                          </span>
+                                          {p.price != null && p.price > 0 && (
+                                            <span className="text-xs font-semibold text-[#0a5c2e] ml-2 whitespace-nowrap">
+                                              {formatBRL(p.price)}
+                                            </span>
+                                          )}
                                         </div>
-                                      )}
-                                    </button>
-                                  ))}
+                                      </button>
+                                    ))
+                                  )}
                                 </div>
                               )}
                             </div>
