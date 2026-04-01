@@ -85,25 +85,26 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (payError) throw payError;
 
-            // Buscar Contas a Receber pendentes (aberto, parcial)
+            // Buscar TODAS as Contas a Receber (qualquer status)
             const { data: receivables, error: recError } = await (activeClient as any)
                 .from('contas_receber')
                 .select('id, pagador_nome, valor, valor_pago, data_vencimento, status, venda_id, forma_recebimento')
                 .eq('company_id', companyId)
-                .in('status', ['aberto', 'parcial']);
+                .neq('status', 'cancelado');
 
             if (recError) throw recError;
 
-            // Buscar vendas concluídas que não têm CRs abertos (já quitadas mas não conciliadas no banco)
-            const receivableVendaIds = new Set((receivables || []).map((r: any) => r.venda_id).filter(Boolean));
-
-            const { data: vendasConcluidas, error: vendasErr } = await (activeClient as any)
-                .from('vendas')
-                .select('id, cliente_nome, cliente_cpf_cnpj, valor_total, data_venda, forma_pagamento, contas_receber(id, status)')
+            // Buscar CRs já conciliados no banco para excluí-los
+            const { data: reconciledCRs } = await (activeClient as any)
+                .from('bank_transactions')
+                .select('reconciled_receivable_id')
                 .eq('company_id', companyId)
-                .eq('status', 'concluida');
+                .eq('status', 'reconciled')
+                .not('reconciled_receivable_id', 'is', null);
 
-            if (vendasErr) throw vendasErr;
+            const reconciledCRIds = new Set(
+                (reconciledCRs || []).map((r: any) => r.reconciled_receivable_id)
+            );
 
             // Normalizar
             const normalized: SystemTransaction[] = [];
@@ -121,7 +122,9 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 });
             });
 
+            // Adicionar CRs que NÃO foram conciliados no banco
             receivables?.forEach((r: any) => {
+                if (reconciledCRIds.has(r.id)) return; // já conciliado
                 normalized.push({
                     id: r.id,
                     type: 'receivable',
@@ -131,25 +134,6 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     status: r.status,
                     entity_name: r.pagador_nome || 'Cliente avulso',
                     original_table_id: r.id
-                });
-            });
-
-            // Adicionar vendas que tiveram CRs quitados mas não foram conciliadas no banco
-            // (evita duplicar com CRs já listados acima)
-            (vendasConcluidas || []).forEach((v: any) => {
-                if (receivableVendaIds.has(v.id)) return; // já tem CR aberto listado
-                const crs = v.contas_receber || [];
-                const allPago = crs.length > 0 && crs.every((c: any) => c.status === 'pago');
-                if (!allPago && crs.length > 0) return; // tem CRs não pagos, já listados ou pendentes
-                normalized.push({
-                    id: crs.length > 0 ? crs[0].id : v.id,
-                    type: 'receivable',
-                    description: `Venda: ${v.cliente_nome}`,
-                    amount: Number(v.valor_total || 0),
-                    date: v.data_venda,
-                    status: 'pago',
-                    entity_name: v.cliente_nome || 'Cliente avulso',
-                    original_table_id: crs.length > 0 ? crs[0].id : v.id,
                 });
             });
 
