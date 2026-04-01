@@ -306,12 +306,16 @@ export default function Vendas() {
   useEffect(() => { fetchAuxData() }, [fetchAuxData])
 
   // ─── Close dropdowns on outside click ────────────────────────
+  const produtoDropdownRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) {
         setClienteDropdownOpen(false)
       }
-      setProdutoDropdownIdx(null)
+      if (produtoDropdownRef.current && !produtoDropdownRef.current.contains(e.target as Node)) {
+        setProdutoDropdownIdx(null)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -1005,8 +1009,8 @@ export default function Vendas() {
                       {formItens.map((it, idx) => (
                         <tr key={idx} className="border-t border-[#eee]">
                           <td className="px-2 py-1.5">
-                            <div className="relative">
-                              <Package size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none" />
+                            <div className="relative" ref={produtoDropdownIdx === idx ? produtoDropdownRef : undefined}>
+                              <Package size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#999] pointer-events-none z-10" />
                               <input
                                 type="text"
                                 value={it.descricao}
