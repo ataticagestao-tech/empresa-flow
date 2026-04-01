@@ -200,6 +200,11 @@ export default function FolhaPagamentoPage() {
         .order('faixa_min'),
     ])
 
+    console.log('[FolhaPag] company_id:', selectedCompany.id)
+    console.log('[FolhaPag] funcRes:', funcRes)
+    console.log('[FolhaPag] funcRes.error:', funcRes.error)
+    console.log('[FolhaPag] funcRes.data:', funcRes.data)
+
     setFolhas(folhaRes.data || [])
     setFuncionarios(funcRes.data || [])
     setFaixasINSS(inssRes.data || [])
