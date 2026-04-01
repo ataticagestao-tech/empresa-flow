@@ -47,12 +47,13 @@ interface FolhaPagamento {
 
 interface Funcionario {
   id: string
-  nome_completo: string | null
-  name: string | null
-  cargo: string | null
-  salario: number | null
-  data_admissao: string | null
-  status: string | null
+  nome_completo?: string | null
+  name?: string | null
+  role?: string | null
+  salary?: number | null
+  salario_base?: number | null
+  hire_date?: string | null
+  status: string
 }
 
 interface FaixaINSS {
@@ -175,7 +176,7 @@ export default function FolhaPagamentoPage() {
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!selectedCompany) return
+    if (!selectedCompany || !activeClient) return
     setLoading(true)
     const db = activeClient as any
 
@@ -185,11 +186,10 @@ export default function FolhaPagamentoPage() {
         .eq('empresa_id', selectedCompany.id)
         .eq('competencia', competencia)
         .order('created_at', { ascending: false }),
-      db.from('funcionarios')
-        .select('id, nome_completo, name, cargo, salario, data_admissao, status')
+      db.from('employees')
+        .select('*')
         .eq('company_id', selectedCompany.id)
-        .eq('status', 'ativo')
-        .order('nome_completo'),
+        .order('created_at', { ascending: false }),
       db.from('config_tabela_inss')
         .select('faixa_min, faixa_max, aliquota')
         .eq('ano', new Date().getFullYear())
@@ -208,6 +208,9 @@ export default function FolhaPagamentoPage() {
   }, [selectedCompany, activeClient, competencia])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const funcionariosAtivos = useMemo(() =>
+    funcionarios.filter(f => (f.status || '').toLowerCase() === 'ativo'), [funcionarios])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -246,8 +249,8 @@ export default function FolhaPagamentoPage() {
 
     try {
       const funcsParaCalc = calcForm.selectAll
-        ? funcionarios
-        : funcionarios.filter(f => calcForm.funcionarioIds.includes(f.id))
+        ? funcionariosAtivos
+        : funcionariosAtivos.filter(f => calcForm.funcionarioIds.includes(f.id))
 
       if (funcsParaCalc.length === 0) {
         toast.error('Nenhum funcionario selecionado')
@@ -273,7 +276,7 @@ export default function FolhaPagamentoPage() {
           continue
         }
 
-        const salarioBase = func.salario || 0
+        const salarioBase = func.salario_base || func.salary || 0
 
         // Calcular INSS progressivo
         const inssFunc = calcularINSS(salarioBase, faixasINSS)
@@ -614,7 +617,7 @@ export default function FolhaPagamentoPage() {
                     onChange={e => setCalcForm(prev => ({ ...prev, selectAll: e.target.checked }))}
                     className="rounded border-gray-300"
                   />
-                  Todos os funcionarios ativos ({funcionarios.length})
+                  Todos os funcionarios ativos ({funcionariosAtivos.length})
                 </label>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
