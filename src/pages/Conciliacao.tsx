@@ -1326,12 +1326,8 @@ export default function Conciliacao() {
                                                                     onClick={() => {
                                                                     setSelectedBankTx(bt);
                                                                     setSearchTerm("");
-                                                                    // Pre-set date filter: 60 days before bank tx date
-                                                                    const txDate = bt.date;
-                                                                    const from = new Date(txDate);
-                                                                    from.setDate(from.getDate() - 60);
-                                                                    setFilterDateFrom(format(from, 'yyyy-MM-dd'));
-                                                                    setFilterDateTo(txDate);
+                                                                    setFilterDateFrom("");
+                                                                    setFilterDateTo("");
                                                                 }}>
                                                                     Buscar
                                                                 </Button>
@@ -1386,7 +1382,7 @@ export default function Conciliacao() {
                                     <>
                                         <div className="space-y-2">
                                             {/* Filtros de data + busca */}
-                                            <div className="grid grid-cols-[1fr_1fr_2fr] gap-2">
+                                            <div className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
                                                 <div>
                                                     <Label className="text-[10px] font-semibold text-muted-foreground uppercase">De</Label>
                                                     <Input type="date" value={filterDateFrom}
@@ -1407,6 +1403,23 @@ export default function Conciliacao() {
                                                             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                                     </div>
                                                 </div>
+                                                <Button
+                                                    size="sm"
+                                                    className="h-9"
+                                                    onClick={() => {
+                                                        // Limpar filtros para forçar refresh visual
+                                                        if (!filterDateFrom && !filterDateTo && !searchTerm) {
+                                                            // Se tudo vazio, setar range amplo
+                                                            const now = new Date();
+                                                            const from = new Date(now);
+                                                            from.setFullYear(from.getFullYear() - 1);
+                                                            setFilterDateFrom(format(from, 'yyyy-MM-dd'));
+                                                            setFilterDateTo(format(now, 'yyyy-MM-dd'));
+                                                        }
+                                                    }}
+                                                >
+                                                    <Search className="h-4 w-4 mr-1" /> Buscar
+                                                </Button>
                                             </div>
                                             <div className="text-[10px] text-muted-foreground">
                                                 {filteredSystemTransactions.length} lançamento{filteredSystemTransactions.length !== 1 ? 's' : ''} encontrado{filteredSystemTransactions.length !== 1 ? 's' : ''}
