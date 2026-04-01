@@ -289,21 +289,28 @@ export default function Vendas() {
   }, [companyId, mesDate])
 
   const fetchAuxData = useCallback(async () => {
-    if (!companyId) return
+    if (!companyId || !activeClient) return
 
     const ac = activeClient as any
     const [banksRes, centrosRes, clientesRes, produtosRes] = await Promise.all([
       ac.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
       ac.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
-      ac.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).eq('is_active', true).order('description'),
+      ac.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description'),
     ])
 
     setBankAccounts((banksRes.data as BankAccount[]) || [])
     setCentrosCusto((centrosRes.data as CentroCusto[]) || [])
     setClientes((clientesRes.data as Cliente[]) || [])
-    setProdutos((produtosRes.data as Produto[]) || [])
-  }, [companyId])
+
+    // Fallback: se activeClient não retornou produtos, tentar com db
+    let prods = (produtosRes.data as Produto[]) || []
+    if (prods.length === 0) {
+      const fallback = await db.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description')
+      prods = (fallback.data as Produto[]) || []
+    }
+    setProdutos(prods)
+  }, [companyId, activeClient])
 
   useEffect(() => { fetchVendas() }, [fetchVendas])
   useEffect(() => { fetchAuxData() }, [fetchAuxData])
