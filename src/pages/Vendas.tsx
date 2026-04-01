@@ -9,8 +9,10 @@ import {
   Search, Plus, Eye, Trash2, X,
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
-  QrCode, Receipt, Calendar, UserPlus, ChevronDown
+  QrCode, Receipt, Calendar, UserPlus, ChevronDown,
+  Upload, Download, CheckCircle2, XCircle
 } from 'lucide-react'
+import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
 
 // Cast supabase for GESTAP tables not in the generated types
@@ -146,6 +148,17 @@ export default function Vendas() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [erroModal, setErroModal] = useState<string | null>(null)
+
+  // ─── Import state ────────────────────────────────────────────
+  const [modalImport, setModalImport] = useState(false)
+  const [importRows, setImportRows] = useState<VendaImportRow[]>([])
+  const [importErros, setImportErros] = useState(0)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importando, setImportando] = useState(false)
+  const [importResult, setImportResult] = useState<{ ok: number; fail: number } | null>(null)
+  const [importContaBancaria, setImportContaBancaria] = useState('')
+  const [importCentroCusto, setImportCentroCusto] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Form state ──────────────────────────────────────────────
   const [formTipo, setFormTipo] = useState<string>('servico')
@@ -395,6 +408,152 @@ export default function Vendas() {
     }
   }
 
+  // ─── Import planilha ──────────────────────────────────────────
+  async function handleFileImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = '' // reset input
+
+    setImportError(null)
+    setImportResult(null)
+    setImportRows([])
+    setImportErros(0)
+
+    try {
+      const result = await parseVendasSpreadsheet(file)
+      setImportRows(result.rows)
+      setImportErros(result.totalErros)
+      setModalImport(true)
+    } catch (err: any) {
+      setImportError(err.message || 'Erro ao processar planilha.')
+      setModalImport(true)
+    }
+  }
+
+  async function executarImportacao() {
+    if (!companyId || !importContaBancaria) return
+
+    setImportando(true)
+    setImportError(null)
+
+    const FORMAS_A_VISTA_SET = new Set(['pix', 'dinheiro', 'cartao_debito'])
+    const validRows = importRows.filter(r => r.erros.length === 0)
+    let ok = 0
+    let fail = 0
+
+    for (const row of validRows) {
+      try {
+        // 1. Insert venda
+        const valorLiquido = Math.max(0, row.valor_total - row.desconto)
+        const { data: vendaData, error: vendaErr } = await db
+          .from('vendas')
+          .insert({
+            company_id: companyId,
+            cliente_nome: row.cliente_nome,
+            cliente_cpf_cnpj: row.cliente_cpf_cnpj,
+            tipo: row.tipo,
+            valor_total: valorLiquido,
+            desconto: row.desconto,
+            data_venda: row.data_venda,
+            forma_pagamento: row.forma_pagamento,
+            status: 'concluida',
+            observacoes: row.observacoes,
+          })
+          .select()
+          .single()
+
+        if (vendaErr) throw vendaErr
+
+        // 2. Insert item
+        await db.from('vendas_itens').insert({
+          venda_id: vendaData.id,
+          descricao: row.descricao,
+          quantidade: row.quantidade,
+          valor_unitario: row.valor_unitario,
+          valor_total: row.valor_total,
+        })
+
+        // 3. Generate contas_receber
+        const isParcelado = row.forma_pagamento === 'parcelado'
+        const numParcelas = isParcelado ? row.parcelas : 1
+        const valorParcela = Math.round((valorLiquido / numParcelas) * 100) / 100
+
+        const crsPayload = Array.from({ length: numParcelas }, (_, i) => {
+          const vencimento = isParcelado
+            ? format(addMonths(parseISO(row.data_venda), i + 1), 'yyyy-MM-dd')
+            : row.data_venda
+
+          const valor = i === numParcelas - 1
+            ? valorLiquido - valorParcela * (numParcelas - 1)
+            : valorParcela
+
+          return {
+            company_id: companyId,
+            pagador_nome: row.cliente_nome,
+            pagador_cpf_cnpj: row.cliente_cpf_cnpj,
+            valor,
+            valor_pago: 0,
+            data_vencimento: vencimento,
+            status: 'aberto',
+            forma_recebimento: row.forma_pagamento,
+            conta_contabil_id: null,
+            centro_custo_id: importCentroCusto || null,
+            venda_id: vendaData.id,
+          }
+        })
+
+        const { data: crsData, error: crsErr } = await db
+          .from('contas_receber')
+          .insert(crsPayload)
+          .select()
+
+        if (crsErr) throw crsErr
+
+        // 4. If à vista, quitar immediately
+        if (FORMAS_A_VISTA_SET.has(row.forma_pagamento) && crsData?.length > 0) {
+          await quitarCR(crsData[0].id, {
+            valorPago: crsData[0].valor,
+            dataPagamento: row.data_venda,
+            formaRecebimento: row.forma_pagamento,
+            contaBancariaId: importContaBancaria,
+          })
+        }
+
+        ok++
+      } catch (err: any) {
+        console.error(`[importVenda] Linha ${row.linha}:`, err)
+        fail++
+      }
+    }
+
+    setImportResult({ ok, fail })
+    setImportando(false)
+    await fetchVendas()
+  }
+
+  function fecharModalImport() {
+    setModalImport(false)
+    setImportRows([])
+    setImportErros(0)
+    setImportError(null)
+    setImportResult(null)
+    setImportContaBancaria('')
+    setImportCentroCusto('')
+  }
+
+  function baixarModeloPlanilha() {
+    const headers = ['cliente_nome', 'cliente_cpf_cnpj', 'descricao', 'quantidade', 'valor_unitario', 'desconto', 'data_venda', 'forma_pagamento', 'parcelas', 'tipo', 'observacoes']
+    const exemplo = ['João Silva', '12345678900', 'Consultoria mensal', '1', '1500.00', '0', '01/04/2026', 'pix', '1', 'servico', '']
+    const csv = [headers.join(';'), exemplo.join(';')].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'modelo_importacao_vendas.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ─── Save venda ──────────────────────────────────────────────
   async function salvarVenda() {
     if (!companyId) return
@@ -612,13 +771,28 @@ export default function Vendas() {
               <option value="">Todas as formas</option>
               {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
-            {/* Nova venda */}
-            <button
-              onClick={() => { resetForm(); setModalAberto(true) }}
-              className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
-            >
-              <Plus size={14} /> Nova Venda
-            </button>
+            {/* Ações */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors"
+              >
+                <Upload size={14} /> Importar
+              </button>
+              <button
+                onClick={() => { resetForm(); setModalAberto(true) }}
+                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
+              >
+                <Plus size={14} /> Nova Venda
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleFileImport}
+            />
           </div>
         </div>
 
@@ -1283,6 +1457,200 @@ export default function Vendas() {
                 >
                   Excluir
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ================================================================
+         MODAL IMPORTAÇÃO DE PLANILHA
+         ================================================================ */}
+      {modalImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                <Upload size={16} /> Importar Vendas da Planilha
+              </h2>
+              <button onClick={fecharModalImport} className="text-white/70 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              {/* Error de parse */}
+              {importError && !importResult && (
+                <div className="p-4 bg-[#fdecea] border border-[#e57373] rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={18} className="text-[#8b0000] mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-[#8b0000] text-sm">Erro ao processar planilha</p>
+                      <p className="text-sm text-[#8b0000]/80 mt-1 whitespace-pre-line">{importError}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={baixarModeloPlanilha}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded hover:bg-[#f0f4f8] transition-colors"
+                    >
+                      <Download size={12} /> Baixar modelo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Result */}
+              {importResult && (
+                <div className={`p-4 rounded-lg border ${importResult.fail > 0 ? 'bg-[#fff8e1] border-[#ffc107]' : 'bg-[#e6f4ec] border-[#0a5c2e]'}`}>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 size={20} className="text-[#0a5c2e]" />
+                    <div>
+                      <p className="font-semibold text-sm">Importação concluída</p>
+                      <p className="text-sm mt-0.5">
+                        <span className="text-[#0a5c2e] font-semibold">{importResult.ok} vendas importadas</span>
+                        {importResult.fail > 0 && (
+                          <span className="text-[#8b0000] font-semibold ml-2">{importResult.fail} com erro</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {importRows.length > 0 && !importResult && (
+                <>
+                  {/* Summary */}
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="font-semibold text-[#0a0a0a]">
+                      {importRows.length} linha{importRows.length !== 1 ? 's' : ''} encontrada{importRows.length !== 1 ? 's' : ''}
+                    </span>
+                    {importErros > 0 && (
+                      <span className="flex items-center gap-1 text-[#8b0000] font-semibold">
+                        <XCircle size={14} /> {importErros} com erro{importErros !== 1 ? 's' : ''} (serão ignoradas)
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1 text-[#0a5c2e] font-semibold">
+                      <CheckCircle2 size={14} /> {importRows.filter(r => r.erros.length === 0).length} válida{importRows.filter(r => r.erros.length === 0).length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {/* Config row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#555] mb-1">Conta bancária destino *</label>
+                      <select
+                        value={importContaBancaria}
+                        onChange={e => setImportContaBancaria(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                      >
+                        <option value="">Selecione...</option>
+                        {bankAccounts.map(b => (
+                          <option key={b.id} value={b.id}>{b.name}{b.banco ? ` (${b.banco})` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#555] mb-1">Centro de custo (opcional)</label>
+                      <select
+                        value={importCentroCusto}
+                        onChange={e => setImportCentroCusto(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                      >
+                        <option value="">Nenhum</option>
+                        {centrosCusto.map(c => (
+                          <option key={c.id} value={c.id}>{c.codigo} - {c.descricao}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto max-h-[40vh]">
+                      <table className="w-full text-sm">
+                        <thead className="bg-[#f5f5f5] sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Linha</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Cliente</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Descrição</th>
+                            <th className="px-3 py-2 text-right text-[10px] font-bold text-[#555] uppercase">Qtd</th>
+                            <th className="px-3 py-2 text-right text-[10px] font-bold text-[#555] uppercase">Vlr Unit.</th>
+                            <th className="px-3 py-2 text-right text-[10px] font-bold text-[#555] uppercase">Total</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Data</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Pagamento</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#eee]">
+                          {importRows.map((row, idx) => {
+                            const hasError = row.erros.length > 0
+                            return (
+                              <tr key={idx} className={hasError ? 'bg-[#fdecea]' : 'hover:bg-[#fafafa]'}>
+                                <td className="px-3 py-2 text-[#999] text-xs">{row.linha}</td>
+                                <td className="px-3 py-2 font-medium text-[#0a0a0a]">
+                                  {row.cliente_nome || '-'}
+                                  {row.cliente_cpf_cnpj && (
+                                    <span className="block text-[10px] text-[#999]">{row.cliente_cpf_cnpj}</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-[#333] max-w-[200px] truncate">{row.descricao || '-'}</td>
+                                <td className="px-3 py-2 text-right text-[#333]">{row.quantidade}</td>
+                                <td className="px-3 py-2 text-right text-[#333]">{formatBRL(row.valor_unitario)}</td>
+                                <td className="px-3 py-2 text-right font-semibold text-[#0a0a0a]">{formatBRL(row.valor_total)}</td>
+                                <td className="px-3 py-2 text-[#333]">{row.data_venda ? formatData(row.data_venda) : '-'}</td>
+                                <td className="px-3 py-2 text-[#333]">{LABEL_FORMA[row.forma_pagamento] || row.forma_pagamento}</td>
+                                <td className="px-3 py-2">
+                                  {hasError ? (
+                                    <span className="flex items-center gap-1 text-[#8b0000] text-xs font-semibold" title={row.erros.join(', ')}>
+                                      <XCircle size={12} /> {row.erros[0]}
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1 text-[#0a5c2e] text-xs font-semibold">
+                                      <CheckCircle2 size={12} /> OK
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-[#eee] px-5 py-3 flex items-center justify-between bg-[#fafafa] rounded-b-lg">
+              <button
+                onClick={baixarModeloPlanilha}
+                className="flex items-center gap-2 text-xs font-semibold text-[#555] hover:text-[#1a2e4a] transition-colors"
+              >
+                <Download size={12} /> Baixar modelo CSV
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={fecharModalImport}
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                >
+                  {importResult ? 'Fechar' : 'Cancelar'}
+                </button>
+                {!importResult && importRows.length > 0 && (
+                  <button
+                    onClick={executarImportacao}
+                    disabled={importando || !importContaBancaria || importRows.filter(r => r.erros.length === 0).length === 0}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {importando ? (
+                      <><Loader2 size={14} className="animate-spin" /> Importando...</>
+                    ) : (
+                      <><Check size={14} /> Importar {importRows.filter(r => r.erros.length === 0).length} venda{importRows.filter(r => r.erros.length === 0).length !== 1 ? 's' : ''}</>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
