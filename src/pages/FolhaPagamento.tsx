@@ -14,8 +14,8 @@ import { toast } from 'sonner'
 // ─── Types ──────────────────────────────────────────────────────────
 interface FolhaPagamento {
   id: string
-  empresa_id: string
-  funcionario_id: string
+  company_id: string
+  employee_id: string
   competencia: string
   tipo: string
   salario_base: number
@@ -183,7 +183,7 @@ export default function FolhaPagamentoPage() {
     const [folhaRes, funcRes, inssRes, irrfRes] = await Promise.all([
       db.from('folha_pagamento')
         .select('*')
-        .eq('empresa_id', selectedCompany.id)
+        .eq('company_id', selectedCompany.id)
         .eq('competencia', competencia)
         .order('created_at', { ascending: false }),
       db.from('employees')
@@ -238,7 +238,7 @@ export default function FolhaPagamentoPage() {
     let list = folhas
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase()
-      list = list.filter(f => getNomeFuncionario(f.funcionario_id).toLowerCase().includes(term))
+      list = list.filter(f => getNomeFuncionario(f.employee_id).toLowerCase().includes(term))
     }
     if (statusFilter !== 'todos') {
       list = list.filter(f => f.status === statusFilter)
@@ -270,8 +270,8 @@ export default function FolhaPagamentoPage() {
         // Verificar se ja existe
         const { data: existing } = await db.from('folha_pagamento')
           .select('id')
-          .eq('empresa_id', selectedCompany.id)
-          .eq('funcionario_id', func.id)
+          .eq('company_id', selectedCompany.id)
+          .eq('employee_id', func.id)
           .eq('competencia', competencia)
           .eq('tipo', calcForm.tipo)
           .maybeSingle()
@@ -304,8 +304,8 @@ export default function FolhaPagamentoPage() {
         const valorLiquido = Math.round((totalProventos - totalDescontos) * 100) / 100
 
         await db.from('folha_pagamento').insert({
-          empresa_id: selectedCompany.id,
-          funcionario_id: func.id,
+          company_id: selectedCompany.id,
+          employee_id: func.id,
           competencia,
           tipo: calcForm.tipo,
           salario_base: salarioBase,
@@ -509,7 +509,7 @@ export default function FolhaPagamentoPage() {
                     const st = STATUS_CONFIG[f.status] || STATUS_CONFIG.rascunho
                     return (
                       <tr key={f.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(f.funcionario_id)}</td>
+                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(f.employee_id)}</td>
                         <td className="px-4 py-3 text-gray-500">{TIPO_LABELS[f.tipo] || f.tipo}</td>
                         <td className="px-4 py-3 text-right">{formatBRL(f.salario_base)}</td>
                         <td className="px-4 py-3 text-right text-green-700">{formatBRL(f.total_proventos)}</td>
@@ -659,7 +659,7 @@ export default function FolhaPagamentoPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">
-                {getNomeFuncionario(selectedFolha.funcionario_id)}
+                {getNomeFuncionario(selectedFolha.employee_id)}
               </h2>
               <button onClick={() => setShowDetailModal(false)} className="p-1 rounded hover:bg-gray-100">
                 <X size={20} className="text-gray-400" />
