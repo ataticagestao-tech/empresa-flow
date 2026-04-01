@@ -131,7 +131,7 @@ export default function Conciliacao() {
     });
 
     // Query: fetch full details of a batch when expanded
-    const { data: expandedBatchTx, isLoading: isLoadingBatchTx, isError: isBatchTxError, error: batchTxError } = useQuery({
+    const { data: expandedBatchTx, isLoading: isLoadingBatchTx, isError: isBatchTxError } = useQuery({
         queryKey: ["batch_details", expandedBatchKey],
         queryFn: async () => {
             const ids = expandedBatchTxIds;
@@ -931,14 +931,9 @@ export default function Conciliacao() {
                                                     {/* Expanded: transaction details */}
                                                     {isExpanded && (
                                                         <div className="border-t border-[#E2E8F0] bg-white">
-                                                            {/* DEBUG - remover depois */}
-                                                            <div className="px-4 py-1 text-[10px] bg-yellow-50 text-yellow-800 font-mono">
-                                                                IDs no state: {expandedBatchTxIds.length} | key: {expandedBatchKey} | loading: {String(isLoadingBatchTx)} | error: {String(isBatchTxError)} | data: {expandedBatchTx ? expandedBatchTx.length : 'null'} {batchTxError ? `| err: ${batchTxError}` : ''}
-                                                            </div>
                                                             {isBatchTxError ? (
                                                                 <div className="text-center py-6 text-sm">
                                                                     <p className="text-destructive">Erro ao carregar transações.</p>
-                                                                    <p className="text-xs text-muted-foreground mt-1">{String(batchTxError)}</p>
                                                                     <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] })}>
                                                                         Tentar novamente
                                                                     </Button>
