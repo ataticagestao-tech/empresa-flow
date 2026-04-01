@@ -137,18 +137,53 @@ export default function Conciliacao() {
             const ids = expandedBatchTxIds;
             if (!ids.length) return [];
 
-            const { data, error } = await (activeClient as any)
-                .from("bank_transactions")
-                .select("id, date, amount, description, memo, status, category_id, reconciled_payable_id, reconciled_receivable_id")
-                .in("id", ids.slice(0, 50))
-                .order("date", { ascending: true });
+            // Fetch in chunks to handle large batches
+            const chunkSize = 50;
+            let allData: any[] = [];
+            for (let i = 0; i < ids.length; i += chunkSize) {
+                const chunk = ids.slice(i, i + chunkSize);
+                const { data: chunkData, error } = await (activeClient as any)
+                    .from("bank_transactions")
+                    .select("id, date, amount, description, memo, status, reconciled_payable_id, reconciled_receivable_id")
+                    .in("id", chunk)
+                    .order("date", { ascending: true });
+                if (error) throw new Error(JSON.stringify(error));
+                if (chunkData) allData = allData.concat(chunkData);
+            }
+            allData.sort((a: any, b: any) => a.date.localeCompare(b.date));
+            const data = allData;
 
-            if (error) throw new Error(JSON.stringify(error));
-            return (data || []).map((t: any) => ({
-                ...t,
-                linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
-                linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
-            }));
+            // Enrich with category from linked contas_pagar/contas_receber
+            const payableIds = (data || []).map((t: any) => t.reconciled_payable_id).filter(Boolean);
+            const receivableIds = (data || []).map((t: any) => t.reconciled_receivable_id).filter(Boolean);
+            let payableMap: Record<string, any> = {};
+            let receivableMap: Record<string, any> = {};
+
+            if (payableIds.length > 0) {
+                const { data: payables } = await (activeClient as any)
+                    .from("contas_pagar")
+                    .select("id, conta_contabil_id, credor_nome")
+                    .in("id", payableIds);
+                (payables || []).forEach((p: any) => { payableMap[p.id] = { category_id: p.conta_contabil_id, description: p.credor_nome }; });
+            }
+            if (receivableIds.length > 0) {
+                const { data: receivables } = await (activeClient as any)
+                    .from("contas_receber")
+                    .select("id, conta_contabil_id, pagador_nome")
+                    .in("id", receivableIds);
+                (receivables || []).forEach((r: any) => { receivableMap[r.id] = { category_id: r.conta_contabil_id, description: r.pagador_nome }; });
+            }
+
+            return (data || []).map((t: any) => {
+                const linked = t.reconciled_payable_id ? payableMap[t.reconciled_payable_id]
+                    : t.reconciled_receivable_id ? receivableMap[t.reconciled_receivable_id] : null;
+                return {
+                    ...t,
+                    linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
+                    linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
+                    category_id: linked?.category_id || null,
+                };
+            });
         },
         enabled: !!expandedBatchKey && expandedBatchTxIds.length > 0,
         retry: 1,
@@ -156,15 +191,7 @@ export default function Conciliacao() {
 
     // Mutation: update category — works on linked payable/receivable OR directly on bank_transactions
     const updateLinkedCategory = async (linkedTable: string | null, linkedId: string | null, newCategoryId: string, bankTxId?: string) => {
-        // Always save category_id directly on the bank_transaction
-        if (bankTxId) {
-            await (activeClient as any)
-                .from("bank_transactions")
-                .update({ category_id: newCategoryId })
-                .eq("id", bankTxId);
-        }
-
-        // If linked to payable/receivable, also update there
+        // Update linked payable/receivable
         if (linkedTable && linkedId) {
             const gestapTable = linkedTable === "accounts_payable" ? "contas_pagar" : "contas_receber";
             const { error } = await (activeClient as any)
