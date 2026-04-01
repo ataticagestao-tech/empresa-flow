@@ -75,6 +75,7 @@ export default function Conciliacao() {
     const [isCreatingCategory, setIsCreatingCategory] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [expandedBatchKey, setExpandedBatchKey] = useState<string | null>(null);
+    const [expandedBatchTxIds, setExpandedBatchTxIds] = useState<string[]>([]);
     const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
 
     const { activeClient } = useAuth();
@@ -130,58 +131,27 @@ export default function Conciliacao() {
     });
 
     // Query: fetch full details of a batch when expanded
-    const { data: expandedBatchTx } = useQuery({
+    const { data: expandedBatchTx, isLoading: isLoadingBatchTx, isError: isBatchTxError, error: batchTxError } = useQuery({
         queryKey: ["batch_details", expandedBatchKey],
         queryFn: async () => {
-            if (!expandedBatchKey) return [];
-            const batch = importHistory?.find((b: any) => b.key === expandedBatchKey);
-            if (!batch?.tx_ids?.length) return [];
+            const ids = expandedBatchTxIds;
+            if (!ids.length) return [];
 
-            // Fetch bank_transactions with full details (including direct category_id)
-            const { data: txs, error } = await (activeClient as any)
+            const { data, error } = await (activeClient as any)
                 .from("bank_transactions")
                 .select("id, date, amount, description, memo, status, category_id, reconciled_payable_id, reconciled_receivable_id")
-                .in("id", batch.tx_ids)
+                .in("id", ids.slice(0, 50))
                 .order("date", { ascending: true });
-            if (error) throw error;
 
-            // For reconciled ones, fetch category from accounts_payable/receivable
-            const payableIds = (txs || []).map((t: any) => t.reconciled_payable_id).filter(Boolean);
-            const receivableIds = (txs || []).map((t: any) => t.reconciled_receivable_id).filter(Boolean);
-
-            let payableMap: Record<string, any> = {};
-            let receivableMap: Record<string, any> = {};
-
-            if (payableIds.length > 0) {
-                const { data: payables } = await (activeClient as any)
-                    .from("contas_pagar")
-                    .select("id, conta_contabil_id, credor_nome")
-                    .in("id", payableIds);
-                (payables || []).forEach((p: any) => { payableMap[p.id] = { ...p, category_id: p.conta_contabil_id, description: p.credor_nome }; });
-            }
-            if (receivableIds.length > 0) {
-                const { data: receivables } = await (activeClient as any)
-                    .from("contas_receber")
-                    .select("id, conta_contabil_id, pagador_nome")
-                    .in("id", receivableIds);
-                (receivables || []).forEach((r: any) => { receivableMap[r.id] = { ...r, category_id: r.conta_contabil_id, description: r.pagador_nome }; });
-            }
-
-            return (txs || []).map((t: any) => {
-                const linked = t.reconciled_payable_id
-                    ? payableMap[t.reconciled_payable_id]
-                    : t.reconciled_receivable_id
-                        ? receivableMap[t.reconciled_receivable_id]
-                        : null;
-                return {
-                    ...t,
-                    linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
-                    linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
-                    category_id: t.category_id || linked?.category_id || null,
-                };
-            });
+            if (error) throw new Error(JSON.stringify(error));
+            return (data || []).map((t: any) => ({
+                ...t,
+                linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
+                linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
+            }));
         },
-        enabled: !!expandedBatchKey && !!importHistory,
+        enabled: !!expandedBatchKey && expandedBatchTxIds.length > 0,
+        retry: 1,
     });
 
     // Mutation: update category — works on linked payable/receivable OR directly on bank_transactions
@@ -873,7 +843,15 @@ export default function Conciliacao() {
                                                 <div key={imp.key} className="rounded-lg border border-[#E2E8F0] overflow-hidden">
                                                     <div
                                                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#F8FAFC] cursor-pointer hover:bg-[#F1F5F9] transition-colors"
-                                                        onClick={() => setExpandedBatchKey(isExpanded ? null : imp.key)}
+                                                        onClick={() => {
+                                                            if (isExpanded) {
+                                                                setExpandedBatchKey(null);
+                                                                setExpandedBatchTxIds([]);
+                                                            } else {
+                                                                setExpandedBatchKey(imp.key);
+                                                                setExpandedBatchTxIds(imp.tx_ids || []);
+                                                            }
+                                                        }}
                                                     >
                                                         <div className="flex items-center gap-3">
                                                             <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${imp.source === 'pdf' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
@@ -926,9 +904,25 @@ export default function Conciliacao() {
                                                     {/* Expanded: transaction details */}
                                                     {isExpanded && (
                                                         <div className="border-t border-[#E2E8F0] bg-white">
-                                                            {!expandedBatchTx?.length ? (
+                                                            {/* DEBUG - remover depois */}
+                                                            <div className="px-4 py-1 text-[10px] bg-yellow-50 text-yellow-800 font-mono">
+                                                                IDs no state: {expandedBatchTxIds.length} | key: {expandedBatchKey} | loading: {String(isLoadingBatchTx)} | error: {String(isBatchTxError)} | data: {expandedBatchTx ? expandedBatchTx.length : 'null'} {batchTxError ? `| err: ${batchTxError}` : ''}
+                                                            </div>
+                                                            {isBatchTxError ? (
+                                                                <div className="text-center py-6 text-sm">
+                                                                    <p className="text-destructive">Erro ao carregar transações.</p>
+                                                                    <p className="text-xs text-muted-foreground mt-1">{String(batchTxError)}</p>
+                                                                    <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] })}>
+                                                                        Tentar novamente
+                                                                    </Button>
+                                                                </div>
+                                                            ) : isLoadingBatchTx || !expandedBatchTx ? (
                                                                 <div className="text-center py-6 text-muted-foreground text-sm">
                                                                     Carregando transações...
+                                                                </div>
+                                                            ) : !expandedBatchTx.length ? (
+                                                                <div className="text-center py-6 text-muted-foreground text-sm">
+                                                                    Nenhuma transação encontrada.
                                                                 </div>
                                                             ) : (
                                                                 <>
