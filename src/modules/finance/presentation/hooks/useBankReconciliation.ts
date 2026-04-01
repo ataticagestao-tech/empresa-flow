@@ -131,16 +131,16 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 });
             });
 
-            // Adicionar CRs que NÃO foram conciliados no banco
+            // Adicionar todos os CRs — marcar os já conciliados
             receivables?.forEach((r: any) => {
-                if (reconciledCRIds.has(r.id)) return; // já conciliado
+                const jaConciliado = reconciledCRIds.has(r.id);
                 normalized.push({
                     id: r.id,
                     type: 'receivable',
                     description: r.pagador_nome || '',
                     amount: Number(r.valor || 0),
                     date: r.data_vencimento,
-                    status: r.status,
+                    status: jaConciliado ? 'conciliado' : r.status,
                     entity_name: r.pagador_nome || 'Cliente avulso',
                     original_table_id: r.id
                 });

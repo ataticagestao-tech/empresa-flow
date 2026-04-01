@@ -1431,27 +1431,40 @@ export default function Conciliacao() {
                                                     </div>
                                                 )}
                                                 <div className="space-y-1">
-                                                    {filteredSystemTransactions?.map((st) => (
-                                                        <div key={`${st.type}-${st.id}`}
-                                                            className="flex items-center justify-between p-3 hover:bg-[#F8FAFC] rounded-md cursor-pointer border border-transparent hover:border-[#E2E8F0] transition-all"
-                                                            onClick={() => {
-                                                                handleMatch(selectedBankTx, st);
-                                                                setSelectedBankTx(null);
-                                                            }}>
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
-                                                                        {st.type === 'payable' ? 'Pagar' : 'Receber'}
-                                                                    </Badge>
-                                                                    <span className="font-medium text-muted-foreground">{st.description}</span>
+                                                    {filteredSystemTransactions?.map((st) => {
+                                                        const jaConciliado = st.status === 'conciliado';
+                                                        return (
+                                                            <div key={`${st.type}-${st.id}`}
+                                                                className={`flex items-center justify-between p-3 rounded-md border transition-all ${
+                                                                    jaConciliado
+                                                                        ? 'opacity-50 border-transparent hover:opacity-80 hover:bg-[#F8FAFC] cursor-pointer'
+                                                                        : 'hover:bg-[#F8FAFC] cursor-pointer border-transparent hover:border-[#E2E8F0]'
+                                                                }`}
+                                                                onClick={() => {
+                                                                    handleMatch(selectedBankTx, st);
+                                                                    setSelectedBankTx(null);
+                                                                }}>
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
+                                                                            {st.type === 'payable' ? 'Pagar' : 'Receber'}
+                                                                        </Badge>
+                                                                        <span className="font-medium text-muted-foreground">{st.description}</span>
+                                                                        {jaConciliado && (
+                                                                            <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground">
+                                                                                já conciliado
+                                                                            </Badge>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1">
+                                                                        {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
+                                                                        {st.status !== 'conciliado' && ` • ${st.status}`}
+                                                                    </p>
                                                                 </div>
-                                                                <p className="text-xs text-muted-foreground pl-1 mt-1">
-                                                                    {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
-                                                                </p>
+                                                                <span className="font-bold text-foreground">{formatBRL(st.amount)}</span>
                                                             </div>
-                                                            <span className="font-bold text-foreground">{formatBRL(st.amount)}</span>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </ScrollArea>
                                         </div>
