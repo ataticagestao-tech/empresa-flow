@@ -511,7 +511,6 @@ export default function Vendas() {
           descricao: row.descricao,
           quantidade: row.quantidade,
           valor_unitario: row.valor_unitario,
-          valor_total: row.valor_total,
         })
 
         // 3. Generate contas_receber
@@ -627,7 +626,6 @@ export default function Vendas() {
         descricao: it.descricao.trim(),
         quantidade: it.quantidade,
         valor_unitario: it.valor_unitario,
-        valor_total: it.quantidade * it.valor_unitario,
       }))
 
       const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
