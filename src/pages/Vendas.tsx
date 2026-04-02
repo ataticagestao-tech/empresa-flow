@@ -1099,32 +1099,6 @@ export default function Vendas() {
                 </button>
               </div>
 
-              {/* Desconto */}
-              <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Desconto</label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={formDescontoTipo}
-                    onChange={e => setFormDescontoTipo(e.target.value as 'valor' | 'percentual')}
-                    className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
-                  >
-                    <option value="valor">R$</option>
-                    <option value="percentual">%</option>
-                  </select>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={formDesconto}
-                    onChange={e => setFormDesconto(parseFloat(e.target.value) || 0)}
-                    className="flex-1 px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-                  />
-                </div>
-                {descontoCalculado > 0 && (
-                  <p className="mt-1 text-[11px] text-[#555]">Desconto aplicado: {formatBRL(descontoCalculado)}</p>
-                )}
-              </div>
-
               {/* Forma de pagamento */}
               <div>
                 <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Forma de pagamento</label>
@@ -1175,21 +1149,6 @@ export default function Vendas() {
                   <option value="">Selecione...</option>
                   {bankAccounts.map(ba => (
                     <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Centro de custo */}
-              <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Centro de custo</label>
-                <select
-                  value={formCentroCusto}
-                  onChange={e => setFormCentroCusto(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-                >
-                  <option value="">Nenhum</option>
-                  {centrosCusto.map(cc => (
-                    <option key={cc.id} value={cc.id}>{cc.codigo ? `${cc.codigo} — ` : ''}{cc.descricao}</option>
                   ))}
                 </select>
               </div>
