@@ -691,14 +691,18 @@ export default function Vendas() {
 
   // ─── Delete venda ────────────────────────────────────────────
   async function deletarVenda(id: string) {
+    const ac = activeClient as any
     try {
-      await db.from('vendas_itens').delete().eq('venda_id', id)
-      const { error: err } = await db.from('vendas').delete().eq('id', id)
+      // Deletar CRs vinculados, itens e a venda
+      await ac.from('contas_receber').delete().eq('venda_id', id)
+      await ac.from('vendas_itens').delete().eq('venda_id', id)
+      const { error: err } = await ac.from('vendas').delete().eq('id', id)
       if (err) throw err
       setConfirmDelete(null)
       await fetchVendas()
     } catch (e: any) {
       console.error('[deletarVenda]', e)
+      alert('Erro ao excluir: ' + (e.message || 'Tente novamente'))
     }
   }
 
