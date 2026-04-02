@@ -1513,7 +1513,6 @@ export default function Vendas() {
                 <table className="w-full text-sm">
                   <thead className="bg-[#f5f5f5] sticky top-0">
                     <tr>
-                      <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Código</th>
                       <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Nome</th>
                       <th className="text-right px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Preço</th>
                     </tr>
@@ -1528,15 +1527,11 @@ export default function Vendas() {
                         }}
                         className="cursor-pointer hover:bg-[#f0f4f8] transition-colors"
                       >
-                        <td className="px-4 py-2.5">
-                          {p.code ? (
-                            <span className="text-[10px] text-white bg-[#1a2e4a] rounded px-1.5 py-0.5 font-mono">{p.code}</span>
-                          ) : (
-                            <span className="text-[#ccc]">—</span>
-                          )}
+                        <td className="px-4 py-3 font-medium text-[#0a0a0a]">
+                          {p.description}
+                          {p.code && <span className="ml-2 text-[10px] text-[#999]">{p.code}</span>}
                         </td>
-                        <td className="px-4 py-2.5 font-medium text-[#0a0a0a]">{p.description}</td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-[#0a5c2e] whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-semibold text-[#0a5c2e] whitespace-nowrap">
                           {p.price != null && p.price > 0 ? formatBRL(p.price) : <span className="text-[#ccc]">—</span>}
                         </td>
                       </tr>
