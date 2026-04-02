@@ -191,6 +191,8 @@ export default function Vendas() {
   // ─── Product modal state ──────────────────────────────────────
   const [modalProdutoIdx, setModalProdutoIdx] = useState<number | null>(null)
   const [produtoSearchTerm, setProdutoSearchTerm] = useState('')
+  const [modalProdutos, setModalProdutos] = useState<Produto[]>([])
+  const [loadingProdutos, setLoadingProdutos] = useState(false)
 
   // ─── Computed ────────────────────────────────────────────────
   const companyId = selectedCompany?.id
@@ -238,15 +240,16 @@ export default function Vendas() {
     ).slice(0, 20)
   }, [clientes, clienteSearch])
 
-  // ─── Filtered products for dropdown ──────────────────────────
+  // ─── Filtered products for modal ──────────────────────────────
   const produtosFiltrados = useMemo(() => {
-    if (!produtoSearchTerm.trim()) return produtos.slice(0, 20)
+    const source = modalProdutos.length > 0 ? modalProdutos : produtos
+    if (!produtoSearchTerm.trim()) return source
     const term = produtoSearchTerm.toLowerCase()
-    return produtos.filter(p =>
+    return source.filter(p =>
       p.description.toLowerCase().includes(term) ||
       (p.code || '').toLowerCase().includes(term)
-    ).slice(0, 20)
-  }, [produtos, produtoSearchTerm])
+    )
+  }, [modalProdutos, produtos, produtoSearchTerm])
 
   // ─── KPIs ────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -356,8 +359,46 @@ export default function Vendas() {
     setFormItens(prev => prev.map((it, i) =>
       i === idx ? { ...it, descricao: p.description, valor_unitario: p.price || 0, produto_id: p.id } : it
     ))
-    setProdutoDropdownIdx(null)
     setProdutoSearchTerm('')
+  }
+
+  async function abrirModalProduto(idx: number) {
+    setModalProdutoIdx(idx)
+    setProdutoSearchTerm('')
+    setLoadingProdutos(true)
+    try {
+      // Buscar diretamente com activeClient
+      const ac = activeClient as any
+      const { data, error } = await ac
+        .from('products')
+        .select('id, code, description, price, unidade_medida')
+        .eq('company_id', companyId)
+        .order('description')
+      if (error) console.error('[abrirModalProduto] activeClient error:', error)
+      let prods = (data as Produto[]) || []
+
+      // Fallback com db
+      if (prods.length === 0) {
+        const res2 = await db.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description')
+        if (res2.error) console.error('[abrirModalProduto] db error:', res2.error)
+        prods = (res2.data as Produto[]) || []
+      }
+
+      // Fallback sem filtro company_id (debug)
+      if (prods.length === 0) {
+        const res3 = await ac.from('products').select('id, code, description, price, unidade_medida').order('description').limit(50)
+        if (res3.error) console.error('[abrirModalProduto] sem company error:', res3.error)
+        prods = (res3.data as Produto[]) || []
+        if (prods.length > 0) console.log('[abrirModalProduto] Produtos encontrados SEM filtro company_id:', prods.length)
+      }
+
+      console.log('[abrirModalProduto] Total produtos:', prods.length, 'companyId:', companyId)
+      setModalProdutos(prods)
+    } catch (e: any) {
+      console.error('[abrirModalProduto] Exception:', e)
+    } finally {
+      setLoadingProdutos(false)
+    }
   }
 
   function addItem() {
@@ -1016,10 +1057,7 @@ export default function Vendas() {
                           <td className="px-2 py-1.5">
                             <button
                               type="button"
-                              onClick={() => {
-                                setModalProdutoIdx(idx)
-                                setProdutoSearchTerm('')
-                              }}
+                              onClick={() => abrirModalProduto(idx)}
                               className="w-full flex items-center gap-2 px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-left hover:border-[#1a2e4a] hover:bg-[#f8fafc] transition-colors"
                             >
                               <Package size={13} className="text-[#999] shrink-0" />
@@ -1472,7 +1510,11 @@ export default function Vendas() {
 
             {/* Product list */}
             <div className="flex-1 overflow-y-auto">
-              {produtosFiltrados.length === 0 ? (
+              {loadingProdutos ? (
+                <div className="flex items-center justify-center py-8 gap-2 text-[#999] text-sm">
+                  <Loader2 size={16} className="animate-spin" /> Carregando catálogo...
+                </div>
+              ) : produtosFiltrados.length === 0 ? (
                 <div className="text-center py-8 text-[#999] text-sm">
                   Nenhum produto encontrado
                 </div>
