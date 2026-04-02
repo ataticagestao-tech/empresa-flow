@@ -127,7 +127,7 @@ const LABEL_TIPO: Record<string, string> = {
 
 export default function Vendas() {
   const { selectedCompany } = useCompany()
-  const { activeClient } = useAuth()
+  const { activeClient, isUsingSecondary } = useAuth()
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
@@ -367,32 +367,23 @@ export default function Vendas() {
     setProdutoSearchTerm('')
     setLoadingProdutos(true)
     try {
-      // Buscar diretamente com activeClient
-      const ac = activeClient as any
-      const { data, error } = await ac
+      // Mesma query que ProdutosDepartamentos.tsx (funciona no catálogo)
+      const { data, error } = await activeClient
         .from('products')
-        .select('id, code, description, price, unidade_medida')
-        .eq('company_id', companyId)
-        .order('description')
-      if (error) console.error('[abrirModalProduto] activeClient error:', error)
-      let prods = (data as Produto[]) || []
-
-      // Fallback com db
-      if (prods.length === 0) {
-        const res2 = await db.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description')
-        if (res2.error) console.error('[abrirModalProduto] db error:', res2.error)
-        prods = (res2.data as Produto[]) || []
+        .select('*')
+        .eq('company_id', selectedCompany?.id)
+        .order('code')
+      if (error) {
+        console.error('[abrirModalProduto] error:', error)
       }
-
-      // Fallback sem filtro company_id (debug)
-      if (prods.length === 0) {
-        const res3 = await ac.from('products').select('id, code, description, price, unidade_medida').order('description').limit(50)
-        if (res3.error) console.error('[abrirModalProduto] sem company error:', res3.error)
-        prods = (res3.data as Produto[]) || []
-        if (prods.length > 0) console.log('[abrirModalProduto] Produtos encontrados SEM filtro company_id:', prods.length)
-      }
-
-      console.log('[abrirModalProduto] Total produtos:', prods.length, 'companyId:', companyId)
+      const prods = ((data || []) as any[]).map((p: any) => ({
+        id: p.id,
+        code: p.code,
+        description: p.description,
+        price: p.price,
+        unidade_medida: p.unidade_medida,
+      })) as Produto[]
+      console.log('[abrirModalProduto] Produtos:', prods.length, 'company:', selectedCompany?.id, 'isSecondary:', isUsingSecondary)
       setModalProdutos(prods)
     } catch (e: any) {
       console.error('[abrirModalProduto] Exception:', e)
