@@ -497,7 +497,7 @@ export default function Vendas() {
             desconto: row.desconto,
             data_venda: row.data_venda,
             forma_pagamento: row.forma_pagamento,
-            status: 'concluida',
+            status: 'confirmado',
             observacoes: row.observacoes,
           })
           .select()
@@ -614,7 +614,7 @@ export default function Vendas() {
           valor_total: totalVenda,
           data_venda: formDataVenda,
           forma_pagamento: formPagamento,
-          status: 'concluida',
+          status: 'confirmado',
         })
         .select()
         .single()
