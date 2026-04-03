@@ -57,10 +57,11 @@ export default function Empresas() {
 
   // Redireciona direto para resumo se tem empresa selecionada e não está criando/editando
   useEffect(() => {
+    if (searchParams.get("nova") === "1") return;
     if (selectedCompany?.id && mode === "list" && !editingId) {
       navigate(`/empresas/${selectedCompany.id}`, { replace: true });
     }
-  }, [selectedCompany?.id, mode, editingId, navigate]);
+  }, [selectedCompany?.id, mode, editingId, navigate, searchParams]);
 
   useEffect(() => {
     if (!companies || companies.length === 0) return;
