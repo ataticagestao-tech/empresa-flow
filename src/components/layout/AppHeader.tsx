@@ -3,7 +3,7 @@ import { CompanySelector } from "@/components/CompanySelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 interface AppHeaderProps {
@@ -41,6 +41,13 @@ export function AppHeader({ title }: AppHeaderProps) {
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
         <CompanySelector />
+        <button
+          onClick={() => navigate("/empresas?nova=1")}
+          title="Adicionar nova empresa"
+          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
 
         <div className="relative flex items-center">
           <Avatar className="h-[32px] w-[32px]">

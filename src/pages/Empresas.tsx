@@ -5,7 +5,7 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const STEPS = ["CNPJ", "Dados Gerais", "Regime Tributário", "Responsável", "Confirmar"];
@@ -43,6 +43,17 @@ export default function Empresas() {
   const [saving, setSaving] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // Open create form if ?nova=1 is in URL
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("nova") === "1") {
+      setMode("create");
+      setEditingId(null);
+      setForm(emptyForm);
+      setStep(0);
+    }
+  }, [searchParams]);
 
   // Redireciona direto para resumo se tem empresa selecionada e não está criando/editando
   useEffect(() => {
