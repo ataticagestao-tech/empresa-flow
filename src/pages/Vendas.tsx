@@ -482,56 +482,68 @@ export default function Vendas() {
     // Yield so React renders the progress bar before the loop starts
     await new Promise(r => setTimeout(r, 50))
 
-    const FORMAS_A_VISTA_SET = new Set(['pix', 'dinheiro', 'cartao_debito'])
     let ok = 0
     let fail = 0
+    const BATCH_SIZE = 50
 
-    for (const row of validRows) {
-      try {
-        // 1. Insert venda
+    for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+      const batch = validRows.slice(i, i + BATCH_SIZE)
+
+      // 1. Insert all vendas of this batch at once
+      const vendasPayload = batch.map(row => ({
+        company_id: companyId,
+        cliente_nome: row.cliente_nome,
+        cliente_cpf_cnpj: row.cliente_cpf_cnpj,
+        tipo: row.tipo,
+        valor_total: Math.max(0, row.valor_total - row.desconto),
+        desconto: row.desconto,
+        data_venda: row.data_venda,
+        forma_pagamento: row.forma_pagamento,
+        status: 'confirmado',
+        observacoes: row.observacoes,
+      }))
+
+      const { data: vendasData, error: vendasErr } = await db
+        .from('vendas')
+        .insert(vendasPayload)
+        .select('id')
+
+      if (vendasErr || !vendasData) {
+        console.error(`[importVenda] Batch ${i}-${i + batch.length}:`, vendasErr)
+        fail += batch.length
+        setImportProgress({ current: ok + fail, total: validRows.length })
+        await new Promise(r => setTimeout(r, 0))
+        continue
+      }
+
+      // 2. Insert all items of this batch at once
+      const itensPayload = batch.map((row, idx) => ({
+        venda_id: vendasData[idx].id,
+        descricao: row.descricao,
+        quantidade: row.quantidade,
+        valor_unitario: row.valor_unitario,
+      }))
+
+      const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
+      if (itensErr) console.error('[importVenda] Itens batch error:', itensErr)
+
+      // 3. Generate all contas_receber for this batch at once
+      const crsPayload: any[] = []
+      batch.forEach((row, idx) => {
         const valorLiquido = Math.max(0, row.valor_total - row.desconto)
-        const { data: vendaData, error: vendaErr } = await db
-          .from('vendas')
-          .insert({
-            company_id: companyId,
-            cliente_nome: row.cliente_nome,
-            cliente_cpf_cnpj: row.cliente_cpf_cnpj,
-            tipo: row.tipo,
-            valor_total: valorLiquido,
-            desconto: row.desconto,
-            data_venda: row.data_venda,
-            forma_pagamento: row.forma_pagamento,
-            status: 'confirmado',
-            observacoes: row.observacoes,
-          })
-          .select()
-          .single()
-
-        if (vendaErr) throw vendaErr
-
-        // 2. Insert item
-        await db.from('vendas_itens').insert({
-          venda_id: vendaData.id,
-          descricao: row.descricao,
-          quantidade: row.quantidade,
-          valor_unitario: row.valor_unitario,
-        })
-
-        // 3. Generate contas_receber
         const isParcelado = row.forma_pagamento === 'parcelado'
         const numParcelas = isParcelado ? row.parcelas : 1
         const valorParcela = Math.round((valorLiquido / numParcelas) * 100) / 100
 
-        const crsPayload = Array.from({ length: numParcelas }, (_, i) => {
+        for (let p = 0; p < numParcelas; p++) {
           const vencimento = isParcelado
-            ? format(addMonths(parseISO(row.data_venda), i + 1), 'yyyy-MM-dd')
+            ? format(addMonths(parseISO(row.data_venda), p + 1), 'yyyy-MM-dd')
             : row.data_venda
-
-          const valor = i === numParcelas - 1
+          const valor = p === numParcelas - 1
             ? valorLiquido - valorParcela * (numParcelas - 1)
             : valorParcela
 
-          return {
+          crsPayload.push({
             company_id: companyId,
             pagador_nome: row.cliente_nome,
             pagador_cpf_cnpj: row.cliente_cpf_cnpj,
@@ -542,29 +554,20 @@ export default function Vendas() {
             forma_recebimento: row.forma_pagamento,
             conta_contabil_id: null,
             centro_custo_id: importCentroCusto || null,
-            venda_id: vendaData.id,
-          }
-        })
+            venda_id: vendasData[idx].id,
+          })
+        }
+      })
 
-        const { data: crsData, error: crsErr } = await db
-          .from('contas_receber')
-          .insert(crsPayload)
-          .select()
-
-        if (crsErr) throw crsErr
-
-        // 4. CRs ficam "aberto" para serem conciliadas com o extrato bancário.
-        //    Não quitar automaticamente — a quitação acontece na conciliação.
-
-        ok++
-      } catch (err: any) {
-        console.error(`[importVenda] Linha ${row.linha}:`, err)
-        fail++
+      if (crsPayload.length > 0) {
+        const { error: crsErr } = await db.from('contas_receber').insert(crsPayload)
+        if (crsErr) console.error('[importVenda] CRs batch error:', crsErr)
       }
-      const processed = ok + fail
-      setImportProgress({ current: processed, total: validRows.length })
-      // Yield to browser every 10 rows so the progress bar repaints
-      if (processed % 10 === 0) await new Promise(r => setTimeout(r, 0))
+
+      ok += batch.length
+      setImportProgress({ current: ok + fail, total: validRows.length })
+      // Yield to browser so progress bar repaints
+      await new Promise(r => setTimeout(r, 0))
     }
 
     setImportResult({ ok, fail })
