@@ -556,9 +556,21 @@ export default function ContasReceber() {
                                       setDropdownOpen(null)
                                       alert('Funcionalidade de cobranca manual sera implementada em breve.')
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors last:rounded-b-lg"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors"
                                   >
                                     Enviar cobranca manual
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      setDropdownOpen(null)
+                                      if (!confirm(`Excluir este titulo de ${formatBRL(cr.valor)}? Esta acao nao pode ser desfeita.`)) return
+                                      const { error } = await db.from('contas_receber').delete().eq('id', cr.id)
+                                      if (error) { alert('Erro ao excluir: ' + error.message); return }
+                                      fetchItems()
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#8b0000] hover:bg-[#fdecea] transition-colors last:rounded-b-lg"
+                                  >
+                                    Excluir titulo
                                   </button>
                                 </div>
                               )}

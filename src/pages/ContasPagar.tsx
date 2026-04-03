@@ -1209,6 +1209,20 @@ export default function ContasPagar() {
                                           >
                                             <SplitSquareVertical size={14} /> Dividir lancamento
                                           </button>
+                                          <button
+                                            onClick={async () => {
+                                              setDropdownOpen(null)
+                                              if (!confirm(`Excluir este lancamento de ${cp.credor_nome}? Esta acao nao pode ser desfeita.`)) return
+                                              await (activeClient as any).from('contas_pagar').delete().eq('id', cp.id)
+                                              await loadData()
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
+                                            style={{ color: '#8b0000', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(139,0,0,0.05)' }}
+                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
+                                          >
+                                            <Trash2 size={14} /> Excluir lancamento
+                                          </button>
                                         </div>
                                       )}
                                     </div>
