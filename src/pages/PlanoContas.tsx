@@ -209,6 +209,103 @@ export default function PlanoContas() {
     }
   };
 
+  // ─── Build insert payload from template item ───
+  const buildPayload = (item: ContaModelo, parentId: string | null) => ({
+    company_id: selectedCompany!.id,
+    code: item.code,
+    name: item.name,
+    level: item.level,
+    account_type: item.account_type,
+    account_nature: item.account_nature,
+    is_analytical: item.is_analytical,
+    is_synthetic: !item.is_analytical,
+    accepts_manual_entry: item.is_analytical,
+    show_in_dre: false,
+    parent_id: parentId,
+    status: "active",
+    classificacao_bp: item.classificacao_bp || null,
+    classificacao_dfc: item.classificacao_dfc || null,
+  });
+
+  // ─── Ensure demonstrativo lines exist + create mappings for inserted accounts ───
+  const ensureDemonstrativosAndMappings = async (insertedAccountCodes: string[]) => {
+    if (!selectedCompany?.id || insertedAccountCodes.length === 0) return;
+    const companyId = selectedCompany.id;
+
+    // 1. Copy template demonstrativo lines if they don't exist yet
+    try {
+      await (activeClient as any).rpc("fn_copiar_template_demonstrativos", { p_company_id: companyId });
+    } catch (err) {
+      console.warn("Template já copiado ou erro ao copiar:", err);
+    }
+
+    // 2. Fetch company's demonstrativo lines (BP + DFC) for mapping
+    const { data: linhasBP } = await (activeClient as any)
+      .from("cont_linha_demonstrativo")
+      .select("id, codigo")
+      .eq("company_id", companyId)
+      .eq("demonstrativo", "BP")
+      .eq("ativo", true);
+
+    const { data: linhasDFC } = await (activeClient as any)
+      .from("cont_linha_demonstrativo")
+      .select("id, codigo")
+      .eq("company_id", companyId)
+      .eq("demonstrativo", "DFC")
+      .eq("ativo", true);
+
+    const bpMap = new Map<string, string>((linhasBP || []).map((l: any) => [l.codigo, l.id]));
+    const dfcMap = new Map<string, string>((linhasDFC || []).map((l: any) => [l.codigo, l.id]));
+
+    // 3. Fetch the inserted accounts (analytical only) with their IDs
+    const { data: insertedAccounts } = await (activeClient as any)
+      .from("chart_of_accounts")
+      .select("id, code, is_analytical")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .eq("is_analytical", true)
+      .in("code", insertedAccountCodes);
+
+    if (!insertedAccounts || insertedAccounts.length === 0) return;
+
+    // 4. Build mapping entries
+    const mappings: { company_id: string; conta_operacional_id: string; linha_demonstrativo_id: string; fator: number }[] = [];
+
+    for (const acc of insertedAccounts) {
+      const template = PLANO_PATRIMONIAL.find(t => t.code === acc.code);
+      if (!template) continue;
+
+      // BP mapping
+      if (template.bp_line && bpMap.has(template.bp_line)) {
+        mappings.push({
+          company_id: companyId,
+          conta_operacional_id: acc.id,
+          linha_demonstrativo_id: bpMap.get(template.bp_line)!,
+          fator: 1,
+        });
+      }
+
+      // DFC mapping
+      if (template.dfc_line && dfcMap.has(template.dfc_line)) {
+        mappings.push({
+          company_id: companyId,
+          conta_operacional_id: acc.id,
+          linha_demonstrativo_id: dfcMap.get(template.dfc_line)!,
+          fator: 1,
+        });
+      }
+    }
+
+    // 5. Insert mappings (skip duplicates)
+    if (mappings.length > 0) {
+      const { error: mapErr } = await (activeClient as any)
+        .from("cont_mapeamento_contas")
+        .upsert(mappings, { onConflict: "company_id,conta_operacional_id,linha_demonstrativo_id", ignoreDuplicates: true });
+      if (mapErr) console.error("Erro ao criar mapeamentos:", mapErr.message);
+      else console.log(`${mappings.length} mapeamentos BP/DFC criados automaticamente`);
+    }
+  };
+
   // ─── Add single account from modelo ───
   const addFromModelo = async (item: ContaModelo) => {
     if (!selectedCompany?.id) return;
@@ -216,30 +313,17 @@ export default function PlanoContas() {
 
     setAddingCodes(prev => new Set(prev).add(item.code));
     try {
-      // Find parent in existing contas
       const codeParts = item.code.split(".");
       const parentCode = codeParts.slice(0, -1).join(".");
       const parent = contas.find(c => c.code === parentCode);
 
-      const payload = {
-        company_id: selectedCompany.id,
-        code: item.code,
-        name: item.name,
-        level: item.level,
-        account_type: item.account_type,
-        account_nature: item.account_nature,
-        is_analytical: item.is_analytical,
-        is_synthetic: !item.is_analytical,
-        accepts_manual_entry: item.is_analytical,
-        show_in_dre: false,
-        dre_group: null,
-        dre_order: null,
-        parent_id: parent?.id || null,
-        status: "active",
-      };
-
-      const { error } = await (activeClient as any).from("chart_of_accounts").insert(payload);
+      const { error } = await (activeClient as any).from("chart_of_accounts").insert(buildPayload(item, parent?.id || null));
       if (error) throw error;
+
+      // Auto-create mappings for this account
+      if (item.is_analytical) {
+        await ensureDemonstrativosAndMappings([item.code]);
+      }
 
       toast.success(`${item.code} — ${item.name} adicionada`);
       queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
@@ -248,6 +332,50 @@ export default function PlanoContas() {
     } finally {
       setAddingCodes(prev => { const next = new Set(prev); next.delete(item.code); return next; });
     }
+  };
+
+  // ─── Helper: resolve parent_id by code ───
+  const resolveParentId = async (itemCode: string): Promise<string | null> => {
+    const codeParts = itemCode.split(".");
+    const parentCode = codeParts.slice(0, -1).join(".");
+    if (!parentCode) return null;
+    const { data: parentData } = await (activeClient as any)
+      .from("chart_of_accounts")
+      .select("id")
+      .eq("company_id", selectedCompany!.id)
+      .eq("code", parentCode)
+      .eq("status", "active")
+      .single();
+    return parentData?.id || null;
+  };
+
+  // ─── Helper: insert accounts level-by-level and return inserted codes ───
+  const insertAccountsBatch = async (items: ContaModelo[]): Promise<{ added: number; skipped: number; insertedCodes: string[] }> => {
+    let added = 0;
+    let skipped = 0;
+    const insertedCodes: string[] = [];
+
+    for (const lvl of [1, 2, 3]) {
+      const batch = items.filter(c => c.level === lvl);
+      for (const item of batch) {
+        try {
+          const parentId = await resolveParentId(item.code);
+          const { error } = await (activeClient as any).from("chart_of_accounts").insert(buildPayload(item, parentId));
+          if (error) {
+            console.error(`Erro ao inserir conta ${item.code}:`, error.message);
+            skipped++;
+          } else {
+            added++;
+            insertedCodes.push(item.code);
+          }
+        } catch (err: any) {
+          console.error(`Exceção ao inserir conta ${item.code}:`, err);
+          skipped++;
+        }
+      }
+    }
+
+    return { added, skipped, insertedCodes };
   };
 
   // ─── Add entire grupo from modelo ───
@@ -259,47 +387,12 @@ export default function PlanoContas() {
     if (toAdd.length === 0) { toast.info("Todas as contas deste grupo já existem"); return; }
     if (!confirm(`Adicionar ${toAdd.length} contas do grupo "${items[0]?.name}" à empresa?`)) return;
 
-    let added = 0;
-    // Insert level by level to ensure parents exist for parent_id resolution
-    for (const lvl of [1, 2, 3]) {
-      const batch = toAdd.filter(c => c.level === lvl);
-      for (const item of batch) {
-        try {
-          // Re-fetch parent after each insert to get the correct parent_id
-          const codeParts = item.code.split(".");
-          const parentCode = codeParts.slice(0, -1).join(".");
-          let parentId = null;
-          if (parentCode) {
-            const { data: parentData } = await (activeClient as any)
-              .from("chart_of_accounts")
-              .select("id")
-              .eq("company_id", selectedCompany.id)
-              .eq("code", parentCode)
-              .eq("status", "active")
-              .single();
-            parentId = parentData?.id || null;
-          }
+    const { added, insertedCodes } = await insertAccountsBatch(toAdd);
 
-          const { error } = await (activeClient as any).from("chart_of_accounts").insert({
-            company_id: selectedCompany.id,
-            code: item.code,
-            name: item.name,
-            level: item.level,
-            account_type: item.account_type,
-            account_nature: item.account_nature,
-            is_analytical: item.is_analytical,
-            is_synthetic: !item.is_analytical,
-            accepts_manual_entry: item.is_analytical,
-            show_in_dre: false,
-            parent_id: parentId,
-            status: "active",
-          });
-          if (!error) added++;
-        } catch { /* skip duplicates */ }
-      }
-    }
+    // Auto-create demonstrativo lines + mappings
+    await ensureDemonstrativosAndMappings(insertedCodes);
 
-    toast.success(`${added} contas adicionadas`);
+    toast.success(`${added} contas adicionadas com mapeamento BP/DFC automático`);
     queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
   };
 
@@ -310,45 +403,13 @@ export default function PlanoContas() {
     if (toAdd.length === 0) { toast.info("Todas as contas do modelo já existem"); return; }
     if (!confirm(`Adicionar ${toAdd.length} contas patrimoniais à empresa? Contas existentes NÃO serão substituídas.`)) return;
 
-    let added = 0;
-    for (const lvl of [1, 2, 3]) {
-      const batch = toAdd.filter(c => c.level === lvl);
-      for (const item of batch) {
-        try {
-          const codeParts = item.code.split(".");
-          const parentCode = codeParts.slice(0, -1).join(".");
-          let parentId = null;
-          if (parentCode) {
-            const { data: parentData } = await (activeClient as any)
-              .from("chart_of_accounts")
-              .select("id")
-              .eq("company_id", selectedCompany.id)
-              .eq("code", parentCode)
-              .eq("status", "active")
-              .single();
-            parentId = parentData?.id || null;
-          }
+    const { added, skipped, insertedCodes } = await insertAccountsBatch(toAdd);
 
-          const { error } = await (activeClient as any).from("chart_of_accounts").insert({
-            company_id: selectedCompany.id,
-            code: item.code,
-            name: item.name,
-            level: item.level,
-            account_type: item.account_type,
-            account_nature: item.account_nature,
-            is_analytical: item.is_analytical,
-            is_synthetic: !item.is_analytical,
-            accepts_manual_entry: item.is_analytical,
-            show_in_dre: false,
-            parent_id: parentId,
-            status: "active",
-          });
-          if (!error) added++;
-        } catch { /* skip */ }
-      }
-    }
+    // Auto-create demonstrativo lines + mappings
+    await ensureDemonstrativosAndMappings(insertedCodes);
 
-    toast.success(`${added} contas patrimoniais adicionadas!`);
+    if (added > 0) toast.success(`${added} contas adicionadas com mapeamento BP/DFC automático!`);
+    if (skipped > 0) toast.error(`${skipped} contas falharam — verifique o console para detalhes.`);
     queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
     setShowModelo(false);
     setShowModeloPopup(false);
@@ -367,46 +428,19 @@ export default function PlanoContas() {
         .eq("status", "active");
       if (deactivateErr) throw deactivateErr;
 
-      // Insert all modelo accounts level by level
-      let added = 0;
-      for (const lvl of [1, 2, 3]) {
-        const batch = PLANO_PATRIMONIAL.filter(c => c.level === lvl);
-        for (const item of batch) {
-          try {
-            const codeParts = item.code.split(".");
-            const parentCode = codeParts.slice(0, -1).join(".");
-            let parentId = null;
-            if (parentCode) {
-              const { data: parentData } = await (activeClient as any)
-                .from("chart_of_accounts")
-                .select("id")
-                .eq("company_id", selectedCompany.id)
-                .eq("code", parentCode)
-                .eq("status", "active")
-                .single();
-              parentId = parentData?.id || null;
-            }
+      // Delete old mappings for this company (will be recreated)
+      await (activeClient as any)
+        .from("cont_mapeamento_contas")
+        .delete()
+        .eq("company_id", selectedCompany.id);
 
-            const { error } = await (activeClient as any).from("chart_of_accounts").insert({
-              company_id: selectedCompany.id,
-              code: item.code,
-              name: item.name,
-              level: item.level,
-              account_type: item.account_type,
-              account_nature: item.account_nature,
-              is_analytical: item.is_analytical,
-              is_synthetic: !item.is_analytical,
-              accepts_manual_entry: item.is_analytical,
-              show_in_dre: false,
-              parent_id: parentId,
-              status: "active",
-            });
-            if (!error) added++;
-          } catch { /* skip */ }
-        }
-      }
+      const { added, skipped, insertedCodes } = await insertAccountsBatch(PLANO_PATRIMONIAL);
 
-      toast.success(`Plano substituído! ${added} contas patrimoniais aplicadas.`);
+      // Auto-create demonstrativo lines + mappings
+      await ensureDemonstrativosAndMappings(insertedCodes);
+
+      if (skipped > 0) toast.error(`${skipped} contas falharam — verifique o console (F12).`);
+      toast.success(`Plano substituído! ${added} contas com mapeamento BP/DFC automático.`);
       queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
       setShowModelo(false);
       setShowModeloPopup(false);

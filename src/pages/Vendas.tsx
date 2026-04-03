@@ -157,6 +157,7 @@ export default function Vendas() {
   const [importErros, setImportErros] = useState(0)
   const [importError, setImportError] = useState<string | null>(null)
   const [importando, setImportando] = useState(false)
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
   const [importResult, setImportResult] = useState<{ ok: number; fail: number } | null>(null)
   const [importContaBancaria, setImportContaBancaria] = useState('')
   const [importCentroCusto, setImportCentroCusto] = useState('')
@@ -474,11 +475,14 @@ export default function Vendas() {
   async function executarImportacao() {
     if (!companyId || !importContaBancaria) return
 
+    const validRows = importRows.filter(r => r.erros.length === 0)
+    setImportProgress({ current: 0, total: validRows.length })
     setImportando(true)
     setImportError(null)
+    // Yield so React renders the progress bar before the loop starts
+    await new Promise(r => setTimeout(r, 50))
 
     const FORMAS_A_VISTA_SET = new Set(['pix', 'dinheiro', 'cartao_debito'])
-    const validRows = importRows.filter(r => r.erros.length === 0)
     let ok = 0
     let fail = 0
 
@@ -557,6 +561,10 @@ export default function Vendas() {
         console.error(`[importVenda] Linha ${row.linha}:`, err)
         fail++
       }
+      const processed = ok + fail
+      setImportProgress({ current: processed, total: validRows.length })
+      // Yield to browser every 10 rows so the progress bar repaints
+      if (processed % 10 === 0) await new Promise(r => setTimeout(r, 0))
     }
 
     setImportResult({ ok, fail })
@@ -570,6 +578,7 @@ export default function Vendas() {
     setImportErros(0)
     setImportError(null)
     setImportResult(null)
+    setImportProgress({ current: 0, total: 0 })
     setImportContaBancaria('')
     setImportCentroCusto('')
   }
@@ -1763,6 +1772,29 @@ export default function Vendas() {
               )}
             </div>
 
+            {/* Progress Bar */}
+            {importando && importProgress.total > 0 && (
+              <div className="border-t border-[#eee] px-5 py-3 bg-white">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-[#1a2e4a]">
+                    Importando vendas... {importProgress.current} de {importProgress.total}
+                  </span>
+                  <span className="text-xs font-bold text-[#1a2e4a]">
+                    {Math.round((importProgress.current / importProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-[#e5e7eb] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#1a2e4a] rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-[#888] mt-1">
+                  Não feche esta janela enquanto a importação estiver em andamento
+                </p>
+              </div>
+            )}
+
             {/* Footer */}
             <div className="border-t border-[#eee] px-5 py-3 flex items-center justify-between bg-[#fafafa] rounded-b-lg">
               <button
@@ -1774,7 +1806,8 @@ export default function Vendas() {
               <div className="flex gap-2">
                 <button
                   onClick={fecharModalImport}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                  disabled={importando}
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {importResult ? 'Fechar' : 'Cancelar'}
                 </button>
