@@ -484,7 +484,7 @@ export default function Vendas() {
 
     let ok = 0
     let fail = 0
-    const BATCH_SIZE = 50
+    const BATCH_SIZE = 200
 
     for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
       const batch = validRows.slice(i, i + BATCH_SIZE)
@@ -516,7 +516,7 @@ export default function Vendas() {
         continue
       }
 
-      // 2. Insert all items of this batch at once
+      // 2. Build itens + contas_receber payloads
       const itensPayload = batch.map((row, idx) => ({
         venda_id: vendasData[idx].id,
         descricao: row.descricao,
@@ -524,10 +524,6 @@ export default function Vendas() {
         valor_unitario: row.valor_unitario,
       }))
 
-      const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
-      if (itensErr) console.error('[importVenda] Itens batch error:', itensErr)
-
-      // 3. Generate all contas_receber for this batch at once
       const crsPayload: any[] = []
       batch.forEach((row, idx) => {
         const valorLiquido = Math.max(0, row.valor_total - row.desconto)
@@ -559,10 +555,13 @@ export default function Vendas() {
         }
       })
 
-      if (crsPayload.length > 0) {
-        const { error: crsErr } = await db.from('contas_receber').insert(crsPayload)
-        if (crsErr) console.error('[importVenda] CRs batch error:', crsErr)
-      }
+      // 3. Insert itens + CRs in parallel (both depend on vendasData, not on each other)
+      const [itensRes, crsRes] = await Promise.all([
+        db.from('vendas_itens').insert(itensPayload),
+        crsPayload.length > 0 ? db.from('contas_receber').insert(crsPayload) : Promise.resolve({ error: null }),
+      ])
+      if (itensRes.error) console.error('[importVenda] Itens batch error:', itensRes.error)
+      if (crsRes.error) console.error('[importVenda] CRs batch error:', crsRes.error)
 
       ok += batch.length
       setImportProgress({ current: ok + fail, total: validRows.length })
