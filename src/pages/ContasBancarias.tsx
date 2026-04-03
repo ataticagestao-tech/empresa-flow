@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
+import { BANKS } from "@/lib/banks";
 
 interface BankAccount {
   id: string; company_id: string; name: string; banco: string;
@@ -13,13 +14,9 @@ interface BankAccount {
   data_saldo_inicial: string | null; ofx_ativo: boolean; status: string;
 }
 
-const BANCOS = [
-  { codigo: "001", nome: "Banco do Brasil" }, { codigo: "033", nome: "Santander" },
-  { codigo: "104", nome: "Caixa Econômica Federal" }, { codigo: "237", nome: "Bradesco" },
-  { codigo: "341", nome: "Itaú" }, { codigo: "260", nome: "Nubank" },
-  { codigo: "077", nome: "Inter" }, { codigo: "336", nome: "C6 Bank" },
-  { codigo: "212", nome: "Banco Original" }, { codigo: "756", nome: "Sicoob" },
-];
+const BANCOS_SORTED = [...BANKS]
+  .map(b => ({ codigo: b.code.padStart(3, '0'), nome: b.name }))
+  .sort((a, b) => a.nome.localeCompare(b.nome));
 
 const tipoLabels: Record<string, string> = {
   checking: "Conta Corrente", savings: "Conta Poupança", cash: "Caixa Interno", investment: "Conta Investimento",
@@ -171,10 +168,7 @@ export default function ContasBancarias() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className={LB}>Banco</label>
-                  <select value={formData.banco} onChange={e => set("banco", e.target.value)} className={IC}>
-                    <option value="">Selecione...</option>
-                    {BANCOS.map(b => <option key={b.codigo} value={`${b.codigo} - ${b.nome}`}>{b.codigo} - {b.nome}</option>)}
-                  </select>
+                  <BancoCombobox value={formData.banco} onChange={v => set("banco", v)} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className={LB}>Nome de Identificação <span className="text-[#8b0000]">*</span></label>
@@ -326,5 +320,62 @@ export default function ContasBancarias() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+/* ── Banco Combobox with search ── */
+function BancoCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!search) return BANCOS_SORTED;
+    const q = search.toLowerCase();
+    return BANCOS_SORTED.filter(b => b.nome.toLowerCase().includes(q) || b.codigo.includes(q));
+  }, [search]);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        value={open ? search : value || ""}
+        placeholder="Digite para buscar..."
+        onFocus={() => { setOpen(true); setSearch(""); }}
+        onChange={e => { setSearch(e.target.value); if (!open) setOpen(true); }}
+        className="w-full border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none"
+      />
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-[#999]">Nenhum banco encontrado</div>
+          ) : (
+            filtered.map(b => {
+              const val = `${b.codigo} - ${b.nome}`;
+              return (
+                <button
+                  key={b.codigo}
+                  type="button"
+                  onClick={() => { onChange(val); setOpen(false); setSearch(""); }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-[#f0f4f8] transition-colors ${value === val ? "bg-[#f0f4f8] font-semibold text-[#1a2e4a]" : "text-[#0a0a0a]"}`}
+                >
+                  {b.codigo} – {b.nome}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
   );
 }
