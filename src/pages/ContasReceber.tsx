@@ -659,19 +659,46 @@ export default function ContasReceber() {
             setLoteProgress({ current: 0, total: crs.length })
             await new Promise(r => setTimeout(r, 50))
 
+            const BATCH = 100
             let ok = 0, fail = 0
-            for (const cr of crs) {
-              const saldo = cr.valor - (cr.valor_pago || 0)
-              const dataPgto = dados.usarDataVencimento ? cr.data_vencimento : dados.dataPagamento
-              const result = await quitarCR(cr.id, {
-                valorPago: saldo,
-                dataPagamento: dataPgto,
-                formaRecebimento: dados.formaRecebimento,
-                contaBancariaId: dados.contaBancariaId,
+
+            for (let i = 0; i < crs.length; i += BATCH) {
+              const batch = crs.slice(i, i + BATCH)
+
+              // 1. Update all CRs in batch — set as paid (parallel within batch)
+              await Promise.all(batch.map(cr => {
+                const dataPgto = dados.usarDataVencimento ? cr.data_vencimento : dados.dataPagamento
+                return db.from('contas_receber').update({
+                  valor_pago: cr.valor,
+                  status: 'pago',
+                  data_pagamento: dataPgto,
+                  forma_recebimento: dados.formaRecebimento,
+                }).eq('id', cr.id)
+              }))
+
+              // 2. Insert all movimentacoes for this batch at once
+              const movsPayload = batch.map(cr => {
+                const saldo = cr.valor - (cr.valor_pago || 0)
+                const dataPgto = dados.usarDataVencimento ? cr.data_vencimento : dados.dataPagamento
+                return {
+                  company_id: companyId,
+                  conta_bancaria_id: dados.contaBancariaId,
+                  conta_contabil_id: cr.conta_contabil_id || null,
+                  tipo: 'credito',
+                  valor: saldo,
+                  data: dataPgto,
+                  descricao: `Recebimento — ${cr.pagador_nome}`,
+                  origem: 'conta_receber',
+                  conta_receber_id: cr.id,
+                }
               })
-              if (result.sucesso) ok++
-              else { fail++; console.error(`[quitarLote] CR ${cr.id}:`, result.erro) }
-              setLoteProgress({ current: ok + fail, total: crs.length })
+
+              const { error: movErr } = await db.from('movimentacoes').insert(movsPayload)
+              if (movErr) console.error('[quitarLote] movimentacoes batch error:', movErr)
+
+              ok += batch.length
+              setLoteProgress({ current: ok, total: crs.length })
+              await new Promise(r => setTimeout(r, 0))
             }
 
             setSubmitting(false)
