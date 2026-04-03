@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Pencil, Trash2, X } from "lucide-react";
+import { Search, Pencil, Trash2, X, Copy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductSheet } from "@/components/products/ProductSheet";
 import { toast } from "sonner";
@@ -16,11 +16,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Product } from "@/types/product";
 import { formatBRL } from "@/lib/format";
+import { useCompanies } from "@/hooks/useCompanies";
 
 export default function ProdutosDepartamentos() {
     const { selectedCompany } = useCompany();
-    const { activeClient, isUsingSecondary } = useAuth();
+    const { activeClient, isUsingSecondary, user } = useAuth();
     const queryClient = useQueryClient();
+    const { companies } = useCompanies(user?.id);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<"products" | "departments">("products");
 
@@ -32,6 +34,29 @@ export default function ProdutosDepartamentos() {
     const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
     const [editingDept, setEditingDept] = useState<any>(null);
     const [deptName, setDeptName] = useState("");
+
+    // Copy products modal state
+    const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+    const [selectedOrigemId, setSelectedOrigemId] = useState("");
+
+    const copyProductsMutation = useMutation({
+        mutationFn: async () => {
+            if (!selectedCompany?.id || !selectedOrigemId) throw new Error("Selecione a loja de origem");
+            const { data, error } = await activeClient.rpc("copiar_produtos_entre_empresas", {
+                p_origem_id: selectedOrigemId,
+                p_destino_id: selectedCompany.id,
+            });
+            if (error) throw error;
+            return data as number;
+        },
+        onSuccess: (count) => {
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            toast.success(`${count} produto(s) copiado(s) com sucesso!`);
+            setIsCopyModalOpen(false);
+            setSelectedOrigemId("");
+        },
+        onError: (err: any) => toast.error(err?.message || "Erro ao copiar produtos"),
+    });
 
     // Delete Mutation
     const deleteProductMutation = useMutation({
@@ -221,12 +246,20 @@ export default function ProdutosDepartamentos() {
                             <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
                                 Catálogo de Produtos e Serviços
                             </h3>
-                            <button
-                                onClick={handleCreate}
-                                className="text-[11px] font-bold bg-white text-[#1a2e4a] px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
-                            >
-                                + Novo produto
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setIsCopyModalOpen(true)}
+                                    className="text-[11px] font-bold bg-transparent border border-white/40 text-white px-3 py-1.5 rounded hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                                >
+                                    <Copy className="h-3 w-3" /> Copiar de outra loja
+                                </button>
+                                <button
+                                    onClick={handleCreate}
+                                    className="text-[11px] font-bold bg-white text-[#1a2e4a] px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
+                                >
+                                    + Novo produto
+                                </button>
+                            </div>
                         </div>
 
                         {/* Toolbar busca */}
@@ -482,6 +515,61 @@ export default function ProdutosDepartamentos() {
                     </div>
                 )}
             </div>
+
+            {/* ════════════ MODAL COPIAR PRODUTOS ════════════ */}
+            {isCopyModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
+                        <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
+                            <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
+                                Copiar Produtos de Outra Loja
+                            </h3>
+                            <button onClick={() => { setIsCopyModalOpen(false); setSelectedOrigemId(""); }} className="text-white/70 hover:text-white">
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-[12px] text-[#555]">
+                                Selecione a loja de origem. Produtos com o mesmo codigo nao serao duplicados.
+                            </p>
+                            <div>
+                                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                                    Loja de Origem <span className="text-[#8b0000]">*</span>
+                                </label>
+                                <select
+                                    value={selectedOrigemId}
+                                    onChange={(e) => setSelectedOrigemId(e.target.value)}
+                                    className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1a2e4a]"
+                                >
+                                    <option value="">Selecione...</option>
+                                    {companies
+                                        ?.filter((c: any) => c.id !== selectedCompany?.id)
+                                        .map((c: any) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.razao_social || c.nome_fantasia || c.id}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2 border-t border-[#eee]">
+                                <button
+                                    onClick={() => { setIsCopyModalOpen(false); setSelectedOrigemId(""); }}
+                                    className="px-4 py-2 text-[12px] font-bold bg-white border border-[#ccc] text-[#0a0a0a] rounded hover:bg-gray-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => copyProductsMutation.mutate()}
+                                    disabled={!selectedOrigemId || copyProductsMutation.isPending}
+                                    className="px-4 py-2 text-[12px] font-bold bg-[#1a2e4a] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
+                                >
+                                    {copyProductsMutation.isPending ? "Copiando..." : "Copiar Produtos"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <ProductSheet
                 isOpen={isProductSheetOpen}
