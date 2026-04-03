@@ -18,16 +18,11 @@ interface Regua {
   id: string
   company_id: string
   nome: string
+  gatilho_tipo: string
+  dias_referencia: number
+  canal: 'email' | 'whatsapp' | 'sms'
+  template: string
   ativo: boolean
-}
-
-interface Etapa {
-  id: string
-  regua_id: string
-  tipo_acao: 'email' | 'whatsapp' | 'sms'
-  dias_antes_vencimento: number
-  template_mensagem: string
-  ordem: number
 }
 
 interface EtapaForm {
@@ -139,9 +134,8 @@ export default function ReguaCobranca() {
   const { activeClient } = useAuth()
   const companyId = selectedCompany?.id
 
-  // ── Reguas state ──
+  // ── Reguas state ── (each row in regua_cobranca is one etapa/step)
   const [reguas, setReguas] = useState<Regua[]>([])
-  const [reguaEtapas, setReguaEtapas] = useState<Record<string, Etapa[]>>({})
   const [loadingReguas, setLoadingReguas] = useState(true)
 
   // ── CRs state ──
@@ -178,33 +172,19 @@ export default function ReguaCobranca() {
           .order('nome'),
       'listar reguas',
     )
-    const reguaList = (data as Regua[]) || []
-    setReguas(reguaList)
-
-    // Fetch etapas for each regua
-    if (reguaList.length > 0) {
-      const ids = reguaList.map(r => r.id)
-      const etapasData = await safeQuery(
-        () =>
-          supabase
-            .from('regua_cobranca_etapas')
-            .select('*')
-            .in('regua_id', ids)
-            .order('ordem'),
-        'listar etapas',
-      )
-      const etapasList = (etapasData as Etapa[]) || []
-      const grouped: Record<string, Etapa[]> = {}
-      for (const e of etapasList) {
-        if (!grouped[e.regua_id]) grouped[e.regua_id] = []
-        grouped[e.regua_id].push(e)
-      }
-      setReguaEtapas(grouped)
-    } else {
-      setReguaEtapas({})
-    }
+    setReguas((data as Regua[]) || [])
     setLoadingReguas(false)
   }
+
+  // Group reguas by nome (each "regua" is a group of rows sharing the same nome)
+  const reguasGrouped = useMemo(() => {
+    const map: Record<string, Regua[]> = {}
+    for (const r of reguas) {
+      if (!map[r.nome]) map[r.nome] = []
+      map[r.nome].push(r)
+    }
+    return map
+  }, [reguas])
 
   /* ── Fetch CRs ── */
   async function fetchCrs() {
@@ -272,22 +252,17 @@ export default function ReguaCobranca() {
       const crLogs = logs.filter(l => l.contas_receber_id === cr.id)
       const lastLog = crLogs.length > 0 ? crLogs[0] : null
 
-      // Find which regua is applied (first active one for simplicity)
-      const activeRegua = reguas.find(r => r.ativo)
-      const etapas = activeRegua ? (reguaEtapas[activeRegua.id] || []) : []
+      // Find active regua rows (etapas)
+      const activeEtapas = reguas.filter(r => r.ativo).sort((a, b) => a.dias_referencia - b.dias_referencia)
 
       // Calculate next action
       let nextAction: { tipo: string; diasLabel: string } | null = null
-      if (activeRegua && etapas.length > 0) {
-        // Find next etapa that hasn't fired yet
-        const firedTypes = new Set(crLogs.map(l => `${l.tipo_acao}-${l.regua_id}`))
-        for (const etapa of etapas) {
-          // dias_antes_vencimento: negative = before, 0 = day of, positive = after
-          const targetDayDiff = etapa.dias_antes_vencimento
-          // targetDayDiff comparison: if targetDayDiff <= diasDiff, it should have fired
+      let activeRegua = activeEtapas.length > 0 ? activeEtapas[0] : null
+      if (activeEtapas.length > 0) {
+        for (const etapa of activeEtapas) {
+          const targetDayDiff = etapa.dias_referencia
           if (targetDayDiff > diasDiff) {
-            // This one is in the future
-            nextAction = { tipo: tipoLabel(etapa.tipo_acao), diasLabel: diasLabel(etapa.dias_antes_vencimento) }
+            nextAction = { tipo: tipoLabel(etapa.canal), diasLabel: diasLabel(etapa.dias_referencia) }
             break
           }
         }
@@ -301,7 +276,7 @@ export default function ReguaCobranca() {
         nextAction,
       }
     })
-  }, [crs, logs, reguas, reguaEtapas])
+  }, [crs, logs, reguas])
 
   const filteredCrs = useMemo(() => {
     if (!searchCr.trim()) return crsWithRegua
@@ -313,16 +288,19 @@ export default function ReguaCobranca() {
   }, [crsWithRegua, searchCr])
 
   /* ── Modal: open new/edit ── */
-  function openModal(regua?: Regua) {
-    if (regua) {
-      setEditingRegua(regua)
-      setReguaNome(regua.nome)
-      const existingEtapas = (reguaEtapas[regua.id] || []).map(e => ({
-        tipo_acao: e.tipo_acao,
-        dias_antes_vencimento: e.dias_antes_vencimento,
-        template_mensagem: e.template_mensagem,
-        ordem: e.ordem,
-      }))
+  function openModal(reguaNomeKey?: string) {
+    if (reguaNomeKey && reguasGrouped[reguaNomeKey]) {
+      const group = reguasGrouped[reguaNomeKey]
+      setEditingRegua(group[0]) // use first row as reference
+      setReguaNome(reguaNomeKey)
+      const existingEtapas = group
+        .sort((a, b) => a.dias_referencia - b.dias_referencia)
+        .map((r, i) => ({
+          tipo_acao: r.canal,
+          dias_antes_vencimento: r.dias_referencia,
+          template_mensagem: r.template,
+          ordem: i + 1,
+        }))
       setEtapasForm(existingEtapas.length > 0 ? existingEtapas : getDefaultEtapas())
     } else {
       setEditingRegua(null)
@@ -385,43 +363,28 @@ export default function ReguaCobranca() {
     setSaving(true)
 
     try {
-      let reguaId: string
-
       if (editingRegua) {
-        // Update regua
-        const { error } = await supabase
-          .from('regua_cobranca')
-          .update({ nome: reguaNome.trim() })
-          .eq('id', editingRegua.id)
-        if (error) throw error
-        reguaId = editingRegua.id
-
-        // Delete old etapas
-        await supabase.from('regua_cobranca_etapas').delete().eq('regua_id', reguaId)
-      } else {
-        // Insert new regua
-        const { data, error } = await supabase
-          .from('regua_cobranca')
-          .insert({ company_id: companyId, nome: reguaNome.trim(), ativo: true })
-          .select('id')
-          .single()
-        if (error) throw error
-        reguaId = data.id
+        // Delete all old rows for this regua group (same nome + company)
+        const oldGroup = reguasGrouped[editingRegua.nome] || []
+        if (oldGroup.length > 0) {
+          const ids = oldGroup.map(r => r.id)
+          await supabase.from('regua_cobranca').delete().in('id', ids)
+        }
       }
 
-      // Insert etapas
-      const etapasToInsert = etapasForm.map((e, i) => ({
-        regua_id: reguaId,
-        tipo_acao: e.tipo_acao,
-        dias_antes_vencimento: e.dias_antes_vencimento,
-        template_mensagem: e.template_mensagem,
-        ordem: i + 1,
+      // Insert each etapa as a separate row
+      const rowsToInsert = etapasForm.map(e => ({
+        company_id: companyId,
+        nome: reguaNome.trim(),
+        gatilho_tipo: e.dias_antes_vencimento < 0 ? 'antes_vencimento' : e.dias_antes_vencimento === 0 ? 'no_vencimento' : 'apos_vencimento',
+        dias_referencia: e.dias_antes_vencimento,
+        canal: e.tipo_acao,
+        template: e.template_mensagem,
+        ativo: true,
       }))
 
-      const { error: etapasError } = await supabase
-        .from('regua_cobranca_etapas')
-        .insert(etapasToInsert)
-      if (etapasError) throw etapasError
+      const { error } = await supabase.from('regua_cobranca').insert(rowsToInsert)
+      if (error) throw error
 
       setModalOpen(false)
       await fetchReguas()
@@ -433,24 +396,29 @@ export default function ReguaCobranca() {
     }
   }
 
-  /* ── Toggle ativo ── */
-  async function toggleAtivo(regua: Regua) {
+  /* ── Toggle ativo (all rows in group) ── */
+  async function toggleAtivo(nomeKey: string) {
+    const group = reguasGrouped[nomeKey] || []
+    if (group.length === 0) return
+    const newAtivo = !group[0].ativo
+    const ids = group.map(r => r.id)
     const { error } = await supabase
       .from('regua_cobranca')
-      .update({ ativo: !regua.ativo })
-      .eq('id', regua.id)
+      .update({ ativo: newAtivo })
+      .in('id', ids)
     if (!error) {
-      setReguas(reguas.map(r => r.id === regua.id ? { ...r, ativo: !r.ativo } : r))
+      setReguas(reguas.map(r => ids.includes(r.id) ? { ...r, ativo: newAtivo } : r))
     }
   }
 
-  /* ── Delete regua ── */
-  async function deleteRegua(id: string) {
+  /* ── Delete regua (all rows in group) ── */
+  async function deleteRegua(nomeKey: string) {
     if (!confirm('Excluir esta regua de cobranca?')) return
-    await supabase.from('regua_cobranca_etapas').delete().eq('regua_id', id)
-    const { error } = await supabase.from('regua_cobranca').delete().eq('id', id)
+    const group = reguasGrouped[nomeKey] || []
+    const ids = group.map(r => r.id)
+    const { error } = await supabase.from('regua_cobranca').delete().in('id', ids)
     if (!error) {
-      setReguas(reguas.filter(r => r.id !== id))
+      setReguas(reguas.filter(r => !ids.includes(r.id)))
     }
   }
 
@@ -460,16 +428,9 @@ export default function ReguaCobranca() {
     setProcessing(true)
 
     try {
-      const activeRegua = reguas.find(r => r.ativo)
-      if (!activeRegua) {
+      const activeEtapas = reguas.filter(r => r.ativo)
+      if (activeEtapas.length === 0) {
         alert('Nenhuma regua ativa encontrada.')
-        setProcessing(false)
-        return
-      }
-
-      const etapas = reguaEtapas[activeRegua.id] || []
-      if (etapas.length === 0) {
-        alert('A regua ativa nao possui etapas configuradas.')
         setProcessing(false)
         return
       }
@@ -481,25 +442,21 @@ export default function ReguaCobranca() {
         const venc = parseISO(cr.data_vencimento)
         const diasDiff = differenceInDays(hoje, venc)
 
-        for (const etapa of etapas) {
-          // Check if this etapa should fire today
-          // dias_antes_vencimento: negative = before, 0 = on day, positive = after
-          if (etapa.dias_antes_vencimento === diasDiff) {
-            // Build message
+        for (const etapa of activeEtapas) {
+          if (etapa.dias_referencia === diasDiff) {
             const diasAtraso = diasDiff > 0 ? diasDiff : 0
-            const msg = etapa.template_mensagem
+            const msg = etapa.template
               .replace(/\{nome\}/g, cr.pagador_nome)
               .replace(/\{valor\}/g, formatBRL(cr.valor))
               .replace(/\{data_vencimento\}/g, formatData(cr.data_vencimento))
               .replace(/\{dias_atraso\}/g, String(diasAtraso))
 
-            console.log(`[Regua] ${tipoLabel(etapa.tipo_acao)} para ${cr.pagador_nome}: ${msg}`)
+            console.log(`[Regua] ${tipoLabel(etapa.canal)} para ${cr.pagador_nome}: ${msg}`)
 
-            // Insert log
             await supabase.from('regua_cobranca_log').insert({
-              regua_id: activeRegua.id,
+              regua_id: etapa.id,
               contas_receber_id: cr.id,
-              tipo_acao: etapa.tipo_acao,
+              tipo_acao: etapa.canal,
               status: 'pendente',
               enviado_em: new Date().toISOString(),
             })
@@ -567,44 +524,37 @@ export default function ReguaCobranca() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {reguas.map(regua => {
-                  const etapas = reguaEtapas[regua.id] || []
+                {Object.entries(reguasGrouped).map(([nomeKey, group]) => {
+                  const isAtivo = group[0]?.ativo ?? false
                   return (
                     <div
-                      key={regua.id}
+                      key={nomeKey}
                       className="flex items-center justify-between border border-[#e5e5e5] rounded-lg px-4 py-3 hover:bg-[#fafafa] transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${regua.ativo ? 'bg-[#0a5c2e]' : 'bg-[#ccc]'}`} />
+                        <div className={`w-2 h-2 rounded-full ${isAtivo ? 'bg-[#0a5c2e]' : 'bg-[#ccc]'}`} />
                         <div>
-                          <p className="text-[13px] font-semibold text-[#0a0a0a]">{regua.nome}</p>
-                          <p className="text-[11px] text-[#555]">{etapas.length} etapa{etapas.length !== 1 ? 's' : ''}</p>
+                          <p className="text-[13px] font-semibold text-[#0a0a0a]">{nomeKey}</p>
+                          <p className="text-[11px] text-[#555]">{group.length} etapa{group.length !== 1 ? 's' : ''}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {/* Ativo/Inativo toggle */}
                         <button
-                          onClick={() => toggleAtivo(regua)}
+                          onClick={() => toggleAtivo(nomeKey)}
                           className="flex items-center gap-1.5 text-[11px] font-medium"
-                          style={{
-                            color: regua.ativo ? '#0a5c2e' : '#8b0000',
-                          }}
+                          style={{ color: isAtivo ? '#0a5c2e' : '#8b0000' }}
                         >
-                          {regua.ativo ? <Play size={12} /> : <Pause size={12} />}
-                          {regua.ativo ? 'Ativa' : 'Inativa'}
+                          {isAtivo ? <Play size={12} /> : <Pause size={12} />}
+                          {isAtivo ? 'Ativa' : 'Inativa'}
                         </button>
-
-                        {/* Edit */}
                         <button
-                          onClick={() => openModal(regua)}
+                          onClick={() => openModal(nomeKey)}
                           className="text-[11px] font-medium text-[#1a2e4a] hover:underline"
                         >
                           Editar
                         </button>
-
-                        {/* Delete */}
                         <button
-                          onClick={() => deleteRegua(regua.id)}
+                          onClick={() => deleteRegua(nomeKey)}
                           className="text-[#8b0000] hover:opacity-70"
                         >
                           <Trash2 size={14} />
