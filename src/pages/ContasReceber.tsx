@@ -132,6 +132,11 @@ export default function ContasReceber() {
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
 
+  // ── Bulk selection ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [quitarLoteModal, setQuitarLoteModal] = useState(false)
+  const [loteProgress, setLoteProgress] = useState({ current: 0, total: 0 })
+
   // ── Submitting state ──
   const [submitting, setSubmitting] = useState(false)
 
@@ -203,6 +208,28 @@ export default function ContasReceber() {
     if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
     return list
   }, [enrichedItems, search, statusFilter, dateFrom, dateTo])
+
+  // ── Bulk selection helpers ──
+  const selectableItems = useMemo(() => filtered.filter(cr => cr._status !== 'pago' && cr._status !== 'cancelado'), [filtered])
+  const allSelectableSelected = selectableItems.length > 0 && selectableItems.every(cr => selectedIds.has(cr.id))
+  const someSelected = selectedIds.size > 0
+
+  const toggleSelectAll = () => {
+    if (allSelectableSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(selectableItems.map(cr => cr.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   // ── KPIs ──
   const kpis = useMemo(() => {
@@ -359,6 +386,26 @@ export default function ContasReceber() {
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Titulos ({filtered.length})
             </h3>
+            {someSelected && (
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-white/70">
+                  {selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={() => setQuitarLoteModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-[#0a5c2e] bg-white rounded hover:bg-[#e6f4ec] transition-colors"
+                >
+                  <CheckCircle2 size={12} />
+                  Quitar em lote
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-white/60 hover:text-white transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
           </div>
           <div className="bg-white overflow-x-auto">
             {loading ? (
@@ -374,6 +421,14 @@ export default function ContasReceber() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e5e5e5]">
+                    <th className="px-3 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelectableSelected}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded border-[#ccc] text-[#1a2e4a] focus:ring-[#1a2e4a] cursor-pointer"
+                      />
+                    </th>
                     {['Pagador', 'Tipo', 'Categoria', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
                       <th
                         key={h}
@@ -392,11 +447,23 @@ export default function ContasReceber() {
                     const isVencido = cr.data_vencimento < hoje && !['pago', 'cancelado'].includes(cr._status)
                     const diasAtraso = isVencido ? differenceInDays(new Date(), parseISO(cr.data_vencimento)) : 0
 
+                    const isSelectable = cr._status !== 'pago' && cr._status !== 'cancelado'
                     return (
                       <tr
                         key={cr.id}
-                        className="border-b border-[#f0f0f0] hover:bg-[#fafafa] transition-colors"
+                        className={`border-b border-[#f0f0f0] hover:bg-[#fafafa] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#f0f4f8]' : ''}`}
                       >
+                        {/* Checkbox */}
+                        <td className="px-3 py-3 w-10">
+                          {isSelectable && (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(cr.id)}
+                              onChange={() => toggleSelect(cr.id)}
+                              className="w-4 h-4 rounded border-[#ccc] text-[#1a2e4a] focus:ring-[#1a2e4a] cursor-pointer"
+                            />
+                          )}
+                        </td>
                         {/* Pagador */}
                         <td className="px-4 py-3">
                           <div className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</div>
@@ -565,7 +632,181 @@ export default function ContasReceber() {
           }}
         />
       )}
+
+      {/* ── Modal: Quitar em Lote ── */}
+      {quitarLoteModal && (
+        <ModalQuitarLote
+          selectedCrs={items.filter(cr => selectedIds.has(cr.id))}
+          bankAccounts={bankAccounts}
+          submitting={submitting}
+          progress={loteProgress}
+          onClose={() => { if (!submitting) { setQuitarLoteModal(false); setLoteProgress({ current: 0, total: 0 }) } }}
+          onConfirm={async (dados) => {
+            setSubmitting(true)
+            const crs = items.filter(cr => selectedIds.has(cr.id))
+            setLoteProgress({ current: 0, total: crs.length })
+            await new Promise(r => setTimeout(r, 50))
+
+            let ok = 0, fail = 0
+            for (const cr of crs) {
+              const saldo = cr.valor - (cr.valor_pago || 0)
+              const result = await quitarCR(cr.id, {
+                valorPago: saldo,
+                dataPagamento: dados.dataPagamento,
+                formaRecebimento: dados.formaRecebimento,
+                contaBancariaId: dados.contaBancariaId,
+              })
+              if (result.sucesso) ok++
+              else { fail++; console.error(`[quitarLote] CR ${cr.id}:`, result.erro) }
+              setLoteProgress({ current: ok + fail, total: crs.length })
+            }
+
+            setSubmitting(false)
+            setSelectedIds(new Set())
+            setQuitarLoteModal(false)
+            setLoteProgress({ current: 0, total: 0 })
+            fetchItems()
+
+            if (fail > 0) alert(`${ok} quitados com sucesso, ${fail} falharam.`)
+          }}
+        />
+      )}
     </AppLayout>
+  )
+}
+
+/* ================================================================
+   MODAL: QUITAR EM LOTE
+   ================================================================ */
+
+function ModalQuitarLote({
+  selectedCrs, bankAccounts, submitting, progress, onClose, onConfirm,
+}: {
+  selectedCrs: CR[]
+  bankAccounts: BankAccount[]
+  submitting: boolean
+  progress: { current: number; total: number }
+  onClose: () => void
+  onConfirm: (dados: { dataPagamento: string; formaRecebimento: string; contaBancariaId: string }) => void
+}) {
+  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0])
+  const [formaRecebimento, setFormaRecebimento] = useState('pix')
+  const [contaBancariaId, setContaBancariaId] = useState(bankAccounts[0]?.id || '')
+
+  const totalSaldo = selectedCrs.reduce((sum, cr) => sum + (cr.valor - (cr.valor_pago || 0)), 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="bg-[#0a5c2e] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-white" />
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Quitar em Lote</h2>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white" disabled={submitting}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Summary */}
+        <div className="px-6 py-4 bg-[#e6f4ec] border-b border-[#c3e6d1]">
+          <div className="flex justify-between text-sm">
+            <span className="text-[#0a5c2e] font-semibold">{selectedCrs.length} titulo{selectedCrs.length !== 1 ? 's' : ''} selecionado{selectedCrs.length !== 1 ? 's' : ''}</span>
+            <span className="text-[#0a5c2e] font-bold">{formatBRL(totalSaldo)}</span>
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wide mb-1">Conta bancaria destino *</label>
+            <select
+              value={contaBancariaId}
+              onChange={e => setContaBancariaId(e.target.value)}
+              className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] bg-white focus:outline-none focus:border-[#0a5c2e]"
+              disabled={submitting}
+            >
+              <option value="">Selecione...</option>
+              {bankAccounts.map(ba => (
+                <option key={ba.id} value={ba.id}>{ba.nome} ({ba.banco})</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wide mb-1">Data pagamento</label>
+              <input
+                type="date"
+                value={dataPagamento}
+                onChange={e => setDataPagamento(e.target.value)}
+                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] focus:outline-none focus:border-[#0a5c2e]"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wide mb-1">Forma recebimento</label>
+              <select
+                value={formaRecebimento}
+                onChange={e => setFormaRecebimento(e.target.value)}
+                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] bg-white focus:outline-none focus:border-[#0a5c2e]"
+                disabled={submitting}
+              >
+                <option value="pix">PIX</option>
+                <option value="dinheiro">Dinheiro</option>
+                <option value="transferencia">Transferência</option>
+                <option value="cartao_debito">Cartão débito</option>
+                <option value="cartao_credito">Cartão crédito</option>
+                <option value="boleto">Boleto</option>
+                <option value="cheque">Cheque</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Progress */}
+          {submitting && progress.total > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-[#0a5c2e]">
+                  Quitando... {progress.current} de {progress.total}
+                </span>
+                <span className="text-xs font-bold text-[#0a5c2e]">
+                  {Math.round((progress.current / progress.total) * 100)}%
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-[#e5e7eb] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#0a5c2e] rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-[#eee] px-6 py-4 flex justify-end gap-3 bg-[#fafafa]">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm({ dataPagamento, formaRecebimento, contaBancariaId })}
+            disabled={submitting || !contaBancariaId || !dataPagamento}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#0a5c2e] rounded-md hover:bg-[#084d25] transition-colors disabled:opacity-50"
+          >
+            {submitting ? (
+              <><Loader2 size={14} className="animate-spin" /> Quitando...</>
+            ) : (
+              <><CheckCircle2 size={14} /> Quitar {selectedCrs.length} titulo{selectedCrs.length !== 1 ? 's' : ''}</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
