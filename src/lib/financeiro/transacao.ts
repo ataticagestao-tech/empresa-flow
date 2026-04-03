@@ -45,8 +45,8 @@ export async function quitarCR(
       valor: valorFinal,
       data: dados.dataPagamento,
       descricao: `Recebimento — ${cr.pagador_nome}`,
-      origem: 'cr',
-      origem_id: crId,
+      origem: 'conta_receber',
+      conta_receber_id: crId,
     })
     if (erroMov) throw erroMov
 
@@ -107,8 +107,8 @@ export async function quitarCP(
       valor: valorFinal,
       data: dados.dataPagamento,
       descricao: `Pagamento — ${cp.credor_nome}`,
-      origem: 'cp',
-      origem_id: cpId,
+      origem: 'conta_pagar',
+      conta_pagar_id: cpId,
     })
     if (erroMov) throw erroMov
 
