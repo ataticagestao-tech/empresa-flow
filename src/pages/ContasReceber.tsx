@@ -650,9 +650,10 @@ export default function ContasReceber() {
             let ok = 0, fail = 0
             for (const cr of crs) {
               const saldo = cr.valor - (cr.valor_pago || 0)
+              const dataPgto = dados.usarDataVencimento ? cr.data_vencimento : dados.dataPagamento
               const result = await quitarCR(cr.id, {
                 valorPago: saldo,
-                dataPagamento: dados.dataPagamento,
+                dataPagamento: dataPgto,
                 formaRecebimento: dados.formaRecebimento,
                 contaBancariaId: dados.contaBancariaId,
               })
@@ -687,8 +688,9 @@ function ModalQuitarLote({
   submitting: boolean
   progress: { current: number; total: number }
   onClose: () => void
-  onConfirm: (dados: { dataPagamento: string; formaRecebimento: string; contaBancariaId: string }) => void
+  onConfirm: (dados: { dataPagamento: string; formaRecebimento: string; contaBancariaId: string; usarDataVencimento: boolean }) => void
 }) {
+  const [usarDataVencimento, setUsarDataVencimento] = useState(false)
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0])
   const [formaRecebimento, setFormaRecebimento] = useState('pix')
   const [contaBancariaId, setContaBancariaId] = useState(bankAccounts[0]?.id || '')
@@ -733,16 +735,44 @@ function ModalQuitarLote({
               ))}
             </select>
           </div>
+          {/* Data pagamento mode */}
+          <div>
+            <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wide mb-1">Data pagamento</label>
+            <div className="flex gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => setUsarDataVencimento(false)}
+                disabled={submitting}
+                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${!usarDataVencimento ? 'bg-[#0a5c2e] text-white border-[#0a5c2e]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'}`}
+              >
+                Data fixa
+              </button>
+              <button
+                type="button"
+                onClick={() => setUsarDataVencimento(true)}
+                disabled={submitting}
+                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${usarDataVencimento ? 'bg-[#0a5c2e] text-white border-[#0a5c2e]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'}`}
+              >
+                Na data de vencimento
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wide mb-1">Data pagamento</label>
-              <input
-                type="date"
-                value={dataPagamento}
-                onChange={e => setDataPagamento(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] focus:outline-none focus:border-[#0a5c2e]"
-                disabled={submitting}
-              />
+              {!usarDataVencimento ? (
+                <input
+                  type="date"
+                  value={dataPagamento}
+                  onChange={e => setDataPagamento(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] focus:outline-none focus:border-[#0a5c2e]"
+                  disabled={submitting}
+                />
+              ) : (
+                <div className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[12px] text-[#555] bg-[#f9f9f9]">
+                  Cada titulo sera quitado na sua data de vencimento
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wide mb-1">Forma recebimento</label>
@@ -794,8 +824,8 @@ function ModalQuitarLote({
             Cancelar
           </button>
           <button
-            onClick={() => onConfirm({ dataPagamento, formaRecebimento, contaBancariaId })}
-            disabled={submitting || !contaBancariaId || !dataPagamento}
+            onClick={() => onConfirm({ dataPagamento, formaRecebimento, contaBancariaId, usarDataVencimento })}
+            disabled={submitting || !contaBancariaId || (!usarDataVencimento && !dataPagamento)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#0a5c2e] rounded-md hover:bg-[#084d25] transition-colors disabled:opacity-50"
           >
             {submitting ? (
