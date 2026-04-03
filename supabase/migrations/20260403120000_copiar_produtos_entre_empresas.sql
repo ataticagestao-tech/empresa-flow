@@ -33,12 +33,7 @@ BEGIN
     activity,
     taxation_type,
     type_sped,
-    is_active,
-    unidade_medida,
-    metodo_custeio,
-    tipo_produto,
-    controla_validade,
-    controla_lote
+    is_active
   )
   SELECT
     p_destino_id,
@@ -53,12 +48,7 @@ BEGIN
     p.activity,
     p.taxation_type,
     p.type_sped,
-    p.is_active,
-    p.unidade_medida,
-    p.metodo_custeio,
-    p.tipo_produto,
-    p.controla_validade,
-    p.controla_lote
+    p.is_active
   FROM public.products p
   WHERE p.company_id = p_origem_id
     AND p.is_active = true
