@@ -234,9 +234,16 @@ export default function Empresas() {
             <div className="p-6 bg-white">
 
               {step === 0 && (
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">CNPJ <span className="text-[#8b0000]">*</span></label>
+                <div className="space-y-6">
+                  {/* Option 1: Com CNPJ */}
+                  <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-[#1a2e4a] flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">1</span>
+                      </div>
+                      <span className="text-sm font-bold text-[#0a0a0a]">Com CNPJ</span>
+                      <span className="text-[10px] text-[#555] ml-1">— preenche dados automaticamente via Receita Federal</span>
+                    </div>
                     <div className="flex gap-2">
                       <input value={form.cnpj} onChange={e => set("cnpj", maskCNPJ(e.target.value))} placeholder="00.000.000/0000-00" className={inputCls()} />
                       <button onClick={buscarCNPJ} disabled={fetchingCnpj}
@@ -244,12 +251,33 @@ export default function Empresas() {
                         {fetchingCnpj ? "Buscando..." : "Consultar Receita"}
                       </button>
                     </div>
+                    {autoFilled.size > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">
+                        Preenchido automaticamente via Receita Federal
+                      </span>
+                    )}
                   </div>
-                  {autoFilled.size > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">
-                      ✓ Preenchido automaticamente via Receita Federal
-                    </span>
-                  )}
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-[#ccc]" />
+                    <span className="text-[11px] font-bold text-[#999] uppercase tracking-wider">ou</span>
+                    <div className="flex-1 h-px bg-[#ccc]" />
+                  </div>
+
+                  {/* Option 2: Sem CNPJ */}
+                  <button
+                    onClick={() => { set("cnpj", ""); setStep(1); }}
+                    className="w-full border border-[#ccc] rounded-lg p-4 flex items-center gap-3 hover:bg-[#f5f5f5] transition-colors text-left"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#555] flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">2</span>
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-[#0a0a0a]">Sem CNPJ</span>
+                      <p className="text-[11px] text-[#555]">Pessoa fisica, MEI informal ou empresa estrangeira — preencha os dados manualmente</p>
+                    </div>
+                  </button>
                 </div>
               )}
 
