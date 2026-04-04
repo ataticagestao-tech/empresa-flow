@@ -81,7 +81,7 @@ export default function Conciliacao() {
     const [filterDateTo, setFilterDateTo] = useState("");
     const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; success: number; failed: number } | null>(null);
 
-    const { activeClient } = useAuth();
+    const { activeClient, user } = useAuth();
     const { selectedCompany } = useCompany();
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -537,7 +537,7 @@ export default function Conciliacao() {
                 const { data, error } = await (activeClient as any).rpc('conciliar_lote', {
                     p_company_id: selectedCompany?.id,
                     p_bank_account_id: selectedAccountId,
-                    p_user_id: (activeClient as any).auth?.user?.()?.id || null,
+                    p_user_id: user?.id || null,
                     p_items: batch,
                 });
                 if (error) throw error;
