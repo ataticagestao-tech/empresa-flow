@@ -47,7 +47,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 .eq('bank_account_id', bankAccountId)
                 .eq('status', 'pending')
                 .order('date', { ascending: false })
-                .limit(500);
+                .limit(5000);
 
             if (error) throw error;
             return data as BankTransaction[];
