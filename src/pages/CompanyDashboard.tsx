@@ -91,7 +91,8 @@ export default function CompanyDashboard() {
             const { data } = await db.from("contas_receber")
                 .select("id, pagador_nome, valor, valor_pago, data_vencimento, status, conta_contabil_id")
                 .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"])
-                .is("deleted_at", null);
+                .is("deleted_at", null)
+                .limit(5000);
             return data || [];
         },
         enabled: !!cId,
@@ -108,7 +109,8 @@ export default function CompanyDashboard() {
             const { data } = await db.from("contas_pagar")
                 .select("id, credor_nome, valor, valor_pago, data_vencimento, status, conta_contabil_id")
                 .eq("company_id", cId).in("status", ["aberto", "parcial", "vencido"])
-                .is("deleted_at", null);
+                .is("deleted_at", null)
+                .limit(5000);
             return data || [];
         },
         enabled: !!cId,
@@ -131,7 +133,8 @@ export default function CompanyDashboard() {
                 .eq("status", "pago")
                 .is("deleted_at", null)
                 .gte("data_pagamento", monthStart)
-                .lte("data_pagamento", monthEnd);
+                .lte("data_pagamento", monthEnd)
+                .limit(5000);
             return (data || [])
                 .filter((r: any) => !isTransfer(r))
                 .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
@@ -146,7 +149,8 @@ export default function CompanyDashboard() {
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId).eq("status", "pago")
                 .is("deleted_at", null)
-                .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd);
+                .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd)
+                .limit(5000);
             return (data || [])
                 .filter((r: any) => !isTransfer(r))
                 .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
@@ -171,7 +175,8 @@ export default function CompanyDashboard() {
                 .eq("status", "pago")
                 .is("deleted_at", null)
                 .gte("data_pagamento", prevMonthStart)
-                .lte("data_pagamento", prevMonthEnd);
+                .lte("data_pagamento", prevMonthEnd)
+                .limit(5000);
             return (data || [])
                 .filter((r: any) => !isTransfer(r))
                 .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
@@ -241,12 +246,14 @@ export default function CompanyDashboard() {
                         .select("valor_pago, conta_contabil_id")
                         .eq("company_id", cId).eq("status", "pago")
                         .is("deleted_at", null)
-                        .gte("data_pagamento", ms).lte("data_pagamento", me),
+                        .gte("data_pagamento", ms).lte("data_pagamento", me)
+                        .limit(5000),
                     db.from("contas_pagar")
                         .select("valor_pago, conta_contabil_id")
                         .eq("company_id", cId).eq("status", "pago")
                         .is("deleted_at", null)
-                        .gte("data_pagamento", ms).lte("data_pagamento", me),
+                        .gte("data_pagamento", ms).lte("data_pagamento", me)
+                        .limit(5000),
                 ]);
 
                 const receita = (rec || [])

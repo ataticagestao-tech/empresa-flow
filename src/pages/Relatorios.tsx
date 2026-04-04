@@ -190,7 +190,8 @@ export default function Relatorios() {
                 .gte("data", dateRange.start)
                 .lte("data", dateRange.end)
                 .order("data", { ascending: true })
-                .order("created_at", { ascending: true });
+                .order("created_at", { ascending: true })
+                .limit(5000);
 
             if (error) throw error;
             return (data || []).map((t: any) => ({
@@ -393,7 +394,8 @@ export default function Relatorios() {
                 .gte("data_vencimento", dateRange.start)
                 .lte("data_vencimento", dateRange.end)
                 .order("data_vencimento", { ascending: true })
-                .order("created_at", { ascending: true });
+                .order("created_at", { ascending: true })
+                .limit(5000);
 
             let payableQuery = (activeClient as any)
                 .from("contas_pagar")
@@ -402,7 +404,8 @@ export default function Relatorios() {
                 .gte("data_vencimento", dateRange.start)
                 .lte("data_vencimento", dateRange.end)
                 .order("data_vencimento", { ascending: true })
-                .order("created_at", { ascending: true });
+                .order("created_at", { ascending: true })
+                .limit(5000);
 
             if (selectedSearch.kind === "client") {
                 receivableQuery = receivableQuery.ilike("pagador_nome", `%${selectedSearch.label}%`);
@@ -606,7 +609,8 @@ export default function Relatorios() {
                     .select("valor")
                     .eq("company_id", selectedCompany.id)
                     .lte("data_vencimento", todayIso)
-                    .in("status", ["aberto", "vencido"]),
+                    .in("status", ["aberto", "vencido"])
+                    .limit(5000),
             ]);
 
             if (bankAccountsRes.error) throw bankAccountsRes.error;

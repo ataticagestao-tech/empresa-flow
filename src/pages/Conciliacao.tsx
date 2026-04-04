@@ -143,7 +143,8 @@ export default function Conciliacao() {
                 .from("bank_transactions")
                 .select("id, amount, status, date")
                 .eq("bank_account_id", selectedAccountId)
-                .eq("status", "reconciled");
+                .eq("status", "reconciled")
+                .limit(5000);
             if (error) return [];
             return data || [];
         },

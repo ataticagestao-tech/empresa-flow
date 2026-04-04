@@ -176,7 +176,8 @@ export default function Movimentacoes() {
               .gte('data', dateStart)
               .lte('data', dateEnd)
               .order('data', { ascending: false })
-              .order('created_at', { ascending: false }),
+              .order('created_at', { ascending: false })
+              .limit(5000),
           'movimentacoes'
         ),
         safeQuery(

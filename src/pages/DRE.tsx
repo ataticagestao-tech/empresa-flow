@@ -92,7 +92,8 @@ export default function DRE() {
       .eq("company_id", selectedCompany.id)
       .neq("origem", "transferencia")
       .gte("data", `${mesInicio}-01`)
-      .lte("data", `${mesFim}-31`);
+      .lte("data", `${mesFim}-31`)
+      .limit(5000);
 
     const { data: contas } = await db
       .from("chart_of_accounts")

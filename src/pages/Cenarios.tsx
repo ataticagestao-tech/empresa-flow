@@ -46,7 +46,8 @@ export default function Cenarios() {
                 .select("valor")
                 .eq("company_id", selectedCompany?.id)
                 .gte("data_vencimento", format(monthStart, "yyyy-MM-dd"))
-                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"));
+                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"))
+                .limit(5000);
             return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
         },
         enabled: !!selectedCompany?.id,
@@ -60,7 +61,8 @@ export default function Cenarios() {
                 .select("valor")
                 .eq("company_id", selectedCompany?.id)
                 .gte("data_vencimento", format(monthStart, "yyyy-MM-dd"))
-                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"));
+                .lte("data_vencimento", format(monthEnd, "yyyy-MM-dd"))
+                .limit(5000);
             return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
         },
         enabled: !!selectedCompany?.id,

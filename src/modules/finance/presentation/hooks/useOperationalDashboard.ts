@@ -60,7 +60,8 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
             const { data, error } = await db
                 .from('contas_receber')
                 .select('valor, data_vencimento, status')
-                .eq('company_id', selectedCompany.id);
+                .eq('company_id', selectedCompany.id)
+                .limit(5000);
             if (error) throw error;
             const today = startOfDay(new Date());
             const total = data.length;
@@ -86,7 +87,8 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
                 .select('valor, pagador_nome')
                 .eq('company_id', selectedCompany.id)
                 .gte('data_vencimento', rangeStart.toISOString())
-                .lte('data_vencimento', rangeEnd.toISOString());
+                .lte('data_vencimento', rangeEnd.toISOString())
+                .limit(5000);
             if (error) throw error;
 
             const byClient: Record<string, number> = {};
@@ -114,7 +116,8 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
                 .eq('company_id', selectedCompany.id)
                 .eq('tipo', 'debito')
                 .gte('data', rangeStart.toISOString())
-                .lte('data', rangeEnd.toISOString());
+                .lte('data', rangeEnd.toISOString())
+                .limit(5000);
             if (error) throw error;
 
             const byCat: Record<string, number> = {};

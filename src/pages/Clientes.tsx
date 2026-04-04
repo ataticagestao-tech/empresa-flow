@@ -176,7 +176,8 @@ export default function Clientes() {
             const { data, error } = await activeClient
                 .from("contas_receber")
                 .select("id, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes, forma_recebimento")
-                .eq("company_id", selectedCompany.id);
+                .eq("company_id", selectedCompany.id)
+                .limit(5000);
             if (error) throw error;
             return data || [];
         },
@@ -190,7 +191,8 @@ export default function Clientes() {
             const { data, error } = await activeClient
                 .from("contas_pagar")
                 .select("id, credor_nome, credor_cpf_cnpj, valor, valor_pago, data_vencimento, status")
-                .eq("company_id", selectedCompany.id);
+                .eq("company_id", selectedCompany.id)
+                .limit(5000);
             if (error) throw error;
             return data || [];
         },

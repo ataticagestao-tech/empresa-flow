@@ -45,7 +45,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 .from('contas_receber')
                 .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
-                .eq('status', 'aberto');
+                .eq('status', 'aberto')
+                .limit(5000);
 
             if (error) throw error;
 
@@ -77,7 +78,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 .from('contas_pagar')
                 .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
-                .eq('status', 'aberto');
+                .eq('status', 'aberto')
+                .limit(5000);
 
             if (error) throw error;
 
@@ -111,7 +113,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
                 .gte('data_vencimento', rangeStart.toISOString())
-                .lte('data_vencimento', rangeEnd.toISOString());
+                .lte('data_vencimento', rangeEnd.toISOString())
+                .limit(5000);
             const receivables = (receivablesRaw || []).map((r: any) => ({ amount: Number(r.valor || 0), due_date: r.data_vencimento }));
 
             const { data: payablesRaw } = await db
@@ -119,7 +122,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 .select('valor, data_vencimento')
                 .eq('company_id', selectedCompany.id)
                 .gte('data_vencimento', rangeStart.toISOString())
-                .lte('data_vencimento', rangeEnd.toISOString());
+                .lte('data_vencimento', rangeEnd.toISOString())
+                .limit(5000);
             const payables = (payablesRaw || []).map((p: any) => ({ amount: Number(p.valor || 0), due_date: p.data_vencimento }));
 
             const { data: bankData } = await db
@@ -175,7 +179,8 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
                 `)
                 .eq('company_id', selectedCompany.id)
                 .gte('data', rangeStart.toISOString())
-                .lte('data', rangeEnd.toISOString());
+                .lte('data', rangeEnd.toISOString())
+                .limit(5000);
 
             if (error) throw error;
 
