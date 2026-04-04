@@ -234,7 +234,7 @@ export default function ContasPagar() {
     const db = activeClient as any
 
     const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
-      db.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido']).order('data_vencimento', { ascending: true }),
+      db.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
       db.from('bank_accounts').select('id, company_id, name, banco').eq('company_id', selectedCompany.id),
       db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
       db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),

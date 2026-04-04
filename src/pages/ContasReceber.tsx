@@ -146,13 +146,24 @@ export default function ContasReceber() {
   async function fetchItems() {
     if (!companyId) return
     setLoading(true)
-    const { data } = await db
-      .from('contas_receber')
-      .select('*')
-      .eq('company_id', companyId)
-      .is('deleted_at', null)
-      .order('data_vencimento', { ascending: true })
-    setItems((data as CR[]) || [])
+    // Paginar para trazer todos (Supabase limita 1000/request)
+    const pageSize = 1000
+    let allData: any[] = []
+    let page = 0
+    while (true) {
+      const { data } = await db
+        .from('contas_receber')
+        .select('*')
+        .eq('company_id', companyId)
+        .is('deleted_at', null)
+        .order('data_vencimento', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+      if (!data || data.length === 0) break
+      allData = allData.concat(data)
+      if (data.length < pageSize) break
+      page++
+    }
+    setItems((allData as CR[]) || [])
     setLoading(false)
   }
 
