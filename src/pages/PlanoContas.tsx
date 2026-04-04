@@ -28,6 +28,8 @@ const DRE_GROUPS = [
   { value: "deducoes", label: "Deduções" },
   { value: "custos", label: "Custos" },
   { value: "despesas_operacionais", label: "Despesas Operacionais" },
+  { value: "depreciacoes_amortizacoes", label: "Depreciações e Amortizações" },
+  { value: "resultado_financeiro", label: "Resultado Financeiro" },
   { value: "outras_despesas", label: "Outras Despesas" },
 ];
 
