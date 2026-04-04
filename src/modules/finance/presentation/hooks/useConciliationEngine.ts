@@ -176,113 +176,36 @@ function runMatchingEngine(
         return { diff, pct, extratoMenor: diff < -0.01, exato: Math.abs(diff) < 0.01 };
     };
 
-    // ===== CAMADA 1: Valor exato + data exata (95%) — PIX, transferência =====
+    // ===== LOOP ÚNICO: avaliar todas as camadas por candidato =====
+    const btTime = new Date(bt.date).getTime();
+    let bestScore = 0;
+    let bestResult: MatchSuggestion | null = null;
+
     for (const st of candidates) {
-        const { exato } = calcDiff(Number(st.amount));
-        if (exato && st.date === bt.date) {
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 95,
-                method: "exact_amount_date",
-                label: `${st.entity_name} - ${st.description}`,
-            };
+        const stAmount = Number(st.amount);
+        const { exato, pct, extratoMenor } = calcDiff(stAmount);
+        const diffDays = Math.abs(new Date(st.date).getTime() - btTime) / 86400000;
+
+        let score = 0;
+        let method = "";
+        let label = `${st.entity_name} - ${st.description}`;
+
+        if (exato && diffDays === 0) { score = 95; method = "exact_amount_date"; }
+        else if (exato && diffDays <= 3) { score = 90; method = "exact_amount"; }
+        else if (extratoMenor && pct <= 0.07 && diffDays <= 1) { score = 85; method = "taxa_maquininha"; label += ` (taxa ~${(pct*100).toFixed(1)}%)`; }
+        else if (extratoMenor && pct <= 0.07 && diffDays <= 3) { score = 80; method = "taxa_maquininha"; label += ` (taxa ~${(pct*100).toFixed(1)}%)`; }
+        else if (extratoMenor && pct <= 0.07 && diffDays <= 35) { score = 70; method = "taxa_maquininha"; label += ` (taxa ~${(pct*100).toFixed(1)}%, D+${Math.round(diffDays)})`; }
+        else if (exato && diffDays <= 35) { score = 60; method = "exact_amount"; label += ` (D+${Math.round(diffDays)})`; }
+        else if (extratoMenor && pct <= 0.07 && diffDays <= 60) { score = 50; method = "taxa_maquininha"; label += ` (taxa ~${(pct*100).toFixed(1)}%, D+${Math.round(diffDays)})`; }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestResult = { ...base, systemTransaction: st, score, method, label };
+            if (score >= 95) return bestResult; // early exit for perfect match
         }
     }
 
-    // ===== CAMADA 2: Valor exato + data ±3 dias (90%) =====
-    for (const st of candidates) {
-        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { exato } = calcDiff(Number(st.amount));
-        if (exato && diffDays <= 3) {
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 90,
-                method: "exact_amount",
-                label: `${st.entity_name} - ${st.description}`,
-            };
-        }
-    }
-
-    // ===== CAMADA 3: Taxa maquininha (até 7%) + data ±1 dia — repasse D+1 (85%) =====
-    for (const st of candidates) {
-        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && diffDays <= 1) {
-            const taxaPct = (pct * 100).toFixed(1);
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 85,
-                method: "taxa_maquininha",
-                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%)`,
-            };
-        }
-    }
-
-    // ===== CAMADA 4: Taxa maquininha (até 7%) + data ±3 dias (80%) =====
-    for (const st of candidates) {
-        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && diffDays <= 3) {
-            const taxaPct = (pct * 100).toFixed(1);
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 80,
-                method: "taxa_maquininha",
-                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%)`,
-            };
-        }
-    }
-
-    // ===== CAMADA 5: Taxa maquininha (até 7%) + data ±35 dias — repasse D+30 crédito (70%) =====
-    for (const st of candidates) {
-        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && diffDays <= 35) {
-            const taxaPct = (pct * 100).toFixed(1);
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 70,
-                method: "taxa_maquininha",
-                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%, D+${Math.round(diffDays)})`,
-            };
-        }
-    }
-
-    // ===== CAMADA 6: Valor exato + data ±35 dias (60%) — parcelas =====
-    for (const st of candidates) {
-        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { exato } = calcDiff(Number(st.amount));
-        if (exato && diffDays <= 35) {
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 60,
-                method: "exact_amount",
-                label: `${st.entity_name} - ${st.description} (D+${Math.round(diffDays)})`,
-            };
-        }
-    }
-
-    // ===== CAMADA 7: Taxa maquininha (até 7%) + data ±60 dias — antecipação (50%) =====
-    for (const st of candidates) {
-        const diffDays = Math.abs(new Date(st.date).getTime() - new Date(bt.date).getTime()) / 86400000;
-        const { pct, extratoMenor } = calcDiff(Number(st.amount));
-        if (extratoMenor && pct <= 0.07 && diffDays <= 60) {
-            const taxaPct = (pct * 100).toFixed(1);
-            return {
-                ...base,
-                systemTransaction: st,
-                score: 50,
-                method: "taxa_maquininha",
-                label: `${st.entity_name} - ${st.description} (taxa ~${taxaPct}%, D+${Math.round(diffDays)})`,
-            };
-        }
-    }
+    if (bestResult) return bestResult;
 
     // ===== SEM MATCH =====
     return base;

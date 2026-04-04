@@ -43,10 +43,11 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             if (!bankAccountId) return [];
             const { data, error } = await (activeClient as any)
                 .from('bank_transactions')
-                .select('*')
+                .select('id, bank_account_id, company_id, date, amount, description, memo, fit_id, status, reconciled_payable_id, reconciled_receivable_id, created_at, updated_at, source, unidade_destino_id')
                 .eq('bank_account_id', bankAccountId)
                 .eq('status', 'pending')
-                .order('date', { ascending: false });
+                .order('date', { ascending: false })
+                .limit(500);
 
             if (error) throw error;
             return data as BankTransaction[];
@@ -76,44 +77,38 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         queryFn: async () => {
             if (!companyId) return [];
 
-            // Buscar Contas a Pagar Pendentes
-            const { data: payables, error: payError } = await (activeClient as any)
-                .from('contas_pagar')
-                .select('id, credor_nome, valor, data_vencimento, status')
-                .eq('company_id', companyId)
-                .eq('status', 'aberto');
+            // Buscar Contas a Pagar e Receber em paralelo (só pendentes, com limite)
+            const [payResult, recResult, reconciledResult] = await Promise.all([
+                (activeClient as any)
+                    .from('contas_pagar')
+                    .select('id, credor_nome, valor, data_vencimento, status')
+                    .eq('company_id', companyId)
+                    .eq('status', 'aberto')
+                    .limit(1000),
+                (activeClient as any)
+                    .from('contas_receber')
+                    .select('id, pagador_nome, valor, data_vencimento, status')
+                    .eq('company_id', companyId)
+                    .in('status', ['aberto', 'parcial', 'vencido'])
+                    .limit(1000),
+                (activeClient as any)
+                    .from('bank_transactions')
+                    .select('reconciled_receivable_id')
+                    .eq('company_id', companyId)
+                    .eq('status', 'reconciled')
+                    .not('reconciled_receivable_id', 'is', null)
+                    .limit(2000),
+            ]);
 
-            if (payError) throw payError;
+            if (payResult.error) throw payResult.error;
+            if (recResult.error) throw recResult.error;
 
-            // Buscar Contas a Receber pendentes (excluindo já pagas e canceladas)
-            const { data: receivables, error: recError } = await (activeClient as any)
-                .from('contas_receber')
-                .select('id, pagador_nome, valor, valor_pago, data_vencimento, status, venda_id, forma_recebimento')
-                .eq('company_id', companyId)
-                .in('status', ['aberto', 'parcial', 'vencido']);
-
-            if (recError) {
-                console.error('[systemTransactions] Erro ao buscar contas_receber:', recError);
-                throw recError;
-            }
-            console.log('[systemTransactions] contas_receber encontradas:', receivables?.length || 0);
-
-            // Buscar CRs já conciliados no banco para excluí-los
-            const { data: reconciledCRs, error: reconciledErr } = await (activeClient as any)
-                .from('bank_transactions')
-                .select('reconciled_receivable_id')
-                .eq('company_id', companyId)
-                .eq('status', 'reconciled')
-                .not('reconciled_receivable_id', 'is', null);
-
-            if (reconciledErr) {
-                console.error('[systemTransactions] Erro ao buscar reconciliados:', reconciledErr);
-            }
+            const payables = payResult.data;
+            const receivables = recResult.data;
 
             const reconciledCRIds = new Set(
-                (reconciledCRs || []).map((r: any) => r.reconciled_receivable_id)
+                (reconciledResult.data || []).map((r: any) => r.reconciled_receivable_id)
             );
-            console.log('[systemTransactions] CRs já conciliados:', reconciledCRIds.size);
 
             // Normalizar
             const normalized: SystemTransaction[] = [];
@@ -354,21 +349,17 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         },
         onSuccess: () => {
             toast({ title: "Conciliado!", description: "Lançamento baixado com sucesso." });
+            // Invalidar apenas queries essenciais da conciliação
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['system_pending_transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['bank_reconciliation_matches'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
             queryClient.invalidateQueries({ queryKey: ['import_history'] });
-            // Invalidar todas as queries do dashboard para refletir a conciliação
-            queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_receivables'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_payables'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_revenue_by_service'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_revenue_by_payment'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard_dre_detailed'] });
-            queryClient.invalidateQueries({ queryKey: ['historical_categorized_tx'] });
+            // Dashboard: invalidar com delay para não travar a UI
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
+            }, 2000);
         },
         onError: (err: any) => toast({ title: "Erro na conciliação", description: err.message, variant: "destructive" })
     });
@@ -380,12 +371,13 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         queryFn: async () => {
             if (!bankAccountId) return [];
 
-            // Buscar todas as transações para calcular períodos (só colunas que existem)
+            // Buscar transações recentes para calcular períodos (limitado)
             const { data: allTx, error: txError } = await (activeClient as any)
                 .from('bank_transactions')
                 .select('id, date, created_at, fit_id')
                 .eq('bank_account_id', bankAccountId)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(2000);
 
             if (txError) throw txError;
             if (!allTx?.length) return [];
