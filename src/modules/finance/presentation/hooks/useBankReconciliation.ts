@@ -85,12 +85,12 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (payError) throw payError;
 
-            // Buscar TODAS as Contas a Receber (qualquer status exceto cancelado)
+            // Buscar Contas a Receber pendentes (excluindo já pagas e canceladas)
             const { data: receivables, error: recError } = await (activeClient as any)
                 .from('contas_receber')
                 .select('id, pagador_nome, valor, valor_pago, data_vencimento, status, venda_id, forma_recebimento')
                 .eq('company_id', companyId)
-                .in('status', ['aberto', 'pago', 'parcial', 'vencido']);
+                .in('status', ['aberto', 'parcial', 'vencido']);
 
             if (recError) {
                 console.error('[systemTransactions] Erro ao buscar contas_receber:', recError);
