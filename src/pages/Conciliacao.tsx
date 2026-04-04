@@ -532,11 +532,26 @@ export default function Conciliacao() {
                     continue;
                 }
 
-                if (suggestion.systemTransaction) {
-                    // Caso 1: Já tem lançamento do sistema → conciliar direto
+                let useSysTx = suggestion.systemTransaction;
+
+                // Verificar se a conta do sistema já foi quitada/cancelada
+                if (useSysTx) {
+                    const checkTable = useSysTx.type === 'payable' ? 'contas_pagar' : 'contas_receber';
+                    const { data: check } = await (activeClient as any)
+                        .from(checkTable)
+                        .select('status')
+                        .eq('id', useSysTx.id)
+                        .single();
+                    if (check && (check.status === 'pago' || check.status === 'quitado' || check.status === 'cancelado')) {
+                        useSysTx = null; // Pular para criar novo lançamento
+                    }
+                }
+
+                if (useSysTx) {
+                    // Caso 1: Lançamento do sistema com status válido → conciliar direto
                     await matchTransaction.mutateAsync({
                         bankTx: bt,
-                        sysTx: suggestion.systemTransaction,
+                        sysTx: useSysTx,
                     });
                 } else {
                     // Caso 2: Sugestão IA (categoria) → criar lançamento + conciliar
