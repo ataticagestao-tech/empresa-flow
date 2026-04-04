@@ -5,83 +5,173 @@ import { useToast } from "@/components/ui/use-toast";
 
 /**
  * Regras padrão de matching por palavras-chave.
- * Mapeiam descrições bancárias → contas do plano de contas.
+ * Baseadas no plano de contas v2 (grupos 1-8 + 0).
  * Keywords são testadas com lógica OR (qualquer uma basta).
  */
 export const DEFAULT_KEYWORD_RULES: {
     accountCode: string;
     accountName: string;
     keywords: string[];
-    confidence: number; // 50-100
+    confidence: number;
     action: "auto" | "suggest";
 }[] = [
-    // ===== RECEITAS =====
-    { accountCode: "1.1.01", accountName: "Consultas Médicas", keywords: ["CONSULTA", "ATENDIMENTO", "AVALIACAO"], confidence: 95, action: "suggest" },
-    { accountCode: "1.1.02", accountName: "Transplante Capilar — Sinal", keywords: ["SINAL", "ENTRADA TRANSPLANTE", "RESERVA CIRURGIA"], confidence: 95, action: "suggest" },
-    { accountCode: "1.1.03", accountName: "Transplante Capilar — Parcela/Restante", keywords: ["RESTANTE TRANSPLANTE", "PARCELA TRANSPLANTE", "CIRURGIA"], confidence: 95, action: "suggest" },
-    { accountCode: "1.1.04", accountName: "Protocolo MMP — Pacote 3 Sessões", keywords: ["PROTOCOLO MMP", "PACOTE SESSAO", "MMP 3 SESSOES"], confidence: 95, action: "suggest" },
-    { accountCode: "1.1.05", accountName: "Protocolo MMP — Sessão Avulsa", keywords: ["MMP AVULSO", "SESSAO AVULSA", "MMP INDIVIDUAL"], confidence: 95, action: "suggest" },
-    { accountCode: "1.2.01", accountName: "Minoxidil e Derivados", keywords: ["MINOXIDIL", "MINOX", "PANT MINOXIDIL"], confidence: 95, action: "suggest" },
-    { accountCode: "1.2.02", accountName: "Dutasterida / Finasterida", keywords: ["DUTASTERIDA", "FINASTERIDA", "DUTAS"], confidence: 95, action: "suggest" },
-    { accountCode: "1.2.03", accountName: "Suplementos Vitamínicos", keywords: ["SUPLEMENTO", "VITAMINA", "CAPSULA", "TRIO VITAMINA"], confidence: 95, action: "suggest" },
-    { accountCode: "1.2.04", accountName: "Shampoos e Cosméticos", keywords: ["SHAMPOO", "CLEAR", "COSMETICO", "HIGIENE CAPILAR"], confidence: 95, action: "suggest" },
-    { accountCode: "1.2.05", accountName: "Kits de Produtos / Pós-operatório", keywords: ["KIT PRODUTOS", "KIT POS OPERATORIO", "KIT TRATAMENTO"], confidence: 95, action: "suggest" },
-    { accountCode: "1.3.01", accountName: "Crédito de Maquininha / Stone", keywords: ["CRED DOM", "STONE", "ARRANJO CREDITO", "MAQUININHA"], confidence: 95, action: "auto" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 1 — Receita operacional bruta
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "1.1", accountName: "Receita de serviços prestados", keywords: [
+        "RECEBIMENTO SERVICO", "PRESTACAO SERVICO", "NOTA FISCAL SERVICO",
+    ], confidence: 70, action: "suggest" },
+    { accountCode: "1.2", accountName: "Receita de venda de produtos", keywords: [
+        "VENDA PRODUTO", "VENDA MERCADORIA", "RECEBIMENTO VENDA",
+    ], confidence: 70, action: "suggest" },
+    { accountCode: "1.3", accountName: "Outras receitas operacionais", keywords: [
+        "CRED DOM", "CREDITO DOMICILIO", "STONE", "CIELO", "REDE", "GETNET", "PAGSEGURO",
+        "ARRANJO CREDITO", "MAQUININHA", "DOMCRED", "DOMCREDITO",
+        "RECEBIMENTO VENDAS", "CRED PIX", "CREDITO RECEBIMENTO",
+        "RECEBIMENTO PIX", "CREDITO PIX",
+    ], confidence: 95, action: "auto" },
 
-    // ===== DEDUÇÕES =====
-    { accountCode: "2.1.01", accountName: "DARF / IR Trimestral", keywords: ["DARF", "IMPOSTO TRIMESTRAL", "IR TRIMESTRAL"], confidence: 95, action: "auto" },
-    { accountCode: "2.1.02", accountName: "DAM / ISS Municipal", keywords: ["DAM", "ISS", "TAXA MUNICIPAL"], confidence: 95, action: "auto" },
-    { accountCode: "2.1.03", accountName: "PIS", keywords: ["PIS", "PIS PASEP"], confidence: 95, action: "auto" },
-    { accountCode: "2.1.04", accountName: "IPTU", keywords: ["IPTU", "IMPOSTO PREDIAL"], confidence: 95, action: "auto" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 2 — Deduções da receita bruta
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "2.1", accountName: "Impostos e contribuições s/ vendas", keywords: [
+        "DARF", "DAS", "SIMPLES NACIONAL", "DOCUMENTO ARRECADACAO",
+        "DAM", "ISS", "ICMS", "PIS", "COFINS", "CSLL", "IRPJ",
+        "GPS", "PREVIDENCIA", "INSS",
+        "IMPOSTO", "TRIBUTO", "ARRECADACAO FEDERAL",
+        "TAXA MUNICIPAL", "TAXA ESTADUAL",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "2.2", accountName: "Taxas de operadora / maquininha", keywords: [
+        "TAXA MAQUININHA", "MDR", "ANTECIPACAO RECEBIVEL",
+        "TAXA STONE", "TAXA CIELO", "TAXA REDE", "TAXA GETNET",
+        "TARIFA OPERADORA", "DESCONTO MAQUININHA",
+        "MERCADO PAGO", "TAXA MERCADO PAGO",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "2.3", accountName: "Royalties e licença de software", keywords: [
+        "ROYALTIES", "ROYALTY", "LICENCA SOFTWARE", "FRANQUIA ROYALTY",
+    ], confidence: 70, action: "suggest" },
 
-    // ===== CSP =====
-    { accountCode: "3.1.02", accountName: "Equipe Cirúrgica", keywords: ["EQUIPE CIRURGICA", "TECNICO CIRURGIA", "AUXILIAR CIRURGICO"], confidence: 95, action: "suggest" },
-    { accountCode: "3.1.04", accountName: "Comissões Comerciais", keywords: ["COMISSAO", "COMISSAO COMERCIAL", "COMISSAO VENDA"], confidence: 95, action: "suggest" },
-    { accountCode: "3.1.05", accountName: "Frete / SEDEX", keywords: ["SEDEX", "CORREIOS", "FRETE", "ENTREGA"], confidence: 95, action: "auto" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 3 — Custos dos serviços prestados (CSP)
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "3.1", accountName: "Aluguel, condomínio, FPP", keywords: [
+        "ALUGUEL", "CONDOMINIO", "LOCACAO", "FPP", "FUNDO PROMOCAO",
+        "LUVA", "PONTO COMERCIAL",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "3.2", accountName: "Pessoal — salários e encargos (CLT)", keywords: [
+        "SALARIO", "FOLHA PAGAMENTO", "FOLHA SALARIAL",
+        "13 SALARIO", "DECIMO TERCEIRO", "FERIAS",
+        "FGTS", "RESCISAO", "VERBAS RESCISORIAS",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "3.3", accountName: "Pessoal — estagiários", keywords: [
+        "ESTAGIARIO", "BOLSA ESTAGIO", "CIEE", "IEL", "NUBE",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "3.4", accountName: "Vale transporte", keywords: [
+        "VALE TRANSPORTE", "VT ", "TRANSPORTE FUNCIONARIO", "BILHETE UNICO",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "3.5", accountName: "Vale refeição / alimentação", keywords: [
+        "VALE REFEICAO", "VALE ALIMENTACAO", "VR ", "VA ", "ALELO", "SODEXO", "TICKET",
+        "IFOOD BENEFICIO", "FLASH BENEFICIO", "CAJU BENEFICIO",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "3.6", accountName: "Licença de uso — software", keywords: [
+        "OMIE", "TOTVS", "SAP", "SENIOR", "DOMINIO", "ALTERDATA",
+        "SAAS", "ASSINATURA SISTEMA", "LICENCA SOFTWARE",
+        "RD STATION", "HUBSPOT", "SALESFORCE",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "3.7", accountName: "Manutenções, peças e outros", keywords: [
+        "MANUTENCAO", "REPARO", "CONSERTO", "PECA", "MATERIAL MANUTENCAO",
+        "ELETRICISTA", "ENCANADOR", "PINTOR",
+    ], confidence: 70, action: "suggest" },
+    { accountCode: "3.8", accountName: "Pró-labore + INSS", keywords: [
+        "PRO LABORE", "PROLABORE", "PRO-LABORE", "RETIRADA SOCIO",
+        "DISTRIBUICAO LUCRO", "ANTECIPACAO LUCRO",
+    ], confidence: 95, action: "auto" },
 
-    // ===== DESPESAS COM PESSOAL =====
-    { accountCode: "4.1.01", accountName: "Salários e Ordenados", keywords: ["SALARIO", "FOLHA", "PAGAMENTO FUNCIONARIO"], confidence: 95, action: "auto" },
-    { accountCode: "4.1.02", accountName: "Adiantamento Salarial", keywords: ["ADIANTAMENTO", "ADIANT"], confidence: 70, action: "suggest" },
-    { accountCode: "4.1.03", accountName: "Rescisão / Verbas Rescisórias", keywords: ["RESCISAO", "VERBAS RESCISORIAS", "ACERTO FINAL"], confidence: 70, action: "suggest" },
-    { accountCode: "4.1.04", accountName: "INSS Patronal", keywords: ["INSS", "GPS", "PREVIDENCIA SOCIAL", "INSS PATRONAL"], confidence: 95, action: "auto" },
-    { accountCode: "4.1.05", accountName: "Vale Transporte", keywords: ["VALE TRANSPORTE", "VT", "TRANSPORTE FUNCIONARIO"], confidence: 95, action: "auto" },
-    { accountCode: "4.1.06", accountName: "Plano de Saúde", keywords: ["PLANO SAUDE", "ASSISTENCIA MEDICA", "UNIMED", "AMIL"], confidence: 95, action: "auto" },
-    { accountCode: "4.1.07", accountName: "Honorários — Contabilidade", keywords: ["CONTABILIDADE", "CONTADOR", "REAL CONTABILIDADE"], confidence: 95, action: "auto" },
-    { accountCode: "4.1.08", accountName: "Honorários — Consultoria/BPO", keywords: ["TATICA GESTAO", "BPO FINANCEIRO", "TATICA EMPRESARIAL"], confidence: 95, action: "auto" },
-    { accountCode: "4.1.09", accountName: "Honorários — Outros", keywords: ["HONORARIOS", "RAPHAELA", "SPADONE", "PROFISSIONAL AUTONOMO"], confidence: 95, action: "auto" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 4 — Despesas operacionais
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "4.1", accountName: "Despesas com materiais", keywords: [
+        "MATERIAL", "PAPELARIA", "MATERIAL ESCRITORIO", "MATERIAL LIMPEZA",
+        "EMBALAGEM", "SACOLA", "DESCARTAVEL",
+    ], confidence: 70, action: "suggest" },
+    { accountCode: "4.2", accountName: "Contador e outros serviços adm.", keywords: [
+        "CONTABILIDADE", "CONTADOR", "ASSESSORIA CONTABIL",
+        "ESCRITORIO CONTABIL", "HONORARIOS CONTABEIS",
+        "ADVOCACIA", "ADVOGADO", "HONORARIOS ADVOCATICIOS",
+        "CONSULTORIA", "BPO FINANCEIRO",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "4.3", accountName: "Marketing e publicidade", keywords: [
+        "MARKETING", "PUBLICIDADE", "GOOGLE ADS", "META ADS", "FACEBOOK ADS",
+        "INSTAGRAM", "TIKTOK ADS", "AGENCIA MARKETING",
+        "OUTDOOR", "PANFLETO", "BANNER",
+    ], confidence: 70, action: "suggest" },
+    { accountCode: "4.4", accountName: "Outras despesas operacionais", keywords: [
+        "ENERGIA", "CEMIG", "COPEL", "ENEL", "LUZ", "ELETRICIDADE",
+        "AGUA", "SANEAMENTO", "COPASA", "SABESP",
+        "TELEFONE", "VIVO", "CLARO", "TIM", "OI", "ALARES", "INTERNET",
+        "CORREIOS", "SEDEX", "FRETE",
+        "SEGURO", "SEGURADORA", "PORTO SEGURO", "BRADESCO SEGUROS",
+        "IPTU", "ALVARA", "LICENCA FUNCIONAMENTO",
+    ], confidence: 85, action: "auto" },
 
-    // ===== DESPESAS ADMINISTRATIVAS =====
-    { accountCode: "4.2.01", accountName: "Aluguel e Condomínio", keywords: ["ALUGUEL", "CONDOMINIO", "LOCACAO"], confidence: 95, action: "auto" },
-    { accountCode: "4.2.02", accountName: "Energia Elétrica", keywords: ["ENERGIA", "CEMIG", "COPEL", "LUZ", "METADE ENERGIA"], confidence: 95, action: "auto" },
-    { accountCode: "4.2.03", accountName: "Telefone e Internet — Empresa", keywords: ["VIVO CLINICA", "CLARO EMPRESA", "ALARES", "INTERNET EMPRESA"], confidence: 95, action: "auto" },
-    { accountCode: "4.2.04", accountName: "Telefone — Uso Pessoal", keywords: ["VIVO PESSOAL", "CELULAR PESSOAL"], confidence: 95, action: "auto" },
-    { accountCode: "4.2.05", accountName: "Softwares e Assinaturas SaaS", keywords: ["RD STATION", "RD SISTEMAS", "OMIE", "SAAS", "ASSINATURA SISTEMA"], confidence: 95, action: "auto" },
-    { accountCode: "4.2.06", accountName: "Marketing e Publicidade", keywords: ["MARKETING", "PUBLICIDADE", "GOOGLE ADS", "META ADS"], confidence: 70, action: "suggest" },
-    { accountCode: "4.2.07", accountName: "Material de Escritório", keywords: ["PAPELARIA", "MATERIAL ESCRITORIO", "PASTA", "GRAFICA", "REGUA"], confidence: 70, action: "suggest" },
-    { accountCode: "4.2.08", accountName: "Material de Limpeza", keywords: ["LIMPEZA", "HIGIENE", "PRODUTOS LIMPEZA", "NOEL", "MART MINAS"], confidence: 70, action: "suggest" },
-    { accountCode: "4.2.09", accountName: "Uniformes e EPIs", keywords: ["UNIFORME", "BORDADO", "EPI", "FARDAMENTO"], confidence: 70, action: "suggest" },
-    { accountCode: "4.2.10", accountName: "Resíduos e Descarte", keywords: ["PRO AMBIENTAL", "RESIDUO", "DESCARTE", "LIXO HOSPITALAR"], confidence: 95, action: "auto" },
-    { accountCode: "4.2.11", accountName: "Reembolsos a Funcionários", keywords: ["REEMBOLSO", "REEMBOLSO BRUNA", "DESPESA REEMBOLSAVEL"], confidence: 70, action: "suggest" },
-    { accountCode: "4.2.12", accountName: "Hospital / Procedimentos Externos", keywords: ["HOSPITAL UNIMED", "PROCEDIMENTO EXTERNO", "HOSPITAL PARCEIRO"], confidence: 70, action: "suggest" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 6 — Resultado financeiro
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "6.1", accountName: "Juros recebidos / rendimentos", keywords: [
+        "RENDIMENTO", "JUROS RECEBIDOS", "REMUNERACAO SALDO", "CDB",
+        "APLICACAO RESGATADA", "RESGATE INVESTIMENTO",
+    ], confidence: 85, action: "auto" },
+    { accountCode: "6.2", accountName: "Juros pagos / encargos financeiros", keywords: [
+        "JUROS", "ENCARGO FINANCEIRO", "JURO EMPRESTIMO",
+        "JUROS MORA", "MULTA ATRASO",
+    ], confidence: 85, action: "auto" },
+    { accountCode: "6.3", accountName: "Tarifas bancárias", keywords: [
+        "TARIFA", "TARIFA BANCARIA", "TAXA BANCO", "MENSALIDADE CONTA",
+        "TARIFA DOC", "TARIFA TED", "TARIFA PIX", "PACOTE SERVICO",
+        "TARIFA MANUT", "ANUIDADE CARTAO",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "6.4", accountName: "IOF", keywords: [
+        "IOF", "IMPOSTO OPERACAO FINANCEIRA",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "6.5", accountName: "Multas e juros pagos", keywords: [
+        "MULTA", "MULTA CONTRATUAL", "MULTA RESCISORIA",
+    ], confidence: 70, action: "suggest" },
 
-    // ===== DESPESAS VARIÁVEIS =====
-    { accountCode: "4.3.01", accountName: "Manutenção e Reparos", keywords: ["MANUTENCAO", "REPARO", "ELETRICISTA", "OFICINA", "CONSERTO"], confidence: 70, action: "suggest" },
-    { accountCode: "4.3.02", accountName: "Equipamentos e Utensílios", keywords: ["EQUIPAMENTO", "MAQUINA", "SINO COMERCIAL", "UTENSILIO"], confidence: 70, action: "suggest" },
-    { accountCode: "4.3.03", accountName: "Higienização Especializada", keywords: ["HIGIENIZACAO SOFA", "LIMPEZA ESPECIALIZADA", "HIGIENIZACAO ESTOFADO"], confidence: 70, action: "suggest" },
-    { accountCode: "4.3.04", accountName: "Embalagens e Expedição", keywords: ["SACOLA", "FITA SACOLA", "EMBALAGEM", "CAIXA ENVIO"], confidence: 70, action: "suggest" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 7 — Atividades de investimento
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "7.1", accountName: "Aquisição de ativos fixos", keywords: [
+        "AQUISICAO IMOVEL", "COMPRA EQUIPAMENTO", "IMOBILIZADO",
+        "ATIVO FIXO", "INVESTIMENTO ATIVO",
+    ], confidence: 70, action: "suggest" },
 
-    // ===== DESPESAS FINANCEIRAS =====
-    { accountCode: "4.4.01", accountName: "Juros sobre Empréstimos", keywords: ["JUROS", "JURO EMPRESTIMO", "ENCARGO FINANCEIRO"], confidence: 95, action: "auto" },
-    { accountCode: "4.4.02", accountName: "Tarifas Bancárias", keywords: ["TARIFA BANCARIA", "TAXA BANCO", "MENSALIDADE CONTA"], confidence: 95, action: "auto" },
-    { accountCode: "4.4.03", accountName: "Parcela de Empréstimo", keywords: ["PARCELA EMPRESTIMO", "AMORTIZACAO", "PARCELAMENTO EMPRESTIMO"], confidence: 95, action: "auto" },
-    { accountCode: "4.4.05", accountName: "Taxas de Maquininha", keywords: ["MERCADO PAGO", "TAXA MAQUININHA", "MDR", "ANTECIPACAO RECEBIVEL"], confidence: 95, action: "auto" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 8 — Financiamentos e participações
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "8.1", accountName: "Empréstimos captados", keywords: [
+        "EMPRESTIMO CAPTADO", "CREDITO LIBERADO", "FINANCIAMENTO",
+        "EMPRESTIMO BANCO", "LIBERACAO CREDITO",
+    ], confidence: 70, action: "suggest" },
+    { accountCode: "8.2", accountName: "Amortização de empréstimos", keywords: [
+        "PARCELA EMPRESTIMO", "AMORTIZACAO", "PARCELAMENTO",
+        "PRESTACAO FINANCIAMENTO",
+    ], confidence: 95, action: "auto" },
 
-    // ===== RESULTADO =====
-    { accountCode: "5.1.01", accountName: "Antecipação de Lucros / Retirada", keywords: ["ANTECIPACAO LUCRO", "RETIRADA SOCIO", "PRO-LABORE", "DISTRIBUICAO"], confidence: 95, action: "suggest" },
+    // ══════════════════════════════════════════════════════════
+    // GRUPO 0 — Movimentações patrimoniais
+    // ══════════════════════════════════════════════════════════
+    { accountCode: "0.1", accountName: "Transferência entre contas", keywords: [
+        "TRANSFERENCIA ENTRE CONTAS", "TED MESMA TITULARIDADE",
+        "PIX MESMA TITULARIDADE", "TRANSF INTERNA",
+    ], confidence: 95, action: "auto" },
+    { accountCode: "0.2", accountName: "Aplicação / resgate investimento", keywords: [
+        "APLICACAO", "RESGATE", "CDB", "LCI", "LCA", "TESOURO DIRETO",
+        "POUPANCA", "INVESTIMENTO",
+    ], confidence: 85, action: "auto" },
 ];
 
 /**
- * Hook para popular regras padrão de conciliação a partir das keywords da clínica.
+ * Hook para popular regras padrão de conciliação.
  * Busca as contas do plano de contas pelo código e cria regras associadas.
  */
 export function useDefaultConciliationRules() {
@@ -94,7 +184,6 @@ export function useDefaultConciliationRules() {
         mutationFn: async () => {
             if (!selectedCompany?.id) throw new Error("Empresa não selecionada");
 
-            // 1. Buscar contas do plano de contas desta empresa
             const { data: accounts, error: accError } = await (activeClient as any)
                 .from("chart_of_accounts")
                 .select("id, code, name")
@@ -105,14 +194,12 @@ export function useDefaultConciliationRules() {
             const codeToId = new Map<string, string>();
             (accounts || []).forEach((a: any) => codeToId.set(a.code, a.id));
 
-            // 2. Verificar regras existentes para não duplicar (schema atual: palavras_chave)
             const { data: existingRules } = await (activeClient as any)
                 .from("conciliation_rules")
                 .select("palavras_chave")
                 .eq("company_id", selectedCompany.id)
                 .eq("ativa", true);
 
-            // Coletar todas as keywords já existentes
             const existingKeywords = new Set<string>();
             for (const r of (existingRules || []) as any[]) {
                 for (const kw of (r.palavras_chave || [])) {
@@ -120,11 +207,9 @@ export function useDefaultConciliationRules() {
                 }
             }
 
-            // 3. Criar regras (uma por conta, com array de keywords agrupado)
             const rulesToInsert: any[] = [];
 
             for (const rule of DEFAULT_KEYWORD_RULES) {
-                // Filtrar keywords que já existem
                 const newKeywords = rule.keywords.filter(kw => !existingKeywords.has(kw.toUpperCase()));
                 if (newKeywords.length === 0) continue;
 
@@ -142,36 +227,24 @@ export function useDefaultConciliationRules() {
                 return { inserted: 0, skipped: DEFAULT_KEYWORD_RULES.length };
             }
 
-            // Insert in batches of 50
             let inserted = 0;
             for (let i = 0; i < rulesToInsert.length; i += 50) {
                 const batch = rulesToInsert.slice(i, i + 50);
                 const { error } = await (activeClient as any)
                     .from("conciliation_rules")
                     .insert(batch);
-
-                if (error) {
-                    console.error("Batch insert error:", error);
-                    throw error;
-                }
+                if (error) throw error;
                 inserted += batch.length;
             }
 
             return { inserted, skipped: 0 };
         },
         onSuccess: (result) => {
-            toast({
-                title: "Regras aplicadas!",
-                description: `${result.inserted} regras de matching criadas com sucesso.`,
-            });
+            toast({ title: "Regras aplicadas!", description: `${result.inserted} regras criadas.` });
             queryClient.invalidateQueries({ queryKey: ["conciliation_rules"] });
         },
         onError: (err: any) => {
-            toast({
-                title: "Erro ao aplicar regras",
-                description: err.message,
-                variant: "destructive",
-            });
+            toast({ title: "Erro ao aplicar regras", description: err.message, variant: "destructive" });
         },
     });
 

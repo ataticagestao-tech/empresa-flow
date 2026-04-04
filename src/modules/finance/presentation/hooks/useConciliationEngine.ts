@@ -59,27 +59,36 @@ function normalizeText(text: string): string {
 }
 
 /** Extract beneficiary name from bank description.
- *  Patterns: "... / NOME DO BENEFICIARIO )" or "... / NOME DO BENEFICIARIO"
+ *  Patterns: "... / NOME" or "... - NOME" or "PIX ... NOME"
  */
 function extractBeneficiary(description: string): string | null {
-    // Try to find text after the last "/"
+    const normalized = normalizeText(description);
+
+    // Pattern 1: after last "/"
     const slashIdx = description.lastIndexOf("/");
-    if (slashIdx === -1) return null;
+    if (slashIdx !== -1) {
+        let name = description.substring(slashIdx + 1).replace(/\s*\)\s*$/, "").trim();
+        if (name.length >= 4 && !/^\d+$/.test(name)) return name;
+    }
 
-    let name = description.substring(slashIdx + 1)
-        .replace(/\s*\)\s*$/, "")  // remove trailing ")"
-        .trim();
+    // Pattern 2: PIX — extract name after CPF/CNPJ
+    const pixMatch = normalized.match(/PIX.*?(?:CP|CNPJ)\s*:?\s*\d[\d./-]*\s*[-]?\s*(.{4,})/);
+    if (pixMatch) return pixMatch[1].trim();
 
-    // Skip if too short or looks like a doc reference
-    if (name.length < 4) return null;
-    if (/^\d+$/.test(name)) return null;
+    // Pattern 3: after " - " separator (common in bank descriptions)
+    const dashIdx = description.lastIndexOf(" - ");
+    if (dashIdx !== -1 && dashIdx > 10) {
+        let name = description.substring(dashIdx + 3).trim();
+        if (name.length >= 4 && !/^\d+$/.test(name)) return name;
+    }
 
-    return name;
+    return null;
 }
 
 /** Extract meaningful keywords from bank description for matching */
 function extractKeywordsForRule(description: string): string[] {
     const keywords: string[] = [];
+    const normalized = normalizeText(description);
 
     // 1. Beneficiary name (most important)
     const beneficiary = extractBeneficiary(description);
@@ -87,19 +96,48 @@ function extractKeywordsForRule(description: string): string[] {
         keywords.push(normalizeText(beneficiary));
     }
 
-    // 2. Key identifier words from the description
-    const normalized = normalizeText(description);
-
-    // Known patterns to extract
+    // 2. Known bank identifiers and payment providers
     const identifiers = [
-        "STONE", "DOMCRED", "DOMDEB", "MARKETPLACE", "PRONTOVET",
-        "PROAMBIENTAL", "PRO AMBIENTAL", "UNIMED", "REAL CONTABILIDADE",
-        "TATICA GESTAO", "RD STATION", "OMIE",
+        "STONE", "CIELO", "REDE", "GETNET", "PAGSEGURO",
+        "DOMCRED", "DOMDEB", "DOMCREDITO",
+        "MARKETPLACE", "MERCADO PAGO", "PICPAY",
+        "UNIMED", "AMIL", "SULAMERICA",
+        "OMIE", "RD STATION", "TOTVS",
+        "CEMIG", "COPEL", "ENEL", "COPASA", "SABESP",
+        "VIVO", "CLARO", "TIM", "ALARES",
+        "CORREIOS", "SEDEX",
+        "DARF", "DAS", "DAM", "GPS", "FGTS",
     ];
 
     for (const id of identifiers) {
         if (normalized.includes(id) && !keywords.some(k => k.includes(id))) {
             keywords.push(id);
+        }
+    }
+
+    // 3. Extract payment type patterns
+    const typePatterns = [
+        "PIX ENVIADO", "PIX RECEBIDO", "TED", "DOC", "BOLETO",
+        "DEBITO AUTOMATICO", "PAGAMENTO TITULO",
+    ];
+    for (const tp of typePatterns) {
+        if (normalized.includes(tp) && !keywords.some(k => k === tp)) {
+            keywords.push(tp);
+        }
+    }
+
+    // 4. Extract company/person name (words with 4+ chars, excluding common banking terms)
+    const stopWords = new Set([
+        "PAGAMENTO", "RECEBIMENTO", "TRANSFERENCIA", "CREDITO", "DEBITO",
+        "ENVIADO", "RECEBIDO", "BANCO", "CONTA", "AGENCIA", "PARCELA",
+        "REFERENTE", "CONFORME", "DOCUMENTO", "VALOR", "TOTAL",
+        "LTDA", "EIRELI", "COMERCIO", "SERVICO", "INSTITUICAO",
+    ]);
+
+    if (keywords.length === 0) {
+        const words = normalized.split(/[\s,;|/()-]+/).filter(w => w.length >= 4 && !stopWords.has(w) && !/^\d+$/.test(w));
+        if (words.length >= 2) {
+            keywords.push(words.slice(0, 3).join(" "));
         }
     }
 
@@ -302,22 +340,32 @@ export function useConciliationEngine(
             if (!companyId) return;
 
             const description = bankTx.description || "";
-            const keywords = extractKeywordsForRule(description);
+            const memo = (bankTx as any).memo || "";
+            const fullText = `${description} ${memo}`;
+            const keywords = extractKeywordsForRule(fullText);
 
             // Não criar regra se não conseguimos extrair keywords
             if (keywords.length === 0) return;
 
-            // Normalizar keywords para comparação
             const normalizedKws = keywords.map(k => normalizeText(k));
 
-            // Verificar se já existe regra com keywords similares
+            // Verificar se já existe regra com keywords similares E mesma conta
             const existingRules = rules || [];
-            const alreadyExists = existingRules.some(r => {
+            const existingMatch = existingRules.find(r => {
                 const ruleKws = (r.palavras_chave || []).map(k => normalizeText(k));
                 return normalizedKws.some(nk => ruleKws.some(rk => rk.includes(nk) || nk.includes(rk)));
             });
 
-            if (alreadyExists) return;
+            // Se existe regra similar mas com conta diferente, atualizar a conta
+            if (existingMatch && categoryId && existingMatch.account_id !== categoryId) {
+                await (activeClient as any)
+                    .from("conciliation_rules")
+                    .update({ account_id: categoryId })
+                    .eq("id", existingMatch.id);
+                return;
+            }
+
+            if (existingMatch) return;
 
             // Determinar account_id: prioridade para categoryId explícito
             const accountId = categoryId || null;
