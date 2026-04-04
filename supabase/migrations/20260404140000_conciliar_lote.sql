@@ -72,6 +72,24 @@ BEGIN
         'auto', v_amount, v_date, 'matched', p_user_id
       );
 
+      -- Criar movimentação (como faz quitar_conta_pagar/receber)
+      INSERT INTO public.movimentacoes (
+        company_id, conta_bancaria_id, conta_contabil_id,
+        tipo, valor, data, descricao, origem
+      ) VALUES (
+        p_company_id,
+        p_bank_account_id,
+        v_account_id,
+        CASE WHEN v_is_expense THEN 'debito' ELSE 'credito' END,
+        v_amount,
+        v_date,
+        CASE WHEN v_is_expense
+          THEN 'Pagamento: ' || v_desc
+          ELSE 'Recebimento: ' || v_desc
+        END,
+        CASE WHEN v_is_expense THEN 'conta_pagar' ELSE 'conta_receber' END
+      );
+
       -- Atualizar bank_transaction
       UPDATE public.bank_transactions SET
         status = 'reconciled',
