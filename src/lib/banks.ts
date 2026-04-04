@@ -15,7 +15,7 @@ export const BANKS = [
     { code: "370", name: "Banco WestLB do Brasil" },
     { code: "756", name: "Bancoob" },
     { code: "47", name: "Banese" },
-    { code: "33", name: "Banespa" },
+    { code: "33", name: "Santander" },
     { code: "21", name: "Banestes" },
     { code: "719", name: "Banif" },
     { code: "755", name: "Bank of America Merrill Lynch" },
