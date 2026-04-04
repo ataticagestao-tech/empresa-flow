@@ -79,6 +79,7 @@ export default function Conciliacao() {
     const [editingCategoryTxId, setEditingCategoryTxId] = useState<string | null>(null);
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
+    const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; success: number; failed: number } | null>(null);
 
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
@@ -502,108 +503,70 @@ export default function Conciliacao() {
         }
     };
 
-    // Batch approval: conciliar selecionados (com sysTx existente OU criando lançamento via sugestão IA)
+    // Batch approval: conciliar via RPC em lotes de 100
     const handleBatchApprove = async () => {
         const toApprove = Array.from(selectedIds)
             .map(id => suggestionMap.get(id))
-            .filter((s): s is MatchSuggestion => !!s && (!!s.systemTransaction || s.score > 0));
+            .filter((s): s is MatchSuggestion => !!s && s.score > 0);
 
         if (toApprove.length === 0) {
             toast({ title: "Nenhum item elegível", description: "Selecione transações que tenham sugestão.", variant: "destructive" });
             return;
         }
 
-        let success = 0;
-        let failed = 0;
+        const total = toApprove.length;
+        let totalSuccess = 0;
+        let totalFailed = 0;
+        setBatchProgress({ total, done: 0, success: 0, failed: 0 });
 
-        for (const suggestion of toApprove) {
+        // Montar items para RPC
+        const items = toApprove.map(s => ({
+            bank_tx_id: s.bankTransaction.id,
+            amount: Math.abs(s.bankTransaction.amount),
+            date: s.bankTransaction.date,
+            description: s.bankTransaction.description || "Conciliação automática",
+            is_expense: s.bankTransaction.amount < 0,
+            account_id: s.accountId || null,
+        }));
+
+        // Enviar em lotes de 100
+        const batchSize = 100;
+        for (let i = 0; i < items.length; i += batchSize) {
+            const batch = items.slice(i, i + batchSize);
             try {
-                const bt = suggestion.bankTransaction;
-
-                // Verificar se já foi conciliada (evitar duplicatas)
-                const { data: alreadyMatched } = await (activeClient as any)
-                    .from("bank_reconciliation_matches")
-                    .select("id")
-                    .eq("bank_transaction_id", bt.id)
-                    .eq("status", "matched")
-                    .limit(1);
-                if (alreadyMatched && alreadyMatched.length > 0) {
-                    failed++;
-                    continue;
-                }
-
-                let useSysTx = suggestion.systemTransaction;
-
-                // Verificar se a conta do sistema já foi quitada/cancelada
-                if (useSysTx) {
-                    const checkTable = useSysTx.type === 'payable' ? 'contas_pagar' : 'contas_receber';
-                    const { data: check } = await (activeClient as any)
-                        .from(checkTable)
-                        .select('status')
-                        .eq('id', useSysTx.id)
-                        .single();
-                    if (check && (check.status === 'pago' || check.status === 'quitado' || check.status === 'cancelado')) {
-                        useSysTx = null; // Pular para criar novo lançamento
-                    }
-                }
-
-                if (useSysTx) {
-                    // Caso 1: Lançamento do sistema com status válido → conciliar direto
-                    await matchTransaction.mutateAsync({
-                        bankTx: bt,
-                        sysTx: useSysTx,
-                    });
-                } else {
-                    // Caso 2: Sugestão IA (categoria) → criar lançamento + conciliar
-                    const isExpense = bt.amount < 0;
-                    const table = isExpense ? "contas_pagar" : "contas_receber";
-                    const batchNameCol = isExpense ? "credor_nome" : "pagador_nome";
-
-                    const payload: Record<string, any> = {
-                        company_id: selectedCompany?.id,
-                        [batchNameCol]: bt.description || "Lançamento via conciliação IA",
-                        valor: Math.abs(bt.amount),
-                        data_vencimento: bt.date,
-                        status: "aberto",
-                    };
-                    if (suggestion.accountId) {
-                        payload.conta_contabil_id = suggestion.accountId;
-                    }
-
-                    const { data: created, error: createError } = await (activeClient as any)
-                        .from(table).insert(payload)
-                        .select(`id, ${batchNameCol}, valor, data_vencimento, status`).single();
-                    if (createError) throw createError;
-
-                    const sysTx: SystemTransaction = {
-                        id: created.id,
-                        type: isExpense ? "payable" : "receivable",
-                        description: created[batchNameCol] || '',
-                        amount: Number(created.valor || 0),
-                        date: created.data_vencimento,
-                        status: created.status,
-                        entity_name: "Criado via conciliação IA",
-                        original_table_id: created.id,
-                    };
-
-                    await matchTransaction.mutateAsync({ bankTx: bt, sysTx });
-                }
-
-                // Aprender regra com conta sugerida
-                learnRule.mutate({
-                    bankTx: suggestion.bankTransaction,
-                    categoryId: suggestion.accountId,
+                const { data, error } = await (activeClient as any).rpc('conciliar_lote', {
+                    p_company_id: selectedCompany?.id,
+                    p_bank_account_id: selectedAccountId,
+                    p_user_id: (activeClient as any).auth?.user?.()?.id || null,
+                    p_items: batch,
                 });
-                success++;
+                if (error) throw error;
+                const result = data || { success: 0, failed: batch.length };
+                totalSuccess += result.success || 0;
+                totalFailed += result.failed || 0;
             } catch {
-                failed++;
+                totalFailed += batch.length;
+            }
+            setBatchProgress({ total, done: Math.min(i + batchSize, total), success: totalSuccess, failed: totalFailed });
+        }
+
+        // Aprender regras únicas (deduplica por accountId)
+        const learnedAccounts = new Set<string>();
+        for (const s of toApprove) {
+            if (s.accountId && !learnedAccounts.has(s.accountId)) {
+                learnedAccounts.add(s.accountId);
+                learnRule.mutate({ bankTx: s.bankTransaction, categoryId: s.accountId });
             }
         }
 
         setSelectedIds(new Set());
+        setBatchProgress(null);
+        queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
+        queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['import_history'] });
         toast({
-            title: "Aprovação em lote",
-            description: `${success} conciliado(s)${failed > 0 ? `, ${failed} falha(s)` : ""}`,
+            title: "Conciliação em lote finalizada",
+            description: `${totalSuccess} conciliado(s)${totalFailed > 0 ? `, ${totalFailed} falha(s)` : ""}`,
         });
     };
 
@@ -1259,9 +1222,10 @@ export default function Conciliacao() {
                                                 Selecionar Alta Confiança
                                             </Button>
                                             <Button size="sm" onClick={handleBatchApprove}
+                                                disabled={!!batchProgress}
                                                 className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
-                                                <CheckSquare className="h-3.5 w-3.5" />
-                                                Aprovar Selecionados
+                                                {batchProgress ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckSquare className="h-3.5 w-3.5" />}
+                                                {batchProgress ? `${batchProgress.done}/${batchProgress.total}` : "Aprovar Selecionados"}
                                             </Button>
                                         </div>
                                     )}
@@ -1275,6 +1239,29 @@ export default function Conciliacao() {
                                 </div>
                             </CardHeader>
                             <CardContent>
+                                {batchProgress && (
+                                    <div className="mb-4 p-4 rounded-lg border bg-emerald-50 border-emerald-200">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-emerald-800">
+                                                Conciliando em lote...
+                                            </span>
+                                            <span className="text-sm font-bold text-emerald-700">
+                                                {batchProgress.done} / {batchProgress.total}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-emerald-200 rounded-full h-3">
+                                            <div
+                                                className="bg-emerald-600 h-3 rounded-full transition-all duration-300"
+                                                style={{ width: `${Math.round((batchProgress.done / batchProgress.total) * 100)}%` }}
+                                            />
+                                        </div>
+                                        <div className="flex gap-4 mt-2 text-xs text-emerald-700">
+                                            <span>{batchProgress.success} conciliados</span>
+                                            {batchProgress.failed > 0 && <span className="text-red-600">{batchProgress.failed} falhas</span>}
+                                            <span>{Math.round((batchProgress.done / batchProgress.total) * 100)}%</span>
+                                        </div>
+                                    </div>
+                                )}
                                 {!filteredBankTransactions.length ? (
                                     <div className="text-center py-12">
                                         <Check className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
