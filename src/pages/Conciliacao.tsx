@@ -571,9 +571,12 @@ export default function Conciliacao() {
     };
 
     const handleSelectHighConfidence = () => {
-        const highConf = suggestions
-            .filter(s => s.score >= 85)
-            .map(s => s.bankTransaction.id);
+        const highConf = (bankTransactions || [])
+            .filter(bt => {
+                const s = suggestionMap.get(bt.id);
+                return s && s.score >= 85;
+            })
+            .map(bt => bt.id);
         setSelectedIds(new Set(highConf));
     };
 
