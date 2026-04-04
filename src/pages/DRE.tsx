@@ -85,14 +85,24 @@ export default function DRE() {
   async function calcularDREFallback(): Promise<DRELinha[]> {
     if (!selectedCompany?.id) return [];
 
-    const { data: movs } = await db
-      .from("movimentacoes")
-      .select("valor, tipo, conta_contabil_id, data, origem")
-      .eq("company_id", selectedCompany.id)
-      .neq("origem", "transferencia")
-      .gte("data", `${mesInicio}-01`)
-      .lte("data", `${mesFim}-31`)
-      .limit(5000);
+    // Paginar movimentações (pode ter 7000+)
+    const pageSize = 1000;
+    let movs: any[] = [];
+    let page = 0;
+    while (true) {
+      const { data } = await db
+        .from("movimentacoes")
+        .select("valor, tipo, conta_contabil_id, data, origem")
+        .eq("company_id", selectedCompany.id)
+        .neq("origem", "transferencia")
+        .gte("data", `${mesInicio}-01`)
+        .lte("data", `${mesFim}-31`)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (!data || data.length === 0) break;
+      movs = movs.concat(data);
+      if (data.length < pageSize) break;
+      page++;
+    }
 
     const { data: contas } = await db
       .from("chart_of_accounts")
@@ -104,7 +114,7 @@ export default function DRE() {
     (contas || []).forEach((c: any) => { contasMap[c.id] = c; });
 
     const totais: Record<string, { credito: number; debito: number }> = {};
-    (movs || []).forEach((m: any) => {
+    movs.forEach((m: any) => {
       if (!m.conta_contabil_id) return;
       if (!totais[m.conta_contabil_id]) totais[m.conta_contabil_id] = { credito: 0, debito: 0 };
       if (m.tipo === "credito") totais[m.conta_contabil_id].credito += Number(m.valor || 0);
@@ -150,7 +160,9 @@ export default function DRE() {
       l.variacao = l.realizado - l.orcado;
       l.variacao_pct = l.orcado !== 0 ? ((l.variacao / Math.abs(l.orcado)) * 100) : null;
 
-      const grupo = l.tipo === "revenue" ? "RECEITAS" : l.tipo === "expense" ? "DESPESAS" : "OUTROS";
+      const grupo = l.tipo === "revenue" ? "RECEITAS"
+        : (l.tipo === "expense" || l.tipo === "cost") ? "DESPESAS"
+        : "OUTROS";
       if (!map[grupo]) map[grupo] = { linhas: [], totalRealizado: 0, totalOrcado: 0 };
       map[grupo].linhas.push(l);
       map[grupo].totalRealizado += l.realizado;
