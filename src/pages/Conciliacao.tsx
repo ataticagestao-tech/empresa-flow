@@ -70,6 +70,7 @@ export default function Conciliacao() {
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
+    const [typeFilter, setTypeFilter] = useState<"all" | "entradas" | "saidas">("all");
     const [showNewCategory, setShowNewCategory] = useState(false);
     const [newCatName, setNewCatName] = useState("");
     const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -278,9 +279,15 @@ export default function Conciliacao() {
     // Filtered by score bucket
     const filteredBankTransactions = useMemo(() => {
         if (!bankTransactions) return [];
-        if (scoreFilter === "all") return bankTransactions;
+        let result = bankTransactions;
 
-        return bankTransactions.filter(bt => {
+        // Filtro por tipo (entradas/saídas)
+        if (typeFilter === "entradas") result = result.filter(bt => bt.amount > 0);
+        else if (typeFilter === "saidas") result = result.filter(bt => bt.amount < 0);
+
+        if (scoreFilter === "all") return result;
+
+        return result.filter(bt => {
             const s = suggestionMap.get(bt.id);
             if (!s) return scoreFilter === "review";
             if (scoreFilter === "auto") return s.score >= 85;
@@ -288,7 +295,7 @@ export default function Conciliacao() {
             if (scoreFilter === "review") return s.score < 50;
             return true;
         });
-    }, [bankTransactions, scoreFilter, suggestionMap]);
+    }, [bankTransactions, scoreFilter, typeFilter, suggestionMap]);
 
     // Categories for create form — all accounts (analytical + synthetic)
     const { data: allChartAccounts } = useQuery({
@@ -1202,6 +1209,22 @@ export default function Conciliacao() {
                                 </Card>
                             </div>
                         )}
+
+                        {/* Type Filter */}
+                        <div className="flex gap-2">
+                            {(["all", "entradas", "saidas"] as const).map(t => (
+                                <Button key={t} size="sm"
+                                    variant={typeFilter === t ? "default" : "outline"}
+                                    className={typeFilter === t
+                                        ? t === "entradas" ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                        : t === "saidas" ? "bg-red-600 hover:bg-red-700 text-white"
+                                        : "bg-[#1a2e4a] text-white"
+                                        : ""}
+                                    onClick={() => setTypeFilter(t)}>
+                                    {t === "all" ? "Todos" : t === "entradas" ? `Entradas (${(bankTransactions || []).filter(b => b.amount > 0).length})` : `Saídas (${(bankTransactions || []).filter(b => b.amount < 0).length})`}
+                                </Button>
+                            ))}
+                        </div>
 
                         {/* Transactions Table */}
                         <Card className="border-[#E2E8F0]">
