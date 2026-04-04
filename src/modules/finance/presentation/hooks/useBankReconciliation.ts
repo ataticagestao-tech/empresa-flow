@@ -41,16 +41,27 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         queryKey: ['bank_transactions_pending', bankAccountId],
         queryFn: async () => {
             if (!bankAccountId) return [];
-            const { data, error } = await (activeClient as any)
-                .from('bank_transactions')
-                .select('id, bank_account_id, company_id, date, amount, description, memo, fit_id, status, reconciled_payable_id, reconciled_receivable_id, created_at, updated_at, source, unidade_destino_id')
-                .eq('bank_account_id', bankAccountId)
-                .eq('status', 'pending')
-                .order('date', { ascending: false })
-                .limit(10000);
-
-            if (error) throw error;
-            return data as BankTransaction[];
+            // Supabase limita 1000 por request — paginar para buscar tudo
+            const pageSize = 1000;
+            let allData: any[] = [];
+            let page = 0;
+            while (true) {
+                const { data, error } = await (activeClient as any)
+                    .from('bank_transactions')
+                    .select('id, bank_account_id, company_id, date, amount, description, memo, fit_id, status, reconciled_payable_id, reconciled_receivable_id, created_at, updated_at, source, unidade_destino_id')
+                    .eq('bank_account_id', bankAccountId)
+                    .eq('status', 'pending')
+                    .order('date', { ascending: true })
+                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                if (error) throw error;
+                if (!data || data.length === 0) break;
+                allData = allData.concat(data);
+                if (data.length < pageSize) break;
+                page++;
+            }
+            // Ordenar mais recentes primeiro
+            allData.sort((a: any, b: any) => b.date.localeCompare(a.date));
+            return allData as BankTransaction[];
         },
         enabled: !!bankAccountId
     });
