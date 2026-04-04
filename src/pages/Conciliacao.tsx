@@ -172,25 +172,29 @@ export default function Conciliacao() {
             allData.sort((a: any, b: any) => a.date.localeCompare(b.date));
             const data = allData;
 
-            // Enrich with category from linked contas_pagar/contas_receber
+            // Enrich with category from linked contas_pagar/contas_receber (chunked)
             const payableIds = (data || []).map((t: any) => t.reconciled_payable_id).filter(Boolean);
             const receivableIds = (data || []).map((t: any) => t.reconciled_receivable_id).filter(Boolean);
             let payableMap: Record<string, any> = {};
             let receivableMap: Record<string, any> = {};
 
+            const fetchChunked = async (table: string, ids: string[], cols: string) => {
+                const results: any[] = [];
+                for (let i = 0; i < ids.length; i += 50) {
+                    const chunk = ids.slice(i, i + 50);
+                    const { data: d } = await (activeClient as any).from(table).select(cols).in("id", chunk);
+                    if (d) results.push(...d);
+                }
+                return results;
+            };
+
             if (payableIds.length > 0) {
-                const { data: payables } = await (activeClient as any)
-                    .from("contas_pagar")
-                    .select("id, conta_contabil_id, credor_nome")
-                    .in("id", payableIds);
-                (payables || []).forEach((p: any) => { payableMap[p.id] = { category_id: p.conta_contabil_id, description: p.credor_nome }; });
+                const payables = await fetchChunked("contas_pagar", payableIds, "id, conta_contabil_id, credor_nome");
+                payables.forEach((p: any) => { payableMap[p.id] = { category_id: p.conta_contabil_id, description: p.credor_nome }; });
             }
             if (receivableIds.length > 0) {
-                const { data: receivables } = await (activeClient as any)
-                    .from("contas_receber")
-                    .select("id, conta_contabil_id, pagador_nome")
-                    .in("id", receivableIds);
-                (receivables || []).forEach((r: any) => { receivableMap[r.id] = { category_id: r.conta_contabil_id, description: r.pagador_nome }; });
+                const receivables = await fetchChunked("contas_receber", receivableIds, "id, conta_contabil_id, pagador_nome");
+                receivables.forEach((r: any) => { receivableMap[r.id] = { category_id: r.conta_contabil_id, description: r.pagador_nome }; });
             }
 
             return (data || []).map((t: any) => {
