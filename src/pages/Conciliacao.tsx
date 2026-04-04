@@ -66,7 +66,7 @@ export default function Conciliacao() {
     const [showImportHistory, setShowImportHistory] = useState(false);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showRulesPanel, setShowRulesPanel] = useState(false);
-    const [newEntry, setNewEntry] = useState({ description: "", category_id: "" });
+    const [newEntry, setNewEntry] = useState({ description: "", category_id: "", unidade_destino_id: "" });
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
@@ -90,6 +90,22 @@ export default function Conciliacao() {
         setSearchParams({ conta: val });
         setSelectedIds(new Set());
     };
+
+    // Buscar todas as empresas/unidades para o dropdown "Unidade Destino"
+    const { data: allCompanies } = useQuery({
+        queryKey: ["all_companies_units"],
+        queryFn: async () => {
+            const { data, error } = await (activeClient as any)
+                .from("companies")
+                .select("id, razao_social, nome_fantasia")
+                .eq("is_active", true)
+                .neq("id", "00000000-0000-0000-0000-000000000001")
+                .order("razao_social");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!activeClient,
+    });
 
     const { accounts } = useBankAccounts();
     const {
@@ -446,6 +462,9 @@ export default function Conciliacao() {
             if (newEntry.category_id && newEntry.category_id !== "none") {
                 payload.conta_contabil_id = newEntry.category_id;
             }
+            if (newEntry.unidade_destino_id) {
+                payload.unidade_destino_id = newEntry.unidade_destino_id;
+            }
 
             const { data: created, error: createError } = await (activeClient as any)
                 .from(table).insert(payload)
@@ -463,6 +482,11 @@ export default function Conciliacao() {
                 original_table_id: created.id,
             };
 
+            // Salvar unidade destino na bank_transaction
+            if (newEntry.unidade_destino_id) {
+                await (activeClient as any).from("bank_transactions").update({ unidade_destino_id: newEntry.unidade_destino_id }).eq("id", selectedBankTx.id);
+            }
+
             matchTransaction.mutate({ bankTx: selectedBankTx, sysTx });
             // MEMORIZAÇÃO IMEDIATA: beneficiário → categoria selecionada
             learnRule.mutate({ bankTx: selectedBankTx, categoryId: newEntry.category_id || undefined });
@@ -470,7 +494,7 @@ export default function Conciliacao() {
             toast({ title: "Sucesso", description: `${isExpense ? "Despesa" : "Receita"} criada e conciliada!` });
             setSelectedBankTx(null);
             setShowCreateForm(false);
-            setNewEntry({ description: "", category_id: "" });
+            setNewEntry({ description: "", category_id: "", unidade_destino_id: "" });
         } catch (err: any) {
             toast({ title: "Erro", description: err.message, variant: "destructive" });
         } finally {
@@ -1255,6 +1279,7 @@ export default function Conciliacao() {
                                                 <TableHead className="w-20">Data</TableHead>
                                                 <TableHead>Descrição Banco</TableHead>
                                                 <TableHead className="w-28">Valor</TableHead>
+                                                <TableHead className="w-40">Unidade</TableHead>
                                                 <TableHead>Sugestão IA</TableHead>
                                                 <TableHead className="w-16 text-center">Score</TableHead>
                                                 <TableHead className="text-right w-32">Ações</TableHead>
@@ -1285,6 +1310,27 @@ export default function Conciliacao() {
                                                             <span className={`font-bold ${bt.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
                                                                 {formatBRL(bt.amount)}
                                                             </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Select
+                                                                value={(bt as any).unidade_destino_id || ""}
+                                                                onValueChange={async (val) => {
+                                                                    const uid = val === "none" ? null : val;
+                                                                    await (activeClient as any).from("bank_transactions").update({ unidade_destino_id: uid }).eq("id", bt.id);
+                                                                    queryClient.invalidateQueries({ queryKey: ["bank_reconciliation"] });
+                                                                }}>
+                                                                <SelectTrigger className="h-7 text-xs w-36">
+                                                                    <SelectValue placeholder="Selecionar..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">Nenhuma</SelectItem>
+                                                                    {(allCompanies || []).map((c: any) => (
+                                                                        <SelectItem key={c.id} value={c.id}>
+                                                                            {c.nome_fantasia || c.razao_social}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
                                                         </TableCell>
                                                         <TableCell>
                                                             {bestMatch ? (
@@ -1346,7 +1392,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); }
                 }}>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
@@ -1476,7 +1522,7 @@ export default function Conciliacao() {
                                                 // Pre-fill category from engine suggestion (learned rules)
                                                 const engineSuggestion = suggestionMap.get(selectedBankTx.id);
                                                 const prefilledCategoryId = engineSuggestion?.accountId || "";
-                                                setNewEntry({ description: selectedBankTx.description || "", category_id: prefilledCategoryId });
+                                                setNewEntry({ description: selectedBankTx.description || "", category_id: prefilledCategoryId, unidade_destino_id: "" });
                                             }}>
                                             <Plus className="mr-2 h-4 w-4" />
                                             Criar {selectedBankTx.amount < 0 ? "Nova Despesa" : "Nova Receita"} e Conciliar
@@ -1509,6 +1555,22 @@ export default function Conciliacao() {
                                                         <Label className="text-xs font-medium">Data</Label>
                                                         <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted" />
                                                     </div>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-medium">Unidade Destino</Label>
+                                                    <Select value={newEntry.unidade_destino_id || ""} onValueChange={(val) => setNewEntry({ ...newEntry, unidade_destino_id: val === "none" ? "" : val })}>
+                                                        <SelectTrigger className="h-9">
+                                                            <SelectValue placeholder="Selecionar unidade..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Nenhuma</SelectItem>
+                                                            {(allCompanies || []).map((c: any) => (
+                                                                <SelectItem key={c.id} value={c.id}>
+                                                                    {c.nome_fantasia || c.razao_social}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <div className="flex items-center justify-between">
@@ -1610,7 +1672,7 @@ export default function Conciliacao() {
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" className="flex-1"
-                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "" }); }}>
+                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); }}>
                                                 Voltar
                                             </Button>
                                             <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
