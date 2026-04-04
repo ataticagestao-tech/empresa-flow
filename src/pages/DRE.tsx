@@ -61,9 +61,8 @@ export default function DRE() {
         .lte("competencia", mesFim)
         .order("codigo");
 
-      if (error) {
-        console.error("Erro v_dre_consolidado:", error);
-        // Fallback: calcular do movimentações + orçamento
+      if (error || !data || data.length === 0) {
+        // View vazia ou com erro: fallback para movimentações
         return await calcularDREFallback();
       }
 
