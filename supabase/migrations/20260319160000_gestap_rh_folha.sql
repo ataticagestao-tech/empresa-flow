@@ -665,6 +665,7 @@ on conflict (ano, faixa_min) do nothing;
 -- VIEW AUXILIAR — custo total por funcionário
 -- ============================================================
 
+drop view if exists public.v_custo_funcionario;
 create or replace view public.v_custo_funcionario as
 select
   f.company_id,
