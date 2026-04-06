@@ -6,7 +6,7 @@
 -- 1. Criar template
 INSERT INTO account_templates (id, name, description, industry, is_default)
 VALUES (
-    'a1b2c3d4-e5f6-7890-abcd-clinicacapilar',
+    'a1b2c3d4-e5f6-7890-abcd-c11n1cacap11a',
     'Plano de Contas - Clínica Capilar',
     'Plano de contas especializado para clínicas de transplante capilar, com receitas de cirurgias, protocolos, produtos e estrutura completa de custos e despesas.',
     'saude',
@@ -16,7 +16,7 @@ VALUES (
 -- 2. Inserir itens do template
 INSERT INTO account_template_items (template_id, code, name, parent_code, level, account_type, account_nature, is_analytical, show_in_dre, dre_group, dre_order)
 SELECT
-    'a1b2c3d4-e5f6-7890-abcd-clinicacapilar',
+    'a1b2c3d4-e5f6-7890-abcd-c11n1cacap11a',
     code, name, parent_code, level, account_type::account_type, account_nature::account_nature, is_analytical, show_in_dre, dre_group, dre_order
 FROM (VALUES
     -- ===================== GRUPO 1 — RECEITAS =====================
