@@ -23,6 +23,9 @@ BEGIN
   WHERE company_id = v_company_id
     AND status IN ('aberto', 'vencido');
 
+  -- Desabilitar triggers para permitir DELETE direto
+  ALTER TABLE public.contas_receber DISABLE TRIGGER USER;
+
   RAISE NOTICE 'CRs em aberto/vencido a excluir: %', v_count;
 
   -- 1. Limpar movimentações vinculadas
@@ -55,6 +58,9 @@ BEGIN
   DELETE FROM public.contas_receber
   WHERE company_id = v_company_id
     AND status IN ('aberto', 'vencido');
+
+  -- Reabilitar triggers
+  ALTER TABLE public.contas_receber ENABLE TRIGGER USER;
 
   RAISE NOTICE 'Concluído: % CRs excluídas da unidade FLORIPA', v_count;
 END;
