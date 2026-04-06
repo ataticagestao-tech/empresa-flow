@@ -142,12 +142,26 @@ export default function PainelGerencial() {
   // SECTION 1: CAIXA E BANCOS
   // ────────────────────────────────────────────────────────────
 
-  const { data: bankAccounts, isLoading: loadBanks } = useQuery({
-    queryKey: ["pg_banks", cId],
+  // Saldo via view v_saldo_contas_bancarias (saldo_inicial + movimentações = saldo real)
+  const { data: bankSaldos, isLoading: loadBanks } = useQuery({
+    queryKey: ["pg_banks_saldo", cId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("v_saldo_contas_bancarias")
+        .select("conta_bancaria_id, nome, saldo_atual")
+        .eq("company_id", cId);
+      return data || [];
+    },
+    enabled: !!cId,
+  });
+
+  // Contagem de contas ativas (tabela real)
+  const { data: bankAccounts } = useQuery({
+    queryKey: ["pg_banks_count", cId],
     queryFn: async () => {
       const { data } = await db
         .from("bank_accounts")
-        .select("id, name, current_balance, is_active")
+        .select("id")
         .eq("company_id", cId)
         .eq("is_active", true);
       return data || [];
@@ -157,11 +171,11 @@ export default function PainelGerencial() {
 
   const saldoTotal = useMemo(
     () =>
-      (bankAccounts || []).reduce(
-        (s: number, a: any) => s + Number(a.current_balance || 0),
+      (bankSaldos || []).reduce(
+        (s: number, a: any) => s + Number(a.saldo_atual || 0),
         0
       ),
-    [bankAccounts]
+    [bankSaldos]
   );
   const contasAtivas = (bankAccounts || []).length;
 
