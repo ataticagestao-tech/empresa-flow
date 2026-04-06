@@ -3,6 +3,10 @@
 -- quando ficaram vazios ou como 'Fornecedor'/'Cliente'
 -- ============================================================
 
+-- Desabilitar triggers temporariamente para permitir update em registros pagos
+ALTER TABLE public.contas_pagar DISABLE TRIGGER ALL;
+ALTER TABLE public.contas_receber DISABLE TRIGGER ALL;
+
 -- Contas a Pagar: preencher credor_nome com description do accounts_payable
 UPDATE public.contas_pagar cp
 SET credor_nome = ap.description
@@ -30,3 +34,7 @@ SET observacoes = ar.description
 FROM public.accounts_receivable ar
 WHERE cr.id = ar.id
   AND (cr.observacoes IS NULL OR cr.observacoes = '');
+
+-- Reabilitar triggers
+ALTER TABLE public.contas_pagar ENABLE TRIGGER ALL;
+ALTER TABLE public.contas_receber ENABLE TRIGGER ALL;
