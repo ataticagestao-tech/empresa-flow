@@ -20,7 +20,7 @@ SELECT
   CASE WHEN ar.status::text = 'paid' THEN ar.amount ELSE NULL END,
   ar.due_date,
   ar.receive_date,
-  ar.category_id,
+  CASE WHEN ar.category_id IN (SELECT id FROM public.chart_of_accounts) THEN ar.category_id ELSE NULL END,
   ar.payment_method,
   CASE ar.status::text
     WHEN 'pending' THEN 'aberto'
@@ -54,7 +54,7 @@ SELECT
   CASE WHEN ap.status::text = 'paid' THEN ap.amount ELSE NULL END,
   ap.due_date,
   ap.payment_date,
-  ap.category_id,
+  CASE WHEN ap.category_id IN (SELECT id FROM public.chart_of_accounts) THEN ap.category_id ELSE NULL END,
   ap.payment_method,
   CASE ap.status::text
     WHEN 'pending' THEN 'aberto'
@@ -83,7 +83,7 @@ SELECT
   t.id,
   t.company_id,
   t.bank_account_id,
-  t.category_id,
+  CASE WHEN t.category_id IN (SELECT id FROM public.chart_of_accounts) THEN t.category_id ELSE NULL END,
   -- Só inclui FK se o registro existe na nova tabela
   CASE WHEN t.related_receivable_id IN (SELECT id FROM public.contas_receber) THEN t.related_receivable_id ELSE NULL END,
   CASE WHEN t.related_payable_id IN (SELECT id FROM public.contas_pagar) THEN t.related_payable_id ELSE NULL END,
