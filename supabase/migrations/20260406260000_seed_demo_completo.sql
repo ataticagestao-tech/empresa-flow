@@ -377,17 +377,17 @@ BEGIN
   -- 9. EMPLOYEES — Company 1 (10 employees)
   -- ============================================================
   INSERT INTO employees (company_id, name, nome_completo, role, email, phone, cpf, hire_date, salary, salario_base,
-    tipo_contrato, status, centro_custo_id) VALUES
-  (co1, 'Carlos Eduardo Mendes',    'Carlos Eduardo Mendes',    'CEO / Diretor Geral',     'carlos@novatech.com.br',    '(11) 99876-5432', '111.222.333-44', '2020-03-15', 18000.00, 18000.00, 'pj',      'active', cc_adm),
-  (co1, 'Fernanda Oliveira Santos', 'Fernanda Oliveira Santos', 'Diretora Financeira',     'fernanda@novatech.com.br',  '(11) 99876-1111', '222.333.444-55', '2020-03-15', 15000.00, 15000.00, 'pj',      'active', cc_adm),
-  (co1, 'Rafael Costa Lima',        'Rafael Costa Lima',        'Tech Lead',               'rafael@novatech.com.br',    '(11) 99876-2222', '333.444.555-66', '2021-06-01', 14000.00, 14000.00, 'clt',     'active', cc_dev),
-  (co1, 'Juliana Pereira Gomes',    'Juliana Pereira Gomes',    'Desenvolvedora Full-Stack','juliana@novatech.com.br',  '(11) 99876-3333', '444.555.666-77', '2022-01-10', 10500.00, 10500.00, 'clt',     'active', cc_dev),
-  (co1, 'Lucas Ribeiro Alves',      'Lucas Ribeiro Alves',      'Desenvolvedor Back-End',  'lucas@novatech.com.br',     '(11) 99876-4444', '555.666.777-88', '2022-04-01', 9800.00,  9800.00,  'clt',     'active', cc_dev),
-  (co1, 'Mariana Silva Duarte',     'Mariana Silva Duarte',     'Designer UX/UI',          'mariana@novatech.com.br',   '(11) 99876-5555', '666.777.888-99', '2023-02-15', 8500.00,  8500.00,  'clt',     'active', cc_dev),
-  (co1, 'Andre Takahashi',          'Andre Takahashi',          'Gerente Comercial',       'andre@novatech.com.br',     '(11) 99876-6666', '777.888.999-00', '2021-09-01', 12000.00, 12000.00, 'clt',     'active', cc_com),
-  (co1, 'Patricia Moreira',         'Patricia Moreira',         'Analista de Marketing',   'patricia@novatech.com.br',  '(11) 99876-7777', '888.999.000-11', '2023-05-01',  7200.00,  7200.00, 'clt',     'active', cc_mkt),
-  (co1, 'Bruno Henrique Souza',     'Bruno Henrique Souza',     'Analista de Suporte',     'bruno@novatech.com.br',     '(11) 99876-8888', '999.000.111-22', '2023-08-15',  5500.00,  5500.00, 'clt',     'active', cc_sup),
-  (co1, 'Camila Ferreira',          'Camila Ferreira',          'Estagiaria Dev',          'camila@novatech.com.br',    '(11) 99876-9999', '000.111.222-33', '2025-07-01',  1800.00,  1800.00, 'estagio', 'ativo', cc_dev);
+    tipo_contrato, centro_custo_id) VALUES
+  (co1, 'Carlos Eduardo Mendes',    'Carlos Eduardo Mendes',    'CEO / Diretor Geral',     'carlos@novatech.com.br',    '(11) 99876-5432', '111.222.333-44', '2020-03-15', 18000.00, 18000.00, 'pj',      cc_adm),
+  (co1, 'Fernanda Oliveira Santos', 'Fernanda Oliveira Santos', 'Diretora Financeira',     'fernanda@novatech.com.br',  '(11) 99876-1111', '222.333.444-55', '2020-03-15', 15000.00, 15000.00, 'pj',      cc_adm),
+  (co1, 'Rafael Costa Lima',        'Rafael Costa Lima',        'Tech Lead',               'rafael@novatech.com.br',    '(11) 99876-2222', '333.444.555-66', '2021-06-01', 14000.00, 14000.00, 'clt',     cc_dev),
+  (co1, 'Juliana Pereira Gomes',    'Juliana Pereira Gomes',    'Desenvolvedora Full-Stack','juliana@novatech.com.br',  '(11) 99876-3333', '444.555.666-77', '2022-01-10', 10500.00, 10500.00, 'clt',     cc_dev),
+  (co1, 'Lucas Ribeiro Alves',      'Lucas Ribeiro Alves',      'Desenvolvedor Back-End',  'lucas@novatech.com.br',     '(11) 99876-4444', '555.666.777-88', '2022-04-01', 9800.00,  9800.00,  'clt',     cc_dev),
+  (co1, 'Mariana Silva Duarte',     'Mariana Silva Duarte',     'Designer UX/UI',          'mariana@novatech.com.br',   '(11) 99876-5555', '666.777.888-99', '2023-02-15', 8500.00,  8500.00,  'clt',     cc_dev),
+  (co1, 'Andre Takahashi',          'Andre Takahashi',          'Gerente Comercial',       'andre@novatech.com.br',     '(11) 99876-6666', '777.888.999-00', '2021-09-01', 12000.00, 12000.00, 'clt',     cc_com),
+  (co1, 'Patricia Moreira',         'Patricia Moreira',         'Analista de Marketing',   'patricia@novatech.com.br',  '(11) 99876-7777', '888.999.000-11', '2023-05-01',  7200.00,  7200.00, 'clt',     cc_mkt),
+  (co1, 'Bruno Henrique Souza',     'Bruno Henrique Souza',     'Analista de Suporte',     'bruno@novatech.com.br',     '(11) 99876-8888', '999.000.111-22', '2023-08-15',  5500.00,  5500.00, 'clt',     cc_sup),
+  (co1, 'Camila Ferreira',          'Camila Ferreira',          'Estagiaria Dev',          'camila@novatech.com.br',    '(11) 99876-9999', '000.111.222-33', '2025-07-01',  1800.00,  1800.00, 'estagio', cc_dev);
 
   -- ============================================================
   -- 10. VENDAS + VENDAS_ITENS — Company 1 (32 sales, Jan-Apr 2026)
