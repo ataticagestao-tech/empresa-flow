@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS public.configuracao_taxas_pagamento (
 -- RLS
 ALTER TABLE public.configuracao_taxas_pagamento ENABLE ROW LEVEL SECURITY;
 
+drop policy if exists "Company members can manage configuracao_taxas" on public.configuracao_taxas_pagamento;
 CREATE POLICY "Company members can manage configuracao_taxas"
   ON public.configuracao_taxas_pagamento
   FOR ALL

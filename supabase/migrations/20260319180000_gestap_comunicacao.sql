@@ -257,14 +257,17 @@ create index if not exists idx_reajustes_company        on public.reajustes_indi
 -- TRIGGERS
 -- ============================================================
 
+drop trigger if exists trg_config_canais_updated_at on public.config_canais;
 create trigger trg_config_canais_updated_at
   before update on public.config_canais
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_templates_updated_at on public.templates_mensagem;
 create trigger trg_templates_updated_at
   before update on public.templates_mensagem
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_alertas_conf_updated_at on public.alertas_configuracao;
 create trigger trg_alertas_conf_updated_at
   before update on public.alertas_configuracao
   for each row execute function public.set_updated_at();
@@ -282,57 +285,73 @@ alter table public.indice_economico       enable row level security;
 alter table public.reajustes_indice       enable row level security;
 
 -- config_canais: apenas service_role (backend) lê API keys
+drop policy if exists "config_canais: apenas service_role" on public.config_canais;
 create policy "config_canais: apenas service_role"
   on public.config_canais for all
   using (auth.role() = 'service_role');
 
 -- templates: leitura dos próprios + templates globais (company_id null)
+drop policy if exists "templates: leitura tenant + globais" on public.templates_mensagem;
 create policy "templates: leitura tenant + globais"
   on public.templates_mensagem for select
   using (
     company_id is null
     or company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   );
+drop policy if exists "templates: insert" on public.templates_mensagem;
 create policy "templates: insert"
   on public.templates_mensagem for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "templates: update" on public.templates_mensagem;
 create policy "templates: update"
   on public.templates_mensagem for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "templates: delete" on public.templates_mensagem;
 create policy "templates: delete"
   on public.templates_mensagem for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- alertas_configuracao
+drop policy if exists "alertas_configuracao: select" on public.alertas_configuracao;
 create policy "alertas_configuracao: select" on public.alertas_configuracao for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "alertas_configuracao: insert" on public.alertas_configuracao;
 create policy "alertas_configuracao: insert" on public.alertas_configuracao for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "alertas_configuracao: update" on public.alertas_configuracao;
 create policy "alertas_configuracao: update" on public.alertas_configuracao for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "alertas_configuracao: delete" on public.alertas_configuracao;
 create policy "alertas_configuracao: delete" on public.alertas_configuracao for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- alertas_log: leitura pelo tenant, insert apenas service_role
+drop policy if exists "alertas_log: select" on public.alertas_log;
 create policy "alertas_log: select"
   on public.alertas_log for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "alertas_log: insert service_role" on public.alertas_log;
 create policy "alertas_log: insert service_role"
   on public.alertas_log for insert
   with check (auth.role() = 'service_role');
 
 -- indice_economico: leitura para todos os autenticados
+drop policy if exists "indice_economico: leitura autenticada" on public.indice_economico;
 create policy "indice_economico: leitura autenticada"
   on public.indice_economico for select
   using (auth.role() = 'authenticated');
 
 -- reajustes_indice
+drop policy if exists "reajustes_indice: select" on public.reajustes_indice;
 create policy "reajustes_indice: select" on public.reajustes_indice for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "reajustes_indice: insert" on public.reajustes_indice;
 create policy "reajustes_indice: insert" on public.reajustes_indice for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "reajustes_indice: update" on public.reajustes_indice;
 create policy "reajustes_indice: update" on public.reajustes_indice for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "reajustes_indice: delete" on public.reajustes_indice;
 create policy "reajustes_indice: delete" on public.reajustes_indice for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 

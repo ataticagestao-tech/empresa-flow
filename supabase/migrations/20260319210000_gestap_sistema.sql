@@ -150,10 +150,12 @@ create index if not exists idx_integracoes_nome     on public.integracoes(nome);
 -- TRIGGERS
 -- ============================================================
 
+drop trigger if exists trg_perfis_updated_at on public.perfis_acesso;
 create trigger trg_perfis_updated_at
   before update on public.perfis_acesso
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_integracoes_updated_at on public.integracoes;
 create trigger trg_integracoes_updated_at
   before update on public.integracoes
   for each row execute function public.set_updated_at();
@@ -168,24 +170,31 @@ alter table public.log_atividades   enable row level security;
 alter table public.integracoes      enable row level security;
 
 -- perfis: leitura dos próprios + globais (company_id null)
+drop policy if exists "perfis: leitura" on public.perfis_acesso;
 create policy "perfis: leitura" on public.perfis_acesso for select
   using (
     company_id is null
     or company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   );
+drop policy if exists "perfis: insert" on public.perfis_acesso;
 create policy "perfis: insert" on public.perfis_acesso for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "perfis: update" on public.perfis_acesso;
 create policy "perfis: update" on public.perfis_acesso for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()) and sistema = false);
+drop policy if exists "perfis: delete" on public.perfis_acesso;
 create policy "perfis: delete" on public.perfis_acesso for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()) and sistema = false);
 
 -- log: leitura por company, insert apenas service_role
+drop policy if exists "log_atividades: select" on public.log_atividades;
 create policy "log_atividades: select" on public.log_atividades for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "log_atividades: insert service_role" on public.log_atividades;
 create policy "log_atividades: insert service_role" on public.log_atividades for insert
   with check (auth.role() = 'service_role');
 
 -- integracoes: apenas service_role (contém credenciais)
+drop policy if exists "integracoes: service_role" on public.integracoes;
 create policy "integracoes: service_role" on public.integracoes for all
   using (auth.role() = 'service_role');

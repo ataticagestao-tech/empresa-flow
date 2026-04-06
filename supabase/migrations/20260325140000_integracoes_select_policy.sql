@@ -1,5 +1,6 @@
 -- Permitir que usuários vejam integrações da sua empresa (sem config/secrets)
 -- A coluna config continua protegida pelo frontend (não será selecionada)
+drop policy if exists "integracoes: select by company" on public.integracoes;
 CREATE POLICY "integracoes: select by company"
   ON public.integracoes FOR SELECT
   USING (

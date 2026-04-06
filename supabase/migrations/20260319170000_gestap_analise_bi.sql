@@ -301,10 +301,12 @@ create index if not exists idx_cenarios_company     on public.cenarios(company_i
 -- TRIGGERS
 -- ============================================================
 
+drop trigger if exists trg_orcamento_updated_at on public.orcamento;
 create trigger trg_orcamento_updated_at
   before update on public.orcamento
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_cenarios_updated_at on public.cenarios;
 create trigger trg_cenarios_updated_at
   before update on public.cenarios
   for each row execute function public.set_updated_at();
@@ -320,41 +322,57 @@ alter table public.score_financeiro   enable row level security;
 alter table public.cenarios           enable row level security;
 
 -- orcamento
+drop policy if exists "orcamento: select" on public.orcamento;
 create policy "orcamento: select" on public.orcamento for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "orcamento: insert" on public.orcamento;
 create policy "orcamento: insert" on public.orcamento for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "orcamento: update" on public.orcamento;
 create policy "orcamento: update" on public.orcamento for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "orcamento: delete" on public.orcamento;
 create policy "orcamento: delete" on public.orcamento for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- orcamento_itens (via orcamento_id → orcamento.company_id)
+drop policy if exists "orcamento_itens: select" on public.orcamento_itens;
 create policy "orcamento_itens: select" on public.orcamento_itens for select
   using (orcamento_id in (select o.id from public.orcamento o where o.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())));
+drop policy if exists "orcamento_itens: insert" on public.orcamento_itens;
 create policy "orcamento_itens: insert" on public.orcamento_itens for insert
   with check (orcamento_id in (select o.id from public.orcamento o where o.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())));
+drop policy if exists "orcamento_itens: update" on public.orcamento_itens;
 create policy "orcamento_itens: update" on public.orcamento_itens for update
   using (orcamento_id in (select o.id from public.orcamento o where o.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())));
+drop policy if exists "orcamento_itens: delete" on public.orcamento_itens;
 create policy "orcamento_itens: delete" on public.orcamento_itens for delete
   using (orcamento_id in (select o.id from public.orcamento o where o.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())));
 
 -- score_financeiro
+drop policy if exists "score_financeiro: select" on public.score_financeiro;
 create policy "score_financeiro: select" on public.score_financeiro for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "score_financeiro: insert" on public.score_financeiro;
 create policy "score_financeiro: insert" on public.score_financeiro for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "score_financeiro: update" on public.score_financeiro;
 create policy "score_financeiro: update" on public.score_financeiro for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "score_financeiro: delete" on public.score_financeiro;
 create policy "score_financeiro: delete" on public.score_financeiro for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- cenarios
+drop policy if exists "cenarios: select" on public.cenarios;
 create policy "cenarios: select" on public.cenarios for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "cenarios: insert" on public.cenarios;
 create policy "cenarios: insert" on public.cenarios for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "cenarios: update" on public.cenarios;
 create policy "cenarios: update" on public.cenarios for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "cenarios: delete" on public.cenarios;
 create policy "cenarios: delete" on public.cenarios for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));

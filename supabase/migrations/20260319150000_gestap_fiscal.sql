@@ -325,18 +325,22 @@ create index if not exists idx_xml_emitente         on public.importacao_xml(cnp
 -- TRIGGERS
 -- ============================================================
 
+drop trigger if exists trg_cert_updated_at on public.certificados_digitais;
 create trigger trg_cert_updated_at
   before update on public.certificados_digitais
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_nf_updated_at on public.notas_fiscais;
 create trigger trg_nf_updated_at
   before update on public.notas_fiscais
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_apuracao_updated_at on public.apuracao_impostos;
 create trigger trg_apuracao_updated_at
   before update on public.apuracao_impostos
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_obrig_updated_at on public.obrigacoes_acessorias;
 create trigger trg_obrig_updated_at
   before update on public.obrigacoes_acessorias
   for each row execute function public.set_updated_at();
@@ -355,21 +359,25 @@ alter table public.livro_caixa            enable row level security;
 alter table public.importacao_xml         enable row level security;
 
 -- certificados_digitais
+drop policy if exists "certificados_digitais: select" on public.certificados_digitais;
 create policy "certificados_digitais: select"
   on public.certificados_digitais for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "certificados_digitais: insert" on public.certificados_digitais;
 create policy "certificados_digitais: insert"
   on public.certificados_digitais for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "certificados_digitais: update" on public.certificados_digitais;
 create policy "certificados_digitais: update"
   on public.certificados_digitais for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "certificados_digitais: delete" on public.certificados_digitais;
 create policy "certificados_digitais: delete"
   on public.certificados_digitais for delete
   using (company_id in (
@@ -377,21 +385,25 @@ create policy "certificados_digitais: delete"
   ));
 
 -- notas_fiscais
+drop policy if exists "notas_fiscais: select" on public.notas_fiscais;
 create policy "notas_fiscais: select"
   on public.notas_fiscais for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "notas_fiscais: insert" on public.notas_fiscais;
 create policy "notas_fiscais: insert"
   on public.notas_fiscais for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "notas_fiscais: update" on public.notas_fiscais;
 create policy "notas_fiscais: update"
   on public.notas_fiscais for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "notas_fiscais: delete" on public.notas_fiscais;
 create policy "notas_fiscais: delete"
   on public.notas_fiscais for delete
   using (company_id in (
@@ -399,6 +411,7 @@ create policy "notas_fiscais: delete"
   ));
 
 -- nf_itens (via nota_fiscal_id → notas_fiscais.company_id)
+drop policy if exists "nf_itens: select" on public.nf_itens;
 create policy "nf_itens: select"
   on public.nf_itens for select
   using (nota_fiscal_id in (
@@ -407,6 +420,7 @@ create policy "nf_itens: select"
       select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
     )
   ));
+drop policy if exists "nf_itens: insert" on public.nf_itens;
 create policy "nf_itens: insert"
   on public.nf_itens for insert
   with check (nota_fiscal_id in (
@@ -415,6 +429,7 @@ create policy "nf_itens: insert"
       select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
     )
   ));
+drop policy if exists "nf_itens: update" on public.nf_itens;
 create policy "nf_itens: update"
   on public.nf_itens for update
   using (nota_fiscal_id in (
@@ -423,6 +438,7 @@ create policy "nf_itens: update"
       select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
     )
   ));
+drop policy if exists "nf_itens: delete" on public.nf_itens;
 create policy "nf_itens: delete"
   on public.nf_itens for delete
   using (nota_fiscal_id in (
@@ -433,21 +449,25 @@ create policy "nf_itens: delete"
   ));
 
 -- apuracao_impostos
+drop policy if exists "apuracao_impostos: select" on public.apuracao_impostos;
 create policy "apuracao_impostos: select"
   on public.apuracao_impostos for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "apuracao_impostos: insert" on public.apuracao_impostos;
 create policy "apuracao_impostos: insert"
   on public.apuracao_impostos for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "apuracao_impostos: update" on public.apuracao_impostos;
 create policy "apuracao_impostos: update"
   on public.apuracao_impostos for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "apuracao_impostos: delete" on public.apuracao_impostos;
 create policy "apuracao_impostos: delete"
   on public.apuracao_impostos for delete
   using (company_id in (
@@ -455,21 +475,25 @@ create policy "apuracao_impostos: delete"
   ));
 
 -- obrigacoes_acessorias
+drop policy if exists "obrigacoes_acessorias: select" on public.obrigacoes_acessorias;
 create policy "obrigacoes_acessorias: select"
   on public.obrigacoes_acessorias for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "obrigacoes_acessorias: insert" on public.obrigacoes_acessorias;
 create policy "obrigacoes_acessorias: insert"
   on public.obrigacoes_acessorias for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "obrigacoes_acessorias: update" on public.obrigacoes_acessorias;
 create policy "obrigacoes_acessorias: update"
   on public.obrigacoes_acessorias for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "obrigacoes_acessorias: delete" on public.obrigacoes_acessorias;
 create policy "obrigacoes_acessorias: delete"
   on public.obrigacoes_acessorias for delete
   using (company_id in (
@@ -477,21 +501,25 @@ create policy "obrigacoes_acessorias: delete"
   ));
 
 -- livro_caixa
+drop policy if exists "livro_caixa: select" on public.livro_caixa;
 create policy "livro_caixa: select"
   on public.livro_caixa for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "livro_caixa: insert" on public.livro_caixa;
 create policy "livro_caixa: insert"
   on public.livro_caixa for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "livro_caixa: update" on public.livro_caixa;
 create policy "livro_caixa: update"
   on public.livro_caixa for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "livro_caixa: delete" on public.livro_caixa;
 create policy "livro_caixa: delete"
   on public.livro_caixa for delete
   using (company_id in (
@@ -499,21 +527,25 @@ create policy "livro_caixa: delete"
   ));
 
 -- importacao_xml
+drop policy if exists "importacao_xml: select" on public.importacao_xml;
 create policy "importacao_xml: select"
   on public.importacao_xml for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "importacao_xml: insert" on public.importacao_xml;
 create policy "importacao_xml: insert"
   on public.importacao_xml for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "importacao_xml: update" on public.importacao_xml;
 create policy "importacao_xml: update"
   on public.importacao_xml for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "importacao_xml: delete" on public.importacao_xml;
 create policy "importacao_xml: delete"
   on public.importacao_xml for delete
   using (company_id in (

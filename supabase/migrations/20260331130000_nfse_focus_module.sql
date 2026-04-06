@@ -129,24 +129,29 @@ alter table public.nfse_emissoes enable row level security;
 alter table public.nfse_eventos enable row level security;
 
 -- Policies usando user_companies
+drop policy if exists "nfse_config_tenant" on public.nfse_configuracoes;
 create policy "nfse_config_tenant" on public.nfse_configuracoes for all
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
 
+drop policy if exists "nfse_emissoes_tenant" on public.nfse_emissoes;
 create policy "nfse_emissoes_tenant" on public.nfse_emissoes for all
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
 
+drop policy if exists "nfse_eventos_tenant" on public.nfse_eventos;
 create policy "nfse_eventos_tenant" on public.nfse_eventos for all
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
 
 -- Triggers updated_at
+drop trigger if exists trg_nfse_config_updated on public.nfse_configuracoes;
 create trigger trg_nfse_config_updated before update on public.nfse_configuracoes
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_nfse_emissoes_updated on public.nfse_emissoes;
 create trigger trg_nfse_emissoes_updated before update on public.nfse_emissoes
   for each row execute function public.set_updated_at();

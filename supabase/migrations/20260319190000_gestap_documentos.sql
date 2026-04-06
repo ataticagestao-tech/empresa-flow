@@ -221,14 +221,17 @@ create index if not exists idx_docs_log_usuario      on public.documentos_acesso
 -- TRIGGERS
 -- ============================================================
 
+drop trigger if exists trg_documentos_updated_at on public.documentos;
 create trigger trg_documentos_updated_at
   before update on public.documentos
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_docs_val_updated_at on public.documentos_validade;
 create trigger trg_docs_val_updated_at
   before update on public.documentos_validade
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_assin_updated_at on public.assinaturas_digitais;
 create trigger trg_assin_updated_at
   before update on public.assinaturas_digitais
   for each row execute function public.set_updated_at();
@@ -265,6 +268,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_proteger_documento_fiscal on public.documentos;
 create trigger trg_proteger_documento_fiscal
   before delete on public.documentos
   for each row execute function public.proteger_documento_fiscal();
@@ -282,51 +286,67 @@ alter table public.documentos_acesso_log   enable row level security;
 alter table public.documentos_retencao     enable row level security;
 
 -- documentos
+drop policy if exists "documentos: select" on public.documentos;
 create policy "documentos: select" on public.documentos for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos: insert" on public.documentos;
 create policy "documentos: insert" on public.documentos for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos: update" on public.documentos;
 create policy "documentos: update" on public.documentos for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos: delete service_role" on public.documentos;
 create policy "documentos: delete service_role" on public.documentos for delete
   using (auth.role() = 'service_role');
 
 -- documentos_validade
+drop policy if exists "documentos_validade: select" on public.documentos_validade;
 create policy "documentos_validade: select" on public.documentos_validade for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos_validade: insert" on public.documentos_validade;
 create policy "documentos_validade: insert" on public.documentos_validade for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos_validade: update" on public.documentos_validade;
 create policy "documentos_validade: update" on public.documentos_validade for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos_validade: delete" on public.documentos_validade;
 create policy "documentos_validade: delete" on public.documentos_validade for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- assinaturas_digitais
+drop policy if exists "assinaturas_digitais: select" on public.assinaturas_digitais;
 create policy "assinaturas_digitais: select" on public.assinaturas_digitais for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "assinaturas_digitais: insert" on public.assinaturas_digitais;
 create policy "assinaturas_digitais: insert" on public.assinaturas_digitais for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "assinaturas_digitais: update" on public.assinaturas_digitais;
 create policy "assinaturas_digitais: update" on public.assinaturas_digitais for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "assinaturas_digitais: delete" on public.assinaturas_digitais;
 create policy "assinaturas_digitais: delete" on public.assinaturas_digitais for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- assinaturas_signatarios (via assinatura_id)
+drop policy if exists "assinaturas_signatarios: select" on public.assinaturas_signatarios;
 create policy "assinaturas_signatarios: select" on public.assinaturas_signatarios for select
   using (assinatura_id in (
     select ad.id from public.assinaturas_digitais ad
     where ad.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
+drop policy if exists "assinaturas_signatarios: insert" on public.assinaturas_signatarios;
 create policy "assinaturas_signatarios: insert" on public.assinaturas_signatarios for insert
   with check (assinatura_id in (
     select ad.id from public.assinaturas_digitais ad
     where ad.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
+drop policy if exists "assinaturas_signatarios: update" on public.assinaturas_signatarios;
 create policy "assinaturas_signatarios: update" on public.assinaturas_signatarios for update
   using (assinatura_id in (
     select ad.id from public.assinaturas_digitais ad
     where ad.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
+drop policy if exists "assinaturas_signatarios: delete" on public.assinaturas_signatarios;
 create policy "assinaturas_signatarios: delete" on public.assinaturas_signatarios for delete
   using (assinatura_id in (
     select ad.id from public.assinaturas_digitais ad
@@ -334,12 +354,15 @@ create policy "assinaturas_signatarios: delete" on public.assinaturas_signatario
   ));
 
 -- Log: leitura pelo tenant, insert via service_role
+drop policy if exists "documentos_acesso_log: select" on public.documentos_acesso_log;
 create policy "documentos_acesso_log: select" on public.documentos_acesso_log for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
+drop policy if exists "documentos_acesso_log: insert service_role" on public.documentos_acesso_log;
 create policy "documentos_acesso_log: insert service_role" on public.documentos_acesso_log for insert
   with check (auth.role() = 'service_role');
 
 -- Retenção: leitura para todos os autenticados
+drop policy if exists "documentos_retencao: leitura" on public.documentos_retencao;
 create policy "documentos_retencao: leitura" on public.documentos_retencao for select
   using (auth.role() = 'authenticated');
 

@@ -40,18 +40,22 @@ CREATE TABLE IF NOT EXISTS bank_reconciliation_adjustments (
 -- 4) RLS — bank_reconciliation_matches
 ALTER TABLE bank_reconciliation_matches ENABLE ROW LEVEL SECURITY;
 
+drop policy if exists "Users can view reconciliation matches of their companies" on bank_reconciliation_matches;
 CREATE POLICY "Users can view reconciliation matches of their companies"
     ON bank_reconciliation_matches FOR SELECT
     USING (company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid()));
 
+drop policy if exists "Users can insert reconciliation matches for their companies" on bank_reconciliation_matches;
 CREATE POLICY "Users can insert reconciliation matches for their companies"
     ON bank_reconciliation_matches FOR INSERT
     WITH CHECK (company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid()));
 
+drop policy if exists "Users can update reconciliation matches of their companies" on bank_reconciliation_matches;
 CREATE POLICY "Users can update reconciliation matches of their companies"
     ON bank_reconciliation_matches FOR UPDATE
     USING (company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid()));
 
+drop policy if exists "Users can delete reconciliation matches of their companies" on bank_reconciliation_matches;
 CREATE POLICY "Users can delete reconciliation matches of their companies"
     ON bank_reconciliation_matches FOR DELETE
     USING (company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid()));
@@ -59,10 +63,12 @@ CREATE POLICY "Users can delete reconciliation matches of their companies"
 -- 5) RLS — bank_reconciliation_adjustments
 ALTER TABLE bank_reconciliation_adjustments ENABLE ROW LEVEL SECURITY;
 
+drop policy if exists "Users can view reconciliation adjustments of their companies" on bank_reconciliation_adjustments;
 CREATE POLICY "Users can view reconciliation adjustments of their companies"
     ON bank_reconciliation_adjustments FOR SELECT
     USING (company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid()));
 
+drop policy if exists "Users can insert reconciliation adjustments for their companies" on bank_reconciliation_adjustments;
 CREATE POLICY "Users can insert reconciliation adjustments for their companies"
     ON bank_reconciliation_adjustments FOR INSERT
     WITH CHECK (company_id IN (SELECT id FROM companies WHERE owner_id = auth.uid()));

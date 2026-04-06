@@ -45,6 +45,7 @@ create index if not exists idx_centros_custo_pai     on public.centros_custo(pai
 -- RLS
 alter table public.centros_custo enable row level security;
 
+drop policy if exists "centros_custo: leitura por empresa" on public.centros_custo;
 create policy "centros_custo: leitura por empresa"
   on public.centros_custo for select
   using (company_id in (
@@ -52,6 +53,7 @@ create policy "centros_custo: leitura por empresa"
     where uc.user_id = auth.uid()
   ));
 
+drop policy if exists "centros_custo: insert por empresa" on public.centros_custo;
 create policy "centros_custo: insert por empresa"
   on public.centros_custo for insert
   with check (company_id in (
@@ -59,6 +61,7 @@ create policy "centros_custo: insert por empresa"
     where uc.user_id = auth.uid()
   ));
 
+drop policy if exists "centros_custo: update por empresa" on public.centros_custo;
 create policy "centros_custo: update por empresa"
   on public.centros_custo for update
   using (company_id in (
@@ -66,6 +69,7 @@ create policy "centros_custo: update por empresa"
     where uc.user_id = auth.uid()
   ));
 
+drop policy if exists "centros_custo: delete por empresa" on public.centros_custo;
 create policy "centros_custo: delete por empresa"
   on public.centros_custo for delete
   using (company_id in (

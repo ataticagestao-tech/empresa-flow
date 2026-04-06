@@ -183,10 +183,12 @@ create index if not exists idx_relat_comp_owner      on public.relatorios_compar
 -- TRIGGERS
 -- ============================================================
 
+drop trigger if exists trg_grupos_updated_at on public.grupos_empresariais;
 create trigger trg_grupos_updated_at
   before update on public.grupos_empresariais
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_transfer_updated_at on public.transferencias_intercompany;
 create trigger trg_transfer_updated_at
   before update on public.transferencias_intercompany
   for each row execute function public.set_updated_at();
@@ -203,48 +205,66 @@ alter table public.consolidado_cache            enable row level security;
 alter table public.relatorios_comparativos      enable row level security;
 
 -- grupos_empresariais: owner é o usuário
+drop policy if exists "grupos_empresariais: select" on public.grupos_empresariais;
 create policy "grupos_empresariais: select" on public.grupos_empresariais for select
   using (owner_id = auth.uid());
+drop policy if exists "grupos_empresariais: insert" on public.grupos_empresariais;
 create policy "grupos_empresariais: insert" on public.grupos_empresariais for insert
   with check (owner_id = auth.uid());
+drop policy if exists "grupos_empresariais: update" on public.grupos_empresariais;
 create policy "grupos_empresariais: update" on public.grupos_empresariais for update
   using (owner_id = auth.uid());
+drop policy if exists "grupos_empresariais: delete" on public.grupos_empresariais;
 create policy "grupos_empresariais: delete" on public.grupos_empresariais for delete
   using (owner_id = auth.uid());
 
 -- grupos_empresas: via grupo owner
+drop policy if exists "grupos_empresas: select" on public.grupos_empresas;
 create policy "grupos_empresas: select" on public.grupos_empresas for select
   using (grupo_id in (select id from public.grupos_empresariais where owner_id = auth.uid()));
+drop policy if exists "grupos_empresas: insert" on public.grupos_empresas;
 create policy "grupos_empresas: insert" on public.grupos_empresas for insert
   with check (grupo_id in (select id from public.grupos_empresariais where owner_id = auth.uid()));
+drop policy if exists "grupos_empresas: update" on public.grupos_empresas;
 create policy "grupos_empresas: update" on public.grupos_empresas for update
   using (grupo_id in (select id from public.grupos_empresariais where owner_id = auth.uid()));
+drop policy if exists "grupos_empresas: delete" on public.grupos_empresas;
 create policy "grupos_empresas: delete" on public.grupos_empresas for delete
   using (grupo_id in (select id from public.grupos_empresariais where owner_id = auth.uid()));
 
 -- transferencias_intercompany: owner
+drop policy if exists "transferencias: select" on public.transferencias_intercompany;
 create policy "transferencias: select" on public.transferencias_intercompany for select
   using (owner_id = auth.uid());
+drop policy if exists "transferencias: insert" on public.transferencias_intercompany;
 create policy "transferencias: insert" on public.transferencias_intercompany for insert
   with check (owner_id = auth.uid());
+drop policy if exists "transferencias: update" on public.transferencias_intercompany;
 create policy "transferencias: update" on public.transferencias_intercompany for update
   using (owner_id = auth.uid());
+drop policy if exists "transferencias: delete" on public.transferencias_intercompany;
 create policy "transferencias: delete" on public.transferencias_intercompany for delete
   using (owner_id = auth.uid());
 
 -- consolidado_cache: via grupo owner (leitura), service_role (escrita)
+drop policy if exists "consolidado_cache: select" on public.consolidado_cache;
 create policy "consolidado_cache: select" on public.consolidado_cache for select
   using (grupo_id in (select id from public.grupos_empresariais where owner_id = auth.uid()));
+drop policy if exists "consolidado_cache: insert service_role" on public.consolidado_cache;
 create policy "consolidado_cache: insert service_role" on public.consolidado_cache for insert
   with check (auth.role() = 'service_role');
+drop policy if exists "consolidado_cache: update service_role" on public.consolidado_cache;
 create policy "consolidado_cache: update service_role" on public.consolidado_cache for update
   using (auth.role() = 'service_role');
 
 -- relatorios_comparativos: owner
+drop policy if exists "relatorios_comparativos: select" on public.relatorios_comparativos;
 create policy "relatorios_comparativos: select" on public.relatorios_comparativos for select
   using (owner_id = auth.uid());
+drop policy if exists "relatorios_comparativos: insert" on public.relatorios_comparativos;
 create policy "relatorios_comparativos: insert" on public.relatorios_comparativos for insert
   with check (owner_id = auth.uid());
+drop policy if exists "relatorios_comparativos: delete" on public.relatorios_comparativos;
 create policy "relatorios_comparativos: delete" on public.relatorios_comparativos for delete
   using (owner_id = auth.uid());
 

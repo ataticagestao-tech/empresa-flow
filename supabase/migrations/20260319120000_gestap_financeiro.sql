@@ -334,22 +334,27 @@ create index if not exists idx_regua_log_cr        on public.regua_cobranca_log(
 -- TRIGGERS — updated_at
 -- ============================================================
 
+drop trigger if exists trg_contratos_updated_at on public.contratos_recorrentes;
 create trigger trg_contratos_updated_at
   before update on public.contratos_recorrentes
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_cr_updated_at on public.contas_receber;
 create trigger trg_cr_updated_at
   before update on public.contas_receber
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_cp_updated_at on public.contas_pagar;
 create trigger trg_cp_updated_at
   before update on public.contas_pagar
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_vendas_updated_at on public.vendas;
 create trigger trg_vendas_updated_at
   before update on public.vendas
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_regua_updated_at on public.regua_cobranca;
 create trigger trg_regua_updated_at
   before update on public.regua_cobranca
   for each row execute function public.set_updated_at();
@@ -372,40 +377,49 @@ alter table public.regua_cobranca_log     enable row level security;
 
 -- Policies usando auth.uid() + user_companies (padrão empresa-flow)
 
+drop policy if exists "contratos_recorrentes: select" on public.contratos_recorrentes;
 create policy "contratos_recorrentes: select"
   on public.contratos_recorrentes for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contratos_recorrentes: insert" on public.contratos_recorrentes;
 create policy "contratos_recorrentes: insert"
   on public.contratos_recorrentes for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contratos_recorrentes: update" on public.contratos_recorrentes;
 create policy "contratos_recorrentes: update"
   on public.contratos_recorrentes for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contratos_recorrentes: delete" on public.contratos_recorrentes;
 create policy "contratos_recorrentes: delete"
   on public.contratos_recorrentes for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Vendas
+drop policy if exists "vendas: select" on public.vendas;
 create policy "vendas: select"
   on public.vendas for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "vendas: insert" on public.vendas;
 create policy "vendas: insert"
   on public.vendas for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "vendas: update" on public.vendas;
 create policy "vendas: update"
   on public.vendas for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "vendas: delete" on public.vendas;
 create policy "vendas: delete"
   on public.vendas for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Vendas Itens (via venda → company)
+drop policy if exists "vendas_itens: select" on public.vendas_itens;
 create policy "vendas_itens: select"
   on public.vendas_itens for select
   using (venda_id in (
@@ -413,6 +427,7 @@ create policy "vendas_itens: select"
     where v.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
 
+drop policy if exists "vendas_itens: insert" on public.vendas_itens;
 create policy "vendas_itens: insert"
   on public.vendas_itens for insert
   with check (venda_id in (
@@ -420,6 +435,7 @@ create policy "vendas_itens: insert"
     where v.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
 
+drop policy if exists "vendas_itens: update" on public.vendas_itens;
 create policy "vendas_itens: update"
   on public.vendas_itens for update
   using (venda_id in (
@@ -427,6 +443,7 @@ create policy "vendas_itens: update"
     where v.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
 
+drop policy if exists "vendas_itens: delete" on public.vendas_itens;
 create policy "vendas_itens: delete"
   on public.vendas_itens for delete
   using (venda_id in (
@@ -435,96 +452,118 @@ create policy "vendas_itens: delete"
   ));
 
 -- Contas a Receber
+drop policy if exists "contas_receber: select" on public.contas_receber;
 create policy "contas_receber: select"
   on public.contas_receber for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contas_receber: insert" on public.contas_receber;
 create policy "contas_receber: insert"
   on public.contas_receber for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contas_receber: update" on public.contas_receber;
 create policy "contas_receber: update"
   on public.contas_receber for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contas_receber: delete" on public.contas_receber;
 create policy "contas_receber: delete"
   on public.contas_receber for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Contas a Pagar
+drop policy if exists "contas_pagar: select" on public.contas_pagar;
 create policy "contas_pagar: select"
   on public.contas_pagar for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contas_pagar: insert" on public.contas_pagar;
 create policy "contas_pagar: insert"
   on public.contas_pagar for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contas_pagar: update" on public.contas_pagar;
 create policy "contas_pagar: update"
   on public.contas_pagar for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "contas_pagar: delete" on public.contas_pagar;
 create policy "contas_pagar: delete"
   on public.contas_pagar for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Movimentações
+drop policy if exists "movimentacoes: select" on public.movimentacoes;
 create policy "movimentacoes: select"
   on public.movimentacoes for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "movimentacoes: insert" on public.movimentacoes;
 create policy "movimentacoes: insert"
   on public.movimentacoes for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "movimentacoes: update" on public.movimentacoes;
 create policy "movimentacoes: update"
   on public.movimentacoes for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "movimentacoes: delete" on public.movimentacoes;
 create policy "movimentacoes: delete"
   on public.movimentacoes for delete
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Recibos v2
+drop policy if exists "recibos_v2: select" on public.recibos_v2;
 create policy "recibos_v2: select"
   on public.recibos_v2 for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "recibos_v2: insert" on public.recibos_v2;
 create policy "recibos_v2: insert"
   on public.recibos_v2 for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "recibos_v2: update" on public.recibos_v2;
 create policy "recibos_v2: update"
   on public.recibos_v2 for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Conciliação Bancária
+drop policy if exists "conciliacao_bancaria: select" on public.conciliacao_bancaria;
 create policy "conciliacao_bancaria: select"
   on public.conciliacao_bancaria for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "conciliacao_bancaria: insert" on public.conciliacao_bancaria;
 create policy "conciliacao_bancaria: insert"
   on public.conciliacao_bancaria for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "conciliacao_bancaria: update" on public.conciliacao_bancaria;
 create policy "conciliacao_bancaria: update"
   on public.conciliacao_bancaria for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Régua de Cobrança
+drop policy if exists "regua_cobranca: select" on public.regua_cobranca;
 create policy "regua_cobranca: select"
   on public.regua_cobranca for select
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "regua_cobranca: insert" on public.regua_cobranca;
 create policy "regua_cobranca: insert"
   on public.regua_cobranca for insert
   with check (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
+drop policy if exists "regua_cobranca: update" on public.regua_cobranca;
 create policy "regua_cobranca: update"
   on public.regua_cobranca for update
   using (company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()));
 
 -- Régua Log (via régua → company)
+drop policy if exists "regua_cobranca_log: select" on public.regua_cobranca_log;
 create policy "regua_cobranca_log: select"
   on public.regua_cobranca_log for select
   using (regua_id in (
@@ -532,6 +571,7 @@ create policy "regua_cobranca_log: select"
     where r.company_id in (select uc.company_id from public.user_companies uc where uc.user_id = auth.uid())
   ));
 
+drop policy if exists "regua_cobranca_log: insert" on public.regua_cobranca_log;
 create policy "regua_cobranca_log: insert"
   on public.regua_cobranca_log for insert
   with check (regua_id in (

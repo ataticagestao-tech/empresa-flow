@@ -379,22 +379,27 @@ create index if not exists idx_imp_folha_competencia on public.importacao_folha(
 -- TRIGGERS — updated_at
 -- ============================================================
 
+drop trigger if exists trg_folha_updated_at on public.folha_pagamento;
 create trigger trg_folha_updated_at
   before update on public.folha_pagamento
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_ponto_updated_at on public.ponto_eletronico;
 create trigger trg_ponto_updated_at
   before update on public.ponto_eletronico
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_ferias_updated_at on public.ferias_afastamentos;
 create trigger trg_ferias_updated_at
   before update on public.ferias_afastamentos
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_encargos_updated_at on public.encargos;
 create trigger trg_encargos_updated_at
   before update on public.encargos
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_adm_dem_updated_at on public.admissoes_demissoes;
 create trigger trg_adm_dem_updated_at
   before update on public.admissoes_demissoes
   for each row execute function public.set_updated_at();
@@ -410,6 +415,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_bloquear_folha_fechada on public.folha_pagamento;
 create trigger trg_bloquear_folha_fechada
   before update on public.folha_pagamento
   for each row execute function public.bloquear_folha_fechada();
@@ -430,21 +436,25 @@ alter table public.config_tabela_inss     enable row level security;
 alter table public.config_tabela_irrf     enable row level security;
 
 -- folha_pagamento
+drop policy if exists "folha_pagamento: select" on public.folha_pagamento;
 create policy "folha_pagamento: select"
   on public.folha_pagamento for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "folha_pagamento: insert" on public.folha_pagamento;
 create policy "folha_pagamento: insert"
   on public.folha_pagamento for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "folha_pagamento: update" on public.folha_pagamento;
 create policy "folha_pagamento: update"
   on public.folha_pagamento for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "folha_pagamento: delete" on public.folha_pagamento;
 create policy "folha_pagamento: delete"
   on public.folha_pagamento for delete
   using (company_id in (
@@ -452,6 +462,7 @@ create policy "folha_pagamento: delete"
   ));
 
 -- folha_itens (via folha_id → folha_pagamento.company_id)
+drop policy if exists "folha_itens: select" on public.folha_itens;
 create policy "folha_itens: select"
   on public.folha_itens for select
   using (folha_id in (
@@ -460,6 +471,7 @@ create policy "folha_itens: select"
       select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
     )
   ));
+drop policy if exists "folha_itens: insert" on public.folha_itens;
 create policy "folha_itens: insert"
   on public.folha_itens for insert
   with check (folha_id in (
@@ -468,6 +480,7 @@ create policy "folha_itens: insert"
       select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
     )
   ));
+drop policy if exists "folha_itens: update" on public.folha_itens;
 create policy "folha_itens: update"
   on public.folha_itens for update
   using (folha_id in (
@@ -476,6 +489,7 @@ create policy "folha_itens: update"
       select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
     )
   ));
+drop policy if exists "folha_itens: delete" on public.folha_itens;
 create policy "folha_itens: delete"
   on public.folha_itens for delete
   using (folha_id in (
@@ -486,21 +500,25 @@ create policy "folha_itens: delete"
   ));
 
 -- ponto_eletronico
+drop policy if exists "ponto_eletronico: select" on public.ponto_eletronico;
 create policy "ponto_eletronico: select"
   on public.ponto_eletronico for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "ponto_eletronico: insert" on public.ponto_eletronico;
 create policy "ponto_eletronico: insert"
   on public.ponto_eletronico for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "ponto_eletronico: update" on public.ponto_eletronico;
 create policy "ponto_eletronico: update"
   on public.ponto_eletronico for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "ponto_eletronico: delete" on public.ponto_eletronico;
 create policy "ponto_eletronico: delete"
   on public.ponto_eletronico for delete
   using (company_id in (
@@ -508,21 +526,25 @@ create policy "ponto_eletronico: delete"
   ));
 
 -- ferias_afastamentos
+drop policy if exists "ferias_afastamentos: select" on public.ferias_afastamentos;
 create policy "ferias_afastamentos: select"
   on public.ferias_afastamentos for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "ferias_afastamentos: insert" on public.ferias_afastamentos;
 create policy "ferias_afastamentos: insert"
   on public.ferias_afastamentos for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "ferias_afastamentos: update" on public.ferias_afastamentos;
 create policy "ferias_afastamentos: update"
   on public.ferias_afastamentos for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "ferias_afastamentos: delete" on public.ferias_afastamentos;
 create policy "ferias_afastamentos: delete"
   on public.ferias_afastamentos for delete
   using (company_id in (
@@ -530,21 +552,25 @@ create policy "ferias_afastamentos: delete"
   ));
 
 -- encargos
+drop policy if exists "encargos: select" on public.encargos;
 create policy "encargos: select"
   on public.encargos for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "encargos: insert" on public.encargos;
 create policy "encargos: insert"
   on public.encargos for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "encargos: update" on public.encargos;
 create policy "encargos: update"
   on public.encargos for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "encargos: delete" on public.encargos;
 create policy "encargos: delete"
   on public.encargos for delete
   using (company_id in (
@@ -552,21 +578,25 @@ create policy "encargos: delete"
   ));
 
 -- admissoes_demissoes
+drop policy if exists "admissoes_demissoes: select" on public.admissoes_demissoes;
 create policy "admissoes_demissoes: select"
   on public.admissoes_demissoes for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "admissoes_demissoes: insert" on public.admissoes_demissoes;
 create policy "admissoes_demissoes: insert"
   on public.admissoes_demissoes for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "admissoes_demissoes: update" on public.admissoes_demissoes;
 create policy "admissoes_demissoes: update"
   on public.admissoes_demissoes for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "admissoes_demissoes: delete" on public.admissoes_demissoes;
 create policy "admissoes_demissoes: delete"
   on public.admissoes_demissoes for delete
   using (company_id in (
@@ -574,21 +604,25 @@ create policy "admissoes_demissoes: delete"
   ));
 
 -- importacao_folha
+drop policy if exists "importacao_folha: select" on public.importacao_folha;
 create policy "importacao_folha: select"
   on public.importacao_folha for select
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "importacao_folha: insert" on public.importacao_folha;
 create policy "importacao_folha: insert"
   on public.importacao_folha for insert
   with check (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "importacao_folha: update" on public.importacao_folha;
 create policy "importacao_folha: update"
   on public.importacao_folha for update
   using (company_id in (
     select uc.company_id from public.user_companies uc where uc.user_id = auth.uid()
   ));
+drop policy if exists "importacao_folha: delete" on public.importacao_folha;
 create policy "importacao_folha: delete"
   on public.importacao_folha for delete
   using (company_id in (
@@ -596,10 +630,12 @@ create policy "importacao_folha: delete"
   ));
 
 -- Tabelas de config: leitura para todos os autenticados
+drop policy if exists "config_inss: leitura autenticada" on public.config_tabela_inss;
 create policy "config_inss: leitura autenticada"
   on public.config_tabela_inss for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "config_irrf: leitura autenticada" on public.config_tabela_irrf;
 create policy "config_irrf: leitura autenticada"
   on public.config_tabela_irrf for select
   using (auth.role() = 'authenticated');
