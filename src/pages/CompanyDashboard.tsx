@@ -8,9 +8,9 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, AreaChart, Area,
 } from "recharts";
-import { AlertTriangle, ArrowRight, ChevronDown } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Calendar } from "lucide-react";
 import {
-    startOfMonth, endOfMonth, subMonths, addDays, format,
+    startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, addDays, format,
     differenceInDays,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,7 +41,7 @@ const fmtFull = (v: number) =>
 const fmtPct = (v: number) => `${v.toFixed(1)}%`;
 
 /* ── Period Type ────────────────────────────────────────────── */
-type Period = "hoje" | "mes" | "trimestre" | "ano";
+type Period = "hoje" | "mes" | "trimestre" | "ano" | "custom";
 
 /* ── Main Component ─────────────────────────────────────────── */
 export default function CompanyDashboard() {
@@ -53,9 +53,49 @@ export default function CompanyDashboard() {
     const cId = companyId || selectedCompany?.id;
 
     const [period, setPeriod] = useState<Period>("mes");
+    const [customStart, setCustomStart] = useState("");
+    const [customEnd, setCustomEnd] = useState("");
 
     const today = useMemo(() => new Date(), []);
     const todayStr = format(today, "yyyy-MM-dd");
+
+    // ─── Period date range ────────────────────────────────
+    const { periodStart, periodEnd, periodLabel } = useMemo(() => {
+        switch (period) {
+            case "hoje":
+                return { periodStart: todayStr, periodEnd: todayStr, periodLabel: "Hoje" };
+            case "mes":
+                return {
+                    periodStart: format(startOfMonth(today), "yyyy-MM-dd"),
+                    periodEnd: format(endOfMonth(today), "yyyy-MM-dd"),
+                    periodLabel: "Mês",
+                };
+            case "trimestre":
+                return {
+                    periodStart: format(startOfMonth(subMonths(today, 2)), "yyyy-MM-dd"),
+                    periodEnd: format(endOfMonth(today), "yyyy-MM-dd"),
+                    periodLabel: "Trimestre",
+                };
+            case "ano":
+                return {
+                    periodStart: format(startOfYear(today), "yyyy-MM-dd"),
+                    periodEnd: format(endOfYear(today), "yyyy-MM-dd"),
+                    periodLabel: "Ano",
+                };
+            case "custom":
+                return {
+                    periodStart: customStart || todayStr,
+                    periodEnd: customEnd || todayStr,
+                    periodLabel: "Personalizado",
+                };
+            default:
+                return {
+                    periodStart: format(startOfMonth(today), "yyyy-MM-dd"),
+                    periodEnd: format(endOfMonth(today), "yyyy-MM-dd"),
+                    periodLabel: "Mês",
+                };
+        }
+    }, [period, today, todayStr, customStart, customEnd]);
 
     // ─── Transfer account IDs (excluir de todos os cálculos) ─
     const { data: transferAccountIds = [] } = useQuery({
@@ -120,20 +160,17 @@ export default function CompanyDashboard() {
         [payablesRaw, transferAccountIds]
     );
 
-    // ─── Paid this month (receita/despesa do mês) ───────────
-    const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
-    const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
-
-    const { data: receitaMes = 0 } = useQuery({
-        queryKey: ["dash_receita_mes", cId, monthStart, transferAccountIds],
+    // ─── Receita/Despesa do período selecionado ───────────
+    const { data: receitaPeriodo = 0 } = useQuery({
+        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, transferAccountIds],
         queryFn: async () => {
             const { data } = await db.from("contas_receber")
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId)
                 .eq("status", "pago")
                 .is("deleted_at", null)
-                .gte("data_pagamento", monthStart)
-                .lte("data_pagamento", monthEnd)
+                .gte("data_pagamento", periodStart)
+                .lte("data_pagamento", periodEnd)
                 .limit(5000);
             return (data || [])
                 .filter((r: any) => !isTransfer(r))
@@ -142,14 +179,14 @@ export default function CompanyDashboard() {
         enabled: !!cId,
     });
 
-    const { data: despesaMes = 0 } = useQuery({
-        queryKey: ["dash_despesa_mes", cId, monthStart, transferAccountIds],
+    const { data: despesaPeriodo = 0 } = useQuery({
+        queryKey: ["dash_despesa_periodo", cId, periodStart, periodEnd, transferAccountIds],
         queryFn: async () => {
             const { data } = await db.from("contas_pagar")
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId).eq("status", "pago")
                 .is("deleted_at", null)
-                .gte("data_pagamento", monthStart).lte("data_pagamento", monthEnd)
+                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
                 .limit(5000);
             return (data || [])
                 .filter((r: any) => !isTransfer(r))
@@ -158,15 +195,15 @@ export default function CompanyDashboard() {
         enabled: !!cId,
     });
 
-    const resultadoMes = receitaMes - despesaMes;
-    const margemMes = receitaMes > 0 ? (resultadoMes / receitaMes) * 100 : 0;
+    const resultadoPeriodo = receitaPeriodo - despesaPeriodo;
+    const margemPeriodo = receitaPeriodo > 0 ? (resultadoPeriodo / receitaPeriodo) * 100 : 0;
 
-    // ─── Previous month receita (para comparação) ─────────
+    // ─── Previous period receita (para comparação) ─────────
     const prevMonthStart = format(startOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
     const prevMonthEnd = format(endOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
     const prevMonthLabel = format(subMonths(today, 1), "MMMM", { locale: ptBR });
 
-    const { data: receitaMesAnterior = 0 } = useQuery({
+    const { data: receitaPeriodoAnterior = 0 } = useQuery({
         queryKey: ["dash_receita_prev", cId, prevMonthStart, transferAccountIds],
         queryFn: async () => {
             const { data } = await db.from("contas_receber")
@@ -276,7 +313,7 @@ export default function CompanyDashboard() {
 
     // ─── Fluxo de Caixa 30 dias (chart) ─────────────────────
     const { data: chartCashflow } = useQuery({
-        queryKey: ["dash_cashflow_30d", cId],
+        queryKey: ["dash_cashflow_30d", cId, saldoCaixa, receivablesFiltered?.length, payablesFiltered?.length],
         queryFn: async () => {
             const days: any[] = [];
             let balance = saldoCaixa || 0;
@@ -345,23 +382,36 @@ export default function CompanyDashboard() {
                         </button>
 
                         {/* Period Filter */}
-                        <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
-                            {([
-                                { key: "hoje", label: "Hoje" },
-                                { key: "mes", label: "Este mes" },
-                                { key: "trimestre", label: "Trimestre" },
-                                { key: "ano", label: "Ano" },
-                            ] as { key: Period; label: string }[]).map((p) => (
-                                <button key={p.key} onClick={() => setPeriod(p.key)} style={{
-                                    padding: "8px 18px", fontSize: 13, fontWeight: period === p.key ? 700 : 400,
-                                    background: period === p.key ? C.text1 : C.surface,
-                                    color: period === p.key ? "#fff" : C.text2,
-                                    border: "none", cursor: "pointer",
-                                    borderRight: `1px solid ${C.border}`,
-                                }}>
-                                    {p.label}
-                                </button>
-                            ))}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
+                                {([
+                                    { key: "hoje", label: "Hoje" },
+                                    { key: "mes", label: "Este mês" },
+                                    { key: "trimestre", label: "Trimestre" },
+                                    { key: "ano", label: "Ano" },
+                                    { key: "custom", label: "Personalizado" },
+                                ] as { key: Period; label: string }[]).map((p) => (
+                                    <button key={p.key} onClick={() => setPeriod(p.key)} style={{
+                                        padding: "8px 18px", fontSize: 13, fontWeight: period === p.key ? 700 : 400,
+                                        background: period === p.key ? C.text1 : C.surface,
+                                        color: period === p.key ? "#fff" : C.text2,
+                                        border: "none", cursor: "pointer",
+                                        borderRight: `1px solid ${C.border}`,
+                                    }}>
+                                        {p.key === "custom" && <Calendar size={12} style={{ marginRight: 4, verticalAlign: -1 }} />}
+                                        {p.label}
+                                    </button>
+                                ))}
+                            </div>
+                            {period === "custom" && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+                                        style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13 }} />
+                                    <span style={{ fontSize: 12, color: C.textMuted }}>até</span>
+                                    <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+                                        style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13 }} />
+                                </div>
+                            )}
                         </div>
                     </div>
                     <span style={{ fontSize: 12, color: C.textMuted }}>
@@ -405,36 +455,36 @@ export default function CompanyDashboard() {
                         </p>
                     </div>
 
-                    {/* Receita do Mes */}
+                    {/* Receita do Período */}
                     <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
-                            Receita do Mes
+                            Receita — {periodLabel}
                         </p>
-                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(receitaMes)}</p>
+                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6 }}>{fmt(receitaPeriodo)}</p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                            Despesas: {fmt(despesaMes)}
+                            Despesas: {fmt(despesaPeriodo)}
                         </p>
                     </div>
 
-                    {/* Resultado do Mes */}
+                    {/* Resultado do Período */}
                     <div style={{ background: C.darkCard, borderRadius: 12, padding: 20, color: "#fff" }}>
                         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: C.gold }}>
-                            Resultado do Mes
+                            Resultado — {periodLabel}
                         </p>
-                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6, color: resultadoMes >= 0 ? "#4ade80" : "#f87171" }}>
-                            {fmt(resultadoMes)}
+                        <p style={{ fontSize: 28, fontWeight: 800, marginTop: 6, color: resultadoPeriodo >= 0 ? "#4ade80" : "#f87171" }}>
+                            {fmt(resultadoPeriodo)}
                         </p>
                         <p style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                            Margem {fmtPct(margemMes)}
+                            Margem {fmtPct(margemPeriodo)}
                         </p>
-                        {receitaMesAnterior > 0 && (
+                        {receitaPeriodoAnterior > 0 && (
                             <span style={{
                                 display: "inline-block", marginTop: 6, padding: "2px 10px",
                                 borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                background: receitaMes >= receitaMesAnterior ? C.greenBadge : C.redBg,
+                                background: receitaPeriodo >= receitaPeriodoAnterior ? C.greenBadge : C.redBg,
                                 color: "#fff",
                             }}>
-                                {receitaMes >= receitaMesAnterior ? "\u25B2" : "\u25BC"} vs {prevMonthLabel}
+                                {receitaPeriodo >= receitaPeriodoAnterior ? "\u25B2" : "\u25BC"} vs {prevMonthLabel}
                             </span>
                         )}
                     </div>
