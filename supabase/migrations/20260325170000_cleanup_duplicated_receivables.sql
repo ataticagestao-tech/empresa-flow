@@ -4,6 +4,10 @@
 -- Mantém apenas o registro mais antigo de cada grupo duplicado
 -- ============================================================
 
+-- Desabilitar triggers temporariamente para permitir DELETE
+ALTER TABLE public.contas_receber DISABLE TRIGGER USER;
+ALTER TABLE public.contas_pagar DISABLE TRIGGER USER;
+
 -- 1) Identificar contas_receber duplicadas via bank_reconciliation_matches
 --    (mesma bank_transaction_id com múltiplos receivable_id)
 --    Deletar os duplicados mantendo o mais antigo
@@ -81,3 +85,7 @@ WHERE id NOT IN (
   FROM public.contas_pagar
   ORDER BY company_id, credor_nome, valor, data_vencimento, created_at ASC
 );
+
+-- Reabilitar triggers
+ALTER TABLE public.contas_receber ENABLE TRIGGER USER;
+ALTER TABLE public.contas_pagar ENABLE TRIGGER USER;
