@@ -263,7 +263,7 @@ export default function Vendas() {
     const aPrazo = vendas
       .filter((v) => FORMAS_A_PRAZO.includes(v.forma_pagamento))
       .reduce((s, v) => s + (v.valor_total || 0), 0)
-    return { total, ticket, aVista, aPrazo }
+    return { total, count, ticket, aVista, aPrazo }
   }, [vendas])
 
   // ─── Fetch data ──────────────────────────────────────────────
@@ -752,9 +752,10 @@ export default function Vendas() {
       <div className="max-w-[1400px] mx-auto space-y-5">
 
         {/* ─── KPIs ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { label: 'Vendas do mês', value: formatBRL(kpis.total), color: '#1a2e4a' },
+            { label: 'Vendas', value: String(kpis.count), color: '#1a2e4a' },
             { label: 'Ticket médio', value: formatBRL(kpis.ticket), color: '#1a2e4a' },
             { label: 'À vista', value: formatBRL(kpis.aVista), color: '#0a5c2e' },
             { label: 'A prazo', value: formatBRL(kpis.aPrazo), color: '#5c3a00' },
