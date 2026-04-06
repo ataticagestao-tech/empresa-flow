@@ -862,7 +862,8 @@ export default function PainelGerencial() {
         </div>
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={`${nVendas} vendas | TM ${fmt(ticketMedio)}`} />
           <KpiCard label="Saldo em caixa" value={fmt(saldoTotal)} color={saldoTotal >= 0 ? C.green : C.red} />
           <KpiCard label="Entradas previstas (mês)" value={fmt(crPrevMes)} color={C.text1} />
           <KpiCard label="Contas ativas" value={String(contasAtivas)} color={C.text1} />
