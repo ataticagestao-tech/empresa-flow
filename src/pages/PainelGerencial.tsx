@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,7 @@ import {
   subMonths,
   addDays,
   differenceInDays,
+  parse,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -26,7 +27,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Calendar } from "lucide-react";
 
 /* ── Design Tokens ──────────────────────────────────────────── */
 const C = {
@@ -95,14 +96,44 @@ export default function PainelGerencial() {
   const db = activeClient as any;
   const cId = selectedCompany?.id;
 
-  const today = useMemo(() => new Date(), []);
-  const todayStr = format(today, "yyyy-MM-dd");
-  const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
-  const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
-  const next7Str = format(addDays(today, 7), "yyyy-MM-dd");
-  const next30Str = format(addDays(today, 30), "yyyy-MM-dd");
-  const next60Str = format(addDays(today, 60), "yyyy-MM-dd");
-  const next90Str = format(addDays(today, 90), "yyyy-MM-dd");
+  const realToday = useMemo(() => new Date(), []);
+  const realTodayStr = format(realToday, "yyyy-MM-dd");
+
+  // ── Filtro de período ───────────────────────────────────────
+  type PeriodoTipo = "mes" | "custom";
+  const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mes");
+  const [mesSelecionado, setMesSelecionado] = useState(format(realToday, "yyyy-MM"));
+  const [dataInicio, setDataInicio] = useState(format(startOfMonth(realToday), "yyyy-MM-dd"));
+  const [dataFim, setDataFim] = useState(format(endOfMonth(realToday), "yyyy-MM-dd"));
+
+  const mesesOpcoes = useMemo(() => {
+    const opts: string[] = [];
+    for (let i = 0; i < 24; i++) {
+      opts.push(format(subMonths(realToday, i), "yyyy-MM"));
+    }
+    return opts;
+  }, []);
+
+  // Datas derivadas do filtro
+  const monthStart = useMemo(() => {
+    if (periodoTipo === "custom") return dataInicio;
+    const d = parse(mesSelecionado + "-01", "yyyy-MM-dd", new Date());
+    return format(startOfMonth(d), "yyyy-MM-dd");
+  }, [periodoTipo, mesSelecionado, dataInicio]);
+
+  const monthEnd = useMemo(() => {
+    if (periodoTipo === "custom") return dataFim;
+    const d = parse(mesSelecionado + "-01", "yyyy-MM-dd", new Date());
+    return format(endOfMonth(d), "yyyy-MM-dd");
+  }, [periodoTipo, mesSelecionado, dataFim]);
+
+  // "hoje" relativo ao período (para vencimentos usa hoje real)
+  const todayStr = realTodayStr;
+  const today = realToday;
+  const next7Str = format(addDays(realToday, 7), "yyyy-MM-dd");
+  const next30Str = format(addDays(realToday, 30), "yyyy-MM-dd");
+  const next60Str = format(addDays(realToday, 60), "yyyy-MM-dd");
+  const next90Str = format(addDays(realToday, 90), "yyyy-MM-dd");
 
   // ────────────────────────────────────────────────────────────
   // SECTION 1: CAIXA E BANCOS
@@ -666,13 +697,70 @@ export default function PainelGerencial() {
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 pb-12">
-        <h1 className="text-2xl font-bold text-[#1A1F36] mt-6 mb-2">
-          Painel Gerencial
-        </h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Cockpit financeiro consolidado -{" "}
-          {format(today, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap mt-6 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1A1F36] mb-1">
+              Painel Gerencial
+            </h1>
+            <p className="text-sm text-gray-500">
+              Cockpit financeiro consolidado
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex border border-[#e2e8f0] rounded-lg overflow-hidden">
+              <button
+                onClick={() => setPeriodoTipo("mes")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  periodoTipo === "mes"
+                    ? "bg-[#1a2e4a] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Mês
+              </button>
+              <button
+                onClick={() => setPeriodoTipo("custom")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  periodoTipo === "custom"
+                    ? "bg-[#1a2e4a] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Calendar className="h-3 w-3 inline mr-1" />
+                Personalizado
+              </button>
+            </div>
+            {periodoTipo === "mes" ? (
+              <select
+                value={mesSelecionado}
+                onChange={(e) => setMesSelecionado(e.target.value)}
+                className="h-8 px-3 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20"
+              >
+                {mesesOpcoes.map((m) => (
+                  <option key={m} value={m}>
+                    {format(parse(m + "-01", "yyyy-MM-dd", new Date()), "MMMM yyyy", { locale: ptBR })}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20"
+                />
+                <span className="text-xs text-gray-400">a</span>
+                <input
+                  type="date"
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20"
+                />
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ── SECTION 1: CAIXA E BANCOS ─────────────────────── */}
         <SectionTitle>Caixa e Bancos</SectionTitle>
