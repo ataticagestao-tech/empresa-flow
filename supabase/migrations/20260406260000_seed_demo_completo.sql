@@ -292,14 +292,14 @@ BEGIN
   bank_nu := gen_random_uuid();
   bank_cx := gen_random_uuid();
 
-  INSERT INTO bank_accounts (id, company_id, name, type, banco, agencia, conta, initial_balance, is_active, status) VALUES
-  (bank_bb, co1, 'BB Conta Corrente',    'conta_corrente', 'Banco do Brasil', '1234-5', '56789-0', 45000.00, true, 'ativa'),
-  (bank_nu, co1, 'Nubank Conta Corrente','conta_corrente', 'Nubank',          '0001',   '9876543-2', 22000.00, true, 'ativa'),
-  (bank_cx, co1, 'Caixa Poupanca',       'poupanca',       'Caixa Economica', '0512',   '00012345-6', 15000.00, true, 'ativa');
+  INSERT INTO bank_accounts (id, company_id, name, bank_name, agency, account_number, initial_balance, current_balance, is_active) VALUES
+  (bank_bb, co1, 'BB Conta Corrente',     'Banco do Brasil', '1234-5', '56789-0',    45000.00, 78543.27, true),
+  (bank_nu, co1, 'Nubank Conta Corrente', 'Nubank',          '0001',   '9876543-2',  22000.00, 32150.80, true),
+  (bank_cx, co1, 'Caixa Poupanca',        'Caixa Economica', '0512',   '00012345-6', 15000.00, 15420.00, true);
 
   bank2_nu := gen_random_uuid();
-  INSERT INTO bank_accounts (id, company_id, name, type, banco, agencia, conta, initial_balance, is_active, status) VALUES
-  (bank2_nu, co2, 'Nubank Tech Store', 'conta_corrente', 'Nubank', '0001', '1234567-8', 18000.00, true, 'ativa');
+  INSERT INTO bank_accounts (id, company_id, name, bank_name, agency, account_number, initial_balance, current_balance, is_active) VALUES
+  (bank2_nu, co2, 'Nubank Tech Store', 'Nubank', '0001', '1234567-8', 18000.00, 24820.50, true);
 
   -- ============================================================
   -- 6. CLIENTS — Company 1 (8 clients)
