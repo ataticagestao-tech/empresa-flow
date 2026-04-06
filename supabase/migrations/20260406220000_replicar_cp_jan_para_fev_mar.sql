@@ -26,18 +26,20 @@ BEGIN
   LOOP
     RAISE NOTICE 'Processando unidade: % (id: %)', COALESCE(v_company.nome_fantasia, v_company.razao_social), v_company.id;
 
-    -- Buscar CPs de janeiro/2026 desta unidade
+    -- Buscar CPs de janeiro/2026 desta unidade (validar FKs)
     FOR v_cp IN
       SELECT
-        company_id, credor_nome, credor_cpf_cnpj,
-        valor, conta_contabil_id, centro_custo_id,
-        forma_pagamento, conta_bancaria_id,
-        observacoes, unidade_destino_id,
-        data_vencimento
-      FROM public.contas_pagar
-      WHERE company_id = v_company.id
-        AND data_vencimento >= '2026-01-01'
-        AND data_vencimento < '2026-02-01'
+        cp.company_id, cp.credor_nome, cp.credor_cpf_cnpj,
+        cp.valor,
+        CASE WHEN cp.conta_contabil_id IN (SELECT id FROM public.chart_of_accounts) THEN cp.conta_contabil_id ELSE NULL END AS conta_contabil_id,
+        cp.centro_custo_id,
+        cp.forma_pagamento, cp.conta_bancaria_id,
+        cp.observacoes, cp.unidade_destino_id,
+        cp.data_vencimento
+      FROM public.contas_pagar cp
+      WHERE cp.company_id = v_company.id
+        AND cp.data_vencimento >= '2026-01-01'
+        AND cp.data_vencimento < '2026-02-01'
     LOOP
       -- ── FEVEREIRO: mesmo dia, mês seguinte ──
       v_new_vencimento := (v_cp.data_vencimento + INTERVAL '1 month')::DATE;
