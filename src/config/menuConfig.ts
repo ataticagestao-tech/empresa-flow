@@ -83,11 +83,13 @@ export const menuGroups: MenuGroup[] = [
     id: 'financeiro',
     labelKey: 'menu.finance',
     items: [
+      { titleKey: 'Painel Gerencial', icon: BarChart3, url: '/painel-gerencial', isHardcoded: true },
       { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
+      { titleKey: 'Extrato Reconciliado', icon: CheckSquare, url: '/extrato-reconciliado', isHardcoded: true },
       { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
       { titleKey: 'DRE Contábil', icon: BarChart3, url: '/demonstrativos/dre', isHardcoded: true },
       { titleKey: 'Balanço Patrimonial', icon: Scale, url: '/demonstrativos/bp', isHardcoded: true },

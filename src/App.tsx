@@ -71,6 +71,8 @@ import FluxoCaixa from "./pages/FluxoCaixa";
 import MapeamentoContabil from "./pages/MapeamentoContabil";
 import NfseEmissao from "./pages/NfseEmissao";
 import NfseConfiguracoes from "./pages/NfseConfiguracoes";
+import PainelGerencial from "./pages/PainelGerencial";
+import ExtratoReconciliado from "./pages/ExtratoReconciliado";
 
 const queryClient = new QueryClient();
 
@@ -197,6 +199,8 @@ const App = () => (
                     <Route path="/ajuda" element={<Ajuda />} />
                     <Route path="/contratos-recorrentes" element={<ContratosRecorrentes />} />
                     <Route path="/regua-cobranca" element={<ReguaCobranca />} />
+                    <Route path="/painel-gerencial" element={<PainelGerencial />} />
+                    <Route path="/extrato-reconciliado" element={<ExtratoReconciliado />} />
                     <Route path="/dre" element={<DRE />} />
                     <Route path="/demonstrativos/dre" element={<DREContabil />} />
                     <Route path="/demonstrativos/bp" element={<BalancoPatrimonial />} />

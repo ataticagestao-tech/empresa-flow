@@ -37,6 +37,22 @@ export default function DRE() {
   const hoje = new Date();
   const [mesInicio, setMesInicio] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM"));
   const [mesFim, setMesFim] = useState(format(hoje, "yyyy-MM"));
+  const [centroCustoId, setCentroCustoId] = useState<string>("todos");
+
+  // Buscar centros de custo
+  const { data: centrosCusto = [] } = useQuery({
+    queryKey: ["dre_centros_custo", selectedCompany?.id],
+    queryFn: async () => {
+      const { data } = await db
+        .from("centros_custo")
+        .select("id, codigo, descricao")
+        .eq("company_id", selectedCompany!.id)
+        .eq("ativo", true)
+        .order("descricao");
+      return data || [];
+    },
+    enabled: !!selectedCompany?.id,
+  });
 
   // Gerar opções de meses (últimos 24 meses)
   const mesesOpcoes = useMemo(() => {
@@ -49,9 +65,14 @@ export default function DRE() {
 
   // Buscar DRE consolidado (view v_dre_consolidado)
   const { data: linhas = [], isLoading } = useQuery({
-    queryKey: ["dre_consolidado", selectedCompany?.id, mesInicio, mesFim],
+    queryKey: ["dre_consolidado", selectedCompany?.id, mesInicio, mesFim, centroCustoId],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
+
+      // Se filtro por centro de custo ativo, usar fallback direto (view não suporta filtro)
+      if (centroCustoId !== "todos") {
+        return await calcularDREFallback();
+      }
 
       const { data, error } = await db
         .from("v_dre_consolidado")
@@ -62,7 +83,6 @@ export default function DRE() {
         .order("codigo");
 
       if (error || !data || data.length === 0) {
-        // View vazia ou com erro: fallback para movimentações
         return await calcularDREFallback();
       }
 
@@ -90,14 +110,17 @@ export default function DRE() {
     let movs: any[] = [];
     let page = 0;
     while (true) {
-      const { data } = await db
+      let q = db
         .from("movimentacoes")
         .select("valor, tipo, conta_contabil_id, data, origem")
         .eq("company_id", selectedCompany.id)
         .neq("origem", "transferencia")
         .gte("data", `${mesInicio}-01`)
-        .lte("data", `${mesFim}-31`)
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+        .lte("data", `${mesFim}-31`);
+      if (centroCustoId !== "todos") {
+        q = q.eq("centro_custo_id", centroCustoId);
+      }
+      const { data } = await q.range(page * pageSize, (page + 1) * pageSize - 1);
       if (!data || data.length === 0) break;
       movs = movs.concat(data);
       if (data.length < pageSize) break;
@@ -271,6 +294,17 @@ export default function DRE() {
               <SelectContent>
                 {mesesOpcoes.map((m) => (
                   <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={centroCustoId} onValueChange={setCentroCustoId}>
+              <SelectTrigger className="w-[180px] h-8 text-xs">
+                <SelectValue placeholder="Centro de Custo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os centros</SelectItem>
+                {centrosCusto.map((cc: any) => (
+                  <SelectItem key={cc.id} value={cc.id}>{cc.descricao}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
