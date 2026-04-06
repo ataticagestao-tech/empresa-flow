@@ -160,21 +160,18 @@ export default function CompanyDashboard() {
         [payablesRaw, transferAccountIds]
     );
 
-    // ─── Receita/Despesa do período selecionado ───────────
+    // ─── Receita do período (fonte: tabela vendas) ─────────
     const { data: receitaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, transferAccountIds],
+        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd],
         queryFn: async () => {
-            const { data } = await db.from("contas_receber")
-                .select("valor_pago, conta_contabil_id")
+            const { data } = await db.from("vendas")
+                .select("valor_total")
                 .eq("company_id", cId)
-                .eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", periodStart)
-                .lte("data_pagamento", periodEnd)
+                .in("status", ["confirmado"])
+                .gte("data_venda", periodStart)
+                .lte("data_venda", periodEnd)
                 .limit(5000);
-            return (data || [])
-                .filter((r: any) => !isTransfer(r))
-                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_total || 0), 0);
         },
         enabled: !!cId,
     });
@@ -204,19 +201,16 @@ export default function CompanyDashboard() {
     const prevMonthLabel = format(subMonths(today, 1), "MMMM", { locale: ptBR });
 
     const { data: receitaPeriodoAnterior = 0 } = useQuery({
-        queryKey: ["dash_receita_prev", cId, prevMonthStart, transferAccountIds],
+        queryKey: ["dash_receita_prev", cId, prevMonthStart],
         queryFn: async () => {
-            const { data } = await db.from("contas_receber")
-                .select("valor_pago, conta_contabil_id")
+            const { data } = await db.from("vendas")
+                .select("valor_total")
                 .eq("company_id", cId)
-                .eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", prevMonthStart)
-                .lte("data_pagamento", prevMonthEnd)
+                .in("status", ["confirmado"])
+                .gte("data_venda", prevMonthStart)
+                .lte("data_venda", prevMonthEnd)
                 .limit(5000);
-            return (data || [])
-                .filter((r: any) => !isTransfer(r))
-                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_total || 0), 0);
         },
         enabled: !!cId,
     });
@@ -279,11 +273,11 @@ export default function CompanyDashboard() {
                 const me = format(endOfMonth(d), "yyyy-MM-dd");
 
                 const [{ data: rec }, { data: desp }] = await Promise.all([
-                    db.from("contas_receber")
-                        .select("valor_pago, conta_contabil_id")
-                        .eq("company_id", cId).eq("status", "pago")
-                        .is("deleted_at", null)
-                        .gte("data_pagamento", ms).lte("data_pagamento", me)
+                    db.from("vendas")
+                        .select("valor_total")
+                        .eq("company_id", cId)
+                        .in("status", ["confirmado"])
+                        .gte("data_venda", ms).lte("data_venda", me)
                         .limit(5000),
                     db.from("contas_pagar")
                         .select("valor_pago, conta_contabil_id")
@@ -294,8 +288,7 @@ export default function CompanyDashboard() {
                 ]);
 
                 const receita = (rec || [])
-                    .filter((r: any) => !isTransfer(r))
-                    .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                    .reduce((s: number, r: any) => s + Number(r.valor_total || 0), 0);
                 const despesa = (desp || [])
                     .filter((r: any) => !isTransfer(r))
                     .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
