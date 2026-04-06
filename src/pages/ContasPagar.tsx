@@ -6,6 +6,7 @@ import {
   AlertTriangle, Loader2, FileText, Trash2, SplitSquareVertical,
   RefreshCw, Download, Paperclip, Archive, Pencil, ScanLine
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -234,7 +235,7 @@ export default function ContasPagar() {
     const db = activeClient as any
 
     const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
-      db.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
+      db.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).is('deleted_at', null).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
       db.from('bank_accounts').select('id, company_id, name, banco').eq('company_id', selectedCompany.id),
       db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
       db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
@@ -1213,8 +1214,21 @@ export default function ContasPagar() {
                                             onClick={async () => {
                                               setDropdownOpen(null)
                                               if (!confirm(`Excluir este lancamento de ${cp.credor_nome}? Esta acao nao pode ser desfeita.`)) return
-                                              await (activeClient as any).from('contas_pagar').delete().eq('id', cp.id)
-                                              await loadData()
+                                              try {
+                                                const ac = activeClient as any
+                                                // Soft delete (trigger bloqueia DELETE direto)
+                                                const { error } = await ac.from('contas_pagar').update({ deleted_at: new Date().toISOString() }).eq('id', cp.id)
+                                                if (error) throw error
+                                                // Limpar dependências
+                                                await ac.from('movimentacoes').delete().eq('conta_pagar_id', cp.id)
+                                                await ac.from('bank_reconciliation_matches').update({ payable_id: null }).eq('payable_id', cp.id)
+                                                await ac.from('bank_transactions').update({ reconciled_payable_id: null }).eq('reconciled_payable_id', cp.id)
+                                                toast.success('Lancamento excluido')
+                                                await loadData()
+                                              } catch (err: any) {
+                                                console.error('[excluirCP]', err)
+                                                toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))
+                                              }
                                             }}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
                                             style={{ color: '#8b0000', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
