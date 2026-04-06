@@ -218,22 +218,45 @@ export default function Conciliacao() {
 
     // Mutation: update category — works on linked payable/receivable OR directly on bank_transactions
     const updateLinkedCategory = async (linkedTable: string | null, linkedId: string | null, newCategoryId: string, bankTxId?: string) => {
-        // Update linked payable/receivable
-        if (linkedTable && linkedId) {
-            const gestapTable = linkedTable === "accounts_payable" ? "contas_pagar" : "contas_receber";
-            const { error } = await (activeClient as any)
-                .from(gestapTable)
-                .update({ conta_contabil_id: newCategoryId })
-                .eq("id", linkedId);
-            if (error) {
-                toast({ title: "Erro", description: "Não foi possível atualizar a categoria.", variant: "destructive" });
-                return;
+        console.log("[updateLinkedCategory] params:", { linkedTable, linkedId, newCategoryId, bankTxId });
+
+        if (!linkedId) {
+            toast({ title: "Erro", description: "Transação sem vínculo — não é possível atualizar categoria.", variant: "destructive" });
+            return;
+        }
+
+        // Determinar tabela e tentar update
+        const isPayable = linkedTable === "accounts_payable";
+        const tables = isPayable
+            ? ["contas_pagar", "accounts_payable"]
+            : ["contas_receber", "accounts_receivable"];
+
+        let updated = false;
+        for (const table of tables) {
+            const field = table.startsWith("accounts_") ? "account_id" : "conta_contabil_id";
+            const { error, data } = await (activeClient as any)
+                .from(table)
+                .update({ [field]: newCategoryId })
+                .eq("id", linkedId)
+                .select("id");
+
+            console.log(`[updateLinkedCategory] ${table}.${field} = ${newCategoryId} where id=${linkedId}:`, { error, data });
+
+            if (!error && data && data.length > 0) {
+                updated = true;
+                // Atualizar movimentação vinculada
+                const txField = isPayable ? "conta_pagar_id" : "conta_receber_id";
+                await (activeClient as any)
+                    .from("movimentacoes")
+                    .update({ conta_contabil_id: newCategoryId })
+                    .eq(txField, linkedId);
+                break;
             }
-            const txField = linkedTable === "accounts_payable" ? "conta_pagar_id" : "conta_receber_id";
-            await (activeClient as any)
-                .from("movimentacoes")
-                .update({ conta_contabil_id: newCategoryId })
-                .eq(txField, linkedId);
+        }
+
+        if (!updated) {
+            toast({ title: "Erro", description: "Não foi possível atualizar a categoria. Registro não encontrado ou sem permissão.", variant: "destructive" });
+            return;
         }
 
         toast({ title: "Categoria atualizada", description: "A categoria foi alterada com sucesso." });
@@ -574,6 +597,7 @@ export default function Conciliacao() {
             description: s.bankTransaction.description || "Conciliação automática",
             is_expense: s.bankTransaction.amount < 0,
             account_id: s.accountId || null,
+            unidade_destino_id: (s.bankTransaction as any).unidade_destino_id || null,
         }));
 
         // Enviar em lotes de 100

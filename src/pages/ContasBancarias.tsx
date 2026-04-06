@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -33,6 +33,32 @@ interface CreditCard {
   conta_vinculada: string;
 }
 
+interface TaxaConfig {
+  id?: string;
+  bank_account_id: string;
+  meio_pagamento: string;
+  taxa_percentual: number;
+  max_parcelas: number;
+  dias_recebimento: number;
+  antecipacao_ativa: boolean;
+  taxa_antecipacao: number;
+  ativo: boolean;
+}
+
+const MEIOS_PAGAMENTO = [
+  { value: 'cartao_credito', label: 'Cartao Credito' },
+  { value: 'cartao_debito', label: 'Cartao Debito' },
+  { value: 'boleto', label: 'Boleto' },
+  { value: 'pix', label: 'PIX' },
+] as const;
+
+const MEIO_LABEL: Record<string, string> = {
+  cartao_credito: 'Cartao Credito',
+  cartao_debito: 'Cartao Debito',
+  boleto: 'Boleto',
+  pix: 'PIX',
+};
+
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full";
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
 
@@ -50,6 +76,20 @@ export default function ContasBancarias() {
   const [cartoes, setCartoes] = useState<CreditCard[]>([]);
   const [showCartaoForm, setShowCartaoForm] = useState(false);
   const [cartaoForm, setCartaoForm] = useState({ nome: "", bandeira: "Visa", final: "", limite: "", dia_fechamento: "25", dia_vencimento: "5", conta_vinculada: "" });
+
+  // Taxa config state
+  const [showTaxaSection, setShowTaxaSection] = useState(false);
+  const [taxaContaSelecionada, setTaxaContaSelecionada] = useState<string>("");
+  const [taxas, setTaxas] = useState<TaxaConfig[]>([]);
+  const [loadingTaxas, setLoadingTaxas] = useState(false);
+  const [savingTaxa, setSavingTaxa] = useState(false);
+  const [taxaForm, setTaxaForm] = useState<TaxaConfig>({
+    bank_account_id: "", meio_pagamento: "cartao_credito",
+    taxa_percentual: 0, max_parcelas: 12, dias_recebimento: 30,
+    antecipacao_ativa: false, taxa_antecipacao: 0, ativo: true,
+  });
+  const [editingTaxaId, setEditingTaxaId] = useState<string | null>(null);
+  const [showTaxaForm, setShowTaxaForm] = useState(false);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["bank_accounts", selectedCompany?.id],
@@ -138,6 +178,110 @@ export default function ContasBancarias() {
       queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
     } catch (err: any) { toast.error("Erro: " + err.message); }
   };
+
+  // ─── Taxa functions ─────────────────────────────────────────
+  const fetchTaxas = useCallback(async (bankAccountId: string) => {
+    if (!selectedCompany?.id || !bankAccountId) return;
+    setLoadingTaxas(true);
+    try {
+      const { data, error } = await (activeClient as any)
+        .from("configuracao_taxas_pagamento")
+        .select("*")
+        .eq("company_id", selectedCompany.id)
+        .eq("bank_account_id", bankAccountId)
+        .order("meio_pagamento");
+      if (error) throw error;
+      setTaxas(data || []);
+    } catch (err: any) {
+      toast.error("Erro ao carregar taxas: " + err.message);
+    } finally {
+      setLoadingTaxas(false);
+    }
+  }, [selectedCompany?.id, activeClient]);
+
+  const handleSelectContaTaxa = (accountId: string) => {
+    setTaxaContaSelecionada(accountId);
+    if (accountId) fetchTaxas(accountId);
+    else setTaxas([]);
+    setShowTaxaForm(false);
+    setEditingTaxaId(null);
+  };
+
+  const resetTaxaForm = (bankAccountId: string) => {
+    setTaxaForm({
+      bank_account_id: bankAccountId, meio_pagamento: "cartao_credito",
+      taxa_percentual: 0, max_parcelas: 12, dias_recebimento: 30,
+      antecipacao_ativa: false, taxa_antecipacao: 0, ativo: true,
+    });
+    setEditingTaxaId(null);
+  };
+
+  const handleEditTaxa = (taxa: any) => {
+    setTaxaForm({
+      bank_account_id: taxa.bank_account_id,
+      meio_pagamento: taxa.meio_pagamento,
+      taxa_percentual: taxa.taxa_percentual,
+      max_parcelas: taxa.max_parcelas,
+      dias_recebimento: taxa.dias_recebimento,
+      antecipacao_ativa: taxa.antecipacao_ativa,
+      taxa_antecipacao: taxa.taxa_antecipacao,
+      ativo: taxa.ativo,
+    });
+    setEditingTaxaId(taxa.id);
+    setShowTaxaForm(true);
+  };
+
+  const handleSaveTaxa = async () => {
+    if (!selectedCompany?.id || !taxaContaSelecionada) return;
+    setSavingTaxa(true);
+    try {
+      const payload = {
+        company_id: selectedCompany.id,
+        bank_account_id: taxaContaSelecionada,
+        meio_pagamento: taxaForm.meio_pagamento,
+        taxa_percentual: taxaForm.taxa_percentual,
+        max_parcelas: taxaForm.max_parcelas,
+        dias_recebimento: taxaForm.dias_recebimento,
+        antecipacao_ativa: taxaForm.antecipacao_ativa,
+        taxa_antecipacao: taxaForm.antecipacao_ativa ? taxaForm.taxa_antecipacao : 0,
+        ativo: taxaForm.ativo,
+      };
+      if (editingTaxaId) {
+        const { error } = await (activeClient as any)
+          .from("configuracao_taxas_pagamento").update(payload).eq("id", editingTaxaId);
+        if (error) throw error;
+        toast.success("Taxa atualizada");
+      } else {
+        const { error } = await (activeClient as any)
+          .from("configuracao_taxas_pagamento").insert(payload);
+        if (error) throw error;
+        toast.success("Taxa cadastrada");
+      }
+      await fetchTaxas(taxaContaSelecionada);
+      setShowTaxaForm(false);
+      setEditingTaxaId(null);
+      resetTaxaForm(taxaContaSelecionada);
+    } catch (err: any) {
+      toast.error("Erro: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setSavingTaxa(false);
+    }
+  };
+
+  const handleDeleteTaxa = async (taxaId: string) => {
+    if (!confirm("Excluir esta configuracao de taxa?")) return;
+    try {
+      const { error } = await (activeClient as any)
+        .from("configuracao_taxas_pagamento").delete().eq("id", taxaId);
+      if (error) throw error;
+      toast.success("Taxa removida");
+      if (taxaContaSelecionada) fetchTaxas(taxaContaSelecionada);
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    }
+  };
+
+  const setTx = (k: string, v: any) => setTaxaForm(f => ({ ...f, [k]: v }));
 
   const addCartao = () => {
     setCartoes(prev => [...prev, {
@@ -336,6 +480,190 @@ export default function ContasBancarias() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        {/* ─── Configuracao de Taxas por Meio de Pagamento ─── */}
+        <div className="border-t border-[#ccc] pt-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#0a0a0a]">Taxas por Meio de Pagamento</h2>
+              <p className="text-xs text-[#777] mt-0.5">Configure taxas, parcelas e antecipacao por conta bancaria</p>
+            </div>
+            <button onClick={() => setShowTaxaSection(!showTaxaSection)}
+              className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+              {showTaxaSection ? "Fechar" : "Configurar Taxas"}
+            </button>
+          </div>
+
+          {showTaxaSection && (
+            <div className="space-y-4">
+              {/* Select account */}
+              <div className="flex flex-col gap-1 max-w-md">
+                <label className={LB}>Conta Bancaria</label>
+                <select value={taxaContaSelecionada} onChange={e => handleSelectContaTaxa(e.target.value)} className={IC}>
+                  <option value="">Selecione uma conta...</option>
+                  {activeAccounts.map(a => <option key={a.id} value={a.id}>{a.name} {a.banco ? `(${a.banco})` : ""}</option>)}
+                </select>
+              </div>
+
+              {taxaContaSelecionada && (
+                <>
+                  {/* Existing configs */}
+                  {loadingTaxas ? (
+                    <div className="text-center py-6 text-sm text-[#555]">Carregando configuracoes...</div>
+                  ) : taxas.length === 0 && !showTaxaForm ? (
+                    <div className="bg-[#fffbe6] border border-[#e6c200] border-l-4 border-l-[#b8960a] rounded-md px-4 py-3 text-sm text-[#5c3a00]">
+                      Nenhuma taxa configurada para esta conta. Clique em "+ Nova Taxa" para configurar.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {taxas.map(t => (
+                        <div key={t.id} className={`border rounded-lg overflow-hidden ${t.ativo ? "border-[#ccc]" : "border-[#eee] opacity-60"}`}>
+                          <div className="bg-[#1a2e4a] px-4 py-2 flex items-center justify-between">
+                            <span className="text-xs font-bold text-white uppercase tracking-widest">
+                              {MEIO_LABEL[t.meio_pagamento] || t.meio_pagamento}
+                            </span>
+                            <div className="flex gap-1">
+                              <button onClick={() => handleEditTaxa(t)} className="text-[#a8bfd4] hover:text-white text-xs px-1">✎</button>
+                              <button onClick={() => handleDeleteTaxa(t.id!)} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>
+                            </div>
+                          </div>
+                          <div className="p-4 bg-white space-y-2">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <span className="text-[10px] font-bold text-[#777] uppercase">Taxa</span>
+                                <p className="font-semibold text-[#0a0a0a]">{t.taxa_percentual}%</p>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-[#777] uppercase">Max Parcelas</span>
+                                <p className="font-semibold text-[#0a0a0a]">{t.max_parcelas}x</p>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-[#777] uppercase">Prazo Recebimento</span>
+                                <p className="font-semibold text-[#0a0a0a]">D+{t.dias_recebimento}</p>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-[#777] uppercase">Antecipacao</span>
+                                <p className={`font-semibold ${t.antecipacao_ativa ? "text-[#0a5c2e]" : "text-[#777]"}`}>
+                                  {t.antecipacao_ativa ? `Sim (${t.taxa_antecipacao}% a.m.)` : "Nao"}
+                                </p>
+                              </div>
+                            </div>
+                            {!t.ativo && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#f5f5f5] text-[#777]">Inativo</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add / Edit form */}
+                  <div className="flex gap-2">
+                    {!showTaxaForm && (
+                      <button onClick={() => { resetTaxaForm(taxaContaSelecionada); setShowTaxaForm(true); }}
+                        className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+                        + Nova Taxa
+                      </button>
+                    )}
+                  </div>
+
+                  {showTaxaForm && (
+                    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                      <div className="bg-[#1a2e4a] px-4 py-2.5">
+                        <h3 className="text-xs font-bold text-white uppercase tracking-widest">
+                          {editingTaxaId ? "Editar Configuracao de Taxa" : "Nova Configuracao de Taxa"}
+                        </h3>
+                      </div>
+                      <div className="p-5 bg-white space-y-4">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="flex flex-col gap-1">
+                            <label className={LB}>Meio de Pagamento <span className="text-[#8b0000]">*</span></label>
+                            <select value={taxaForm.meio_pagamento} onChange={e => setTx("meio_pagamento", e.target.value)}
+                              className={IC} disabled={!!editingTaxaId}>
+                              {MEIOS_PAGAMENTO.map(m => (
+                                <option key={m.value} value={m.value}
+                                  disabled={!editingTaxaId && taxas.some(t => t.meio_pagamento === m.value)}>
+                                  {m.label} {!editingTaxaId && taxas.some(t => t.meio_pagamento === m.value) ? "(ja configurado)" : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className={LB}>Taxa (%) <span className="text-[#8b0000]">*</span></label>
+                            <input type="number" step="0.01" min="0" max="100"
+                              value={taxaForm.taxa_percentual}
+                              onChange={e => setTx("taxa_percentual", parseFloat(e.target.value) || 0)}
+                              className={IC} placeholder="Ex: 4.99" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className={LB}>Max Parcelas</label>
+                            <input type="number" min="1" max="24"
+                              value={taxaForm.max_parcelas}
+                              onChange={e => setTx("max_parcelas", parseInt(e.target.value) || 1)}
+                              className={IC} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="flex flex-col gap-1">
+                            <label className={LB}>Dias para Recebimento (D+N)</label>
+                            <input type="number" min="0" max="365"
+                              value={taxaForm.dias_recebimento}
+                              onChange={e => setTx("dias_recebimento", parseInt(e.target.value) || 0)}
+                              className={IC} placeholder="Ex: 30" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className={LB}>Antecipacao</label>
+                            <label className="flex items-center gap-2 cursor-pointer mt-1">
+                              <input type="checkbox" checked={taxaForm.antecipacao_ativa}
+                                onChange={e => setTx("antecipacao_ativa", e.target.checked)}
+                                className="w-4 h-4 accent-[#1a2e4a]" />
+                              <span className="text-sm text-[#0a0a0a]">Ativa</span>
+                            </label>
+                          </div>
+                          {taxaForm.antecipacao_ativa && (
+                            <div className="flex flex-col gap-1">
+                              <label className={LB}>Taxa Antecipacao (% a.m.)</label>
+                              <input type="number" step="0.01" min="0" max="100"
+                                value={taxaForm.taxa_antecipacao}
+                                onChange={e => setTx("taxa_antecipacao", parseFloat(e.target.value) || 0)}
+                                className={IC} placeholder="Ex: 1.99" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={taxaForm.ativo}
+                              onChange={e => setTx("ativo", e.target.checked)}
+                              className="w-4 h-4 accent-[#1a2e4a]" />
+                            <span className="text-sm text-[#0a0a0a]">Configuracao ativa</span>
+                          </label>
+                        </div>
+                        {/* Info box */}
+                        <div className="bg-[#f0f4f8] border border-[#1a2e4a]/20 rounded-md px-4 py-2.5 text-xs text-[#333] space-y-1">
+                          <p><strong>Como funciona:</strong></p>
+                          <p>- <strong>Taxa:</strong> percentual descontado do valor bruto da venda pela operadora</p>
+                          <p>- <strong>Max Parcelas:</strong> limite de parcelamento aceito nesta conta</p>
+                          <p>- <strong>D+N:</strong> dias apos a venda para receber (ex: credito = D+30, debito = D+1)</p>
+                          <p>- <strong>Antecipacao:</strong> se ativa, recebe tudo de uma vez com taxa extra; se nao, recebe parcela a parcela</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button onClick={handleSaveTaxa} disabled={savingTaxa}
+                            className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                            {savingTaxa ? "Salvando..." : editingTaxaId ? "Salvar" : "Cadastrar"}
+                          </button>
+                          <button onClick={() => { setShowTaxaForm(false); setEditingTaxaId(null); }}
+                            className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

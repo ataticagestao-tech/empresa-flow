@@ -14,7 +14,7 @@ import {
   Upload, Download, CheckCircle2, XCircle
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
-import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns'
+import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
 
 // Cast supabase for GESTAP tables not in the generated types
 const db = supabase as any
@@ -177,6 +177,9 @@ export default function Vendas() {
   const [formContaBancaria, setFormContaBancaria] = useState('')
   const [formCentroCusto, setFormCentroCusto] = useState('')
 
+  // ─── Taxa preview state ──────────────────────────────────────
+  const [taxaPreview, setTaxaPreview] = useState<any>(null)
+
   // ─── Client search state ─────────────────────────────────────
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteDropdownOpen, setClienteDropdownOpen] = useState(false)
@@ -319,6 +322,22 @@ export default function Vendas() {
   useEffect(() => { fetchVendas() }, [fetchVendas])
   useEffect(() => { fetchAuxData() }, [fetchAuxData])
 
+  // ─── Fetch taxa config when account + payment method changes ──
+  useEffect(() => {
+    if (!formContaBancaria || !formPagamento) { setTaxaPreview(null); return }
+    const meioPgto = formPagamento === 'parcelado' ? 'cartao_credito' : formPagamento
+    ;(async () => {
+      const { data } = await db
+        .from('configuracao_taxas_pagamento')
+        .select('*')
+        .eq('bank_account_id', formContaBancaria)
+        .eq('meio_pagamento', meioPgto)
+        .eq('ativo', true)
+        .maybeSingle()
+      setTaxaPreview(data || null)
+    })()
+  }, [formContaBancaria, formPagamento])
+
   // ─── Close dropdowns on outside click ────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -346,6 +365,7 @@ export default function Vendas() {
     setFormContaBancaria('')
     setFormCentroCusto('')
     setErroModal(null)
+    setTaxaPreview(null)
   }
 
   function selectCliente(c: Cliente) {
@@ -642,34 +662,117 @@ export default function Vendas() {
       const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
       if (itensErr) throw itensErr
 
-      // 3. Generate CRs
-      const isParcelado = formPagamento === 'parcelado'
-      const numParcelas = isParcelado ? formParcelas : 1
-      const valorParcela = Math.round((totalVenda / numParcelas) * 100) / 100
+      // 3. Buscar configuração de taxas para esta conta + meio de pagamento
+      const meioPgto = formPagamento === 'parcelado' ? 'cartao_credito' : formPagamento
+      let taxaConfig: any = null
+      {
+        const { data: cfgData } = await db
+          .from('configuracao_taxas_pagamento')
+          .select('*')
+          .eq('bank_account_id', formContaBancaria)
+          .eq('meio_pagamento', meioPgto)
+          .eq('ativo', true)
+          .maybeSingle()
+        taxaConfig = cfgData
+      }
 
-      const crsPayload = Array.from({ length: numParcelas }, (_, i) => {
-        const vencimento = isParcelado
-          ? format(addMonths(parseISO(formDataVenda), i + 1), 'yyyy-MM-dd')
-          : formDataVenda
+      // 4. Calcular valores com taxa
+      const taxaPct = taxaConfig?.taxa_percentual || 0
+      const valorTaxa = Math.round((totalVenda * taxaPct / 100) * 100) / 100
+      const valorLiquido = Math.round((totalVenda - valorTaxa) * 100) / 100
 
-        const valor = i === numParcelas - 1
-          ? totalVenda - valorParcela * (numParcelas - 1)
-          : valorParcela
+      const isParcelado = formPagamento === 'parcelado' || formPagamento === 'cartao_credito'
+      const numParcelas = isParcelado
+        ? Math.min(formParcelas, taxaConfig?.max_parcelas || formParcelas)
+        : 1
 
-        return {
+      const diasRecebimento = taxaConfig?.dias_recebimento || 0
+      const temAntecipacao = taxaConfig?.antecipacao_ativa || false
+      const taxaAntecipacao = taxaConfig?.taxa_antecipacao || 0
+
+      // 5. Generate CRs com projeção de recebimento
+      let crsPayload: any[]
+
+      if (temAntecipacao && isParcelado && numParcelas > 1) {
+        // COM ANTECIPAÇÃO: recebe tudo de uma vez, mas com desconto extra
+        // Taxa de antecipação = taxa_antecipacao% * (prazo médio em meses)
+        const prazoMedioMeses = (numParcelas + 1) / 2  // média das parcelas
+        const descontoAntecipacao = Math.round((valorLiquido * taxaAntecipacao / 100 * prazoMedioMeses) * 100) / 100
+        const valorAntecipado = Math.round((valorLiquido - descontoAntecipacao) * 100) / 100
+
+        const dataRecebimento = format(
+          addDays(parseISO(formDataVenda), diasRecebimento || 1),
+          'yyyy-MM-dd'
+        )
+
+        crsPayload = [{
           company_id: companyId,
           pagador_nome: formCliente.trim(),
           pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
-          valor,
+          valor: valorAntecipado,
           valor_pago: 0,
-          data_vencimento: vencimento,
+          data_vencimento: dataRecebimento,
           status: 'aberto',
           forma_recebimento: formPagamento,
           conta_contabil_id: null,
           centro_custo_id: formCentroCusto || null,
           venda_id: vendaData.id,
-        }
-      })
+          observacoes: `Venda ${numParcelas}x antecipada | Bruto: R$${totalVenda.toFixed(2)} | Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)}) | Antecipação: ${taxaAntecipacao}% a.m. (R$${descontoAntecipacao.toFixed(2)})`,
+        }]
+      } else if (isParcelado && numParcelas > 1) {
+        // SEM ANTECIPAÇÃO: recebe parcela a parcela
+        const valorParcelaLiq = Math.round((valorLiquido / numParcelas) * 100) / 100
+
+        crsPayload = Array.from({ length: numParcelas }, (_, i) => {
+          const dataBase = addMonths(parseISO(formDataVenda), i + 1)
+          const dataRecebimento = diasRecebimento > 0
+            ? format(addDays(dataBase, diasRecebimento), 'yyyy-MM-dd')
+            : format(dataBase, 'yyyy-MM-dd')
+
+          const valor = i === numParcelas - 1
+            ? Math.round((valorLiquido - valorParcelaLiq * (numParcelas - 1)) * 100) / 100
+            : valorParcelaLiq
+
+          return {
+            company_id: companyId,
+            pagador_nome: formCliente.trim(),
+            pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+            valor,
+            valor_pago: 0,
+            data_vencimento: dataRecebimento,
+            status: 'aberto',
+            forma_recebimento: formPagamento,
+            conta_contabil_id: null,
+            centro_custo_id: formCentroCusto || null,
+            venda_id: vendaData.id,
+            observacoes: taxaPct > 0
+              ? `Parcela ${i + 1}/${numParcelas} | Taxa operadora: ${taxaPct}%`
+              : `Parcela ${i + 1}/${numParcelas}`,
+          }
+        })
+      } else {
+        // À VISTA (pix, dinheiro, débito, boleto sem parcela)
+        const dataRecebimento = diasRecebimento > 0
+          ? format(addDays(parseISO(formDataVenda), diasRecebimento), 'yyyy-MM-dd')
+          : formDataVenda
+
+        crsPayload = [{
+          company_id: companyId,
+          pagador_nome: formCliente.trim(),
+          pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+          valor: valorLiquido,
+          valor_pago: 0,
+          data_vencimento: dataRecebimento,
+          status: 'aberto',
+          forma_recebimento: formPagamento,
+          conta_contabil_id: null,
+          centro_custo_id: formCentroCusto || null,
+          venda_id: vendaData.id,
+          observacoes: taxaPct > 0
+            ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
+            : null,
+        }]
+      }
 
       const { data: crsData, error: crsErr } = await db
         .from('contas_receber')
@@ -678,8 +781,8 @@ export default function Vendas() {
 
       if (crsErr) throw crsErr
 
-      // 4. If à vista, quitar immediately
-      if (isAVista && crsData && crsData.length > 0) {
+      // 6. If à vista (sem parcelas), quitar immediately
+      if (isAVista && !isParcelado && crsData && crsData.length > 0) {
         const cr = crsData[0]
         await quitarCR(cr.id, {
           valorPago: cr.valor,
@@ -1136,19 +1239,32 @@ export default function Vendas() {
                 </div>
               </div>
 
-              {/* Parcelas */}
-              {formPagamento === 'parcelado' && (
+              {/* Parcelas — cartão crédito e parcelado */}
+              {(formPagamento === 'parcelado' || formPagamento === 'cartao_credito') && (
                 <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Número de parcelas</label>
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Numero de parcelas</label>
                   <select
                     value={formParcelas}
                     onChange={e => setFormParcelas(parseInt(e.target.value))}
                     className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                   >
-                    {Array.from({ length: 11 }, (_, i) => i + 2).map(n => (
+                    {Array.from({ length: Math.min(taxaPreview?.max_parcelas || 12, 24) - 1 }, (_, i) => i + 2).map(n => (
                       <option key={n} value={n}>{n}x de {formatBRL(totalVenda / n)}</option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {/* Taxa info badge */}
+              {taxaPreview && (
+                <div className="bg-[#f0f4f8] border border-[#1a2e4a]/20 rounded-md px-4 py-2.5 text-xs text-[#333]">
+                  <p className="font-bold text-[10px] uppercase tracking-wider text-[#1a2e4a] mb-1">Taxas configuradas para esta conta</p>
+                  <div className="flex flex-wrap gap-4">
+                    <span>Taxa: <strong>{taxaPreview.taxa_percentual}%</strong></span>
+                    <span>Prazo: <strong>D+{taxaPreview.dias_recebimento}</strong></span>
+                    <span>Antecipacao: <strong>{taxaPreview.antecipacao_ativa ? `Sim (${taxaPreview.taxa_antecipacao}% a.m.)` : 'Nao'}</strong></span>
+                    {taxaPreview.max_parcelas > 1 && <span>Max parcelas: <strong>{taxaPreview.max_parcelas}x</strong></span>}
+                  </div>
                 </div>
               )}
 
@@ -1167,34 +1283,70 @@ export default function Vendas() {
                 </select>
               </div>
 
-              {/* Preview */}
-              {totalVenda > 0 && (
-                <div className="rounded-md border border-[#0a5c2e] bg-[#e6f4ec] p-3">
-                  <div className="flex items-start gap-2">
-                    <Check size={16} className="text-[#0a5c2e] mt-0.5 flex-shrink-0" />
-                    <div className="text-[12px] text-[#0a5c2e]">
-                      {formPagamento === 'parcelado' ? (
-                        <>
-                          <p className="font-semibold mb-1">CR gerado automaticamente &mdash; {formParcelas}x parcelas:</p>
-                          <ul className="space-y-0.5">
-                            {Array.from({ length: formParcelas }, (_, i) => {
-                              const vp = Math.round((totalVenda / formParcelas) * 100) / 100
-                              const valor = i === formParcelas - 1 ? totalVenda - vp * (formParcelas - 1) : vp
-                              const venc = format(addMonths(parseISO(formDataVenda), i + 1), 'dd/MM/yyyy')
-                              return <li key={i}>Parcela {i + 1}: {formatBRL(valor)} &middot; vencimento {venc}</li>
-                            })}
-                          </ul>
-                        </>
-                      ) : (
-                        <p className="font-semibold">
-                          CR gerado automaticamente &mdash; {formatBRL(totalVenda)} &middot; vencimento {format(parseISO(formDataVenda), 'dd/MM/yyyy')}
-                          {isAVista && ' (quitado automaticamente)'}
-                        </p>
-                      )}
+              {/* Preview com taxas */}
+              {totalVenda > 0 && (() => {
+                const txPct = taxaPreview?.taxa_percentual || 0
+                const vlTaxa = Math.round((totalVenda * txPct / 100) * 100) / 100
+                const vlLiq = Math.round((totalVenda - vlTaxa) * 100) / 100
+                const isParcl = formPagamento === 'parcelado' || formPagamento === 'cartao_credito'
+                const nParcelas = isParcl ? Math.min(formParcelas, taxaPreview?.max_parcelas || formParcelas) : 1
+                const diasRec = taxaPreview?.dias_recebimento || 0
+                const temAntc = taxaPreview?.antecipacao_ativa || false
+                const txAntc = taxaPreview?.taxa_antecipacao || 0
+
+                return (
+                  <div className="rounded-md border border-[#0a5c2e] bg-[#e6f4ec] p-3">
+                    <div className="flex items-start gap-2">
+                      <Check size={16} className="text-[#0a5c2e] mt-0.5 flex-shrink-0" />
+                      <div className="text-[12px] text-[#0a5c2e] w-full">
+                        {txPct > 0 && (
+                          <p className="mb-1 text-[11px] text-[#555]">
+                            Bruto: {formatBRL(totalVenda)} &minus; Taxa {txPct}%: {formatBRL(vlTaxa)} = <strong>Liquido: {formatBRL(vlLiq)}</strong>
+                          </p>
+                        )}
+
+                        {temAntc && isParcl && nParcelas > 1 ? (() => {
+                          const prazoMedio = (nParcelas + 1) / 2
+                          const descAntc = Math.round((vlLiq * txAntc / 100 * prazoMedio) * 100) / 100
+                          const vlAntecipado = Math.round((vlLiq - descAntc) * 100) / 100
+                          const dataRec = format(addDays(parseISO(formDataVenda), diasRec || 1), 'dd/MM/yyyy')
+                          return (
+                            <>
+                              <p className="font-semibold mb-1">CR antecipado ({nParcelas}x em parcela unica):</p>
+                              <p>Valor: {formatBRL(vlAntecipado)} (antecipacao {txAntc}% a.m. = -{formatBRL(descAntc)})</p>
+                              <p>Recebimento: {dataRec}</p>
+                            </>
+                          )
+                        })() : isParcl && nParcelas > 1 ? (
+                          <>
+                            <p className="font-semibold mb-1">Contas a Receber &mdash; {nParcelas}x parcelas:</p>
+                            <ul className="space-y-0.5">
+                              {Array.from({ length: nParcelas }, (_, i) => {
+                                const vpLiq = Math.round((vlLiq / nParcelas) * 100) / 100
+                                const valor = i === nParcelas - 1 ? Math.round((vlLiq - vpLiq * (nParcelas - 1)) * 100) / 100 : vpLiq
+                                const dataBase = addMonths(parseISO(formDataVenda), i + 1)
+                                const venc = diasRec > 0
+                                  ? format(addDays(dataBase, diasRec), 'dd/MM/yyyy')
+                                  : format(dataBase, 'dd/MM/yyyy')
+                                return <li key={i}>Parcela {i + 1}: {formatBRL(valor)} &middot; recebimento {venc}</li>
+                              })}
+                            </ul>
+                          </>
+                        ) : (
+                          <p className="font-semibold">
+                            CR: {formatBRL(vlLiq)} &middot; recebimento {
+                              diasRec > 0
+                                ? format(addDays(parseISO(formDataVenda), diasRec), 'dd/MM/yyyy')
+                                : format(parseISO(formDataVenda), 'dd/MM/yyyy')
+                            }
+                            {isAVista && !isParcl && ' (quitado automaticamente)'}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* Error */}
               {erroModal && (
