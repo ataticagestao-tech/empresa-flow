@@ -365,12 +365,12 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             queryClient.invalidateQueries({ queryKey: ['system_pending_transactions'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
             queryClient.invalidateQueries({ queryKey: ['import_history'] });
-            // Dashboard: invalidar com delay para não travar a UI
-            setTimeout(() => {
+            // Refresh MVs para alimentar DRE, Fluxo de Caixa, Multiempresas
+            (activeClient as any).rpc('refresh_mvs_financeiras').then(() => {
                 queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
-            }, 2000);
+            });
         },
         onError: (err: any) => toast({ title: "Erro na conciliação", description: err.message, variant: "destructive" })
     });

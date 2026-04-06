@@ -445,6 +445,12 @@ export default function Conciliacao() {
     const handleCreateAndReconcile = async () => {
         if (!selectedBankTx || !selectedCompany?.id) return;
 
+        // Validar conta contábil obrigatória para alimentar DRE/BP/DFC
+        if (!newEntry.category_id || newEntry.category_id === "none") {
+            toast({ title: "Conta contábil obrigatória", description: "Selecione uma conta contábil para que o lançamento alimente DRE, Balanço e Fluxo de Caixa.", variant: "destructive" });
+            return;
+        }
+
         // Verificar se esta bank_transaction já foi conciliada (evitar duplicatas)
         const { data: existingMatch } = await (activeClient as any)
             .from("bank_reconciliation_matches")
@@ -526,6 +532,17 @@ export default function Conciliacao() {
             return;
         }
 
+        // Validar: itens sem conta contábil não alimentam DRE/BP/DFC
+        const semConta = toApprove.filter(s => !s.accountId);
+        if (semConta.length > 0) {
+            toast({
+                title: "Conta contábil obrigatória",
+                description: `${semConta.length} transação(ões) sem conta contábil. Classifique antes de conciliar para alimentar DRE, BP e Fluxo de Caixa.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
         const total = toApprove.length;
         let totalSuccess = 0;
         let totalFailed = 0;
@@ -576,6 +593,10 @@ export default function Conciliacao() {
         queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
         queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
         queryClient.invalidateQueries({ queryKey: ['import_history'] });
+        // Refresh MVs — conciliar_lote já faz no banco, mas invalidar cache do frontend
+        queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
         toast({
             title: "Conciliação em lote finalizada",
             description: `${totalSuccess} conciliado(s)${totalFailed > 0 ? `, ${totalFailed} falha(s)` : ""}`,
