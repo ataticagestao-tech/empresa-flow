@@ -162,10 +162,12 @@ RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS receipts_updated_at ON receipts;
 CREATE TRIGGER receipts_updated_at
   BEFORE UPDATE ON receipts
   FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
+DROP TRIGGER IF EXISTS receipt_templates_updated_at ON receipt_templates;
 CREATE TRIGGER receipt_templates_updated_at
   BEFORE UPDATE ON receipt_templates
   FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
