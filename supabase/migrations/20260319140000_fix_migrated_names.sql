@@ -4,8 +4,8 @@
 -- ============================================================
 
 -- Desabilitar triggers temporariamente para permitir update em registros pagos
-ALTER TABLE public.contas_pagar DISABLE TRIGGER ALL;
-ALTER TABLE public.contas_receber DISABLE TRIGGER ALL;
+ALTER TABLE public.contas_pagar DISABLE TRIGGER USER;
+ALTER TABLE public.contas_receber DISABLE TRIGGER USER;
 
 -- Contas a Pagar: preencher credor_nome com description do accounts_payable
 UPDATE public.contas_pagar cp
@@ -36,5 +36,5 @@ WHERE cr.id = ar.id
   AND (cr.observacoes IS NULL OR cr.observacoes = '');
 
 -- Reabilitar triggers
-ALTER TABLE public.contas_pagar ENABLE TRIGGER ALL;
-ALTER TABLE public.contas_receber ENABLE TRIGGER ALL;
+ALTER TABLE public.contas_pagar ENABLE TRIGGER USER;
+ALTER TABLE public.contas_receber ENABLE TRIGGER USER;
