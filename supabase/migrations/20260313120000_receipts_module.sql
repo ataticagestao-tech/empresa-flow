@@ -133,6 +133,7 @@ ALTER TABLE receipts          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE receipt_templates ENABLE ROW LEVEL SECURITY;
 
 -- Receipts: FOR ALL (select, insert, update, delete)
+DROP POLICY IF EXISTS "receipts_company" ON receipts;
 CREATE POLICY "receipts_company" ON receipts
   FOR ALL TO authenticated
   USING (company_id IN (
@@ -143,6 +144,7 @@ CREATE POLICY "receipts_company" ON receipts
   ));
 
 -- Templates: FOR ALL
+DROP POLICY IF EXISTS "receipt_templates_company" ON receipt_templates;
 CREATE POLICY "receipt_templates_company" ON receipt_templates
   FOR ALL TO authenticated
   USING (company_id IN (
