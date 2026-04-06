@@ -63,8 +63,29 @@ export default function ContasBancarias() {
     enabled: !!selectedCompany?.id,
   });
 
+  // Buscar saldo real calculado pela view (initial_balance + movimentações)
+  const { data: saldos = [] } = useQuery({
+    queryKey: ["v_saldo_contas_bancarias", selectedCompany?.id],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return [];
+      const { data, error } = await (activeClient as any)
+        .from("v_saldo_contas_bancarias").select("conta_bancaria_id, saldo_atual").eq("company_id", selectedCompany.id);
+      if (error) throw error;
+      return data as { conta_bancaria_id: string; saldo_atual: number }[];
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
+  const saldoMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of saldos) map[s.conta_bancaria_id] = s.saldo_atual;
+    return map;
+  }, [saldos]);
+
+  const getSaldo = (acc: BankAccount) => saldoMap[acc.id] ?? acc.initial_balance ?? 0;
+
   const activeAccounts = accounts.filter(a => a.status === "ativa" || a.status === "active");
-  const totalBalance = useMemo(() => activeAccounts.reduce((sum, a) => sum + (a.initial_balance || 0), 0), [activeAccounts]);
+  const totalBalance = useMemo(() => activeAccounts.reduce((sum, a) => sum + getSaldo(a), 0), [activeAccounts, saldoMap]);
 
   const set = (k: string, v: any) => setFormData(f => ({ ...f, [k]: v }));
 
@@ -224,7 +245,7 @@ export default function ContasBancarias() {
                 </div>
                 <div className="p-4 bg-white">
                   <p className="text-sm font-semibold text-[#0a0a0a] mb-1">{acc.name}</p>
-                  <p className="text-xl font-bold text-[#0a0a0a] mb-2">{formatBRL(acc.initial_balance || 0)}</p>
+                  <p className="text-xl font-bold text-[#0a0a0a] mb-2">{formatBRL(getSaldo(acc))}</p>
                   {acc.agencia && <p className="text-xs text-[#555] mb-2">Ag: {acc.agencia} · Cc: {acc.conta}{acc.digito ? `-${acc.digito}` : ""}</p>}
                   <div className="flex flex-wrap gap-1.5">
                     {(acc.status === "ativa" || acc.status === "active") && (
