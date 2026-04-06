@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings2, Plus, Trash2, RefreshCw, Copy } from "lucide-react";
+import { Settings2, Wand2, Save, Copy, ChevronDown, ChevronRight, X, Plus, Check, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LinhaDemonstrativo {
@@ -24,18 +24,36 @@ interface ContaOperacional {
   code: string;
   name: string;
   account_type: string;
+  account_nature: string;
   is_analytical: boolean;
+  dre_group: string | null;
 }
 
 interface Mapeamento {
-  id: string;
+  id?: string;
   conta_operacional_id: string;
   linha_demonstrativo_id: string;
   fator: number;
   ativo: boolean;
-  conta?: ContaOperacional;
-  linha?: LinhaDemonstrativo;
 }
+
+// Regras de sugestão automática: dre_group → codigo da linha DRE
+const DRE_SUGGESTION_RULES: Record<string, { codigo: string; fator: number } | ((conta: ContaOperacional) => { codigo: string; fator: number })> = {
+  receita_bruta: { codigo: "DRE.RB.01", fator: 1 },
+  deducoes: { codigo: "DRE.RB.02", fator: 1 },
+  custos: { codigo: "DRE.CMV.01", fator: 1 },
+  despesas_operacionais: (conta) => {
+    const n = conta.name.toLowerCase();
+    if (n.includes("admin") || n.includes("contador") || n.includes("serviço")) return { codigo: "DRE.DO.01", fator: 1 };
+    if (n.includes("marketing") || n.includes("publicidade") || n.includes("venda")) return { codigo: "DRE.DO.02", fator: 1 };
+    return { codigo: "DRE.DO.03", fator: 1 };
+  },
+  depreciacoes_amortizacoes: { codigo: "DRE.DO.03", fator: 1 },
+  resultado_financeiro: (conta) => {
+    if (conta.account_nature === "credit") return { codigo: "DRE.RF.01", fator: 1 };
+    return { codigo: "DRE.RF.02", fator: 1 };
+  },
+};
 
 export default function MapeamentoContabil() {
   const { selectedCompany } = useCompany();
@@ -45,6 +63,13 @@ export default function MapeamentoContabil() {
   const { toast } = useToast();
 
   const [demFiltro, setDemFiltro] = useState<string>("DRE");
+  const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
+  const [addingToLine, setAddingToLine] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Estado local dos mapeamentos (editável antes de salvar)
+  const [localMaps, setLocalMaps] = useState<Mapeamento[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
 
   // Buscar linhas do demonstrativo
   const { data: linhas = [], isLoading: loadingLinhas } = useQuery({
@@ -63,14 +88,14 @@ export default function MapeamentoContabil() {
     enabled: !!selectedCompany?.id,
   });
 
-  // Buscar contas analíticas
+  // Buscar contas analíticas (com dre_group e account_nature)
   const { data: contas = [] } = useQuery({
-    queryKey: ["contas_analiticas", selectedCompany?.id],
+    queryKey: ["contas_analiticas_full", selectedCompany?.id],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
       const { data } = await db
         .from("chart_of_accounts")
-        .select("id, code, name, account_type, is_analytical")
+        .select("id, code, name, account_type, account_nature, is_analytical, dre_group")
         .eq("company_id", selectedCompany.id)
         .eq("is_analytical", true)
         .eq("status", "active")
@@ -80,8 +105,8 @@ export default function MapeamentoContabil() {
     enabled: !!selectedCompany?.id,
   });
 
-  // Buscar mapeamentos existentes
-  const { data: mapeamentos = [], isLoading: loadingMap } = useQuery({
+  // Buscar mapeamentos existentes do banco
+  const { data: dbMapeamentos = [], isLoading: loadingMap } = useQuery({
     queryKey: ["cont_mapeamentos", selectedCompany?.id, demFiltro],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
@@ -94,50 +119,207 @@ export default function MapeamentoContabil() {
         .eq("company_id", selectedCompany.id)
         .in("linha_demonstrativo_id", linhaIds);
 
-      return (data || []).map((m: any) => ({
-        ...m,
-        conta: contas.find((c) => c.id === m.conta_operacional_id),
-        linha: linhas.find((l) => l.id === m.linha_demonstrativo_id),
-      })) as Mapeamento[];
+      return (data || []) as Mapeamento[];
     },
-    enabled: !!selectedCompany?.id && linhas.length > 0 && contas.length > 0,
+    enabled: !!selectedCompany?.id && linhas.length > 0,
   });
 
-  // Estado para novo mapeamento
-  const [novoContaId, setNovoContaId] = useState("");
-  const [novoLinhaId, setNovoLinhaId] = useState("");
-  const [novoFator, setNovoFator] = useState("1");
-
-  const adicionarMapeamento = async () => {
-    if (!selectedCompany?.id || !novoContaId || !novoLinhaId) return;
-
-    const { error } = await db.from("cont_mapeamento_contas").upsert(
-      {
-        company_id: selectedCompany.id,
-        conta_operacional_id: novoContaId,
-        linha_demonstrativo_id: novoLinhaId,
-        fator: parseInt(novoFator),
-        ativo: true,
-      },
-      { onConflict: "company_id,conta_operacional_id,linha_demonstrativo_id" }
-    );
-
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Mapeamento salvo" });
-      setNovoContaId("");
-      setNovoLinhaId("");
-      setNovoFator("1");
-      queryClient.invalidateQueries({ queryKey: ["cont_mapeamentos"] });
+  // Sincronizar estado local com dados do banco
+  useEffect(() => {
+    if (dbMapeamentos.length > 0 || (!loadingMap && linhas.length > 0)) {
+      setLocalMaps(dbMapeamentos.map((m) => ({ ...m })));
+      setHasChanges(false);
     }
+  }, [dbMapeamentos, loadingMap, linhas.length]);
+
+  // Linhas que aceitam mapeamento (nivel >= 2, tipo soma)
+  const linhasMapeáveis = useMemo(
+    () => linhas.filter((l) => l.nivel >= 2 && l.tipo_calculo === "soma"),
+    [linhas]
+  );
+
+  // Contas ainda não mapeadas
+  const contasNaoMapeadas = useMemo(() => {
+    const mapeadasIds = new Set(localMaps.filter((m) => m.ativo).map((m) => m.conta_operacional_id));
+    return contas.filter((c) => !mapeadasIds.has(c.id));
+  }, [contas, localMaps]);
+
+  // Mapeamentos por linha
+  const mapsByLine = useMemo(() => {
+    const result: Record<string, (Mapeamento & { conta?: ContaOperacional })[]> = {};
+    for (const l of linhasMapeáveis) {
+      result[l.id] = localMaps
+        .filter((m) => m.linha_demonstrativo_id === l.id && m.ativo)
+        .map((m) => ({ ...m, conta: contas.find((c) => c.id === m.conta_operacional_id) }))
+        .sort((a, b) => (a.conta?.code || "").localeCompare(b.conta?.code || ""));
+    }
+    return result;
+  }, [localMaps, linhasMapeáveis, contas]);
+
+  // ---------- AÇÕES ----------
+
+  const toggleLine = (id: string) => {
+    setExpandedLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const removerMapeamento = async (id: string) => {
-    const { error } = await db.from("cont_mapeamento_contas").delete().eq("id", id);
-    if (!error) {
-      toast({ title: "Mapeamento removido" });
+  const addMapping = (linhaId: string, contaId: string, fator: number = 1) => {
+    // Verifica se já existe
+    const existing = localMaps.find(
+      (m) => m.conta_operacional_id === contaId && m.linha_demonstrativo_id === linhaId
+    );
+    if (existing) {
+      if (!existing.ativo) {
+        setLocalMaps((prev) =>
+          prev.map((m) => (m === existing ? { ...m, ativo: true, fator } : m))
+        );
+        setHasChanges(true);
+      }
+      return;
+    }
+    setLocalMaps((prev) => [
+      ...prev,
+      { conta_operacional_id: contaId, linha_demonstrativo_id: linhaId, fator, ativo: true },
+    ]);
+    setHasChanges(true);
+  };
+
+  const removeMapping = (contaId: string, linhaId: string) => {
+    setLocalMaps((prev) =>
+      prev.map((m) =>
+        m.conta_operacional_id === contaId && m.linha_demonstrativo_id === linhaId
+          ? { ...m, ativo: false }
+          : m
+      )
+    );
+    setHasChanges(true);
+  };
+
+  const toggleFator = (contaId: string, linhaId: string) => {
+    setLocalMaps((prev) =>
+      prev.map((m) =>
+        m.conta_operacional_id === contaId && m.linha_demonstrativo_id === linhaId
+          ? { ...m, fator: m.fator === 1 ? -1 : 1 }
+          : m
+      )
+    );
+    setHasChanges(true);
+  };
+
+  // SUGESTÃO AUTOMÁTICA
+  const sugerirMapeamento = useCallback(() => {
+    if (linhasMapeáveis.length === 0 || contas.length === 0) return;
+
+    let added = 0;
+    const newMaps = [...localMaps];
+
+    for (const conta of contas) {
+      if (!conta.dre_group) continue;
+
+      // Já está mapeada ativamente?
+      const jaMapeada = newMaps.some(
+        (m) => m.conta_operacional_id === conta.id && m.ativo
+      );
+      if (jaMapeada) continue;
+
+      const rule = DRE_SUGGESTION_RULES[conta.dre_group];
+      if (!rule) continue;
+
+      const suggestion = typeof rule === "function" ? rule(conta) : rule;
+
+      // Encontrar a linha pelo código
+      const linha = linhasMapeáveis.find((l) => l.codigo === suggestion.codigo);
+      if (!linha) continue;
+
+      // Verificar se existe inativo
+      const existingInactive = newMaps.find(
+        (m) => m.conta_operacional_id === conta.id && m.linha_demonstrativo_id === linha.id
+      );
+      if (existingInactive) {
+        existingInactive.ativo = true;
+        existingInactive.fator = suggestion.fator;
+      } else {
+        newMaps.push({
+          conta_operacional_id: conta.id,
+          linha_demonstrativo_id: linha.id,
+          fator: suggestion.fator,
+          ativo: true,
+        });
+      }
+      added++;
+    }
+
+    setLocalMaps(newMaps);
+    if (added > 0) {
+      setHasChanges(true);
+      // Expandir todas as linhas que receberam mapeamentos
+      setExpandedLines(new Set(linhasMapeáveis.map((l) => l.id)));
+      toast({
+        title: `${added} sugestões aplicadas`,
+        description: "Revise os mapeamentos e clique em Salvar quando estiver pronto.",
+      });
+    } else {
+      toast({
+        title: "Nenhuma sugestão nova",
+        description: "Todas as contas já estão mapeadas ou não possuem dre_group definido.",
+      });
+    }
+  }, [contas, linhasMapeáveis, localMaps, toast]);
+
+  // SALVAR TUDO
+  const salvarTudo = async () => {
+    if (!selectedCompany?.id) return;
+    setSaving(true);
+
+    try {
+      // Separar: existentes (com id) vs novos (sem id)
+      const toUpsert = localMaps
+        .filter((m) => m.ativo)
+        .map((m) => ({
+          ...(m.id ? { id: m.id } : {}),
+          company_id: selectedCompany.id,
+          conta_operacional_id: m.conta_operacional_id,
+          linha_demonstrativo_id: m.linha_demonstrativo_id,
+          fator: m.fator,
+          ativo: true,
+        }));
+
+      const toDeactivate = localMaps
+        .filter((m) => !m.ativo && m.id)
+        .map((m) => m.id!);
+
+      // Upsert ativos
+      if (toUpsert.length > 0) {
+        const { error } = await db.from("cont_mapeamento_contas").upsert(toUpsert, {
+          onConflict: "company_id,conta_operacional_id,linha_demonstrativo_id",
+        });
+        if (error) throw error;
+      }
+
+      // Deletar desativados
+      if (toDeactivate.length > 0) {
+        const { error } = await db
+          .from("cont_mapeamento_contas")
+          .delete()
+          .in("id", toDeactivate);
+        if (error) throw error;
+      }
+
+      toast({ title: "Mapeamento salvo com sucesso!" });
+      setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ["cont_mapeamentos"] });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao salvar",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -155,8 +337,10 @@ export default function MapeamentoContabil() {
     }
   };
 
-  // Linhas filhas (nível 2, tipo soma) que aceitam mapeamento
-  const linhasMapeáveis = linhas.filter((l) => l.nivel >= 2 && l.tipo_calculo === "soma");
+  // Stats
+  const totalContas = contas.length;
+  const contasMapeadas = new Set(localMaps.filter((m) => m.ativo).map((m) => m.conta_operacional_id)).size;
+  const percentMapeado = totalContas > 0 ? Math.round((contasMapeadas / totalContas) * 100) : 0;
 
   return (
     <AppLayout title="Mapeamento Contábil">
@@ -186,7 +370,56 @@ export default function MapeamentoContabil() {
           </div>
         </div>
 
-        {/* Estrutura do demonstrativo */}
+        {/* Progress bar + actions */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                Progresso do mapeamento
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {contasMapeadas}/{totalContas} contas ({percentMapeado}%)
+              </span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all duration-500"
+                style={{ width: `${percentMapeado}%` }}
+              />
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={sugerirMapeamento}
+            className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+          >
+            <Wand2 className="h-3.5 w-3.5 mr-1" /> Sugerir Automático
+          </Button>
+          <Button
+            size="sm"
+            onClick={salvarTudo}
+            disabled={!hasChanges || saving}
+            className={hasChanges ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+          >
+            {saving ? (
+              <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full mr-1" />
+            ) : (
+              <Save className="h-3.5 w-3.5 mr-1" />
+            )}
+            Salvar Mapeamento
+          </Button>
+        </div>
+
+        {/* Aviso de alterações não salvas */}
+        {hasChanges && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-[11px]">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+            Existem alterações não salvas. Clique em "Salvar Mapeamento" para persistir.
+          </div>
+        )}
+
+        {/* Estrutura do demonstrativo com mapeamentos inline */}
         <Card>
           <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
             <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
@@ -207,186 +440,201 @@ export default function MapeamentoContabil() {
                 </Button>
               </div>
             ) : (
-              <table className="w-full text-[12.5px]">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left py-2 px-4 font-semibold w-[100px]">Código</th>
-                    <th className="text-left py-2 px-4 font-semibold">Descrição</th>
-                    <th className="text-left py-2 px-4 font-semibold w-[90px]">Tipo</th>
-                    <th className="text-left py-2 px-4 font-semibold w-[80px]">Contas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linhas.map((l) => {
-                    const mapsCount = mapeamentos.filter(
-                      (m) => m.linha_demonstrativo_id === l.id && m.ativo
-                    ).length;
-                    return (
-                      <tr
-                        key={l.id}
-                        className={`border-b border-border/50 ${l.nivel === 1 ? "bg-muted/20 font-semibold" : "hover:bg-muted/10"}`}
+              <div className="divide-y divide-border/50">
+                {linhas.map((l) => {
+                  const isMappeable = l.nivel >= 2 && l.tipo_calculo === "soma";
+                  const lineMaps = mapsByLine[l.id] || [];
+                  const isExpanded = expandedLines.has(l.id);
+                  const isAdding = addingToLine === l.id;
+
+                  return (
+                    <div key={l.id}>
+                      {/* Linha principal */}
+                      <div
+                        className={`flex items-center gap-2 py-2.5 px-4 ${
+                          l.nivel === 1
+                            ? "bg-muted/20 font-semibold"
+                            : "hover:bg-muted/10 cursor-pointer"
+                        }`}
+                        onClick={() => isMappeable && toggleLine(l.id)}
                       >
-                        <td className="py-2 px-4 font-mono text-[11px] text-muted-foreground">{l.codigo}</td>
-                        <td className={`py-2 px-4 ${l.nivel === 2 ? "pl-8" : ""}`}>{l.nome}</td>
-                        <td className="py-2 px-4">
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded ${
-                              l.tipo_calculo === "resultado"
-                                ? "bg-blue-500/20 text-blue-400"
-                                : l.tipo_calculo === "manual"
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-green-500/20 text-green-400"
-                            }`}
-                          >
-                            {l.tipo_calculo}
-                          </span>
-                        </td>
-                        <td className="py-2 px-4 text-center">
-                          {l.tipo_calculo === "soma" && l.nivel >= 2 ? (
-                            <span className={`text-xs font-mono ${mapsCount > 0 ? "text-green-400" : "text-muted-foreground"}`}>
-                              {mapsCount}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-[10px]">—</span>
+                        {/* Chevron */}
+                        <div className="w-4 flex-shrink-0">
+                          {isMappeable && (
+                            isExpanded ? (
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            )
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
+                        </div>
 
-        {/* Adicionar mapeamento */}
-        <Card>
-          <CardHeader className="border-b border-border py-3">
-            <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Adicionar Mapeamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <div className="flex items-end gap-3 flex-wrap">
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Conta Operacional</label>
-                <Select value={novoContaId} onValueChange={setNovoContaId}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione uma conta..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contas.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.code} — {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Linha do {demFiltro}</label>
-                <Select value={novoLinhaId} onValueChange={setNovoLinhaId}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Selecione uma linha..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {linhasMapeáveis.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.codigo} — {l.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-[100px]">
-                <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Fator</label>
-                <Select value={novoFator} onValueChange={setNovoFator}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">+1 (natural)</SelectItem>
-                    <SelectItem value="-1">-1 (inverter)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button size="sm" onClick={adicionarMapeamento} disabled={!novoContaId || !novoLinhaId}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                        {/* Código */}
+                        <span className="font-mono text-[11px] text-muted-foreground w-[90px] flex-shrink-0">
+                          {l.codigo}
+                        </span>
 
-        {/* Lista de mapeamentos existentes */}
-        <Card>
-          <CardHeader className="border-b border-border py-3">
-            <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2">
-              Mapeamentos Existentes ({mapeamentos.filter((m) => m.ativo).length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loadingMap ? (
-              <div className="text-center py-8">
-                <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
-              </div>
-            ) : mapeamentos.filter((m) => m.ativo).length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground text-xs">Nenhum mapeamento configurado para {demFiltro}.</p>
-              </div>
-            ) : (
-              <table className="w-full text-[12.5px]">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left py-2 px-4 font-semibold">Conta Operacional</th>
-                    <th className="text-left py-2 px-4 font-semibold">Linha Demonstrativo</th>
-                    <th className="text-center py-2 px-4 font-semibold w-[60px]">Fator</th>
-                    <th className="text-center py-2 px-4 font-semibold w-[60px]">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mapeamentos
-                    .filter((m) => m.ativo)
-                    .sort((a, b) => (a.linha?.codigo || "").localeCompare(b.linha?.codigo || ""))
-                    .map((m) => (
-                      <tr key={m.id} className="border-b border-border/50 hover:bg-muted/10">
-                        <td className="py-2 px-4">
-                          <span className="font-mono text-[11px] text-muted-foreground mr-2">
-                            {m.conta?.code}
-                          </span>
-                          {m.conta?.name}
-                        </td>
-                        <td className="py-2 px-4">
-                          <span className="font-mono text-[11px] text-muted-foreground mr-2">
-                            {m.linha?.codigo}
-                          </span>
-                          {m.linha?.nome}
-                        </td>
-                        <td className="text-center py-2 px-4">
+                        {/* Nome */}
+                        <span className={`flex-1 text-[12.5px] ${l.nivel === 2 ? "pl-2" : ""}`}>
+                          {l.nome}
+                        </span>
+
+                        {/* Tipo */}
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+                            l.tipo_calculo === "resultado"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : l.tipo_calculo === "manual"
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : "bg-green-500/20 text-green-400"
+                          }`}
+                        >
+                          {l.tipo_calculo}
+                        </span>
+
+                        {/* Badge de contas mapeadas */}
+                        {isMappeable && (
                           <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                              m.fator === 1 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-mono flex-shrink-0 ${
+                              lineMaps.length > 0
+                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                : "bg-muted/50 text-muted-foreground"
                             }`}
                           >
-                            {m.fator === 1 ? "+1" : "-1"}
+                            {lineMaps.length} {lineMaps.length === 1 ? "conta" : "contas"}
                           </span>
-                        </td>
-                        <td className="text-center py-2 px-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
-                            onClick={() => removerMapeamento(m.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                        )}
+                        {!isMappeable && l.tipo_calculo !== "soma" && (
+                          <span className="text-muted-foreground text-[10px]">—</span>
+                        )}
+                      </div>
+
+                      {/* Contas mapeadas (expandido) */}
+                      {isMappeable && isExpanded && (
+                        <div className="bg-muted/5 border-t border-border/30 px-4 py-2 ml-8">
+                          {lineMaps.length === 0 && !isAdding && (
+                            <p className="text-[11px] text-muted-foreground italic py-1">
+                              Nenhuma conta vinculada. Use "Sugerir Automático" ou adicione manualmente.
+                            </p>
+                          )}
+
+                          {/* Lista de contas mapeadas */}
+                          {lineMaps.map((m) => (
+                            <div
+                              key={m.conta_operacional_id}
+                              className="flex items-center gap-2 py-1 group"
+                            >
+                              <span className="font-mono text-[11px] text-muted-foreground w-[60px]">
+                                {m.conta?.code}
+                              </span>
+                              <span className="flex-1 text-[11.5px]">{m.conta?.name}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFator(m.conta_operacional_id, l.id);
+                                }}
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-mono cursor-pointer hover:opacity-80 ${
+                                  m.fator === 1
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "bg-red-500/20 text-red-400"
+                                }`}
+                              >
+                                {m.fator === 1 ? "+1" : "-1"}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeMapping(m.conta_operacional_id, l.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* Botão/Select para adicionar conta */}
+                          {isAdding ? (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Select
+                                onValueChange={(contaId) => {
+                                  addMapping(l.id, contaId);
+                                  setAddingToLine(null);
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-[11px] flex-1">
+                                  <SelectValue placeholder="Selecione uma conta..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {contasNaoMapeadas.map((c) => (
+                                    <SelectItem key={c.id} value={c.id} className="text-[11px]">
+                                      {c.code} — {c.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddingToLine(null);
+                                }}
+                                className="text-muted-foreground hover:text-foreground p-1"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAddingToLine(l.id);
+                              }}
+                              className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-1.5 py-0.5"
+                            >
+                              <Plus className="h-3 w-3" /> Adicionar conta
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Contas não mapeadas */}
+        {contasNaoMapeadas.length > 0 && (
+          <Card>
+            <CardHeader className="border-b border-border py-3">
+              <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2 text-yellow-400">
+                <AlertCircle className="h-4 w-4" /> Contas sem mapeamento ({contasNaoMapeadas.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              <div className="flex flex-wrap gap-1.5">
+                {contasNaoMapeadas.slice(0, 30).map((c) => (
+                  <span
+                    key={c.id}
+                    className="text-[10px] px-2 py-1 rounded bg-muted/50 text-muted-foreground border border-border/50"
+                    title={`${c.code} — ${c.name} (${c.dre_group || "sem grupo DRE"})`}
+                  >
+                    {c.code} {c.name}
+                  </span>
+                ))}
+                {contasNaoMapeadas.length > 30 && (
+                  <span className="text-[10px] px-2 py-1 text-muted-foreground">
+                    +{contasNaoMapeadas.length - 30} mais...
+                  </span>
+                )}
+              </div>
+              <p className="text-[10.5px] text-muted-foreground mt-2">
+                Use o botão "Sugerir Automático" para mapear automaticamente contas com dre_group definido.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );
