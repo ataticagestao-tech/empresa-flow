@@ -60,12 +60,17 @@ function KpiCard({
   value,
   subtitle,
   color = C.text1,
+  delta,
+  deltaLabel,
 }: {
   label: string;
   value: string;
   subtitle?: string;
   color?: string;
+  delta?: number | null;
+  deltaLabel?: string;
 }) {
+  const hasDelta = delta !== undefined && delta !== null && isFinite(delta);
   return (
     <div className="border border-[#ccc] rounded-lg overflow-hidden">
       <div className="bg-[#1a2e4a] px-4 py-2">
@@ -77,6 +82,20 @@ function KpiCard({
         <p className="text-xl font-bold" style={{ color }}>
           {value}
         </p>
+        {hasDelta && (
+          <p className="text-xs mt-1.5 flex items-center gap-1">
+            <span
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{
+                backgroundColor: delta > 0 ? "#e8f5e9" : delta < 0 ? "#fde8e8" : "#f1f5f9",
+                color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
+              }}
+            >
+              {delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} {Math.abs(delta).toFixed(1)}%
+            </span>
+            <span className="text-gray-400">{deltaLabel || "vs mês anterior"}</span>
+          </p>
+        )}
         {subtitle && (
           <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
         )}
@@ -600,6 +619,107 @@ export default function PainelGerencial() {
       : 0;
 
   // ────────────────────────────────────────────────────────────
+  // COMPARATIVOS MÊS ANTERIOR (para deltas nos KPIs)
+  // ────────────────────────────────────────────────────────────
+
+  // CR previsto mês anterior
+  const { data: prevCrPrev = 0 } = useQuery({
+    queryKey: ["pg_prev_cr_prev", cId, prevMonthStart, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_receber").select("valor").eq("company_id", cId)
+        .in("status", ["aberto", "parcial", "vencido", "pago"])
+        .is("deleted_at", null)
+        .gte("data_vencimento", prevMonthStart).lte("data_vencimento", prevMonthEnd).limit(5000);
+      return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+    },
+    enabled: !!cId,
+  });
+
+  // CR recebido mês anterior
+  const { data: prevCrRecebido = 0 } = useQuery({
+    queryKey: ["pg_prev_cr_receb", cId, prevMonthStart, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_receber").select("valor").eq("company_id", cId)
+        .eq("status", "pago").is("deleted_at", null)
+        .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEnd).limit(5000);
+      return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+    },
+    enabled: !!cId,
+  });
+
+  // CP vence mês anterior
+  const { data: prevCpMes = 0 } = useQuery({
+    queryKey: ["pg_prev_cp_mes", cId, prevMonthStart, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_pagar").select("valor").eq("company_id", cId)
+        .in("status", ["aberto", "parcial", "pago"])
+        .is("deleted_at", null)
+        .gte("data_vencimento", prevMonthStart).lte("data_vencimento", prevMonthEnd).limit(5000);
+      return (data || []).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+    },
+    enabled: !!cId,
+  });
+
+  // Inadimplência mês anterior (títulos vencidos no mês anterior)
+  const { data: prevInadTotal = 0 } = useQuery({
+    queryKey: ["pg_prev_inad", cId, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_receber").select("valor").eq("company_id", cId)
+        .in("status", ["aberto", "parcial"])
+        .is("deleted_at", null)
+        .lt("data_vencimento", prevMonthEnd).limit(5000);
+      return (data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+    },
+    enabled: !!cId,
+  });
+
+  // Receita bruta mês anterior (movimentações)
+  const { data: prevReceitaBruta = 0 } = useQuery({
+    queryKey: ["pg_prev_receita", cId, prevMonthStart, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("movimentacoes").select("valor").eq("company_id", cId)
+        .eq("tipo", "credito").eq("origem", "conta_receber")
+        .gte("data", prevMonthStart).lte("data", prevMonthEnd).limit(10000);
+      return (data || []).reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
+    },
+    enabled: !!cId,
+  });
+
+  // Despesas mês anterior
+  const { data: prevDespesas = 0 } = useQuery({
+    queryKey: ["pg_prev_despesas", cId, prevMonthStart, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("movimentacoes").select("valor, origem, categoria").eq("company_id", cId)
+        .eq("tipo", "debito")
+        .gte("data", prevMonthStart).lte("data", prevMonthEnd).limit(10000);
+      return (data || []).filter((m: any) => m.origem !== "transferencia" && m.categoria !== "transferencia")
+        .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
+    },
+    enabled: !!cId,
+  });
+
+  // Helper: calcula delta %
+  const pctDelta = (atual: number, anterior: number) =>
+    anterior > 0 ? ((atual - anterior) / anterior) * 100 : atual > 0 ? 100 : null;
+
+  const deltaFaturamento = pctDelta(faturamento, faturamentoAnterior);
+  const deltaCrPrev = pctDelta(crPrevMes, prevCrPrev);
+  const deltaCrRecebido = pctDelta(crRecebidoMes, prevCrRecebido);
+  const deltaInad = pctDelta(inadimplentes.total, prevInadTotal);
+  const deltaCpMes = pctDelta(cpVenceMes, prevCpMes);
+  const deltaCpAtraso = pctDelta(cpVencido, prevCpMes > 0 ? prevCpMes : 1);
+  const deltaReceita = pctDelta(receitaBruta, prevReceitaBruta);
+  const deltaDespesas = pctDelta(despesasTotais, prevDespesas);
+  const prevResultado = prevReceitaBruta - prevDespesas;
+  const deltaResultado = pctDelta(resultadoDre, Math.abs(prevResultado) > 0 ? prevResultado : 1);
+
+  // ────────────────────────────────────────────────────────────
   // SECTION 7: LEITURA GERENCIAL
   // ────────────────────────────────────────────────────────────
 
@@ -877,18 +997,34 @@ export default function PainelGerencial() {
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={`${nVendas} vendas | TM ${fmt(ticketMedio)}`} />
+          <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={`${nVendas} vendas | TM ${fmt(ticketMedio)}`} delta={deltaFaturamento} />
           <KpiCard label="Saldo em caixa" value={fmt(saldoTotal)} color={saldoTotal >= 0 ? C.green : C.red} />
-          <KpiCard label="Entradas previstas (mês)" value={fmt(crPrevMes)} color={C.text1} />
+          <KpiCard label="Entradas previstas (mês)" value={fmt(crPrevMes)} color={C.text1} delta={deltaCrPrev} />
           <KpiCard label="Contas ativas" value={String(contasAtivas)} color={C.text1} />
+        </div>
+
+        {/* ── KPIs financeiros com comparativo ────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+          <KpiCard label="Recebido no mês" value={fmt(crRecebidoMes)} color={C.green} delta={deltaCrRecebido} />
+          <KpiCard label="Receita bruta" value={fmt(receitaBruta)} color={C.green} delta={deltaReceita} />
+          <KpiCard label="Despesas totais" value={fmt(despesasTotais)} color={C.red} delta={deltaDespesas} deltaLabel={deltaDespesas && deltaDespesas > 0 ? "↑ vs mês anterior" : "vs mês anterior"} />
+          <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
+          <KpiCard label="A pagar (mês)" value={fmt(cpVenceMes)} color={C.text1} delta={deltaCpMes} />
         </div>
 
         {/* ── INADIMPLÊNCIA ALERTA ────────────────────────────── */}
         {inadimplentes.total > 0 && (
           <div className="border-2 border-red-300 bg-red-50 rounded-lg px-5 py-4 mb-6 flex items-center justify-between">
-            <p className="text-sm text-red-700">
-              <span className="font-bold">Inadimplência</span> &mdash; {inadimplentes.count.toLocaleString("pt-BR")} títulos em aberto
-            </p>
+            <div>
+              <p className="text-sm text-red-700">
+                <span className="font-bold">Inadimplência</span> &mdash; {inadimplentes.count.toLocaleString("pt-BR")} títulos em aberto
+              </p>
+              {deltaInad !== null && isFinite(deltaInad) && (
+                <p className="text-xs text-red-500 mt-1">
+                  {deltaInad > 0 ? "▲" : "▼"} {Math.abs(deltaInad).toFixed(1)}% vs mês anterior
+                </p>
+              )}
+            </div>
             <p className="text-xl font-bold text-red-700">{fmtR(inadimplentes.total)}</p>
           </div>
         )}
