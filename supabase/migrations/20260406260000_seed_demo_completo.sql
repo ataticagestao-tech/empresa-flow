@@ -293,13 +293,13 @@ BEGIN
   bank_cx := gen_random_uuid();
 
   INSERT INTO bank_accounts (id, company_id, name, type, initial_balance, current_balance, is_active) VALUES
-  (bank_bb, co1, 'BB Conta Corrente',     'conta_corrente', 45000.00, 78543.27, true),
-  (bank_nu, co1, 'Nubank Conta Corrente', 'conta_corrente', 22000.00, 32150.80, true),
-  (bank_cx, co1, 'Caixa Poupanca',        'poupanca',       15000.00, 15420.00, true);
+  (bank_bb, co1, 'BB Conta Corrente',     'checking', 45000.00, 78543.27, true),
+  (bank_nu, co1, 'Nubank Conta Corrente', 'checking', 22000.00, 32150.80, true),
+  (bank_cx, co1, 'Caixa Poupanca',        'savings',  15000.00, 15420.00, true);
 
   bank2_nu := gen_random_uuid();
   INSERT INTO bank_accounts (id, company_id, name, type, initial_balance, current_balance, is_active) VALUES
-  (bank2_nu, co2, 'Nubank Tech Store', 'conta_corrente', 18000.00, 24820.50, true);
+  (bank2_nu, co2, 'Nubank Tech Store', 'checking', 18000.00, 24820.50, true);
 
   -- ============================================================
   -- 6. CLIENTS — Company 1 (8 clients)
