@@ -26,8 +26,11 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
+  Line,
+  ComposedChart,
 } from "recharts";
-import { TrendingUp, TrendingDown, AlertTriangle, Calendar } from "lucide-react";
+import { AlertTriangle, Calendar } from "lucide-react";
 
 /* ── Design Tokens ──────────────────────────────────────────── */
 const C = {
@@ -661,6 +664,124 @@ export default function PainelGerencial() {
   ]);
 
   // ────────────────────────────────────────────────────────────
+  // FATURAMENTO DIÁRIO (gráfico barras + média acumulada)
+  // ────────────────────────────────────────────────────────────
+
+  const { data: vendasDiarias = [], isLoading: loadVendasDiarias } = useQuery({
+    queryKey: ["pg_vendas_diarias", cId, monthStart, monthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("vendas")
+        .select("data_venda, valor_total")
+        .eq("company_id", cId)
+        .eq("status", "confirmado")
+        .gte("data_venda", monthStart)
+        .lte("data_venda", monthEnd)
+        .order("data_venda")
+        .limit(10000);
+      // Agrupar por dia
+      const porDia: Record<string, number> = {};
+      (data || []).forEach((v: any) => {
+        const d = v.data_venda;
+        porDia[d] = (porDia[d] || 0) + Number(v.valor_total || 0);
+      });
+      let acum = 0;
+      let count = 0;
+      return Object.entries(porDia)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([dia, total]) => {
+          acum += total;
+          count++;
+          return {
+            dia: dia.slice(8, 10), // DD
+            faturamento: total,
+            media: acum / count,
+          };
+        });
+    },
+    enabled: !!cId,
+  });
+
+  // ────────────────────────────────────────────────────────────
+  // RECEBIMENTOS PREVISTO VS REALIZADO (6 meses)
+  // ────────────────────────────────────────────────────────────
+
+  const { data: recebMensal = [], isLoading: loadRecebMensal } = useQuery({
+    queryKey: ["pg_receb_mensal", cId],
+    queryFn: async () => {
+      const meses: { label: string; previsto: number; realizado: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const mDate = subMonths(today, i);
+        const mStart = format(startOfMonth(mDate), "yyyy-MM-dd");
+        const mEnd = format(endOfMonth(mDate), "yyyy-MM-dd");
+        const mLabel = format(mDate, "MMM", { locale: ptBR });
+
+        const [prevRes, realRes] = await Promise.all([
+          db.from("contas_receber").select("valor").eq("company_id", cId)
+            .in("status", ["aberto", "parcial", "vencido", "pago"])
+            .is("deleted_at", null)
+            .gte("data_vencimento", mStart).lte("data_vencimento", mEnd).limit(5000),
+          db.from("contas_receber").select("valor").eq("company_id", cId)
+            .eq("status", "pago").is("deleted_at", null)
+            .gte("data_pagamento", mStart).lte("data_pagamento", mEnd).limit(5000),
+        ]);
+
+        const prev = (prevRes.data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+        const real = (realRes.data || []).reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+        meses.push({ label: mLabel, previsto: prev, realizado: real });
+      }
+      return meses;
+    },
+    enabled: !!cId,
+  });
+
+  // ────────────────────────────────────────────────────────────
+  // COMPOSIÇÃO DO CONTAS A RECEBER (donut)
+  // ────────────────────────────────────────────────────────────
+
+  const crAVencer = useMemo(
+    () => (crAberto || [])
+      .filter((r: any) => r.data_vencimento >= todayStr)
+      .reduce((s: number, r: any) => s + Number(r.valor || 0), 0),
+    [crAberto, todayStr]
+  );
+
+  const composicaoCR = useMemo(() => [
+    { name: `Recebido ${fmt(crRecebidoMes)}`, value: crRecebidoMes, color: C.green },
+    { name: `A vencer ${fmt(crAVencer)}`, value: crAVencer, color: C.gold },
+    { name: `Inadimplente ${fmt(inadimplentes.total)}`, value: inadimplentes.total, color: C.red },
+  ], [crRecebidoMes, crAVencer, inadimplentes.total]);
+
+  // ────────────────────────────────────────────────────────────
+  // FLUXO DE CAIXA — projeção 90 dias (semanal)
+  // ────────────────────────────────────────────────────────────
+
+  const fluxoSemanal = useMemo(() => {
+    const weeks: { label: string; saldo: number; entradas: number; saidas: number }[] = [];
+    let acumulado = saldoTotal;
+    for (let w = 0; w <= 12; w++) {
+      const wStart = addDays(today, w * 7);
+      const wEnd = addDays(today, (w + 1) * 7 - 1);
+      const wStartStr = format(wStart, "yyyy-MM-dd");
+      const wEndStr = format(wEnd, "yyyy-MM-dd");
+      const ent = (crAberto || [])
+        .filter((r: any) => r.data_vencimento >= wStartStr && r.data_vencimento <= wEndStr)
+        .reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+      const sai = (cpAberto || [])
+        .filter((p: any) => p.data_vencimento >= wStartStr && p.data_vencimento <= wEndStr)
+        .reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+      acumulado += ent - sai;
+      weeks.push({
+        label: w === 0 ? "Hoje" : `Sem ${w}`,
+        saldo: acumulado,
+        entradas: ent,
+        saidas: sai,
+      });
+    }
+    return weeks;
+  }, [saldoTotal, crAberto, cpAberto, today]);
+
+  // ────────────────────────────────────────────────────────────
   // Loading state
   // ────────────────────────────────────────────────────────────
 
@@ -672,7 +793,9 @@ export default function PainelGerencial() {
     loadCrPago ||
     loadDre ||
     loadDre6m ||
-    loadVendas;
+    loadVendas ||
+    loadVendasDiarias ||
+    loadRecebMensal;
 
   if (isLoading) {
     return (
@@ -685,10 +808,15 @@ export default function PainelGerencial() {
   }
 
   // ────────────────────────────────────────────────────────────
-  // Chart colors
+  // Periodo label
   // ────────────────────────────────────────────────────────────
 
-  const CHART_COLORS = [C.green, C.red, C.gold, "#3b82f6", "#8b5cf6", "#06b6d4"];
+  const periodoLabel = periodoTipo === "mes"
+    ? format(parse(mesSelecionado + "-01", "yyyy-MM-dd", new Date()), "MMMM yyyy", { locale: ptBR })
+    : `${format(new Date(dataInicio + "T12:00:00"), "dd/MM/yyyy")} a ${format(new Date(dataFim + "T12:00:00"), "dd/MM/yyyy")}`;
+
+  const fmtR = (v: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   // ────────────────────────────────────────────────────────────
   // RENDER
@@ -697,369 +825,196 @@ export default function PainelGerencial() {
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 pb-12">
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-6 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#1A1F36] mb-1">
-              Painel Gerencial
-            </h1>
-            <p className="text-sm text-gray-500">
-              Cockpit financeiro consolidado
-            </p>
-          </div>
+
+        {/* ── HEADER + FILTRO ─────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 flex-wrap mt-6 mb-2">
+          <p className="text-sm text-gray-500">
+            Cockpit financeiro consolidado &mdash; {format(realToday, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          </p>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex border border-[#e2e8f0] rounded-lg overflow-hidden">
               <button
                 onClick={() => setPeriodoTipo("mes")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  periodoTipo === "mes"
-                    ? "bg-[#1a2e4a] text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Mês
-              </button>
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >Mês</button>
               <button
                 onClick={() => setPeriodoTipo("custom")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  periodoTipo === "custom"
-                    ? "bg-[#1a2e4a] text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Calendar className="h-3 w-3 inline mr-1" />
-                Personalizado
-              </button>
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "custom" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              ><Calendar className="h-3 w-3 inline mr-1" />Personalizado</button>
             </div>
             {periodoTipo === "mes" ? (
-              <select
-                value={mesSelecionado}
-                onChange={(e) => setMesSelecionado(e.target.value)}
-                className="h-8 px-3 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20"
-              >
+              <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)}
+                className="h-8 px-3 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20">
                 {mesesOpcoes.map((m) => (
-                  <option key={m} value={m}>
-                    {format(parse(m + "-01", "yyyy-MM-dd", new Date()), "MMMM yyyy", { locale: ptBR })}
-                  </option>
+                  <option key={m} value={m}>{format(parse(m + "-01", "yyyy-MM-dd", new Date()), "MMMM yyyy", { locale: ptBR })}</option>
                 ))}
               </select>
             ) : (
               <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={dataInicio}
-                  onChange={(e) => setDataInicio(e.target.value)}
-                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20"
-                />
+                <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
+                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20" />
                 <span className="text-xs text-gray-400">a</span>
-                <input
-                  type="date"
-                  value={dataFim}
-                  onChange={(e) => setDataFim(e.target.value)}
-                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20"
-                />
+                <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
+                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20" />
               </div>
             )}
           </div>
         </div>
 
-        {/* ── SECTION 1: CAIXA E BANCOS ─────────────────────── */}
-        <SectionTitle>Caixa e Bancos</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard
-            label="Saldo Total em Caixa"
-            value={fmt(saldoTotal)}
-            color={saldoTotal >= 0 ? C.green : C.red}
-          />
-          <KpiCard
-            label="Contas Ativas"
-            value={String(contasAtivas)}
-            color={C.text1}
-          />
-          <KpiCard
-            label="Entradas Hoje"
-            value={fmt(entradasHoje)}
-            color={C.green}
-          />
-          <KpiCard
-            label="Saidas Hoje"
-            value={fmt(saidasHoje)}
-            color={C.red}
-          />
+        {/* ── TOP KPIs ────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+          <KpiCard label="Saldo em caixa" value={fmt(saldoTotal)} color={saldoTotal >= 0 ? C.green : C.red} />
+          <KpiCard label="Entradas previstas (mês)" value={fmt(crPrevMes)} color={C.text1} />
+          <KpiCard label="Contas ativas" value={String(contasAtivas)} color={C.text1} />
         </div>
 
-        {/* ── SECTION 2: CONTAS A PAGAR ─────────────────────── */}
-        <SectionTitle>Contas a Pagar</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <KpiCard
-            label="Vence Hoje"
-            value={fmt(cpVenceHoje)}
-            color={cpVenceHoje > 0 ? C.gold : C.text1}
-          />
-          <KpiCard
-            label="Vence esta Semana"
-            value={fmt(cpVenceSemana)}
-            color={C.text1}
-          />
-          <KpiCard
-            label="Vence este Mes"
-            value={fmt(cpVenceMes)}
-            color={C.text1}
-          />
-          <KpiCard
-            label="Em Atraso"
-            value={fmt(cpVencido)}
-            color={C.red}
-            subtitle={cpVencido > 0 ? "Requer atencao imediata" : undefined}
-          />
-          <KpiCard
-            label="Previsao Desembolso 30d"
-            value={fmt(cpPrevisao30)}
-            color={C.text1}
-          />
+        {/* ── INADIMPLÊNCIA ALERTA ────────────────────────────── */}
+        {inadimplentes.total > 0 && (
+          <div className="border-2 border-red-300 bg-red-50 rounded-lg px-5 py-4 mb-6 flex items-center justify-between">
+            <p className="text-sm text-red-700">
+              <span className="font-bold">Inadimplência</span> &mdash; {inadimplentes.count.toLocaleString("pt-BR")} títulos em aberto
+            </p>
+            <p className="text-xl font-bold text-red-700">{fmtR(inadimplentes.total)}</p>
+          </div>
+        )}
+
+        {/* ── FATURAMENTO DIÁRIO ──────────────────────────────── */}
+        <SectionTitle>Faturamento diário &mdash; {periodoLabel}</SectionTitle>
+        <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4 mb-8">
+          {vendasDiarias.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={vendasDiarias}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis dataKey="dia" tick={{ fontSize: 11 }} label={{ value: "Dia do mês", position: "insideBottom", offset: -5, fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                <Tooltip formatter={(v: number, name: string) => [fmtR(v), name === "faturamento" ? "Faturamento dia" : "Média diária acumulada"]} />
+                <Legend formatter={(v: string) => v === "faturamento" ? "Faturamento dia" : "Média diária acumulada"} />
+                <Bar dataKey="faturamento" fill="#1a2e4a" radius={[4, 4, 0, 0]} />
+                <Line type="monotone" dataKey="media" stroke={C.gold} strokeWidth={2} dot={{ r: 4, fill: C.gold }} name="media" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-center text-gray-400 py-8">Sem vendas no período</p>
+          )}
         </div>
 
-        {/* ── SECTION 3: CONTAS A RECEBER ───────────────────── */}
-        <SectionTitle>Contas a Receber</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard
-            label="Entradas Previstas (mes)"
-            value={fmt(crPrevMes)}
-            color={C.text1}
-          />
-          <KpiCard
-            label="Recebido no Mes"
-            value={fmt(crRecebidoMes)}
-            color={C.green}
-          />
-          <KpiCard
-            label="Inadimplencia"
-            value={`${inadimplentes.count} titulos | ${fmt(inadimplentes.total)}`}
-            color={inadimplentes.count > 0 ? C.red : C.green}
-          />
-          <KpiCard
-            label="Previsto vs Realizado"
-            value={fmtPct(previstoVsRealizado)}
-            color={previstoVsRealizado >= 80 ? C.green : C.gold}
-            subtitle={`${fmt(crRecebidoMes)} de ${fmt(crPrevMes)}`}
-          />
+        {/* ── CONTAS A PAGAR — AGING ──────────────────────────── */}
+        <SectionTitle>Contas a pagar &mdash; aging</SectionTitle>
+        <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4 mb-8">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={[
+              { faixa: "Vence hoje", valor: cpVenceHoje },
+              { faixa: "Esta semana", valor: cpVenceSemana },
+              { faixa: "Este mês", valor: cpVenceMes },
+              { faixa: "Em atraso", valor: cpVencido },
+              { faixa: "Próx. 30d", valor: cpPrevisao30 },
+            ]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis dataKey="faixa" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+              <Tooltip formatter={(v: number) => [fmtR(v), "Valor (R$)"]} />
+              <Legend formatter={() => "Valor (R$)"} />
+              <Bar dataKey="valor" fill="#1a2e4a" radius={[4, 4, 0, 0]} name="valor" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* ── SECTION 4: FLUXO DE CAIXA ─────────────────────── */}
-        <SectionTitle>Fluxo de Caixa - Projecoes</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          <KpiCard
-            label="Projecao 30 dias"
-            value={fmt(projecao30)}
-            color={projecao30 >= 0 ? C.green : C.red}
-          />
-          <KpiCard
-            label="Projecao 60 dias"
-            value={fmt(projecao60)}
-            color={projecao60 >= 0 ? C.green : C.red}
-          />
-          <KpiCard
-            label="Projecao 90 dias"
-            value={fmt(projecao90)}
-            color={projecao90 >= 0 ? C.green : C.red}
-          />
+        {/* ── RECEBIMENTOS PREVISTO VS REALIZADO + COMPOSIÇÃO CR ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Previsto vs Realizado */}
+          <div>
+            <SectionTitle>Recebimentos &mdash; previsto vs realizado</SectionTitle>
+            <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={recebMensal}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                  <Tooltip formatter={(v: number) => fmtR(v)} />
+                  <Legend />
+                  <Bar dataKey="previsto" fill={C.gold} name="Previsto" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="realizado" fill={C.green} name="Realizado" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Composição do CR */}
+          <div>
+            <SectionTitle>Composição do contas a receber</SectionTitle>
+            <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4">
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={composicaoCR}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={110}
+                    paddingAngle={2}
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {composicaoCR.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend formatter={(value: string) => <span className="text-xs">{value}</span>} />
+                  <Tooltip formatter={(v: number) => fmtR(v)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
+
+        {/* ── FLUXO DE CAIXA — projeção 90 dias ───────────────── */}
+        <SectionTitle>Fluxo de caixa &mdash; projeção 90 dias</SectionTitle>
 
         {primeiroDiaNegativo && (
-          <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-6 flex items-center gap-3">
+          <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4 flex items-center gap-3">
             <AlertTriangle className="text-red-600 shrink-0" size={24} />
             <div>
               <p className="text-red-800 font-bold text-sm">
-                ALERTA: Risco de falta de caixa em{" "}
-                {format(
-                  new Date(primeiroDiaNegativo + "T12:00:00"),
-                  "dd/MM/yyyy"
-                )}
+                ALERTA: Risco de falta de caixa em {format(new Date(primeiroDiaNegativo + "T12:00:00"), "dd/MM/yyyy")}
               </p>
               <p className="text-red-600 text-xs mt-1">
-                Revise pagamentos e antecipe recebimentos para evitar saldo
-                negativo.
+                Revise pagamentos e antecipe recebimentos para evitar saldo negativo.
               </p>
             </div>
           </div>
         )}
 
-        <div className="border border-[#ccc] rounded-lg overflow-hidden mb-6">
-          <div className="bg-[#1a2e4a] px-4 py-2">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-              Saldo Projetado - Proximos 30 dias
-            </h3>
-          </div>
-          <div className="p-4 bg-white">
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={fluxoDiario}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 10 }}
-                  interval={4}
-                />
-                <YAxis
-                  tick={{ fontSize: 10 }}
-                  tickFormatter={(v: number) =>
-                    `${(v / 1000).toFixed(0)}k`
-                  }
-                />
-                <Tooltip
-                  formatter={(v: number) => [fmt(v), "Saldo"]}
-                  labelStyle={{ fontWeight: "bold" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="saldo"
-                  stroke={C.green}
-                  fill={C.green}
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+        <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4 mb-8">
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={fluxoSemanal}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${(v / 1000).toFixed(0)}.000`} />
+              <Tooltip formatter={(v: number, name: string) => [
+                fmtR(v),
+                name === "saldo" ? "Saldo projetado" : name === "entradas" ? "Entradas" : "Saídas"
+              ]} />
+              <Legend formatter={(v: string) => v === "saldo" ? "Saldo projetado" : v === "entradas" ? "Entradas" : "Saídas"} />
+              <Area type="monotone" dataKey="saldo" stroke="#1a2e4a" fill="#1a2e4a" fillOpacity={0.08} strokeWidth={2.5} name="saldo" />
+              <Bar dataKey="entradas" fill={C.green} radius={[2, 2, 0, 0]} name="entradas" barSize={8} />
+              <Bar dataKey="saidas" fill={C.red} radius={[2, 2, 0, 0]} name="saidas" barSize={8} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* ── SECTION 5: DRE RESUMO ─────────────────────────── */}
-        <SectionTitle>DRE Resumo - Mes Atual</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <KpiCard
-            label="Receita Bruta"
-            value={fmt(receitaBruta)}
-            color={C.green}
-          />
-          <KpiCard
-            label="Despesas Totais"
-            value={fmt(despesasTotais)}
-            color={C.red}
-          />
-          <KpiCard
-            label="Resultado"
-            value={fmt(resultadoDre)}
-            color={resultadoDre >= 0 ? C.green : C.red}
-          />
-          <KpiCard
-            label="Margem Liquida"
-            value={fmtPct(margemLiquida)}
-            color={margemLiquida >= 0 ? C.green : C.red}
-            subtitle={
-              margemLiquida > 15
-                ? "Saudavel"
-                : margemLiquida > 0
-                  ? "Atencao"
-                  : "Critico"
-            }
-          />
-        </div>
-
-        <div className="border border-[#ccc] rounded-lg overflow-hidden mb-6">
-          <div className="bg-[#1a2e4a] px-4 py-2">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-              Evolucao Ultimos 6 Meses
-            </h3>
-          </div>
-          <div className="p-4 bg-white">
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={dre6m}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                <YAxis
-                  tick={{ fontSize: 10 }}
-                  tickFormatter={(v: number) =>
-                    `${(v / 1000).toFixed(0)}k`
-                  }
-                />
-                <Tooltip formatter={(v: number) => fmt(v)} />
-                <Bar dataKey="receita" fill={C.green} name="Receita" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="despesa" fill={C.red} name="Despesa" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="resultado" fill={C.gold} name="Resultado" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ── SECTION 6: INDICADORES GERENCIAIS ─────────────── */}
-        <SectionTitle>Indicadores Gerenciais</SectionTitle>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <KpiCard
-            label="Faturamento (mes)"
-            value={fmt(faturamento)}
-            color={C.text1}
-          />
-          <KpiCard
-            label="Ticket Medio"
-            value={fmt(ticketMedio)}
-            color={C.text1}
-            subtitle={nVendas > 0 ? `${nVendas} vendas no mes` : "Sem vendas"}
-          />
-          <KpiCard
-            label="Taxa de Inadimplencia"
-            value={fmtPct(inadimplenciaRate)}
-            color={inadimplenciaRate > 10 ? C.red : C.green}
-            subtitle={inadimplenciaRate > 10 ? "Acima do limite" : "Dentro do aceitavel"}
-          />
-          <KpiCard
-            label="Despesas / Receita"
-            value={fmtPct(despesasReceita)}
-            color={despesasReceita > 85 ? C.red : despesasReceita > 70 ? C.gold : C.green}
-          />
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-                Evolucao Mensal
-              </h3>
-            </div>
-            <div className="p-4 bg-white flex items-center gap-2">
-              {evolucaoMensal >= 0 ? (
-                <TrendingUp size={24} color={C.green} />
-              ) : (
-                <TrendingDown size={24} color={C.red} />
-              )}
-              <p
-                className="text-xl font-bold"
-                style={{ color: evolucaoMensal >= 0 ? C.green : C.red }}
-              >
-                {evolucaoMensal >= 0 ? "+" : ""}
-                {fmtPct(evolucaoMensal)}
-              </p>
-              <p className="text-xs text-gray-500 ml-1">vs mes anterior</p>
-            </div>
-          </div>
-          <KpiCard
-            label="N. de Vendas"
-            value={String(nVendas)}
-            color={C.text1}
-            subtitle={format(today, "MMMM yyyy", { locale: ptBR })}
-          />
-        </div>
-
-        {/* ── SECTION 7: LEITURA GERENCIAL ──────────────────── */}
+        {/* ── LEITURA GERENCIAL ────────────────────────────────── */}
         <SectionTitle>Leitura Gerencial</SectionTitle>
-        <div
-          className="rounded-lg p-6"
-          style={{ backgroundColor: C.darkCard }}
-        >
+        <div className="rounded-lg p-6 mb-4" style={{ backgroundColor: C.darkCard }}>
           <h3 className="text-white text-sm font-bold mb-4 uppercase tracking-widest">
             Insights Automatizados
           </h3>
           <div className="space-y-3">
             {insights.map((ins, idx) => {
-              const dotColor =
-                ins.type === "danger"
-                  ? "#ef4444"
-                  : ins.type === "warning"
-                    ? "#eab308"
-                    : "#22c55e";
+              const dotColor = ins.type === "danger" ? "#ef4444" : ins.type === "warning" ? "#eab308" : "#22c55e";
               return (
                 <div key={idx} className="flex items-start gap-3">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
-                    style={{ backgroundColor: dotColor }}
-                  />
-                  <p className="text-white text-sm leading-relaxed">
-                    {ins.text}
-                  </p>
+                  <span className="inline-block w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: dotColor }} />
+                  <p className="text-white text-sm leading-relaxed">{ins.text}</p>
                 </div>
               );
             })}
