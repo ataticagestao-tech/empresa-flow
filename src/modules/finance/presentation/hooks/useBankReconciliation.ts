@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseBankStatementPdf } from "@/lib/parsers/bankStatementPdf";
 import { parseCreditCardPdf } from "@/lib/parsers/creditCardPdf";
+import { parseBankStatementExcel } from "@/lib/parsers/bankStatementExcel";
 
 // Interface unificada para transações do sistema (Pagar e Receber)
 export interface SystemTransaction {
@@ -468,6 +469,45 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         onError: (err: any) => toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" })
     });
 
+    // Mutation: Upload Excel (extrato bancário)
+    const uploadExcel = useMutation({
+        mutationFn: async (file: File) => {
+            if (!bankAccountId || !companyId) throw new Error("Dados incompletos");
+
+            const parsed = await parseBankStatementExcel(file);
+            if (!parsed.length) throw new Error("Nenhuma transação encontrada na planilha");
+
+            const toInsert = parsed.map((tx, index) => {
+                const fitBase = `xls_${bankAccountId}:${tx.date}:${tx.amount}:${tx.description}:${index}`;
+                const fitId = `xls_${hashString(fitBase)}`;
+                return {
+                    company_id: companyId,
+                    bank_account_id: bankAccountId,
+                    fit_id: fitId,
+                    date: tx.date,
+                    amount: tx.amount,
+                    description: tx.description.substring(0, 255),
+                    memo: "",
+                    status: 'pending',
+                    source: 'excel',
+                };
+            });
+
+            const { error } = await (activeClient as any)
+                .from('bank_transactions')
+                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+
+            if (error) throw error;
+            return toInsert.length;
+        },
+        onSuccess: (count) => {
+            toast({ title: "Sucesso", description: `${count} transações importadas do Excel.` });
+            queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
+            queryClient.invalidateQueries({ queryKey: ['import_history'] });
+        },
+        onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
+    });
+
     // Mutation: Upload Fatura de Cartão de Crédito (PDF)
     const uploadCreditCardPDF = useMutation({
         mutationFn: async (file: File) => {
@@ -523,6 +563,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         isLoading: isLoadingBankTx || isLoadingSystemTx,
         uploadOFX,
         uploadPDF,
+        uploadExcel,
         uploadCreditCardPDF,
         matchTransaction,
         deleteImportBatch

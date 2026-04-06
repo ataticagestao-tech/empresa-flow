@@ -19,7 +19,7 @@ import {
     Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
     Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
-    DollarSign, Clock, Bot, CreditCard
+    DollarSign, Clock, Bot, CreditCard, FileSpreadsheet
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -115,6 +115,8 @@ export default function Conciliacao() {
         systemTransactions,
         importHistory,
         uploadOFX,
+        uploadPDF,
+        uploadExcel,
         uploadCreditCardPDF,
         matchTransaction,
         deleteImportBatch
@@ -425,15 +427,31 @@ export default function Conciliacao() {
     // ============================================================
 
     const ccFileInputRef = useRef<HTMLInputElement>(null);
+    const pdfFileInputRef = useRef<HTMLInputElement>(null);
+    const excelFileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) uploadOFX.mutate(file);
+        if (e.target) e.target.value = "";
     };
 
     const handleCCFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) uploadCreditCardPDF.mutate(file);
+        if (e.target) e.target.value = "";
+    };
+
+    const handlePDFFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadPDF.mutate(file);
+        if (e.target) e.target.value = "";
+    };
+
+    const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) uploadExcel.mutate(file);
+        if (e.target) e.target.value = "";
     };
 
     const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
@@ -717,16 +735,23 @@ export default function Conciliacao() {
                             Selecione a conta para visualizar e importar extratos.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Hidden file inputs */}
                         <input type="file" accept=".ofx" className="hidden" ref={fileInputRef}
                             onChange={handleFileChange} disabled={!selectedAccountId || uploadOFX.isPending} />
                         <input type="file" accept=".pdf" className="hidden" ref={ccFileInputRef}
                             onChange={handleCCFileChange} disabled={!selectedAccountId || uploadCreditCardPDF.isPending} />
+                        <input type="file" accept=".pdf" className="hidden" ref={pdfFileInputRef}
+                            onChange={handlePDFFileChange} disabled={!selectedAccountId || uploadPDF.isPending} />
+                        <input type="file" accept=".xlsx,.xls,.csv" className="hidden" ref={excelFileInputRef}
+                            onChange={handleExcelFileChange} disabled={!selectedAccountId || uploadExcel.isPending} />
+
                         <Button variant="outline" className="border-[#E2E8F0]"
                             onClick={() => setShowRulesPanel(!showRulesPanel)}>
                             <Brain className="mr-2 h-4 w-4" />
                             Regras ({rules.length})
                         </Button>
+
                         {isCreditCard ? (
                             <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
                                 onClick={() => ccFileInputRef.current?.click()}
@@ -735,12 +760,26 @@ export default function Conciliacao() {
                                 Importar Fatura (PDF)
                             </Button>
                         ) : (
-                            <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={!selectedAccountId || uploadOFX.isPending}>
-                                {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                                Importar OFX
-                            </Button>
+                            <>
+                                <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={!selectedAccountId || uploadOFX.isPending}>
+                                    {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                    OFX
+                                </Button>
+                                <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                    onClick={() => pdfFileInputRef.current?.click()}
+                                    disabled={!selectedAccountId || uploadPDF.isPending}>
+                                    {uploadPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                                    PDF
+                                </Button>
+                                <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                    onClick={() => excelFileInputRef.current?.click()}
+                                    disabled={!selectedAccountId || uploadExcel.isPending}>
+                                    {uploadExcel.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
+                                    Excel
+                                </Button>
+                            </>
                         )}
                     </div>
                 </div>
