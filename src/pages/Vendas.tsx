@@ -7,7 +7,7 @@ import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
-  Search, Plus, Eye, Trash2, X,
+  Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
   QrCode, Receipt, Calendar, UserPlus, ChevronDown,
@@ -148,6 +148,7 @@ export default function Vendas() {
   const [modalAberto, setModalAberto] = useState(false)
   const [modalDetalhes, setModalDetalhes] = useState<Venda | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [editandoVenda, setEditandoVenda] = useState<Venda | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [erroModal, setErroModal] = useState<string | null>(null)
 
@@ -173,7 +174,7 @@ export default function Vendas() {
   const [formDescontoTipo, setFormDescontoTipo] = useState<'valor' | 'percentual'>('valor')
   const [formDesconto, setFormDesconto] = useState(0)
   const [formPagamento, setFormPagamento] = useState<string>('pix')
-  const [formParcelas, setFormParcelas] = useState(2)
+  const [formParcelas, setFormParcelas] = useState(1)
   const [formContaBancaria, setFormContaBancaria] = useState('')
   const [formCentroCusto, setFormCentroCusto] = useState('')
 
@@ -361,11 +362,43 @@ export default function Vendas() {
     setFormDescontoTipo('valor')
     setFormDesconto(0)
     setFormPagamento('pix')
-    setFormParcelas(2)
+    setFormParcelas(1)
     setFormContaBancaria('')
     setFormCentroCusto('')
     setErroModal(null)
     setTaxaPreview(null)
+  }
+
+  function carregarVendaParaEdicao(venda: Venda) {
+    resetForm()
+    setEditandoVenda(venda)
+    setFormTipo(venda.tipo)
+    setFormCliente(venda.cliente_nome)
+    setFormCpfCnpj(venda.cliente_cpf_cnpj || '')
+    setClienteSearch(venda.cliente_nome)
+    setFormDataVenda(venda.data_venda)
+    setFormPagamento(venda.forma_pagamento)
+
+    if (venda.vendas_itens && venda.vendas_itens.length > 0) {
+      setFormItens(venda.vendas_itens.map(it => ({
+        descricao: it.descricao,
+        quantidade: it.quantidade,
+        valor_unitario: it.valor_unitario,
+      })))
+    }
+
+    // Try to find matching client
+    const matchedClient = clientes.find(c =>
+      c.razao_social === venda.cliente_nome ||
+      c.nome_fantasia === venda.cliente_nome ||
+      (venda.cliente_cpf_cnpj && c.cpf_cnpj === venda.cliente_cpf_cnpj)
+    )
+    if (matchedClient) {
+      setFormClienteId(matchedClient.id)
+    }
+
+    setModalDetalhes(null)
+    setModalAberto(true)
   }
 
   function selectCliente(c: Cliente) {
@@ -633,27 +666,53 @@ export default function Vendas() {
     setErroModal(null)
 
     try {
-      // 1. Insert venda
-      const { data: vendaData, error: vendaErr } = await db
-        .from('vendas')
-        .insert({
-          company_id: companyId,
-          cliente_nome: formCliente.trim(),
-          cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
-          tipo: formTipo,
-          valor_total: totalVenda,
-          data_venda: formDataVenda,
-          forma_pagamento: formPagamento,
-          status: 'confirmado',
-        })
-        .select()
-        .single()
+      let vendaId: string
 
-      if (vendaErr) throw vendaErr
+      if (editandoVenda) {
+        // UPDATE existing venda
+        const { error: vendaErr } = await db
+          .from('vendas')
+          .update({
+            cliente_nome: formCliente.trim(),
+            cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+            tipo: formTipo,
+            valor_total: totalVenda,
+            data_venda: formDataVenda,
+            forma_pagamento: formPagamento,
+          })
+          .eq('id', editandoVenda.id)
+
+        if (vendaErr) throw vendaErr
+        vendaId = editandoVenda.id
+
+        // Delete old itens and CRs to re-create
+        const ac = activeClient as any
+        await ac.from('contas_receber').delete().eq('venda_id', vendaId)
+        await ac.from('vendas_itens').delete().eq('venda_id', vendaId)
+      } else {
+        // INSERT new venda
+        const { data: vendaData, error: vendaErr } = await db
+          .from('vendas')
+          .insert({
+            company_id: companyId,
+            cliente_nome: formCliente.trim(),
+            cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+            tipo: formTipo,
+            valor_total: totalVenda,
+            data_venda: formDataVenda,
+            forma_pagamento: formPagamento,
+            status: 'confirmado',
+          })
+          .select()
+          .single()
+
+        if (vendaErr) throw vendaErr
+        vendaId = vendaData.id
+      }
 
       // 2. Insert itens
       const itensPayload = formItens.map(it => ({
-        venda_id: vendaData.id,
+        venda_id: vendaId,
         descricao: it.descricao.trim(),
         quantidade: it.quantidade,
         valor_unitario: it.valor_unitario,
@@ -716,7 +775,7 @@ export default function Vendas() {
           forma_recebimento: formPagamento,
           conta_contabil_id: null,
           centro_custo_id: formCentroCusto || null,
-          venda_id: vendaData.id,
+          venda_id: vendaId,
           observacoes: `Venda ${numParcelas}x antecipada | Bruto: R$${totalVenda.toFixed(2)} | Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)}) | Antecipação: ${taxaAntecipacao}% a.m. (R$${descontoAntecipacao.toFixed(2)})`,
         }]
       } else if (isParcelado && numParcelas > 1) {
@@ -744,7 +803,7 @@ export default function Vendas() {
             forma_recebimento: formPagamento,
             conta_contabil_id: null,
             centro_custo_id: formCentroCusto || null,
-            venda_id: vendaData.id,
+            venda_id: vendaId,
             observacoes: taxaPct > 0
               ? `Parcela ${i + 1}/${numParcelas} | Taxa operadora: ${taxaPct}%`
               : `Parcela ${i + 1}/${numParcelas}`,
@@ -767,7 +826,7 @@ export default function Vendas() {
           forma_recebimento: formPagamento,
           conta_contabil_id: null,
           centro_custo_id: formCentroCusto || null,
-          venda_id: vendaData.id,
+          venda_id: vendaId,
           observacoes: taxaPct > 0
             ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
             : null,
@@ -781,8 +840,9 @@ export default function Vendas() {
 
       if (crsErr) throw crsErr
 
-      // 6. If à vista (sem parcelas), quitar immediately
-      if (isAVista && !isParcelado && crsData && crsData.length > 0) {
+      // 6. If à vista (sem parcelas ou crédito 1x), quitar immediately
+      const deveQuitar = (isAVista && !isParcelado) || (isParcelado && numParcelas === 1)
+      if (deveQuitar && crsData && crsData.length > 0) {
         const cr = crsData[0]
         await quitarCR(cr.id, {
           valorPago: cr.valor,
@@ -793,6 +853,7 @@ export default function Vendas() {
       }
 
       resetForm()
+      setEditandoVenda(null)
       setModalAberto(false)
       await fetchVendas()
     } catch (e: any) {
@@ -931,7 +992,7 @@ export default function Vendas() {
                 <Upload size={14} /> Importar
               </button>
               <button
-                onClick={() => { resetForm(); setModalAberto(true) }}
+                onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
                 className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
               >
                 <Plus size={14} /> Nova Venda
@@ -976,7 +1037,7 @@ export default function Vendas() {
                     <th className="text-center px-3 py-2.5">Forma pgto</th>
                     <th className="text-right px-3 py-2.5">Valor total</th>
                     <th className="text-center px-3 py-2.5">CR</th>
-                    <th className="text-center px-3 py-2.5 w-20">Ações</th>
+                    <th className="text-center px-3 py-2.5 w-28">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -998,6 +1059,9 @@ export default function Vendas() {
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => setModalDetalhes(v)} className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors" title="Ver detalhes">
                             <Eye size={14} />
+                          </button>
+                          <button onClick={() => carregarVendaParaEdicao(v)} className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors" title="Editar venda">
+                            <Pencil size={14} />
                           </button>
                           <button onClick={() => setConfirmDelete(v.id)} className="p-1.5 rounded hover:bg-[#fdecea] text-[#8b0000] transition-colors" title="Excluir">
                             <Trash2 size={14} />
@@ -1021,8 +1085,8 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto">
             {/* Header */}
             <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
-              <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Nova Venda</h2>
-              <button onClick={() => setModalAberto(false)} className="text-[#a8bfd4] hover:text-white transition-colors">
+              <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">{editandoVenda ? 'Editar Venda' : 'Nova Venda'}</h2>
+              <button onClick={() => { setModalAberto(false); setEditandoVenda(null) }} className="text-[#a8bfd4] hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -1248,6 +1312,7 @@ export default function Vendas() {
                     onChange={e => setFormParcelas(parseInt(e.target.value))}
                     className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
                   >
+                    <option value={1}>1x de {formatBRL(totalVenda)} (à vista)</option>
                     {Array.from({ length: Math.min(taxaPreview?.max_parcelas || 12, 24) - 1 }, (_, i) => i + 2).map(n => (
                       <option key={n} value={n}>{n}x de {formatBRL(totalVenda / n)}</option>
                     ))}
@@ -1364,7 +1429,7 @@ export default function Vendas() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setModalAberto(false)}
+                    onClick={() => { setModalAberto(false); setEditandoVenda(null) }}
                     className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
                   >
                     Cancelar
@@ -1375,7 +1440,7 @@ export default function Vendas() {
                     className="px-5 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {salvando && <Loader2 size={14} className="animate-spin" />}
-                    Confirmar venda
+                    {editandoVenda ? 'Salvar alterações' : 'Confirmar venda'}
                   </button>
                 </div>
               </div>
@@ -1545,12 +1610,18 @@ export default function Vendas() {
                 </div>
               )}
 
-              <div className="pt-2 border-t border-[#ccc] flex justify-end">
+              <div className="pt-2 border-t border-[#ccc] flex justify-end gap-2">
                 <button
                   onClick={() => setModalDetalhes(null)}
                   className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
                 >
                   Fechar
+                </button>
+                <button
+                  onClick={() => carregarVendaParaEdicao(modalDetalhes)}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors flex items-center gap-2"
+                >
+                  <Pencil size={14} /> Editar venda
                 </button>
               </div>
             </div>
