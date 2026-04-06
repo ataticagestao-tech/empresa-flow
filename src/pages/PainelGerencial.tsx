@@ -996,20 +996,10 @@ export default function PainelGerencial() {
         </div>
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={`${nVendas} vendas | TM ${fmt(ticketMedio)}`} delta={deltaFaturamento} />
-          <KpiCard label="Saldo em caixa" value={fmt(saldoTotal)} color={saldoTotal >= 0 ? C.green : C.red} />
-          <KpiCard label="Entradas previstas (mês)" value={fmt(crPrevMes)} color={C.text1} delta={deltaCrPrev} />
-          <KpiCard label="Contas ativas" value={String(contasAtivas)} color={C.text1} />
-        </div>
-
-        {/* ── KPIs financeiros com comparativo ────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-          <KpiCard label="Recebido no mês" value={fmt(crRecebidoMes)} color={C.green} delta={deltaCrRecebido} />
-          <KpiCard label="Receita bruta" value={fmt(receitaBruta)} color={C.green} delta={deltaReceita} />
           <KpiCard label="Despesas totais" value={fmt(despesasTotais)} color={C.red} delta={deltaDespesas} deltaLabel={deltaDespesas && deltaDespesas > 0 ? "↑ vs mês anterior" : "vs mês anterior"} />
           <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
-          <KpiCard label="A pagar (mês)" value={fmt(cpVenceMes)} color={C.text1} delta={deltaCpMes} />
         </div>
 
         {/* ── INADIMPLÊNCIA ALERTA ────────────────────────────── */}
