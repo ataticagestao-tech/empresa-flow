@@ -35,6 +35,20 @@ CREATE TABLE IF NOT EXISTS conciliation_rules (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Garantir que colunas existam (tabela pode ter sido criada antes sem elas)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'conciliation_rules' AND column_name = 'is_active') THEN
+    ALTER TABLE conciliation_rules ADD COLUMN is_active BOOLEAN DEFAULT true;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'conciliation_rules' AND column_name = 'is_auto_learned') THEN
+    ALTER TABLE conciliation_rules ADD COLUMN is_auto_learned BOOLEAN DEFAULT false;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'conciliation_rules' AND column_name = 'source_description') THEN
+    ALTER TABLE conciliation_rules ADD COLUMN source_description TEXT;
+  END IF;
+END $$;
+
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_conciliation_rules_company ON conciliation_rules(company_id);
 CREATE INDEX IF NOT EXISTS idx_conciliation_rules_active ON conciliation_rules(company_id, is_active);
