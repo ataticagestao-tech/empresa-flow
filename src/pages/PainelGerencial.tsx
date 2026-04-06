@@ -484,22 +484,30 @@ export default function PainelGerencial() {
     [movMes]
   );
 
-  const despesasTotais = useMemo(
-    () =>
-      (movMes || [])
-        .filter(
-          (m: any) =>
-            m.tipo === "debito" &&
-            m.origem !== "transferencia" &&
-            m.categoria !== "transferencia"
-        )
-        .reduce((s: number, m: any) => s + Number(m.valor || 0), 0),
-    [movMes]
-  );
+  // Despesas totais: soma das contas_pagar pagas no período
+  const { data: cpPagoMes = 0 } = useQuery({
+    queryKey: ["pg_cp_pago_mes", cId, monthStart, monthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_pagar")
+        .select("valor, valor_pago")
+        .eq("company_id", cId)
+        .eq("status", "pago")
+        .is("deleted_at", null)
+        .gte("data_pagamento", monthStart)
+        .lte("data_pagamento", monthEnd)
+        .limit(10000);
+      return (data || []).reduce(
+        (s: number, r: any) => s + Number(r.valor_pago || r.valor || 0),
+        0
+      );
+    },
+    enabled: !!cId,
+  });
 
-  const resultadoDre = receitaBruta - despesasTotais;
-  const margemLiquida =
-    receitaBruta > 0 ? (resultadoDre / receitaBruta) * 100 : 0;
+  const despesasTotais = cpPagoMes;
+
+  // resultadoDre movido para depois de faturamento (SECTION 6)
 
   // Last 6 months evolution
   const { data: dre6m = [], isLoading: loadDre6m } = useQuery({
@@ -582,6 +590,9 @@ export default function PainelGerencial() {
   );
   const nVendas = (vendasMes || []).length;
   const ticketMedio = nVendas > 0 ? faturamento / nVendas : 0;
+  const resultadoDre = faturamento - despesasTotais;
+  const margemLiquida =
+    faturamento > 0 ? (resultadoDre / faturamento) * 100 : 0;
   const inadimplenciaRate =
     totalReceber > 0 ? (inadimplentes.total / totalReceber) * 100 : 0;
   const despesasReceita =
