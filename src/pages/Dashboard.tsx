@@ -105,15 +105,31 @@ export default function Dashboard() {
 
   // KPIs financeiros reais — saldo bancário, a receber, a pagar
   const companyIds = useMemo(() => (companies ?? []).map(c => c.id), [companies]);
+  const db = activeClient as any;
+
+  // IDs de contas contábeis de transferência (excluir de cálculos)
+  const { data: transferAccountIds = [] } = useQuery({
+    queryKey: ['dashboard_transfer_ids', companyIds],
+    queryFn: async () => {
+      if (!companyIds.length) return [];
+      const { data } = await db.from('chart_of_accounts')
+        .select('id')
+        .in('company_id', companyIds)
+        .ilike('name', '%transfer%');
+      return (data || []).map((a: any) => a.id);
+    },
+    enabled: companyIds.length > 0,
+  });
 
   const { data: totalBankBalance = 0 } = useQuery({
     queryKey: ['dashboard_total_balance', companyIds],
     queryFn: async () => {
       if (!companyIds.length) return 0;
-      const { data, error } = await (activeClient as any)
+      const { data, error } = await db
         .from('bank_accounts')
         .select('current_balance')
-        .in('company_id', companyIds);
+        .in('company_id', companyIds)
+        .is('deleted_at', null);
       if (error) return 0;
       return (data || []).reduce((acc: number, r: any) => acc + (r.current_balance || 0), 0);
     },
@@ -121,31 +137,37 @@ export default function Dashboard() {
   });
 
   const { data: totalReceivable = 0 } = useQuery({
-    queryKey: ['dashboard_total_receivable', companyIds],
+    queryKey: ['dashboard_total_receivable', companyIds, transferAccountIds],
     queryFn: async () => {
       if (!companyIds.length) return 0;
-      const { data, error } = await (activeClient as any)
+      const { data, error } = await db
         .from('contas_receber')
-        .select('valor')
+        .select('valor, conta_contabil_id')
         .in('company_id', companyIds)
-        .eq('status', 'aberto');
+        .in('status', ['aberto', 'parcial', 'vencido'])
+        .is('deleted_at', null);
       if (error) return 0;
-      return (data || []).reduce((acc: number, r: any) => acc + Number(r.valor || 0), 0);
+      return (data || [])
+        .filter((r: any) => !r.conta_contabil_id || !transferAccountIds.includes(r.conta_contabil_id))
+        .reduce((acc: number, r: any) => acc + Number(r.valor || 0), 0);
     },
     enabled: companyIds.length > 0,
   });
 
   const { data: totalPayable = 0 } = useQuery({
-    queryKey: ['dashboard_total_payable', companyIds],
+    queryKey: ['dashboard_total_payable', companyIds, transferAccountIds],
     queryFn: async () => {
       if (!companyIds.length) return 0;
-      const { data, error } = await (activeClient as any)
+      const { data, error } = await db
         .from('contas_pagar')
-        .select('valor')
+        .select('valor, conta_contabil_id')
         .in('company_id', companyIds)
-        .eq('status', 'aberto');
+        .in('status', ['aberto', 'parcial', 'vencido'])
+        .is('deleted_at', null);
       if (error) return 0;
-      return (data || []).reduce((acc: number, r: any) => acc + Number(r.valor || 0), 0);
+      return (data || [])
+        .filter((r: any) => !r.conta_contabil_id || !transferAccountIds.includes(r.conta_contabil_id))
+        .reduce((acc: number, r: any) => acc + Number(r.valor || 0), 0);
     },
     enabled: companyIds.length > 0,
   });
