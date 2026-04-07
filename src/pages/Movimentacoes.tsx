@@ -41,7 +41,7 @@ interface Movimentacao {
   valor: number
   data: string
   descricao: string | null
-  origem: 'cr' | 'cp' | 'venda' | 'manual' | 'conciliacao'
+  origem: 'cr' | 'cp' | 'conta_receber' | 'conta_pagar' | 'venda' | 'manual' | 'conciliacao'
   origem_id: string | null
   created_at: string
   conta_bancaria: { id: string; name: string } | null
@@ -91,6 +91,8 @@ interface DayGroup {
 const ORIGEM_LABELS: Record<string, string> = {
   cr: 'CR quitado',
   cp: 'CP quitado',
+  conta_receber: 'Receita conciliada',
+  conta_pagar: 'Despesa conciliada',
   venda: 'Venda',
   manual: 'Manual',
   conciliacao: 'Conciliacao',
@@ -703,8 +705,8 @@ export default function Movimentacoes() {
                           </div>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              row.origem === 'cr' ? 'bg-[#e6f4ec] text-[#0a5c2e]' :
-                              row.origem === 'cp' ? 'bg-[#fdecea] text-[#8b0000]' :
+                              row.origem === 'cr' || row.origem === 'conta_receber' ? 'bg-[#e6f4ec] text-[#0a5c2e]' :
+                              row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#fdecea] text-[#8b0000]' :
                               row.origem === 'venda' ? 'bg-[#e8eaf6] text-[#283593]' :
                               'bg-[#f0f0f0] text-[#555]'
                             }`}>

@@ -275,7 +275,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
     });
 
-    // Mutation: Conciliar (Match)
+    // Mutation: Conciliar (Match) — usa conciliar_lote RPC para garantir movimentação + saldo
     const matchTransaction = useMutation({
         mutationFn: async ({
             bankTx,
@@ -291,29 +291,58 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             const amount = overrides?.amount ?? Math.abs(Number(bankTx.amount || 0));
             const date = overrides?.date ?? bankTx.date;
-            const note = overrides?.note ?? null;
 
             if (!Number.isFinite(amount) || amount <= 0) throw new Error("Valor inválido");
 
+            // Buscar conta_contabil_id do lançamento existente (CP ou CR)
+            let accountId: string | null = null;
             if (sysTx.type === 'payable') {
-                const { error } = await (activeClient as any).rpc('quitar_conta_pagar', {
-                    p_conta_pagar_id: sysTx.id,
-                    p_valor_pago: amount,
-                    p_conta_bancaria_id: bankTx.bank_account_id,
-                    p_data_pagamento: date,
-                });
-                if (error) throw error;
+                const { data: cp } = await (activeClient as any)
+                    .from('contas_pagar')
+                    .select('conta_contabil_id')
+                    .eq('id', sysTx.id)
+                    .single();
+                accountId = cp?.conta_contabil_id || null;
             } else {
-                const { error } = await (activeClient as any).rpc('quitar_conta_receber', {
-                    p_conta_receber_id: sysTx.id,
-                    p_valor_pago: amount,
-                    p_conta_bancaria_id: bankTx.bank_account_id,
-                    p_data_pagamento: date,
-                });
-                if (error) throw error;
+                const { data: cr } = await (activeClient as any)
+                    .from('contas_receber')
+                    .select('conta_contabil_id')
+                    .eq('id', sysTx.id)
+                    .single();
+                accountId = cr?.conta_contabil_id || null;
             }
 
-            const { data: matchRow, error: matchError } = await (activeClient as any)
+            // Atualizar o lançamento existente para status 'pago'
+            const table = sysTx.type === 'payable' ? 'contas_pagar' : 'contas_receber';
+            const { error: updateError } = await (activeClient as any)
+                .from(table)
+                .update({
+                    status: 'pago',
+                    valor_pago: amount,
+                    data_pagamento: date,
+                })
+                .eq('id', sysTx.id);
+            if (updateError) throw updateError;
+
+            // Criar movimentação na tabela movimentacoes (receita ou despesa)
+            const { error: movError } = await (activeClient as any)
+                .from('movimentacoes')
+                .insert({
+                    company_id: companyId,
+                    conta_bancaria_id: bankTx.bank_account_id,
+                    conta_contabil_id: accountId,
+                    tipo: sysTx.type === 'payable' ? 'debito' : 'credito',
+                    valor: amount,
+                    data: date,
+                    descricao: sysTx.type === 'payable'
+                        ? `Pagamento: ${sysTx.description}`
+                        : `Recebimento: ${sysTx.description}`,
+                    origem: sysTx.type === 'payable' ? 'conta_pagar' : 'conta_receber',
+                });
+            if (movError) throw movError;
+
+            // Criar match na tabela de conciliação
+            const { error: matchError } = await (activeClient as any)
                 .from('bank_reconciliation_matches')
                 .insert({
                     company_id: companyId,
@@ -325,26 +354,13 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     matched_amount: amount,
                     matched_date: date,
                     status: 'matched',
-                    note,
                     created_by: user?.id ?? null,
                 })
                 .select('*')
                 .single();
-
             if (matchError) throw matchError;
 
-            if (overrides && (overrides.amount || overrides.date || overrides.note)) {
-                const { error: adjError } = await (activeClient as any)
-                    .from('bank_reconciliation_adjustments')
-                    .insert({
-                        company_id: companyId,
-                        match_id: matchRow.id,
-                        payload: overrides,
-                        created_by: user?.id ?? null,
-                    });
-                if (adjError) throw adjError;
-            }
-
+            // Atualizar bank_transaction como conciliada
             const { error: bankError } = await (activeClient as any)
                 .from('bank_transactions')
                 .update({
@@ -353,11 +369,10 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     reconciled_receivable_id: sysTx.type === 'receivable' ? sysTx.id : null,
                     reconciled_at: new Date().toISOString(),
                     reconciled_by: user?.id ?? null,
-                    reconciliation_note: note,
                 })
                 .eq('id', bankTx.id);
-
             if (bankError) throw bankError;
+
         },
         onSuccess: () => {
             toast({ title: "Conciliado!", description: "Lançamento baixado com sucesso." });
