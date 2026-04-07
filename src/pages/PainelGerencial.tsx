@@ -464,7 +464,7 @@ export default function PainelGerencial() {
     queryFn: async () => {
       const { data } = await db
         .from("movimentacoes")
-        .select("tipo, valor, origem, categoria")
+        .select("tipo, valor, origem, categoria_aprendida")
         .eq("company_id", cId)
         .gte("data", monthStart)
         .lte("data", monthEnd)
@@ -527,7 +527,7 @@ export default function PainelGerencial() {
 
         const { data } = await db
           .from("movimentacoes")
-          .select("tipo, valor, origem, categoria")
+          .select("tipo, valor, origem, categoria_aprendida")
           .eq("company_id", cId)
           .gte("data", mStart)
           .lte("data", mEnd)
@@ -544,7 +544,7 @@ export default function PainelGerencial() {
             (m: any) =>
               m.tipo === "debito" &&
               m.origem !== "transferencia" &&
-              m.categoria !== "transferencia"
+              m.categoria_aprendida !== "transferencia"
           )
           .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
 
@@ -712,7 +712,7 @@ export default function PainelGerencial() {
         .from("movimentacoes").select("valor, origem, categoria").eq("company_id", cId)
         .eq("tipo", "debito")
         .gte("data", prevMonthStart).lte("data", prevMonthEnd).limit(10000);
-      return (data || []).filter((m: any) => m.origem !== "transferencia" && m.categoria !== "transferencia")
+      return (data || []).filter((m: any) => m.origem !== "transferencia" && m.categoria_aprendida !== "transferencia")
         .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
     },
     enabled: !!cId,
