@@ -580,7 +580,7 @@ export default function PainelGerencial() {
     enabled: !!cId,
   });
 
-  const faturamento = useMemo(
+  const faturamentoVendas = useMemo(
     () =>
       (vendasMes || []).reduce(
         (s: number, v: any) => s + Number(v.valor_total || 0),
@@ -589,8 +589,10 @@ export default function PainelGerencial() {
     [vendasMes]
   );
   const nVendas = (vendasMes || []).length;
-  const ticketMedio = nVendas > 0 ? faturamento / nVendas : 0;
-  const resultadoDre = faturamento - despesasTotais;
+  // Faturamento = vendas + receitas conciliadas (movimentações crédito)
+  const faturamento = faturamentoVendas > 0 ? faturamentoVendas : receitaBruta;
+  const ticketMedio = nVendas > 0 ? faturamentoVendas / nVendas : 0;
+  const resultadoDre = receitaBruta > 0 ? receitaBruta - despesasTotais : faturamentoVendas - despesasTotais;
   const margemLiquida =
     faturamento > 0 ? (resultadoDre / faturamento) * 100 : 0;
   const inadimplenciaRate =
@@ -719,7 +721,9 @@ export default function PainelGerencial() {
   const pctDelta = (atual: number, anterior: number) =>
     anterior > 0 ? ((atual - anterior) / anterior) * 100 : atual > 0 ? 100 : null;
 
-  const deltaFaturamento = pctDelta(faturamento, faturamentoAnterior);
+  // Comparar com a mesma fonte: se faturamento veio de receitaBruta, comparar com prevReceitaBruta
+  const faturamentoAnteriorReal = faturamentoVendas > 0 ? faturamentoAnterior : prevReceitaBruta;
+  const deltaFaturamento = pctDelta(faturamento, faturamentoAnteriorReal);
   const deltaCrPrev = pctDelta(crPrevMes, prevCrPrev);
   const deltaCrRecebido = pctDelta(crRecebidoMes, prevCrRecebido);
   const deltaInad = pctDelta(inadimplentes.total, prevInadTotal);
@@ -1008,7 +1012,7 @@ export default function PainelGerencial() {
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={`${nVendas} vendas | TM ${fmt(ticketMedio)}`} delta={deltaFaturamento} />
+          <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={nVendas > 0 ? `${nVendas} vendas | TM ${fmt(ticketMedio)}` : receitaBruta > 0 ? `Receitas conciliadas` : `0 vendas`} delta={deltaFaturamento} />
           <KpiCard label="Despesas totais" value={fmt(despesasTotais)} color={C.red} delta={deltaDespesas} deltaLabel={deltaDespesas && deltaDespesas > 0 ? "↑ vs mês anterior" : "vs mês anterior"} />
           <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
         </div>
