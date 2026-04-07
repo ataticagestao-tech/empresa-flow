@@ -478,7 +478,7 @@ export default function PainelGerencial() {
     () =>
       (movMes || [])
         .filter(
-          (m: any) => m.tipo === "credito" && m.origem === "conta_receber"
+          (m: any) => m.tipo === "credito" && m.origem !== "transferencia"
         )
         .reduce((s: number, m: any) => s + Number(m.valor || 0), 0),
     [movMes]
@@ -536,7 +536,7 @@ export default function PainelGerencial() {
         const rows = data || [];
         const rec = rows
           .filter(
-            (m: any) => m.tipo === "credito" && m.origem === "conta_receber"
+            (m: any) => m.tipo === "credito" && m.origem !== "transferencia"
           )
           .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
         const desp = rows
@@ -589,10 +589,10 @@ export default function PainelGerencial() {
     [vendasMes]
   );
   const nVendas = (vendasMes || []).length;
-  // Faturamento = vendas + receitas conciliadas (movimentações crédito)
-  const faturamento = faturamentoVendas > 0 ? faturamentoVendas : receitaBruta;
+  // Faturamento = receita bruta das movimentações (inclui vendas e conciliações)
+  const faturamento = receitaBruta;
   const ticketMedio = nVendas > 0 ? faturamentoVendas / nVendas : 0;
-  const resultadoDre = receitaBruta > 0 ? receitaBruta - despesasTotais : faturamentoVendas - despesasTotais;
+  const resultadoDre = receitaBruta - despesasTotais;
   const margemLiquida =
     faturamento > 0 ? (resultadoDre / faturamento) * 100 : 0;
   const inadimplenciaRate =
@@ -695,10 +695,11 @@ export default function PainelGerencial() {
     queryKey: ["pg_prev_receita", cId, prevMonthStart, prevMonthEnd],
     queryFn: async () => {
       const { data } = await db
-        .from("movimentacoes").select("valor").eq("company_id", cId)
-        .eq("tipo", "credito").eq("origem", "conta_receber")
+        .from("movimentacoes").select("valor, origem").eq("company_id", cId)
+        .eq("tipo", "credito")
         .gte("data", prevMonthStart).lte("data", prevMonthEnd).limit(10000);
-      return (data || []).reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
+      return (data || []).filter((m: any) => m.origem !== "transferencia")
+        .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
     },
     enabled: !!cId,
   });
@@ -721,9 +722,7 @@ export default function PainelGerencial() {
   const pctDelta = (atual: number, anterior: number) =>
     anterior > 0 ? ((atual - anterior) / anterior) * 100 : atual > 0 ? 100 : null;
 
-  // Comparar com a mesma fonte: se faturamento veio de receitaBruta, comparar com prevReceitaBruta
-  const faturamentoAnteriorReal = faturamentoVendas > 0 ? faturamentoAnterior : prevReceitaBruta;
-  const deltaFaturamento = pctDelta(faturamento, faturamentoAnteriorReal);
+  const deltaFaturamento = pctDelta(faturamento, prevReceitaBruta);
   const deltaCrPrev = pctDelta(crPrevMes, prevCrPrev);
   const deltaCrRecebido = pctDelta(crRecebidoMes, prevCrRecebido);
   const deltaInad = pctDelta(inadimplentes.total, prevInadTotal);
