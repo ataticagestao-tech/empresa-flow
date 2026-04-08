@@ -38,6 +38,7 @@ function getBadge(c: Conta) {
   if (c.account_type === "asset") return { label: "Ativo", cls: "border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]" };
   if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
   if (c.account_type === "equity") return { label: "PL", cls: "border-[#4a1a6b] bg-[#f3e8ff] text-[#4a1a6b]" };
+  if (c.account_type === "cost") return { label: "Custo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
   if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#b8960a] bg-[#fffbe6] text-[#5c3a00]" };
   if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
   if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]" };

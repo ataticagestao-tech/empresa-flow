@@ -86,7 +86,7 @@ export function PayableMainTab({ form, handleFileUpload, isUploading }: PayableM
                 .order("code");
             if (error) return [];
             return (data || []).filter((c: any) => {
-                const isDespesa = c.type === "despesa" || c.account_type === "expense";
+                const isDespesa = c.type === "despesa" || c.account_type === "expense" || c.account_type === "cost";
                 const isAnalytic = c.is_analytic === true || c.is_analytical === true;
                 return isDespesa && isAnalytic;
             });
