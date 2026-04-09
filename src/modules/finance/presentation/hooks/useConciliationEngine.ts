@@ -145,6 +145,83 @@ function extractKeywordsForRule(description: string): string[] {
 }
 
 // ============================================================
+// MAPA DE KEYWORDS → CATEGORIA (fallback IA quando não há regra/match)
+// ============================================================
+
+const KEYWORD_TO_CATEGORY: Array<{ keywords: string[]; categoryFragments: string[] }> = [
+    { keywords: ["VENDA", "VENDAS", "MERCADORIA", "PRODUTO", "LOJA", "COMERCIO", "FATURAMENTO"], categoryFragments: ["receita de vendas", "venda", "vendas"] },
+    { keywords: ["SERVICO", "CONSULTORIA", "ASSESSORIA", "HONORARIO", "PRESTACAO", "NFSE", "ROYALTIES"], categoryFragments: ["receita de servico", "servico"] },
+    { keywords: ["ALUGUEL", "CONDOMINIO", "LOCACAO", "IPTU", "IMOVEL"], categoryFragments: ["aluguel", "condominio", "locacao"] },
+    { keywords: ["ENERGIA", "ELETRICA", "LUZ", "CEMIG", "CPFL", "ENEL", "COPEL", "CELESC", "ENERGISA"], categoryFragments: ["energia", "luz"] },
+    { keywords: ["AGUA", "SANEAMENTO", "GAS"], categoryFragments: ["agua", "luz", "telefone"] },
+    { keywords: ["INTERNET", "TELEFONE", "TELEFONIA", "CELULAR", "FIBRA", "VIVO", "CLARO", "TIM", "ALARES"], categoryFragments: ["internet", "telefone", "telefonia"] },
+    { keywords: ["SOFTWARE", "SISTEMA", "LICENCA", "ASSINATURA", "HOSPEDAGEM", "DOMINIO", "GOOGLE", "TOTVS"], categoryFragments: ["internet", "telefone", "terceiro"] },
+    { keywords: ["SALARIO", "FOLHA", "FUNCIONARIO", "ENCARGOS", "FGTS", "INSS", "FERIAS", "13O", "RESCISAO", "VALE TRANSPORTE", "HOLERITE"], categoryFragments: ["salario", "encargo", "pessoal", "ordenado"] },
+    { keywords: ["PRO-LABORE", "PROLABORE", "PRO LABORE", "RETIRADA SOCIO", "DIVIDENDOS"], categoryFragments: ["pro-labore", "prolabore", "pro labore"] },
+    { keywords: ["TARIFA", "TARIFAS", "TED", "DOC", "TAXA BANCARIA", "IOF", "ANUIDADE", "CESTA SERVICO", "CUSTODIA"], categoryFragments: ["tarifa", "bancaria", "despesas bancarias"] },
+    { keywords: ["JUROS", "MORA", "MULTA ATRASO", "ENCARGOS FINANCEIROS", "FINANCIAMENTO", "EMPRESTIMO", "CDC", "SPREAD"], categoryFragments: ["juros", "financeira"] },
+    { keywords: ["MARKETING", "PUBLICIDADE", "PROPAGANDA", "FACEBOOK", "META", "GOOGLE ADS", "ANUNCIO"], categoryFragments: ["propaganda", "marketing", "comercial"] },
+    { keywords: ["FRETE", "CORREIOS", "TRANSPORTE", "ENTREGA", "CARRETO"], categoryFragments: ["frete", "carreto", "transporte"] },
+    { keywords: ["COMISSAO", "COMISSOES"], categoryFragments: ["comissao", "comissoes"] },
+    { keywords: ["COMBUSTIVEL", "GASOLINA", "UBER", "PEDAGIO", "VIAGEM", "VEICULO"], categoryFragments: ["veiculo", "combustivel"] },
+    { keywords: ["MANUTENCAO", "REPARO", "CONSERTO"], categoryFragments: ["manutencao", "reparo"] },
+    { keywords: ["MATERIAL", "ESCRITORIO", "LIMPEZA", "PAPEL", "TONER"], categoryFragments: ["material", "escritorio"] },
+    { keywords: ["CONTADOR", "CONTABILIDADE", "CONTABIL"], categoryFragments: ["terceiro", "servico", "contabil"] },
+    { keywords: ["SEGURO", "APOLICE", "SINISTRO"], categoryFragments: ["seguro"] },
+    { keywords: ["RENDIMENTO", "APLICACAO", "RESGATE", "CDB", "LCI", "LCA", "JUROS RECEBIDOS", "INVESTIMENTO"], categoryFragments: ["rendimento", "aplicacao", "juros recebidos", "receita financeira", "investimento"] },
+    { keywords: ["DARF", "DAS", "GPS", "SIMPLES NACIONAL", "IMPOSTO", "ICMS", "ISS", "PIS", "COFINS", "CSLL", "IRPJ", "IRRF"], categoryFragments: ["imposto", "tributo", "contribuicao"] },
+    { keywords: ["STONE", "CIELO", "REDE", "GETNET", "PAGSEGURO", "DOMCRED", "DOMDEB", "MAQUININHA", "CREDITO RECEBIMENTO", "RECEBIMENTO VENDAS"], categoryFragments: ["receita de vendas", "venda", "vendas", "receita"] },
+    { keywords: ["TRANSFERENCIA", "TRANSFERENCIA ENTRE"], categoryFragments: ["transferencia entre contas", "transferencia"] },
+];
+
+function matchCategoryByKeywords(
+    descNorm: string,
+    accounts: ChartAccount[],
+    filterNature?: string,
+): { account: ChartAccount; score: number; matchedKeywords: string[] } | null {
+    let bestResult: { account: ChartAccount; score: number; matchedKeywords: string[] } | null = null;
+
+    for (const rule of KEYWORD_TO_CATEGORY) {
+        const matched: string[] = [];
+        let kwScore = 0;
+        for (const kw of rule.keywords) {
+            if (descNorm.includes(kw)) {
+                kwScore += kw.length >= 6 ? 3 : kw.length >= 4 ? 2 : 1;
+                matched.push(kw);
+            }
+        }
+        if (kwScore === 0) continue;
+
+        // Find best matching account by name fragments
+        const normalizedFragments = rule.categoryFragments.map(f =>
+            f.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
+        );
+
+        let bestAccount: ChartAccount | null = null;
+        let bestAccountScore = 0;
+
+        for (const acc of accounts) {
+            if (filterNature && acc.account_nature !== filterNature) continue;
+            const accNameNorm = (acc.name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+            let nameScore = 0;
+            for (const frag of normalizedFragments) {
+                if (accNameNorm.includes(frag)) nameScore += frag.length;
+            }
+            if (nameScore > bestAccountScore) {
+                bestAccountScore = nameScore;
+                bestAccount = acc;
+            }
+        }
+
+        if (bestAccount && kwScore > (bestResult?.score || 0)) {
+            bestResult = { account: bestAccount, score: kwScore, matchedKeywords: matched };
+        }
+    }
+
+    return bestResult;
+}
+
+// ============================================================
 // ÍNDICE PRÉ-COMPUTADO — evita O(N) filter + scan por transação
 // ============================================================
 
@@ -196,6 +273,7 @@ function runMatchingEngine(
     rules: ConciliationRule[],
     accountMap: Map<string, ChartAccount>,
     rulesNormalized: string[][],
+    allAccounts: ChartAccount[],
 ): MatchSuggestion {
     const base: MatchSuggestion = {
         bankTransaction: bt,
@@ -283,6 +361,21 @@ function runMatchingEngine(
 
     if (bestResult) return bestResult;
 
+    // ===== FALLBACK: IA SUGERE — matching por keywords genéricas =====
+    const filterNature = bt.amount < 0 ? "debit" : "credit";
+    const aiMatch = matchCategoryByKeywords(descNorm, allAccounts, filterNature);
+    if (aiMatch) {
+        return {
+            ...base,
+            score: Math.min(aiMatch.score * 10, 95), // score proporcional ao match
+            method: "ai_category",
+            accountId: aiMatch.account.id,
+            accountCode: aiMatch.account.code,
+            accountName: aiMatch.account.name,
+            label: `${aiMatch.account.code} ${aiMatch.account.name}`,
+        };
+    }
+
     return base;
 }
 
@@ -358,9 +451,9 @@ export function useConciliationEngine(
         if (!bankTransactions?.length) return [];
 
         return bankTransactions.map(bt =>
-            runMatchingEngine(bt, candidateIndex, rules || [], accountMap, rulesNormalized)
+            runMatchingEngine(bt, candidateIndex, rules || [], accountMap, rulesNormalized, chartAccounts || [])
         );
-    }, [bankTransactions, candidateIndex, rules, accountMap, rulesNormalized]);
+    }, [bankTransactions, candidateIndex, rules, accountMap, rulesNormalized, chartAccounts]);
 
     // Score summary
     const scoreSummary = useMemo(() => {

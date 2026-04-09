@@ -1492,6 +1492,14 @@ export default function Conciliacao() {
                                                                         {suggestion?.method !== "rule" && <>Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</>}
                                                                     </span>
                                                                 </div>
+                                                            ) : suggestion?.method === "ai_category" && suggestion?.label ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Brain className="h-3 w-3 text-blue-500" />
+                                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs gap-1">
+                                                                        <Bot className="h-3 w-3" />
+                                                                        IA sugere: {suggestion.label}
+                                                                    </Badge>
+                                                                </div>
                                                             ) : suggestion?.method === "rule" && suggestion?.label ? (
                                                                 <div className="flex items-center gap-1">
                                                                     <Sparkles className="h-3 w-3 text-purple-500" />
