@@ -265,6 +265,34 @@ function matchCategoryByKeywords(
         }
     }
 
+    // Se não tem alternativas suficientes, preencher com categorias genéricas do plano
+    if (results.length < topN && accounts.length > 0) {
+        // Buscar contas genéricas por tipo (debit=despesa, credit=receita)
+        const genericTypes = filterNature === "debit"
+            ? ["expense", "cost"]
+            : filterNature === "credit" ? ["revenue"] : ["expense", "revenue"];
+
+        for (const acc of accounts) {
+            if (results.length >= topN) break;
+            if (seenAccountIds.has(acc.id)) continue;
+            if (!genericTypes.includes(acc.account_type)) continue;
+            // Preferir contas com "outras" ou "diversas" no nome
+            const nameUp = (acc.name || "").toUpperCase();
+            if (nameUp.includes("OUTR") || nameUp.includes("DIVERS") || nameUp.includes("GERAL")) {
+                seenAccountIds.add(acc.id);
+                results.push({ account: acc, score: 1, matchedKeywords: ["genérica"] });
+            }
+        }
+        // Se ainda falta, pegar qualquer conta do tipo certo
+        for (const acc of accounts) {
+            if (results.length >= topN) break;
+            if (seenAccountIds.has(acc.id)) continue;
+            if (!genericTypes.includes(acc.account_type)) continue;
+            seenAccountIds.add(acc.id);
+            results.push({ account: acc, score: 1, matchedKeywords: ["sugestão"] });
+        }
+    }
+
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, topN);
 }
