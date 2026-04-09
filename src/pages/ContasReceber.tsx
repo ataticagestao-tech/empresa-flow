@@ -7,6 +7,7 @@ import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { TablePagination } from '@/components/ui/table-pagination'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -122,6 +123,10 @@ export default function ContasReceber() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [products, setProducts] = useState<Product[]>([])
 
+  // ── Pagination ──
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 30
+
   // ── Filters ──
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
@@ -221,6 +226,8 @@ export default function ContasReceber() {
     if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
     return list
   }, [enrichedItems, search, statusFilter, dateFrom, dateTo])
+
+  useEffect(() => { setPage(0) }, [search, statusFilter, dateFrom, dateTo])
 
   // ── Bulk selection helpers ──
   const selectableItems = useMemo(() => filtered.filter(cr => cr._status !== 'pago' && cr._status !== 'cancelado'), [filtered])
@@ -428,7 +435,7 @@ export default function ContasReceber() {
                 title="Nenhum titulo encontrado"
                 description="Ajuste os filtros ou o periodo para ver resultados."
               />
-            ) : (
+            ) : (<>
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e5e5e5]">
@@ -451,7 +458,7 @@ export default function ContasReceber() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(cr => {
+                  {filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(cr => {
                     const saldo = cr.valor - (cr.valor_pago || 0)
                     const st = statusBadge(cr._status)
                     const hoje = new Date().toISOString().split('T')[0]
@@ -593,7 +600,8 @@ export default function ContasReceber() {
                   })}
                 </tbody>
               </table>
-            )}
+              <TablePagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={(p) => setPage(p)} />
+            </>)}
           </div>
         </div>
       </div>
