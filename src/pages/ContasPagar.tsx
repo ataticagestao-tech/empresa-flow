@@ -15,6 +15,7 @@ import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ function saldo(cp: ContaPagar) {
 export default function ContasPagar() {
   const { selectedCompany } = useCompany()
   const { activeClient } = useAuth()
+  const confirm = useConfirm()
 
   // Data
   const [contas, setContas] = useState<ContaPagar[]>([])
@@ -645,7 +647,8 @@ export default function ContasPagar() {
   }
 
   const handleArquivar = async (cp: ContaPagar) => {
-    if (!confirm(`Arquivar conta de ${cp.credor_nome}?`)) return
+    const ok = await confirm({ title: `Arquivar conta de ${cp.credor_nome}?`, description: "A conta sera movida para o arquivo e nao aparecera mais na listagem.", confirmLabel: "Sim, arquivar", variant: "default" })
+    if (!ok) return
     await (activeClient as any).from('contas_pagar').update({ status: 'arquivado' }).eq('id', cp.id)
     setDropdownOpen(null)
     await loadData()
@@ -653,7 +656,8 @@ export default function ContasPagar() {
 
   // ─── Actions (dropdown) ──────────────────────────────────────────
   const handleCancelar = async (cp: ContaPagar) => {
-    if (!confirm(`Cancelar conta de ${cp.credor_nome}?`)) return
+    const ok = await confirm({ title: `Cancelar conta de ${cp.credor_nome}?`, description: "O lancamento sera marcado como cancelado.", confirmLabel: "Sim, cancelar conta", variant: "destructive" })
+    if (!ok) return
     await (activeClient as any).from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
     setDropdownOpen(null)
     await loadData()
@@ -1212,7 +1216,8 @@ export default function ContasPagar() {
                                           <button
                                             onClick={async () => {
                                               setDropdownOpen(null)
-                                              if (!confirm(`Excluir este lancamento de ${cp.credor_nome}? Esta acao nao pode ser desfeita.`)) return
+                                              const ok = await confirm({ title: `Excluir lancamento de ${cp.credor_nome}?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
+                                              if (!ok) return
                                               try {
                                                 const ac = activeClient as any
                                                 // Soft delete (trigger bloqueia DELETE direto)

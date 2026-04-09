@@ -8,6 +8,7 @@ import { CompanyProvider } from "@/contexts/CompanyContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { ReciboModalProvider } from "@/components/finance/BotaoPagarComRecibo";
 import { ThemeProvider } from "next-themes";
+import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
@@ -163,6 +164,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <ReciboModalProvider />
+            <ConfirmDialogProvider>
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
@@ -241,6 +243,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
+            </ConfirmDialogProvider>
           </CompanyProvider>
         </AdminProvider>
       </AuthProvider>
