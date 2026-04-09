@@ -3,8 +3,9 @@ import { CompanySelector } from "@/components/CompanySelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Search } from "lucide-react";
+import { ArrowLeft, Plus, Search, Moon, Sun } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 
 interface AppHeaderProps {
   title?: string;
@@ -14,6 +15,7 @@ export function AppHeader({ title }: AppHeaderProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -49,6 +51,13 @@ export function AppHeader({ title }: AppHeaderProps) {
           <kbd className="ml-1 px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">Ctrl+K</kbd>
         </button>
         <CompanySelector />
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
         <button
           onClick={() => navigate("/empresas?nova=1")}
           title="Adicionar nova empresa"

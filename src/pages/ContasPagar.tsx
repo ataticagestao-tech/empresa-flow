@@ -14,6 +14,7 @@ import { formatBRL, formatData } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -428,7 +429,7 @@ export default function ContasPagar() {
   const handleBatchPay = async () => {
     if (!batchForm.contaBancariaId) return
     setSubmitting(true)
-    const selected = filteredContas.filter((cp) => selectedIds.has(cp.id))
+    const selected = filteredContas.filter((cp) => selectedIds.has(cp.id) && cp.status !== 'pago')
     let erros = 0
     for (const cp of selected) {
       const result = await quitarCP(cp.id, {
@@ -977,10 +978,12 @@ export default function ContasPagar() {
 
             {/* Empty */}
             {!loading && filteredContas.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16">
-                <FileText size={40} className="mb-3" style={{ color: '#7a8fa8', opacity: 0.5 }} />
-                <p className="text-[13px]" style={{ color: '#7a8fa8', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Nenhuma conta a pagar encontrada.</p>
-              </div>
+              <EmptyState
+                title="Nenhuma conta a pagar encontrada"
+                description="Cadastre uma nova conta ou ajuste os filtros para ver resultados."
+                actionLabel="Nova conta a pagar"
+                onAction={() => setShowNewModal(true)}
+              />
             )}
 
             {/* Grouped table */}

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { ReciboModalProvider } from "@/components/finance/BotaoPagarComRecibo";
+import { ThemeProvider } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
@@ -153,6 +154,7 @@ const RootRedirect = () => {
 };
 
 const App = () => (
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
@@ -244,6 +246,7 @@ const App = () => (
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

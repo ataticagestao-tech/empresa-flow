@@ -82,6 +82,9 @@ export async function quitarCP(
     )
     if (!cp) return { sucesso: false, erro: 'CP não encontrado' }
 
+    // Não permitir pagamento duplicado — registro já quitado
+    if (cp.status === 'pago') return { sucesso: true }
+
     const valorFinal = dados.valorPago + (dados.juros || 0) - (dados.desconto || 0)
     const novoValorPago = (cp.valor_pago || 0) + valorFinal
     const novoStatus = novoValorPago >= cp.valor ? 'pago' : 'parcial'
