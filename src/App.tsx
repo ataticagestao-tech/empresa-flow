@@ -78,6 +78,7 @@ const queryClient = new QueryClient();
 
 const RequireAuth = () => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -87,7 +88,10 @@ const RequireAuth = () => {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    const redirect = location.pathname !== "/" ? `?redirect=${encodeURIComponent(location.pathname)}` : "";
+    return <Navigate to={`/auth${redirect}`} replace />;
+  }
 
   return <Outlet />;
 };

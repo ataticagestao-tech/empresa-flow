@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
@@ -14,6 +14,7 @@ interface AppLayoutProps {
 export function AppLayout({ children, title }: AppLayoutProps) {
   const { user, loading } = useAuth();
   const { isSuspended, isDeleted } = useUserStatus();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -27,7 +28,8 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    const redirect = location.pathname !== "/" ? `?redirect=${encodeURIComponent(location.pathname)}` : "";
+    return <Navigate to={`/auth${redirect}`} replace />;
   }
 
   if (isSuspended || isDeleted) {

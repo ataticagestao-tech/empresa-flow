@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { z } from "zod";
 import logoTatica from "@/assets/logo-tatica.png";
-import { BarChart3, Shield, Zap } from "lucide-react";
+import { BarChart3, Shield, Zap, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Email invalido").max(255),
   password: z.string().min(6, "Senha deve ter no minimo 6 caracteres"),
 });
-const signupSchema = loginSchema.extend({
+const signupSchema = z.object({
+  email: z.string().trim().email("Email invalido").max(255),
+  password: z.string().min(6, "Senha deve ter no minimo 6 caracteres"),
   fullName: z.string().trim().min(3, "Nome deve ter no minimo 3 caracteres").max(100),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, { message: "Senhas nao conferem", path: ["confirmPassword"] });
+});
 const resetSchema = z.object({
   password: z.string().min(6, "Senha deve ter no minimo 6 caracteres"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, { message: "Senhas nao conferem", path: ["confirmPassword"] });
+});
 
 const toPtBrAuthError = (message: string) => {
   const msg = (message || "").toLowerCase();
@@ -42,8 +42,24 @@ const features = [
   { icon: Zap, title: "Performance", description: "Interface rapida e responsiva para o seu dia a dia." },
 ];
 
+function PasswordInput({ id, value, onChange, placeholder, autoComplete, className }: {
+  id: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder: string; autoComplete: string; className: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input id={id} type={show ? "text" : "password"} autoComplete={autoComplete} placeholder={placeholder} value={value} onChange={onChange} required className={className} />
+      <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signIn, signUp, loading, activeClient } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
@@ -51,10 +67,10 @@ export default function Auth() {
   const [loginPassword, setLoginPassword] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupFullName, setSignupFullName] = useState("");
   const [resetPassword, setResetPassword] = useState("");
-  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
 
   const isRecoveryFlow = useMemo(() => {
     const hash = window.location.hash || "";
@@ -62,10 +78,10 @@ export default function Auth() {
     return hash.includes("type=recovery") || search.includes("type=recovery");
   }, []);
 
-  useEffect(() => { if (user && !loading) navigate("/dashboard"); }, [user, loading, navigate]);
+  useEffect(() => { if (user && !loading) navigate(redirectTo); }, [user, loading, navigate, redirectTo]);
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center bg-background"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Carregando...</span></div></div>);
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to={redirectTo} replace />;
 
   const handleForgotPassword = async () => {
     if (!loginEmail) { toast.error("Informe seu email."); return; }
@@ -80,7 +96,7 @@ export default function Auth() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault(); setIsLoading(true);
     try {
-      const v = resetSchema.parse({ password: resetPassword, confirmPassword: resetConfirmPassword });
+      const v = resetSchema.parse({ password: resetPassword });
       const { error } = await activeClient.auth.updateUser({ password: v.password });
       if (error) { toast.error(toPtBrAuthError(error.message)); return; }
       toast.success("Senha atualizada!"); window.location.hash = ""; navigate("/dashboard");
@@ -92,16 +108,16 @@ export default function Auth() {
       const v = loginSchema.parse({ email: loginEmail, password: loginPassword });
       const { error } = await signIn(v.email, v.password);
       if (error) { toast.error(toPtBrAuthError(error.message)); return; }
-      toast.success("Login realizado!"); navigate("/dashboard");
+      toast.success("Login realizado!"); navigate(redirectTo);
     } catch (e) { if (e instanceof z.ZodError) toast.error(e.errors[0].message); } finally { setIsLoading(false); }
   };
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault(); setIsLoading(true);
     try {
-      const v = signupSchema.parse({ email: signupEmail, password: signupPassword, confirmPassword: signupConfirmPassword, fullName: signupFullName });
+      const v = signupSchema.parse({ email: signupEmail, password: signupPassword, fullName: signupFullName });
       const { error } = await signUp(v.email, v.password, v.fullName);
       if (error) { toast.error(toPtBrAuthError(error.message)); return; }
-      toast.success("Conta criada!"); navigate("/dashboard");
+      toast.success("Conta criada!"); navigate(redirectTo);
     } catch (e) { if (e instanceof z.ZodError) toast.error(e.errors[0].message); } finally { setIsLoading(false); }
   };
 
@@ -124,8 +140,7 @@ export default function Auth() {
           </div>
           {isRecoveryFlow ? (
             <form onSubmit={handleResetPassword} className="space-y-5">
-              <div className="space-y-2"><Label htmlFor="rp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nova senha</Label><Input id="rp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required className={ic} /></div>
-              <div className="space-y-2"><Label htmlFor="rc" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="rc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} required className={ic} /></div>
+              <div className="space-y-2"><Label htmlFor="rp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nova senha</Label><PasswordInput id="rp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} className={ic} /></div>
               <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]" disabled={isLoading}>{isLoading ? "Atualizando..." : "Atualizar senha"}</Button>
             </form>
           ) : (
@@ -137,7 +152,7 @@ export default function Auth() {
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2"><Label htmlFor="le" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label><Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><Input id="lp" type="password" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><PasswordInput id="lp" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className={ic} /></div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Entrando..." : "Entrar"}</Button>
                 </form>
               </TabsContent>
@@ -145,8 +160,7 @@ export default function Auth() {
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2"><Label htmlFor="sn" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nome completo</Label><Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} required className={ic} /></div>
                   <div className="space-y-2"><Label htmlFor="se" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label><Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><Input id="sp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sc" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="sc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><PasswordInput id="sp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} className={ic} /></div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Criando conta..." : "Criar conta"}</Button>
                 </form>
               </TabsContent>
