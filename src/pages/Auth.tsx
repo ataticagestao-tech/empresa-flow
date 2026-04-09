@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { z } from "zod";
 import logoTatica from "@/assets/logo-tatica.png";
-import { BarChart3, Shield, Zap, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Email invalido").max(255),
@@ -36,25 +36,27 @@ const toPtBrAuthError = (message: string) => {
   return message;
 };
 
-const features = [
-  { icon: BarChart3, title: "Gestao Financeira", description: "Controle total de contas a pagar, receber e fluxo de caixa." },
-  { icon: Shield, title: "Seguranca", description: "Dados protegidos com criptografia de ponta a ponta." },
-  { icon: Zap, title: "Performance", description: "Interface rapida e responsiva para o seu dia a dia." },
-];
-
-function PasswordInput({ id, value, onChange, placeholder, autoComplete, className }: {
+function PasswordInput({ id, value, onChange, onBlur, placeholder, autoComplete, className, error }: {
   id: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder: string; autoComplete: string; className: string;
+  onBlur?: () => void; placeholder: string; autoComplete: string; className: string; error?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
-    <div className="relative">
-      <Input id={id} type={show ? "text" : "password"} autoComplete={autoComplete} placeholder={placeholder} value={value} onChange={onChange} required className={className} />
-      <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
+    <div>
+      <div className="relative">
+        <Input id={id} type={show ? "text" : "password"} autoComplete={autoComplete} placeholder={placeholder} value={value} onChange={onChange} onBlur={onBlur} required className={`${className} ${error ? "border-destructive" : ""}`} />
+        <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+      {error && <p className="text-[12px] text-destructive mt-1">{error}</p>}
     </div>
   );
+}
+
+function FieldError({ error }: { error?: string }) {
+  if (!error) return null;
+  return <p className="text-[12px] text-destructive mt-1">{error}</p>;
 }
 
 export default function Auth() {
@@ -69,6 +71,7 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupFullName, setSignupFullName] = useState("");
   const [resetPassword, setResetPassword] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
@@ -79,6 +82,26 @@ export default function Auth() {
   }, []);
 
   useEffect(() => { if (user && !loading) navigate(redirectTo); }, [user, loading, navigate, redirectTo]);
+
+  const validateField = useCallback((field: string, value: string) => {
+    let err = "";
+    switch (field) {
+      case "email":
+        if (value && !z.string().email().safeParse(value.trim()).success) err = "Email invalido";
+        break;
+      case "password":
+        if (value && value.length < 6) err = "Min. 6 caracteres";
+        break;
+      case "fullName":
+        if (value && value.trim().length < 3) err = "Min. 3 caracteres";
+        break;
+    }
+    setErrors((prev) => {
+      if (err) return { ...prev, [field]: err };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  }, []);
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center bg-background"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Carregando...</span></div></div>);
   if (user) return <Navigate to={redirectTo} replace />;
@@ -122,6 +145,7 @@ export default function Auth() {
   };
 
   const ic = "bg-white border-input focus:border-primary rounded-md h-11 text-foreground placeholder:text-muted-foreground transition-all duration-200";
+  const errClass = (field: string) => errors[field] ? "border-destructive" : "";
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -140,27 +164,48 @@ export default function Auth() {
           </div>
           {isRecoveryFlow ? (
             <form onSubmit={handleResetPassword} className="space-y-5">
-              <div className="space-y-2"><Label htmlFor="rp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nova senha</Label><PasswordInput id="rp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} className={ic} /></div>
+              <div className="space-y-2">
+                <Label htmlFor="rp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nova senha</Label>
+                <PasswordInput id="rp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} onBlur={() => validateField("password", resetPassword)} className={ic} error={errors.password} />
+              </div>
               <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]" disabled={isLoading}>{isLoading ? "Atualizando..." : "Atualizar senha"}</Button>
             </form>
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setErrors({}); }} className="space-y-6">
               <TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-lg h-10">
                 <TabsTrigger value="login" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12.5px] transition-all">Entrar</TabsTrigger>
                 <TabsTrigger value="signup" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12.5px] transition-all">Criar conta</TabsTrigger>
               </TabsList>
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2"><Label htmlFor="le" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label><Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><PasswordInput id="lp" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className={ic} /></div>
+                  <div className="space-y-2">
+                    <Label htmlFor="le" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label>
+                    <Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} onBlur={() => validateField("email", loginEmail)} required className={`${ic} ${errClass("email")}`} />
+                    <FieldError error={errors.email} />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div>
+                    <PasswordInput id="lp" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onBlur={() => validateField("password", loginPassword)} className={ic} error={errors.password} />
+                  </div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Entrando..." : "Entrar"}</Button>
                 </form>
               </TabsContent>
               <TabsContent value="signup">
                 <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2"><Label htmlFor="sn" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nome completo</Label><Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="se" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label><Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><PasswordInput id="sp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} className={ic} /></div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sn" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nome completo</Label>
+                    <Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} onBlur={() => validateField("fullName", signupFullName)} required className={`${ic} ${errClass("fullName")}`} />
+                    <FieldError error={errors.fullName} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="se" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label>
+                    <Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} onBlur={() => validateField("email", signupEmail)} required className={`${ic} ${errClass("email")}`} />
+                    <FieldError error={errors.email} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label>
+                    <PasswordInput id="sp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} onBlur={() => validateField("password", signupPassword)} className={ic} error={errors.password} />
+                  </div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Criando conta..." : "Criar conta"}</Button>
                 </form>
               </TabsContent>
