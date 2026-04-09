@@ -35,8 +35,10 @@ SELECT
   'conciliado'
 FROM public.bank_transactions bt
 JOIN public.contas_receber cr ON cr.id = bt.reconciled_receivable_id
+JOIN public.chart_of_accounts coa ON coa.id = cr.conta_contabil_id
 WHERE bt.status = 'reconciled'
   AND bt.reconciled_receivable_id IS NOT NULL
+  AND cr.conta_contabil_id IS NOT NULL
   -- Evitar duplicatas: so inserir se nao existe movimentacao para esse CR
   AND NOT EXISTS (
     SELECT 1 FROM public.movimentacoes m
@@ -70,8 +72,10 @@ SELECT
   'conciliado'
 FROM public.bank_transactions bt
 JOIN public.contas_pagar cp ON cp.id = bt.reconciled_payable_id
+JOIN public.chart_of_accounts coa ON coa.id = cp.conta_contabil_id
 WHERE bt.status = 'reconciled'
   AND bt.reconciled_payable_id IS NOT NULL
+  AND cp.conta_contabil_id IS NOT NULL
   -- Evitar duplicatas
   AND NOT EXISTS (
     SELECT 1 FROM public.movimentacoes m
