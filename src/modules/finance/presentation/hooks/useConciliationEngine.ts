@@ -149,29 +149,48 @@ function extractKeywordsForRule(description: string): string[] {
 // ============================================================
 
 const KEYWORD_TO_CATEGORY: Array<{ keywords: string[]; categoryFragments: string[] }> = [
-    { keywords: ["VENDA", "VENDAS", "MERCADORIA", "PRODUTO", "LOJA", "COMERCIO", "FATURAMENTO"], categoryFragments: ["receita de vendas", "venda", "vendas"] },
-    { keywords: ["SERVICO", "CONSULTORIA", "ASSESSORIA", "HONORARIO", "PRESTACAO", "NFSE", "ROYALTIES"], categoryFragments: ["receita de servico", "servico"] },
-    { keywords: ["ALUGUEL", "CONDOMINIO", "LOCACAO", "IPTU", "IMOVEL"], categoryFragments: ["aluguel", "condominio", "locacao"] },
-    { keywords: ["ENERGIA", "ELETRICA", "LUZ", "CEMIG", "CPFL", "ENEL", "COPEL", "CELESC", "ENERGISA"], categoryFragments: ["energia", "luz"] },
-    { keywords: ["AGUA", "SANEAMENTO", "GAS"], categoryFragments: ["agua", "luz", "telefone"] },
-    { keywords: ["INTERNET", "TELEFONE", "TELEFONIA", "CELULAR", "FIBRA", "VIVO", "CLARO", "TIM", "ALARES"], categoryFragments: ["internet", "telefone", "telefonia"] },
-    { keywords: ["SOFTWARE", "SISTEMA", "LICENCA", "ASSINATURA", "HOSPEDAGEM", "DOMINIO", "GOOGLE", "TOTVS"], categoryFragments: ["internet", "telefone", "terceiro"] },
-    { keywords: ["SALARIO", "FOLHA", "FUNCIONARIO", "ENCARGOS", "FGTS", "INSS", "FERIAS", "13O", "RESCISAO", "VALE TRANSPORTE", "HOLERITE"], categoryFragments: ["salario", "encargo", "pessoal", "ordenado"] },
-    { keywords: ["PRO-LABORE", "PROLABORE", "PRO LABORE", "RETIRADA SOCIO", "DIVIDENDOS"], categoryFragments: ["pro-labore", "prolabore", "pro labore"] },
-    { keywords: ["TARIFA", "TARIFAS", "TED", "DOC", "TAXA BANCARIA", "IOF", "ANUIDADE", "CESTA SERVICO", "CUSTODIA"], categoryFragments: ["tarifa", "bancaria", "despesas bancarias"] },
-    { keywords: ["JUROS", "MORA", "MULTA ATRASO", "ENCARGOS FINANCEIROS", "FINANCIAMENTO", "EMPRESTIMO", "CDC", "SPREAD"], categoryFragments: ["juros", "financeira"] },
-    { keywords: ["MARKETING", "PUBLICIDADE", "PROPAGANDA", "FACEBOOK", "META", "GOOGLE ADS", "ANUNCIO"], categoryFragments: ["propaganda", "marketing", "comercial"] },
-    { keywords: ["FRETE", "CORREIOS", "TRANSPORTE", "ENTREGA", "CARRETO"], categoryFragments: ["frete", "carreto", "transporte"] },
+    // ─── Receitas ───
+    { keywords: ["VENDA", "VENDAS", "MERCADORIA", "PRODUTO", "LOJA", "COMERCIO", "FATURAMENTO", "FATUR"], categoryFragments: ["receita de vendas", "venda", "vendas"] },
+    { keywords: ["SERVICO", "SERV ", "CONSULTORIA", "ASSESSORIA", "HONORARIO", "PRESTACAO", "NFSE", "ROYALTIES"], categoryFragments: ["receita de servico", "servico"] },
+    { keywords: ["STONE", "CIELO", "REDE ", "GETNET", "PAGSEGURO", "DOMCRED", "DOMDEB", "DOMCREDITO", "MAQUININHA", "CRED RECEB", "CREDITO RECEB", "RECEB VENDAS", "RECEBIMENTO VENDAS", "VISA ELECTRON", "MASTERCARD", "ELO ", "ANTECIPACAO", "RECEBIMENTO"], categoryFragments: ["receita de vendas", "venda", "vendas", "receita"] },
+    // ─── Investimentos / Aplicações ───
+    { keywords: ["RENDIMENTO", "APLICACAO", "APLIC ", "APLIC.", "RES APLIC", "RESGATE", "CDB", "LCI", "LCA", "JUROS RECEBIDOS", "INVESTIMENTO", "INVEST", "POUPANCA", "POUP ", "TESOURO", "FUNDO", "RDB", "AUT MAIS"], categoryFragments: ["rendimento", "aplicacao", "investimento", "juros recebidos", "receita financeira"] },
+    // ─── Depósitos / Entradas genéricas ───
+    { keywords: ["DEP DIN", "DEPOSITO", "DEP ", "BCO24H", "BANCO24H", "CRED ", "CREDITO ", "CRED PIX", "DEVOL", "DEVOLUCAO", "ESTORNO"], categoryFragments: ["outras receitas", "receita", "deposito", "rendimento"] },
+    // ─── Transferências ───
+    { keywords: ["TRANSF ", "TRANSFER", "TRANSFERENCIA", "TRANSF ENTRE", "PIX TRANSF", "PIX ENVIADO", "PIX RECEBIDO"], categoryFragments: ["transferencia entre contas", "transferencia"] },
+    // ─── PIX genérico (fallback) ───
+    { keywords: ["PIX "], categoryFragments: ["transferencia", "pix", "outras receitas"] },
+    // ─── Despesas Administrativas ───
+    { keywords: ["ALUGUEL", "ALUG ", "CONDOMINIO", "COND ", "LOCACAO", "IPTU", "IMOVEL"], categoryFragments: ["aluguel", "condominio", "locacao"] },
+    { keywords: ["ENERGIA", "ELETRICA", "LUZ", "CEMIG", "CPFL", "ENEL", "COPEL", "CELESC", "ENERGISA", "ENERG"], categoryFragments: ["energia", "luz"] },
+    { keywords: ["AGUA", "SANEAMENTO", "GAS ", "COPASA", "SABESP", "SANEPAR"], categoryFragments: ["agua", "luz", "telefone"] },
+    { keywords: ["INTERNET", "TELEFONE", "TELEFONIA", "CELULAR", "FIBRA", "VIVO", "CLARO", "TIM ", "ALARES", "NET "], categoryFragments: ["internet", "telefone", "telefonia"] },
+    { keywords: ["SOFTWARE", "SISTEMA", "LICENCA", "ASSINATURA", "HOSPEDAGEM", "DOMINIO", "GOOGLE", "TOTVS", "OMIE"], categoryFragments: ["internet", "telefone", "terceiro"] },
+    // ─── Pessoal ───
+    { keywords: ["SALARIO", "SAL ", "FOLHA", "FUNCIONARIO", "FUNC ", "ENCARGOS", "FGTS", "INSS", "FERIAS", "13O", "RESCISAO", "VALE TRANSPORTE", "HOLERITE", "VT ", "VR ", "VA "], categoryFragments: ["salario", "encargo", "pessoal", "ordenado"] },
+    { keywords: ["PRO-LABORE", "PROLABORE", "PRO LABORE", "RETIRADA", "RET SOCIO", "DIVIDENDOS", "DISTRIB"], categoryFragments: ["pro-labore", "prolabore", "pro labore"] },
+    // ─── Financeiras ───
+    { keywords: ["TARIFA", "TAR ", "TARIFAS", "TED ", "DOC ", "TAXA BANCARIA", "IOF", "ANUIDADE", "CESTA SERVICO", "CUSTODIA", "MANUT CONTA", "PAC "], categoryFragments: ["tarifa", "bancaria", "despesas bancarias"] },
+    { keywords: ["JUROS", "MORA", "MULTA", "ENCARGOS FINANCEIROS", "FINANCIAMENTO", "EMPRESTIMO", "CDC", "SPREAD"], categoryFragments: ["juros", "financeira"] },
+    // ─── Comerciais ───
+    { keywords: ["MARKETING", "PUBLICIDADE", "PROPAGANDA", "FACEBOOK", "META ADS", "GOOGLE ADS", "ANUNCIO", "TRAFEGO"], categoryFragments: ["propaganda", "marketing", "comercial"] },
+    { keywords: ["FRETE", "CORREIOS", "TRANSPORTE", "ENTREGA", "CARRETO", "SEDEX", "JADLOG", "LOGGI"], categoryFragments: ["frete", "carreto", "transporte"] },
     { keywords: ["COMISSAO", "COMISSOES"], categoryFragments: ["comissao", "comissoes"] },
-    { keywords: ["COMBUSTIVEL", "GASOLINA", "UBER", "PEDAGIO", "VIAGEM", "VEICULO"], categoryFragments: ["veiculo", "combustivel"] },
-    { keywords: ["MANUTENCAO", "REPARO", "CONSERTO"], categoryFragments: ["manutencao", "reparo"] },
+    // ─── Veículos ───
+    { keywords: ["COMBUSTIVEL", "COMB ", "GASOLINA", "UBER", "PEDAGIO", "VIAGEM", "VEICULO", "IPVA", "LICENC"], categoryFragments: ["veiculo", "combustivel"] },
+    // ─── Manutenção / Materiais ───
+    { keywords: ["MANUTENCAO", "MANUT ", "REPARO", "CONSERTO"], categoryFragments: ["manutencao", "reparo"] },
     { keywords: ["MATERIAL", "ESCRITORIO", "LIMPEZA", "PAPEL", "TONER"], categoryFragments: ["material", "escritorio"] },
+    // ─── Serviços profissionais ───
     { keywords: ["CONTADOR", "CONTABILIDADE", "CONTABIL"], categoryFragments: ["terceiro", "servico", "contabil"] },
-    { keywords: ["SEGURO", "APOLICE", "SINISTRO"], categoryFragments: ["seguro"] },
-    { keywords: ["RENDIMENTO", "APLICACAO", "RESGATE", "CDB", "LCI", "LCA", "JUROS RECEBIDOS", "INVESTIMENTO"], categoryFragments: ["rendimento", "aplicacao", "juros recebidos", "receita financeira", "investimento"] },
-    { keywords: ["DARF", "DAS", "GPS", "SIMPLES NACIONAL", "IMPOSTO", "ICMS", "ISS", "PIS", "COFINS", "CSLL", "IRPJ", "IRRF"], categoryFragments: ["imposto", "tributo", "contribuicao"] },
-    { keywords: ["STONE", "CIELO", "REDE", "GETNET", "PAGSEGURO", "DOMCRED", "DOMDEB", "MAQUININHA", "CREDITO RECEBIMENTO", "RECEBIMENTO VENDAS"], categoryFragments: ["receita de vendas", "venda", "vendas", "receita"] },
-    { keywords: ["TRANSFERENCIA", "TRANSFERENCIA ENTRE"], categoryFragments: ["transferencia entre contas", "transferencia"] },
+    { keywords: ["SEGURO", "APOLICE", "SINISTRO", "SEG "], categoryFragments: ["seguro"] },
+    // ─── Impostos ───
+    { keywords: ["DARF", "DAS ", "GPS ", "SIMPLES", "IMPOSTO", "ICMS", "ISS ", "PIS ", "COFINS", "CSLL", "IRPJ", "IRRF", "TRIBUTO", "GUIA ", "GRU "], categoryFragments: ["imposto", "tributo", "contribuicao"] },
+    // ─── Saques ───
+    { keywords: ["SAQUE", "SAQ ", "RETIRADA", "RET "], categoryFragments: ["saque", "retirada", "transferencia"] },
+    // ─── Boleto / Pagamento ───
+    { keywords: ["BOLETO", "BOL ", "PAG TITULO", "PAGAMENTO", "PAG ", "PGTO", "LIQUID"], categoryFragments: ["fornecedor", "pagamento", "despesa"] },
 ];
 
 function matchCategoryByKeywords(
@@ -362,8 +381,10 @@ function runMatchingEngine(
     if (bestResult) return bestResult;
 
     // ===== FALLBACK: IA SUGERE — matching por keywords genéricas =====
+    // Tenta com filtro de natureza primeiro; se não achar, busca sem filtro
     const filterNature = bt.amount < 0 ? "debit" : "credit";
-    const aiMatch = matchCategoryByKeywords(descNorm, allAccounts, filterNature);
+    const aiMatch = matchCategoryByKeywords(descNorm, allAccounts, filterNature)
+        || matchCategoryByKeywords(descNorm, allAccounts);
     if (aiMatch) {
         return {
             ...base,
