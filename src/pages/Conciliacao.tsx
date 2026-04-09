@@ -429,18 +429,21 @@ export default function Conciliacao() {
         createDescription, createType as "receita" | "despesa"
     );
 
-    // Build external suggestions from: engine rules + historical data
+    // Build external suggestions from: engine (rule + ai_category) + historical data
     const externalSuggestions = useMemo<ExternalSuggestion[]>(() => {
         const result: ExternalSuggestion[] = [];
 
-        // 1. Engine suggestion (from conciliation_rules learned patterns)
+        // 1. Engine suggestion — regra OU ai_category (prioridade máxima)
         if (selectedBankTx && showCreateForm) {
             const engineSuggestion = suggestionMap.get(selectedBankTx.id);
             if (engineSuggestion?.accountId) {
+                const isAi = engineSuggestion.method === "ai_category";
                 result.push({
                     accountId: engineSuggestion.accountId,
-                    reason: `Regra: ${engineSuggestion.ruleName || "padrão aprendido"}`,
-                    score: 15,
+                    reason: isAi
+                        ? `IA sugere: ${engineSuggestion.accountCode} ${engineSuggestion.accountName}`
+                        : `Regra: ${engineSuggestion.ruleName || "padrão aprendido"}`,
+                    score: isAi ? 20 : 15,
                 });
             }
         }

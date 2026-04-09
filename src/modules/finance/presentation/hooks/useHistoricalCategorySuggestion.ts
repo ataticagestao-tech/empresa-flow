@@ -59,7 +59,7 @@ export function useHistoricalCategorySuggestion(
                 category_id: r.conta_contabil_id,
             })) as Array<{ id: string; description: string; category_id: string }>;
         },
-        enabled: !!companyId && !!description && description.length >= 3,
+        enabled: !!companyId,
         staleTime: 5 * 60 * 1000,
     });
 
