@@ -5,6 +5,7 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
+import { CommandPalette } from "@/components/CommandPalette";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -45,6 +46,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           {children}
         </main>
       </SidebarInset>
+      <CommandPalette />
     </SidebarProvider>
   );
 }

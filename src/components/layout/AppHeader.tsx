@@ -3,7 +3,7 @@ import { CompanySelector } from "@/components/CompanySelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 interface AppHeaderProps {
@@ -40,6 +40,14 @@ export function AppHeader({ title }: AppHeaderProps) {
       )}
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <button
+          onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }))}
+          className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-md bg-white/10 text-white/50 hover:bg-white/15 hover:text-white/70 transition-colors text-[12px]"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span>Buscar...</span>
+          <kbd className="ml-1 px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">Ctrl+K</kbd>
+        </button>
         <CompanySelector />
         <button
           onClick={() => navigate("/empresas?nova=1")}

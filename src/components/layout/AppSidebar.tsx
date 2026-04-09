@@ -64,7 +64,7 @@ export function AppSidebar() {
         {visibleGroups.map((group) => (
           <SidebarGroup key={group.id}>
             {group.labelKey && (
-              <SidebarGroupLabel className="text-[9.5px] font-semibold uppercase tracking-[1px] text-sidebar-muted px-2 mb-1">
+              <SidebarGroupLabel className="text-[12px] font-semibold uppercase tracking-[1px] text-sidebar-muted px-2 mb-1">
                 {group.isHardcodedLabel ? group.labelKey : t(group.labelKey)}
               </SidebarGroupLabel>
             )}
