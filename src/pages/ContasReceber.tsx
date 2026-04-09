@@ -6,6 +6,7 @@ import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -423,9 +424,10 @@ export default function ContasReceber() {
             {loading ? (
               <div className="py-4"><TableSkeleton rows={8} cols={5} /></div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-16 text-[13px] text-[#999]">
-                Nenhum titulo encontrado.
-              </div>
+              <EmptyState
+                title="Nenhum titulo encontrado"
+                description="Ajuste os filtros ou o periodo para ver resultados."
+              />
             ) : (
               <table className="w-full text-[13px]">
                 <thead>
