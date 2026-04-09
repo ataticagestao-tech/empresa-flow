@@ -979,11 +979,15 @@ export default function PainelGerencial() {
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex border border-[#e2e8f0] rounded-lg overflow-hidden">
               <button
-                onClick={() => setPeriodoTipo("mes")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
-              >Mês</button>
+                onClick={() => { setPeriodoTipo("mes"); setMesSelecionado(format(realToday, "yyyy-MM")); }}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" && mesSelecionado === format(realToday, "yyyy-MM") ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >Este mês</button>
               <button
-                onClick={() => setPeriodoTipo("custom")}
+                onClick={() => { setPeriodoTipo("mes"); setMesSelecionado(format(subMonths(realToday, 1), "yyyy-MM")); }}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" && mesSelecionado === format(subMonths(realToday, 1), "yyyy-MM") ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >Mês passado</button>
+              <button
+                onClick={() => { setPeriodoTipo("custom"); setDataInicio(format(subMonths(realToday, 3), "yyyy-MM-dd")); setDataFim(format(realToday, "yyyy-MM-dd")); }}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "custom" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
               ><Calendar className="h-3 w-3 inline mr-1" />Personalizado</button>
             </div>
