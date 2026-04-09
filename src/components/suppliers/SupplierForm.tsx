@@ -21,7 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { maskCNPJ, maskCPF, maskPhone, maskCEP, unmask } from "@/utils/masks";
+import { maskCNPJ, maskCPF, maskPhone, maskCEP, unmask, autoCorrectUrl } from "@/utils/masks";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -699,7 +699,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">WebSite</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
-                                                    <Input className="h-9 border-[#E2E8F0] pr-8" {...field} />
+                                                    <Input className="h-9 border-[#E2E8F0] pr-8" {...field} onBlur={(e) => { field.onBlur(); field.onChange(autoCorrectUrl(e.target.value)); }} />
                                                     <Globe className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
                                                 </div>
                                             </FormControl>
