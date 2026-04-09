@@ -81,6 +81,8 @@ export default function Conciliacao() {
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
     const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; success: number; failed: number } | null>(null);
+    const [currentPage, setCurrentPage] = useState(0);
+    const PAGE_SIZE = 100;
 
     const { activeClient, user } = useAuth();
     const { selectedCompany } = useCompany();
@@ -136,14 +138,14 @@ export default function Conciliacao() {
 
     const { seedDefaultRules, rulesCount: defaultRulesCount } = useDefaultConciliationRules();
 
-    // Faturamento conciliado vs a conciliar
+    // Faturamento conciliado vs a conciliar — buscar apenas soma e datas (não 5000 rows)
     const { data: reconciledTx } = useQuery({
         queryKey: ["reconciled_transactions", selectedAccountId],
         queryFn: async () => {
             if (!selectedAccountId) return [];
             const { data, error } = await (activeClient as any)
                 .from("bank_transactions")
-                .select("id, amount, status, date")
+                .select("id, amount, date")
                 .eq("bank_account_id", selectedAccountId)
                 .eq("status", "reconciled")
                 .limit(5000);
@@ -151,6 +153,7 @@ export default function Conciliacao() {
             return data || [];
         },
         enabled: !!selectedAccountId,
+        staleTime: 2 * 60 * 1000, // cache 2 min
     });
 
     // Query: fetch full details of a batch when expanded
@@ -322,6 +325,20 @@ export default function Conciliacao() {
             return true;
         });
     }, [bankTransactions, scoreFilter, typeFilter, suggestionMap]);
+
+    // Paginação — só renderizar PAGE_SIZE itens por vez
+    const totalPages = Math.ceil(filteredBankTransactions.length / PAGE_SIZE);
+    const paginatedTransactions = useMemo(() => {
+        const start = currentPage * PAGE_SIZE;
+        return filteredBankTransactions.slice(start, start + PAGE_SIZE);
+    }, [filteredBankTransactions, currentPage, PAGE_SIZE]);
+
+    // Reset page when filters change
+    const prevFilterRef = useRef({ scoreFilter, typeFilter });
+    if (prevFilterRef.current.scoreFilter !== scoreFilter || prevFilterRef.current.typeFilter !== typeFilter) {
+        prevFilterRef.current = { scoreFilter, typeFilter };
+        if (currentPage !== 0) setCurrentPage(0);
+    }
 
     // Categories for create form — all accounts (analytical + synthetic)
     const { data: allChartAccounts } = useQuery({
@@ -1389,8 +1406,18 @@ export default function Conciliacao() {
                                             <TableRow className="bg-[#F8FAFC]">
                                                 <TableHead className="w-10">
                                                     <Checkbox
-                                                        checked={selectedIds.size === filteredBankTransactions.length && filteredBankTransactions.length > 0}
-                                                        onCheckedChange={toggleSelectAll}
+                                                        checked={paginatedTransactions.length > 0 && paginatedTransactions.every(bt => selectedIds.has(bt.id))}
+                                                        onCheckedChange={() => {
+                                                            const pageIds = paginatedTransactions.map(bt => bt.id);
+                                                            const allSelected = pageIds.every(id => selectedIds.has(id));
+                                                            if (allSelected) {
+                                                                const next = new Set(selectedIds);
+                                                                pageIds.forEach(id => next.delete(id));
+                                                                setSelectedIds(next);
+                                                            } else {
+                                                                setSelectedIds(new Set([...selectedIds, ...pageIds]));
+                                                            }
+                                                        }}
                                                     />
                                                 </TableHead>
                                                 <TableHead className="w-20">Data</TableHead>
@@ -1403,7 +1430,7 @@ export default function Conciliacao() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {filteredBankTransactions.map((bt) => {
+                                            {paginatedTransactions.map((bt) => {
                                                 const suggestion = suggestionMap.get(bt.id);
                                                 const bestMatch = suggestion?.systemTransaction;
                                                 const score = suggestion?.score || 0;
@@ -1501,6 +1528,35 @@ export default function Conciliacao() {
                                             })}
                                         </TableBody>
                                     </Table>
+                                )}
+                                {/* Paginação */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between pt-4 border-t mt-2">
+                                        <span className="text-sm text-muted-foreground">
+                                            {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filteredBankTransactions.length)} de {filteredBankTransactions.length} itens
+                                        </span>
+                                        <div className="flex gap-1">
+                                            <Button variant="outline" size="sm" disabled={currentPage === 0}
+                                                onClick={() => setCurrentPage(0)}>
+                                                Início
+                                            </Button>
+                                            <Button variant="outline" size="sm" disabled={currentPage === 0}
+                                                onClick={() => setCurrentPage(p => p - 1)}>
+                                                Anterior
+                                            </Button>
+                                            <span className="flex items-center px-3 text-sm font-medium">
+                                                {currentPage + 1} / {totalPages}
+                                            </span>
+                                            <Button variant="outline" size="sm" disabled={currentPage >= totalPages - 1}
+                                                onClick={() => setCurrentPage(p => p + 1)}>
+                                                Próximo
+                                            </Button>
+                                            <Button variant="outline" size="sm" disabled={currentPage >= totalPages - 1}
+                                                onClick={() => setCurrentPage(totalPages - 1)}>
+                                                Fim
+                                            </Button>
+                                        </div>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>

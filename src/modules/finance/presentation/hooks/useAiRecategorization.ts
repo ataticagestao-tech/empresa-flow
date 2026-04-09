@@ -69,12 +69,13 @@ function descriptionSimilarity(a: string, b: string): number {
     return union > 0 ? intersection / union : 0;
 }
 
-export function useAiRecategorization(categories: ChartAccount[]) {
+export function useAiRecategorization(categories: ChartAccount[], enabled = false) {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const db = activeClient as any;
 
     const [processing, setProcessing] = useState(false);
+    const [activated, setActivated] = useState(false);
     const [results, setResults] = useState<Record<string, TxAiResult>>({});
 
     // Fetch ALL transactions (past + future) with their categories for this company
@@ -122,7 +123,7 @@ export function useAiRecategorization(categories: ChartAccount[]) {
 
             return allData;
         },
-        enabled: !!selectedCompany?.id,
+        enabled: !!selectedCompany?.id && (enabled || activated),
         staleTime: 5 * 60 * 1000, // cache 5 min
     });
 
@@ -300,6 +301,7 @@ export function useAiRecategorization(categories: ChartAccount[]) {
         linked_id?: string;
         status?: string;
     }>) => {
+        setActivated(true); // lazy-load: ativa a query de historicalTx na primeira chamada
         setProcessing(true);
         const newResults: Record<string, TxAiResult> = {};
 

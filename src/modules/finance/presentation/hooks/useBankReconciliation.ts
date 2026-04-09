@@ -64,7 +64,8 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             allData.sort((a: any, b: any) => b.date.localeCompare(a.date));
             return allData as BankTransaction[];
         },
-        enabled: !!bankAccountId
+        enabled: !!bankAccountId,
+        staleTime: 30 * 1000, // cache 30s — evita re-fetch ao trocar de aba
     });
 
     const { data: statementFiles } = useQuery({
@@ -155,7 +156,8 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             return normalized.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         },
-        enabled: !!companyId
+        enabled: !!companyId,
+        staleTime: 60 * 1000, // cache 1 min
     });
 
     // Mutation: Upload OFX
@@ -182,11 +184,15 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 return sanitized;
             });
 
-            const { error } = await (activeClient as any)
-                .from('bank_transactions')
-                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
-
-            if (error) throw error;
+            // Upsert em chunks de 500 para evitar timeout do PostgREST
+            const CHUNK_SIZE = 500;
+            for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+                const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+                const { error } = await (activeClient as any)
+                    .from('bank_transactions')
+                    .upsert(chunk, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+                if (error) throw error;
+            }
             return parsed.length;
         },
         onSuccess: (count) => {

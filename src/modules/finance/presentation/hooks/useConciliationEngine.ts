@@ -145,14 +145,57 @@ function extractKeywordsForRule(description: string): string[] {
 }
 
 // ============================================================
+// ÍNDICE PRÉ-COMPUTADO — evita O(N) filter + scan por transação
+// ============================================================
+
+interface IndexedCandidates {
+    payable: SystemTransaction[];   // sorted by amount
+    receivable: SystemTransaction[];
+}
+
+function buildCandidateIndex(systemTxs: SystemTransaction[]): IndexedCandidates {
+    const payable: SystemTransaction[] = [];
+    const receivable: SystemTransaction[] = [];
+    for (const st of systemTxs) {
+        if (st.type === "payable") payable.push(st);
+        else receivable.push(st);
+    }
+    payable.sort((a, b) => Number(a.amount) - Number(b.amount));
+    receivable.sort((a, b) => Number(a.amount) - Number(b.amount));
+    return { payable, receivable };
+}
+
+/** Binary search: find candidates with amount in [lo, hi] */
+function findInRange(sorted: SystemTransaction[], lo: number, hi: number): SystemTransaction[] {
+    if (!sorted.length) return [];
+    // lower bound
+    let left = 0, right = sorted.length;
+    while (left < right) {
+        const mid = (left + right) >> 1;
+        if (Number(sorted[mid].amount) < lo) left = mid + 1;
+        else right = mid;
+    }
+    const start = left;
+    // upper bound
+    right = sorted.length;
+    while (left < right) {
+        const mid = (left + right) >> 1;
+        if (Number(sorted[mid].amount) <= hi) left = mid + 1;
+        else right = mid;
+    }
+    return sorted.slice(start, left);
+}
+
+// ============================================================
 // MOTOR DE MATCHING — usa palavras_chave (OR logic, case-insensitive)
 // ============================================================
 
 function runMatchingEngine(
     bt: BankTransaction,
-    systemTxs: SystemTransaction[],
+    index: IndexedCandidates,
     rules: ConciliationRule[],
     accountMap: Map<string, ChartAccount>,
+    rulesNormalized: string[][],
 ): MatchSuggestion {
     const base: MatchSuggestion = {
         bankTransaction: bt,
@@ -165,32 +208,31 @@ function runMatchingEngine(
     const descNorm = normalizeText(`${bt.description || ""} ${bt.memo || ""}`);
     const absAmount = Math.abs(bt.amount);
 
-    // Filter compatible system transactions by type
-    const compatibleType = bt.amount < 0 ? "payable" : "receivable";
-    const candidates = systemTxs.filter(st => st.type === compatibleType);
+    const candidates = bt.amount < 0 ? index.payable : index.receivable;
 
     // ===== CAMADA 0: Regras de palavras-chave (conciliation_rules) =====
-    for (const rule of rules) {
+    for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
         if (!rule.ativa) continue;
-        const keywords = rule.palavras_chave || [];
-        const hit = keywords.some(kw => descNorm.includes(normalizeText(kw)));
+        const normKws = rulesNormalized[i];
+        const hit = normKws.some(kw => descNorm.includes(kw));
         if (!hit) continue;
 
-        // Regra bateu!
         const confiancaScore = CONFIANCA_MAP[rule.confianca] || 50;
         const account = rule.account_id ? accountMap.get(rule.account_id) : null;
         const accountLabel = account ? `${account.code} ${account.name}` : "";
 
-        // Try to find matching system transaction by amount
-        const ruleCandidate = candidates.find(st => Math.abs(Number(st.amount) - absAmount) < 0.01);
+        // Binary search for exact amount match
+        const exactCandidates = findInRange(candidates, absAmount - 0.01, absAmount + 0.01);
+        const ruleCandidate = exactCandidates.length > 0 ? exactCandidates[0] : null;
 
         return {
             ...base,
-            systemTransaction: ruleCandidate || null,
+            systemTransaction: ruleCandidate,
             score: confiancaScore,
             method: "rule",
             ruleId: rule.id,
-            ruleName: accountLabel || keywords.join(", "),
+            ruleName: accountLabel || (rule.palavras_chave || []).join(", "),
             accountId: rule.account_id || undefined,
             accountCode: account?.code,
             accountName: account?.name,
@@ -198,30 +240,26 @@ function runMatchingEngine(
                 ? `${ruleCandidate.entity_name} - ${ruleCandidate.description}`
                 : accountLabel
                     ? `IA: ${accountLabel}`
-                    : `Regra: ${keywords.join(", ")}`,
+                    : `Regra: ${(rule.palavras_chave || []).join(", ")}`,
         };
     }
 
-    // ─── Helper: taxa de maquininha ───────────────────────────────
-    // Vendas por maquininha: extrato SEMPRE menor que o CR (valor - taxa 2-7%).
-    // Repasse pode ser D+1 (débito) ou D+30 (crédito).
-    // Descrição no extrato é genérica ("CREDITO", "STONE", "DOMCRED").
-    // Nome do cliente NUNCA aparece — matching é só por valor + janela de data.
-    const calcDiff = (stAmount: number) => {
-        const stVal = Number(stAmount);
-        const diff = stVal - absAmount;        // negativo = extrato menor
-        const pct = stVal > 0 ? Math.abs(diff) / stVal : 1;
-        return { diff, pct, extratoMenor: diff < -0.01, exato: Math.abs(diff) < 0.01 };
-    };
+    // ===== BUSCA POR VALOR — usa binary search em vez de scan linear =====
+    // Range: exato (±0.01) + taxa maquininha (até 7% acima do valor do extrato)
+    const loAmount = absAmount - 0.01;
+    const hiAmount = absAmount / 0.93 + 0.01; // absAmount é <= stAmount, taxa até 7%
+    const narrowCandidates = findInRange(candidates, loAmount, hiAmount);
 
-    // ===== LOOP ÚNICO: avaliar todas as camadas por candidato =====
     const btTime = new Date(bt.date).getTime();
     let bestScore = 0;
     let bestResult: MatchSuggestion | null = null;
 
-    for (const st of candidates) {
+    for (const st of narrowCandidates) {
         const stAmount = Number(st.amount);
-        const { exato, pct, extratoMenor } = calcDiff(stAmount);
+        const diff = stAmount - absAmount;
+        const pct = stAmount > 0 ? Math.abs(diff) / stAmount : 1;
+        const exato = Math.abs(diff) < 0.01;
+        const extratoMenor = diff < -0.01;
         const diffDays = Math.abs(new Date(st.date).getTime() - btTime) / 86400000;
 
         let score = 0;
@@ -239,13 +277,12 @@ function runMatchingEngine(
         if (score > bestScore) {
             bestScore = score;
             bestResult = { ...base, systemTransaction: st, score, method, label };
-            if (score >= 95) return bestResult; // early exit for perfect match
+            if (score >= 95) return bestResult;
         }
     }
 
     if (bestResult) return bestResult;
 
-    // ===== SEM MATCH =====
     return base;
 }
 
@@ -306,14 +343,24 @@ export function useConciliationEngine(
         return map;
     }, [chartAccounts]);
 
+    // Pré-computar índice de candidatos (particionado + ordenado por valor)
+    const candidateIndex = useMemo(() =>
+        buildCandidateIndex(systemTransactions || []),
+    [systemTransactions]);
+
+    // Pré-normalizar keywords das regras (evita normalizeText repetido)
+    const rulesNormalized = useMemo(() =>
+        (rules || []).map(r => (r.palavras_chave || []).map(kw => normalizeText(kw))),
+    [rules]);
+
     // Executar motor de matching para todas as transações pendentes
     const suggestions: MatchSuggestion[] = useMemo(() => {
         if (!bankTransactions?.length) return [];
 
         return bankTransactions.map(bt =>
-            runMatchingEngine(bt, systemTransactions || [], rules || [], accountMap)
+            runMatchingEngine(bt, candidateIndex, rules || [], accountMap, rulesNormalized)
         );
-    }, [bankTransactions, systemTransactions, rules, accountMap]);
+    }, [bankTransactions, candidateIndex, rules, accountMap, rulesNormalized]);
 
     // Score summary
     const scoreSummary = useMemo(() => {
