@@ -499,8 +499,9 @@ export default function Conciliacao() {
 
     const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
         matchTransaction.mutate({ bankTx: bt, sysTx });
-        // MEMORIZAÇÃO IMEDIATA: aprender regra com beneficiário
-        learnRule.mutate({ bankTx: bt });
+        // MEMORIZAÇÃO IMEDIATA: aprender regra com beneficiário + categoria + tipo + valor
+        const suggestion = suggestionMap.get(bt.id);
+        learnRule.mutate({ bankTx: bt, categoryId: suggestion?.accountId });
     };
 
     const handleCreateAndReconcile = async () => {

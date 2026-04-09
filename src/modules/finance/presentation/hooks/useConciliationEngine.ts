@@ -19,6 +19,8 @@ export interface ConciliationRule {
     recorrencia?: string;
     ativa: boolean;
     criada_em?: string;
+    tipo_transacao?: string | null;       // 'debit' | 'credit'
+    valor_referencia?: number | null;     // valor absoluto memorizado
 }
 
 export interface ChartAccount {
@@ -308,14 +310,26 @@ function runMatchingEngine(
     const candidates = bt.amount < 0 ? index.payable : index.receivable;
 
     // ===== CAMADA 0: Regras de palavras-chave (conciliation_rules) =====
+    const btTipo = bt.amount < 0 ? "debit" : "credit";
+
     for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
         if (!rule.ativa) continue;
+
+        // Filtrar por tipo de transação (débito/crédito) se a regra tem tipo definido
+        if (rule.tipo_transacao && rule.tipo_transacao !== btTipo) continue;
+
         const normKws = rulesNormalized[i];
         const hit = normKws.some(kw => descNorm.includes(kw));
         if (!hit) continue;
 
-        const confiancaScore = CONFIANCA_MAP[rule.confianca] || 50;
+        // Bonus de score se o valor bate com o memorizado (±5%)
+        let confiancaScore = CONFIANCA_MAP[rule.confianca] || 50;
+        if (rule.valor_referencia && rule.valor_referencia > 0) {
+            const ratio = Math.abs(absAmount - rule.valor_referencia) / rule.valor_referencia;
+            if (ratio < 0.01) confiancaScore = Math.max(confiancaScore, 95);       // valor exato
+            else if (ratio <= 0.05) confiancaScore = Math.max(confiancaScore, 90);  // ±5%
+        }
         const account = rule.account_id ? accountMap.get(rule.account_id) : null;
         const accountLabel = account ? `${account.code} ${account.name}` : "";
 
@@ -421,7 +435,7 @@ export function useConciliationEngine(
             if (!companyId) return [];
             const { data, error } = await (activeClient as any)
                 .from("conciliation_rules")
-                .select("id,company_id,account_id,palavras_chave,confianca,acao,recorrencia,ativa")
+                .select("id,company_id,account_id,palavras_chave,confianca,acao,recorrencia,ativa,tipo_transacao,valor_referencia")
                 .eq("company_id", companyId)
                 .eq("ativa", true);
             if (error) {
@@ -510,23 +524,31 @@ export function useConciliationEngine(
 
             const normalizedKws = keywords.map(k => normalizeText(k));
 
-            // Verificar se já existe regra com keywords similares E mesma conta
+            // Dados extras: tipo (debit/credit) e valor absoluto
+            const tipoTransacao = bankTx.amount < 0 ? "debit" : "credit";
+            const valorReferencia = Math.abs(bankTx.amount);
+
+            // Verificar se já existe regra com keywords similares
             const existingRules = rules || [];
             const existingMatch = existingRules.find(r => {
                 const ruleKws = (r.palavras_chave || []).map(k => normalizeText(k));
                 return normalizedKws.some(nk => ruleKws.some(rk => rk.includes(nk) || nk.includes(rk)));
             });
 
-            // Se existe regra similar mas com conta diferente, atualizar a conta
-            if (existingMatch && categoryId && existingMatch.account_id !== categoryId) {
-                await (activeClient as any)
-                    .from("conciliation_rules")
-                    .update({ account_id: categoryId })
-                    .eq("id", existingMatch.id);
+            // Se existe regra similar, atualizar conta + tipo + valor
+            if (existingMatch) {
+                const updates: Record<string, any> = {};
+                if (categoryId && existingMatch.account_id !== categoryId) updates.account_id = categoryId;
+                if (!(existingMatch as any).tipo_transacao) updates.tipo_transacao = tipoTransacao;
+                if (!(existingMatch as any).valor_referencia) updates.valor_referencia = valorReferencia;
+                if (Object.keys(updates).length > 0) {
+                    await (activeClient as any)
+                        .from("conciliation_rules")
+                        .update(updates)
+                        .eq("id", existingMatch.id);
+                }
                 return;
             }
-
-            if (existingMatch) return;
 
             // Determinar account_id: prioridade para categoryId explícito
             const accountId = categoryId || null;
@@ -540,6 +562,8 @@ export function useConciliationEngine(
                     confianca: "Alta",
                     acao: "sugerir",
                     ativa: true,
+                    tipo_transacao: tipoTransacao,
+                    valor_referencia: valorReferencia,
                 });
 
             if (error) {
