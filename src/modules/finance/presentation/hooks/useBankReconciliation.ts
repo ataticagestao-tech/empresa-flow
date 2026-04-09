@@ -380,21 +380,39 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             if (bankError) throw bankError;
 
         },
+        onMutate: async ({ bankTx }) => {
+            // Optimistic update: remover da lista imediatamente
+            await queryClient.cancelQueries({ queryKey: ['bank_transactions_pending', bankAccountId] });
+            const prev = queryClient.getQueryData<BankTransaction[]>(['bank_transactions_pending', bankAccountId]);
+            if (prev) {
+                queryClient.setQueryData(
+                    ['bank_transactions_pending', bankAccountId],
+                    prev.filter(t => t.id !== bankTx.id)
+                );
+            }
+            return { prev };
+        },
+        onError: (err: any, _vars, context) => {
+            // Rollback em caso de erro
+            if (context?.prev) {
+                queryClient.setQueryData(['bank_transactions_pending', bankAccountId], context.prev);
+            }
+            toast({ title: "Erro na conciliação", description: err.message, variant: "destructive" });
+        },
         onSuccess: () => {
             toast({ title: "Conciliado!", description: "Lançamento baixado com sucesso." });
-            // Invalidar apenas queries essenciais da conciliação
-            queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
-            queryClient.invalidateQueries({ queryKey: ['system_pending_transactions'] });
+            // Refetch forçado (ignora staleTime)
+            queryClient.refetchQueries({ queryKey: ['bank_transactions_pending', bankAccountId] });
+            queryClient.refetchQueries({ queryKey: ['system_pending_transactions'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['import_history'] });
+            queryClient.invalidateQueries({ queryKey: ['conciliation_rules'] });
             // Refresh MVs para alimentar DRE, Fluxo de Caixa, Multiempresas
             (activeClient as any).rpc('refresh_mvs_financeiras').then(() => {
                 queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
             });
-        },
-        onError: (err: any) => toast({ title: "Erro na conciliação", description: err.message, variant: "destructive" })
+        }
     });
 
     // Query: Histórico de importações com período
