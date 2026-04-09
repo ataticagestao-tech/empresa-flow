@@ -3,7 +3,7 @@ import { useState, useRef, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { useBankReconciliation, SystemTransaction } from "@/modules/finance/presentation/hooks/useBankReconciliation";
-import { useConciliationEngine, MatchSuggestion } from "@/modules/finance/presentation/hooks/useConciliationEngine";
+import { useConciliationEngine, MatchSuggestion, RuleConflict } from "@/modules/finance/presentation/hooks/useConciliationEngine";
 import { useDefaultConciliationRules } from "@/modules/finance/presentation/hooks/useDefaultConciliationRules";
 import { useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -83,6 +83,7 @@ export default function Conciliacao() {
     const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; success: number; failed: number } | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
     const PAGE_SIZE = 100;
+    const [ruleConflict, setRuleConflict] = useState<RuleConflict | null>(null);
 
     const { activeClient, user } = useAuth();
     const { selectedCompany } = useCompany();
@@ -497,11 +498,12 @@ export default function Conciliacao() {
         if (e.target) e.target.value = "";
     };
 
-    const handleMatch = (bt: BankTransaction, sysTx: SystemTransaction) => {
+    const handleMatch = async (bt: BankTransaction, sysTx: SystemTransaction) => {
         matchTransaction.mutate({ bankTx: bt, sysTx });
-        // MEMORIZAÇÃO IMEDIATA: aprender regra com beneficiário + categoria + tipo + valor
+        // MEMORIZAÇÃO: aprender regra + detectar conflito
         const suggestion = suggestionMap.get(bt.id);
-        learnRule.mutate({ bankTx: bt, categoryId: suggestion?.accountId });
+        const conflict = await learnRule.mutateAsync({ bankTx: bt, categoryId: suggestion?.accountId });
+        if (conflict) setRuleConflict(conflict);
     };
 
     const handleCreateAndReconcile = async () => {
@@ -569,8 +571,9 @@ export default function Conciliacao() {
             }
 
             matchTransaction.mutate({ bankTx: selectedBankTx, sysTx });
-            // MEMORIZAÇÃO IMEDIATA: beneficiário → categoria selecionada
-            learnRule.mutate({ bankTx: selectedBankTx, categoryId: newEntry.category_id || undefined });
+            // MEMORIZAÇÃO: beneficiário → categoria selecionada + detectar conflito
+            const conflict = await learnRule.mutateAsync({ bankTx: selectedBankTx, categoryId: newEntry.category_id || undefined });
+            if (conflict) setRuleConflict(conflict);
 
             toast({ title: "Sucesso", description: `${isExpense ? "Despesa" : "Receita"} criada e conciliada!` });
             setSelectedBankTx(null);
@@ -642,13 +645,9 @@ export default function Conciliacao() {
             setBatchProgress({ total, done: Math.min(i + batchSize, total), success: totalSuccess, failed: totalFailed });
         }
 
-        // Aprender regras únicas (deduplica por accountId)
-        const learnedAccounts = new Set<string>();
+        // Aprender regra para CADA transação (descrição + tipo + valor + categoria)
         for (const s of toApprove) {
-            if (s.accountId && !learnedAccounts.has(s.accountId)) {
-                learnedAccounts.add(s.accountId);
-                learnRule.mutate({ bankTx: s.bankTransaction, categoryId: s.accountId });
-            }
+            learnRule.mutate({ bankTx: s.bankTransaction, categoryId: s.accountId || undefined });
         }
 
         setSelectedIds(new Set());
@@ -1874,6 +1873,57 @@ export default function Conciliacao() {
                     </DialogContent>
                 </Dialog>
             </div>
+
+            {/* Pop-up de Conflito de Regra */}
+            <Dialog open={!!ruleConflict} onOpenChange={(open) => { if (!open) setRuleConflict(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <HelpCircle className="h-5 w-5 text-amber-500" />
+                            Padrão diferente detectado
+                        </DialogTitle>
+                        <DialogDescription>
+                            A IA aprendeu uma categoria para essa descrição, mas você escolheu outra. Qual deseja manter?
+                        </DialogDescription>
+                    </DialogHeader>
+                    {ruleConflict && (
+                        <div className="space-y-4">
+                            <div className="bg-slate-50 p-3 rounded-lg text-sm">
+                                <p className="font-medium text-foreground mb-1">Descrição:</p>
+                                <p className="text-muted-foreground">{ruleConflict.bankTx.description}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3 border-slate-200"
+                                    onClick={() => { setRuleConflict(null); }}>
+                                    <BookOpen className="h-4 w-4 text-slate-500 shrink-0" />
+                                    <div className="text-left">
+                                        <p className="font-medium text-sm">Manter regra atual</p>
+                                        <p className="text-xs text-muted-foreground">{ruleConflict.existingAccountName}</p>
+                                    </div>
+                                </Button>
+
+                                <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3 border-blue-200 bg-blue-50 hover:bg-blue-100"
+                                    onClick={async () => {
+                                        await learnRule.mutateAsync({
+                                            bankTx: ruleConflict.bankTx,
+                                            categoryId: ruleConflict.newCategoryId,
+                                            forceUpdate: true,
+                                        });
+                                        toast({ title: "Regra atualizada", description: `Padrão "${ruleConflict.keywords[0]}" agora aponta para ${ruleConflict.newAccountName}` });
+                                        setRuleConflict(null);
+                                    }}>
+                                    <Brain className="h-4 w-4 text-blue-500 shrink-0" />
+                                    <div className="text-left">
+                                        <p className="font-medium text-sm">Atualizar para a nova</p>
+                                        <p className="text-xs text-blue-600">{ruleConflict.newAccountName}</p>
+                                    </div>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

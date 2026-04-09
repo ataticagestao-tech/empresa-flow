@@ -46,6 +46,15 @@ export interface MatchSuggestion {
 
 export type ScoreBucket = "auto" | "suggested" | "review" | "total";
 
+export interface RuleConflict {
+    existingRule: ConciliationRule;
+    existingAccountName: string;
+    newCategoryId: string;
+    newAccountName: string;
+    bankTx: BankTransaction;
+    keywords: string[];
+}
+
 const CONFIANCA_MAP: Record<string, number> = { "Alta": 95, "Média": 70, "Baixa": 50 };
 
 // ============================================================
@@ -500,31 +509,31 @@ export function useConciliationEngine(
 
     // ============================================================
     // MEMORIZAÇÃO: Aprender regra quando user concilia manualmente
-    // Extrai o nome do beneficiário da descrição e associa à conta
+    // Retorna conflito se mesma descrição → categoria diferente
     // ============================================================
+
     const learnRule = useMutation({
         mutationFn: async ({
             bankTx,
             sysTx,
             categoryId,
+            forceUpdate,
         }: {
             bankTx: BankTransaction;
             sysTx?: SystemTransaction;
             categoryId?: string;
-        }) => {
-            if (!companyId) return;
+            forceUpdate?: boolean;  // pular pop-up e atualizar direto
+        }): Promise<RuleConflict | null> => {
+            if (!companyId) return null;
 
             const description = bankTx.description || "";
             const memo = (bankTx as any).memo || "";
             const fullText = `${description} ${memo}`;
             const keywords = extractKeywordsForRule(fullText);
 
-            // Não criar regra se não conseguimos extrair keywords
-            if (keywords.length === 0) return;
+            if (keywords.length === 0) return null;
 
             const normalizedKws = keywords.map(k => normalizeText(k));
-
-            // Dados extras: tipo (debit/credit) e valor absoluto
             const tipoTransacao = bankTx.amount < 0 ? "debit" : "credit";
             const valorReferencia = Math.abs(bankTx.amount);
 
@@ -535,29 +544,41 @@ export function useConciliationEngine(
                 return normalizedKws.some(nk => ruleKws.some(rk => rk.includes(nk) || nk.includes(rk)));
             });
 
-            // Se existe regra similar, atualizar conta + tipo + valor
             if (existingMatch) {
+                // CONFLITO: mesma descrição aponta para categoria diferente
+                if (categoryId && existingMatch.account_id && existingMatch.account_id !== categoryId && !forceUpdate) {
+                    const existingAcc = accountMap.get(existingMatch.account_id);
+                    const newAcc = accountMap.get(categoryId);
+                    return {
+                        existingRule: existingMatch,
+                        existingAccountName: existingAcc ? `${existingAcc.code} ${existingAcc.name}` : "Categoria anterior",
+                        newCategoryId: categoryId,
+                        newAccountName: newAcc ? `${newAcc.code} ${newAcc.name}` : "Nova categoria",
+                        bankTx,
+                        keywords: normalizedKws,
+                    };
+                }
+
+                // Atualizar regra existente (sem conflito ou forceUpdate)
                 const updates: Record<string, any> = {};
                 if (categoryId && existingMatch.account_id !== categoryId) updates.account_id = categoryId;
-                if (!(existingMatch as any).tipo_transacao) updates.tipo_transacao = tipoTransacao;
-                if (!(existingMatch as any).valor_referencia) updates.valor_referencia = valorReferencia;
+                if (!existingMatch.tipo_transacao) updates.tipo_transacao = tipoTransacao;
+                if (!existingMatch.valor_referencia) updates.valor_referencia = valorReferencia;
                 if (Object.keys(updates).length > 0) {
                     await (activeClient as any)
                         .from("conciliation_rules")
                         .update(updates)
                         .eq("id", existingMatch.id);
                 }
-                return;
+                return null;
             }
 
-            // Determinar account_id: prioridade para categoryId explícito
-            const accountId = categoryId || null;
-
+            // Nova regra
             const { error } = await (activeClient as any)
                 .from("conciliation_rules")
                 .insert({
                     company_id: companyId,
-                    account_id: accountId,
+                    account_id: categoryId || null,
                     palavras_chave: normalizedKws,
                     confianca: "Alta",
                     acao: "sugerir",
@@ -566,9 +587,8 @@ export function useConciliationEngine(
                     valor_referencia: valorReferencia,
                 });
 
-            if (error) {
-                console.error("Error saving conciliation rule:", error);
-            }
+            if (error) console.error("Error saving conciliation rule:", error);
+            return null;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["conciliation_rules"] });
