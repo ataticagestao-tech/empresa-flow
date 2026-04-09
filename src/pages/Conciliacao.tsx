@@ -84,6 +84,8 @@ export default function Conciliacao() {
     const [currentPage, setCurrentPage] = useState(0);
     const PAGE_SIZE = 100;
     const [ruleConflict, setRuleConflict] = useState<RuleConflict | null>(null);
+    const [expandedAiRow, setExpandedAiRow] = useState<string | null>(null);
+    const [inlineConciling, setInlineConciling] = useState<string | null>(null);
 
     const { activeClient, user } = useAuth();
     const { selectedCompany } = useCompany();
@@ -496,6 +498,55 @@ export default function Conciliacao() {
         const file = e.target.files?.[0];
         if (file) uploadExcel.mutate(file);
         if (e.target) e.target.value = "";
+    };
+
+    // Conciliar inline — cria CP/CR e concilia sem abrir dialog
+    const handleInlineConcile = async (bt: BankTransaction, accountId: string, accountLabel: string) => {
+        if (!selectedCompany?.id || inlineConciling) return;
+        setInlineConciling(bt.id);
+        try {
+            const isExpense = bt.amount < 0;
+            const table = isExpense ? "contas_pagar" : "contas_receber";
+            const nameCol = isExpense ? "credor_nome" : "pagador_nome";
+            const amount = Math.abs(bt.amount);
+
+            const payload: Record<string, any> = {
+                company_id: selectedCompany.id,
+                [nameCol]: bt.description || "Conciliação automática",
+                valor: amount,
+                data_vencimento: bt.date,
+                status: "aberto",
+                conta_contabil_id: accountId,
+            };
+            if ((bt as any).unidade_destino_id) payload.unidade_destino_id = (bt as any).unidade_destino_id;
+
+            const { data: created, error: createError } = await (activeClient as any)
+                .from(table).insert(payload)
+                .select(`id, ${nameCol}, valor, data_vencimento, status`).single();
+            if (createError) throw createError;
+
+            const sysTx: SystemTransaction = {
+                id: created.id,
+                type: isExpense ? "payable" : "receivable",
+                description: created[nameCol] || '',
+                amount: Number(created.valor || 0),
+                date: created.data_vencimento,
+                status: created.status,
+                entity_name: "Conciliação direta",
+                original_table_id: created.id,
+            };
+
+            matchTransaction.mutate({ bankTx: bt, sysTx });
+            const conflict = await learnRule.mutateAsync({ bankTx: bt, categoryId: accountId });
+            if (conflict) setRuleConflict(conflict);
+
+            toast({ title: "Conciliado", description: `${accountLabel}` });
+            setExpandedAiRow(null);
+        } catch (err: any) {
+            toast({ title: "Erro", description: err.message, variant: "destructive" });
+        } finally {
+            setInlineConciling(null);
+        }
     };
 
     const handleMatch = async (bt: BankTransaction, sysTx: SystemTransaction) => {
@@ -1495,13 +1546,42 @@ export default function Conciliacao() {
                                                                         {suggestion?.method !== "rule" && <>Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</>}
                                                                     </span>
                                                                 </div>
-                                                            ) : suggestion?.method === "ai_category" && suggestion?.label ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <Brain className="h-3 w-3 text-blue-500" />
-                                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs gap-1">
-                                                                        <Bot className="h-3 w-3" />
-                                                                        IA sugere: {suggestion.label}
-                                                                    </Badge>
+                                                            ) : suggestion?.method === "ai_category" && suggestion?.accountId ? (
+                                                                <div className="flex flex-col gap-1 items-start">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="bg-blue-50 text-blue-700 border-blue-200 text-xs gap-1 cursor-pointer hover:bg-blue-100"
+                                                                            onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}
+                                                                        >
+                                                                            <Bot className="h-3 w-3" />
+                                                                            {suggestion.label}
+                                                                        </Badge>
+                                                                        {suggestion.aiAlternatives && suggestion.aiAlternatives.length > 0 && (
+                                                                            <button
+                                                                                className="p-0.5 rounded hover:bg-slate-100 transition-colors"
+                                                                                onClick={() => setExpandedAiRow(expandedAiRow === bt.id ? null : bt.id)}
+                                                                            >
+                                                                                {expandedAiRow === bt.id
+                                                                                    ? <ChevronUp className="h-3.5 w-3.5 text-blue-500" />
+                                                                                    : <ChevronDown className="h-3.5 w-3.5 text-blue-500" />}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                    {expandedAiRow === bt.id && suggestion.aiAlternatives?.map(alt => (
+                                                                        <Badge
+                                                                            key={alt.accountId}
+                                                                            variant="outline"
+                                                                            className="bg-slate-50 text-slate-600 border-slate-200 text-xs gap-1 cursor-pointer hover:bg-slate-100"
+                                                                            onClick={() => handleInlineConcile(bt, alt.accountId, alt.label)}
+                                                                        >
+                                                                            <Bot className="h-3 w-3" />
+                                                                            {alt.label}
+                                                                        </Badge>
+                                                                    ))}
+                                                                    <span className="text-[10px] text-blue-500 flex items-center gap-0.5">
+                                                                        <Brain className="h-3 w-3" /> IA sugere
+                                                                    </span>
                                                                 </div>
                                                             ) : suggestion?.method === "rule" && suggestion?.label ? (
                                                                 <div className="flex items-center gap-1">
@@ -1521,6 +1601,14 @@ export default function Conciliacao() {
                                                                     <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                                                                         onClick={() => handleMatch(bt, bestMatch)}>
                                                                         Aceitar
+                                                                    </Button>
+                                                                )}
+                                                                {!bestMatch && suggestion?.accountId && (
+                                                                    <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                                                                        disabled={inlineConciling === bt.id}
+                                                                        onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}>
+                                                                        {inlineConciling === bt.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                                                        Conciliar
                                                                     </Button>
                                                                 )}
                                                                 <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"

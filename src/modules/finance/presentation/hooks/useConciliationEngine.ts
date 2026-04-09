@@ -31,17 +31,26 @@ export interface ChartAccount {
     account_nature: string;
 }
 
+export interface AiAlternative {
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    label: string;
+    score: number;
+}
+
 export interface MatchSuggestion {
     bankTransaction: BankTransaction;
     systemTransaction: SystemTransaction | null;
     score: number;           // 0-100
-    method: string;          // 'rule', 'exact_amount_date', 'exact_amount', 'fuzzy', 'none'
+    method: string;          // 'rule', 'exact_amount_date', 'exact_amount', 'fuzzy', 'none', 'ai_category'
     ruleId?: string;
     ruleName?: string;
     accountId?: string;      // chart_of_accounts id sugerido pela regra
     accountCode?: string;
     accountName?: string;
     label: string;           // Display label
+    aiAlternatives?: AiAlternative[];  // outras opções da IA
 }
 
 export type ScoreBucket = "auto" | "suggested" | "review" | "total";
@@ -204,12 +213,20 @@ const KEYWORD_TO_CATEGORY: Array<{ keywords: string[]; categoryFragments: string
     { keywords: ["BOLETO", "BOL ", "PAG TITULO", "PAGAMENTO", "PAG ", "PGTO", "LIQUID"], categoryFragments: ["fornecedor", "pagamento", "despesa"] },
 ];
 
+interface AiCategoryMatch {
+    account: ChartAccount;
+    score: number;
+    matchedKeywords: string[];
+}
+
 function matchCategoryByKeywords(
     descNorm: string,
     accounts: ChartAccount[],
     filterNature?: string,
-): { account: ChartAccount; score: number; matchedKeywords: string[] } | null {
-    let bestResult: { account: ChartAccount; score: number; matchedKeywords: string[] } | null = null;
+    topN = 1,
+): AiCategoryMatch[] {
+    const results: AiCategoryMatch[] = [];
+    const seenAccountIds = new Set<string>();
 
     for (const rule of KEYWORD_TO_CATEGORY) {
         const matched: string[] = [];
@@ -222,7 +239,6 @@ function matchCategoryByKeywords(
         }
         if (kwScore === 0) continue;
 
-        // Find best matching account by name fragments
         const normalizedFragments = rule.categoryFragments.map(f =>
             f.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
         );
@@ -243,12 +259,14 @@ function matchCategoryByKeywords(
             }
         }
 
-        if (bestAccount && kwScore > (bestResult?.score || 0)) {
-            bestResult = { account: bestAccount, score: kwScore, matchedKeywords: matched };
+        if (bestAccount && !seenAccountIds.has(bestAccount.id)) {
+            seenAccountIds.add(bestAccount.id);
+            results.push({ account: bestAccount, score: kwScore, matchedKeywords: matched });
         }
     }
 
-    return bestResult;
+    results.sort((a, b) => b.score - a.score);
+    return results.slice(0, topN);
 }
 
 // ============================================================
@@ -403,20 +421,30 @@ function runMatchingEngine(
 
     if (bestResult) return bestResult;
 
-    // ===== FALLBACK: IA SUGERE — matching por keywords genéricas =====
-    // Tenta com filtro de natureza primeiro; se não achar, busca sem filtro
+    // ===== FALLBACK: IA SUGERE — matching por keywords genéricas (top 3) =====
     const filterNature = bt.amount < 0 ? "debit" : "credit";
-    const aiMatch = matchCategoryByKeywords(descNorm, allAccounts, filterNature)
-        || matchCategoryByKeywords(descNorm, allAccounts);
-    if (aiMatch) {
+    let aiMatches = matchCategoryByKeywords(descNorm, allAccounts, filterNature, 3);
+    if (aiMatches.length === 0) aiMatches = matchCategoryByKeywords(descNorm, allAccounts, undefined, 3);
+
+    if (aiMatches.length > 0) {
+        const best = aiMatches[0];
+        const alternatives: AiAlternative[] = aiMatches.slice(1).map(m => ({
+            accountId: m.account.id,
+            accountCode: m.account.code,
+            accountName: m.account.name,
+            label: `${m.account.code} ${m.account.name}`,
+            score: Math.min(m.score * 10, 90),
+        }));
+
         return {
             ...base,
-            score: Math.min(aiMatch.score * 10, 95), // score proporcional ao match
+            score: Math.min(best.score * 10, 95),
             method: "ai_category",
-            accountId: aiMatch.account.id,
-            accountCode: aiMatch.account.code,
-            accountName: aiMatch.account.name,
-            label: `${aiMatch.account.code} ${aiMatch.account.name}`,
+            accountId: best.account.id,
+            accountCode: best.account.code,
+            accountName: best.account.name,
+            label: `${best.account.code} ${best.account.name}`,
+            aiAlternatives: alternatives.length > 0 ? alternatives : undefined,
         };
     }
 
