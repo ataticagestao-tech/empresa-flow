@@ -192,11 +192,10 @@ export default function Funcionarios() {
 
   const validate = () => {
     const errs: Record<string, boolean> = {};
-    if (!formData.name.trim()) errs.name = true;
     if (formData.cpf.trim() && formData.cpf.replace(/\D/g, "").length < 11) errs.cpf = true;
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      toast.error(errs.name ? "Preencha o nome do funcionário" : "CPF inválido");
+      toast.error("CPF inválido");
       return false;
     }
     return true;
@@ -435,7 +434,7 @@ export default function Funcionarios() {
                     <div className="flex flex-col gap-1">
                       <label className={LB}>Status</label>
                       <select value={formData.status} onChange={e => set("status", e.target.value)} className={`${IC} max-w-[200px]`}>
-                        <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
+                        <option value="ativo">Ativo</option><option value="inativo">Inativo</option><option value="ferias">Férias</option><option value="afastado">Afastado</option><option value="demitido">Demitido</option>
                       </select>
                     </div>
                     <button onClick={handleSave} disabled={saving} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
