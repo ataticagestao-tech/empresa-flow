@@ -36,7 +36,7 @@ export function AppHeader({ title }: AppHeaderProps) {
       )}
 
       {title && (
-        <h1 className="text-[11px] sm:text-[13px] font-semibold text-white truncate min-w-0">{title}</h1>
+        <h1 className="text-[12px] sm:text-[13px] font-semibold text-white truncate min-w-0">{title}</h1>
       )}
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -51,7 +51,7 @@ export function AppHeader({ title }: AppHeaderProps) {
 
         <div className="relative flex items-center">
           <Avatar className="h-[32px] w-[32px]">
-            <AvatarFallback className="bg-[#2563EB] text-white text-[11px] font-semibold tracking-wide">
+            <AvatarFallback className="bg-[#2563EB] text-white text-[12px] font-semibold tracking-wide">
               {user?.email ? getInitials(user.email) : "US"}
             </AvatarFallback>
           </Avatar>

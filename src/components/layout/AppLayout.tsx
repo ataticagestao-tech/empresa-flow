@@ -35,9 +35,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="!min-h-0 h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="!min-h-0 h-svh overflow-hidden">
         <AppHeader title={title} />
         <main id="app-scroll-container" className="flex-1 min-w-0 p-3 sm:p-5 md:px-8 md:py-7 overflow-auto overflow-x-hidden">
           {children}

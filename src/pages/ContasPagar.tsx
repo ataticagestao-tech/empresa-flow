@@ -768,9 +768,9 @@ export default function ContasPagar() {
     badgeText?: string
   }) => (
     <div className="rounded-[10px] overflow-hidden bg-white" style={{ border: '1px solid rgba(26,46,74,0.10)', boxShadow: '0 1px 3px rgba(26,46,74,0.04)' }}>
-      <div style={{ height: 3, background: `linear-gradient(90deg, ${headerBg}, ${headerBg}cc)` }} />
+      <div style={{ height: 3, background: headerBg }} />
       <div className="px-4 py-4">
-        <p className="font-semibold uppercase tracking-wider mb-2" style={{ fontSize: '10.5px', color: '#7a8fa8', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>{label}</p>
+        <p className="font-semibold uppercase tracking-wider mb-2" style={{ fontSize: '12px', color: '#7a8fa8', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>{label}</p>
         <p className="font-bold mb-0.5" style={{ fontSize: 22, color: '#0f1e33', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>{formatBRL(value)}</p>
         <p style={{ fontSize: 12, color: '#7a8fa8', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{subtitle}</p>
       </div>
@@ -1014,11 +1014,11 @@ export default function ContasPagar() {
                       {(group === 'hoje' || group === 'vencidos') && (
                         <AlertTriangle size={14} style={{ color: config.textColor }} />
                       )}
-                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: '10.5px', color: config.textColor, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>
+                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: '12px', color: config.textColor, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>
                         {config.label} — {todayStr}
                       </span>
                     </div>
-                    <span className="font-bold" style={{ fontSize: '10.5px', color: config.textColor, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span className="font-bold" style={{ fontSize: '12px', color: config.textColor, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>
                       {formatBRL(groupTotal)} · {items.length} titulo{items.length !== 1 ? 's' : ''}
                     </span>
                   </button>
@@ -1048,13 +1048,13 @@ export default function ContasPagar() {
                                 style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                               />
                             </th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Credor</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
-                            <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Centro de custo</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Status</th>
-                            <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '10.5px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Acoes</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Credor</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
+                            <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Centro de custo</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Status</th>
+                            <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#7a8fa8', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Acoes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1091,7 +1091,7 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 <td className="py-3 px-3">
-                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '10.5px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#4a5e7a', border: '1px solid rgba(26,46,74,0.08)' }}>
+                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#4a5e7a', border: '1px solid rgba(26,46,74,0.08)' }}>
                                     {categoria}
                                   </span>
                                 </td>
@@ -1127,7 +1127,7 @@ export default function ContasPagar() {
                                     return (
                                       <span
                                         className="inline-flex items-center gap-1.5 font-semibold px-2.5 py-1 rounded-full"
-                                        style={{ fontSize: '10.5px', color: sc.text, backgroundColor: sc.bg }}
+                                        style={{ fontSize: '12px', color: sc.text, backgroundColor: sc.bg }}
                                       >
                                         <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: sc.dot, flexShrink: 0 }} />
                                         {sc.label}

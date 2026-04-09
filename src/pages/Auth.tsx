@@ -124,8 +124,8 @@ export default function Auth() {
           </div>
           {isRecoveryFlow ? (
             <form onSubmit={handleResetPassword} className="space-y-5">
-              <div className="space-y-2"><Label htmlFor="rp" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Nova senha</Label><Input id="rp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required className={ic} /></div>
-              <div className="space-y-2"><Label htmlFor="rc" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="rc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} required className={ic} /></div>
+              <div className="space-y-2"><Label htmlFor="rp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nova senha</Label><Input id="rp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} required className={ic} /></div>
+              <div className="space-y-2"><Label htmlFor="rc" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="rc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} required className={ic} /></div>
               <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]" disabled={isLoading}>{isLoading ? "Atualizando..." : "Atualizar senha"}</Button>
             </form>
           ) : (
@@ -136,17 +136,17 @@ export default function Auth() {
               </TabsList>
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2"><Label htmlFor="le" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Email</Label><Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><Input id="lp" type="password" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="le" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label><Input id="le" type="email" autoComplete="email" placeholder="seu@empresa.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><div className="flex justify-between items-center"><Label htmlFor="lp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium" onClick={handleForgotPassword}>Esqueci minha senha</button></div><Input id="lp" type="password" autoComplete="current-password" placeholder="Min. 6 caracteres" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required className={ic} /></div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Entrando..." : "Entrar"}</Button>
                 </form>
               </TabsContent>
               <TabsContent value="signup">
                 <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2"><Label htmlFor="sn" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Nome completo</Label><Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="se" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Email</Label><Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sp" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Senha</Label><Input id="sp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required className={ic} /></div>
-                  <div className="space-y-2"><Label htmlFor="sc" className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="sc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sn" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nome completo</Label><Input id="sn" type="text" placeholder="Seu nome" value={signupFullName} onChange={(e) => setSignupFullName(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="se" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Email</Label><Input id="se" type="email" autoComplete="email" placeholder="seu@email.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label><Input id="sp" type="password" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required className={ic} /></div>
+                  <div className="space-y-2"><Label htmlFor="sc" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Confirmar senha</Label><Input id="sc" type="password" autoComplete="new-password" placeholder="Repita a senha" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required className={ic} /></div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Criando conta..." : "Criar conta"}</Button>
                 </form>
               </TabsContent>
@@ -156,7 +156,7 @@ export default function Auth() {
       </div>
 
       {/* Right: Blue Panel */}
-      <div className="hidden lg:flex w-[460px] shrink-0 bg-gradient-to-br from-[#1E40AF] to-[#2563EB] items-center justify-center p-14">
+      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#1E40AF] items-center justify-center p-14">
         <div className="w-full">
           <p className="text-[18px] font-medium text-white/90 leading-relaxed tracking-tight mb-8">
             Gerencie seu negócio com inteligência. Plataforma completa para gestão financeira.
@@ -164,15 +164,15 @@ export default function Auth() {
           <div className="flex gap-8 flex-wrap">
             <div>
               <p className="text-[28px] font-bold text-white tracking-tight">+200</p>
-              <p className="text-[11.5px] text-white/60 mt-0.5">Empresas geridas</p>
+              <p className="text-[12px] text-white/60 mt-0.5">Empresas geridas</p>
             </div>
             <div>
               <p className="text-[28px] font-bold text-white tracking-tight">99.9%</p>
-              <p className="text-[11.5px] text-white/60 mt-0.5">Uptime garantido</p>
+              <p className="text-[12px] text-white/60 mt-0.5">Uptime garantido</p>
             </div>
             <div>
               <p className="text-[28px] font-bold text-white tracking-tight">24/7</p>
-              <p className="text-[11.5px] text-white/60 mt-0.5">Suporte ativo</p>
+              <p className="text-[12px] text-white/60 mt-0.5">Suporte ativo</p>
             </div>
           </div>
         </div>

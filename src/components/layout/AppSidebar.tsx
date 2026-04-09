@@ -23,7 +23,6 @@ export function AppSidebar() {
   const { signOut } = useAuth();
   const { isSuperAdmin } = useAdmin();
   const { t } = useTranslation();
-
   const isActive = (url?: string) => (url ? location.pathname === url : false);
 
   const handleMenuAction = (item: { action?: "logout" | "none" }) => {

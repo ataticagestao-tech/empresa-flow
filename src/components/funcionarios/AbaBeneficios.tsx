@@ -24,7 +24,7 @@ interface Props {
   usuarioId: string;
 }
 
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
+const LB = "text-[12px] font-bold uppercase tracking-wider text-[#0a0a0a]";
 const IC_EDIT = "border border-[#1a2e4a] rounded-md px-3 py-2 text-[13px] text-[#1a2e4a] bg-white focus:outline-none w-full";
 const IC_RO = "border border-[#1a2e4a] rounded-md px-3 py-2 text-[13px] bg-[#f0f4f8] text-[#1a2e4a] font-bold w-full";
 const IC_POS = "border border-[#0a5c2e] rounded-md px-3 py-2 text-[13px] bg-[#e6f4ec] text-[#0a5c2e] font-bold w-full";
@@ -170,10 +170,10 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
 
       {/* Calendário */}
       <div className="border border-[#ccc] rounded-lg p-4">
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-3">
+        <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-3">
           Calendário — {MESES[mes - 1]} {ano}
         </h4>
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wider text-[#555] mb-1">
+        <div className="grid grid-cols-7 gap-1 text-center text-[12px] font-bold uppercase tracking-wider text-[#555] mb-1">
           {DIAS_SEMANA.map((d) => <div key={d}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -182,7 +182,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             <div
               key={d.data}
               onClick={() => toggleDiaManual(d.data, d.tipo)}
-              className={`rounded text-center text-[11px] py-1 ${diaClasse(d.tipo)} ${
+              className={`rounded text-center text-[12px] py-1 ${diaClasse(d.tipo)} ${
                 regime === "manual" && d.tipo !== "feriado" ? "cursor-pointer hover:ring-2 hover:ring-[#1a2e4a]" : ""
               }`}
             >
@@ -190,13 +190,13 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             </div>
           ))}
         </div>
-        <div className="flex gap-4 mt-3 text-[10px]">
+        <div className="flex gap-4 mt-3 text-[12px]">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#e6f4ec] border border-[#0a5c2e]" /> Útil</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#f5f5f5]" /> FDS</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#fdecea] border border-[#8b0000]" /> Feriado</span>
         </div>
         {regime === "manual" && (
-          <p className="text-[10px] text-[#555] mt-2">Clique nos dias para marcar/desmarcar como dia útil.</p>
+          <p className="text-[12px] text-[#555] mt-2">Clique nos dias para marcar/desmarcar como dia útil.</p>
         )}
       </div>
 
@@ -205,8 +205,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         {/* VT */}
         <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a]">Vale Transporte</h4>
-            <label className="flex items-center gap-2 text-[11px]">
+            <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1a2e4a]">Vale Transporte</h4>
+            <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={vtAtivo} onChange={(e) => setVtAtivo(e.target.checked)} />
               Ativo
             </label>
@@ -240,8 +240,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         {/* VA */}
         <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a]">Vale Alimentação</h4>
-            <label className="flex items-center gap-2 text-[11px]">
+            <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1a2e4a]">Vale Alimentação</h4>
+            <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={vaAtivo} onChange={(e) => setVaAtivo(e.target.checked)} />
               Ativo
             </label>
@@ -258,7 +258,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       {/* Salvar config */}
       <div className="flex justify-end">
         <button onClick={handleSalvarConfig} disabled={salvando}
-          className="bg-[#1a2e4a] text-white text-[11px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#0f1e33] disabled:opacity-50 transition-all">
+          className="bg-[#1a2e4a] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#0f1e33] disabled:opacity-50 transition-all">
           {salvando ? "Salvando..." : "Salvar Configuração"}
         </button>
       </div>
@@ -266,7 +266,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       {/* Dias + Resumo */}
       <div className="grid grid-cols-[1fr_2fr] gap-6">
         <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a]">Dias do Mês</h4>
+          <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1a2e4a]">Dias do Mês</h4>
           <div className="flex flex-col gap-1">
             <label className={LB}>Dias úteis</label>
             <input readOnly value={diasUteis} className={IC_RO} />
@@ -284,7 +284,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         </div>
 
         <div className="border-2 border-[#1a2e4a] rounded-lg p-4">
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-4">Resumo — {competencia}</h4>
+          <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-4">Resumo — {competencia}</h4>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <div className="flex justify-between"><span className="text-[#555]">VT Bruto</span><span className="font-semibold">{formatBRL(resultado.vtBruto)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VA Total</span><span className="font-semibold">{formatBRL(resultado.vaTotal)}</span></div>
@@ -320,13 +320,13 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       {/* Botão confirmar */}
       <div className="flex justify-end">
         {jaConfirmado ? (
-          <span className="text-[11px] font-bold text-[#0a5c2e] bg-[#e6f4ec] px-5 py-2 rounded border border-[#0a5c2e]">
+          <span className="text-[12px] font-bold text-[#0a5c2e] bg-[#e6f4ec] px-5 py-2 rounded border border-[#0a5c2e]">
             Competência {competencia} já confirmada
           </span>
         ) : (
           <button onClick={handleConfirmar}
             disabled={resultado.totalCustoEmpresa === 0 || confirmando}
-            className="bg-[#0a5c2e] text-white text-[11px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#07401f] disabled:opacity-50 transition-all">
+            className="bg-[#0a5c2e] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#07401f] disabled:opacity-50 transition-all">
             {confirmando ? "Gerando CPs..." : "Confirmar e gerar CPs →"}
           </button>
         )}
@@ -334,7 +334,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
 
       {/* Histórico */}
       <div className="border border-[#ccc] rounded-lg p-4">
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-3">Histórico de Lançamentos</h4>
+        <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-3">Histórico de Lançamentos</h4>
         {loadingHist ? (
           <p className="text-sm text-[#555]">Carregando...</p>
         ) : historico.length === 0 ? (
@@ -343,7 +343,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
-                <tr className="border-b border-[#ccc] text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                <tr className="border-b border-[#ccc] text-[12px] font-bold uppercase tracking-wider text-[#555]">
                   <th className="text-left py-2 px-2">Competência</th>
                   <th className="text-right py-2 px-2">Dias</th>
                   <th className="text-right py-2 px-2">VT Bruto</th>

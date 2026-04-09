@@ -615,18 +615,18 @@ export default function Clientes() {
                                                         {toTitleCase(client.razao_social)}
                                                     </span>
                                                     {hasOverdue && (
-                                                        <span className="text-[11px] font-bold text-[#8b0000] whitespace-nowrap">
+                                                        <span className="text-[12px] font-bold text-[#8b0000] whitespace-nowrap">
                                                             {formatBRL(fin.totalReceberVencido)} em aberto
                                                         </span>
                                                     )}
                                                     {!hasOverdue && hasOpen && (
-                                                        <span className="text-[11px] font-bold text-[#1a2e4a] whitespace-nowrap">
+                                                        <span className="text-[12px] font-bold text-[#1a2e4a] whitespace-nowrap">
                                                             {formatBRL(fin.totalReceberAberto)} a receber
                                                         </span>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center justify-between gap-2 mt-1">
-                                                    <span className="text-[11px] text-[#888]">
+                                                    <span className="text-[12px] text-[#888]">
                                                         {client.cpf_cnpj ? (formatDoc(client.cpf_cnpj).length > 14 ? "CNPJ: " : "CPF: ") : ""}
                                                         {formatDoc(client.cpf_cnpj)}
                                                     </span>
@@ -813,7 +813,7 @@ export default function Clientes() {
                                                                 <div className="text-[13px] font-semibold text-[#0a0a0a] truncate">
                                                                     {crDescription(cr)}
                                                                 </div>
-                                                                <div className="text-[11px] text-[#888] mt-0.5">
+                                                                <div className="text-[12px] text-[#888] mt-0.5">
                                                                     {crSubtext(cr)}
                                                                 </div>
                                                             </div>

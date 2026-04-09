@@ -1016,22 +1016,6 @@ export default function PainelGerencial() {
           <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
         </div>
 
-        {/* ── INADIMPLÊNCIA ALERTA ────────────────────────────── */}
-        {inadimplentes.total > 0 && (
-          <div className="border-2 border-red-300 bg-red-50 rounded-lg px-5 py-4 mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-700">
-                <span className="font-bold">Inadimplência</span> &mdash; {inadimplentes.count.toLocaleString("pt-BR")} títulos em aberto
-              </p>
-              {deltaInad !== null && isFinite(deltaInad) && (
-                <p className="text-xs text-red-500 mt-1">
-                  {deltaInad > 0 ? "▲" : "▼"} {Math.abs(deltaInad).toFixed(1)}% vs mês anterior
-                </p>
-              )}
-            </div>
-            <p className="text-xl font-bold text-red-700">{fmtR(inadimplentes.total)}</p>
-          </div>
-        )}
 
         {/* ── FATURAMENTO DIÁRIO ──────────────────────────────── */}
         <SectionTitle>Faturamento diário &mdash; {periodoLabel}</SectionTitle>

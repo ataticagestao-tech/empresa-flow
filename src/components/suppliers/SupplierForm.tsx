@@ -371,7 +371,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <div className="flex justify-between items-center">
                                             <FormLabel className="text-muted-foreground text-xs font-bold uppercase">Razão Social / Nome Completo</FormLabel>
-                                            <button type="button" className="text-[10px] text-green-600 flex items-center gap-1"><Search className="w-3 h-3" /> Consulta de Crédito</button>
+                                            <button type="button" className="text-[12px] text-green-600 flex items-center gap-1"><Search className="w-3 h-3" /> Consulta de Crédito</button>
                                         </div>
                                         <FormControl>
                                             <Input className="h-9 focus-visible:ring-green-600 border-[#E2E8F0]" {...field} />
@@ -391,7 +391,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-xs font-bold uppercase">CNPJ / CPF</FormLabel>
                                             <button
                                                 type="button"
-                                                className="text-[10px] text-green-600 flex items-center gap-1 disabled:opacity-60"
+                                                className="text-[12px] text-green-600 flex items-center gap-1 disabled:opacity-60"
                                                 onClick={handleLookupSefaz}
                                                 disabled={isSefazLookupLoading}
                                             >
@@ -501,10 +501,10 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     render={({ field }) => (
                                         <FormItem>
                                             <div className="flex justify-between">
-                                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Endereço</FormLabel>
+                                                <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Endereço</FormLabel>
                                                 <button
                                                     type="button"
-                                                    className="text-[10px] text-green-600 flex items-center gap-1"
+                                                    className="text-[12px] text-green-600 flex items-center gap-1"
                                                     onClick={handleSearchAddress}
                                                 >
                                                     <Globe className="w-3 h-3" /> Pesquisar Endereço
@@ -522,7 +522,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="endereco_numero"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Número</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Número</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -535,7 +535,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="endereco_bairro"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Bairro</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Bairro</FormLabel>
                                             <FormControl>
                                                 <Input className="h-9 border-[#E2E8F0]" {...field} />
                                             </FormControl>
@@ -549,7 +549,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="endereco_complemento"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Complemento</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Complemento</FormLabel>
                                             <FormControl>
                                                 <Input className="h-9 border-[#E2E8F0]" {...field} />
                                             </FormControl>
@@ -562,7 +562,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="endereco_estado"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Estado</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Estado</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger className="h-9 border-[#E2E8F0]">
@@ -586,7 +586,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="endereco_cidade"
                                     render={({ field }) => (
                                         <FormItem className="flex-1">
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Cidade</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Cidade</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
                                                     <Input className="h-9 border-[#E2E8F0] pr-8" {...field} />
@@ -603,8 +603,8 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <div className="flex justify-between">
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">CEP</FormLabel>
-                                            <button type="button" className="text-[10px] text-green-600 flex items-center gap-1"><Search className="w-3 h-3" /> Pesquisar CEP</button>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">CEP</FormLabel>
+                                            <button type="button" className="text-[12px] text-green-600 flex items-center gap-1"><Search className="w-3 h-3" /> Pesquisar CEP</button>
                                         </div>
                                         <FormControl>
                                             <Input
@@ -627,7 +627,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="telefone_2"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Telefone 2</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Telefone 2</FormLabel>
                                         <FormControl>
                                             <Input
                                                 className="h-9 border-[#E2E8F0]"
@@ -644,7 +644,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="celular"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Celular / WhatsApp</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Celular / WhatsApp</FormLabel>
                                         <FormControl>
                                             <Input
                                                 className="h-9 border-[#E2E8F0]"
@@ -661,7 +661,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="fax"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Fax</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Fax</FormLabel>
                                         <FormControl>
                                             <Input
                                                 className="h-9 border-[#E2E8F0]"
@@ -679,7 +679,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">E-mail</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">E-mail</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
                                                     <Input className="h-9 border-[#E2E8F0] pr-8" {...field} />
@@ -696,7 +696,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="website"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">WebSite</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">WebSite</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
                                                     <Input className="h-9 border-[#E2E8F0] pr-8" {...field} />
@@ -719,7 +719,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="dados_bancarios_banco"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Banco</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Banco</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger className="h-9 border-[#E2E8F0]">
@@ -741,7 +741,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="dados_bancarios_agencia"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Agência</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Agência</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -753,7 +753,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="dados_bancarios_conta"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Conta Corrente</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Conta Corrente</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -765,7 +765,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="dados_bancarios_pix"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Chave Pix</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Chave Pix</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -778,7 +778,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="dados_bancarios_titular_cpf_cnpj"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">CNPJ ou CPF do Titular</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">CNPJ ou CPF do Titular</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     className="h-9 border-[#E2E8F0]"
@@ -801,7 +801,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="dados_bancarios_titular_nome"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Nome do Titular da Conta</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Nome do Titular da Conta</FormLabel>
                                             <FormControl>
                                                 <Input className="h-9 border-[#E2E8F0]" placeholder="Opcional." {...field} />
                                             </FormControl>
@@ -819,7 +819,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="inscricao_estadual"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição Estadual</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Inscrição Estadual</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -831,7 +831,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="inscricao_municipal"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição Municipal</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Inscrição Municipal</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -843,7 +843,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="inscricao_suframa"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição SUFRAMA</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Inscrição SUFRAMA</FormLabel>
                                         <FormControl>
                                             <Input className="h-9 border-[#E2E8F0]" {...field} />
                                         </FormControl>
@@ -912,7 +912,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                 name="tipo_atividade"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Tipo de Atividade</FormLabel>
+                                        <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Tipo de Atividade</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger className="h-9 border-[#E2E8F0]">
@@ -934,7 +934,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="cnae"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">CNAE Principal</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">CNAE Principal</FormLabel>
                                             {cnaeOpcoes.length > 0 ? (
                                                 <Select
                                                     onValueChange={(value) => {
@@ -973,7 +973,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 </FormControl>
                                             )}
                                             {cnaeDescricao ? (
-                                                <div className="text-[11px] text-muted-foreground mt-1">{cnaeDescricao}</div>
+                                                <div className="text-[12px] text-muted-foreground mt-1">{cnaeDescricao}</div>
                                             ) : null}
                                         </FormItem>
                                     )}
@@ -986,7 +986,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="observacoes_internas"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Observações Internas</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Observações Internas</FormLabel>
                                             <FormControl>
                                                 <Textarea className="min-h-[100px] border-[#E2E8F0] text-xs" {...field} />
                                             </FormControl>
@@ -1000,7 +1000,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     name="observacoes"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Observações Detalhadas</FormLabel>
+                                            <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Observações Detalhadas</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
                                                     <Textarea className="min-h-[100px] border-[#E2E8F0] text-xs" {...field} />

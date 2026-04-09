@@ -230,7 +230,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 {/* Linha 1 — Código + Tipo */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Código
                         </label>
                         <div className="bg-[#f0f4f8] border-[1.5px] border-[#1a2e4a] rounded px-3 py-2 text-[13px] font-bold text-[#1a2e4a]">
@@ -242,7 +242,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="type"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                     Tipo <span className="text-[#8b0000]">*</span>
                                 </FormLabel>
                                 <FormControl>
@@ -268,7 +268,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     name="description"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                            <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                 Nome / Descrição <span className="text-[#8b0000]">*</span>
                             </FormLabel>
                             <FormControl>
@@ -286,7 +286,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="family"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                     Família
                                 </FormLabel>
                                 <FormControl>
@@ -313,7 +313,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="account_id"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                     Conta Contábil
                                 </FormLabel>
                                 <FormControl>
@@ -340,7 +340,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 {/* Linha 4 — Custo + Preço + Líquido */}
                 <div className="grid grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Custo
                         </label>
                         <Input
@@ -351,7 +351,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         />
                     </div>
                     <div>
-                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Preço <span className="text-[#8b0000]">*</span>
                         </label>
                         <Input
@@ -362,7 +362,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         />
                     </div>
                     <div>
-                        <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Líquido
                         </label>
                         <div className="bg-[#f0f4f8] border border-[#ccc] rounded px-3 py-2 text-[13px] font-bold text-[#1a2e4a]">
@@ -380,7 +380,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="ncm"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                     NCM
                                 </FormLabel>
                                 <FormControl>
@@ -394,7 +394,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="cest"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                     CEST
                                 </FormLabel>
                                 <FormControl>
@@ -408,7 +408,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         name="taxation_type"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                                <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                     Tributação
                                 </FormLabel>
                                 <FormControl>
@@ -425,7 +425,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     name="is_active"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-[#555] uppercase tracking-wider">
+                            <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
                                 Status
                             </FormLabel>
                             <FormControl>

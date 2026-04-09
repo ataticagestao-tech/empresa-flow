@@ -219,7 +219,7 @@ export default function DREContabil() {
                   </thead>
                   <tbody>
                     {grupos.map((g) => {
-                      const isOpen = expandidos[g.codigo] ?? true;
+                      const isOpen = expandidos[g.codigo] ?? false;
                       const isResultado = g.tipo_calculo === "resultado";
                       return (
                         <LinhaGrupoDRE

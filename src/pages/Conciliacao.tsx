@@ -1070,7 +1070,7 @@ export default function Conciliacao() {
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
-                                                                            className="h-7 text-xs gap-1.5 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700 hover:from-amber-100 hover:to-orange-100 hover:border-amber-300"
+                                                                            className="h-7 text-xs gap-1.5 bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 hover:border-amber-300"
                                                                             onClick={() => aiRecat.suggestForBatch(expandedBatchTx)}
                                                                             disabled={aiRecat.processing}
                                                                         >

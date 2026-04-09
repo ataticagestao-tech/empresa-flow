@@ -224,7 +224,7 @@ export default function FluxoCaixa() {
                   </thead>
                   <tbody>
                     {atividades.map((atv) => {
-                      const isOpen = expandidos[atv.header.codigo] ?? true;
+                      const isOpen = expandidos[atv.header.codigo] ?? false;
                       const corAtividade = CORES_ATIVIDADE[atv.header.atividade_dfc || ""] || "#888";
                       return (
                         <AtividadeDFC

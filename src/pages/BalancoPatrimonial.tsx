@@ -216,7 +216,7 @@ export default function BalancoPatrimonial() {
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
+                <p className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
                 <p className="text-lg font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
               </CardContent>
             </Card>
@@ -301,7 +301,7 @@ function SecaoBP({
     <table className="w-full text-[12.5px]">
       <tbody>
         {nivel1.map((g) => {
-          const isOpen = expandidos[g.codigo] ?? true;
+          const isOpen = expandidos[g.codigo] ?? false;
           const filhos = linhas.filter(
             (l) => l.nivel === 2 && l.codigo.startsWith(g.codigo + ".")
           );
