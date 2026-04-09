@@ -193,20 +193,10 @@ export default function Funcionarios() {
   const validate = () => {
     const errs: Record<string, boolean> = {};
     if (!formData.name.trim()) errs.name = true;
-    if (!formData.cpf.trim() || formData.cpf.replace(/\D/g, "").length < 11) errs.cpf = true;
-    if (!formData.data_nascimento) errs.data_nascimento = true;
-    if (!formData.role.trim()) errs.role = true;
-    if (!formData.tipo_contrato) errs.tipo_contrato = true;
-    if (!formData.centro_custo_id) errs.centro_custo_id = true;
-    if (!formData.hire_date) errs.hire_date = true;
-    if (!formData.salary.trim()) errs.salary = true;
-    if (!formData.banco_folha) errs.banco_folha = true;
-    if (!formData.agencia_folha.trim()) errs.agencia_folha = true;
-    if (!formData.conta_folha.trim()) errs.conta_folha = true;
-    if (!formData.tipo_conta_folha) errs.tipo_conta_folha = true;
+    if (formData.cpf.trim() && formData.cpf.replace(/\D/g, "").length < 11) errs.cpf = true;
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      toast.error("Preencha todos os campos obrigatórios");
+      toast.error(errs.name ? "Preencha o nome do funcionário" : "CPF inválido");
       return false;
     }
     return true;
@@ -373,39 +363,39 @@ export default function Funcionarios() {
                         <input value={formData.name} onChange={e => set("name", titleCase(e.target.value))} className={ic("name")} placeholder="Nome Sobrenome" />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>CPF {REQ}</label>
+                        <label className={LB}>CPF</label>
                         <input value={formData.cpf} onChange={e => set("cpf", formatCPF(e.target.value))} className={ic("cpf")} placeholder="000.000.000-00" maxLength={14} />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Data de Nascimento {REQ}</label>
+                        <label className={LB}>Data de Nascimento</label>
                         <input type="date" value={formData.data_nascimento} onChange={e => set("data_nascimento", e.target.value)} className={ic("data_nascimento")} />
                       </div>
                     </div>
                     <div className="grid grid-cols-5 gap-4">
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Cargo {REQ}</label>
+                        <label className={LB}>Cargo</label>
                         <input value={formData.role} onChange={e => set("role", titleCase(e.target.value))} className={ic("role")} placeholder="Ex: Vendedora" />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Tipo Contrato {REQ}</label>
+                        <label className={LB}>Tipo Contrato</label>
                         <select value={formData.tipo_contrato} onChange={e => set("tipo_contrato", e.target.value)} className={ic("tipo_contrato")}>
                           <option value="">Selecione</option>
                           <option value="clt">CLT</option><option value="pj">PJ</option><option value="autonomo">Autônomo</option><option value="estagio">Estágio</option>
                         </select>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Centro de Custo {REQ}</label>
+                        <label className={LB}>Centro de Custo</label>
                         <select value={formData.centro_custo_id} onChange={e => set("centro_custo_id", e.target.value)} className={ic("centro_custo_id")}>
                           <option value="">Selecione</option>
                           {centrosCusto.map((c: any) => <option key={c.id} value={c.id}>{c.codigo ? `${c.codigo} — ` : ""}{c.descricao}</option>)}
                         </select>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Data Admissão {REQ}</label>
+                        <label className={LB}>Data Admissão</label>
                         <input type="date" value={formData.hire_date} onChange={e => set("hire_date", e.target.value)} className={ic("hire_date")} />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Salário Base (R$) {REQ}</label>
+                        <label className={LB}>Salário Base (R$)</label>
                         <input value={formData.salary} onChange={e => set("salary", formatSalary(e.target.value))} className={ic("salary")} placeholder="0,00" />
                       </div>
                     </div>
@@ -421,22 +411,22 @@ export default function Funcionarios() {
                     </div>
                     <div className="grid grid-cols-4 gap-4">
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Banco {REQ}</label>
+                        <label className={LB}>Banco</label>
                         <select value={formData.banco_folha} onChange={e => set("banco_folha", e.target.value)} className={ic("banco_folha")}>
                           <option value="">Selecione</option>
                           {BANCOS_BR.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Agência {REQ}</label>
+                        <label className={LB}>Agência</label>
                         <input value={formData.agencia_folha} onChange={e => set("agencia_folha", onlyDigits(e.target.value))} className={ic("agencia_folha")} placeholder="0000" maxLength={6} />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Conta {REQ}</label>
+                        <label className={LB}>Conta</label>
                         <input value={formData.conta_folha} onChange={e => set("conta_folha", onlyDigits(e.target.value))} className={ic("conta_folha")} placeholder="00000000" maxLength={12} />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className={LB}>Tipo de Conta {REQ}</label>
+                        <label className={LB}>Tipo de Conta</label>
                         <select value={formData.tipo_conta_folha} onChange={e => set("tipo_conta_folha", e.target.value)} className={ic("tipo_conta_folha")}>
                           <option value="">Selecione</option><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="pix">PIX</option>
                         </select>
@@ -447,7 +437,7 @@ export default function Funcionarios() {
                       <input value={formData.chave_pix_folha} onChange={e => set("chave_pix_folha", e.target.value)} className={IC} placeholder="CPF, email, telefone ou chave aleatória" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className={LB}>Status {REQ}</label>
+                      <label className={LB}>Status</label>
                       <select value={formData.status} onChange={e => set("status", e.target.value)} className={`${IC} max-w-[200px]`}>
                         <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
                       </select>
