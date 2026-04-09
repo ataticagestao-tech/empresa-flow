@@ -232,11 +232,7 @@ export default function Funcionarios() {
       if (formData.tipo_conta_folha) payload.tipo_conta_folha = formData.tipo_conta_folha;
       if (formData.chave_pix_folha) payload.chave_pix_folha = formData.chave_pix_folha.trim();
       if (formData.centro_custo_id) payload.centro_custo_id = formData.centro_custo_id;
-      // Don't send status on insert — let DB default handle it
-      // Only send on update when we know the current value works
-      if (selectedId && !isCreating) {
-        payload.status = formData.status;
-      }
+      payload.status = (formData.status || "ativo").toLowerCase();
 
       console.log("Payload:", JSON.stringify(payload));
 
