@@ -13,6 +13,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -972,12 +973,7 @@ export default function ContasPagar() {
             </div>
 
             {/* Loading */}
-            {loading && (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={24} className="animate-spin" style={{ color: '#1a2e4a' }} />
-                <span className="ml-2 text-[13px]" style={{ color: '#4a5e7a', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Carregando...</span>
-              </div>
-            )}
+            {loading && <TableSkeleton rows={8} cols={6} />}
 
             {/* Empty */}
             {!loading && filteredContas.length === 0 && (

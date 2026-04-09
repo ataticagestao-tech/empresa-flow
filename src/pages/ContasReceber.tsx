@@ -5,6 +5,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { TableSkeleton } from '@/components/ui/page-skeleton'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -420,10 +421,7 @@ export default function ContasReceber() {
           </div>
           <div className="bg-white overflow-x-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={24} className="animate-spin text-[#1a2e4a]" />
-                <span className="ml-2 text-[13px] text-[#555]">Carregando...</span>
-              </div>
+              <div className="py-4"><TableSkeleton rows={8} cols={5} /></div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-16 text-[13px] text-[#999]">
                 Nenhum titulo encontrado.

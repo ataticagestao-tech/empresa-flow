@@ -23,14 +23,13 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  PieChart,
-  Pie,
   Cell,
   Legend,
   Line,
   ComposedChart,
 } from "recharts";
 import { AlertTriangle, Calendar } from "lucide-react";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 /* ── Design Tokens ──────────────────────────────────────────── */
 const C = {
@@ -948,9 +947,7 @@ export default function PainelGerencial() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-64 text-gray-400 text-lg">
-          Carregando...
-        </div>
+        <PageSkeleton />
       </AppLayout>
     );
   }
@@ -1083,24 +1080,17 @@ export default function PainelGerencial() {
             <SectionTitle>Composição do contas a receber</SectionTitle>
             <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4">
               <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={composicaoCR}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={70}
-                    outerRadius={110}
-                    paddingAngle={2}
-                    dataKey="value"
-                    nameKey="name"
-                  >
+                <BarChart data={composicaoCR} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={160} />
+                  <Tooltip formatter={(v: number) => fmtR(v)} />
+                  <Bar dataKey="value" name="Valor" radius={[0, 4, 4, 0]}>
                     {composicaoCR.map((entry, idx) => (
                       <Cell key={idx} fill={entry.color} />
                     ))}
-                  </Pie>
-                  <Legend formatter={(value: string) => <span className="text-xs">{value}</span>} />
-                  <Tooltip formatter={(v: number) => fmtR(v)} />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
