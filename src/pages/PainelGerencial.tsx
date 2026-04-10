@@ -592,13 +592,14 @@ export default function PainelGerencial() {
   // Fonte única: tabela `vendas` (não mistura com movimentações bancárias)
   const faturamento = faturamentoVendas;
   const ticketMedio = nVendas > 0 ? faturamentoVendas / nVendas : 0;
-  const resultadoDre = receitaBruta - despesasTotais;
+  // Resultado = Faturamento - Despesas (consistente com os cards do cockpit)
+  const resultadoDre = faturamento - despesasTotais;
   const margemLiquida =
     faturamento > 0 ? (resultadoDre / faturamento) * 100 : 0;
   const inadimplenciaRate =
     totalReceber > 0 ? (inadimplentes.total / totalReceber) * 100 : 0;
   const despesasReceita =
-    receitaBruta > 0 ? (despesasTotais / receitaBruta) * 100 : 0;
+    faturamento > 0 ? (despesasTotais / faturamento) * 100 : 0;
 
   // Previous month faturamento for evolution
   const prevMonthStart = format(
@@ -730,7 +731,8 @@ export default function PainelGerencial() {
   const deltaCpAtraso = pctDelta(cpVencido, prevCpMes > 0 ? prevCpMes : 1);
   const deltaReceita = pctDelta(receitaBruta, prevReceitaBruta);
   const deltaDespesas = pctDelta(despesasTotais, prevDespesas);
-  const prevResultado = prevReceitaBruta - prevDespesas;
+  // Resultado do mês anterior usa a mesma base (faturamento de vendas - despesas)
+  const prevResultado = faturamentoAnterior - prevDespesas;
   const deltaResultado = pctDelta(resultadoDre, Math.abs(prevResultado) > 0 ? prevResultado : 1);
 
   // ────────────────────────────────────────────────────────────
