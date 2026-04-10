@@ -107,7 +107,8 @@ export default function DRE() {
         db
           .from("chart_of_accounts")
           .select("id, code, name, account_type, is_analytical")
-          .eq("company_id", selectedCompany.id),
+          .eq("company_id", selectedCompany.id)
+          .in("account_type", ["revenue", "expense", "cost"]),
         db
           .from("orcamento")
           .select("id, ano, orcamento_itens(conta_contabil_id, mes, valor_orcado)")
@@ -220,7 +221,8 @@ export default function DRE() {
 
       const grupo = l.tipo === "revenue" ? "RECEITAS"
         : (l.tipo === "expense" || l.tipo === "cost") ? "DESPESAS"
-        : "OUTROS";
+        : null;
+      if (!grupo) return;
       if (!map[grupo]) map[grupo] = { linhas: [], totalRealizado: 0, totalOrcado: 0 };
       map[grupo].linhas.push(l);
       map[grupo].totalRealizado += l.realizado;
@@ -287,7 +289,6 @@ export default function DRE() {
 
     addGrupo("RECEITAS");
     addGrupo("DESPESAS");
-    addGrupo("OUTROS");
     wsData.push(["", "RESULTADO LÍQUIDO", resultado, "", "", ""]);
     wsData.push(["", "Margem Líquida", `${margemLiquida.toFixed(2)}%`, "", "", ""]);
 
@@ -416,7 +417,7 @@ export default function DRE() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(["RECEITAS", "DESPESAS", "OUTROS"] as const).map((grupo) => {
+                    {(["RECEITAS", "DESPESAS"] as const).map((grupo) => {
                       const g = grupos[grupo];
                       if (!g) return null;
                       const isOpen = expandidos[grupo] ?? false;
