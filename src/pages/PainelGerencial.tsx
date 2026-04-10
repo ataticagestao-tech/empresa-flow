@@ -26,6 +26,7 @@ import {
   Cell,
   Legend,
   Line,
+  LineChart,
   ComposedChart,
 } from "recharts";
 import { AlertTriangle, Calendar } from "lucide-react";
@@ -578,6 +579,49 @@ export default function PainelGerencial() {
     },
     enabled: !!cId,
   });
+
+  // Evolução do faturamento — últimos 6 meses (para gráfico de linha)
+  const seisAtras = format(startOfMonth(subMonths(today, 5)), "yyyy-MM-dd");
+  const hojeStr = format(endOfMonth(today), "yyyy-MM-dd");
+  const { data: vendas6m = [] } = useQuery({
+    queryKey: ["pg_vendas_6m", cId, seisAtras, hojeStr],
+    queryFn: async () => {
+      const { data } = await db
+        .from("vendas")
+        .select("valor_total, data_venda, status")
+        .eq("company_id", cId)
+        .neq("status", "cancelado")
+        .gte("data_venda", seisAtras)
+        .lte("data_venda", hojeStr)
+        .limit(50000);
+      return data || [];
+    },
+    enabled: !!cId,
+  });
+
+  // Agrupar vendas por mês + calcular % de contribuição
+  const faturamentoMensal = useMemo(() => {
+    const map = new Map<string, number>();
+    // Inicializar 6 meses para garantir todos apareçam mesmo com zero
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(today, i);
+      map.set(format(d, "yyyy-MM"), 0);
+    }
+    for (const v of (vendas6m as any[])) {
+      const key = String(v.data_venda || "").slice(0, 7);
+      if (map.has(key)) {
+        map.set(key, (map.get(key) || 0) + Number(v.valor_total || 0));
+      }
+    }
+    const totalPeriodo = Array.from(map.values()).reduce((s, v) => s + v, 0);
+    const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    return Array.from(map.entries()).map(([ym, valor]) => {
+      const [, mm] = ym.split("-");
+      const label = meses[parseInt(mm) - 1];
+      const pct = totalPeriodo > 0 ? (valor / totalPeriodo) * 100 : 0;
+      return { mes: label, valor, percentual: Number(pct.toFixed(1)) };
+    });
+  }, [vendas6m, today]);
 
   const faturamentoVendas = useMemo(
     () =>
@@ -1287,21 +1331,65 @@ export default function PainelGerencial() {
             }
           />
           <KpiCard
-            label="Receitas de royalties"
-            value={fmt(royaltiesTotal)}
-            color={royaltiesTotal > 0 ? C.green : C.text1}
-            subtitle={
-              royaltiesCount > 0
-                ? `${royaltiesCount} ${royaltiesCount === 1 ? "recebimento" : "recebimentos"} · ${fmtPct(royaltiesPctFat)} do faturamento`
-                : "Nenhum royalty identificado no período"
-            }
-          />
-          <KpiCard
             label="Saldo em bancos"
             value={fmt(saldoTotal)}
             color={saldoTotal >= 0 ? C.green : C.red}
             subtitle={`${contasAtivas} ${contasAtivas === 1 ? "conta ativa" : "contas ativas"}`}
           />
+        </div>
+
+        {/* ── EVOLUÇÃO DO FATURAMENTO — últimos 6 meses ─────────── */}
+        <SectionTitle>Evolução do faturamento &mdash; últimos 6 meses</SectionTitle>
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={faturamentoMensal} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="mes" stroke={C.text2} tick={{ fontSize: 12 }} />
+              <YAxis
+                yAxisId="left"
+                stroke={C.green}
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#6366F1"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => `${v}%`}
+                domain={[0, (dataMax: number) => Math.max(dataMax * 1.2, 10)]}
+              />
+              <Tooltip
+                formatter={(value: number, name: string) => {
+                  if (name === "Valor") return [fmtR(value), "Faturamento"];
+                  if (name === "% do período") return [`${value.toFixed(1)}%`, "% do período"];
+                  return [value, name];
+                }}
+                contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="valor"
+                name="Valor"
+                stroke={C.green}
+                strokeWidth={3}
+                dot={{ r: 5, fill: C.green }}
+                activeDot={{ r: 7 }}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="percentual"
+                name="% do período"
+                stroke="#6366F1"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={{ r: 4, fill: "#6366F1" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
 
