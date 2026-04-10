@@ -886,6 +886,7 @@ export default function Vendas() {
   // ─── Delete todas as vendas do mês (em lote) ────────────────
   // contas_receber tem trigger que bloqueia DELETE direto (força soft delete)
   // vendas_itens tem ON DELETE CASCADE, então basta deletar a venda
+  // Processa em chunks porque `.in()` com centenas de UUIDs estoura o limite de URL do PostgREST (HTTP 400)
   async function deletarVendasDoMes() {
     const ac = activeClient as any
     if (!companyId) return
@@ -909,15 +910,22 @@ export default function Vendas() {
         return
       }
 
-      const { error: errCR } = await ac
-        .from('contas_receber')
-        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
-        .in('venda_id', ids)
-        .is('deleted_at', null)
-      if (errCR) throw errCR
+      const CHUNK = 100
+      const nowIso = new Date().toISOString()
 
-      const { error: errVendas } = await ac.from('vendas').delete().in('id', ids)
-      if (errVendas) throw errVendas
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK)
+
+        const { error: errCR } = await ac
+          .from('contas_receber')
+          .update({ deleted_at: nowIso, deleted_by: user?.id || null })
+          .in('venda_id', slice)
+          .is('deleted_at', null)
+        if (errCR) throw errCR
+
+        const { error: errVendas } = await ac.from('vendas').delete().in('id', slice)
+        if (errVendas) throw errVendas
+      }
 
       setConfirmDeleteMes(false)
       await fetchVendas()
