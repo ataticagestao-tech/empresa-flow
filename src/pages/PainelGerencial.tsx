@@ -128,6 +128,24 @@ export default function PainelGerencial() {
   const [dataInicio, setDataInicio] = useState(format(startOfMonth(realToday), "yyyy-MM-dd"));
   const [dataFim, setDataFim] = useState(format(endOfMonth(realToday), "yyyy-MM-dd"));
 
+  // ── Regime contábil do faturamento ──────────────────────────
+  // "competencia": soma das vendas emitidas no período (tabela `vendas`)
+  // "caixa": soma das contas a receber efetivamente pagas no período
+  //          (com fallback para créditos de conciliação bancária)
+  type Regime = "competencia" | "caixa";
+  const [regime, setRegime] = useState<Regime>(() => {
+    try {
+      const saved = localStorage.getItem("pg_regime") as Regime | null;
+      return saved === "caixa" || saved === "competencia" ? saved : "competencia";
+    } catch {
+      return "competencia";
+    }
+  });
+  const changeRegime = (r: Regime) => {
+    setRegime(r);
+    try { localStorage.setItem("pg_regime", r); } catch {}
+  };
+
   const mesesOpcoes = useMemo(() => {
     const opts: string[] = [];
     for (let i = 0; i < 24; i++) {
@@ -754,11 +772,12 @@ export default function PainelGerencial() {
       const cr = crMap.get(ym) || 0;
       const vd = vendasMap.get(ym) || 0;
       const mv = movMap.get(ym) || 0;
-      const receita = cr > 0 ? cr : vd > 0 ? vd : mv;
+      const receita =
+        regime === "competencia" ? vd : cr > 0 ? cr : mv;
       const despesa = despesaMap.get(ym) || 0;
       return { mes: label, receita, despesa };
     });
-  }, [crRecebido6m, vendas6m, movCredito6m, despesas6m, today]);
+  }, [crRecebido6m, vendas6m, movCredito6m, despesas6m, today, regime]);
 
   const faturamentoVendas = useMemo(
     () =>
@@ -769,14 +788,16 @@ export default function PainelGerencial() {
     [vendasMes]
   );
   const nVendas = (vendasMes || []).length;
-  // Faturamento HÍBRIDO: prioriza CR recebido (simétrico à despesa), cai para
-  // vendas, e por último para créditos da conciliação bancária. Garante que
-  // o cockpit nunca fique zerado se ao menos uma fonte tiver dados no mês.
+  // Faturamento controlado pelo toggle de regime:
+  // • competencia → tabela `vendas` (emitidas no período)
+  // • caixa       → contas_receber pagas; fallback para créditos de conciliação
   const faturamentoFonte: "cr" | "vendas" | "conciliacao" | "vazio" =
-    crRecebidoMes > 0
+    regime === "competencia"
+      ? faturamentoVendas > 0
+        ? "vendas"
+        : "vazio"
+      : crRecebidoMes > 0
       ? "cr"
-      : faturamentoVendas > 0
-      ? "vendas"
       : receitaBruta > 0
       ? "conciliacao"
       : "vazio";
@@ -931,15 +952,15 @@ export default function PainelGerencial() {
   const pctDelta = (atual: number, anterior: number) =>
     anterior > 0 ? ((atual - anterior) / anterior) * 100 : atual > 0 ? 100 : null;
 
-  // Faturamento do mês anterior seguindo a MESMA fonte do mês atual (híbrido)
+  // Faturamento do mês anterior seguindo o mesmo REGIME escolhido pelo usuário
+  // (e não a fonte efetivamente usada no mês atual, para o delta continuar
+  // comparando laranja com laranja mesmo quando um dos meses está vazio).
   const faturamentoAnteriorHibrido =
-    faturamentoFonte === "cr"
-      ? prevCrRecebido
-      : faturamentoFonte === "vendas"
+    regime === "competencia"
       ? faturamentoAnterior
-      : faturamentoFonte === "conciliacao"
-      ? prevReceitaBruta
-      : 0;
+      : prevCrRecebido > 0
+      ? prevCrRecebido
+      : prevReceitaBruta;
 
   const deltaFaturamento = pctDelta(faturamento, faturamentoAnteriorHibrido);
   const deltaCrPrev = pctDelta(crPrevMes, prevCrPrev);
@@ -1442,6 +1463,20 @@ export default function PainelGerencial() {
             Cockpit financeiro consolidado &mdash; {format(realToday, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Toggle Regime: Competência (vendas) vs Caixa (CR recebido) */}
+            <div
+              className="flex border border-[#e2e8f0] rounded-lg overflow-hidden"
+              title="Regime do faturamento: Competência soma as vendas emitidas no período; Caixa soma as contas a receber efetivamente recebidas."
+            >
+              <button
+                onClick={() => changeRegime("competencia")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${regime === "competencia" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >Competência</button>
+              <button
+                onClick={() => changeRegime("caixa")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${regime === "caixa" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >Caixa</button>
+            </div>
             <div className="flex border border-[#e2e8f0] rounded-lg overflow-hidden">
               <button
                 onClick={() => { setPeriodoTipo("mes"); setMesSelecionado(format(realToday, "yyyy-MM")); }}
