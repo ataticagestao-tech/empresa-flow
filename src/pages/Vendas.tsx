@@ -127,7 +127,7 @@ const LABEL_TIPO: Record<string, string> = {
 
 export default function Vendas() {
   const { selectedCompany } = useCompany()
-  const { activeClient, isUsingSecondary } = useAuth()
+  const { activeClient, isUsingSecondary, user } = useAuth()
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
@@ -884,6 +884,8 @@ export default function Vendas() {
   }
 
   // ─── Delete todas as vendas do mês (em lote) ────────────────
+  // contas_receber tem trigger que bloqueia DELETE direto (força soft delete)
+  // vendas_itens tem ON DELETE CASCADE, então basta deletar a venda
   async function deletarVendasDoMes() {
     const ac = activeClient as any
     if (!companyId) return
@@ -907,10 +909,13 @@ export default function Vendas() {
         return
       }
 
-      const { error: errCR } = await ac.from('contas_receber').delete().in('venda_id', ids)
+      const { error: errCR } = await ac
+        .from('contas_receber')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
+        .in('venda_id', ids)
+        .is('deleted_at', null)
       if (errCR) throw errCR
-      const { error: errItens } = await ac.from('vendas_itens').delete().in('venda_id', ids)
-      if (errItens) throw errItens
+
       const { error: errVendas } = await ac.from('vendas').delete().in('id', ids)
       if (errVendas) throw errVendas
 
