@@ -136,6 +136,7 @@ export default function Vendas() {
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [defaultReceitaContaId, setDefaultReceitaContaId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -370,16 +371,29 @@ export default function Vendas() {
     if (!companyId || !activeClient) return
 
     const ac = activeClient as any
-    const [banksRes, centrosRes, clientesRes, produtosRes] = await Promise.all([
+    const [banksRes, centrosRes, clientesRes, produtosRes, receitaContaRes] = await Promise.all([
       ac.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
       ac.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
       ac.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description'),
+      ac.from('chart_of_accounts')
+        .select('id, code')
+        .eq('company_id', companyId)
+        .eq('account_type', 'revenue')
+        .eq('is_analytical', true)
+        .eq('status', 'active')
+        .order('code')
+        .limit(1)
+        .maybeSingle(),
     ])
 
     setBankAccounts((banksRes.data as BankAccount[]) || [])
     setCentrosCusto((centrosRes.data as CentroCusto[]) || [])
     setClientes((clientesRes.data as Cliente[]) || [])
+    setDefaultReceitaContaId((receitaContaRes.data as any)?.id || null)
+    if (!(receitaContaRes.data as any)?.id) {
+      console.warn('[Vendas] Nenhuma conta de receita analítica encontrada no plano de contas — CRs serão criados sem classificação e não aparecerão no DRE.')
+    }
 
     // Fallback: se activeClient não retornou produtos, tentar com db
     let prods = (produtosRes.data as Produto[]) || []
@@ -671,7 +685,7 @@ export default function Vendas() {
             data_vencimento: vencimento,
             status: 'aberto',
             forma_recebimento: row.forma_pagamento,
-            conta_contabil_id: null,
+            conta_contabil_id: defaultReceitaContaId,
             centro_custo_id: importCentroCusto || null,
             venda_id: vendasData[idx].id,
           })
@@ -871,7 +885,7 @@ export default function Vendas() {
             data_vencimento: dataRecebimento,
             status: 'aberto',
             forma_recebimento: formPagamento,
-            conta_contabil_id: null,
+            conta_contabil_id: defaultReceitaContaId,
             centro_custo_id: formCentroCusto || null,
             venda_id: vendaId,
             observacoes: taxaPct > 0

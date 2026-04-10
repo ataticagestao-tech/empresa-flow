@@ -63,106 +63,141 @@ export default function DRE() {
     return opts;
   }, []);
 
-  // Buscar DRE consolidado (view v_dre_consolidado)
+  // DRE por regime de caixa: agrega contas_receber + contas_pagar pagos
+  // pelo data_pagamento (não depende de movimentacoes ou de conciliacao).
   const { data: linhas = [], isLoading } = useQuery({
-    queryKey: ["dre_consolidado", selectedCompany?.id, mesInicio, mesFim, centroCustoId],
+    queryKey: ["dre_caixa", selectedCompany?.id, mesInicio, mesFim, centroCustoId],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
 
-      // Se filtro por centro de custo ativo, usar fallback direto (view não suporta filtro)
-      if (centroCustoId !== "todos") {
-        return await calcularDREFallback();
+      const dataInicio = `${mesInicio}-01`;
+      const dataFim = `${mesFim}-31`;
+
+      // Paginar CR pagos (pode ter centenas/milhares por empresa)
+      const pageSize = 1000;
+
+      async function fetchPagos(tabela: "contas_receber" | "contas_pagar") {
+        const rows: any[] = [];
+        let page = 0;
+        while (true) {
+          let q = db
+            .from(tabela)
+            .select("valor, valor_pago, data_pagamento, conta_contabil_id, centro_custo_id")
+            .eq("company_id", selectedCompany!.id)
+            .eq("status", "pago")
+            .is("deleted_at", null)
+            .not("data_pagamento", "is", null)
+            .gte("data_pagamento", dataInicio)
+            .lte("data_pagamento", dataFim);
+          if (centroCustoId !== "todos") {
+            q = q.eq("centro_custo_id", centroCustoId);
+          }
+          const { data } = await q.range(page * pageSize, (page + 1) * pageSize - 1);
+          if (!data || data.length === 0) break;
+          rows.push(...data);
+          if (data.length < pageSize) break;
+          page++;
+        }
+        return rows;
       }
 
-      const { data, error } = await db
-        .from("v_dre_consolidado")
-        .select("*")
-        .eq("company_id", selectedCompany.id)
-        .gte("competencia", mesInicio)
-        .lte("competencia", mesFim)
-        .order("codigo");
+      const [crPagos, cpPagos, contasRes, orcamentosRes] = await Promise.all([
+        fetchPagos("contas_receber"),
+        fetchPagos("contas_pagar"),
+        db
+          .from("chart_of_accounts")
+          .select("id, code, name, account_type, is_analytical")
+          .eq("company_id", selectedCompany.id),
+        db
+          .from("orcamento")
+          .select("id, ano, orcamento_itens(conta_contabil_id, mes, valor_orcado)")
+          .eq("company_id", selectedCompany.id)
+          .eq("status", "aprovado"),
+      ]);
 
-      if (error || !data || data.length === 0) {
-        return await calcularDREFallback();
+      const contasMap: Record<string, any> = {};
+      ((contasRes as any).data || []).forEach((c: any) => { contasMap[c.id] = c; });
+
+      // Mapa de orçado por (conta, competência)
+      const orcadoMap: Record<string, number> = {};
+      ((orcamentosRes as any).data || []).forEach((o: any) => {
+        const ano = o.ano;
+        (o.orcamento_itens || []).forEach((it: any) => {
+          const comp = `${ano}-${String(it.mes).padStart(2, "0")}`;
+          const key = `${it.conta_contabil_id}|${comp}`;
+          orcadoMap[key] = (orcadoMap[key] || 0) + Number(it.valor_orcado || 0);
+        });
+      });
+
+      // Agregar realizado por (conta, competência).
+      // Tanto receita quanto despesa entram positivas — o agrupamento
+      // por account_type depois separa em RECEITAS vs DESPESAS e o
+      // resultado final é receitaTotal - despesaTotal.
+      const realizadoMap: Record<string, { valor: number; contaId: string; comp: string }> = {};
+
+      function addRealizado(row: any) {
+        const contaId = row.conta_contabil_id;
+        if (!contaId) return;
+        const dp: string = row.data_pagamento;
+        if (!dp) return;
+        const comp = dp.slice(0, 7); // YYYY-MM
+        const key = `${contaId}|${comp}`;
+        const valor = Number(row.valor_pago ?? row.valor ?? 0);
+        if (!realizadoMap[key]) realizadoMap[key] = { valor: 0, contaId, comp };
+        realizadoMap[key].valor += valor;
       }
 
-      return (data || []).map((d: any) => ({
-        competencia: d.competencia,
-        conta_contabil_id: d.conta_contabil_id,
-        codigo: d.codigo,
-        descricao: d.descricao,
-        tipo: d.tipo,
-        realizado: Number(d.realizado || 0),
-        orcado: Number(d.orcado || 0),
-        variacao: Number(d.variacao || 0),
-        variacao_pct: d.variacao_pct != null ? Number(d.variacao_pct) : null,
-      })) as DRELinha[];
+      crPagos.forEach(addRealizado);
+      cpPagos.forEach(addRealizado);
+
+      const resultado: DRELinha[] = [];
+      const chavesVistas = new Set<string>();
+
+      // Linhas com realizado
+      Object.values(realizadoMap).forEach(({ valor, contaId, comp }) => {
+        const conta = contasMap[contaId];
+        if (!conta) return;
+        const key = `${contaId}|${comp}`;
+        chavesVistas.add(key);
+        const orcado = orcadoMap[key] || 0;
+        const variacao = valor - orcado;
+        resultado.push({
+          competencia: comp,
+          conta_contabil_id: contaId,
+          codigo: conta.code,
+          descricao: conta.name,
+          tipo: conta.account_type,
+          realizado: valor,
+          orcado,
+          variacao,
+          variacao_pct: orcado !== 0 ? (variacao / Math.abs(orcado)) * 100 : null,
+        });
+      });
+
+      // Linhas só com orçado (sem realizado no período) — mostrar variação negativa
+      Object.entries(orcadoMap).forEach(([key, orcado]) => {
+        if (chavesVistas.has(key)) return;
+        const [contaId, comp] = key.split("|");
+        if (comp < mesInicio || comp > mesFim) return;
+        const conta = contasMap[contaId];
+        if (!conta) return;
+        resultado.push({
+          competencia: comp,
+          conta_contabil_id: contaId,
+          codigo: conta.code,
+          descricao: conta.name,
+          tipo: conta.account_type,
+          realizado: 0,
+          orcado,
+          variacao: -orcado,
+          variacao_pct: -100,
+        });
+      });
+
+      return resultado;
     },
     enabled: !!selectedCompany?.id,
   });
-
-  // Fallback: calcular DRE direto das movimentações
-  async function calcularDREFallback(): Promise<DRELinha[]> {
-    if (!selectedCompany?.id) return [];
-
-    // Paginar movimentações (pode ter 7000+)
-    const pageSize = 1000;
-    let movs: any[] = [];
-    let page = 0;
-    while (true) {
-      let q = db
-        .from("movimentacoes")
-        .select("valor, tipo, conta_contabil_id, data, origem")
-        .eq("company_id", selectedCompany.id)
-        .neq("origem", "transferencia")
-        .gte("data", `${mesInicio}-01`)
-        .lte("data", `${mesFim}-31`);
-      if (centroCustoId !== "todos") {
-        q = q.eq("centro_custo_id", centroCustoId);
-      }
-      const { data } = await q.range(page * pageSize, (page + 1) * pageSize - 1);
-      if (!data || data.length === 0) break;
-      movs = movs.concat(data);
-      if (data.length < pageSize) break;
-      page++;
-    }
-
-    const { data: contas } = await db
-      .from("chart_of_accounts")
-      .select("id, code, name, account_type, account_nature, dre_group, dre_order")
-      .eq("company_id", selectedCompany.id)
-      .eq("is_analytical", true);
-
-    const contasMap: Record<string, any> = {};
-    (contas || []).forEach((c: any) => { contasMap[c.id] = c; });
-
-    const totais: Record<string, { credito: number; debito: number }> = {};
-    movs.forEach((m: any) => {
-      if (!m.conta_contabil_id) return;
-      if (!totais[m.conta_contabil_id]) totais[m.conta_contabil_id] = { credito: 0, debito: 0 };
-      if (m.tipo === "credito") totais[m.conta_contabil_id].credito += Number(m.valor || 0);
-      else totais[m.conta_contabil_id].debito += Number(m.valor || 0);
-    });
-
-    return Object.entries(totais).map(([id, t]) => {
-      const conta = contasMap[id];
-      if (!conta) return null;
-      const saldo = conta.account_nature === "credit"
-        ? t.credito - t.debito
-        : t.debito - t.credito;
-      return {
-        competencia: `${mesInicio} a ${mesFim}`,
-        conta_contabil_id: id,
-        codigo: conta.code,
-        descricao: conta.name,
-        tipo: conta.account_type,
-        realizado: saldo,
-        orcado: 0,
-        variacao: saldo,
-        variacao_pct: null,
-      };
-    }).filter(Boolean) as DRELinha[];
-  }
 
   // Agrupar linhas por tipo
   const grupos = useMemo(() => {
@@ -210,7 +245,7 @@ export default function DRE() {
     linhas.forEach((l) => {
       if (!porMes[l.competencia]) porMes[l.competencia] = { receita: 0, despesa: 0, resultado: 0 };
       if (l.tipo === "revenue") porMes[l.competencia].receita += l.realizado;
-      else if (l.tipo === "expense") porMes[l.competencia].despesa += Math.abs(l.realizado);
+      else if (l.tipo === "expense" || l.tipo === "cost") porMes[l.competencia].despesa += Math.abs(l.realizado);
     });
     return Object.entries(porMes)
       .sort(([a], [b]) => a.localeCompare(b))
