@@ -622,6 +622,63 @@ export default function PainelGerencial() {
     enabled: !!cId,
   });
 
+  // CR recebidas últimos 6 meses (fonte primária do faturamento híbrido)
+  const { data: crRecebido6m = [] } = useQuery({
+    queryKey: ["pg_cr_recebido_6m", cId, seisAtras, hojeStr],
+    queryFn: async () => {
+      const pageSize = 1000;
+      const all: any[] = [];
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("contas_receber")
+          .select("valor, valor_pago, data_pagamento")
+          .eq("company_id", cId)
+          .eq("status", "pago")
+          .is("deleted_at", null)
+          .gte("data_pagamento", seisAtras)
+          .lte("data_pagamento", hojeStr)
+          .order("data_pagamento", { ascending: true })
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+      return all;
+    },
+    enabled: !!cId,
+  });
+
+  // Créditos de movimentações últimos 6 meses (fallback do faturamento híbrido)
+  const { data: movCredito6m = [] } = useQuery({
+    queryKey: ["pg_mov_credito_6m", cId, seisAtras, hojeStr],
+    queryFn: async () => {
+      const pageSize = 1000;
+      const all: any[] = [];
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("movimentacoes")
+          .select("valor, data, origem")
+          .eq("company_id", cId)
+          .eq("tipo", "credito")
+          .gte("data", seisAtras)
+          .lte("data", hojeStr)
+          .order("data", { ascending: true })
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) throw error;
+        const batch = (data || []).filter((m: any) => m.origem !== "transferencia");
+        all.push(...batch);
+        if ((data || []).length < pageSize) break;
+        fromIdx += pageSize;
+      }
+      return all;
+    },
+    enabled: !!cId,
+  });
+
   // Despesas dos últimos 6 meses (contas_pagar pagas) — mesma base do KPI "Despesas totais"
   const { data: despesas6m = [] } = useQuery({
     queryKey: ["pg_despesas_6m", cId, seisAtras, hojeStr],
@@ -651,21 +708,37 @@ export default function PainelGerencial() {
     enabled: !!cId,
   });
 
-  // Agrupar vendas e despesas por mês (Receita x Despesas)
+  // Agrupar vendas e despesas por mês (Receita x Despesas) — receita usa mesmo
+  // modelo híbrido do KPI: CR recebido por mês → vendas → créditos de movimentação
   const faturamentoMensal = useMemo(() => {
-    const receitaMap = new Map<string, number>();
+    const crMap = new Map<string, number>();
+    const vendasMap = new Map<string, number>();
+    const movMap = new Map<string, number>();
     const despesaMap = new Map<string, number>();
-    // Inicializar 6 meses para garantir todos apareçam mesmo com zero
     for (let i = 5; i >= 0; i--) {
       const d = subMonths(today, i);
       const k = format(d, "yyyy-MM");
-      receitaMap.set(k, 0);
+      crMap.set(k, 0);
+      vendasMap.set(k, 0);
+      movMap.set(k, 0);
       despesaMap.set(k, 0);
+    }
+    for (const r of (crRecebido6m as any[])) {
+      const key = String(r.data_pagamento || "").slice(0, 7);
+      if (crMap.has(key)) {
+        crMap.set(key, (crMap.get(key) || 0) + Number(r.valor_pago || r.valor || 0));
+      }
     }
     for (const v of (vendas6m as any[])) {
       const key = String(v.data_venda || "").slice(0, 7);
-      if (receitaMap.has(key)) {
-        receitaMap.set(key, (receitaMap.get(key) || 0) + Number(v.valor_total || 0));
+      if (vendasMap.has(key)) {
+        vendasMap.set(key, (vendasMap.get(key) || 0) + Number(v.valor_total || 0));
+      }
+    }
+    for (const m of (movCredito6m as any[])) {
+      const key = String(m.data || "").slice(0, 7);
+      if (movMap.has(key)) {
+        movMap.set(key, (movMap.get(key) || 0) + Number(m.valor || 0));
       }
     }
     for (const d of (despesas6m as any[])) {
@@ -675,13 +748,17 @@ export default function PainelGerencial() {
       }
     }
     const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-    return Array.from(receitaMap.entries()).map(([ym, receita]) => {
+    return Array.from(crMap.keys()).map((ym) => {
       const [, mm] = ym.split("-");
       const label = meses[parseInt(mm) - 1];
+      const cr = crMap.get(ym) || 0;
+      const vd = vendasMap.get(ym) || 0;
+      const mv = movMap.get(ym) || 0;
+      const receita = cr > 0 ? cr : vd > 0 ? vd : mv;
       const despesa = despesaMap.get(ym) || 0;
       return { mes: label, receita, despesa };
     });
-  }, [vendas6m, despesas6m, today]);
+  }, [crRecebido6m, vendas6m, movCredito6m, despesas6m, today]);
 
   const faturamentoVendas = useMemo(
     () =>
@@ -692,9 +769,25 @@ export default function PainelGerencial() {
     [vendasMes]
   );
   const nVendas = (vendasMes || []).length;
-  // Faturamento = SOMA de todas as vendas do mês (confirmadas ou não por conciliação)
-  // Fonte única: tabela `vendas` (não mistura com movimentações bancárias)
-  const faturamento = faturamentoVendas;
+  // Faturamento HÍBRIDO: prioriza CR recebido (simétrico à despesa), cai para
+  // vendas, e por último para créditos da conciliação bancária. Garante que
+  // o cockpit nunca fique zerado se ao menos uma fonte tiver dados no mês.
+  const faturamentoFonte: "cr" | "vendas" | "conciliacao" | "vazio" =
+    crRecebidoMes > 0
+      ? "cr"
+      : faturamentoVendas > 0
+      ? "vendas"
+      : receitaBruta > 0
+      ? "conciliacao"
+      : "vazio";
+  const faturamento =
+    faturamentoFonte === "cr"
+      ? crRecebidoMes
+      : faturamentoFonte === "vendas"
+      ? faturamentoVendas
+      : faturamentoFonte === "conciliacao"
+      ? receitaBruta
+      : 0;
   const ticketMedio = nVendas > 0 ? faturamentoVendas / nVendas : 0;
   // Resultado = Faturamento - Despesas (consistente com os cards do cockpit)
   const resultadoDre = faturamento - despesasTotais;
@@ -838,7 +931,17 @@ export default function PainelGerencial() {
   const pctDelta = (atual: number, anterior: number) =>
     anterior > 0 ? ((atual - anterior) / anterior) * 100 : atual > 0 ? 100 : null;
 
-  const deltaFaturamento = pctDelta(faturamento, faturamentoAnterior);
+  // Faturamento do mês anterior seguindo a MESMA fonte do mês atual (híbrido)
+  const faturamentoAnteriorHibrido =
+    faturamentoFonte === "cr"
+      ? prevCrRecebido
+      : faturamentoFonte === "vendas"
+      ? faturamentoAnterior
+      : faturamentoFonte === "conciliacao"
+      ? prevReceitaBruta
+      : 0;
+
+  const deltaFaturamento = pctDelta(faturamento, faturamentoAnteriorHibrido);
   const deltaCrPrev = pctDelta(crPrevMes, prevCrPrev);
   const deltaCrRecebido = pctDelta(crRecebidoMes, prevCrRecebido);
   const deltaInad = pctDelta(inadimplentes.total, prevInadTotal);
@@ -846,8 +949,8 @@ export default function PainelGerencial() {
   const deltaCpAtraso = pctDelta(cpVencido, prevCpMes > 0 ? prevCpMes : 1);
   const deltaReceita = pctDelta(receitaBruta, prevReceitaBruta);
   const deltaDespesas = pctDelta(despesasTotais, prevDespesas);
-  // Resultado do mês anterior usa a mesma base (faturamento de vendas - despesas)
-  const prevResultado = faturamentoAnterior - prevDespesas;
+  // Resultado do mês anterior usa a mesma fonte híbrida escolhida para o faturamento
+  const prevResultado = faturamentoAnteriorHibrido - prevDespesas;
   const deltaResultado = pctDelta(resultadoDre, Math.abs(prevResultado) > 0 ? prevResultado : 1);
 
   // ────────────────────────────────────────────────────────────
@@ -1374,7 +1477,21 @@ export default function PainelGerencial() {
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <KpiCard label="Faturamento" value={fmt(faturamento)} color={C.green} subtitle={nVendas > 0 ? `${nVendas} vendas | TM ${fmt(ticketMedio)}` : `0 vendas no período`} delta={deltaFaturamento} />
+          <KpiCard
+            label="Faturamento"
+            value={fmt(faturamento)}
+            color={C.green}
+            subtitle={
+              faturamentoFonte === "cr"
+                ? `fonte: contas a receber recebidas`
+                : faturamentoFonte === "vendas"
+                ? `${nVendas} vendas | TM ${fmt(ticketMedio)}`
+                : faturamentoFonte === "conciliacao"
+                ? `fonte: créditos da conciliação bancária`
+                : `sem receita no período`
+            }
+            delta={deltaFaturamento}
+          />
           <KpiCard label="Despesas totais" value={fmt(despesasTotais)} color={C.red} delta={deltaDespesas} deltaLabel={deltaDespesas && deltaDespesas > 0 ? "↑ vs mês anterior" : "vs mês anterior"} />
           <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
         </div>
