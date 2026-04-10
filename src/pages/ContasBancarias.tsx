@@ -193,7 +193,7 @@ export default function ContasBancarias() {
       if (isFkError) {
         const { error: updError } = await (activeClient as any)
           .from("bank_accounts")
-          .update({ is_active: false, status: "inativa" })
+          .update({ is_active: false, status: "encerrada" })
           .eq("id", acc.id);
         if (updError) throw updError;
         toast.success("Conta marcada como inativa (tem histórico vinculado)");
