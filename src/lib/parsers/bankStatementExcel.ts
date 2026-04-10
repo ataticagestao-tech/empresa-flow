@@ -64,10 +64,45 @@ function parseAmount(value: any): number | null {
 
 // Nomes comuns de colunas em extratos bancários brasileiros
 const DATE_ALIASES = ["data", "date", "dt", "data_mov", "data mov", "data movimento", "dt_mov", "dt mov", "data lançamento", "data lancamento", "data operação", "data operacao"];
-const DESC_ALIASES = ["descricao", "descrição", "description", "desc", "historico", "histórico", "hist", "lançamento", "lancamento", "memo", "detalhe", "detalhes", "observação", "observacao"];
-const AMOUNT_ALIASES = ["valor", "amount", "value", "vlr", "montante"];
+const HIST_ALIASES = ["historico", "histórico", "hist", "tipo", "operação", "operacao", "lançamento", "lancamento"];
+const DESC_ALIASES = ["descricao", "descrição", "description", "desc", "detalhe", "detalhes", "beneficiario", "beneficiário", "favorecido", "memo", "observação", "observacao"];
+const AMOUNT_ALIASES = ["valor", "amount", "value", "vlr", "montante", "valor (r$)", "valor r$"];
 const CREDIT_ALIASES = ["credito", "crédito", "credit", "entrada", "entradas"];
 const DEBIT_ALIASES = ["debito", "débito", "debit", "saida", "saída", "saidas", "saídas"];
+const BALANCE_ALIASES = ["saldo", "balance"];
+
+// Parse CSV com detecção automática de separador (; , \t)
+function parseCsvText(text: string): string[][] {
+    // Remove BOM
+    const cleaned = text.replace(/^\uFEFF/, "");
+    const lines = cleaned.split(/\r?\n/).filter(l => l.length > 0);
+    if (lines.length === 0) return [];
+
+    // Detectar separador: conta ocorrências de ; vs , vs \t na primeira linha não vazia
+    const sample = lines.slice(0, Math.min(5, lines.length)).join("\n");
+    const semicolons = (sample.match(/;/g) || []).length;
+    const tabs = (sample.match(/\t/g) || []).length;
+    const commas = (sample.match(/,/g) || []).length;
+
+    let sep = ",";
+    if (semicolons >= tabs && semicolons >= commas) sep = ";";
+    else if (tabs > commas) sep = "\t";
+
+    return lines.map(line => {
+        // Suporte simples a campos entre aspas
+        const result: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') { inQuotes = !inQuotes; continue; }
+            if (ch === sep && !inQuotes) { result.push(current.trim()); current = ""; continue; }
+            current += ch;
+        }
+        result.push(current.trim());
+        return result;
+    });
+}
 
 function findColumnIndex(headers: string[], aliases: string[]): number {
   const normalized = headers.map((h) => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
@@ -85,25 +120,39 @@ function findColumnIndex(headers: string[], aliases: string[]): number {
   return -1;
 }
 
-export async function parseBankStatementExcel(file: File): Promise<ExcelParsedTransaction[]> {
-  const arrayBuffer = await file.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
+async function loadRows(file: File): Promise<string[][]> {
+  const isCsv = /\.csv$/i.test(file.name);
 
+  if (isCsv) {
+    // Parser CSV próprio — detecta separador ; , \t e preserva strings brasileiras
+    const text = await file.text();
+    return parseCsvText(text);
+  }
+
+  // Excel (.xlsx/.xls) — ler como string para preservar valores brasileiros como "1.234,56"
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true, raw: false });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) throw new Error("Planilha vazia");
-
   const sheet = workbook.Sheets[sheetName];
-  const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
+  return rows.map(r => r.map(c => String(c || "")));
+}
+
+export async function parseBankStatementExcel(file: File): Promise<ExcelParsedTransaction[]> {
+  const rows = await loadRows(file);
 
   if (rows.length < 2) throw new Error("Planilha sem dados suficientes");
 
-  // Encontrar a linha de cabeçalho (primeira linha com pelo menos uma coluna de data e uma de valor)
+  // Encontrar a linha de cabeçalho
   let headerRowIdx = -1;
   let dateCol = -1;
+  let histCol = -1;
   let descCol = -1;
   let amountCol = -1;
   let creditCol = -1;
   let debitCol = -1;
+  let balanceCol = -1;
 
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const row = rows[i].map((c: any) => String(c || ""));
@@ -117,10 +166,12 @@ export async function parseBankStatementExcel(file: File): Promise<ExcelParsedTr
     if (aIdx >= 0 || (cIdx >= 0 && dbtIdx >= 0)) {
       headerRowIdx = i;
       dateCol = dIdx;
+      histCol = findColumnIndex(row, HIST_ALIASES);
       descCol = findColumnIndex(row, DESC_ALIASES);
       amountCol = aIdx;
       creditCol = cIdx;
       debitCol = dbtIdx;
+      balanceCol = findColumnIndex(row, BALANCE_ALIASES);
       break;
     }
   }
@@ -132,8 +183,11 @@ export async function parseBankStatementExcel(file: File): Promise<ExcelParsedTr
     );
   }
 
-  // Se não achou coluna de descrição, usar a coluna após a data
-  if (descCol < 0) {
+  // Evitar confundir hist com desc: se histCol == descCol, manter só descCol
+  if (histCol >= 0 && histCol === descCol) histCol = -1;
+
+  // Se não achou nenhuma coluna de descrição, usar a coluna após a data
+  if (histCol < 0 && descCol < 0) {
     descCol = dateCol + 1;
   }
 
@@ -146,13 +200,16 @@ export async function parseBankStatementExcel(file: File): Promise<ExcelParsedTr
     const dateVal = parseDate(row[dateCol]);
     if (!dateVal) continue;
 
-    const desc = String(row[descCol] || "").trim();
+    // Concatenar Histórico + Descrição (ex: "Pix enviado - Ryan Rissi Marques")
+    const histPart = histCol >= 0 ? String(row[histCol] || "").trim() : "";
+    const descPart = descCol >= 0 ? String(row[descCol] || "").trim() : "";
+    let desc = [histPart, descPart].filter(Boolean).join(" - ");
     if (!desc) continue;
 
     let amount: number | null = null;
 
-    if (amountCol >= 0) {
-      // Coluna única de valor
+    if (amountCol >= 0 && amountCol !== balanceCol) {
+      // Coluna única de valor — ignorar coluna Saldo
       amount = parseAmount(row[amountCol]);
     } else if (creditCol >= 0 && debitCol >= 0) {
       // Colunas separadas crédito/débito
