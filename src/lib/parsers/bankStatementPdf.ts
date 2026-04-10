@@ -259,9 +259,155 @@ export async function parseBankStatementPdf(
     console.log(`[PDF Parser] Transações (posição): ${parsed.length}`);
     if (parsed.length > 0) return parsed;
 
-    // ─── Fallback: parser texto genérico (R$ prefix) ────────
+    // ─── Fallback 1: parser Nubank PJ (formato agrupado por data) ───
+    console.log("[PDF Parser] Tentando parser Nubank PJ...");
+    const nubankParsed = parseNubankFormat(allPageItems);
+    if (nubankParsed.length > 0) {
+        console.log(`[PDF Parser] Transações (Nubank): ${nubankParsed.length}`);
+        return nubankParsed;
+    }
+
+    // ─── Fallback 2: parser texto genérico (R$ prefix) ────────
     console.log("[PDF Parser] Fallback para parser texto genérico...");
     return fallbackTextParse(fullText);
+}
+
+// ─── Parser Nubank PJ (formato agrupado por data + tipo) ──────
+//
+// Exemplo de formato:
+//   "26 JAN 2026  Total de entradas  + 1.212,00"
+//   "             Depósito Recebido por Boleto  1.212,00"
+//   "             Saldo do dia  1.212,00"
+//
+//   "29 JAN 2026  Total de entradas  + 5.207,22"
+//   "             Pagamento Recebido  DIONELLY BRINQUEDOS SHOPPING PIRACICABA -  670,00"
+//   "                                 55.500.828/0001-09"
+//   "             Total de saídas  - 1,80"
+//   "             Tarifa  Boleto de cobrança  0,90"
+//
+// Estratégia: processar linha por linha, alternando entre "modo entrada" e "modo saída"
+// baseado nas linhas "Total de entradas" / "Total de saídas".
+
+const MONTH_MAP: Record<string, number> = {
+    JAN: 1, FEV: 2, MAR: 3, ABR: 4, MAI: 5, JUN: 6,
+    JUL: 7, AGO: 8, SET: 9, OUT: 10, NOV: 11, DEZ: 12,
+};
+
+// "26 JAN 2026" — captura dia, mês (3 letras), ano
+const NUBANK_DATE_RE = /^(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})$/i;
+// Valor puro sem sinal explícito (sinal vem do grupo Entradas/Saídas)
+const NUBANK_VALUE_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
+
+function isSkipLineNubank(text: string): boolean {
+    const lower = text.toLowerCase().trim();
+    return (
+        lower.startsWith("saldo do dia") ||
+        lower.startsWith("saldo inicial") ||
+        lower.startsWith("saldo final") ||
+        lower.startsWith("saldo líquido") ||
+        lower.startsWith("rendimento líquido") ||
+        lower.startsWith("valores em r$") ||
+        lower.includes("tem alguma dúvida") ||
+        lower.includes("extrato gerado")
+    );
+}
+
+function parseNubankFormat(allPageItems: TextItem[][]): BankStatementParsedTransaction[] {
+    const parsed: BankStatementParsedTransaction[] = [];
+    let currentDate: string | null = null;
+    let currentSign: 1 | -1 | null = null; // +1 = entrada, -1 = saída
+    let pendingOp: { description: string; amount: number | null } | null = null;
+
+    // Reconstituir linhas (x ordenadas) de todas as páginas em sequência
+    const allLines: TextItem[][] = [];
+    for (const pageItems of allPageItems) {
+        const pageLines = groupIntoLines(pageItems, 3);
+        allLines.push(...pageLines);
+    }
+
+    const flushPending = () => {
+        if (pendingOp && pendingOp.amount !== null && currentDate && currentSign !== null) {
+            const desc = pendingOp.description.trim();
+            if (desc && !isSkipLineNubank(desc)) {
+                parsed.push({
+                    date: currentDate,
+                    description: desc.substring(0, 255),
+                    amount: currentSign * pendingOp.amount,
+                    raw: desc,
+                });
+            }
+        }
+        pendingOp = null;
+    };
+
+    for (const lineItems of allLines) {
+        const lineText = lineItems.map(i => i.str).join(" ").trim();
+        if (!lineText) continue;
+        if (isSkipLineNubank(lineText)) {
+            flushPending();
+            continue;
+        }
+
+        // Detectar "DD MES YYYY" no início da linha
+        const dateTokens: string[] = [];
+        let i = 0;
+        while (i < lineItems.length && dateTokens.length < 3) {
+            dateTokens.push(lineItems[i].str);
+            i++;
+        }
+        const dateStr = dateTokens.join(" ").trim();
+        const dateMatch = dateStr.match(NUBANK_DATE_RE);
+
+        if (dateMatch) {
+            flushPending();
+            const dd = parseInt(dateMatch[1]).toString().padStart(2, "0");
+            const mm = String(MONTH_MAP[dateMatch[2].toUpperCase()]).padStart(2, "0");
+            const yyyy = dateMatch[3];
+            currentDate = `${yyyy}-${mm}-${dd}`;
+            // O que vem depois da data na mesma linha pode ser "Total de entradas/saídas + valor"
+            const rest = lineItems.slice(i).map(x => x.str).join(" ");
+            if (/total\s+de\s+entradas/i.test(rest)) currentSign = 1;
+            else if (/total\s+de\s+sa[ií]das/i.test(rest)) currentSign = -1;
+            continue;
+        }
+
+        // Linhas de cabeçalho de grupo: "Total de entradas + 1.212,00" ou "Total de saídas - 1,80"
+        if (/^\s*total\s+de\s+entradas/i.test(lineText)) {
+            flushPending();
+            currentSign = 1;
+            continue;
+        }
+        if (/^\s*total\s+de\s+sa[ií]das/i.test(lineText)) {
+            flushPending();
+            currentSign = -1;
+            continue;
+        }
+
+        if (!currentDate || currentSign === null) continue;
+
+        // Detectar valor no final da linha
+        let amount: number | null = null;
+        const lastItem = lineItems[lineItems.length - 1];
+        if (lastItem && NUBANK_VALUE_RE.test(lastItem.str)) {
+            amount = parseBrlAmount(lastItem.str);
+        }
+
+        // Montar descrição (todos os items exceto o valor do final)
+        const descItems = amount !== null ? lineItems.slice(0, -1) : lineItems;
+        const descText = descItems.map(x => x.str).join(" ").trim();
+
+        if (amount !== null && descText) {
+            // Nova transação
+            flushPending();
+            pendingOp = { description: descText, amount };
+        } else if (pendingOp && descText) {
+            // Linha de continuação da descrição anterior (ex: CNPJ, agência, conta)
+            pendingOp.description += " " + descText;
+        }
+    }
+
+    flushPending();
+    return parsed;
 }
 
 // ─── Parser Fallback (texto puro, formato com R$) ───────────
