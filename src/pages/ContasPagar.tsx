@@ -1128,10 +1128,33 @@ export default function ContasPagar() {
                                   />
                                 </td>
                                 <td className="py-3 px-3" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
-                                  <div className="font-semibold" style={{ color: '#0f1e33' }}>{cp.credor_nome}</div>
-                                  {cp.credor_cpf_cnpj && (
-                                    <div style={{ fontSize: 11, color: '#7a8fa8', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
-                                  )}
+                                  <div className="flex items-center gap-2.5">
+                                    {(() => {
+                                      const iconConf: Record<string, { Icon: typeof CheckCircle2; color: string; bg: string; title: string }> = {
+                                        pago: { Icon: CheckCircle2, color: '#1d9e75', bg: '#e1f5ee', title: 'Pago' },
+                                        vencido: { Icon: AlertTriangle, color: '#E24B4A', bg: '#FCEBEB', title: 'Vencido' },
+                                        aberto: { Icon: CalendarClock, color: '#BA7517', bg: '#FAEEDA', title: 'Em aberto' },
+                                        parcial: { Icon: Loader2, color: '#378ADD', bg: '#E6F1FB', title: 'Parcial' },
+                                      }
+                                      const ic = iconConf[cp.status] || iconConf.aberto
+                                      const Icon = ic.Icon
+                                      return (
+                                        <div
+                                          title={ic.title}
+                                          className="flex items-center justify-center flex-shrink-0"
+                                          style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: ic.bg }}
+                                        >
+                                          <Icon size={15} color={ic.color} strokeWidth={2.2} />
+                                        </div>
+                                      )
+                                    })()}
+                                    <div>
+                                      <div className="font-semibold" style={{ color: '#0f1e33' }}>{cp.credor_nome}</div>
+                                      {cp.credor_cpf_cnpj && (
+                                        <div style={{ fontSize: 11, color: '#7a8fa8', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="py-3 px-3">
                                   <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#4a5e7a', border: '1px solid rgba(26,46,74,0.08)' }}>
