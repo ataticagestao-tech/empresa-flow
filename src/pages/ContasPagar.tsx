@@ -241,7 +241,7 @@ export default function ContasPagar() {
     const db = activeClient as any
 
     const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
-      db.from('contas_pagar').select('*').eq('company_id', selectedCompany.id).is('deleted_at', null).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
+      db.from('contas_pagar').select('*').or(`company_id.eq.${selectedCompany.id},unidade_destino_id.eq.${selectedCompany.id}`).is('deleted_at', null).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
       db.from('bank_accounts').select('id, company_id, name, banco').eq('company_id', selectedCompany.id),
       db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
       db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
@@ -308,7 +308,7 @@ export default function ContasPagar() {
       () => (activeClient as any)
         .from('contas_pagar')
         .select('valor_pago')
-        .eq('company_id', selectedCompany.id)
+        .or(`company_id.eq.${selectedCompany.id},unidade_destino_id.eq.${selectedCompany.id}`)
         .eq('status', 'pago')
         .gte('data_pagamento', inicio)
         .lte('data_pagamento', fim),

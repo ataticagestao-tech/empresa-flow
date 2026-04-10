@@ -254,7 +254,7 @@ export default function PainelGerencial() {
       const { data } = await db
         .from("contas_pagar")
         .select("id, valor, data_vencimento, status")
-        .eq("company_id", cId)
+        .or(`company_id.eq.${cId},unidade_destino_id.eq.${cId}`)
         .in("status", ["aberto", "parcial"])
         .is("deleted_at", null)
         .limit(5000);
@@ -509,7 +509,7 @@ export default function PainelGerencial() {
       const { data } = await db
         .from("contas_pagar")
         .select("valor, valor_pago")
-        .eq("company_id", cId)
+        .or(`company_id.eq.${cId},unidade_destino_id.eq.${cId}`)
         .eq("status", "pago")
         .is("deleted_at", null)
         .gte("data_pagamento", monthStart)
@@ -708,7 +708,7 @@ export default function PainelGerencial() {
         const { data, error } = await db
           .from("contas_pagar")
           .select("valor, valor_pago, data_pagamento")
-          .eq("company_id", cId)
+          .or(`company_id.eq.${cId},unidade_destino_id.eq.${cId}`)
           .eq("status", "pago")
           .is("deleted_at", null)
           .gte("data_pagamento", seisAtras)
@@ -897,7 +897,7 @@ export default function PainelGerencial() {
     queryKey: ["pg_prev_cp_mes", cId, prevMonthStart, prevMonthEnd],
     queryFn: async () => {
       const { data } = await db
-        .from("contas_pagar").select("valor").eq("company_id", cId)
+        .from("contas_pagar").select("valor").or(`company_id.eq.${cId},unidade_destino_id.eq.${cId}`)
         .in("status", ["aberto", "parcial", "pago"])
         .is("deleted_at", null)
         .gte("data_vencimento", prevMonthStart).lte("data_vencimento", prevMonthEnd).limit(5000);
@@ -986,7 +986,7 @@ export default function PainelGerencial() {
       const { data } = await db
         .from("contas_pagar")
         .select("credor_nome, valor, valor_pago")
-        .eq("company_id", cId)
+        .or(`company_id.eq.${cId},unidade_destino_id.eq.${cId}`)
         .eq("status", "pago")
         .is("deleted_at", null)
         .gte("data_pagamento", monthStart)
@@ -1018,7 +1018,7 @@ export default function PainelGerencial() {
       const { data } = await db
         .from("contas_pagar")
         .select("credor_nome")
-        .eq("company_id", cId)
+        .or(`company_id.eq.${cId},unidade_destino_id.eq.${cId}`)
         .eq("status", "pago")
         .is("deleted_at", null)
         .gte("data_pagamento", prevMonthStart)
