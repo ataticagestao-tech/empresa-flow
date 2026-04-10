@@ -401,11 +401,11 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         },
         onSuccess: () => {
             toast({ title: "Conciliado!", description: "Lançamento baixado com sucesso." });
-            // Refetch forçado (ignora staleTime)
+            // Refetch forçado (ignora staleTime) — rules precisa refetch imediato para motor recalcular
             queryClient.refetchQueries({ queryKey: ['bank_transactions_pending', bankAccountId] });
             queryClient.refetchQueries({ queryKey: ['system_pending_transactions'] });
+            queryClient.refetchQueries({ queryKey: ['conciliation_rules'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['conciliation_rules'] });
             // Refresh MVs para alimentar DRE, Fluxo de Caixa, Multiempresas
             (activeClient as any).rpc('refresh_mvs_financeiras').then(() => {
                 queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });

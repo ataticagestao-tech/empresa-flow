@@ -78,29 +78,43 @@ function normalizeText(text: string): string {
         .trim();
 }
 
+// Palavras que NÃO podem ser beneficiário (são estrutura do banco)
+const BANK_STRUCTURE_WORDS = new Set([
+    "TRANSFERENCIA", "PIX", "TED", "DOC", "BOLETO", "PAGAMENTO", "RECEBIMENTO",
+    "CREDITO", "DEBITO", "COMPRA", "SAQUE", "DEPOSITO", "ESTORNO", "TARIFA",
+    "ENVIADO", "RECEBIDO", "SAIDA", "ENTRADA",
+]);
+
 /** Extract beneficiary name from bank description.
- *  Patterns: "... / NOME" or "... - NOME" or "PIX ... NOME"
+ *  Patterns: "NOME - Transferência | Pix" (parte ANTES do traço)
+ *           "... / NOME"
+ *           "PIX ... NOME"
  */
 function extractBeneficiary(description: string): string | null {
     const normalized = normalizeText(description);
 
-    // Pattern 1: after last "/"
+    // Pattern 1: PARTE ANTES de " - Transferência" ou " - Pix" ou " - PIX"
+    // Ex: "MINISTERIO DA FAZENDA - Transferência | Pix" → "MINISTERIO DA FAZENDA"
+    const beforeDashMatch = description.match(/^(.+?)\s*-\s*(?:Transfer|Pix|PIX|TED|DOC|Boleto|Pagamento)/i);
+    if (beforeDashMatch) {
+        const name = beforeDashMatch[1].trim();
+        if (name.length >= 4) return name;
+    }
+
+    // Pattern 2: após last "/"
     const slashIdx = description.lastIndexOf("/");
     if (slashIdx !== -1) {
         let name = description.substring(slashIdx + 1).replace(/\s*\)\s*$/, "").trim();
-        if (name.length >= 4 && !/^\d+$/.test(name)) return name;
+        if (name.length >= 4 && !/^\d+$/.test(name)) {
+            // Verificar se não é palavra de estrutura
+            const firstWord = normalizeText(name).split(/\s+/)[0];
+            if (!BANK_STRUCTURE_WORDS.has(firstWord)) return name;
+        }
     }
 
-    // Pattern 2: PIX — extract name after CPF/CNPJ
+    // Pattern 3: PIX — extract name after CPF/CNPJ
     const pixMatch = normalized.match(/PIX.*?(?:CP|CNPJ)\s*:?\s*\d[\d./-]*\s*[-]?\s*(.{4,})/);
     if (pixMatch) return pixMatch[1].trim();
-
-    // Pattern 3: after " - " separator (common in bank descriptions)
-    const dashIdx = description.lastIndexOf(" - ");
-    if (dashIdx !== -1 && dashIdx > 10) {
-        let name = description.substring(dashIdx + 3).trim();
-        if (name.length >= 4 && !/^\d+$/.test(name)) return name;
-    }
 
     return null;
 }
@@ -110,10 +124,16 @@ function extractKeywordsForRule(description: string): string[] {
     const keywords: string[] = [];
     const normalized = normalizeText(description);
 
+    // 0. Descrição completa normalizada — garante match EXATO em descrições idênticas
+    if (normalized.length >= 4) {
+        keywords.push(normalized);
+    }
+
     // 1. Beneficiary name (most important)
     const beneficiary = extractBeneficiary(description);
     if (beneficiary) {
-        keywords.push(normalizeText(beneficiary));
+        const normBeneficiary = normalizeText(beneficiary);
+        if (!keywords.includes(normBeneficiary)) keywords.push(normBeneficiary);
     }
 
     // 2. Known bank identifiers and payment providers
@@ -364,31 +384,52 @@ function runMatchingEngine(
 
     const candidates = bt.amount < 0 ? index.payable : index.receivable;
 
-    // ===== CAMADA 0: Regras de palavras-chave (conciliation_rules) =====
+    // ===== CAMADA 0: Regras aprendidas (conciliation_rules) =====
+    // Busca a MELHOR regra (keyword mais longa = mais específica)
     const btTipo = bt.amount < 0 ? "debit" : "credit";
+    let bestRule: { rule: ConciliationRule; matchedKwLength: number; i: number } | null = null;
 
     for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
         if (!rule.ativa) continue;
-
-        // Filtrar por tipo de transação (débito/crédito) se a regra tem tipo definido
         if (rule.tipo_transacao && rule.tipo_transacao !== btTipo) continue;
 
         const normKws = rulesNormalized[i];
-        const hit = normKws.some(kw => descNorm.includes(kw));
-        if (!hit) continue;
+        // Encontrar a keyword mais longa que bate
+        let longestHit = 0;
+        for (const kw of normKws) {
+            if (descNorm.includes(kw) && kw.length > longestHit) {
+                longestHit = kw.length;
+            }
+        }
+        if (longestHit === 0) continue;
 
-        // Bonus de score se o valor bate com o memorizado (±5%)
+        // Regra com keyword mais longa ganha (mais específica)
+        // Empate: regra com account_id definido ganha sobre regra sem
+        if (!bestRule || longestHit > bestRule.matchedKwLength
+            || (longestHit === bestRule.matchedKwLength && rule.account_id && !bestRule.rule.account_id)) {
+            bestRule = { rule, matchedKwLength: longestHit, i };
+        }
+    }
+
+    // Só usar a regra se ela tem categoria definida (account_id)
+    // Caso contrário, cair para ai_category que sempre tem sugestão
+    if (bestRule && bestRule.rule.account_id) {
+        const rule = bestRule.rule;
         let confiancaScore = CONFIANCA_MAP[rule.confianca] || 50;
         if (rule.valor_referencia && rule.valor_referencia > 0) {
             const ratio = Math.abs(absAmount - rule.valor_referencia) / rule.valor_referencia;
-            if (ratio < 0.01) confiancaScore = Math.max(confiancaScore, 95);       // valor exato
-            else if (ratio <= 0.05) confiancaScore = Math.max(confiancaScore, 90);  // ±5%
+            if (ratio < 0.01) confiancaScore = Math.max(confiancaScore, 95);
+            else if (ratio <= 0.05) confiancaScore = Math.max(confiancaScore, 90);
         }
+        // Bonus para regras muito específicas (match da descrição inteira)
+        if (bestRule.matchedKwLength >= descNorm.length * 0.7) {
+            confiancaScore = Math.max(confiancaScore, 90);
+        }
+
         const account = rule.account_id ? accountMap.get(rule.account_id) : null;
         const accountLabel = account ? `${account.code} ${account.name}` : "";
 
-        // Binary search for exact amount match
         const exactCandidates = findInRange(candidates, absAmount - 0.01, absAmount + 0.01);
         const ruleCandidate = exactCandidates.length > 0 ? exactCandidates[0] : null;
 
@@ -405,7 +446,7 @@ function runMatchingEngine(
             label: ruleCandidate
                 ? `${ruleCandidate.entity_name} - ${ruleCandidate.description}`
                 : accountLabel
-                    ? `IA: ${accountLabel}`
+                    ? accountLabel
                     : `Regra: ${(rule.palavras_chave || []).join(", ")}`,
         };
     }
@@ -647,7 +688,8 @@ export function useConciliationEngine(
             return null;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["conciliation_rules"] });
+            // Refetch forçado: motor precisa recalcular suggestions com a nova regra
+            queryClient.refetchQueries({ queryKey: ["conciliation_rules", companyId] });
         },
     });
 
