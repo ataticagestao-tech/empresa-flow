@@ -181,7 +181,7 @@ export default function Empresas() {
   };
 
   const handleDelete = async (company: Company) => {
-    if (!confirm(`Remover empresa ${company.razao_social}?`)) return;
+    if (!confirm(`Remover empresa "${company.razao_social}"?\n\nSe houver dados vinculados (vendas, lançamentos, funcionários etc.), a empresa será marcada como inativa (soft delete) e deixará de aparecer na listagem.`)) return;
     await deleteCompany(company.id);
   };
 

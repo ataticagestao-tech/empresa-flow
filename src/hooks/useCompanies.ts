@@ -200,18 +200,37 @@ export function useCompanies(userId?: string) {
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await activeClient
+            const { error: delError } = await activeClient
                 .from("companies")
                 .delete()
                 .eq("id", id);
-            if (error) throw error;
+
+            if (!delError) return { softDeleted: false };
+
+            const isFkError =
+                (delError as any).code === "23503" ||
+                /foreign key|violates foreign/i.test(delError.message || "");
+
+            if (!isFkError) throw delError;
+
+            const { error: updError } = await activeClient
+                .from("companies")
+                .update({ is_active: false })
+                .eq("id", id);
+            if (updError) throw updError;
+
+            return { softDeleted: true };
         },
-        onSuccess: () => {
+        onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ["companies", isUsingSecondary, userId] });
-            toast.success("Empresa excluída com sucesso!");
+            if (result?.softDeleted) {
+                toast.success("Empresa marcada como inativa (tem histórico vinculado)");
+            } else {
+                toast.success("Empresa excluída com sucesso!");
+            }
         },
-        onError: () => {
-            toast.error("Erro ao excluir empresa");
+        onError: (err: any) => {
+            toast.error("Erro ao excluir empresa: " + (err?.message || "desconhecido"));
         },
     });
 
