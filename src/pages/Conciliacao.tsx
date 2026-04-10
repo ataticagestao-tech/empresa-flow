@@ -1636,30 +1636,33 @@ export default function Conciliacao() {
                                                             <ScoreBadge score={score} />
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                {bestMatch && (
-                                                                    <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                        onClick={() => handleMatch(bt, bestMatch)}>
-                                                                        Aceitar
+                                                            <div className="flex justify-end items-center gap-1">
+                                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    {bestMatch && (
+                                                                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                            onClick={() => handleMatch(bt, bestMatch)}>
+                                                                            Aceitar
+                                                                        </Button>
+                                                                    )}
+                                                                    {!bestMatch && suggestion?.accountId && (
+                                                                        <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                                                                            disabled={inlineConciling === bt.id}
+                                                                            onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}>
+                                                                            {inlineConciling === bt.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                                                            Conciliar
+                                                                        </Button>
+                                                                    )}
+                                                                    <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"
+                                                                        onClick={() => {
+                                                                        setSelectedBankTx(bt);
+                                                                        setSearchTerm("");
+                                                                        setFilterDateFrom("");
+                                                                        setFilterDateTo("");
+                                                                    }}>
+                                                                        Buscar
                                                                     </Button>
-                                                                )}
-                                                                {!bestMatch && suggestion?.accountId && (
-                                                                    <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                                                                        disabled={inlineConciling === bt.id}
-                                                                        onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}>
-                                                                        {inlineConciling === bt.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
-                                                                        Conciliar
-                                                                    </Button>
-                                                                )}
-                                                                <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"
-                                                                    onClick={() => {
-                                                                    setSelectedBankTx(bt);
-                                                                    setSearchTerm("");
-                                                                    setFilterDateFrom("");
-                                                                    setFilterDateTo("");
-                                                                }}>
-                                                                    Buscar
-                                                                </Button>
+                                                                </div>
+                                                                {/* Botão X sempre visível */}
                                                                 <Button variant="outline" size="sm"
                                                                     className="h-7 w-7 p-0 border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                                                                     title="Excluir da conciliação"
