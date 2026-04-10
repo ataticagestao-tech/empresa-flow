@@ -737,39 +737,6 @@ export default function PainelGerencial() {
   // (custo fixo recorrente, top credores, mov por banco, transferências internas)
   // ────────────────────────────────────────────────────────────
 
-  // Contratos recorrentes ativos do tipo "pagar" (custo fixo)
-  const { data: contratosRec = [], isLoading: loadContratos } = useQuery({
-    queryKey: ["pg_contratos_recorrentes", cId],
-    queryFn: async () => {
-      const { data } = await db
-        .from("contratos_recorrentes")
-        .select("id, descricao, contraparte_nome, valor, periodicidade, status, tipo")
-        .eq("company_id", cId)
-        .eq("tipo", "pagar")
-        .eq("status", "ativo")
-        .limit(1000);
-      return data || [];
-    },
-    enabled: !!cId,
-  });
-
-  const custoFixoMensal = useMemo(() => {
-    const fatorMensal: Record<string, number> = {
-      semanal: 52 / 12,
-      quinzenal: 26 / 12,
-      mensal: 1,
-      bimestral: 1 / 2,
-      trimestral: 1 / 3,
-      semestral: 1 / 6,
-      anual: 1 / 12,
-    };
-    return (contratosRec || []).reduce(
-      (s: number, c: any) =>
-        s + Number(c.valor || 0) * (fatorMensal[c.periodicidade] || 0),
-      0
-    );
-  }, [contratosRec]);
-
   // Contas pagas no período detalhadas (para Top 10 por credor)
   const { data: cpPagoDetalhe = [], isLoading: loadCpDetalhe } = useQuery({
     queryKey: ["pg_cp_pago_detalhe", cId, monthStart, monthEnd],
@@ -802,17 +769,61 @@ export default function PainelGerencial() {
       .slice(0, 10);
   }, [cpPagoDetalhe]);
 
-  // Movimentações por conta bancária no período
+  // Contas pagas no MÊS ANTERIOR (para detectar custo fixo = credores repetidos)
+  const { data: cpPagoPrev = [], isLoading: loadCpPagoPrev } = useQuery({
+    queryKey: ["pg_cp_pago_prev", cId, prevMonthStart, prevMonthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_pagar")
+        .select("credor_nome")
+        .eq("company_id", cId)
+        .eq("status", "pago")
+        .is("deleted_at", null)
+        .gte("data_pagamento", prevMonthStart)
+        .lte("data_pagamento", prevMonthEnd)
+        .limit(10000);
+      return data || [];
+    },
+    enabled: !!cId,
+  });
+
+  // Custo fixo = despesas (credores) que se repetiram entre o mês atual e o anterior
+  const custoFixoRepetido = useMemo(() => {
+    const credoresPrev = new Set<string>();
+    (cpPagoPrev || []).forEach((p: any) => {
+      const nome = (p.credor_nome || "").trim().toLowerCase();
+      if (nome) credoresPrev.add(nome);
+    });
+
+    let total = 0;
+    const credoresRepetidos = new Set<string>();
+    (cpPagoDetalhe || []).forEach((p: any) => {
+      const nome = (p.credor_nome || "").trim().toLowerCase();
+      if (nome && credoresPrev.has(nome)) {
+        total += Number(p.valor_pago || p.valor || 0);
+        credoresRepetidos.add(nome);
+      }
+    });
+
+    return { total, count: credoresRepetidos.size };
+  }, [cpPagoDetalhe, cpPagoPrev]);
+
+  const custoFixoMensal = custoFixoRepetido.total;
+  const custoFixoCredoresCount = custoFixoRepetido.count;
+  const custoFixoPctFat =
+    faturamento > 0 ? (custoFixoMensal / faturamento) * 100 : 0;
+
+  // Movimentações do período (fonte única: mov por banco, transferências, faturamento diário, royalties)
   const { data: movPorBancoRaw = [], isLoading: loadMovBanco } = useQuery({
-    queryKey: ["pg_mov_por_banco", cId, monthStart, monthEnd],
+    queryKey: ["pg_mov_periodo", cId, monthStart, monthEnd],
     queryFn: async () => {
       const { data } = await db
         .from("movimentacoes")
-        .select("conta_bancaria_id, tipo, valor, origem")
+        .select("id, conta_bancaria_id, tipo, valor, data, descricao, origem, categoria_aprendida")
         .eq("company_id", cId)
         .gte("data", monthStart)
         .lte("data", monthEnd)
-        .limit(20000);
+        .limit(30000);
       return data || [];
     },
     enabled: !!cId,
@@ -843,19 +854,115 @@ export default function PainelGerencial() {
       .sort((a, b) => b.saldo - a.saldo);
   }, [movPorBancoRaw, bankSaldos]);
 
-  // Transferências internas do período (usa o lado débito para evitar dupla contagem)
-  const transferenciasInternas = useMemo(
-    () =>
-      (movMes || [])
-        .filter((m: any) => m.tipo === "debito" && m.origem === "transferencia")
-        .reduce((s: number, m: any) => s + Number(m.valor || 0), 0),
-    [movMes]
-  );
+  // Transferências internas: detecta pares (débito em conta A + crédito em conta B
+  // na mesma data e mesmo valor). Detecta mesmo sem origem='transferencia' marcado.
+  const transferenciasInternas = useMemo(() => {
+    const rows = movPorBancoRaw || [];
+    // Também inclui movimentações já marcadas como transferência
+    const marcadas = rows
+      .filter(
+        (m: any) =>
+          m.tipo === "debito" &&
+          (m.origem === "transferencia" ||
+            m.categoria_aprendida === "transferencia")
+      )
+      .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
+
+    // Pair-matching por (data, valor) em contas bancárias diferentes
+    const byKey = new Map<
+      string,
+      { debitos: { accId: string; id: string }[]; creditos: { accId: string; id: string }[] }
+    >();
+    rows.forEach((m: any) => {
+      if (!m.conta_bancaria_id || !m.data) return;
+      // pula os que já contamos como "marcados" para não duplicar
+      if (
+        m.origem === "transferencia" ||
+        m.categoria_aprendida === "transferencia"
+      )
+        return;
+      const key = `${m.data}_${Number(m.valor || 0).toFixed(2)}`;
+      const entry = byKey.get(key) || { debitos: [], creditos: [] };
+      if (m.tipo === "debito")
+        entry.debitos.push({ accId: m.conta_bancaria_id, id: m.id });
+      else if (m.tipo === "credito")
+        entry.creditos.push({ accId: m.conta_bancaria_id, id: m.id });
+      byKey.set(key, entry);
+    });
+
+    let pares = 0;
+    byKey.forEach((entry, key) => {
+      const [, valorStr] = key.split("_");
+      const valor = Number(valorStr);
+      const usados = new Set<number>();
+      for (const debito of entry.debitos) {
+        const idx = entry.creditos.findIndex(
+          (c, i) => !usados.has(i) && c.accId !== debito.accId
+        );
+        if (idx >= 0) {
+          usados.add(idx);
+          pares += valor;
+        }
+      }
+    });
+
+    return marcadas + pares;
+  }, [movPorBancoRaw]);
+
+  // Faturamento diário: toda entrada (crédito) do período, excluindo transferências internas
+  const vendasDiariasMov = useMemo(() => {
+    const porDia: Record<string, number> = {};
+    (movPorBancoRaw || []).forEach((m: any) => {
+      if (m.tipo !== "credito") return;
+      if (
+        m.origem === "transferencia" ||
+        m.categoria_aprendida === "transferencia"
+      )
+        return;
+      const d = m.data;
+      if (!d) return;
+      porDia[d] = (porDia[d] || 0) + Number(m.valor || 0);
+    });
+    let acum = 0;
+    let count = 0;
+    return Object.entries(porDia)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dia, total]) => {
+        acum += total;
+        count++;
+        return {
+          dia: dia.slice(8, 10),
+          faturamento: total,
+          media: acum / count,
+        };
+      });
+  }, [movPorBancoRaw]);
+
+  // Receitas de royalties no período (detecta por descrição ou categoria contendo "royalt")
+  const royaltiesTotal = useMemo(() => {
+    return (movPorBancoRaw || [])
+      .filter((m: any) => {
+        if (m.tipo !== "credito") return false;
+        const desc = String(m.descricao || "").toLowerCase();
+        const cat = String(m.categoria_aprendida || "").toLowerCase();
+        return desc.includes("royalt") || cat.includes("royalt");
+      })
+      .reduce((s: number, m: any) => s + Number(m.valor || 0), 0);
+  }, [movPorBancoRaw]);
+
+  const royaltiesCount = useMemo(() => {
+    return (movPorBancoRaw || []).filter((m: any) => {
+      if (m.tipo !== "credito") return false;
+      const desc = String(m.descricao || "").toLowerCase();
+      const cat = String(m.categoria_aprendida || "").toLowerCase();
+      return desc.includes("royalt") || cat.includes("royalt");
+    }).length;
+  }, [movPorBancoRaw]);
 
   const transferPctFaturamento =
     faturamento > 0 ? (transferenciasInternas / faturamento) * 100 : 0;
-  const custoFixoPctFat =
-    faturamento > 0 ? (custoFixoMensal / faturamento) * 100 : 0;
+  const royaltiesPctFat =
+    faturamento > 0 ? (royaltiesTotal / faturamento) * 100 : 0;
 
   // ────────────────────────────────────────────────────────────
   // SECTION 7: LEITURA GERENCIAL
@@ -915,16 +1022,16 @@ export default function PainelGerencial() {
         type: "warning",
       });
 
-    // Custo fixo recorrente vs faturamento
+    // Custo fixo recorrente (credores repetidos mês atual + anterior) vs faturamento
     if (custoFixoMensal > 0 && faturamento > 0) {
       if (custoFixoPctFat > 60)
         list.push({
-          text: `Custo fixo recorrente consome ${fmtPct(custoFixoPctFat)} do faturamento (${fmt(custoFixoMensal)}/mes) - revisar contratos e renegociar`,
+          text: `Custo fixo recorrente consome ${fmtPct(custoFixoPctFat)} do faturamento (${fmt(custoFixoMensal)} em ${custoFixoCredoresCount} credores repetidos) - revisar e renegociar`,
           type: "danger",
         });
       else if (custoFixoPctFat > 40)
         list.push({
-          text: `Custo fixo recorrente em ${fmtPct(custoFixoPctFat)} do faturamento - atencao ao peso dos contratos mensais`,
+          text: `Custo fixo recorrente em ${fmtPct(custoFixoPctFat)} do faturamento - atencao ao peso dos credores fixos`,
           type: "warning",
         });
     }
@@ -934,6 +1041,13 @@ export default function PainelGerencial() {
       list.push({
         text: `Transferencias entre contas somam ${fmtPct(transferPctFaturamento)} do faturamento (${fmt(transferenciasInternas)}) - volume alto de movimentacao interna, revisar se ha necessidade`,
         type: "warning",
+      });
+
+    // Royalties como receita relevante
+    if (royaltiesTotal > 0 && faturamento > 0 && royaltiesPctFat > 20)
+      list.push({
+        text: `Royalties representam ${fmtPct(royaltiesPctFat)} do faturamento (${fmt(royaltiesTotal)}) - fonte de receita significativa`,
+        type: "success",
       });
 
     // Top credor concentrado
@@ -967,51 +1081,15 @@ export default function PainelGerencial() {
     crPrevMes,
     custoFixoMensal,
     custoFixoPctFat,
+    custoFixoCredoresCount,
     transferenciasInternas,
     transferPctFaturamento,
+    royaltiesTotal,
+    royaltiesPctFat,
     topCredores,
     despesasTotais,
     faturamento,
   ]);
-
-  // ────────────────────────────────────────────────────────────
-  // FATURAMENTO DIÁRIO (gráfico barras + média acumulada)
-  // ────────────────────────────────────────────────────────────
-
-  const { data: vendasDiarias = [], isLoading: loadVendasDiarias } = useQuery({
-    queryKey: ["pg_vendas_diarias", cId, monthStart, monthEnd],
-    queryFn: async () => {
-      const { data } = await db
-        .from("vendas")
-        .select("data_venda, valor_total")
-        .eq("company_id", cId)
-        .eq("status", "confirmado")
-        .gte("data_venda", monthStart)
-        .lte("data_venda", monthEnd)
-        .order("data_venda")
-        .limit(10000);
-      // Agrupar por dia
-      const porDia: Record<string, number> = {};
-      (data || []).forEach((v: any) => {
-        const d = v.data_venda;
-        porDia[d] = (porDia[d] || 0) + Number(v.valor_total || 0);
-      });
-      let acum = 0;
-      let count = 0;
-      return Object.entries(porDia)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([dia, total]) => {
-          acum += total;
-          count++;
-          return {
-            dia: dia.slice(8, 10), // DD
-            faturamento: total,
-            media: acum / count,
-          };
-        });
-    },
-    enabled: !!cId,
-  });
 
   // ────────────────────────────────────────────────────────────
   // RECEBIMENTOS PREVISTO VS REALIZADO (6 meses)
@@ -1105,10 +1183,9 @@ export default function PainelGerencial() {
     loadDre ||
     loadDre6m ||
     loadVendas ||
-    loadVendasDiarias ||
     loadRecebMensal ||
-    loadContratos ||
     loadCpDetalhe ||
+    loadCpPagoPrev ||
     loadMovBanco;
 
   if (isLoading) {
@@ -1185,15 +1262,15 @@ export default function PainelGerencial() {
         </div>
 
         {/* ── KPIs GERENCIAIS (segunda linha) ─────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <KpiCard
-            label="Custo fixo mensal recorrente"
+            label="Custo fixo recorrente"
             value={fmt(custoFixoMensal)}
             color={C.text1}
             subtitle={
-              contratosRec.length > 0
-                ? `${contratosRec.length} contratos ativos · ${fmtPct(custoFixoPctFat)} do faturamento`
-                : "Nenhum contrato recorrente ativo"
+              custoFixoCredoresCount > 0
+                ? `${custoFixoCredoresCount} ${custoFixoCredoresCount === 1 ? "credor" : "credores"} repetidos vs mês anterior · ${fmtPct(custoFixoPctFat)} do faturamento`
+                : "Sem credores repetidos vs mês anterior"
             }
           />
           <KpiCard
@@ -1204,6 +1281,16 @@ export default function PainelGerencial() {
               transferenciasInternas > 0
                 ? `${fmtPct(transferPctFaturamento)} do faturamento do período`
                 : "Sem transferências internas no período"
+            }
+          />
+          <KpiCard
+            label="Receitas de royalties"
+            value={fmt(royaltiesTotal)}
+            color={royaltiesTotal > 0 ? C.green : C.text1}
+            subtitle={
+              royaltiesCount > 0
+                ? `${royaltiesCount} ${royaltiesCount === 1 ? "recebimento" : "recebimentos"} · ${fmtPct(royaltiesPctFat)} do faturamento`
+                : "Nenhum royalty identificado no período"
             }
           />
           <KpiCard
@@ -1218,20 +1305,20 @@ export default function PainelGerencial() {
         {/* ── FATURAMENTO DIÁRIO ──────────────────────────────── */}
         <SectionTitle>Faturamento diário &mdash; {periodoLabel}</SectionTitle>
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white p-4 mb-8">
-          {vendasDiarias.length > 0 ? (
+          {vendasDiariasMov.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={vendasDiarias}>
+              <ComposedChart data={vendasDiariasMov}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
                 <XAxis dataKey="dia" tick={{ fontSize: 11 }} label={{ value: "Dia do mês", position: "insideBottom", offset: -5, fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
-                <Tooltip formatter={(v: number, name: string) => [fmtR(v), name === "faturamento" ? "Faturamento dia" : "Média diária acumulada"]} />
-                <Legend formatter={(v: string) => v === "faturamento" ? "Faturamento dia" : "Média diária acumulada"} />
+                <Tooltip formatter={(v: number, name: string) => [fmtR(v), name === "faturamento" ? "Entradas do dia" : "Média diária acumulada"]} />
+                <Legend formatter={(v: string) => v === "faturamento" ? "Entradas do dia" : "Média diária acumulada"} />
                 <Bar dataKey="faturamento" fill="#1a2e4a" radius={[4, 4, 0, 0]} />
                 <Line type="monotone" dataKey="media" stroke={C.gold} strokeWidth={2} dot={{ r: 4, fill: C.gold }} name="media" />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-center text-gray-400 py-8">Sem vendas no período</p>
+            <p className="text-center text-gray-400 py-8">Sem entradas no período</p>
           )}
         </div>
 
