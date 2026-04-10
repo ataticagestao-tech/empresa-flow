@@ -19,7 +19,7 @@ import {
     Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
     Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
-    DollarSign, Clock, Bot, CreditCard, FileSpreadsheet
+    DollarSign, Clock, Bot, CreditCard, FileSpreadsheet, X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -510,6 +510,34 @@ export default function Conciliacao() {
         const file = e.target.files?.[0];
         if (file) uploadExcel.mutate(file);
         if (e.target) e.target.value = "";
+    };
+
+    // Excluir transação da conciliação (marca como 'ignored')
+    const handleIgnoreTransaction = async (bt: BankTransaction) => {
+        if (!confirm(`Excluir "${bt.description}" da conciliação? Esta transação não será considerada no saldo.`)) return;
+
+        // Optimistic update: remover da lista imediatamente
+        const prev = queryClient.getQueryData<BankTransaction[]>(['bank_transactions_pending', selectedAccountId]);
+        if (prev) {
+            queryClient.setQueryData(
+                ['bank_transactions_pending', selectedAccountId],
+                prev.filter(t => t.id !== bt.id)
+            );
+        }
+
+        const { error } = await (activeClient as any)
+            .from('bank_transactions')
+            .update({ status: 'ignored' })
+            .eq('id', bt.id);
+
+        if (error) {
+            // Rollback em caso de erro
+            if (prev) queryClient.setQueryData(['bank_transactions_pending', selectedAccountId], prev);
+            toast({ title: "Erro", description: error.message, variant: "destructive" });
+            return;
+        }
+
+        toast({ title: "Excluída", description: "Transação removida da conciliação." });
     };
 
     // Conciliar inline — cria CP/CR e concilia sem abrir dialog
@@ -1631,6 +1659,12 @@ export default function Conciliacao() {
                                                                     setFilterDateTo("");
                                                                 }}>
                                                                     Buscar
+                                                                </Button>
+                                                                <Button variant="outline" size="sm"
+                                                                    className="h-7 w-7 p-0 border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                                                                    title="Excluir da conciliação"
+                                                                    onClick={() => handleIgnoreTransaction(bt)}>
+                                                                    <X className="h-3.5 w-3.5" />
                                                                 </Button>
                                                             </div>
                                                         </TableCell>
