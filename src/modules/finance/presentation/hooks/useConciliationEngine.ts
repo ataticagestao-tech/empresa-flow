@@ -534,23 +534,38 @@ export function useConciliationEngine(
     const queryClient = useQueryClient();
     const companyId = selectedCompany?.id;
 
-    // Buscar regras de conciliação (schema real)
+    // Buscar regras de conciliação — tenta com colunas novas, cai de volta se falhar
     const { data: rules } = useQuery({
         queryKey: ["conciliation_rules", companyId],
         queryFn: async () => {
             if (!companyId) return [];
-            const { data, error } = await (activeClient as any)
+
+            // Tentativa 1: com tipo_transacao/valor_referencia
+            let { data, error } = await (activeClient as any)
                 .from("conciliation_rules")
                 .select("id,company_id,account_id,palavras_chave,confianca,acao,recorrencia,ativa,tipo_transacao,valor_referencia")
                 .eq("company_id", companyId)
                 .eq("ativa", true);
+
+            // Fallback: sem as colunas novas
+            if (error && (error.message?.includes("tipo_transacao") || error.message?.includes("valor_referencia") || error.code === "42703" || error.code === "PGRST204")) {
+                const retry = await (activeClient as any)
+                    .from("conciliation_rules")
+                    .select("id,company_id,account_id,palavras_chave,confianca,acao,recorrencia,ativa")
+                    .eq("company_id", companyId)
+                    .eq("ativa", true);
+                data = retry.data;
+                error = retry.error;
+            }
+
             if (error) {
-                console.error("Error fetching conciliation rules:", error);
+                console.error("[conciliation_rules] fetch error:", error);
                 return [];
             }
             return (data || []) as ConciliationRule[];
         },
         enabled: !!companyId,
+        staleTime: 0, // sempre refetch quando invalidar
     });
 
     // Buscar contas analíticas para exibir nomes nas sugestões
@@ -656,36 +671,77 @@ export function useConciliationEngine(
                     };
                 }
 
-                // Atualizar regra existente (sem conflito ou forceUpdate)
+                // Atualizar regra existente — SEMPRE atualiza se categoria mudou
                 const updates: Record<string, any> = {};
-                if (categoryId && existingMatch.account_id !== categoryId) updates.account_id = categoryId;
-                if (!existingMatch.tipo_transacao) updates.tipo_transacao = tipoTransacao;
-                if (!existingMatch.valor_referencia) updates.valor_referencia = valorReferencia;
+                if (categoryId && existingMatch.account_id !== categoryId) {
+                    updates.account_id = categoryId;
+                }
+                // Também atualizar palavras_chave com a descrição completa (para match exato)
+                const currentKws = (existingMatch.palavras_chave || []).map(k => normalizeText(k));
+                const missingKws = normalizedKws.filter(nk => !currentKws.includes(nk));
+                if (missingKws.length > 0) {
+                    updates.palavras_chave = [...(existingMatch.palavras_chave || []), ...missingKws];
+                }
+
                 if (Object.keys(updates).length > 0) {
-                    await (activeClient as any)
+                    // Tenta com tipo_transacao/valor_referencia se disponíveis
+                    const updatesWithExtras = { ...updates };
+                    if (!existingMatch.tipo_transacao) updatesWithExtras.tipo_transacao = tipoTransacao;
+                    if (!existingMatch.valor_referencia) updatesWithExtras.valor_referencia = valorReferencia;
+
+                    let { error: updErr } = await (activeClient as any)
                         .from("conciliation_rules")
-                        .update(updates)
+                        .update(updatesWithExtras)
                         .eq("id", existingMatch.id);
+
+                    // Fallback sem colunas novas
+                    if (updErr && (updErr.message?.includes("tipo_transacao") || updErr.message?.includes("valor_referencia") || updErr.code === "42703" || updErr.code === "PGRST204")) {
+                        const retry = await (activeClient as any)
+                            .from("conciliation_rules")
+                            .update(updates)
+                            .eq("id", existingMatch.id);
+                        updErr = retry.error;
+                    }
+
+                    if (updErr) {
+                        console.error("[learnRule] Error updating rule:", updErr);
+                        throw new Error(`Falha ao atualizar regra: ${updErr.message}`);
+                    }
                 }
                 return null;
             }
 
-            // Nova regra
-            const { error } = await (activeClient as any)
-                .from("conciliation_rules")
-                .insert({
-                    company_id: companyId,
-                    account_id: categoryId || null,
-                    palavras_chave: normalizedKws,
-                    confianca: "Alta",
-                    acao: "sugerir",
-                    ativa: true,
-                    tipo_transacao: tipoTransacao,
-                    valor_referencia: valorReferencia,
-                });
+            // Nova regra — tenta com colunas novas, cai de volta se falhar (migration pode não ter rodado)
+            const baseInsert = {
+                company_id: companyId,
+                account_id: categoryId || null,
+                palavras_chave: normalizedKws,
+                confianca: "Alta",
+                acao: "sugerir",
+                ativa: true,
+            };
 
-            if (error) console.error("Error saving conciliation rule:", error);
+            let { error } = await (activeClient as any)
+                .from("conciliation_rules")
+                .insert({ ...baseInsert, tipo_transacao: tipoTransacao, valor_referencia: valorReferencia });
+
+            // Se falhou por coluna inexistente, retry sem as colunas novas
+            if (error && (error.message?.includes("tipo_transacao") || error.message?.includes("valor_referencia") || error.code === "42703" || error.code === "PGRST204")) {
+                console.warn("[learnRule] Fallback: inserindo sem tipo_transacao/valor_referencia. Rode a migration 20260409180000.");
+                const retry = await (activeClient as any)
+                    .from("conciliation_rules")
+                    .insert(baseInsert);
+                error = retry.error;
+            }
+
+            if (error) {
+                console.error("[learnRule] Error saving rule:", error);
+                throw new Error(`Falha ao salvar regra: ${error.message}`);
+            }
             return null;
+        },
+        onError: (err: any) => {
+            console.error("[learnRule] mutation error:", err);
         },
         onSuccess: () => {
             // Refetch forçado: motor precisa recalcular suggestions com a nova regra
