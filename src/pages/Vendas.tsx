@@ -48,6 +48,7 @@ interface VendaItem {
 
 interface ContaReceber {
   id: string
+  venda_id?: string
   status: string
   valor: number
   valor_pago: number | null
@@ -273,7 +274,10 @@ export default function Vendas() {
   }, [vendas])
 
   // ─── Fetch data ──────────────────────────────────────────────
-  // PostgREST tem teto default de 1000 linhas por request: paginar com range()
+  // Query dividida em 3 flat queries paralelas em vez de nested embed.
+  // Nested select (`vendas_itens(*), contas_receber(*)`) estava estourando
+  // statement timeout quando o histórico crescia. Flat + IN (...) é muito
+  // mais barato para o PostgREST e usa os índices em venda_id.
   const fetchVendas = useCallback(async () => {
     if (!companyId) return
     setLoading(true)
@@ -283,12 +287,12 @@ export default function Vendas() {
       const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
 
       const pageSize = 1000
-      const all: Venda[] = []
+      const vendasBase: Venda[] = []
       let fromIdx = 0
       while (true) {
         const { data, error: err } = await db
           .from('vendas')
-          .select('*, vendas_itens(*), contas_receber(*)')
+          .select('id, company_id, cliente_nome, cliente_cpf_cnpj, tipo, valor_total, data_venda, forma_pagamento, status')
           .eq('company_id', companyId)
           .gte('data_venda', inicio)
           .lte('data_venda', fim)
@@ -296,10 +300,64 @@ export default function Vendas() {
           .range(fromIdx, fromIdx + pageSize - 1)
         if (err) throw err
         const batch = (data as Venda[]) || []
-        all.push(...batch)
+        vendasBase.push(...batch)
         if (batch.length < pageSize) break
         fromIdx += pageSize
       }
+
+      const vendaIds = vendasBase.map(v => v.id)
+      const itensByVenda = new Map<string, VendaItem[]>()
+      const crsByVenda = new Map<string, ContaReceber[]>()
+
+      if (vendaIds.length > 0) {
+        // Chunk IN (...) para não estourar limite de URL do PostgREST
+        const chunkSize = 300
+        const chunks: string[][] = []
+        for (let i = 0; i < vendaIds.length; i += chunkSize) {
+          chunks.push(vendaIds.slice(i, i + chunkSize))
+        }
+
+        const itensPromises = chunks.map(ids =>
+          db.from('vendas_itens')
+            .select('id, venda_id, descricao, quantidade, valor_unitario, valor_total')
+            .in('venda_id', ids)
+        )
+        const crsPromises = chunks.map(ids =>
+          db.from('contas_receber')
+            .select('id, venda_id, status, valor, valor_pago, data_vencimento')
+            .in('venda_id', ids)
+        )
+
+        const [itensResults, crsResults] = await Promise.all([
+          Promise.all(itensPromises),
+          Promise.all(crsPromises),
+        ])
+
+        for (const res of itensResults) {
+          if (res.error) throw res.error
+          for (const it of (res.data as (VendaItem & { venda_id: string })[]) || []) {
+            const arr = itensByVenda.get(it.venda_id) || []
+            arr.push(it)
+            itensByVenda.set(it.venda_id, arr)
+          }
+        }
+
+        for (const res of crsResults) {
+          if (res.error) throw res.error
+          for (const cr of (res.data as (ContaReceber & { venda_id: string })[]) || []) {
+            const arr = crsByVenda.get(cr.venda_id) || []
+            arr.push(cr)
+            crsByVenda.set(cr.venda_id, arr)
+          }
+        }
+      }
+
+      const all: Venda[] = vendasBase.map(v => ({
+        ...v,
+        vendas_itens: itensByVenda.get(v.id) || [],
+        contas_receber: crsByVenda.get(v.id) || [],
+      }))
+
       setVendas(all)
     } catch (e: any) {
       setError(e.message || 'Erro ao buscar vendas')
