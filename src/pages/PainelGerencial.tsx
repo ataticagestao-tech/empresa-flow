@@ -733,6 +733,131 @@ export default function PainelGerencial() {
   const deltaResultado = pctDelta(resultadoDre, Math.abs(prevResultado) > 0 ? prevResultado : 1);
 
   // ────────────────────────────────────────────────────────────
+  // SECTION 6.5: INDICADORES GERENCIAIS EXTRAS
+  // (custo fixo recorrente, top credores, mov por banco, transferências internas)
+  // ────────────────────────────────────────────────────────────
+
+  // Contratos recorrentes ativos do tipo "pagar" (custo fixo)
+  const { data: contratosRec = [], isLoading: loadContratos } = useQuery({
+    queryKey: ["pg_contratos_recorrentes", cId],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contratos_recorrentes")
+        .select("id, descricao, contraparte_nome, valor, periodicidade, status, tipo")
+        .eq("company_id", cId)
+        .eq("tipo", "pagar")
+        .eq("status", "ativo")
+        .limit(1000);
+      return data || [];
+    },
+    enabled: !!cId,
+  });
+
+  const custoFixoMensal = useMemo(() => {
+    const fatorMensal: Record<string, number> = {
+      semanal: 52 / 12,
+      quinzenal: 26 / 12,
+      mensal: 1,
+      bimestral: 1 / 2,
+      trimestral: 1 / 3,
+      semestral: 1 / 6,
+      anual: 1 / 12,
+    };
+    return (contratosRec || []).reduce(
+      (s: number, c: any) =>
+        s + Number(c.valor || 0) * (fatorMensal[c.periodicidade] || 0),
+      0
+    );
+  }, [contratosRec]);
+
+  // Contas pagas no período detalhadas (para Top 10 por credor)
+  const { data: cpPagoDetalhe = [], isLoading: loadCpDetalhe } = useQuery({
+    queryKey: ["pg_cp_pago_detalhe", cId, monthStart, monthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("contas_pagar")
+        .select("credor_nome, valor, valor_pago")
+        .eq("company_id", cId)
+        .eq("status", "pago")
+        .is("deleted_at", null)
+        .gte("data_pagamento", monthStart)
+        .lte("data_pagamento", monthEnd)
+        .limit(10000);
+      return data || [];
+    },
+    enabled: !!cId,
+  });
+
+  const topCredores = useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    (cpPagoDetalhe || []).forEach((p: any) => {
+      const nome = (p.credor_nome || "Sem credor").trim() || "Sem credor";
+      const valor = Number(p.valor_pago || p.valor || 0);
+      const atual = map.get(nome) || { total: 0, count: 0 };
+      map.set(nome, { total: atual.total + valor, count: atual.count + 1 });
+    });
+    return Array.from(map.entries())
+      .map(([nome, v]) => ({ nome, total: v.total, count: v.count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+  }, [cpPagoDetalhe]);
+
+  // Movimentações por conta bancária no período
+  const { data: movPorBancoRaw = [], isLoading: loadMovBanco } = useQuery({
+    queryKey: ["pg_mov_por_banco", cId, monthStart, monthEnd],
+    queryFn: async () => {
+      const { data } = await db
+        .from("movimentacoes")
+        .select("conta_bancaria_id, tipo, valor, origem")
+        .eq("company_id", cId)
+        .gte("data", monthStart)
+        .lte("data", monthEnd)
+        .limit(20000);
+      return data || [];
+    },
+    enabled: !!cId,
+  });
+
+  const movPorBanco = useMemo(() => {
+    const map = new Map<string, { entradas: number; saidas: number }>();
+    (movPorBancoRaw || []).forEach((m: any) => {
+      if (!m.conta_bancaria_id) return;
+      const v = Number(m.valor || 0);
+      const atual = map.get(m.conta_bancaria_id) || { entradas: 0, saidas: 0 };
+      if (m.tipo === "credito") atual.entradas += v;
+      else if (m.tipo === "debito") atual.saidas += v;
+      map.set(m.conta_bancaria_id, atual);
+    });
+    return (bankSaldos || [])
+      .map((b: any) => {
+        const mov = map.get(b.conta_bancaria_id) || { entradas: 0, saidas: 0 };
+        return {
+          id: b.conta_bancaria_id,
+          nome: b.nome,
+          saldo: Number(b.saldo_atual || 0),
+          entradas: mov.entradas,
+          saidas: mov.saidas,
+          liquido: mov.entradas - mov.saidas,
+        };
+      })
+      .sort((a, b) => b.saldo - a.saldo);
+  }, [movPorBancoRaw, bankSaldos]);
+
+  // Transferências internas do período (usa o lado débito para evitar dupla contagem)
+  const transferenciasInternas = useMemo(
+    () =>
+      (movMes || [])
+        .filter((m: any) => m.tipo === "debito" && m.origem === "transferencia")
+        .reduce((s: number, m: any) => s + Number(m.valor || 0), 0),
+    [movMes]
+  );
+
+  const transferPctFaturamento =
+    faturamento > 0 ? (transferenciasInternas / faturamento) * 100 : 0;
+  const custoFixoPctFat =
+    faturamento > 0 ? (custoFixoMensal / faturamento) * 100 : 0;
+
+  // ────────────────────────────────────────────────────────────
   // SECTION 7: LEITURA GERENCIAL
   // ────────────────────────────────────────────────────────────
 
@@ -790,6 +915,38 @@ export default function PainelGerencial() {
         type: "warning",
       });
 
+    // Custo fixo recorrente vs faturamento
+    if (custoFixoMensal > 0 && faturamento > 0) {
+      if (custoFixoPctFat > 60)
+        list.push({
+          text: `Custo fixo recorrente consome ${fmtPct(custoFixoPctFat)} do faturamento (${fmt(custoFixoMensal)}/mes) - revisar contratos e renegociar`,
+          type: "danger",
+        });
+      else if (custoFixoPctFat > 40)
+        list.push({
+          text: `Custo fixo recorrente em ${fmtPct(custoFixoPctFat)} do faturamento - atencao ao peso dos contratos mensais`,
+          type: "warning",
+        });
+    }
+
+    // Transferências internas vs faturamento
+    if (transferenciasInternas > 0 && faturamento > 0 && transferPctFaturamento > 50)
+      list.push({
+        text: `Transferencias entre contas somam ${fmtPct(transferPctFaturamento)} do faturamento (${fmt(transferenciasInternas)}) - volume alto de movimentacao interna, revisar se ha necessidade`,
+        type: "warning",
+      });
+
+    // Top credor concentrado
+    if (topCredores.length > 0 && despesasTotais > 0) {
+      const maior = topCredores[0];
+      const pctMaior = (maior.total / despesasTotais) * 100;
+      if (pctMaior > 30)
+        list.push({
+          text: `Concentracao em um unico credor: ${maior.nome} representa ${fmtPct(pctMaior)} das despesas do periodo - dependencia elevada`,
+          type: "warning",
+        });
+    }
+
     if (list.length === 0)
       list.push({
         text: "Sem alertas relevantes no momento. Indicadores dentro dos parametros normais.",
@@ -808,6 +965,13 @@ export default function PainelGerencial() {
     evolucaoMensal,
     previstoVsRealizado,
     crPrevMes,
+    custoFixoMensal,
+    custoFixoPctFat,
+    transferenciasInternas,
+    transferPctFaturamento,
+    topCredores,
+    despesasTotais,
+    faturamento,
   ]);
 
   // ────────────────────────────────────────────────────────────
@@ -942,7 +1106,10 @@ export default function PainelGerencial() {
     loadDre6m ||
     loadVendas ||
     loadVendasDiarias ||
-    loadRecebMensal;
+    loadRecebMensal ||
+    loadContratos ||
+    loadCpDetalhe ||
+    loadMovBanco;
 
   if (isLoading) {
     return (
@@ -1017,6 +1184,36 @@ export default function PainelGerencial() {
           <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
         </div>
 
+        {/* ── KPIs GERENCIAIS (segunda linha) ─────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <KpiCard
+            label="Custo fixo mensal recorrente"
+            value={fmt(custoFixoMensal)}
+            color={C.text1}
+            subtitle={
+              contratosRec.length > 0
+                ? `${contratosRec.length} contratos ativos · ${fmtPct(custoFixoPctFat)} do faturamento`
+                : "Nenhum contrato recorrente ativo"
+            }
+          />
+          <KpiCard
+            label="Transferências entre contas"
+            value={fmt(transferenciasInternas)}
+            color={C.text2}
+            subtitle={
+              transferenciasInternas > 0
+                ? `${fmtPct(transferPctFaturamento)} do faturamento do período`
+                : "Sem transferências internas no período"
+            }
+          />
+          <KpiCard
+            label="Saldo em bancos"
+            value={fmt(saldoTotal)}
+            color={saldoTotal >= 0 ? C.green : C.red}
+            subtitle={`${contasAtivas} ${contasAtivas === 1 ? "conta ativa" : "contas ativas"}`}
+          />
+        </div>
+
 
         {/* ── FATURAMENTO DIÁRIO ──────────────────────────────── */}
         <SectionTitle>Faturamento diário &mdash; {periodoLabel}</SectionTitle>
@@ -1057,6 +1254,40 @@ export default function PainelGerencial() {
               <Bar dataKey="valor" fill="#1a2e4a" radius={[4, 4, 0, 0]} name="valor" />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* ── TOP 10 CREDORES DO PERÍODO ──────────────────────── */}
+        <SectionTitle>Top 10 contas pagas &mdash; credores mais relevantes</SectionTitle>
+        <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white mb-8">
+          {topCredores.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Nenhum pagamento no período</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest w-10">#</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Credor</th>
+                  <th className="text-right px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lançamentos</th>
+                  <th className="text-right px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total pago</th>
+                  <th className="text-right px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">% das despesas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topCredores.map((c, idx) => {
+                  const pct = despesasTotais > 0 ? (c.total / despesasTotais) * 100 : 0;
+                  return (
+                    <tr key={c.nome} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-2 text-gray-400">{idx + 1}</td>
+                      <td className="px-4 py-2 font-medium text-[#0f172a]">{c.nome}</td>
+                      <td className="px-4 py-2 text-right text-gray-600">{c.count}</td>
+                      <td className="px-4 py-2 text-right font-semibold" style={{ color: C.red }}>{fmt(c.total)}</td>
+                      <td className="px-4 py-2 text-right text-gray-600">{fmtPct(pct)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* ── RECEBIMENTOS PREVISTO VS REALIZADO + COMPOSIÇÃO CR ── */}
@@ -1133,6 +1364,48 @@ export default function PainelGerencial() {
               <Bar dataKey="saidas" fill={C.red} radius={[2, 2, 0, 0]} name="saidas" barSize={8} />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* ── MOVIMENTAÇÃO POR BANCO ──────────────────────────── */}
+        <SectionTitle>Movimentação bancária por conta &mdash; {periodoLabel}</SectionTitle>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          {movPorBanco.length === 0 ? (
+            <p className="text-center text-gray-400 py-8 col-span-full">Nenhuma conta bancária cadastrada</p>
+          ) : (
+            movPorBanco.map((b) => (
+              <div key={b.id} className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
+                <div className="bg-[#1a2e4a] px-4 py-2">
+                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest truncate">
+                    {b.nome}
+                  </h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">Saldo atual</p>
+                    <p className="text-lg font-bold" style={{ color: b.saldo >= 0 ? C.text1 : C.red }}>
+                      {fmt(b.saldo)}
+                    </p>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-100">
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase">Entradas</p>
+                      <p className="text-sm font-semibold" style={{ color: C.green }}>{fmt(b.entradas)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-gray-400 uppercase">Saídas</p>
+                      <p className="text-sm font-semibold" style={{ color: C.red }}>{fmt(b.saidas)}</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100">
+                    <p className="text-[10px] text-gray-400 uppercase">Líquido do período</p>
+                    <p className="text-sm font-semibold" style={{ color: b.liquido >= 0 ? C.green : C.red }}>
+                      {b.liquido >= 0 ? "+" : ""}{fmt(b.liquido)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* ── LEITURA GERENCIAL ────────────────────────────────── */}
