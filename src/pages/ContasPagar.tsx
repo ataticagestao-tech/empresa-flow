@@ -178,6 +178,8 @@ export default function ContasPagar() {
   const [showPayModal, setShowPayModal] = useState(false)
   const [showNewModal, setShowNewModal] = useState(false)
   const [showBatchPayModal, setShowBatchPayModal] = useState(false)
+  const [showBatchCategorizeModal, setShowBatchCategorizeModal] = useState(false)
+  const [batchCategorize, setBatchCategorize] = useState<{ contaContabilId: string; centroCustoId: string }>({ contaContabilId: '', centroCustoId: '' })
   const [payingCp, setPayingCp] = useState<ContaPagar | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -447,6 +449,37 @@ export default function ContasPagar() {
     setSelectedIds(new Set())
     await loadData()
     if (erros > 0) alert(`${erros} pagamento(s) falharam.`)
+  }
+
+  const openBatchCategorize = () => {
+    setBatchCategorize({ contaContabilId: '', centroCustoId: '' })
+    setShowBatchCategorizeModal(true)
+  }
+
+  const handleBatchCategorize = async () => {
+    if (!batchCategorize.contaContabilId && !batchCategorize.centroCustoId) return
+    setSubmitting(true)
+    const selected = filteredContas.filter((cp) => selectedIds.has(cp.id))
+    const db = activeClient as any
+    const patch: Record<string, any> = {}
+    if (batchCategorize.contaContabilId) patch.conta_contabil_id = batchCategorize.contaContabilId
+    if (batchCategorize.centroCustoId) patch.centro_custo_id = batchCategorize.centroCustoId
+
+    let erros = 0
+    const results = await Promise.all(
+      selected.map((cp) => db.from('contas_pagar').update(patch).eq('id', cp.id))
+    )
+    for (const r of results) {
+      if (r.error) {
+        erros++
+        console.error('[batchCategorize]', r.error)
+      }
+    }
+    setSubmitting(false)
+    setShowBatchCategorizeModal(false)
+    setSelectedIds(new Set())
+    await loadData()
+    if (erros > 0) alert(`${erros} de ${selected.length} titulo(s) nao puderam ser reclassificados.`)
   }
 
   // ─── New CP ───────────────────────────────────────────────────────
@@ -859,6 +892,13 @@ export default function ContasPagar() {
                     style={{ color: '#4a5e7a', border: '1px solid rgba(26,46,74,0.18)' }}
                   >
                     Cancelar selecao
+                  </button>
+                  <button
+                    onClick={openBatchCategorize}
+                    className="text-xs px-3 py-1.5 rounded-[8px] font-semibold hover:bg-[#f7f8fa] transition"
+                    style={{ color: '#1a2e4a', border: '1px solid rgba(26,46,74,0.18)' }}
+                  >
+                    Categorizar
                   </button>
                   <button
                     onClick={openBatchPay}
@@ -1470,6 +1510,82 @@ export default function ContasPagar() {
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Pagar {selectedIds.size} titulo(s)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Modal: Batch Categorize ──────────────────────────────── */}
+        {showBatchCategorizeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setShowBatchCategorizeModal(false)}>
+            <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#1a2e4a', borderRadius: '10px 10px 0 0' }}>
+                <div>
+                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Categorizar em lote</h3>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Reclassificacao contabil (inclui pagos)</p>
+                </div>
+                <button onClick={() => setShowBatchCategorizeModal(false)} className="text-white/50 hover:text-white transition">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#0f1e33', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                    {selectedIds.size} titulo{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}
+                  </p>
+                  <p style={{ fontSize: 11, color: '#7a8fa8', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>
+                    Os campos abaixo serao aplicados em todos. Campos financeiros (valor, vencimento, status) permanecem intactos.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#4a5e7a', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Conta contabil</label>
+                  <select
+                    value={batchCategorize.contaContabilId}
+                    onChange={(e) => setBatchCategorize({ ...batchCategorize, contaContabilId: e.target.value })}
+                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#0f1e33', height: 36 }}
+                  >
+                    <option value="">Nao alterar</option>
+                    {chartAccounts.map((ca) => (
+                      <option key={ca.id} value={ca.id}>{ca.code} - {ca.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#4a5e7a', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Centro de custo</label>
+                  <select
+                    value={batchCategorize.centroCustoId}
+                    onChange={(e) => setBatchCategorize({ ...batchCategorize, centroCustoId: e.target.value })}
+                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#0f1e33', height: 36 }}
+                  >
+                    <option value="">Nao alterar</option>
+                    {centrosCusto.map((cc) => (
+                      <option key={cc.id} value={cc.id}>{cc.codigo} - {cc.descricao}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
+                  <button
+                    onClick={() => setShowBatchCategorizeModal(false)}
+                    className="px-4 py-2 rounded-[8px] text-[13px] font-medium transition"
+                    style={{ color: '#4a5e7a', border: '1px solid rgba(26,46,74,0.18)' }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleBatchCategorize}
+                    disabled={submitting || (!batchCategorize.contaContabilId && !batchCategorize.centroCustoId)}
+                    className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{ backgroundColor: '#1a2e4a', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                  >
+                    {submitting && <Loader2 size={14} className="animate-spin" />}
+                    Aplicar em {selectedIds.size} titulo(s)
                   </button>
                 </div>
               </div>
