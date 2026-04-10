@@ -148,6 +148,8 @@ export default function Vendas() {
   const [modalAberto, setModalAberto] = useState(false)
   const [modalDetalhes, setModalDetalhes] = useState<Venda | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [confirmDeleteMes, setConfirmDeleteMes] = useState(false)
+  const [deletandoMes, setDeletandoMes] = useState(false)
   const [editandoVenda, setEditandoVenda] = useState<Venda | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [erroModal, setErroModal] = useState<string | null>(null)
@@ -881,6 +883,47 @@ export default function Vendas() {
     }
   }
 
+  // ─── Delete todas as vendas do mês (em lote) ────────────────
+  async function deletarVendasDoMes() {
+    const ac = activeClient as any
+    if (!companyId) return
+    setDeletandoMes(true)
+    try {
+      const inicio = format(startOfMonth(mesDate), 'yyyy-MM-dd')
+      const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
+
+      const { data: vendasMes, error: errSel } = await ac
+        .from('vendas')
+        .select('id')
+        .eq('company_id', companyId)
+        .gte('data_venda', inicio)
+        .lte('data_venda', fim)
+
+      if (errSel) throw errSel
+      const ids = (vendasMes || []).map((v: { id: string }) => v.id)
+
+      if (ids.length === 0) {
+        setConfirmDeleteMes(false)
+        return
+      }
+
+      const { error: errCR } = await ac.from('contas_receber').delete().in('venda_id', ids)
+      if (errCR) throw errCR
+      const { error: errItens } = await ac.from('vendas_itens').delete().in('venda_id', ids)
+      if (errItens) throw errItens
+      const { error: errVendas } = await ac.from('vendas').delete().in('id', ids)
+      if (errVendas) throw errVendas
+
+      setConfirmDeleteMes(false)
+      await fetchVendas()
+    } catch (e: any) {
+      console.error('[deletarVendasDoMes]', e)
+      alert('Erro ao excluir vendas do mês: ' + (e.message || 'Tente novamente'))
+    } finally {
+      setDeletandoMes(false)
+    }
+  }
+
   // ─── Render helpers ──────────────────────────────────────────
   function CRBadge({ venda }: { venda: Venda }) {
     const st = getCRStatus(venda)
@@ -1010,10 +1053,18 @@ export default function Vendas() {
 
         {/* ─── Tabela ───────────────────────────────────────── */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5">
+          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Vendas &mdash; {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
             </h3>
+            <button
+              onClick={() => setConfirmDeleteMes(true)}
+              disabled={vendas.length === 0}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#a8bfd4] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="Excluir todas as vendas do mês selecionado"
+            >
+              <Trash2 size={12} /> Excluir mês
+            </button>
           </div>
           <div className="bg-white overflow-x-auto">
             {loading ? (
@@ -1663,6 +1714,50 @@ export default function Vendas() {
           </div>
         </div>
       )}
+
+      {/* ================================================================
+         MODAL CONFIRMAR EXCLUSÃO EM LOTE (MÊS)
+         ================================================================ */}
+      {confirmDeleteMes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#fdecea] flex items-center justify-center">
+                  <AlertCircle size={18} className="text-[#8b0000]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#0a0a0a]">Excluir todas as vendas do mês</h3>
+                  <p className="text-sm text-[#555]">
+                    {format(mesDate, 'MM/yyyy')} &mdash; {vendas.length} venda{vendas.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="mb-4 p-3 rounded-md bg-[#fffbe6] border border-[#b8960a] text-[12px] text-[#5c3a00]">
+                Todas as vendas, itens e contas a receber vinculadas ao mês selecionado serão removidas permanentemente. Esta ação não pode ser desfeita.
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmDeleteMes(false)}
+                  disabled={deletandoMes}
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] disabled:opacity-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={deletarVendasDoMes}
+                  disabled={deletandoMes || vendas.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#8b0000] rounded-md hover:bg-[#6d0000] disabled:opacity-50 transition-colors"
+                >
+                  {deletandoMes && <Loader2 size={14} className="animate-spin" />}
+                  {deletandoMes ? 'Excluindo...' : 'Excluir tudo'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================================================================
          MODAL SELEÇÃO DE PRODUTO/SERVIÇO DO CATÁLOGO
          ================================================================ */}
