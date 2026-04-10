@@ -411,6 +411,9 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
+                queryClient.invalidateQueries({ queryKey: ['bp_contabil'] });
+                queryClient.invalidateQueries({ queryKey: ['dre_contabil'] });
+                queryClient.invalidateQueries({ queryKey: ['dfc_contabil'] });
             });
         }
     });
