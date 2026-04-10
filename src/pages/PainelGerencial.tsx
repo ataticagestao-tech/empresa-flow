@@ -622,29 +622,66 @@ export default function PainelGerencial() {
     enabled: !!cId,
   });
 
-  // Agrupar vendas por mês + calcular % de contribuição
+  // Despesas dos últimos 6 meses (contas_pagar pagas) — mesma base do KPI "Despesas totais"
+  const { data: despesas6m = [] } = useQuery({
+    queryKey: ["pg_despesas_6m", cId, seisAtras, hojeStr],
+    queryFn: async () => {
+      const pageSize = 1000;
+      const all: any[] = [];
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("contas_pagar")
+          .select("valor, valor_pago, data_pagamento")
+          .eq("company_id", cId)
+          .eq("status", "pago")
+          .is("deleted_at", null)
+          .gte("data_pagamento", seisAtras)
+          .lte("data_pagamento", hojeStr)
+          .order("data_pagamento", { ascending: true })
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+      return all;
+    },
+    enabled: !!cId,
+  });
+
+  // Agrupar vendas e despesas por mês (Receita x Despesas)
   const faturamentoMensal = useMemo(() => {
-    const map = new Map<string, number>();
+    const receitaMap = new Map<string, number>();
+    const despesaMap = new Map<string, number>();
     // Inicializar 6 meses para garantir todos apareçam mesmo com zero
     for (let i = 5; i >= 0; i--) {
       const d = subMonths(today, i);
-      map.set(format(d, "yyyy-MM"), 0);
+      const k = format(d, "yyyy-MM");
+      receitaMap.set(k, 0);
+      despesaMap.set(k, 0);
     }
     for (const v of (vendas6m as any[])) {
       const key = String(v.data_venda || "").slice(0, 7);
-      if (map.has(key)) {
-        map.set(key, (map.get(key) || 0) + Number(v.valor_total || 0));
+      if (receitaMap.has(key)) {
+        receitaMap.set(key, (receitaMap.get(key) || 0) + Number(v.valor_total || 0));
       }
     }
-    const totalPeriodo = Array.from(map.values()).reduce((s, v) => s + v, 0);
+    for (const d of (despesas6m as any[])) {
+      const key = String(d.data_pagamento || "").slice(0, 7);
+      if (despesaMap.has(key)) {
+        despesaMap.set(key, (despesaMap.get(key) || 0) + Number(d.valor_pago || d.valor || 0));
+      }
+    }
     const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-    return Array.from(map.entries()).map(([ym, valor]) => {
+    return Array.from(receitaMap.entries()).map(([ym, receita]) => {
       const [, mm] = ym.split("-");
       const label = meses[parseInt(mm) - 1];
-      const pct = totalPeriodo > 0 ? (valor / totalPeriodo) * 100 : 0;
-      return { mes: label, valor, percentual: Number(pct.toFixed(1)) };
+      const despesa = despesaMap.get(ym) || 0;
+      return { mes: label, receita, despesa };
     });
-  }, [vendas6m, today]);
+  }, [vendas6m, despesas6m, today]);
 
   const faturamentoVendas = useMemo(
     () =>
@@ -1372,55 +1409,44 @@ export default function PainelGerencial() {
           />
         </div>
 
-        {/* ── EVOLUÇÃO DO FATURAMENTO — últimos 6 meses ─────────── */}
-        <SectionTitle>Evolução do faturamento &mdash; últimos 6 meses</SectionTitle>
+        {/* ── RECEITA x DESPESAS — últimos 6 meses ─────────────── */}
+        <SectionTitle>Receita x Despesas &mdash; últimos 6 meses</SectionTitle>
         <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={faturamentoMensal} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
               <XAxis dataKey="mes" stroke={C.text2} tick={{ fontSize: 12 }} />
               <YAxis
-                yAxisId="left"
-                stroke={C.green}
+                stroke={C.text2}
                 tick={{ fontSize: 11 }}
                 tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
               />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                stroke="#6366F1"
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${v}%`}
-                domain={[0, (dataMax: number) => Math.max(dataMax * 1.2, 10)]}
-              />
               <Tooltip
                 formatter={(value: number, name: string) => {
-                  if (name === "Valor") return [fmtR(value), "Faturamento"];
-                  if (name === "% do período") return [`${value.toFixed(1)}%`, "% do período"];
+                  if (name === "Receita") return [fmtR(value), "Receita"];
+                  if (name === "Despesas") return [fmtR(value), "Despesas"];
                   return [value, name];
                 }}
                 contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12 }}
               />
               <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
               <Line
-                yAxisId="left"
                 type="monotone"
-                dataKey="valor"
-                name="Valor"
+                dataKey="receita"
+                name="Receita"
                 stroke={C.green}
                 strokeWidth={3}
                 dot={{ r: 5, fill: C.green }}
                 activeDot={{ r: 7 }}
               />
               <Line
-                yAxisId="right"
                 type="monotone"
-                dataKey="percentual"
-                name="% do período"
-                stroke="#6366F1"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={{ r: 4, fill: "#6366F1" }}
+                dataKey="despesa"
+                name="Despesas"
+                stroke={C.red}
+                strokeWidth={3}
+                dot={{ r: 5, fill: C.red }}
+                activeDot={{ r: 7 }}
               />
             </LineChart>
           </ResponsiveContainer>
