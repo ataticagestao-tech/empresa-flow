@@ -512,6 +512,61 @@ export default function Conciliacao() {
         if (e.target) e.target.value = "";
     };
 
+    // Desfazer conciliação de uma transação já conciliada
+    const handleUnreconcile = async (tx: any) => {
+        if (!confirm(`Desfazer conciliação de "${tx.description || tx.memo}"? O lançamento voltará para pendentes e o CP/CR voltará para aberto.`)) return;
+
+        try {
+            // 1. Reverter CP/CR para 'aberto' (se houver vínculo)
+            if (tx.linked_id && tx.linked_table) {
+                const table = tx.linked_table === "accounts_payable" || tx.linked_table === "contas_pagar"
+                    ? "contas_pagar"
+                    : "contas_receber";
+                await (activeClient as any)
+                    .from(table)
+                    .update({ status: "aberto", valor_pago: null, data_pagamento: null })
+                    .eq("id", tx.linked_id);
+            }
+
+            // 2. Deletar movimentação criada pela conciliação
+            if (tx.linked_id) {
+                const movField = tx.linked_table === "accounts_payable" || tx.linked_table === "contas_pagar"
+                    ? "conta_pagar_id" : "conta_receber_id";
+                await (activeClient as any)
+                    .from("movimentacoes")
+                    .delete()
+                    .eq(movField, tx.linked_id);
+            }
+
+            // 3. Remover match da bank_reconciliation_matches
+            await (activeClient as any)
+                .from("bank_reconciliation_matches")
+                .delete()
+                .eq("bank_transaction_id", tx.id);
+
+            // 4. Voltar bank_transaction para 'pending'
+            await (activeClient as any)
+                .from("bank_transactions")
+                .update({
+                    status: "pending",
+                    reconciled_payable_id: null,
+                    reconciled_receivable_id: null,
+                    reconciled_at: null,
+                    reconciled_by: null,
+                })
+                .eq("id", tx.id);
+
+            toast({ title: "Conciliação desfeita", description: "Transação voltou para pendentes." });
+            queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] });
+            queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
+            queryClient.invalidateQueries({ queryKey: ["reconciled_transactions"] });
+            queryClient.invalidateQueries({ queryKey: ["bp_contabil"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
+        } catch (err: any) {
+            toast({ title: "Erro", description: err.message, variant: "destructive" });
+        }
+    };
+
     // Excluir transação da conciliação (marca como 'ignored')
     const handleIgnoreTransaction = async (bt: BankTransaction) => {
         if (!confirm(`Excluir "${bt.description}" da conciliação? Esta transação não será considerada no saldo.`)) return;
@@ -1244,6 +1299,15 @@ export default function Conciliacao() {
                                                                                                         </Button>
                                                                                                     </>
                                                                                                 )}
+                                                                                                <Button
+                                                                                                    variant="ghost"
+                                                                                                    size="sm"
+                                                                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                                                                    onClick={() => handleUnreconcile(tx)}
+                                                                                                    title={isReconciled ? "Desfazer conciliação" : "Excluir da conciliação"}
+                                                                                                >
+                                                                                                    <X className="h-3.5 w-3.5" />
+                                                                                                </Button>
                                                                                             </div>
                                                                                         </TableCell>
                                                                                         <TableCell className="text-xs whitespace-nowrap py-2">
