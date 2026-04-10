@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Download, ChevronRight, ChevronDown, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { format, subMonths, startOfMonth } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import * as XLSX from "xlsx";
 
 interface DRELinha {
@@ -71,7 +71,7 @@ export default function DRE() {
       if (!selectedCompany?.id) return [];
 
       const dataInicio = `${mesInicio}-01`;
-      const dataFim = `${mesFim}-31`;
+      const dataFim = format(endOfMonth(parseISO(`${mesFim}-01`)), "yyyy-MM-dd");
 
       // Paginar CR pagos (pode ter centenas/milhares por empresa)
       const pageSize = 1000;
@@ -92,7 +92,11 @@ export default function DRE() {
           if (centroCustoId !== "todos") {
             q = q.eq("centro_custo_id", centroCustoId);
           }
-          const { data } = await q.range(page * pageSize, (page + 1) * pageSize - 1);
+          const { data, error } = await q.range(page * pageSize, (page + 1) * pageSize - 1);
+          if (error) {
+            console.error(`[DRE] Erro ao buscar ${tabela}:`, error);
+            throw error;
+          }
           if (!data || data.length === 0) break;
           rows.push(...data);
           if (data.length < pageSize) break;
