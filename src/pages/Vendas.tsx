@@ -667,6 +667,11 @@ export default function Vendas() {
         const isParcelado = row.forma_pagamento === 'parcelado'
         const numParcelas = isParcelado ? row.parcelas : 1
         const valorParcela = Math.round((valorLiquido / numParcelas) * 100) / 100
+        // Vendas à vista (pix, dinheiro, cartão débito) não parceladas são
+        // quitadas no ato, espelhando o fluxo de salvarVenda() que chama
+        // quitarCR na hora. Sem isso o regime de caixa do Painel Gerencial
+        // fica zerado para tudo que foi importado por planilha.
+        const isImmediatePayment = FORMAS_A_VISTA.includes(row.forma_pagamento) && !isParcelado
 
         for (let p = 0; p < numParcelas; p++) {
           const vencimento = isParcelado
@@ -681,9 +686,10 @@ export default function Vendas() {
             pagador_nome: row.cliente_nome,
             pagador_cpf_cnpj: row.cliente_cpf_cnpj,
             valor,
-            valor_pago: 0,
+            valor_pago: isImmediatePayment ? valor : 0,
             data_vencimento: vencimento,
-            status: 'aberto',
+            data_pagamento: isImmediatePayment ? row.data_venda : null,
+            status: isImmediatePayment ? 'pago' : 'aberto',
             forma_recebimento: row.forma_pagamento,
             conta_contabil_id: defaultReceitaContaId,
             centro_custo_id: importCentroCusto || null,
@@ -695,10 +701,36 @@ export default function Vendas() {
       // 3. Insert itens + CRs in parallel (both depend on vendasData, not on each other)
       const [itensRes, crsRes] = await Promise.all([
         db.from('vendas_itens').insert(itensPayload),
-        crsPayload.length > 0 ? db.from('contas_receber').insert(crsPayload) : Promise.resolve({ error: null }),
+        crsPayload.length > 0
+          ? db
+              .from('contas_receber')
+              .insert(crsPayload)
+              .select('id, valor_pago, data_pagamento, status, pagador_nome, conta_contabil_id')
+          : Promise.resolve({ data: [] as any[], error: null }),
       ])
       if (itensRes.error) console.error('[importVenda] Itens batch error:', itensRes.error)
-      if (crsRes.error) console.error('[importVenda] CRs batch error:', crsRes.error)
+      if ((crsRes as any).error) console.error('[importVenda] CRs batch error:', (crsRes as any).error)
+
+      // 4. Para os CRs já quitados no ato (vendas à vista), gerar a movimentação
+      //    bancária de crédito correspondente — mesmo efeito colateral que
+      //    quitarCR() produz no fluxo manual. Sem isso, a Caixa do painel
+      //    fica correta mas o saldo bancário e a conciliação ficam defasados.
+      const crsPagos = (((crsRes as any).data || []) as any[]).filter((cr) => cr.status === 'pago')
+      if (crsPagos.length > 0) {
+        const movsPayload = crsPagos.map((cr) => ({
+          company_id: companyId,
+          conta_bancaria_id: importContaBancaria,
+          conta_contabil_id: cr.conta_contabil_id,
+          tipo: 'credito',
+          valor: cr.valor_pago,
+          data: cr.data_pagamento,
+          descricao: `Recebimento — ${cr.pagador_nome}`,
+          origem: 'conta_receber',
+          conta_receber_id: cr.id,
+        }))
+        const { error: movErr } = await db.from('movimentacoes').insert(movsPayload)
+        if (movErr) console.error('[importVenda] Movimentacoes batch error:', movErr)
+      }
 
       ok += batch.length
       setImportProgress({ current: ok + fail, total: validRows.length })
