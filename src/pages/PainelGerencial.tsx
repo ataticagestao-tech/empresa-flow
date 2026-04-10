@@ -567,15 +567,27 @@ export default function PainelGerencial() {
   const { data: vendasMes, isLoading: loadVendas } = useQuery({
     queryKey: ["pg_vendas_mes", cId, monthStart, monthEnd],
     queryFn: async () => {
-      const { data } = await db
-        .from("vendas")
-        .select("id, valor_total, status")
-        .eq("company_id", cId)
-        .neq("status", "cancelado")
-        .gte("data_venda", monthStart)
-        .lte("data_venda", monthEnd)
-        .limit(5000);
-      return data || [];
+      // PostgREST tem teto default de 1000 linhas por request: paginar com range()
+      const pageSize = 1000;
+      const all: any[] = [];
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("vendas")
+          .select("id, valor_total, status")
+          .eq("company_id", cId)
+          .neq("status", "cancelado")
+          .gte("data_venda", monthStart)
+          .lte("data_venda", monthEnd)
+          .order("data_venda", { ascending: true })
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+      return all;
     },
     enabled: !!cId,
   });
@@ -586,15 +598,26 @@ export default function PainelGerencial() {
   const { data: vendas6m = [] } = useQuery({
     queryKey: ["pg_vendas_6m", cId, seisAtras, hojeStr],
     queryFn: async () => {
-      const { data } = await db
-        .from("vendas")
-        .select("valor_total, data_venda, status")
-        .eq("company_id", cId)
-        .neq("status", "cancelado")
-        .gte("data_venda", seisAtras)
-        .lte("data_venda", hojeStr)
-        .limit(50000);
-      return data || [];
+      const pageSize = 1000;
+      const all: any[] = [];
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("vendas")
+          .select("valor_total, data_venda, status")
+          .eq("company_id", cId)
+          .neq("status", "cancelado")
+          .gte("data_venda", seisAtras)
+          .lte("data_venda", hojeStr)
+          .order("data_venda", { ascending: true })
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+      return all;
     },
     enabled: !!cId,
   });
@@ -655,18 +678,29 @@ export default function PainelGerencial() {
   const { data: faturamentoAnterior = 0 } = useQuery({
     queryKey: ["pg_vendas_prev", cId, prevMonthStart, prevMonthEnd],
     queryFn: async () => {
-      const { data } = await db
-        .from("vendas")
-        .select("valor_total")
-        .eq("company_id", cId)
-        .neq("status", "cancelado")
-        .gte("data_venda", prevMonthStart)
-        .lte("data_venda", prevMonthEnd)
-        .limit(5000);
-      return (data || []).reduce(
-        (s: number, v: any) => s + Number(v.valor_total || 0),
-        0
-      );
+      const pageSize = 1000;
+      let total = 0;
+      let fromIdx = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("vendas")
+          .select("valor_total")
+          .eq("company_id", cId)
+          .neq("status", "cancelado")
+          .gte("data_venda", prevMonthStart)
+          .lte("data_venda", prevMonthEnd)
+          .order("data_venda", { ascending: true })
+          .range(fromIdx, fromIdx + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        total += batch.reduce(
+          (s: number, v: any) => s + Number(v.valor_total || 0),
+          0
+        );
+        if (batch.length < pageSize) break;
+        fromIdx += pageSize;
+      }
+      return total;
     },
     enabled: !!cId,
   });

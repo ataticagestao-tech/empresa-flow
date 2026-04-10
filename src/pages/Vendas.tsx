@@ -273,6 +273,7 @@ export default function Vendas() {
   }, [vendas])
 
   // ─── Fetch data ──────────────────────────────────────────────
+  // PostgREST tem teto default de 1000 linhas por request: paginar com range()
   const fetchVendas = useCallback(async () => {
     if (!companyId) return
     setLoading(true)
@@ -281,16 +282,25 @@ export default function Vendas() {
       const inicio = format(startOfMonth(mesDate), 'yyyy-MM-dd')
       const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
 
-      const { data, error: err } = await db
-        .from('vendas')
-        .select('*, vendas_itens(*), contas_receber(*)')
-        .eq('company_id', companyId)
-        .gte('data_venda', inicio)
-        .lte('data_venda', fim)
-        .order('data_venda', { ascending: false })
-
-      if (err) throw err
-      setVendas((data as Venda[]) || [])
+      const pageSize = 1000
+      const all: Venda[] = []
+      let fromIdx = 0
+      while (true) {
+        const { data, error: err } = await db
+          .from('vendas')
+          .select('*, vendas_itens(*), contas_receber(*)')
+          .eq('company_id', companyId)
+          .gte('data_venda', inicio)
+          .lte('data_venda', fim)
+          .order('data_venda', { ascending: false })
+          .range(fromIdx, fromIdx + pageSize - 1)
+        if (err) throw err
+        const batch = (data as Venda[]) || []
+        all.push(...batch)
+        if (batch.length < pageSize) break
+        fromIdx += pageSize
+      }
+      setVendas(all)
     } catch (e: any) {
       setError(e.message || 'Erro ao buscar vendas')
     } finally {
