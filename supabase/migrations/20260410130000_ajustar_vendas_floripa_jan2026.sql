@@ -11,12 +11,12 @@ DO $$
 DECLARE
   v_company_id UUID := '75f93aa5-24e5-4990-b3ed-ed32a61924f1';  -- 002 FLORIPA
   v_conta_vendas_id UUID;
+  v_conta_bancaria_id UUID;
   v_deleted_crs INT := 0;
   v_deleted_movs INT := 0;
   v_new_cr_id UUID;
 BEGIN
   -- 1. Encontrar a conta contábil de "Receita de vendas" da Floripa
-  -- Priorizar conta analítica de receita de vendas
   SELECT id INTO v_conta_vendas_id
   FROM public.chart_of_accounts
   WHERE company_id = v_company_id
@@ -35,6 +35,21 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'Conta de vendas encontrada: %', v_conta_vendas_id;
+
+  -- 1.1 Encontrar a conta bancária principal da Floripa (movimentacoes exige NOT NULL)
+  SELECT id INTO v_conta_bancaria_id
+  FROM public.bank_accounts
+  WHERE company_id = v_company_id
+  ORDER BY
+    CASE WHEN type = 'checking' THEN 1 ELSE 2 END,
+    created_at ASC
+  LIMIT 1;
+
+  IF v_conta_bancaria_id IS NULL THEN
+    RAISE EXCEPTION 'Nenhuma conta bancária encontrada para Floripa. Crie uma em Contas Bancárias antes de ajustar o faturamento.';
+  END IF;
+
+  RAISE NOTICE 'Conta bancária encontrada: %', v_conta_bancaria_id;
 
   -- 2. Deletar movimentações de vendas de jan/2026
   WITH deleted_movs AS (
@@ -116,6 +131,7 @@ BEGIN
   -- 5. Criar movimentação correspondente (alimenta DRE/BP/Dashboard)
   INSERT INTO public.movimentacoes (
     company_id,
+    conta_bancaria_id,
     conta_contabil_id,
     conta_receber_id,
     tipo,
@@ -125,6 +141,7 @@ BEGIN
     origem
   ) VALUES (
     v_company_id,
+    v_conta_bancaria_id,
     v_conta_vendas_id,
     v_new_cr_id,
     'credito',
