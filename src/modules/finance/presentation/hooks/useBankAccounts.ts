@@ -20,6 +20,7 @@ export function useBankAccounts() {
                 .from('bank_accounts')
                 .select('*')
                 .eq('company_id', selectedCompany.id)
+                .or("is_active.eq.true,is_active.is.null")
                 .order('name');
 
             if (error) throw error;
@@ -108,14 +109,32 @@ export function useBankAccounts() {
     const deleteAccount = async (id: string) => {
         if (!activeClient) return;
         try {
-            const { error } = await (activeClient as any)
+            // Tenta DELETE físico primeiro
+            const { error: delError } = await (activeClient as any)
                 .from('bank_accounts')
                 .delete()
                 .eq('id', id);
 
-            if (error) throw error;
-            toast({ title: "Sucesso", description: "Conta bancária excluída!" });
-            fetchAccounts();
+            if (!delError) {
+                toast({ title: "Sucesso", description: "Conta bancária excluída!" });
+                fetchAccounts();
+                return;
+            }
+
+            // Fallback: soft delete se FK impedir
+            const isFkError = (delError as any).code === "23503" || /foreign key|violates foreign/i.test(delError.message || "");
+            if (isFkError) {
+                const { error: updError } = await (activeClient as any)
+                    .from('bank_accounts')
+                    .update({ is_active: false, status: "inativa" })
+                    .eq('id', id);
+                if (updError) throw updError;
+                toast({ title: "Conta inativada", description: "Marcada como inativa (tem histórico vinculado)." });
+                fetchAccounts();
+                return;
+            }
+
+            throw delError;
         } catch (error: any) {
             toast({ title: "Erro", description: error.message, variant: "destructive" });
         }

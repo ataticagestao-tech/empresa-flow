@@ -96,7 +96,11 @@ export default function ContasBancarias() {
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
       const { data, error } = await (activeClient as any)
-        .from("bank_accounts").select("*").eq("company_id", selectedCompany.id).order("name");
+        .from("bank_accounts")
+        .select("*")
+        .eq("company_id", selectedCompany.id)
+        .or("is_active.eq.true,is_active.is.null")
+        .order("name");
       if (error) throw error;
       return data as BankAccount[];
     },
@@ -170,13 +174,37 @@ export default function ContasBancarias() {
   };
 
   const handleDelete = async (acc: BankAccount) => {
-    if (!confirm(`Excluir conta "${acc.name}"?`)) return;
+    if (!confirm(`Excluir conta "${acc.name}"?\n\nSe houver movimentações vinculadas, a conta será marcada como inativa (soft delete).`)) return;
     try {
-      const { error } = await (activeClient as any).from("bank_accounts").delete().eq("id", acc.id);
-      if (error) throw error;
-      toast.success("Excluída");
-      queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
-    } catch (err: any) { toast.error("Erro: " + err.message); }
+      // 1. Tentar DELETE físico (só funciona se não houver FKs)
+      const { error: delError } = await (activeClient as any)
+        .from("bank_accounts")
+        .delete()
+        .eq("id", acc.id);
+
+      if (!delError) {
+        toast.success("Conta excluída");
+        queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
+        return;
+      }
+
+      // 2. Se falhou por FK violation (23503), fazer soft delete
+      const isFkError = delError.code === "23503" || /foreign key|violates foreign/i.test(delError.message || "");
+      if (isFkError) {
+        const { error: updError } = await (activeClient as any)
+          .from("bank_accounts")
+          .update({ is_active: false, status: "inativa" })
+          .eq("id", acc.id);
+        if (updError) throw updError;
+        toast.success("Conta marcada como inativa (tem histórico vinculado)");
+        queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
+        return;
+      }
+
+      throw delError;
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    }
   };
 
   // ─── Taxa functions ─────────────────────────────────────────
