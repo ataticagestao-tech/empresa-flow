@@ -1,13 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, TrendingDown, FileText, Pencil } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -34,6 +35,40 @@ export default function FluxoCaixa() {
   const { selectedCompany } = useCompany();
   const { activeClient, isUsingSecondary } = useAuth();
   const db = activeClient as any;
+  const queryClient = useQueryClient();
+
+  // Modal editar categoria
+  const [editModal, setEditModal] = useState<{ id: string; descricao: string; valor: number; contaContabilId: string } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editContaId, setEditContaId] = useState("");
+
+  const { data: contasContabeis = [] } = useQuery({
+    queryKey: ["chart_of_accounts", selectedCompany?.id],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return [];
+      const { data } = await db.from("chart_of_accounts").select("id, code, name").eq("company_id", selectedCompany.id).order("code");
+      return data || [];
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
+  const abrirEditCategoria = useCallback((lanc: { id: string; descricao: string; valor: number; contaBancariaId: string }, contaContabilId: string) => {
+    setEditContaId(contaContabilId || "");
+    setEditModal({ id: lanc.id, descricao: lanc.descricao, valor: lanc.valor, contaContabilId: contaContabilId || "" });
+  }, []);
+
+  const salvarCategoria = async () => {
+    if (!editModal) return;
+    setEditSaving(true);
+    try {
+      const { error } = await db.from("movimentacoes").update({ conta_contabil_id: editContaId || null }).eq("id", editModal.id);
+      if (error) { console.error("Erro ao atualizar categoria:", error); return; }
+      queryClient.invalidateQueries({ queryKey: ["relatorio_fluxo"] });
+      setEditModal(null);
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const hoje = new Date();
   const [mesInicio, setMesInicio] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM"));
@@ -335,12 +370,14 @@ export default function FluxoCaixa() {
                                 <CategoriaExpandivel
                                   key={catId}
                                   catId={`e_${catId}`}
+                                  contaContabilId={catId}
                                   nome={cat.nome}
                                   total={cat.total}
                                   isTransf={cat.isTransf}
                                   lancamentos={cat.lancamentos}
                                   isOpen={isOpen}
                                   onToggle={() => toggleRelExpand(`e_${catId}`)}
+                                  onEditCategoria={abrirEditCategoria}
                                   cor="#059669"
                                 />
                               );
@@ -375,12 +412,14 @@ export default function FluxoCaixa() {
                                 <CategoriaExpandivel
                                   key={catId}
                                   catId={`s_${catId}`}
+                                  contaContabilId={catId}
                                   nome={cat.nome}
                                   total={cat.total}
                                   isTransf={cat.isTransf}
                                   lancamentos={cat.lancamentos}
                                   isOpen={isOpen}
                                   onToggle={() => toggleRelExpand(`s_${catId}`)}
+                                  onEditCategoria={abrirEditCategoria}
                                   cor="#dc2626"
                                 />
                               );
@@ -500,27 +539,70 @@ export default function FluxoCaixa() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modal editar categoria */}
+      <Dialog open={!!editModal} onOpenChange={(open) => !open && setEditModal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Alterar categoria</DialogTitle>
+          </DialogHeader>
+          {editModal && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Lançamento</p>
+                <p className="text-sm font-medium">{editModal.descricao}</p>
+                <p className="text-xs text-muted-foreground mt-1">{fmt(editModal.valor)}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Categoria (Conta Contábil)</label>
+                <Select value={editContaId} onValueChange={setEditContaId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contasContabeis.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.code} — {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditModal(null)}>Cancelar</Button>
+                <Button size="sm" onClick={salvarCategoria} disabled={editSaving}>
+                  {editSaving ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
 
 function CategoriaExpandivel({
   catId,
+  contaContabilId,
   nome,
   total,
   isTransf,
   lancamentos,
   isOpen,
   onToggle,
+  onEditCategoria,
   cor,
 }: {
   catId: string;
+  contaContabilId: string;
   nome: string;
   total: number;
   isTransf: boolean;
   lancamentos: { id: string; data: string; valor: number; descricao: string; contaBancariaId: string }[];
   isOpen: boolean;
   onToggle: () => void;
+  onEditCategoria: (lanc: { id: string; descricao: string; valor: number; contaBancariaId: string }, contaContabilId: string) => void;
   cor: string;
 }) {
   return (
@@ -545,12 +627,13 @@ function CategoriaExpandivel({
           <tr key={`${catId}_${i}`} className="border-b border-border/20 hover:bg-muted/10">
             <td className="py-1.5 px-4 pl-12 text-muted-foreground">
               <span className="text-[11px]">{l.data}</span>
-              <Link
-                to={l.contaBancariaId ? `/conciliacao?conta=${l.contaBancariaId}` : "/conciliacao"}
-                className="ml-3 text-foreground hover:text-primary hover:underline"
+              <button
+                onClick={() => onEditCategoria(l, contaContabilId)}
+                className="ml-3 text-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
               >
                 {l.descricao}
-              </Link>
+                <Pencil className="h-3 w-3 text-muted-foreground" />
+              </button>
             </td>
             <td className="text-right py-1.5 px-4 tabular-nums text-muted-foreground">
               {isTransf ? "—" : fmt(l.valor)}
