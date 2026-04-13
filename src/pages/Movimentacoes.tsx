@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import jsPDF from 'jspdf'
 import {
   format,
   parseISO,
@@ -26,6 +27,7 @@ import {
   Download,
   ChevronDown,
   Eye,
+  FileText,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -494,6 +496,126 @@ export default function Movimentacoes() {
     URL.revokeObjectURL(url)
   }
 
+  // ---- Export PDF ----
+  const exportPDF = () => {
+    if (filtered.length === 0) return
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' })
+    const W = 297
+    const margin = 12
+    const contentW = W - margin * 2
+    const empresa = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || ''
+    const periodo = activeSearchTerm
+      ? `Busca: "${activeSearchTerm}"`
+      : `${format(parseISO(dateStart), 'dd/MM/yyyy')} a ${format(parseISO(dateEnd), 'dd/MM/yyyy')}`
+
+    // Header
+    doc.setFillColor(26, 46, 74)
+    doc.rect(0, 0, W, 18, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(255, 255, 255)
+    doc.text('MOVIMENTAÇÕES', margin, 8)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`${empresa}  |  ${periodo}`, margin, 14)
+
+    // KPIs
+    let y = 24
+    const totalEntradas = filtered.filter(m => m.tipo === 'credito').reduce((s, m) => s + m.valor, 0)
+    const totalSaidas = filtered.filter(m => m.tipo === 'debito').reduce((s, m) => s + m.valor, 0)
+    const saldo = totalEntradas - totalSaidas
+
+    doc.setFontSize(8)
+    doc.setTextColor(80, 80, 80)
+    doc.text(`Entradas: ${formatBRL(totalEntradas)}    |    Saídas: ${formatBRL(totalSaidas)}    |    Saldo: ${formatBRL(saldo)}    |    ${filtered.length} registros`, margin, y)
+    y += 6
+
+    // Table header
+    const cols = [
+      { label: 'Data', x: margin, w: 22 },
+      { label: 'Descrição', x: margin + 22, w: 95 },
+      { label: 'Tipo', x: margin + 117, w: 18 },
+      { label: 'Valor (R$)', x: margin + 135, w: 30 },
+      { label: 'Conta', x: margin + 165, w: 35 },
+      { label: 'Categoria', x: margin + 200, w: 55 },
+      { label: 'Origem', x: margin + 255, w: 18 },
+    ]
+
+    doc.setFillColor(240, 244, 248)
+    doc.rect(margin, y, contentW, 6, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.5)
+    doc.setTextColor(30, 30, 30)
+    cols.forEach(c => doc.text(c.label, c.x + 1, y + 4))
+    y += 7
+
+    // Rows
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.5)
+
+    for (const m of filtered) {
+      if (y > 195) {
+        doc.addPage()
+        y = 12
+        // Re-draw header on new page
+        doc.setFillColor(240, 244, 248)
+        doc.rect(margin, y, contentW, 6, 'F')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(6.5)
+        doc.setTextColor(30, 30, 30)
+        cols.forEach(c => doc.text(c.label, c.x + 1, y + 4))
+        y += 7
+        doc.setFont('helvetica', 'normal')
+      }
+
+      const d = m.data ? format(parseISO(m.data), 'dd/MM/yyyy') : ''
+      const desc = (m.descricao || '—').substring(0, 65)
+      const tipo = m.tipo === 'credito' ? 'Entrada' : 'Saída'
+      const valor = m.valor.toFixed(2).replace('.', ',')
+      const banco = (m.conta_bancaria?.name || '—').substring(0, 22)
+      const cat = m.conta_contabil ? `${m.conta_contabil.code} - ${m.conta_contabil.name}`.substring(0, 38) : '—'
+      const origem = (ORIGEM_LABELS[m.origem] || m.origem).substring(0, 12)
+
+      // Alternate row bg
+      if (filtered.indexOf(m) % 2 === 0) {
+        doc.setFillColor(250, 250, 250)
+        doc.rect(margin, y - 3, contentW, 5, 'F')
+      }
+
+      doc.setTextColor(m.tipo === 'credito' ? 10 : 139, m.tipo === 'credito' ? 92 : 0, m.tipo === 'credito' ? 46 : 0)
+      doc.text(valor, cols[3].x + 1, y)
+
+      doc.setTextColor(30, 30, 30)
+      doc.text(d, cols[0].x + 1, y)
+      doc.text(desc, cols[1].x + 1, y)
+      doc.text(tipo, cols[2].x + 1, y)
+      doc.text(banco, cols[4].x + 1, y)
+      doc.text(cat, cols[5].x + 1, y)
+      doc.text(origem, cols[6].x + 1, y)
+
+      y += 5
+    }
+
+    // Footer
+    y += 4
+    doc.setDrawColor(200, 200, 200)
+    doc.line(margin, y, W - margin, y)
+    y += 5
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(10, 92, 46)
+    doc.text(`Total Entradas: ${formatBRL(totalEntradas)}`, margin, y)
+    doc.setTextColor(139, 0, 0)
+    doc.text(`Total Saídas: ${formatBRL(totalSaidas)}`, margin + 70, y)
+    doc.setTextColor(30, 30, 30)
+    doc.text(`Saldo: ${formatBRL(saldo)}`, margin + 140, y)
+
+    const filename = activeSearchTerm
+      ? `movimentacoes_busca_${activeSearchTerm.replace(/\s+/g, '_')}.pdf`
+      : `movimentacoes_${dateStart}_${dateEnd}.pdf`
+    doc.save(filename)
+  }
+
   // ---- Render helpers ----
 
   const TypeIcon = ({ tipo }: { tipo: string }) => {
@@ -587,11 +709,18 @@ export default function Movimentacoes() {
             </h3>
             <div className="flex items-center gap-2">
               <button
+                onClick={exportPDF}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 text-white text-xs font-medium hover:bg-white/20 transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                PDF
+              </button>
+              <button
                 onClick={exportCSV}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 text-white text-xs font-medium hover:bg-white/20 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                Exportar
+                CSV
               </button>
               <button
                 onClick={openModal}
