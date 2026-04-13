@@ -15,6 +15,7 @@ import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, T
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
 
 interface DFCLinha {
   codigo: string;
@@ -289,6 +290,270 @@ export default function FluxoCaixa() {
     XLSX.writeFile(wb, `Relatorio_Fluxo_${mesInicio}_${mesFim}.xlsx`);
   }
 
+  // ── PDF helpers ──
+  const empresa = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "";
+  const periodo = `${mesInicio} a ${mesFim}`;
+
+  function pdfHeader(doc: jsPDF, titulo: string, W: number, margin: number) {
+    doc.setFillColor(26, 46, 74);
+    doc.rect(0, 0, W, 18, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text(titulo, margin, 8);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${empresa}  |  ${periodo}`, margin, 14);
+  }
+
+  function pdfNewPageIfNeeded(doc: jsPDF, y: number, limit: number, cols: { label: string; x: number }[], contentW: number, margin: number) {
+    if (y > limit) {
+      doc.addPage();
+      let ny = 12;
+      doc.setFillColor(240, 244, 248);
+      doc.rect(margin, ny, contentW, 6, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.setTextColor(30, 30, 30);
+      cols.forEach((c) => doc.text(c.label, c.x + 1, ny + 4));
+      ny += 7;
+      doc.setFont("helvetica", "normal");
+      return ny;
+    }
+    return y;
+  }
+
+  function exportarRelatorioPDF() {
+    if (relatorio.entradas.length === 0 && relatorio.saidas.length === 0) return;
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+    const W = 297;
+    const margin = 12;
+    const contentW = W - margin * 2;
+
+    pdfHeader(doc, "RELATÓRIO DE FLUXO DE CAIXA", W, margin);
+
+    let y = 24;
+    const saldo = relatorio.totalEntradas - relatorio.totalSaidas;
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Entradas: ${fmt(relatorio.totalEntradas)}    |    Saídas: ${fmt(relatorio.totalSaidas)}    |    Saldo: ${fmt(saldo)}`, margin, y);
+    y += 8;
+
+    const cols = [
+      { label: "Tipo", x: margin },
+      { label: "Categoria", x: margin + 22 },
+      { label: "Data", x: margin + 120 },
+      { label: "Descrição", x: margin + 148 },
+      { label: "Valor (R$)", x: margin + 240 },
+    ];
+
+    doc.setFillColor(240, 244, 248);
+    doc.rect(margin, y, contentW, 6, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 30, 30);
+    cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+
+    const renderSection = (items: typeof relatorio.entradas, tipo: string) => {
+      for (const [, cat] of items) {
+        y = pdfNewPageIfNeeded(doc, y, 195, cols, contentW, margin);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 30, 30);
+        doc.text(tipo, cols[0].x + 1, y + 3);
+        doc.text(cat.nome, cols[1].x + 1, y + 3);
+        doc.text(cat.isTransf ? "—" : fmt(cat.total), cols[4].x + 1, y + 3);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        for (const l of cat.lancamentos) {
+          y = pdfNewPageIfNeeded(doc, y, 195, cols, contentW, margin);
+          doc.setTextColor(80, 80, 80);
+          doc.text(l.data, cols[2].x + 1, y + 3);
+          doc.text((l.descricao || "—").substring(0, 60), cols[3].x + 1, y + 3);
+          doc.text(cat.isTransf ? "—" : fmt(l.valor), cols[4].x + 1, y + 3);
+          y += 4.5;
+        }
+        y += 1;
+      }
+    };
+
+    renderSection(relatorio.entradas, "ENTRADA");
+    y += 3;
+    renderSection(relatorio.saidas, "SAÍDA");
+
+    y += 6;
+    doc.setDrawColor(26, 46, 74);
+    doc.line(margin, y, W - margin, y);
+    y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(10, 92, 46);
+    doc.text(`Total Entradas: ${fmt(relatorio.totalEntradas)}`, margin, y);
+    doc.setTextColor(180, 30, 30);
+    doc.text(`Total Saídas: ${fmt(relatorio.totalSaidas)}`, margin + 70, y);
+    doc.setTextColor(26, 46, 74);
+    doc.text(`Saldo: ${fmt(saldo)}`, margin + 140, y);
+
+    doc.save(`Relatorio_Fluxo_${mesInicio}_${mesFim}.pdf`);
+  }
+
+  function exportarDFCpdf() {
+    if (linhas.length === 0) return;
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const W = 210;
+    const margin = 14;
+    const contentW = W - margin * 2;
+
+    pdfHeader(doc, "DFC — DEMONSTRAÇÃO DOS FLUXOS DE CAIXA", W, margin);
+
+    let y = 24;
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Método direto · CPC 03 (R2)`, margin, y);
+    y += 8;
+
+    const cols = [
+      { label: "Código", x: margin },
+      { label: "Descrição", x: margin + 30 },
+      { label: "Valor (R$)", x: margin + 140 },
+    ];
+
+    doc.setFillColor(240, 244, 248);
+    doc.rect(margin, y, contentW, 6, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(30, 30, 30);
+    cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
+    y += 7;
+
+    for (const l of linhas) {
+      if (y > 275) {
+        doc.addPage();
+        y = 14;
+        doc.setFillColor(240, 244, 248);
+        doc.rect(margin, y, contentW, 6, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(30, 30, 30);
+        cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
+        y += 7;
+      }
+
+      const isHeader = l.nivel === 1;
+      const isTotal = l.codigo.includes(".T") || l.codigo === "DFC.VAR";
+
+      if (isHeader || isTotal) {
+        doc.setFont("helvetica", "bold");
+        if (isTotal) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y - 1, contentW, 5.5, "F");
+        }
+      } else {
+        doc.setFont("helvetica", "normal");
+      }
+
+      doc.setFontSize(6.5);
+      doc.setTextColor(isHeader ? 26 : 60, isHeader ? 46 : 60, isHeader ? 74 : 60);
+      doc.text(l.codigo, cols[0].x + (isHeader ? 0 : 4), y + 3);
+      doc.text(isHeader ? l.nome.toUpperCase() : l.nome, cols[1].x + (isHeader ? 0 : 4), y + 3);
+
+      const cor = l.valor >= 0 ? [10, 92, 46] : [180, 30, 30];
+      doc.setTextColor(cor[0], cor[1], cor[2]);
+      doc.text(fmt(l.valor), cols[2].x + 1, y + 3);
+
+      y += isHeader ? 6 : 5;
+    }
+
+    doc.save(`DFC_${mesInicio}_${mesFim}.pdf`);
+  }
+
+  function exportarDiagnosticoPDF() {
+    if (diagnostico.rows.length === 0) return;
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+    const W = 297;
+    const margin = 12;
+    const contentW = W - margin * 2;
+
+    pdfHeader(doc, "DIAGNÓSTICO DE CATEGORIAS", W, margin);
+
+    let y = 24;
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      `Receitas: ${fmt(diagnostico.totalReceita)}    |    Despesas: ${fmt(diagnostico.totalDespesa)}    |    Sem categoria: ${diagnostico.semCategoria.length}    |    Total: ${diagnostico.rows.length} transações`,
+      margin, y
+    );
+    y += 8;
+
+    const cols = [
+      { label: "Data", x: margin },
+      { label: "Descrição", x: margin + 22 },
+      { label: "Tipo", x: margin + 110 },
+      { label: "Vínculo", x: margin + 128 },
+      { label: "Beneficiário", x: margin + 146 },
+      { label: "Categoria", x: margin + 200 },
+      { label: "Valor (R$)", x: margin + 252 },
+    ];
+
+    doc.setFillColor(240, 244, 248);
+    doc.rect(margin, y, contentW, 6, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 30, 30);
+    cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6);
+
+    for (const r of diagnostico.rows) {
+      if (y > 195) {
+        doc.addPage();
+        y = 12;
+        doc.setFillColor(240, 244, 248);
+        doc.rect(margin, y, contentW, 6, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(30, 30, 30);
+        cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
+        y += 7;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+      }
+
+      const semCat = !r.cod_categoria;
+      if (semCat) {
+        doc.setFillColor(255, 251, 235);
+        doc.rect(margin, y - 1, contentW, 4.5, "F");
+      }
+
+      doc.setTextColor(80, 80, 80);
+      doc.text(r.data || "", cols[0].x + 1, y + 3);
+      doc.text((r.descricao_banco || "").substring(0, 55), cols[1].x + 1, y + 3);
+
+      const isReceita = r.tipo === "RECEITA";
+      doc.setTextColor(isReceita ? 10 : 180, isReceita ? 92 : 30, isReceita ? 46 : 30);
+      doc.text(r.tipo, cols[2].x + 1, y + 3);
+
+      doc.setTextColor(80, 80, 80);
+      doc.text(r.vinculo, cols[3].x + 1, y + 3);
+      doc.text((r.beneficiario || "—").substring(0, 35), cols[4].x + 1, y + 3);
+      doc.text(
+        semCat ? "SEM CATEGORIA" : `${r.cod_categoria} — ${(r.nome_categoria || "").substring(0, 30)}`,
+        cols[5].x + 1, y + 3
+      );
+
+      const val = Number(r.valor || 0);
+      doc.setTextColor(val >= 0 ? 10 : 180, val >= 0 ? 92 : 30, val >= 0 ? 46 : 30);
+      doc.text(fmt(val), cols[6].x + 1, y + 3);
+
+      y += 4.5;
+    }
+
+    doc.save(`Diagnostico_Categorias_${mesInicio}_${mesFim}.pdf`);
+  }
+
   return (
     <AppLayout title="Fluxo de Caixa">
       <div className="space-y-5 animate-fade-in">
@@ -470,9 +735,12 @@ export default function FluxoCaixa() {
                     )}
                   </Card>
 
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={exportarRelatorioPDF}>
+                      <Download className="h-3.5 w-3.5 mr-1" /> Exportar PDF
+                    </Button>
                     <Button variant="outline" size="sm" onClick={exportarRelatorioExcel}>
-                      <Download className="h-3.5 w-3.5 mr-1" /> Exportar Relatório
+                      <Download className="h-3.5 w-3.5 mr-1" /> Exportar Excel
                     </Button>
                   </div>
                 </div>
@@ -570,9 +838,12 @@ export default function FluxoCaixa() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={exportarDFCpdf}>
+                  <Download className="h-3.5 w-3.5 mr-1" /> Exportar PDF
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportarExcel}>
-                  <Download className="h-3.5 w-3.5 mr-1" /> Exportar DFC
+                  <Download className="h-3.5 w-3.5 mr-1" /> Exportar Excel
                 </Button>
               </div>
             </div>
@@ -769,6 +1040,12 @@ export default function FluxoCaixa() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={exportarDiagnosticoPDF}>
+                      <Download className="h-3.5 w-3.5 mr-1" /> Exportar PDF
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
