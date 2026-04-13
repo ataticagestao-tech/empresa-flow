@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -555,18 +558,38 @@ export default function FluxoCaixa() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Categoria (Conta Contábil)</label>
-                <Select value={editContaId} onValueChange={setEditContaId}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contasContabeis.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.code} — {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start mt-1 font-normal">
+                      {editContaId
+                        ? contasContabeis.find((c: any) => c.id === editContaId)
+                          ? `${contasContabeis.find((c: any) => c.id === editContaId).code} — ${contasContabeis.find((c: any) => c.id === editContaId).name}`
+                          : "Selecione..."
+                        : "Selecione uma categoria"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar categoria..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {contasContabeis.map((c: any) => (
+                            <CommandItem
+                              key={c.id}
+                              value={`${c.code} ${c.name}`}
+                              onSelect={() => setEditContaId(c.id)}
+                            >
+                              <span className={editContaId === c.id ? "font-semibold" : ""}>
+                                {c.code} — {c.name}
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEditModal(null)}>Cancelar</Button>
