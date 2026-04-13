@@ -126,67 +126,52 @@ export default function FluxoCaixa() {
   }
 
   // ── Relatório por Categoria ──
-  const { data: movimentacoes = [], isLoading: isLoadingRelatorio } = useQuery({
+  const { data: relatorioRaw = [], isLoading: isLoadingRelatorio } = useQuery({
     queryKey: ["relatorio_fluxo", selectedCompany?.id, dataInicio, dataFim, isUsingSecondary],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
-      const pageSize = 5000;
-      const rows: any[] = [];
-      let page = 0;
-      while (true) {
-        const from = page * pageSize;
-        const to = from + pageSize - 1;
-        const { data, error } = await db
-          .from("movimentacoes")
-          .select("id, data, valor, descricao, tipo, origem, conta_contabil_id, chart_of_accounts!left(id, name, code)")
-          .eq("company_id", selectedCompany.id)
-          .neq("origem", "transferencia")
-          .gte("data", dataInicio)
-          .lte("data", dataFim)
-          .order("data", { ascending: false })
-          .range(from, to);
-        if (error) { console.error("Erro movimentacoes:", error); break; }
-        if (!data || data.length === 0) break;
-        rows.push(...data);
-        if (data.length < pageSize) break;
-        page++;
-      }
-      return rows;
+      const { data, error } = await db.rpc("fn_relatorio_fluxo", {
+        p_company_id: selectedCompany.id,
+        p_data_inicio: dataInicio,
+        p_data_fim: dataFim,
+      });
+      if (error) { console.error("Erro fn_relatorio_fluxo:", error); return []; }
+      return data || [];
     },
     enabled: !!selectedCompany?.id,
   });
 
+  const movimentacoes = relatorioRaw; // keep reference for length check
+
   const relatorio = useMemo(() => {
-    const entradas: Record<string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }> = {};
-    const saidas: Record<string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }> = {};
+    const entradas: [string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }][] = [];
+    const saidas: [string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }][] = [];
     let totalEntradas = 0;
     let totalSaidas = 0;
 
-    for (const mov of movimentacoes) {
-      const catId = mov.conta_contabil_id || "_sem_categoria";
-      const catNome = mov.chart_of_accounts?.name || "Sem categoria";
-      const grupo = mov.tipo === "credito" ? entradas : saidas;
-      if (!grupo[catId]) grupo[catId] = { nome: catNome, total: 0, lancamentos: [] };
-      grupo[catId].total += Number(mov.valor || 0);
-      grupo[catId].lancamentos.push({
-        data: mov.data,
-        valor: Number(mov.valor || 0),
-        descricao: mov.descricao || "—",
-      });
-      if (mov.tipo === "credito") totalEntradas += Number(mov.valor || 0);
-      else totalSaidas += Number(mov.valor || 0);
+    for (const row of relatorioRaw) {
+      const catId = row.cat_id || "_sem_categoria";
+      const lancamentos = (row.lancamentos || []).map((l: any) => ({
+        data: l.data,
+        valor: Number(l.valor || 0),
+        descricao: l.descricao || "—",
+      }));
+      const total = Number(row.total || 0);
+
+      if (row.tipo === "credito") {
+        entradas.push([catId, { nome: row.cat_nome || "Sem categoria", total, lancamentos }]);
+        totalEntradas += total;
+      } else {
+        saidas.push([catId, { nome: row.cat_nome || "Sem categoria", total, lancamentos }]);
+        totalSaidas += total;
+      }
     }
 
-    const sortByTotal = (obj: typeof entradas) =>
-      Object.entries(obj).sort((a, b) => b[1].total - a[1].total);
+    entradas.sort((a, b) => b[1].total - a[1].total);
+    saidas.sort((a, b) => b[1].total - a[1].total);
 
-    return {
-      entradas: sortByTotal(entradas),
-      saidas: sortByTotal(saidas),
-      totalEntradas,
-      totalSaidas,
-    };
-  }, [movimentacoes]);
+    return { entradas, saidas, totalEntradas, totalSaidas };
+  }, [relatorioRaw]);
 
   const [relExpandidos, setRelExpandidos] = useState<Record<string, boolean>>({});
   const toggleRelExpand = (key: string) =>
