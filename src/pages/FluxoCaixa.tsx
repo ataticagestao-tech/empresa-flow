@@ -32,7 +32,7 @@ const CORES_ATIVIDADE: Record<string, string> = {
 
 export default function FluxoCaixa() {
   const { selectedCompany } = useCompany();
-  const { activeClient } = useAuth();
+  const { activeClient, isUsingSecondary } = useAuth();
   const db = activeClient as any;
 
   const hoje = new Date();
@@ -51,7 +51,7 @@ export default function FluxoCaixa() {
   const dataFim = format(endOfMonth(new Date(`${mesFim}-01`)), "yyyy-MM-dd");
 
   const { data: linhas = [], isLoading } = useQuery({
-    queryKey: ["dfc_contabil", selectedCompany?.id, dataInicio, dataFim],
+    queryKey: ["dfc_contabil", selectedCompany?.id, dataInicio, dataFim, isUsingSecondary],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
 
@@ -127,22 +127,24 @@ export default function FluxoCaixa() {
 
   // ── Relatório por Categoria ──
   const { data: movimentacoes = [], isLoading: isLoadingRelatorio } = useQuery({
-    queryKey: ["relatorio_fluxo", selectedCompany?.id, dataInicio, dataFim],
+    queryKey: ["relatorio_fluxo", selectedCompany?.id, dataInicio, dataFim, isUsingSecondary],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
-      const pageSize = 1000;
+      const pageSize = 5000;
       const rows: any[] = [];
       let page = 0;
       while (true) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
         const { data, error } = await db
           .from("movimentacoes")
-          .select("id, data, valor, descricao, tipo, origem, conta_contabil_id, chart_of_accounts(id, name, code)")
+          .select("id, data, valor, descricao, tipo, origem, conta_contabil_id, chart_of_accounts!left(id, name, code)")
           .eq("company_id", selectedCompany.id)
           .neq("origem", "transferencia")
           .gte("data", dataInicio)
           .lte("data", dataFim)
           .order("data", { ascending: false })
-          .range(page * pageSize, (page + 1) * pageSize - 1);
+          .range(from, to);
         if (error) { console.error("Erro movimentacoes:", error); break; }
         if (!data || data.length === 0) break;
         rows.push(...data);
