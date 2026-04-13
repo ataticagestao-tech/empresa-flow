@@ -181,8 +181,8 @@ export default function FluxoCaixa() {
 
   const movimentacoes = relatorioRaw; // keep reference for length check
 
-  const isTransferencia = (nome: string) =>
-    /transfer[eê]ncia/i.test(nome);
+  const isExcluidoFaturamento = (nome: string) =>
+    /transfer[eê]ncia/i.test(nome) || /aplica[cç][aã]o.*resgate|resgate.*investimento/i.test(nome);
 
   const relatorio = useMemo(() => {
     const entradas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string; contaBancariaId: string }[] }][] = [];
@@ -193,7 +193,7 @@ export default function FluxoCaixa() {
     for (const row of relatorioRaw) {
       const catId = row.cat_id || "_sem_categoria";
       const nome = row.cat_nome || "Sem categoria";
-      const isTransf = isTransferencia(nome);
+      const isTransf = isExcluidoFaturamento(nome);
       const lancamentos = (row.lancamentos || []).map((l: any) => ({
         id: l.id || "",
         data: l.data,
