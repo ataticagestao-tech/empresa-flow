@@ -175,13 +175,21 @@ export default function Movimentacoes() {
 
       // Se há termo de busca ativo, buscar sem filtro de data (server-side)
       // Busca em descricao + categoria (chart_of_accounts)
+      // Sugestões vêm no formato "código - nome", então separamos para buscar cada parte
       let matchingCoaIds: string[] = []
       if (activeSearchTerm) {
+        const dashMatch = activeSearchTerm.match(/^(\S+)\s*[-–]\s*(.+)/)
+        const codePart = dashMatch ? dashMatch[1] : activeSearchTerm
+        const namePart = dashMatch ? dashMatch[2].trim() : activeSearchTerm
+        const orParts = [`name.ilike.%${namePart}%`, `code.ilike.%${codePart}%`]
+        if (!dashMatch) {
+          orParts.push(`name.ilike.%${activeSearchTerm}%`)
+        }
         const { data: coaMatches } = await (client as any)
           .from('chart_of_accounts')
           .select('id')
           .eq('company_id', companyId)
-          .or(`name.ilike.%${activeSearchTerm}%,code.ilike.%${activeSearchTerm}%`)
+          .or(orParts.join(','))
         matchingCoaIds = (coaMatches || []).map((c: any) => c.id)
       }
 
@@ -194,10 +202,13 @@ export default function Movimentacoes() {
           .eq('company_id', companyId)
 
         if (activeSearchTerm) {
+          const descTerm = activeSearchTerm.match(/^(\S+)\s*[-–]\s*(.+)/)
+            ? activeSearchTerm.match(/^(\S+)\s*[-–]\s*(.+)/)![2].trim()
+            : activeSearchTerm
           if (matchingCoaIds.length > 0) {
-            q = q.or(`descricao.ilike.%${activeSearchTerm}%,conta_contabil_id.in.(${matchingCoaIds.join(',')})`)
+            q = q.or(`descricao.ilike.%${descTerm}%,conta_contabil_id.in.(${matchingCoaIds.join(',')})`)
           } else {
-            q = q.ilike('descricao', `%${activeSearchTerm}%`)
+            q = q.ilike('descricao', `%${descTerm}%`)
           }
         } else {
           q = q.gte('data', dateStart).lte('data', dateEnd)
