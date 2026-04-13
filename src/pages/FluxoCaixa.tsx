@@ -8,7 +8,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, TrendingDown, FileText } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth, isWeekend, addDays, subDays } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 
@@ -47,19 +47,8 @@ export default function FluxoCaixa() {
     return opts;
   }, []);
 
-  // Primeiro dia útil do mês de início
-  const dataInicio = useMemo(() => {
-    let d = startOfMonth(new Date(`${mesInicio}-01`));
-    while (isWeekend(d)) d = addDays(d, 1);
-    return format(d, "yyyy-MM-dd");
-  }, [mesInicio]);
-
-  // Último dia útil do mês de fim
-  const dataFim = useMemo(() => {
-    let d = endOfMonth(new Date(`${mesFim}-01`));
-    while (isWeekend(d)) d = subDays(d, 1);
-    return format(d, "yyyy-MM-dd");
-  }, [mesFim]);
+  const dataInicio = `${mesInicio}-01`;
+  const dataFim = format(endOfMonth(new Date(`${mesFim}-15`)), "yyyy-MM-dd");
 
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["dfc_contabil", selectedCompany?.id, dataInicio, dataFim, isUsingSecondary],
