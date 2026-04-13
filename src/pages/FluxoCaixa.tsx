@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, TrendingDown, FileText, Pencil } from "lucide-react";
+import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, TrendingDown, FileText, Pencil, Search, AlertTriangle } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -181,6 +181,40 @@ export default function FluxoCaixa() {
 
   const movimentacoes = relatorioRaw; // keep reference for length check
 
+  // ── Diagnóstico de Categorias ──
+  const { data: diagnosticoRaw = [], isLoading: isLoadingDiagnostico } = useQuery({
+    queryKey: ["diagnostico_categorias", selectedCompany?.id, dataInicio, dataFim, isUsingSecondary],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return [];
+      const { data, error } = await db.rpc("fn_diagnostico_categorias", {
+        p_company_id: selectedCompany.id,
+        p_data_inicio: dataInicio,
+        p_data_fim: dataFim,
+      });
+      if (error) { console.error("Erro fn_diagnostico_categorias:", error); return []; }
+      return data || [];
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
+  const diagnostico = useMemo(() => {
+    const rows = diagnosticoRaw as any[];
+    const semCategoria = rows.filter((r) => !r.cod_categoria);
+    const comCategoria = rows.filter((r) => !!r.cod_categoria);
+    const totalReceita = rows.filter((r) => r.tipo === "RECEITA").reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+    const totalDespesa = rows.filter((r) => r.tipo === "DESPESA").reduce((s: number, r: any) => s + Math.abs(Number(r.valor || 0)), 0);
+    const categorias = new Map<string, { cod: string; nome: string; total: number; count: number }>();
+    for (const r of comCategoria) {
+      const key = r.cod_categoria;
+      const prev = categorias.get(key) || { cod: r.cod_categoria, nome: r.nome_categoria, total: 0, count: 0 };
+      prev.total += Number(r.valor || 0);
+      prev.count += 1;
+      categorias.set(key, prev);
+    }
+    const categoriasOrdenadas = [...categorias.values()].sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    return { rows, semCategoria, comCategoria, totalReceita, totalDespesa, categoriasOrdenadas };
+  }, [diagnosticoRaw]);
+
   const isExcluidoFaturamento = (nome: string) =>
     /transfer[eê]ncia/i.test(nome) || /aplica[cç][aã]o.*resgate|resgate.*investimento/i.test(nome);
 
@@ -305,6 +339,9 @@ export default function FluxoCaixa() {
             </TabsTrigger>
             <TabsTrigger value="dfc" className="text-xs gap-1.5">
               <Banknote className="h-3.5 w-3.5" /> DFC
+            </TabsTrigger>
+            <TabsTrigger value="diagnostico" className="text-xs gap-1.5">
+              <Search className="h-3.5 w-3.5" /> Diagnóstico
             </TabsTrigger>
           </TabsList>
 
@@ -538,6 +575,202 @@ export default function FluxoCaixa() {
                   <Download className="h-3.5 w-3.5 mr-1" /> Exportar DFC
                 </Button>
               </div>
+            </div>
+          </TabsContent>
+
+          {/* ═══ ABA DIAGNÓSTICO ═══ */}
+          <TabsContent value="diagnostico">
+            <div className="space-y-4">
+              {/* KPIs Diagnóstico */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Transações</p>
+                    <p className="text-lg font-bold mt-1 text-foreground">{diagnostico.rows.length}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Receitas</p>
+                    <p className="text-lg font-bold mt-1 text-emerald-600">{fmt(diagnostico.totalReceita)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Despesas</p>
+                    <p className="text-lg font-bold mt-1 text-red-600">{fmt(diagnostico.totalDespesa)}</p>
+                  </CardContent>
+                </Card>
+                <Card className={diagnostico.semCategoria.length > 0 ? "border-amber-300" : ""}>
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                      {diagnostico.semCategoria.length > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                      Sem categoria
+                    </p>
+                    <p className="text-lg font-bold mt-1" style={{ color: diagnostico.semCategoria.length > 0 ? "#d97706" : "#059669" }}>
+                      {diagnostico.semCategoria.length}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {isLoadingDiagnostico ? (
+                <div className="text-center py-16">
+                  <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">Carregando diagnóstico...</p>
+                </div>
+              ) : diagnostico.rows.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-16">
+                    <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+                    <p className="text-muted-foreground text-sm">Nenhuma transação conciliada encontrada no período.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {/* Resumo por categoria */}
+                  {diagnostico.categoriasOrdenadas.length > 0 && (
+                    <Card>
+                      <CardHeader className="border-b border-border py-3">
+                        <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2">
+                          <Banknote className="h-4 w-4" /> Resumo por categoria
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[12.5px]">
+                            <thead>
+                              <tr className="border-b bg-muted/30">
+                                <th className="text-left py-2.5 px-4 font-semibold w-[100px]">Código</th>
+                                <th className="text-left py-2.5 px-4 font-semibold">Categoria</th>
+                                <th className="text-right py-2.5 px-4 font-semibold w-[60px]">Qtd</th>
+                                <th className="text-right py-2.5 px-4 font-semibold w-[140px]">Total (R$)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {diagnostico.categoriasOrdenadas.map((cat) => (
+                                <tr key={cat.cod} className="border-b border-border/50 hover:bg-muted/10">
+                                  <td className="py-2 px-4 font-mono text-muted-foreground text-[11px]">{cat.cod}</td>
+                                  <td className="py-2 px-4">{cat.nome}</td>
+                                  <td className="text-right py-2 px-4 text-muted-foreground">{cat.count}</td>
+                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: cat.total >= 0 ? "#059669" : "#dc2626" }}>
+                                    {fmt(cat.total)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Transações sem categoria */}
+                  {diagnostico.semCategoria.length > 0 && (
+                    <Card className="border-amber-300">
+                      <CardHeader className="border-b border-amber-200 py-3 bg-amber-50">
+                        <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2 text-amber-800">
+                          <AlertTriangle className="h-4 w-4" /> Transações sem categoria ({diagnostico.semCategoria.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[12.5px]">
+                            <thead>
+                              <tr className="border-b bg-muted/30">
+                                <th className="text-left py-2.5 px-4 font-semibold w-[100px]">Data</th>
+                                <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
+                                <th className="text-left py-2.5 px-4 font-semibold w-[80px]">Vínculo</th>
+                                <th className="text-left py-2.5 px-4 font-semibold">Beneficiário</th>
+                                <th className="text-right py-2.5 px-4 font-semibold w-[130px]">Valor (R$)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {diagnostico.semCategoria.map((r: any) => (
+                                <tr key={r.bank_tx_id} className="border-b border-border/50 hover:bg-muted/10">
+                                  <td className="py-2 px-4 text-muted-foreground text-[11px]">{r.data}</td>
+                                  <td className="py-2 px-4">{r.descricao_banco}</td>
+                                  <td className="py-2 px-4">
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                      r.vinculo === "CR" ? "bg-emerald-100 text-emerald-700" :
+                                      r.vinculo === "CP" ? "bg-red-100 text-red-700" :
+                                      "bg-gray-100 text-gray-600"
+                                    }`}>{r.vinculo}</span>
+                                  </td>
+                                  <td className="py-2 px-4 text-muted-foreground">{r.beneficiario}</td>
+                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#dc2626" }}>
+                                    {fmt(Number(r.valor))}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Todas as transações */}
+                  <Card>
+                    <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+                      <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
+                        <Search className="h-4 w-4" /> Todas as transações conciliadas ({diagnostico.rows.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[12.5px]">
+                          <thead>
+                            <tr className="border-b bg-muted/30">
+                              <th className="text-left py-2.5 px-4 font-semibold w-[100px]">Data</th>
+                              <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
+                              <th className="text-left py-2.5 px-4 font-semibold w-[70px]">Tipo</th>
+                              <th className="text-left py-2.5 px-4 font-semibold w-[80px]">Vínculo</th>
+                              <th className="text-left py-2.5 px-4 font-semibold">Beneficiário</th>
+                              <th className="text-left py-2.5 px-4 font-semibold">Categoria</th>
+                              <th className="text-right py-2.5 px-4 font-semibold w-[130px]">Valor (R$)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {diagnostico.rows.map((r: any) => (
+                              <tr key={r.bank_tx_id} className="border-b border-border/50 hover:bg-muted/10">
+                                <td className="py-2 px-4 text-muted-foreground text-[11px]">{r.data}</td>
+                                <td className="py-2 px-4">{r.descricao_banco}</td>
+                                <td className="py-2 px-4">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    r.tipo === "RECEITA" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                                  }`}>{r.tipo}</span>
+                                </td>
+                                <td className="py-2 px-4">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    r.vinculo === "CR" ? "bg-emerald-100 text-emerald-700" :
+                                    r.vinculo === "CP" ? "bg-red-100 text-red-700" :
+                                    "bg-gray-100 text-gray-600"
+                                  }`}>{r.vinculo}</span>
+                                </td>
+                                <td className="py-2 px-4 text-muted-foreground">{r.beneficiario}</td>
+                                <td className="py-2 px-4">
+                                  {r.cod_categoria ? (
+                                    <span className="text-[11px]">
+                                      <span className="font-mono text-muted-foreground">{r.cod_categoria}</span>
+                                      {" — "}{r.nome_categoria}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">SEM CATEGORIA</span>
+                                  )}
+                                </td>
+                                <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#dc2626" }}>
+                                  {fmt(Number(r.valor))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
