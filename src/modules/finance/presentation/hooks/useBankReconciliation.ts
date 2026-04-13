@@ -196,12 +196,41 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 if (error) throw error;
                 inserted += data?.length || 0;
             }
-            return { parsed: parsed.length, inserted };
+
+            // Se nenhuma nova, buscar status das existentes para informar o usuário
+            let existingBreakdown = { reconciled: 0, pending: 0, ignored: 0 };
+            if (inserted === 0) {
+                const fitIds = toInsert.map(t => t.fit_id).filter(Boolean);
+                // Buscar em chunks
+                const STATUS_CHUNK = 500;
+                const allExisting: any[] = [];
+                for (let i = 0; i < fitIds.length; i += STATUS_CHUNK) {
+                    const batch = fitIds.slice(i, i + STATUS_CHUNK);
+                    const { data: existingData } = await (activeClient as any)
+                        .from('bank_transactions')
+                        .select('status')
+                        .eq('bank_account_id', bankAccountId)
+                        .in('fit_id', batch);
+                    if (existingData) allExisting.push(...existingData);
+                }
+                for (const row of allExisting) {
+                    if (row.status === 'reconciled') existingBreakdown.reconciled++;
+                    else if (row.status === 'pending') existingBreakdown.pending++;
+                    else existingBreakdown.ignored++;
+                }
+            }
+
+            return { parsed: parsed.length, inserted, existingBreakdown };
         },
-        onSuccess: ({ parsed, inserted }) => {
+        onSuccess: ({ parsed, inserted, existingBreakdown }) => {
             const duplicates = parsed - inserted;
             if (inserted === 0) {
-                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações do arquivo já existem no sistema.`, variant: "destructive" });
+                const parts: string[] = [];
+                if (existingBreakdown.reconciled > 0) parts.push(`${existingBreakdown.reconciled} já conciliadas`);
+                if (existingBreakdown.pending > 0) parts.push(`${existingBreakdown.pending} pendentes`);
+                if (existingBreakdown.ignored > 0) parts.push(`${existingBreakdown.ignored} ignoradas`);
+                const detail = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações do arquivo já existem no sistema${detail}. Importe um extrato de período diferente.` });
             } else if (duplicates > 0) {
                 toast({ title: "Sucesso", description: `${inserted} novas transações importadas. ${duplicates} duplicadas ignoradas.` });
             } else {
