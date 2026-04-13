@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS public.fn_relatorio_fluxo(uuid, date, date);
+
 CREATE OR REPLACE FUNCTION public.fn_relatorio_fluxo(
   p_company_id uuid,
   p_data_inicio date,
@@ -17,8 +19,8 @@ BEGIN
   RETURN QUERY
   SELECT
     m.conta_contabil_id as cat_id,
-    COALESCE(ca.name, 'Sem categoria') as cat_nome,
-    m.tipo,
+    COALESCE(ca.name, 'Sem categoria')::text as cat_nome,
+    m.tipo::text,
     SUM(m.valor)::numeric(15,2) as total,
     jsonb_agg(
       jsonb_build_object(
