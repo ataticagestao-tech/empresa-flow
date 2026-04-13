@@ -143,15 +143,21 @@ export default function FluxoCaixa() {
 
   const movimentacoes = relatorioRaw; // keep reference for length check
 
+  const isTransferencia = (nome: string) =>
+    /transfer[eê]ncia/i.test(nome);
+
   const relatorio = useMemo(() => {
-    const entradas: [string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }][] = [];
-    const saidas: [string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }][] = [];
+    const entradas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string }[] }][] = [];
+    const saidas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string }[] }][] = [];
     let totalEntradas = 0;
     let totalSaidas = 0;
 
     for (const row of relatorioRaw) {
       const catId = row.cat_id || "_sem_categoria";
+      const nome = row.cat_nome || "Sem categoria";
+      const isTransf = isTransferencia(nome);
       const lancamentos = (row.lancamentos || []).map((l: any) => ({
+        id: l.id || "",
         data: l.data,
         valor: Number(l.valor || 0),
         descricao: l.descricao || "—",
@@ -159,11 +165,11 @@ export default function FluxoCaixa() {
       const total = Number(row.total || 0);
 
       if (row.tipo === "credito") {
-        entradas.push([catId, { nome: row.cat_nome || "Sem categoria", total, lancamentos }]);
-        totalEntradas += total;
+        entradas.push([catId, { nome, total, isTransf, lancamentos }]);
+        if (!isTransf) totalEntradas += total;
       } else {
-        saidas.push([catId, { nome: row.cat_nome || "Sem categoria", total, lancamentos }]);
-        totalSaidas += total;
+        saidas.push([catId, { nome, total, isTransf, lancamentos }]);
+        if (!isTransf) totalSaidas += total;
       }
     }
 
@@ -330,6 +336,7 @@ export default function FluxoCaixa() {
                                   catId={`e_${catId}`}
                                   nome={cat.nome}
                                   total={cat.total}
+                                  isTransf={cat.isTransf}
                                   lancamentos={cat.lancamentos}
                                   isOpen={isOpen}
                                   onToggle={() => toggleRelExpand(`e_${catId}`)}
@@ -369,6 +376,7 @@ export default function FluxoCaixa() {
                                   catId={`s_${catId}`}
                                   nome={cat.nome}
                                   total={cat.total}
+                                  isTransf={cat.isTransf}
                                   lancamentos={cat.lancamentos}
                                   isOpen={isOpen}
                                   onToggle={() => toggleRelExpand(`s_${catId}`)}
@@ -499,6 +507,7 @@ function CategoriaExpandivel({
   catId,
   nome,
   total,
+  isTransf,
   lancamentos,
   isOpen,
   onToggle,
@@ -507,7 +516,8 @@ function CategoriaExpandivel({
   catId: string;
   nome: string;
   total: number;
-  lancamentos: { data: string; valor: number; descricao: string }[];
+  isTransf: boolean;
+  lancamentos: { id: string; data: string; valor: number; descricao: string }[];
   isOpen: boolean;
   onToggle: () => void;
   cor: string;
@@ -525,8 +535,8 @@ function CategoriaExpandivel({
             <span className="text-[11px] text-muted-foreground ml-1">({lancamentos.length})</span>
           </div>
         </td>
-        <td className="text-right py-2.5 px-4 font-semibold tabular-nums" style={{ color: cor }}>
-          {fmt(total)}
+        <td className="text-right py-2.5 px-4 font-semibold tabular-nums" style={{ color: isTransf ? "#9ca3af" : cor }}>
+          {isTransf ? "—" : fmt(total)}
         </td>
       </tr>
       {isOpen &&
@@ -534,10 +544,12 @@ function CategoriaExpandivel({
           <tr key={`${catId}_${i}`} className="border-b border-border/20 hover:bg-muted/10">
             <td className="py-1.5 px-4 pl-12 text-muted-foreground">
               <span className="text-[11px]">{l.data}</span>
-              <span className="ml-3 text-foreground">{l.descricao}</span>
+              <Link to="/conciliacao" className="ml-3 text-foreground hover:text-primary hover:underline">
+                {l.descricao}
+              </Link>
             </td>
             <td className="text-right py-1.5 px-4 tabular-nums text-muted-foreground">
-              {fmt(l.valor)}
+              {isTransf ? "—" : fmt(l.valor)}
             </td>
           </tr>
         ))}

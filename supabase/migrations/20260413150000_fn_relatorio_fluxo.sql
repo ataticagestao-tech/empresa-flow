@@ -24,6 +24,7 @@ BEGIN
     SUM(m.valor)::numeric(15,2) as total,
     jsonb_agg(
       jsonb_build_object(
+        'id', m.id,
         'data', m.data,
         'valor', m.valor,
         'descricao', COALESCE(m.descricao, '—')
@@ -33,7 +34,6 @@ BEGIN
   FROM public.movimentacoes m
   LEFT JOIN public.chart_of_accounts ca ON ca.id = m.conta_contabil_id
   WHERE m.company_id = p_company_id
-    AND m.origem != 'transferencia'
     AND m.data >= p_data_inicio
     AND m.data <= p_data_fim
   GROUP BY m.conta_contabil_id, ca.name, m.tipo
