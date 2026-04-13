@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Check, Landmark, Search, TrendingUp, X } from "lucide-react";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
@@ -203,6 +203,62 @@ export default function Relatorios() {
         },
         enabled: !!selectedCompany?.id,
     });
+
+    // DFC mensal: últimos 12 meses (independente do filtro de data)
+    const dfc12mRange = useMemo(() => {
+        const now = new Date();
+        return {
+            start: format(startOfMonth(subMonths(now, 11)), "yyyy-MM-dd"),
+            end: format(endOfMonth(now), "yyyy-MM-dd"),
+        };
+    }, []);
+
+    const { data: dfcMonthlyTransactions } = useQuery({
+        queryKey: ["dfc_monthly_transactions", selectedCompany?.id, isUsingSecondary, dfc12mRange],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+
+            const { data, error } = await (activeClient as any)
+                .from("movimentacoes")
+                .select("data, tipo, valor")
+                .eq("company_id", selectedCompany.id)
+                .gte("data", dfc12mRange.start)
+                .lte("data", dfc12mRange.end)
+                .order("data", { ascending: true })
+                .limit(10000);
+
+            if (error) throw error;
+            return (data || []).map((t: any) => ({
+                date: t.data as string,
+                type: t.tipo === "credito" ? "credit" : "debit",
+                amount: Number(t.valor || 0),
+            }));
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    const dfcMonthlyBucketed = useMemo(() => {
+        const rows = dfcMonthlyTransactions ?? [];
+        const map = new Map<string, { key: string; label: string; entradas: number; saidas: number; liquido: number; acumulado: number }>();
+
+        for (const t of rows) {
+            const key = t.date.slice(0, 7);
+            const label = format(new Date(`${key}-01`), "MM/yyyy");
+            const prev = map.get(key) ?? { key, label, entradas: 0, saidas: 0, liquido: 0, acumulado: 0 };
+            if (t.type === "credit") prev.entradas += t.amount;
+            if (t.type === "debit") prev.saidas -= t.amount;
+            prev.liquido = prev.entradas + prev.saidas;
+            map.set(key, prev);
+        }
+
+        const sorted = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+        let running = 0;
+        for (const item of sorted) {
+            running += item.liquido;
+            item.acumulado = running;
+        }
+        return sorted;
+    }, [dfcMonthlyTransactions]);
 
     const { data: globalSearchResults, isLoading: isSearching } = useQuery({
         queryKey: ["reports_search", selectedCompany?.id, isUsingSecondary, searchTerm],
@@ -527,44 +583,6 @@ export default function Relatorios() {
         let running = 0;
         for (const item of sorted) {
             running += item.saldo;
-            item.acumulado = running;
-        }
-
-        return { groupByMonth, data: sorted };
-    }, [transactions, dateRange.start, dateRange.end]);
-
-    const cashflowBucketed = useMemo(() => {
-        const rows = transactions ?? [];
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        const dayMs = 24 * 60 * 60 * 1000;
-        const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / dayMs) + 1);
-        const groupByMonth = totalDays > 45;
-
-        const map = new Map<
-            string,
-            { key: string; label: string; entradas: number; saidas: number; liquido: number; acumulado: number }
-        >();
-
-        for (const t of rows) {
-            const key = groupByMonth ? t.date.slice(0, 7) : t.date;
-            const label = groupByMonth
-                ? format(new Date(`${key}-01`), "MM/yyyy")
-                : format(new Date(t.date), "dd/MM");
-            const prev = map.get(key) ?? { key, label, entradas: 0, saidas: 0, liquido: 0, acumulado: 0 };
-
-            const amount = Number(t.amount || 0);
-            if (t.type === "credit") prev.entradas += amount;
-            if (t.type === "debit") prev.saidas -= amount;
-            prev.liquido = prev.entradas + prev.saidas;
-
-            map.set(key, prev);
-        }
-
-        const sorted = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
-        let running = 0;
-        for (const item of sorted) {
-            running += item.liquido;
             item.acumulado = running;
         }
 
@@ -1028,7 +1046,7 @@ export default function Relatorios() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Fluxo de Caixa Operacional (realizado)</CardTitle>
+                            <CardTitle>Fluxo de Caixa Operacional — últimos 12 meses</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <ChartContainer
@@ -1036,9 +1054,10 @@ export default function Relatorios() {
                                 config={{
                                     entradas: { label: "Entradas", color: "hsl(var(--success))" },
                                     saidas: { label: "Saídas", color: "hsl(var(--destructive))" },
+                                    acumulado: { label: "Acumulado", color: "hsl(var(--primary))" },
                                 }}
                             >
-                                <BarChart data={cashflowBucketed.data} margin={{ left: 8, right: 8, top: 8 }}>
+                                <BarChart data={dfcMonthlyBucketed} margin={{ left: 8, right: 8, top: 8 }}>
                                     <CartesianGrid vertical={false} />
                                     <XAxis dataKey="label" tickMargin={8} minTickGap={12} />
                                     <YAxis tickFormatter={(v) => new Intl.NumberFormat("pt-BR").format(v)} width={80} />
