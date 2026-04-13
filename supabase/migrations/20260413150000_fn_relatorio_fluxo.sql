@@ -27,7 +27,8 @@ BEGIN
         'id', m.id,
         'data', m.data,
         'valor', m.valor,
-        'descricao', COALESCE(m.descricao, '—')
+        'descricao', COALESCE(m.descricao, '—'),
+        'conta_bancaria_id', m.conta_bancaria_id
       )
       ORDER BY m.data DESC
     ) as lancamentos

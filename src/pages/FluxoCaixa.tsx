@@ -147,8 +147,8 @@ export default function FluxoCaixa() {
     /transfer[eê]ncia/i.test(nome);
 
   const relatorio = useMemo(() => {
-    const entradas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string }[] }][] = [];
-    const saidas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string }[] }][] = [];
+    const entradas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string; contaBancariaId: string }[] }][] = [];
+    const saidas: [string, { nome: string; total: number; isTransf: boolean; lancamentos: { id: string; data: string; valor: number; descricao: string; contaBancariaId: string }[] }][] = [];
     let totalEntradas = 0;
     let totalSaidas = 0;
 
@@ -161,6 +161,7 @@ export default function FluxoCaixa() {
         data: l.data,
         valor: Number(l.valor || 0),
         descricao: l.descricao || "—",
+        contaBancariaId: l.conta_bancaria_id || "",
       }));
       const total = Number(row.total || 0);
 
@@ -517,7 +518,7 @@ function CategoriaExpandivel({
   nome: string;
   total: number;
   isTransf: boolean;
-  lancamentos: { id: string; data: string; valor: number; descricao: string }[];
+  lancamentos: { id: string; data: string; valor: number; descricao: string; contaBancariaId: string }[];
   isOpen: boolean;
   onToggle: () => void;
   cor: string;
@@ -544,7 +545,10 @@ function CategoriaExpandivel({
           <tr key={`${catId}_${i}`} className="border-b border-border/20 hover:bg-muted/10">
             <td className="py-1.5 px-4 pl-12 text-muted-foreground">
               <span className="text-[11px]">{l.data}</span>
-              <Link to="/conciliacao" className="ml-3 text-foreground hover:text-primary hover:underline">
+              <Link
+                to={l.contaBancariaId ? `/conciliacao?conta=${l.contaBancariaId}` : "/conciliacao"}
+                className="ml-3 text-foreground hover:text-primary hover:underline"
+              >
                 {l.descricao}
               </Link>
             </td>
