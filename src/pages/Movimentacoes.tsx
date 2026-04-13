@@ -163,28 +163,37 @@ export default function Movimentacoes() {
   const [formObservacao, setFormObservacao] = useState('')
 
   // ---- Fetch data ----
+  const [activeSearchTerm, setActiveSearchTerm] = useState('')
+
   const fetchData = useCallback(async () => {
     if (!companyId) return
     setLoading(true)
     try {
       const client = activeClient ?? supabase
 
+      // Se há termo de busca ativo, buscar sem filtro de data (server-side)
+      const buildMovQuery = () => {
+        let q = (client as any)
+          .from('movimentacoes')
+          .select(
+            '*, conta_bancaria:bank_accounts(id,name), conta_contabil:chart_of_accounts(code,name)'
+          )
+          .eq('company_id', companyId)
+
+        if (activeSearchTerm) {
+          q = q.ilike('descricao', `%${activeSearchTerm}%`)
+        } else {
+          q = q.gte('data', dateStart).lte('data', dateEnd)
+        }
+
+        return q
+          .order('data', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(5000)
+      }
+
       const [movData, bankData, coaData, ccData, prodData] = await Promise.all([
-        safeQuery(
-          () =>
-            (client as any)
-              .from('movimentacoes')
-              .select(
-                '*, conta_bancaria:bank_accounts(id,name), conta_contabil:chart_of_accounts(code,name)'
-              )
-              .eq('company_id', companyId)
-              .gte('data', dateStart)
-              .lte('data', dateEnd)
-              .order('data', { ascending: false })
-              .order('created_at', { ascending: false })
-              .limit(5000),
-          'movimentacoes'
-        ),
+        safeQuery(buildMovQuery, 'movimentacoes'),
         safeQuery(
           () =>
             (client as any)
@@ -231,7 +240,7 @@ export default function Movimentacoes() {
     } finally {
       setLoading(false)
     }
-  }, [companyId, activeClient, dateStart, dateEnd])
+  }, [companyId, activeClient, dateStart, dateEnd, activeSearchTerm])
 
   useEffect(() => {
     fetchData()
@@ -282,12 +291,14 @@ export default function Movimentacoes() {
     const v = value ?? searchInput
     setSearchInput(v)
     setSearchTerm(v)
+    setActiveSearchTerm(v.trim())
     setShowSuggestions(false)
   }, [searchInput])
 
   const clearSearch = useCallback(() => {
     setSearchInput('')
     setSearchTerm('')
+    setActiveSearchTerm('')
     setShowSuggestions(false)
   }, [])
 
@@ -714,19 +725,30 @@ export default function Movimentacoes() {
 
             {/* Date range */}
             <div className="px-4 pb-3 space-y-2">
-              <input
-                type="date"
-                value={dateStart}
-                onChange={(e) => setDateStart(e.target.value)}
-                className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
-              />
-              <p className="text-[11px] text-[#999]">ate</p>
-              <input
-                type="date"
-                value={dateEnd}
-                onChange={(e) => setDateEnd(e.target.value)}
-                className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
-              />
+              {activeSearchTerm ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Search className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <p className="text-[11px] text-blue-700">
+                    Buscando "<strong>{activeSearchTerm}</strong>" em todas as datas
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="date"
+                    value={dateStart}
+                    onChange={(e) => setDateStart(e.target.value)}
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                  />
+                  <p className="text-[11px] text-[#999]">ate</p>
+                  <input
+                    type="date"
+                    value={dateEnd}
+                    onChange={(e) => setDateEnd(e.target.value)}
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                  />
+                </>
+              )}
             </div>
 
             {/* Account dropdown filter */}
