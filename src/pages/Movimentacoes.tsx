@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -143,6 +143,9 @@ export default function Movimentacoes() {
 
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchWrapRef = useRef<HTMLDivElement | null>(null)
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos')
   const [dateStart, setDateStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [dateEnd, setDateEnd] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
@@ -250,6 +253,55 @@ export default function Movimentacoes() {
     // transferencias - for now show manual/conciliacao as transfers
     return afterBankFilter.filter((m) => m.origem === 'conciliacao' || m.origem === 'manual')
   }, [afterBankFilter, tipoFilter])
+
+  // Suggestions for the search dropdown: unique categories (conta_contabil)
+  // plus unique descriptions from the current movimentacoes set.
+  const searchSuggestions = useMemo(() => {
+    const set = new Set<string>()
+    for (const m of movimentacoes) {
+      if (m.conta_contabil) {
+        const label = `${m.conta_contabil.code} - ${m.conta_contabil.name}`
+        set.add(label)
+      }
+      if (m.descricao && m.descricao.trim()) {
+        set.add(m.descricao.trim())
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [movimentacoes])
+
+  const filteredSuggestions = useMemo(() => {
+    const needle = normalizeSearch(searchInput)
+    if (!needle) return searchSuggestions.slice(0, 50)
+    return searchSuggestions
+      .filter((s) => normalizeSearch(s).includes(needle))
+      .slice(0, 50)
+  }, [searchSuggestions, searchInput])
+
+  const commitSearch = useCallback((value?: string) => {
+    const v = value ?? searchInput
+    setSearchInput(v)
+    setSearchTerm(v)
+    setShowSuggestions(false)
+  }, [searchInput])
+
+  const clearSearch = useCallback(() => {
+    setSearchInput('')
+    setSearchTerm('')
+    setShowSuggestions(false)
+  }, [])
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    if (!showSuggestions) return
+    const handler = (e: MouseEvent) => {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showSuggestions])
 
   // Filter by search
   const filtered = useMemo(() => {
@@ -578,15 +630,63 @@ export default function Movimentacoes() {
 
             {/* Search */}
             <div className="px-4 pb-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999]" />
-                <input
-                  type="text"
-                  placeholder="Buscar descricao..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full border border-[#ccc] rounded-lg pl-9 pr-3 py-2.5 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
-                />
+              <div ref={searchWrapRef} className="relative flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999] pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Buscar descricao..."
+                    value={searchInput}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value)
+                      setShowSuggestions(true)
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        commitSearch()
+                      } else if (e.key === 'Escape') {
+                        setShowSuggestions(false)
+                      }
+                    }}
+                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-9 py-2.5 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                  />
+                  {(searchInput || searchTerm) && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      aria-label="Limpar busca"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#1a2e4a]"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      {filteredSuggestions.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            commitSearch(s)
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs text-[#0a0a0a] hover:bg-[#f0f4f8] border-b border-[#eee] last:border-b-0"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => commitSearch()}
+                  className="px-4 py-2.5 rounded-lg bg-[#1a2e4a] text-white text-xs font-semibold hover:bg-[#2a3e5a] transition-colors"
+                >
+                  Buscar
+                </button>
               </div>
             </div>
 

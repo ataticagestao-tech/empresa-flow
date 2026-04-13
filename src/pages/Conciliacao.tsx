@@ -928,13 +928,13 @@ export default function Conciliacao() {
                     <div className="flex items-center gap-2 flex-wrap">
                         {/* Hidden file inputs */}
                         <input type="file" accept=".ofx" className="hidden" ref={fileInputRef}
-                            onChange={handleFileChange} disabled={!selectedAccountId || uploadOFX.isPending} />
+                            onChange={handleFileChange} />
                         <input type="file" accept=".pdf" className="hidden" ref={ccFileInputRef}
-                            onChange={handleCCFileChange} disabled={!selectedAccountId || uploadCreditCardPDF.isPending} />
+                            onChange={handleCCFileChange} />
                         <input type="file" accept=".pdf" className="hidden" ref={pdfFileInputRef}
-                            onChange={handlePDFFileChange} disabled={!selectedAccountId || uploadPDF.isPending} />
+                            onChange={handlePDFFileChange} />
                         <input type="file" accept=".xlsx,.xls,.csv" className="hidden" ref={excelFileInputRef}
-                            onChange={handleExcelFileChange} disabled={!selectedAccountId || uploadExcel.isPending} />
+                            onChange={handleExcelFileChange} />
 
                         <Button variant="outline" className="border-[#E2E8F0]"
                             onClick={() => setShowRulesPanel(!showRulesPanel)}>

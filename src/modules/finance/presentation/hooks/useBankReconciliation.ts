@@ -186,17 +186,27 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             // Upsert em chunks de 500 para evitar timeout do PostgREST
             const CHUNK_SIZE = 500;
+            let inserted = 0;
             for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
                 const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-                const { error } = await (activeClient as any)
+                const { data, error } = await (activeClient as any)
                     .from('bank_transactions')
-                    .upsert(chunk, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+                    .upsert(chunk, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true })
+                    .select('id');
                 if (error) throw error;
+                inserted += data?.length || 0;
             }
-            return parsed.length;
+            return { parsed: parsed.length, inserted };
         },
-        onSuccess: (count) => {
-            toast({ title: "Sucesso", description: `${count} transações importadas.` });
+        onSuccess: ({ parsed, inserted }) => {
+            const duplicates = parsed - inserted;
+            if (inserted === 0) {
+                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações do arquivo já existem no sistema.`, variant: "destructive" });
+            } else if (duplicates > 0) {
+                toast({ title: "Sucesso", description: `${inserted} novas transações importadas. ${duplicates} duplicadas ignoradas.` });
+            } else {
+                toast({ title: "Sucesso", description: `${inserted} transações importadas.` });
+            }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
         },
         onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
@@ -251,12 +261,15 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 };
             });
 
+            let inserted = 0;
             if (toInsert.length > 0) {
-                const { error: txError } = await (activeClient as any)
+                const { data: txData, error: txError } = await (activeClient as any)
                     .from('bank_transactions')
-                    .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+                    .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true })
+                    .select('id');
 
                 if (txError) throw txError;
+                inserted = txData?.length || 0;
             }
 
             const ocrTextPreview = parsed.map((t) => t.raw).join("\n").slice(0, 20000);
@@ -271,10 +284,17 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (updateStatementError) throw updateStatementError;
 
-            return toInsert.length;
+            return { parsed: toInsert.length, inserted };
         },
-        onSuccess: (count) => {
-            toast({ title: "Sucesso", description: `${count} transações importadas do PDF.` });
+        onSuccess: ({ parsed, inserted }) => {
+            const duplicates = parsed - inserted;
+            if (inserted === 0 && parsed > 0) {
+                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações do PDF já existem no sistema.`, variant: "destructive" });
+            } else if (duplicates > 0) {
+                toast({ title: "Sucesso", description: `${inserted} novas transações do PDF. ${duplicates} duplicadas ignoradas.` });
+            } else {
+                toast({ title: "Sucesso", description: `${inserted} transações importadas do PDF.` });
+            }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['bank_statement_files'] });
         },
@@ -535,15 +555,23 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 };
             });
 
-            const { error } = await (activeClient as any)
+            const { data: xlsData, error } = await (activeClient as any)
                 .from('bank_transactions')
-                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true })
+                .select('id');
 
             if (error) throw error;
-            return toInsert.length;
+            return { parsed: toInsert.length, inserted: xlsData?.length || 0 };
         },
-        onSuccess: (count) => {
-            toast({ title: "Sucesso", description: `${count} transações importadas do Excel.` });
+        onSuccess: ({ parsed, inserted }) => {
+            const duplicates = parsed - inserted;
+            if (inserted === 0 && parsed > 0) {
+                toast({ title: "Nenhuma nova transação", description: `Todas as ${parsed} transações do Excel já existem no sistema.`, variant: "destructive" });
+            } else if (duplicates > 0) {
+                toast({ title: "Sucesso", description: `${inserted} novas transações do Excel. ${duplicates} duplicadas ignoradas.` });
+            } else {
+                toast({ title: "Sucesso", description: `${inserted} transações importadas do Excel.` });
+            }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['import_history'] });
         },
@@ -576,14 +604,16 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 };
             });
 
-            const { error } = await (activeClient as any)
+            const { data: ccData, error } = await (activeClient as any)
                 .from('bank_transactions')
-                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true });
+                .upsert(toInsert, { onConflict: 'bank_account_id,fit_id', ignoreDuplicates: true })
+                .select('id');
 
             if (error) throw error;
 
             return {
-                count: toInsert.length,
+                parsed: toInsert.length,
+                inserted: ccData?.length || 0,
                 total: statement.totalAmount,
                 dueDate: statement.dueDate,
                 cardLast4: statement.cardLast4,
@@ -591,7 +621,14 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         },
         onSuccess: (result) => {
             const extra = result.total ? ` | Total fatura: R$ ${result.total.toFixed(2).replace('.', ',')}` : '';
-            toast({ title: "Fatura importada", description: `${result.count} transações importadas.${extra}` });
+            const duplicates = result.parsed - result.inserted;
+            if (result.inserted === 0 && result.parsed > 0) {
+                toast({ title: "Nenhuma nova transação", description: `Todas as ${result.parsed} transações da fatura já existem no sistema.${extra}`, variant: "destructive" });
+            } else if (duplicates > 0) {
+                toast({ title: "Fatura importada", description: `${result.inserted} novas transações. ${duplicates} duplicadas ignoradas.${extra}` });
+            } else {
+                toast({ title: "Fatura importada", description: `${result.inserted} transações importadas.${extra}` });
+            }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
         },
         onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
