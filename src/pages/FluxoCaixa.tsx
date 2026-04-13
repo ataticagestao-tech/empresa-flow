@@ -3,10 +3,11 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { Download, ChevronRight, ChevronDown, Banknote, Settings2 } from "lucide-react";
+import { Download, ChevronRight, ChevronDown, Banknote, Settings2, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -124,6 +125,104 @@ export default function FluxoCaixa() {
     XLSX.writeFile(wb, `DFC_${mesInicio}_${mesFim}.xlsx`);
   }
 
+  // ── Relatório por Categoria ──
+  const { data: movimentacoes = [], isLoading: isLoadingRelatorio } = useQuery({
+    queryKey: ["relatorio_fluxo", selectedCompany?.id, dataInicio, dataFim],
+    queryFn: async () => {
+      if (!selectedCompany?.id) return [];
+      const pageSize = 1000;
+      const rows: any[] = [];
+      let page = 0;
+      while (true) {
+        const { data, error } = await db
+          .from("movimentacoes")
+          .select("id, data, valor, descricao, tipo, origem, conta_contabil_id, chart_of_accounts(id, name, code)")
+          .eq("company_id", selectedCompany.id)
+          .neq("origem", "transferencia")
+          .gte("data", dataInicio)
+          .lte("data", dataFim)
+          .order("data", { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        if (error) { console.error("Erro movimentacoes:", error); break; }
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < pageSize) break;
+        page++;
+      }
+      return rows;
+    },
+    enabled: !!selectedCompany?.id,
+  });
+
+  const relatorio = useMemo(() => {
+    const entradas: Record<string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }> = {};
+    const saidas: Record<string, { nome: string; total: number; lancamentos: { data: string; valor: number; descricao: string }[] }> = {};
+    let totalEntradas = 0;
+    let totalSaidas = 0;
+
+    for (const mov of movimentacoes) {
+      const catId = mov.conta_contabil_id || "_sem_categoria";
+      const catNome = mov.chart_of_accounts?.name || "Sem categoria";
+      const grupo = mov.tipo === "credito" ? entradas : saidas;
+      if (!grupo[catId]) grupo[catId] = { nome: catNome, total: 0, lancamentos: [] };
+      grupo[catId].total += Number(mov.valor || 0);
+      grupo[catId].lancamentos.push({
+        data: mov.data,
+        valor: Number(mov.valor || 0),
+        descricao: mov.descricao || "—",
+      });
+      if (mov.tipo === "credito") totalEntradas += Number(mov.valor || 0);
+      else totalSaidas += Number(mov.valor || 0);
+    }
+
+    const sortByTotal = (obj: typeof entradas) =>
+      Object.entries(obj).sort((a, b) => b[1].total - a[1].total);
+
+    return {
+      entradas: sortByTotal(entradas),
+      saidas: sortByTotal(saidas),
+      totalEntradas,
+      totalSaidas,
+    };
+  }, [movimentacoes]);
+
+  const [relExpandidos, setRelExpandidos] = useState<Record<string, boolean>>({});
+  const toggleRelExpand = (key: string) =>
+    setRelExpandidos((p) => ({ ...p, [key]: !p[key] }));
+  const [entradasAberto, setEntradasAberto] = useState(false);
+  const [saidasAberto, setSaidasAberto] = useState(false);
+
+  function exportarRelatorioExcel() {
+    const wsData: any[][] = [
+      ["Relatório de Fluxo de Caixa — Entradas e Saídas por Categoria"],
+      [`Empresa: ${selectedCompany?.nome_fantasia || selectedCompany?.razao_social || ""}`],
+      [`Período: ${mesInicio} a ${mesFim}`],
+      [],
+      ["Tipo", "Categoria", "Data", "Descrição", "Valor (R$)"],
+    ];
+    for (const [, cat] of relatorio.entradas) {
+      wsData.push(["ENTRADA", cat.nome, "", "", cat.total]);
+      for (const l of cat.lancamentos) {
+        wsData.push(["", "", l.data, l.descricao, l.valor]);
+      }
+    }
+    wsData.push(["", "", "", "TOTAL ENTRADAS", relatorio.totalEntradas]);
+    wsData.push([]);
+    for (const [, cat] of relatorio.saidas) {
+      wsData.push(["SAÍDA", cat.nome, "", "", cat.total]);
+      for (const l of cat.lancamentos) {
+        wsData.push(["", "", l.data, l.descricao, l.valor]);
+      }
+    }
+    wsData.push(["", "", "", "TOTAL SAÍDAS", relatorio.totalSaidas]);
+    wsData.push(["", "", "", "SALDO", relatorio.totalEntradas - relatorio.totalSaidas]);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 10 }, { wch: 35 }, { wch: 12 }, { wch: 40 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+    XLSX.writeFile(wb, `Relatorio_Fluxo_${mesInicio}_${mesFim}.xlsx`);
+  }
+
   return (
     <AppLayout title="Fluxo de Caixa">
       <div className="space-y-5 animate-fade-in">
@@ -131,10 +230,10 @@ export default function FluxoCaixa() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-foreground tracking-tight">
-              Demonstração dos Fluxos de Caixa
+              Fluxo de Caixa
             </h2>
             <p className="text-[12.5px] text-muted-foreground mt-0.5">
-              Fluxos de caixa por atividade (operacional, investimento, financiamento)
+              Demonstrativo e relatório de entradas e saídas
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -159,9 +258,6 @@ export default function FluxoCaixa() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={exportarExcel}>
-              <Download className="h-3.5 w-3.5 mr-1" /> Excel
-            </Button>
             <Link to="/demonstrativos/mapeamento">
               <Button variant="outline" size="sm">
                 <Settings2 className="h-3.5 w-3.5 mr-1" /> Mapeamento
@@ -170,95 +266,295 @@ export default function FluxoCaixa() {
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: "Caixa Operacional", value: fmt(caixaOperacional), color: CORES_ATIVIDADE.operacional },
-            { label: "Caixa Investimento", value: fmt(caixaInvestimento), color: CORES_ATIVIDADE.investimento },
-            { label: "Caixa Financiamento", value: fmt(caixaFinanciamento), color: CORES_ATIVIDADE.financiamento },
-            { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#2e7d32" : "#c62828" },
-          ].map((kpi) => (
-            <Card key={kpi.label}>
-              <CardContent className="p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
-                <p className="text-lg font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Tabs defaultValue="relatorio" className="w-full">
+          <TabsList>
+            <TabsTrigger value="relatorio" className="text-xs gap-1.5">
+              <FileText className="h-3.5 w-3.5" /> Relatório
+            </TabsTrigger>
+            <TabsTrigger value="dfc" className="text-xs gap-1.5">
+              <Banknote className="h-3.5 w-3.5" /> DFC
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tabela DFC */}
-        <Card>
-          <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
-            <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
-              <Banknote className="h-4 w-4" /> DFC — Demonstração dos Fluxos de Caixa
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="text-center py-16">
-                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Gerando DFC...</p>
+          {/* ═══ ABA RELATÓRIO ═══ */}
+          <TabsContent value="relatorio">
+            <div className="space-y-4">
+              {/* KPIs Relatório */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Total Entradas</p>
+                    <p className="text-lg font-bold mt-1 text-emerald-600">{fmt(relatorio.totalEntradas)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Total Saídas</p>
+                    <p className="text-lg font-bold mt-1 text-red-600">{fmt(relatorio.totalSaidas)}</p>
+                  </CardContent>
+                </Card>
+                <Card className="col-span-2 md:col-span-1">
+                  <CardContent className="p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Saldo</p>
+                    <p className="text-lg font-bold mt-1" style={{ color: relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#dc2626" }}>
+                      {fmt(relatorio.totalEntradas - relatorio.totalSaidas)}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
-            ) : linhas.length === 0 ? (
-              <div className="text-center py-16">
-                <Banknote className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-                <p className="text-muted-foreground text-sm">Nenhum dado encontrado.</p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  Configure o{" "}
-                  <Link to="/demonstrativos/mapeamento" className="text-primary underline">
-                    mapeamento contábil
-                  </Link>{" "}
-                  para vincular contas aos demonstrativos.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[12.5px]">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left py-2.5 px-4 font-semibold w-[120px]">Código</th>
-                      <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
-                      <th className="text-right py-2.5 px-4 font-semibold w-[160px]">Valor (R$)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {atividades.map((atv) => {
-                      const isOpen = expandidos[atv.header.codigo] ?? false;
-                      const corAtividade = CORES_ATIVIDADE[atv.header.atividade_dfc || ""] || "#888";
-                      return (
-                        <AtividadeDFC
-                          key={atv.header.codigo}
-                          header={atv.header}
-                          filhos={atv.filhos}
-                          total={atv.total}
-                          isOpen={isOpen}
-                          onToggle={() => toggleExpand(atv.header.codigo)}
-                          corAtividade={corAtividade}
-                        />
-                      );
-                    })}
-                    {/* Variação líquida total */}
-                    {variacaoLinha && (
-                      <tr className="border-t-2 border-foreground bg-muted/50 font-bold">
-                        <td className="py-3 px-4 font-mono text-[11px]">{variacaoLinha.codigo}</td>
-                        <td className="py-3 px-4">{variacaoLinha.nome}</td>
-                        <td
-                          className="text-right py-3 px-4 tabular-nums"
-                          style={{ color: variacaoLinha.valor >= 0 ? "#2e7d32" : "#c62828" }}
-                        >
-                          {fmt(variacaoLinha.valor)}
-                        </td>
-                      </tr>
+
+              {isLoadingRelatorio ? (
+                <div className="text-center py-16">
+                  <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">Carregando relatório...</p>
+                </div>
+              ) : movimentacoes.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-16">
+                    <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+                    <p className="text-muted-foreground text-sm">Nenhuma movimentação encontrada no período.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {/* ENTRADAS */}
+                  <Card>
+                    <div
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors border-b"
+                      onClick={() => setEntradasAberto(!entradasAberto)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {entradasAberto ? <ChevronDown className="h-4 w-4 text-emerald-600" /> : <ChevronRight className="h-4 w-4 text-emerald-600" />}
+                        <TrendingUp className="h-4 w-4 text-emerald-600" />
+                        <span className="text-sm font-bold text-foreground">Entradas</span>
+                        <span className="text-xs text-muted-foreground">({relatorio.entradas.length} categorias)</span>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-600 tabular-nums">{fmt(relatorio.totalEntradas)}</span>
+                    </div>
+                    {entradasAberto && (
+                      <CardContent className="p-0">
+                        <table className="w-full text-[12.5px]">
+                          <tbody>
+                            {relatorio.entradas.map(([catId, cat]) => {
+                              const isOpen = relExpandidos[`e_${catId}`] ?? false;
+                              return (
+                                <CategoriaExpandivel
+                                  key={catId}
+                                  catId={`e_${catId}`}
+                                  nome={cat.nome}
+                                  total={cat.total}
+                                  lancamentos={cat.lancamentos}
+                                  isOpen={isOpen}
+                                  onToggle={() => toggleRelExpand(`e_${catId}`)}
+                                  cor="#059669"
+                                />
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </CardContent>
                     )}
-                  </tbody>
-                </table>
+                  </Card>
+
+                  {/* SAÍDAS */}
+                  <Card>
+                    <div
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors border-b"
+                      onClick={() => setSaidasAberto(!saidasAberto)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {saidasAberto ? <ChevronDown className="h-4 w-4 text-red-600" /> : <ChevronRight className="h-4 w-4 text-red-600" />}
+                        <TrendingDown className="h-4 w-4 text-red-600" />
+                        <span className="text-sm font-bold text-foreground">Saídas</span>
+                        <span className="text-xs text-muted-foreground">({relatorio.saidas.length} categorias)</span>
+                      </div>
+                      <span className="text-sm font-bold text-red-600 tabular-nums">{fmt(relatorio.totalSaidas)}</span>
+                    </div>
+                    {saidasAberto && (
+                      <CardContent className="p-0">
+                        <table className="w-full text-[12.5px]">
+                          <tbody>
+                            {relatorio.saidas.map(([catId, cat]) => {
+                              const isOpen = relExpandidos[`s_${catId}`] ?? false;
+                              return (
+                                <CategoriaExpandivel
+                                  key={catId}
+                                  catId={`s_${catId}`}
+                                  nome={cat.nome}
+                                  total={cat.total}
+                                  lancamentos={cat.lancamentos}
+                                  isOpen={isOpen}
+                                  onToggle={() => toggleRelExpand(`s_${catId}`)}
+                                  cor="#dc2626"
+                                />
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    )}
+                  </Card>
+
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={exportarRelatorioExcel}>
+                      <Download className="h-3.5 w-3.5 mr-1" /> Exportar Relatório
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ═══ ABA DFC ═══ */}
+          <TabsContent value="dfc">
+            <div className="space-y-4">
+              {/* KPIs DFC */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Caixa Operacional", value: fmt(caixaOperacional), color: CORES_ATIVIDADE.operacional },
+                  { label: "Caixa Investimento", value: fmt(caixaInvestimento), color: CORES_ATIVIDADE.investimento },
+                  { label: "Caixa Financiamento", value: fmt(caixaFinanciamento), color: CORES_ATIVIDADE.financiamento },
+                  { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#2e7d32" : "#c62828" },
+                ].map((kpi) => (
+                  <Card key={kpi.label}>
+                    <CardContent className="p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
+                      <p className="text-lg font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              {/* Tabela DFC */}
+              <Card>
+                <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+                  <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
+                    <Banknote className="h-4 w-4" /> DFC — Demonstração dos Fluxos de Caixa
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {isLoading ? (
+                    <div className="text-center py-16">
+                      <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+                      <p className="text-muted-foreground text-sm">Gerando DFC...</p>
+                    </div>
+                  ) : linhas.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Banknote className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+                      <p className="text-muted-foreground text-sm">Nenhum dado encontrado.</p>
+                      <p className="text-muted-foreground text-xs mt-1">
+                        Configure o{" "}
+                        <Link to="/demonstrativos/mapeamento" className="text-primary underline">
+                          mapeamento contábil
+                        </Link>{" "}
+                        para vincular contas aos demonstrativos.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[12.5px]">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="text-left py-2.5 px-4 font-semibold w-[120px]">Código</th>
+                            <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
+                            <th className="text-right py-2.5 px-4 font-semibold w-[160px]">Valor (R$)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {atividades.map((atv) => {
+                            const isOpen = expandidos[atv.header.codigo] ?? false;
+                            const corAtividade = CORES_ATIVIDADE[atv.header.atividade_dfc || ""] || "#888";
+                            return (
+                              <AtividadeDFC
+                                key={atv.header.codigo}
+                                header={atv.header}
+                                filhos={atv.filhos}
+                                total={atv.total}
+                                isOpen={isOpen}
+                                onToggle={() => toggleExpand(atv.header.codigo)}
+                                corAtividade={corAtividade}
+                              />
+                            );
+                          })}
+                          {variacaoLinha && (
+                            <tr className="border-t-2 border-foreground bg-muted/50 font-bold">
+                              <td className="py-3 px-4 font-mono text-[11px]">{variacaoLinha.codigo}</td>
+                              <td className="py-3 px-4">{variacaoLinha.nome}</td>
+                              <td
+                                className="text-right py-3 px-4 tabular-nums"
+                                style={{ color: variacaoLinha.valor >= 0 ? "#2e7d32" : "#c62828" }}
+                              >
+                                {fmt(variacaoLinha.valor)}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={exportarExcel}>
+                  <Download className="h-3.5 w-3.5 mr-1" /> Exportar DFC
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
+  );
+}
+
+function CategoriaExpandivel({
+  catId,
+  nome,
+  total,
+  lancamentos,
+  isOpen,
+  onToggle,
+  cor,
+}: {
+  catId: string;
+  nome: string;
+  total: number;
+  lancamentos: { data: string; valor: number; descricao: string }[];
+  isOpen: boolean;
+  onToggle: () => void;
+  cor: string;
+}) {
+  return (
+    <>
+      <tr
+        className="border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
+        onClick={onToggle}
+      >
+        <td className="py-2.5 px-4 pl-6">
+          <div className="flex items-center gap-1.5">
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+            <span className="font-medium">{nome}</span>
+            <span className="text-[11px] text-muted-foreground ml-1">({lancamentos.length})</span>
+          </div>
+        </td>
+        <td className="text-right py-2.5 px-4 font-semibold tabular-nums" style={{ color: cor }}>
+          {fmt(total)}
+        </td>
+      </tr>
+      {isOpen &&
+        lancamentos.map((l, i) => (
+          <tr key={`${catId}_${i}`} className="border-b border-border/20 hover:bg-muted/10">
+            <td className="py-1.5 px-4 pl-12 text-muted-foreground">
+              <span className="text-[11px]">{l.data}</span>
+              <span className="ml-3 text-foreground">{l.descricao}</span>
+            </td>
+            <td className="text-right py-1.5 px-4 tabular-nums text-muted-foreground">
+              {fmt(l.valor)}
+            </td>
+          </tr>
+        ))}
+    </>
   );
 }
 
