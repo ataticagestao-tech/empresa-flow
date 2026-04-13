@@ -174,6 +174,17 @@ export default function Movimentacoes() {
       const client = activeClient ?? supabase
 
       // Se há termo de busca ativo, buscar sem filtro de data (server-side)
+      // Busca em descricao + categoria (chart_of_accounts)
+      let matchingCoaIds: string[] = []
+      if (activeSearchTerm) {
+        const { data: coaMatches } = await (client as any)
+          .from('chart_of_accounts')
+          .select('id')
+          .eq('company_id', companyId)
+          .or(`name.ilike.%${activeSearchTerm}%,code.ilike.%${activeSearchTerm}%`)
+        matchingCoaIds = (coaMatches || []).map((c: any) => c.id)
+      }
+
       const buildMovQuery = () => {
         let q = (client as any)
           .from('movimentacoes')
@@ -183,7 +194,11 @@ export default function Movimentacoes() {
           .eq('company_id', companyId)
 
         if (activeSearchTerm) {
-          q = q.ilike('descricao', `%${activeSearchTerm}%`)
+          if (matchingCoaIds.length > 0) {
+            q = q.or(`descricao.ilike.%${activeSearchTerm}%,conta_contabil_id.in.(${matchingCoaIds.join(',')})`)
+          } else {
+            q = q.ilike('descricao', `%${activeSearchTerm}%`)
+          }
         } else {
           q = q.gte('data', dateStart).lte('data', dateEnd)
         }
