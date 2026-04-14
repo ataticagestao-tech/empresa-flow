@@ -326,6 +326,7 @@ export default function Clientes() {
             .from("contas_receber")
             .select("id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes, venda_id, conta_contabil_id, categoria:chart_of_accounts(name, code)")
             .eq("company_id", selectedCompany.id)
+            .is("deleted_at", null)
             .order("data_vencimento", { ascending: false });
 
         if (docValido) {
@@ -897,6 +898,26 @@ export default function Clientes() {
                                                                 <span className="text-[12px] font-semibold text-[#0a0a0a] min-w-[80px] text-right">
                                                                     {formatBRL(Number(cr.valor ?? 0))}
                                                                 </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Excluir este lançamento?\n\n${crDescription(cr)}\nValor: ${formatBRL(Number(cr.valor ?? 0))}\n\nA exclusão é reversível — o registro é marcado como removido mas permanece no banco.`)) return;
+                                                                        const { error } = await (activeClient as any)
+                                                                            .from("contas_receber")
+                                                                            .update({ deleted_at: new Date().toISOString() })
+                                                                            .eq("id", cr.id);
+                                                                        if (error) {
+                                                                            toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+                                                                            return;
+                                                                        }
+                                                                        toast({ title: "Lançamento excluído" });
+                                                                        buscarFinanceiroCliente(selectedClient);
+                                                                    }}
+                                                                    className="p-1 rounded text-[#999] hover:text-[#8b0000] hover:bg-[#fdecea] transition-colors cursor-pointer"
+                                                                    title="Excluir lançamento"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     );

@@ -85,6 +85,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 .from("contas_receber")
                 .select("id, venda_id, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes")
                 .in("venda_id", ids)
+                .is("deleted_at", null)
                 .order("data_vencimento", { ascending: true });
 
             if (crsErr) throw crsErr;
@@ -276,24 +277,19 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
     const deleteContrato = useMutation({
         mutationFn: async (vendaId: string) => {
             const ac = activeClient as any;
-            const { data: pagas } = await ac
-                .from("contas_receber")
-                .select("id")
-                .eq("venda_id", vendaId)
-                .eq("status", "pago");
+            const now = new Date().toISOString();
 
-            if (pagas && pagas.length > 0) {
-                throw new Error(
-                    `Contrato tem ${pagas.length} pagamento(s) vinculado(s). Cancele-o em Vendas em vez de excluir.`
-                );
-            }
-
+            // Soft-delete das CRs vinculadas (trigger bloqueia DELETE hard)
             const { error: crsErr } = await ac
                 .from("contas_receber")
-                .delete()
-                .eq("venda_id", vendaId);
+                .update({ deleted_at: now })
+                .eq("venda_id", vendaId)
+                .is("deleted_at", null);
             if (crsErr) throw crsErr;
 
+            // vendas nao tem deleted_at nem trigger bloqueando — DELETE hard
+            // (a FK contas_receber.venda_id ON DELETE SET NULL nao interfere
+            //  porque as CRs ja foram soft-deletadas acima)
             const { error: vendaErr } = await ac.from("vendas").delete().eq("id", vendaId);
             if (vendaErr) throw vendaErr;
         },
