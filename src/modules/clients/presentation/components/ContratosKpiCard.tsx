@@ -23,13 +23,32 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
 
     const busy = loading || isLoading;
 
+    // Dias até a próxima cirurgia (negativo = passada)
+    const diasCirurgia = proximaCirurgia?.previsao_cirurgia
+        ? daysUntil(proximaCirurgia.previsao_cirurgia)
+        : null;
+
     let subtitle: string;
+    let subtitleClass = "text-[#888]";
     if (busy) {
         subtitle = "";
     } else if (ativos.length === 0) {
         subtitle = "Nenhum ativo";
-    } else if (proximaCirurgia?.previsao_cirurgia) {
-        subtitle = `Cirurgia ${formatDateShort(proximaCirurgia.previsao_cirurgia)}`;
+    } else if (proximaCirurgia?.previsao_cirurgia && diasCirurgia !== null) {
+        if (diasCirurgia < 0) {
+            subtitle = `Cirurgia ${formatDateShort(proximaCirurgia.previsao_cirurgia)} (passada)`;
+        } else if (diasCirurgia === 0) {
+            subtitle = `Cirurgia HOJE (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
+            subtitleClass = "text-[#8b0000] font-bold";
+        } else if (diasCirurgia <= 7) {
+            subtitle = `Cirurgia em ${diasCirurgia}d (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
+            subtitleClass = "text-[#8b0000] font-bold";
+        } else if (diasCirurgia <= 30) {
+            subtitle = `Cirurgia em ${diasCirurgia}d (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
+            subtitleClass = "text-[#7a5400] font-semibold";
+        } else {
+            subtitle = `Cirurgia ${formatDateShort(proximaCirurgia.previsao_cirurgia)}`;
+        }
     } else {
         subtitle = `${ativos.length} ativo${ativos.length > 1 ? "s" : ""} · ${formatBRL(pagoTotal)} pago`;
     }
@@ -46,10 +65,20 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
                 <div className={`text-[17px] font-bold ${ativos.length === 0 ? "text-[#888]" : mainColor}`}>
                     {mainValue}
                 </div>
-                <div className="text-[10px] text-[#888] mt-0.5">{subtitle}</div>
+                <div className={`text-[10px] mt-0.5 ${subtitleClass}`}>{subtitle}</div>
             </div>
         </div>
     );
+}
+
+function daysUntil(iso: string): number | null {
+    const [y, m, d] = iso.split("-").map((n) => parseInt(n, 10));
+    if (!y || !m || !d) return null;
+    const target = new Date(y, m - 1, d);
+    target.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
 function formatDateShort(iso: string): string {

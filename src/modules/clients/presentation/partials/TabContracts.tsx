@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatBRL } from "@/lib/format";
 import { useClientContratos, ContratoVenda, CreateContratoInput, CondicaoPagamento } from "../hooks/useClientContratos";
+import { RegistrarPagamentoDialog } from "../components/RegistrarPagamentoDialog";
 
 const PROCEDIMENTOS = ["FUE", "DHI", "FUE + DHI", "Outro"];
 
@@ -47,6 +48,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<ContratoVenda | null>(null);
+    const [pagamentoTarget, setPagamentoTarget] = useState<ContratoVenda | null>(null);
 
     if (!clientId) {
         return (
@@ -101,6 +103,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                             key={c.id}
                             contrato={c}
                             onEdit={() => setEditTarget(c)}
+                            onRegistrarPagamento={() => setPagamentoTarget(c)}
                             onDelete={() => {
                                 if (confirm("Excluir este contrato? Parcelas em aberto serão removidas. Parcelas pagas impedem exclusão.")) {
                                     deleteContrato.mutate(c.id);
@@ -133,6 +136,13 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                 }}
                 saving={updateContratoMetadata.isPending}
             />
+
+            <RegistrarPagamentoDialog
+                contrato={pagamentoTarget}
+                clientName={clientName || ""}
+                clientCpfCnpj={clientCpfCnpj}
+                onClose={() => setPagamentoTarget(null)}
+            />
         </div>
     );
 }
@@ -142,12 +152,14 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
 function ContratoCard({
     contrato,
     onEdit,
+    onRegistrarPagamento,
     onDelete,
     onUploadPdf,
     uploading,
 }: {
     contrato: ContratoVenda;
     onEdit: () => void;
+    onRegistrarPagamento: () => void;
     onDelete: () => void;
     onUploadPdf: (file: File) => void;
     uploading: boolean;
@@ -181,9 +193,14 @@ function ContratoCard({
                     </div>
                     <div className="text-[11px] text-[#666] mt-1 space-y-0.5">
                         {contrato.consultora && <div>Consultora: <strong>{contrato.consultora}</strong></div>}
-                        <div>
-                            Assinatura: {formatDate(contrato.data_venda)}
-                            {contrato.previsao_cirurgia && ` · Cirurgia: ${formatDate(contrato.previsao_cirurgia)}`}
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                            <span>Assinatura: {formatDate(contrato.data_venda)}</span>
+                            {contrato.previsao_cirurgia && (
+                                <>
+                                    <span className="text-[#d1d5db]">·</span>
+                                    <CirurgiaPill iso={contrato.previsao_cirurgia} />
+                                </>
+                            )}
                         </div>
                         <div>
                             {formaLabel(contrato.forma_pagamento)}
@@ -249,6 +266,20 @@ function ContratoCard({
                     value={contrato.crs.length > 0 ? `${contrato.parcelas_pagas}/${contrato.crs.length}` : "—"}
                 />
             </div>
+
+            {contrato.saldo > 0 && (
+                <div className="mt-3 flex justify-end">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={onRegistrarPagamento}
+                        className="h-8 text-[11px] border-[#1a2e4a]/30 text-[#1a2e4a] hover:bg-[#1a2e4a] hover:text-white transition-colors"
+                    >
+                        <Plus className="h-3 w-3 mr-1" /> Registrar pagamento
+                    </Button>
+                </div>
+            )}
 
             <div className="mt-3">
                 <Progress value={progresso} className="h-1.5" />
@@ -933,10 +964,53 @@ function EditContratoDialog({ contrato, onClose, onSave, saving }: EditContratoD
     );
 }
 
+/* ─── Pill de cirurgia com alerta temporal ──────────────────── */
+
+function CirurgiaPill({ iso }: { iso: string }) {
+    const dias = daysUntil(iso);
+    const formatted = formatDate(iso);
+
+    let className = "text-[#6b7280]";
+    let suffix = "";
+
+    if (dias !== null) {
+        if (dias < 0) {
+            className = "text-[#6b7280]";
+            suffix = ` (${Math.abs(dias)}d atrás)`;
+        } else if (dias === 0) {
+            className = "text-[#8b0000] font-bold bg-[#fdecea] px-1.5 py-0.5 rounded";
+            suffix = " (hoje)";
+        } else if (dias <= 7) {
+            className = "text-[#8b0000] font-bold bg-[#fdecea] px-1.5 py-0.5 rounded";
+            suffix = ` (em ${dias}d)`;
+        } else if (dias <= 30) {
+            className = "text-[#7a5400] font-semibold bg-[#fffbe6] px-1.5 py-0.5 rounded";
+            suffix = ` (em ${dias}d)`;
+        }
+    }
+
+    return (
+        <span className={className}>
+            Cirurgia: {formatted}{suffix}
+        </span>
+    );
+}
+
 /* ─── Helpers ──────────────────────────────────────────────── */
 
 function formatDate(iso: string | null | undefined): string {
     if (!iso) return "";
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
+}
+
+function daysUntil(iso: string | null | undefined): number | null {
+    if (!iso) return null;
+    const [y, m, d] = iso.split("-").map((n) => parseInt(n, 10));
+    if (!y || !m || !d) return null;
+    const target = new Date(y, m - 1, d);
+    target.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
