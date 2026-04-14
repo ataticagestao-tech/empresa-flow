@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     Plus, Trash2, FileText, Check, Upload, ExternalLink, Loader2, Paperclip,
 } from "lucide-react";
@@ -6,13 +6,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatBRL } from "@/lib/format";
-import { useClientContratos, ContratoVenda } from "../hooks/useClientContratos";
+import { useClientContratos, ContratoVenda, CreateContratoInput } from "../hooks/useClientContratos";
+
+const PROCEDIMENTOS = ["FUE", "DHI", "FUE + DHI", "Outro"];
+
+const FORMAS_PAGAMENTO = [
+    { value: "cartao_credito", label: "Cartão de crédito" },
+    { value: "pix", label: "PIX" },
+    { value: "boleto", label: "Boleto" },
+    { value: "transferencia", label: "Transferência bancária" },
+    { value: "dinheiro", label: "Dinheiro" },
+    { value: "misto", label: "Misto" },
+];
+
+const formaLabel = (v: string | null | undefined) =>
+    FORMAS_PAGAMENTO.find((f) => f.value === v)?.label || v || "—";
 
 const statusLabel: Record<string, { label: string; className: string }> = {
     confirmado: { label: "Ativo", className: "bg-[#e6f4ec] text-[#0a5c2e] border-[#0a5c2e]" },
@@ -43,8 +58,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
     if (!clientCpfCnpj) {
         return (
             <div className="pt-6 pb-8 text-center text-sm text-[#888]">
-                Cadastre o CPF/CNPJ do cliente antes de criar contratos —
-                vinculamos o contrato ao documento.
+                Cadastre o CPF/CNPJ do cliente antes de criar contratos.
             </div>
         );
     }
@@ -133,7 +147,9 @@ function ContratoCard({
             <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-[#1a2e4a]">{contrato.descricao}</h4>
+                        <h4 className="text-sm font-bold text-[#1a2e4a]">
+                            {contrato.procedimento || contrato.descricao}
+                        </h4>
                         <Badge variant="outline" className={`text-[10px] ${statusInfo.className}`}>
                             {statusInfo.label}
                         </Badge>
@@ -149,12 +165,20 @@ function ContratoCard({
                             </a>
                         )}
                     </div>
-                    <p className="text-[11px] text-[#666] mt-1">
-                        Venda/Assinatura: {formatDate(contrato.data_venda)}
-                        {contrato.previsao_cirurgia
-                            ? ` · Cirurgia prevista: ${formatDate(contrato.previsao_cirurgia)}`
-                            : ""}
-                    </p>
+                    <div className="text-[11px] text-[#666] mt-1 space-y-0.5">
+                        {contrato.consultora && <div>Consultora: <strong>{contrato.consultora}</strong></div>}
+                        <div>
+                            Assinatura: {formatDate(contrato.data_venda)}
+                            {contrato.previsao_cirurgia && ` · Cirurgia: ${formatDate(contrato.previsao_cirurgia)}`}
+                        </div>
+                        <div>
+                            {formaLabel(contrato.forma_pagamento)}
+                            {contrato.parcelas_qtd > 1 && ` em ${contrato.parcelas_qtd}x`}
+                            {contrato.reserva_valor
+                                ? ` · Reserva: ${formatBRL(contrato.reserva_valor)}${contrato.reserva_data ? ` (${formatDate(contrato.reserva_data)})` : ""}`
+                                : ""}
+                        </div>
+                    </div>
                 </div>
                 <div className="flex gap-1">
                     <input
@@ -192,22 +216,20 @@ function ContratoCard({
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-[#f0f0f0]">
+            <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-[#f0f0f0]">
                 <Metric label="Valor total" value={formatBRL(contrato.valor_total)} />
                 <Metric label="Pago" value={formatBRL(contrato.total_pago)} color="#0a5c2e" />
                 <Metric label="Saldo" value={formatBRL(contrato.saldo)} color={contrato.saldo > 0 ? "#8b0000" : "#0a5c2e"} />
+                <Metric
+                    label="Parcelas"
+                    value={contrato.crs.length > 0 ? `${contrato.parcelas_pagas}/${contrato.crs.length}` : "—"}
+                />
             </div>
 
             <div className="mt-3">
                 <Progress value={progresso} className="h-1.5" />
                 <p className="text-[10px] text-[#888] mt-1 text-right">{progresso.toFixed(1)}% quitado</p>
             </div>
-
-            {contrato.crs.length > 0 && (
-                <p className="text-[10px] text-[#888] mt-2 text-right">
-                    {contrato.crs.length} pagamento{contrato.crs.length === 1 ? "" : "s"} vinculado{contrato.crs.length === 1 ? "" : "s"} · detalhes em Contas a Receber
-                </p>
-            )}
         </div>
     );
 }
@@ -221,88 +243,134 @@ function Metric({ label, value, color }: { label: string; value: string; color?:
     );
 }
 
-/* ─── Dialog de criação (4 campos apenas) ────────────────────── */
+/* ─── Dialog de criação ─────────────────────────────────────── */
 
 interface ContratoDialogProps {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     clientName: string;
-    onSubmit: (input: {
-        clientName: string;
-        descricao: string;
-        valor: number;
-        data_venda: string;
-        previsao_cirurgia?: string | null;
-    }) => Promise<void>;
+    onSubmit: (input: CreateContratoInput) => Promise<void>;
     saving: boolean;
 }
 
 function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: ContratoDialogProps) {
-    const [descricao, setDescricao] = useState("");
-    const [valor, setValor] = useState("");
+    const [consultora, setConsultora] = useState("");
+    const [procedimento, setProcedimento] = useState(PROCEDIMENTOS[0]);
+    const [procedimentoOutro, setProcedimentoOutro] = useState("");
+    const [valorTotal, setValorTotal] = useState("");
     const [dataVenda, setDataVenda] = useState(new Date().toISOString().slice(0, 10));
     const [previsaoCirurgia, setPrevisaoCirurgia] = useState("");
+    const [reservaValor, setReservaValor] = useState("");
+    const [reservaData, setReservaData] = useState("");
+    const [formaPagamento, setFormaPagamento] = useState("cartao_credito");
+    const [parcelas, setParcelas] = useState("10");
 
     const resetOnOpen = (v: boolean) => {
         if (v) {
-            setDescricao("");
-            setValor("");
+            setConsultora("");
+            setProcedimento(PROCEDIMENTOS[0]);
+            setProcedimentoOutro("");
+            setValorTotal("");
             setDataVenda(new Date().toISOString().slice(0, 10));
             setPrevisaoCirurgia("");
+            setReservaValor("");
+            setReservaData("");
+            setFormaPagamento("cartao_credito");
+            setParcelas("10");
         }
         onOpenChange(v);
     };
 
+    const podeParcelar = formaPagamento === "cartao_credito" || formaPagamento === "boleto" || formaPagamento === "misto";
+    const parcelasEfetivo = podeParcelar ? parseInt(parcelas, 10) || 1 : 1;
+
+    const calc = useMemo(() => {
+        const vt = parseFloat(valorTotal) || 0;
+        const rv = parseFloat(reservaValor) || 0;
+        const saldo = Math.max(0, vt - rv);
+        const valorParcela = parcelasEfetivo > 0 ? saldo / parcelasEfetivo : 0;
+        return { vt, rv, saldo, valorParcela };
+    }, [valorTotal, reservaValor, parcelasEfetivo]);
+
     const handleSubmit = async () => {
-        if (!descricao.trim()) return alert("Descrição é obrigatória");
-        const v = parseFloat(valor);
-        if (!v || v <= 0) return alert("Valor inválido");
-        if (!dataVenda) return alert("Data de venda é obrigatória");
+        const proc = procedimento === "Outro" ? procedimentoOutro.trim() : procedimento;
+        if (!proc) return alert("Procedimento é obrigatório");
+        if (!consultora.trim()) return alert("Consultora é obrigatória");
+        if (calc.vt <= 0) return alert("Valor total inválido");
+        if (!dataVenda) return alert("Data de assinatura é obrigatória");
+        if (calc.rv > 0 && !reservaData) return alert("Informe a data da reserva");
+        if (calc.rv > calc.vt) return alert("Reserva não pode ser maior que o valor total");
 
         await onSubmit({
             clientName,
-            descricao: descricao.trim(),
-            valor: v,
+            consultora: consultora.trim(),
+            procedimento: proc,
+            valor_total: calc.vt,
             data_venda: dataVenda,
             previsao_cirurgia: previsaoCirurgia || null,
+            reserva_valor: calc.rv,
+            reserva_data: reservaData || null,
+            forma_pagamento: formaPagamento,
+            parcelas: parcelasEfetivo,
         });
     };
 
     return (
         <Dialog open={open} onOpenChange={resetOnOpen}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Novo contrato</DialogTitle>
                     <DialogDescription>
-                        Os pagamentos deste contrato serão registrados via Contas a Receber
-                        e abatidos automaticamente do saldo.
+                        As parcelas e a reserva virão Contas a Receber vinculadas.
+                        Pagamentos abatem automaticamente do saldo.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
-                    <div>
-                        <Label className="text-[10px] font-bold uppercase text-[#555]">Descrição</Label>
-                        <Input
-                            value={descricao}
-                            onChange={(e) => setDescricao(e.target.value)}
-                            placeholder="Ex: Transplante capilar"
-                        />
-                    </div>
-
-                    <div>
-                        <Label className="text-[10px] font-bold uppercase text-[#555]">Valor (R$)</Label>
-                        <Input
-                            type="number"
-                            step="0.01"
-                            value={valor}
-                            onChange={(e) => setValor(e.target.value)}
-                            placeholder="0,00"
-                        />
-                    </div>
-
+                    {/* Bloco 1: info do procedimento */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Data de venda (assinatura)</Label>
+                            <Label className="text-[10px] font-bold uppercase text-[#555]">Consultora responsável</Label>
+                            <Input
+                                value={consultora}
+                                onChange={(e) => setConsultora(e.target.value)}
+                                placeholder="Ex: Mariana Melo"
+                            />
+                        </div>
+                        <div>
+                            <Label className="text-[10px] font-bold uppercase text-[#555]">Procedimento</Label>
+                            <Select value={procedimento} onValueChange={setProcedimento}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {PROCEDIMENTOS.map((p) => (
+                                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {procedimento === "Outro" && (
+                                <Input
+                                    className="mt-2"
+                                    value={procedimentoOutro}
+                                    onChange={(e) => setProcedimentoOutro(e.target.value)}
+                                    placeholder="Especifique"
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <Label className="text-[10px] font-bold uppercase text-[#555]">Valor total (R$)</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                value={valorTotal}
+                                onChange={(e) => setValorTotal(e.target.value)}
+                                placeholder="0,00"
+                            />
+                        </div>
+                        <div>
+                            <Label className="text-[10px] font-bold uppercase text-[#555]">Data assinatura</Label>
                             <Input
                                 type="date"
                                 value={dataVenda}
@@ -310,13 +378,82 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                             />
                         </div>
                         <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Previsão de cirurgia</Label>
+                            <Label className="text-[10px] font-bold uppercase text-[#555]">Previsão cirurgia</Label>
                             <Input
                                 type="date"
                                 value={previsaoCirurgia}
                                 onChange={(e) => setPrevisaoCirurgia(e.target.value)}
                             />
                         </div>
+                    </div>
+
+                    {/* Bloco 2: reserva */}
+                    <div className="p-3 rounded bg-[#f8f9fa] border border-[#e0e0e0] space-y-3">
+                        <Label className="text-[10px] font-bold uppercase text-[#555]">Reserva de data (opcional)</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-[10px] text-[#888]">Valor (R$)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={reservaValor}
+                                    onChange={(e) => setReservaValor(e.target.value)}
+                                    placeholder="0,00"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-[10px] text-[#888]">Data do pagamento</Label>
+                                <Input
+                                    type="date"
+                                    value={reservaData}
+                                    onChange={(e) => setReservaData(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bloco 3: parcelamento */}
+                    <div className="p-3 rounded bg-[#f8f9fa] border border-[#e0e0e0] space-y-3">
+                        <Label className="text-[10px] font-bold uppercase text-[#555]">Parcelamento do saldo</Label>
+                        <div className="grid grid-cols-[1fr_100px_1fr] gap-3">
+                            <div>
+                                <Label className="text-[10px] text-[#888]">Condição de pagamento</Label>
+                                <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {FORMAS_PAGAMENTO.map((f) => (
+                                            <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label className="text-[10px] text-[#888]">Nº parcelas</Label>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    max="24"
+                                    value={parcelas}
+                                    onChange={(e) => setParcelas(e.target.value)}
+                                    disabled={!podeParcelar}
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-[10px] text-[#888]">Valor / parcela</Label>
+                                <Input disabled value={calc.saldo > 0 ? formatBRL(calc.valorParcela) : "—"} />
+                            </div>
+                        </div>
+
+                        {calc.vt > 0 && (
+                            <div className="text-[11px] text-[#555] flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                                <span>Total: <strong>{formatBRL(calc.vt)}</strong></span>
+                                <span>Reserva: <strong>{formatBRL(calc.rv)}</strong></span>
+                                <span>Saldo: <strong>{formatBRL(calc.saldo)}</strong></span>
+                                <span>
+                                    {parcelasEfetivo}x de <strong>{formatBRL(calc.valorParcela)}</strong>
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <p className="text-[10px] text-[#888] italic">
