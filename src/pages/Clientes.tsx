@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
+import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
 import { hasContratosByCompany } from "@/config/features";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -322,7 +323,7 @@ export default function Clientes() {
 
         let query = activeClient
             .from("contas_receber")
-            .select("id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes")
+            .select("id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes, venda_id")
             .eq("company_id", selectedCompany.id)
             .order("data_vencimento", { ascending: false });
 
@@ -822,7 +823,15 @@ export default function Clientes() {
                                                                     {crSubtext(cr)}
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-3 flex-shrink-0">
+                                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                                {hasContratosByCompany(selectedCompany) && (
+                                                                    <LinkCRToContract
+                                                                        crId={cr.id}
+                                                                        crVendaId={cr.venda_id ?? null}
+                                                                        clientCpfCnpj={selectedClient?.cpf_cnpj}
+                                                                        onChanged={() => buscarFinanceiroCliente(selectedClient)}
+                                                                    />
+                                                                )}
                                                                 <CRStatusBadge status={displayStatus} />
                                                                 <span className="text-[12px] font-semibold text-[#0a0a0a] min-w-[80px] text-right">
                                                                     {formatBRL(Number(cr.valor ?? 0))}
