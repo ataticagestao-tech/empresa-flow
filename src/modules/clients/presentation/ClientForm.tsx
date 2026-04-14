@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 
 import { useCompany } from "@/contexts/CompanyContext";
-import { hasContratos } from "@/config/features";
+import { hasContratosByCompany } from "@/config/features";
 import { useClientForm } from "./hooks/useClientForm";
 import { ClientHeader } from "./partials/ClientHeader";
 import { TabAddress } from "./partials/TabAddress";
@@ -24,7 +24,7 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
     const { form, onSubmit, handleCepBlur, handleCnpjLookup, isLoadingAddress, isLoadingCnpj } = useClientForm({ onSuccess, initialData });
     const [activeTab, setActiveTab] = useState("endereco");
     const { selectedCompany } = useCompany();
-    const showContracts = hasContratos(selectedCompany?.id) && !!initialData?.id;
+    const showContracts = hasContratosByCompany(selectedCompany) && !!initialData?.id;
 
     return (
         <Form {...form}>
