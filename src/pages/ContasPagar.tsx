@@ -13,6 +13,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PendenciasBanner } from '@/modules/finance/presentation/components/PendenciasBanner'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useConfirm } from '@/components/ui/confirm-dialog'
@@ -820,6 +821,7 @@ export default function ContasPagar() {
   return (
     <AppLayout title="Contas a Pagar">
       <div className="max-w-[1400px] mx-auto space-y-6" style={{ backgroundColor: '#f7f8fa', minHeight: '100%' }}>
+        <PendenciasBanner variant="full" filter="debito" />
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -557,6 +558,7 @@ export default function FluxoCaixa() {
   return (
     <AppLayout title="Fluxo de Caixa">
       <div className="space-y-5 animate-fade-in">
+        <PendenciasBanner variant="full" filter="all" />
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

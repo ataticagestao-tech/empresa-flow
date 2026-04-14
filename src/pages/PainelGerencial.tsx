@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -1456,6 +1457,9 @@ export default function PainelGerencial() {
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 pb-12">
+        <div className="pt-4">
+          <PendenciasBanner variant="full" filter="all" />
+        </div>
 
         {/* ── HEADER + FILTRO ─────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4 flex-wrap mt-6 mb-2">
