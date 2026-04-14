@@ -83,6 +83,7 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                             <TabContracts
                                 clientId={initialData?.id}
                                 clientName={initialData?.razao_social || initialData?.nome_fantasia}
+                                clientCpfCnpj={initialData?.cpf_cnpj}
                             />
                         </TabsContent>
                     )}
