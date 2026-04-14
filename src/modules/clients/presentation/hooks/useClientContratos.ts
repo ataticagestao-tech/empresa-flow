@@ -35,6 +35,12 @@ export interface ContratoVenda {
     parcelas_pagas: number;
 }
 
+export interface CondicaoPagamento {
+    forma: string;          // cartao_credito, pix, boleto, transferencia, dinheiro
+    valor: number;          // valor total desta condicao
+    parcelas: number;       // 1 = a vista; >1 = parcelado
+}
+
 export interface CreateContratoInput {
     clientName: string;
     consultora: string;
@@ -44,8 +50,7 @@ export interface CreateContratoInput {
     previsao_cirurgia?: string | null;
     reserva_valor: number;
     reserva_data: string | null;
-    forma_pagamento: string;
-    parcelas: number;
+    condicoes: CondicaoPagamento[];
 }
 
 export function useClientContratos(clientCpfCnpj: string | null | undefined) {
@@ -130,6 +135,13 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             if (!selectedCompany?.id) throw new Error("Empresa nao selecionada");
             const ac = activeClient as any;
 
+            // Sumario das condicoes para preencher vendas.forma_pagamento / parcelas
+            const totalParcelas = input.condicoes.reduce((s, c) => s + (c.parcelas || 1), 0);
+            const formaResumo =
+                input.condicoes.length === 0 ? null
+                : input.condicoes.length === 1 ? input.condicoes[0].forma
+                : "misto";
+
             const { data: venda, error: vendaErr } = await ac
                 .from("vendas")
                 .insert({
@@ -142,8 +154,8 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                     procedimento: input.procedimento,
                     reserva_valor: input.reserva_valor || null,
                     reserva_data: input.reserva_data || null,
-                    forma_pagamento: input.forma_pagamento,
-                    parcelas: input.parcelas,
+                    forma_pagamento: formaResumo,
+                    parcelas: Math.max(totalParcelas, 1),
                     data_venda: input.data_venda,
                     data_contrato: input.data_venda,
                     previsao_cirurgia: input.previsao_cirurgia || null,
@@ -155,9 +167,8 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
 
             if (vendaErr) throw vendaErr;
 
-            // Gera CRs: reserva (se houver) + parcelas do saldo
+            // Gera CRs: reserva (se houver) + cada condicao gera suas parcelas
             const crsPayload: any[] = [];
-            const saldoRemanescente = input.valor_total - (input.reserva_valor || 0);
 
             if (input.reserva_valor && input.reserva_valor > 0 && input.reserva_data) {
                 crsPayload.push({
@@ -168,23 +179,26 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                     valor_pago: 0,
                     data_vencimento: input.reserva_data,
                     status: "aberto",
-                    forma_recebimento: input.forma_pagamento,
+                    forma_recebimento: "reserva",
                     venda_id: venda.id,
                     observacoes: "Reserva de data — " + input.procedimento,
                 });
             }
 
-            if (saldoRemanescente > 0 && input.parcelas > 0) {
-                const valorParcela = Math.round((saldoRemanescente / input.parcelas) * 100) / 100;
-                const [y, m, d] = input.data_venda.split("-").map((s) => parseInt(s, 10));
+            const [y, m, d] = input.data_venda.split("-").map((s) => parseInt(s, 10));
 
-                for (let i = 0; i < input.parcelas; i++) {
+            input.condicoes.forEach((cond, condIdx) => {
+                const n = Math.max(cond.parcelas || 1, 1);
+                const valorParcela = Math.round((cond.valor / n) * 100) / 100;
+
+                for (let i = 0; i < n; i++) {
                     const dataVenc = new Date(y, m - 1 + i + 1, d);
                     const iso = `${dataVenc.getFullYear()}-${String(dataVenc.getMonth() + 1).padStart(2, "0")}-${String(dataVenc.getDate()).padStart(2, "0")}`;
                     const valor =
-                        i === input.parcelas - 1
-                            ? Math.round((saldoRemanescente - valorParcela * (input.parcelas - 1)) * 100) / 100
+                        i === n - 1
+                            ? Math.round((cond.valor - valorParcela * (n - 1)) * 100) / 100
                             : valorParcela;
+                    const condTag = input.condicoes.length > 1 ? ` (${condIdx + 1}/${input.condicoes.length})` : "";
                     crsPayload.push({
                         company_id: selectedCompany.id,
                         pagador_nome: input.clientName,
@@ -193,12 +207,12 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                         valor_pago: 0,
                         data_vencimento: iso,
                         status: "aberto",
-                        forma_recebimento: input.forma_pagamento,
+                        forma_recebimento: cond.forma,
                         venda_id: venda.id,
-                        observacoes: `Parcela ${i + 1}/${input.parcelas} — ${input.procedimento}`,
+                        observacoes: `${input.procedimento} — parcela ${i + 1}/${n}${condTag}`,
                     });
                 }
-            }
+            });
 
             if (crsPayload.length > 0) {
                 const { error: crsErr } = await ac.from("contas_receber").insert(crsPayload);

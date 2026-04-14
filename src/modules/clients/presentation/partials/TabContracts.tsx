@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatBRL } from "@/lib/format";
-import { useClientContratos, ContratoVenda, CreateContratoInput } from "../hooks/useClientContratos";
+import { useClientContratos, ContratoVenda, CreateContratoInput, CondicaoPagamento } from "../hooks/useClientContratos";
 
 const PROCEDIMENTOS = ["FUE", "DHI", "FUE + DHI", "Outro"];
 
@@ -262,8 +262,11 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
     const [previsaoCirurgia, setPrevisaoCirurgia] = useState("");
     const [reservaValor, setReservaValor] = useState("");
     const [reservaData, setReservaData] = useState("");
-    const [formaPagamento, setFormaPagamento] = useState("cartao_credito");
-    const [parcelas, setParcelas] = useState("10");
+
+    type CondicaoForm = { forma: string; valor: string; parcelas: string };
+    const [condicoes, setCondicoes] = useState<CondicaoForm[]>([
+        { forma: "cartao_credito", valor: "", parcelas: "10" },
+    ]);
 
     const resetOnOpen = (v: boolean) => {
         if (v) {
@@ -275,22 +278,35 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
             setPrevisaoCirurgia("");
             setReservaValor("");
             setReservaData("");
-            setFormaPagamento("cartao_credito");
-            setParcelas("10");
+            setCondicoes([{ forma: "cartao_credito", valor: "", parcelas: "10" }]);
         }
         onOpenChange(v);
     };
 
-    const podeParcelar = formaPagamento === "cartao_credito" || formaPagamento === "boleto" || formaPagamento === "misto";
-    const parcelasEfetivo = podeParcelar ? parseInt(parcelas, 10) || 1 : 1;
+    const podeParcelarForma = (f: string) =>
+        f === "cartao_credito" || f === "boleto";
+
+    const addCondicao = () =>
+        setCondicoes((prev) => [...prev, { forma: "pix", valor: "", parcelas: "1" }]);
+
+    const removeCondicao = (idx: number) =>
+        setCondicoes((prev) => prev.filter((_, i) => i !== idx));
+
+    const updateCondicao = (idx: number, field: keyof CondicaoForm, value: string) =>
+        setCondicoes((prev) => {
+            const next = [...prev];
+            next[idx] = { ...next[idx], [field]: value };
+            return next;
+        });
 
     const calc = useMemo(() => {
         const vt = parseFloat(valorTotal) || 0;
         const rv = parseFloat(reservaValor) || 0;
         const saldo = Math.max(0, vt - rv);
-        const valorParcela = parcelasEfetivo > 0 ? saldo / parcelasEfetivo : 0;
-        return { vt, rv, saldo, valorParcela };
-    }, [valorTotal, reservaValor, parcelasEfetivo]);
+        const totalCondicoes = condicoes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+        const falta = Math.round((saldo - totalCondicoes) * 100) / 100;
+        return { vt, rv, saldo, totalCondicoes, falta };
+    }, [valorTotal, reservaValor, condicoes]);
 
     const handleSubmit = async () => {
         const proc = procedimento === "Outro" ? procedimentoOutro.trim() : procedimento;
@@ -301,6 +317,26 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
         if (calc.rv > 0 && !reservaData) return alert("Informe a data da reserva");
         if (calc.rv > calc.vt) return alert("Reserva não pode ser maior que o valor total");
 
+        const condicoesValidas: CondicaoPagamento[] = condicoes
+            .map((c) => ({
+                forma: c.forma,
+                valor: parseFloat(c.valor) || 0,
+                parcelas: podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1,
+            }))
+            .filter((c) => c.valor > 0);
+
+        if (condicoesValidas.length === 0 && calc.saldo > 0) {
+            return alert("Adicione pelo menos uma condição de pagamento para o saldo");
+        }
+
+        if (Math.abs(calc.falta) > 0.01) {
+            return alert(
+                calc.falta > 0
+                    ? `Faltam ${formatBRL(calc.falta)} para fechar o saldo`
+                    : `Condições excedem o saldo em ${formatBRL(Math.abs(calc.falta))}`
+            );
+        }
+
         await onSubmit({
             clientName,
             consultora: consultora.trim(),
@@ -310,8 +346,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
             previsao_cirurgia: previsaoCirurgia || null,
             reserva_valor: calc.rv,
             reserva_data: reservaData || null,
-            forma_pagamento: formaPagamento,
-            parcelas: parcelasEfetivo,
+            condicoes: condicoesValidas,
         });
     };
 
@@ -412,46 +447,89 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                         </div>
                     </div>
 
-                    {/* Bloco 3: parcelamento */}
+                    {/* Bloco 3: parcelamento (multiplas condicoes) */}
                     <div className="p-3 rounded bg-[#f8f9fa] border border-[#e0e0e0] space-y-3">
-                        <Label className="text-[10px] font-bold uppercase text-[#555]">Parcelamento do saldo</Label>
-                        <div className="grid grid-cols-[1fr_100px_1fr] gap-3">
-                            <div>
-                                <Label className="text-[10px] text-[#888]">Condição de pagamento</Label>
-                                <Select value={formaPagamento} onValueChange={setFormaPagamento}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {FORMAS_PAGAMENTO.map((f) => (
-                                            <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label className="text-[10px] text-[#888]">Nº parcelas</Label>
-                                <Input
-                                    type="number"
-                                    min="1"
-                                    max="24"
-                                    value={parcelas}
-                                    onChange={(e) => setParcelas(e.target.value)}
-                                    disabled={!podeParcelar}
-                                />
-                            </div>
-                            <div>
-                                <Label className="text-[10px] text-[#888]">Valor / parcela</Label>
-                                <Input disabled value={calc.saldo > 0 ? formatBRL(calc.valorParcela) : "—"} />
-                            </div>
+                        <div className="flex items-center justify-between">
+                            <Label className="text-[10px] font-bold uppercase text-[#555]">Parcelamento do saldo</Label>
+                            <Button type="button" size="sm" variant="outline" onClick={addCondicao}>
+                                <Plus className="h-3 w-3 mr-1" /> Adicionar condição
+                            </Button>
                         </div>
 
+                        {condicoes.map((c, idx) => {
+                            const parcelasNum = podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1;
+                            const valorNum = parseFloat(c.valor) || 0;
+                            const valorParcela = parcelasNum > 0 ? valorNum / parcelasNum : 0;
+
+                            return (
+                                <div key={idx} className="grid grid-cols-[1fr_120px_90px_1fr_32px] gap-2 items-end">
+                                    <div>
+                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Condição</Label>}
+                                        <Select value={c.forma} onValueChange={(v) => updateCondicao(idx, "forma", v)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {FORMAS_PAGAMENTO.map((f) => (
+                                                    <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Valor (R$)</Label>}
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={c.valor}
+                                            onChange={(e) => updateCondicao(idx, "valor", e.target.value)}
+                                            placeholder="0,00"
+                                        />
+                                    </div>
+                                    <div>
+                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Nº parc.</Label>}
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            max="24"
+                                            value={c.parcelas}
+                                            onChange={(e) => updateCondicao(idx, "parcelas", e.target.value)}
+                                            disabled={!podeParcelarForma(c.forma)}
+                                        />
+                                    </div>
+                                    <div>
+                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Valor/parcela</Label>}
+                                        <Input disabled value={valorNum > 0 ? formatBRL(valorParcela) : "—"} />
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => removeCondicao(idx)}
+                                        disabled={condicoes.length === 1}
+                                        className="text-[#8b0000] h-9 w-9 p-0"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            );
+                        })}
+
                         {calc.vt > 0 && (
-                            <div className="text-[11px] text-[#555] flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                            <div className="text-[11px] flex flex-wrap gap-x-4 gap-y-1 pt-2 border-t border-[#e0e0e0]">
                                 <span>Total: <strong>{formatBRL(calc.vt)}</strong></span>
                                 <span>Reserva: <strong>{formatBRL(calc.rv)}</strong></span>
                                 <span>Saldo: <strong>{formatBRL(calc.saldo)}</strong></span>
-                                <span>
-                                    {parcelasEfetivo}x de <strong>{formatBRL(calc.valorParcela)}</strong>
-                                </span>
+                                <span>Condições: <strong>{formatBRL(calc.totalCondicoes)}</strong></span>
+                                {Math.abs(calc.falta) < 0.01 ? (
+                                    <span className="text-[#0a5c2e] font-bold">✓ Fechado</span>
+                                ) : calc.falta > 0 ? (
+                                    <span className="text-[#8b0000] font-bold">
+                                        Faltam {formatBRL(calc.falta)}
+                                    </span>
+                                ) : (
+                                    <span className="text-[#8b0000] font-bold">
+                                        Excede em {formatBRL(Math.abs(calc.falta))}
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>
