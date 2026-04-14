@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    Dialog, DialogContent, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -350,211 +350,393 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
         });
     };
 
+    const isClosed = calc.vt > 0 && Math.abs(calc.falta) < 0.01;
+    const statusLabel =
+        calc.vt <= 0 ? "Informe o valor total"
+        : isClosed ? "Valores conferem"
+        : calc.falta > 0 ? `Faltam ${formatBRL(calc.falta)}`
+        : `Excede em ${formatBRL(Math.abs(calc.falta))}`;
+    const statusTone = calc.vt <= 0 ? "neutral" : isClosed ? "ok" : "warn";
+
     return (
         <Dialog open={open} onOpenChange={resetOnOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Novo contrato</DialogTitle>
-                    <DialogDescription>
-                        As parcelas e a reserva virão Contas a Receber vinculadas.
-                        Pagamentos abatem automaticamente do saldo.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4 py-2">
-                    {/* Bloco 1: info do procedimento */}
-                    <div className="grid grid-cols-2 gap-3">
+            <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0">
+                {/* Header elegante com saldo live */}
+                <div className="px-8 pt-7 pb-5 border-b border-[#eef0f3] bg-white">
+                    <div className="flex items-start justify-between gap-6">
                         <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Consultora responsável</Label>
-                            <Input
-                                value={consultora}
-                                onChange={(e) => setConsultora(e.target.value)}
-                                placeholder="Ex: Mariana Melo"
-                            />
+                            <DialogTitle className="text-[18px] font-bold text-[#1a2e4a] tracking-tight">
+                                Novo contrato
+                            </DialogTitle>
+                            <DialogDescription className="text-[12px] text-[#6b7280] mt-1 leading-relaxed max-w-md">
+                                As parcelas e a reserva se tornam Contas a Receber vinculadas ao contrato.
+                                Pagamentos abatem automaticamente do saldo.
+                            </DialogDescription>
                         </div>
-                        <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Procedimento</Label>
-                            <Select value={procedimento} onValueChange={setProcedimento}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {PROCEDIMENTOS.map((p) => (
-                                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {procedimento === "Outro" && (
+                        <div
+                            className={`text-right pl-6 border-l ${
+                                statusTone === "ok"
+                                    ? "border-[#0a5c2e]/25"
+                                    : statusTone === "warn"
+                                    ? "border-[#8b0000]/25"
+                                    : "border-[#e5e7eb]"
+                            }`}
+                        >
+                            <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#9ca3af]">
+                                Saldo a alocar
+                            </p>
+                            <p
+                                className={`text-[20px] font-bold tabular-nums mt-0.5 ${
+                                    statusTone === "ok"
+                                        ? "text-[#0a5c2e]"
+                                        : statusTone === "warn"
+                                        ? "text-[#8b0000]"
+                                        : "text-[#1a2e4a]"
+                                }`}
+                            >
+                                {calc.saldo > 0 ? formatBRL(calc.saldo) : "—"}
+                            </p>
+                            <p
+                                className={`text-[10px] font-medium mt-0.5 ${
+                                    statusTone === "ok"
+                                        ? "text-[#0a5c2e]"
+                                        : statusTone === "warn"
+                                        ? "text-[#8b0000]"
+                                        : "text-[#6b7280]"
+                                }`}
+                            >
+                                {statusLabel}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Corpo */}
+                <div className="px-8 py-6 space-y-8 bg-[#fafbfc]">
+
+                    {/* ─── Seção 01 ─── */}
+                    <section>
+                        <SectionHeader number="01" title="Dados do atendimento" />
+                        <div className="grid grid-cols-2 gap-5">
+                            <Field label="Consultora responsável">
                                 <Input
-                                    className="mt-2"
-                                    value={procedimentoOutro}
-                                    onChange={(e) => setProcedimentoOutro(e.target.value)}
-                                    placeholder="Especifique"
+                                    value={consultora}
+                                    onChange={(e) => setConsultora(e.target.value)}
+                                    placeholder="Ex: Mariana Melo"
+                                    className="h-10 bg-white"
                                 />
-                            )}
+                            </Field>
+                            <Field label="Procedimento">
+                                <Select value={procedimento} onValueChange={setProcedimento}>
+                                    <SelectTrigger className="h-10 bg-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {PROCEDIMENTOS.map((p) => (
+                                            <SelectItem key={p} value={p}>{p}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {procedimento === "Outro" && (
+                                    <Input
+                                        className="mt-2 h-10 bg-white"
+                                        value={procedimentoOutro}
+                                        onChange={(e) => setProcedimentoOutro(e.target.value)}
+                                        placeholder="Especifique"
+                                    />
+                                )}
+                            </Field>
                         </div>
-                    </div>
+                    </section>
 
-                    <div className="grid grid-cols-3 gap-3">
-                        <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Valor total (R$)</Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                value={valorTotal}
-                                onChange={(e) => setValorTotal(e.target.value)}
-                                placeholder="0,00"
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Data assinatura</Label>
-                            <Input
-                                type="date"
-                                value={dataVenda}
-                                onChange={(e) => setDataVenda(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Previsão cirurgia</Label>
-                            <Input
-                                type="date"
-                                value={previsaoCirurgia}
-                                onChange={(e) => setPrevisaoCirurgia(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Bloco 2: reserva */}
-                    <div className="p-3 rounded bg-[#f8f9fa] border border-[#e0e0e0] space-y-3">
-                        <Label className="text-[10px] font-bold uppercase text-[#555]">Reserva de data (opcional)</Label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <Label className="text-[10px] text-[#888]">Valor (R$)</Label>
+                    {/* ─── Seção 02 ─── */}
+                    <section>
+                        <SectionHeader number="02" title="Valor e vigência" />
+                        <div className="grid grid-cols-3 gap-5">
+                            <Field label="Valor total (R$)">
                                 <Input
                                     type="number"
                                     step="0.01"
-                                    value={reservaValor}
-                                    onChange={(e) => setReservaValor(e.target.value)}
+                                    value={valorTotal}
+                                    onChange={(e) => setValorTotal(e.target.value)}
                                     placeholder="0,00"
+                                    className="h-10 bg-white tabular-nums font-semibold text-[#1a2e4a]"
                                 />
-                            </div>
-                            <div>
-                                <Label className="text-[10px] text-[#888]">Data do pagamento</Label>
+                            </Field>
+                            <Field label="Data assinatura">
                                 <Input
                                     type="date"
-                                    value={reservaData}
-                                    onChange={(e) => setReservaData(e.target.value)}
+                                    value={dataVenda}
+                                    onChange={(e) => setDataVenda(e.target.value)}
+                                    className="h-10 bg-white"
                                 />
+                            </Field>
+                            <Field label="Previsão cirurgia">
+                                <Input
+                                    type="date"
+                                    value={previsaoCirurgia}
+                                    onChange={(e) => setPrevisaoCirurgia(e.target.value)}
+                                    className="h-10 bg-white"
+                                />
+                            </Field>
+                        </div>
+                    </section>
+
+                    {/* ─── Seção 03 ─── */}
+                    <section>
+                        <SectionHeader
+                            number="03"
+                            title="Reserva de data"
+                            hint="Opcional — abatida do valor total"
+                        />
+                        <div className="border-l-2 border-[#1a2e4a]/15 pl-5">
+                            <div className="grid grid-cols-2 gap-5">
+                                <Field label="Valor (R$)">
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={reservaValor}
+                                        onChange={(e) => setReservaValor(e.target.value)}
+                                        placeholder="0,00"
+                                        className="h-10 bg-white tabular-nums"
+                                    />
+                                </Field>
+                                <Field label="Data do pagamento">
+                                    <Input
+                                        type="date"
+                                        value={reservaData}
+                                        onChange={(e) => setReservaData(e.target.value)}
+                                        className="h-10 bg-white"
+                                    />
+                                </Field>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    {/* Bloco 3: parcelamento (multiplas condicoes) */}
-                    <div className="p-3 rounded bg-[#f8f9fa] border border-[#e0e0e0] space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-[10px] font-bold uppercase text-[#555]">Parcelamento do saldo</Label>
-                            <Button type="button" size="sm" variant="outline" onClick={addCondicao}>
+                    {/* ─── Seção 04 ─── */}
+                    <section>
+                        <div className="flex items-end justify-between mb-4">
+                            <SectionHeader
+                                number="04"
+                                title="Plano de pagamento do saldo"
+                                hint="Adicione condições até totalizar o saldo"
+                                inline
+                            />
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={addCondicao}
+                                className="h-8 text-[11px] border-[#1a2e4a]/30 text-[#1a2e4a] hover:bg-[#1a2e4a] hover:text-white transition-colors"
+                            >
                                 <Plus className="h-3 w-3 mr-1" /> Adicionar condição
                             </Button>
                         </div>
 
-                        {condicoes.map((c, idx) => {
-                            const parcelasNum = podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1;
-                            const valorNum = parseFloat(c.valor) || 0;
-                            const valorParcela = parcelasNum > 0 ? valorNum / parcelasNum : 0;
+                        <div className="border-l-2 border-[#1a2e4a]/15 pl-5 space-y-3">
+                            {condicoes.map((c, idx) => {
+                                const parcelasNum = podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1;
+                                const valorNum = parseFloat(c.valor) || 0;
+                                const valorParcela = parcelasNum > 0 ? valorNum / parcelasNum : 0;
 
-                            return (
-                                <div key={idx} className="grid grid-cols-[1fr_120px_90px_1fr_32px] gap-2 items-end">
-                                    <div>
-                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Condição</Label>}
-                                        <Select value={c.forma} onValueChange={(v) => updateCondicao(idx, "forma", v)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                {FORMAS_PAGAMENTO.map((f) => (
-                                                    <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Valor (R$)</Label>}
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={c.valor}
-                                            onChange={(e) => updateCondicao(idx, "valor", e.target.value)}
-                                            placeholder="0,00"
-                                        />
-                                    </div>
-                                    <div>
-                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Nº parc.</Label>}
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            max="24"
-                                            value={c.parcelas}
-                                            onChange={(e) => updateCondicao(idx, "parcelas", e.target.value)}
-                                            disabled={!podeParcelarForma(c.forma)}
-                                        />
-                                    </div>
-                                    <div>
-                                        {idx === 0 && <Label className="text-[10px] text-[#888]">Valor/parcela</Label>}
-                                        <Input disabled value={valorNum > 0 ? formatBRL(valorParcela) : "—"} />
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => removeCondicao(idx)}
-                                        disabled={condicoes.length === 1}
-                                        className="text-[#8b0000] h-9 w-9 p-0"
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="grid grid-cols-[1fr_130px_90px_1fr_32px] gap-2.5 items-end"
                                     >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>
-                            );
-                        })}
+                                        <div>
+                                            {idx === 0 && <MiniLabel>Condição</MiniLabel>}
+                                            <Select value={c.forma} onValueChange={(v) => updateCondicao(idx, "forma", v)}>
+                                                <SelectTrigger className="h-9 bg-white">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {FORMAS_PAGAMENTO.map((f) => (
+                                                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            {idx === 0 && <MiniLabel>Valor (R$)</MiniLabel>}
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                value={c.valor}
+                                                onChange={(e) => updateCondicao(idx, "valor", e.target.value)}
+                                                placeholder="0,00"
+                                                className="h-9 bg-white tabular-nums"
+                                            />
+                                        </div>
+                                        <div>
+                                            {idx === 0 && <MiniLabel>Parcelas</MiniLabel>}
+                                            <Input
+                                                type="number"
+                                                min="1"
+                                                max="24"
+                                                value={c.parcelas}
+                                                onChange={(e) => updateCondicao(idx, "parcelas", e.target.value)}
+                                                disabled={!podeParcelarForma(c.forma)}
+                                                className="h-9 bg-white tabular-nums text-center"
+                                            />
+                                        </div>
+                                        <div>
+                                            {idx === 0 && <MiniLabel>Valor/parcela</MiniLabel>}
+                                            <Input
+                                                disabled
+                                                value={valorNum > 0 ? formatBRL(valorParcela) : "—"}
+                                                className="h-9 bg-[#f3f4f6] tabular-nums text-[#6b7280]"
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => removeCondicao(idx)}
+                                            disabled={condicoes.length === 1}
+                                            className="text-[#8b0000] hover:bg-[#fdecea] h-9 w-9 p-0 disabled:opacity-30"
+                                            aria-label="Remover condição"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                );
+                            })}
+                        </div>
 
+                        {/* Sumário numérico */}
                         {calc.vt > 0 && (
-                            <div className="text-[11px] flex flex-wrap gap-x-4 gap-y-1 pt-2 border-t border-[#e0e0e0]">
-                                <span>Total: <strong>{formatBRL(calc.vt)}</strong></span>
-                                <span>Reserva: <strong>{formatBRL(calc.rv)}</strong></span>
-                                <span>Saldo: <strong>{formatBRL(calc.saldo)}</strong></span>
-                                <span>Condições: <strong>{formatBRL(calc.totalCondicoes)}</strong></span>
-                                {Math.abs(calc.falta) < 0.01 ? (
-                                    <span className="text-[#0a5c2e] font-bold">✓ Fechado</span>
-                                ) : calc.falta > 0 ? (
-                                    <span className="text-[#8b0000] font-bold">
-                                        Faltam {formatBRL(calc.falta)}
-                                    </span>
-                                ) : (
-                                    <span className="text-[#8b0000] font-bold">
-                                        Excede em {formatBRL(Math.abs(calc.falta))}
-                                    </span>
-                                )}
+                            <div className="mt-5 grid grid-cols-4 border border-[#e5e7eb] rounded-md bg-white overflow-hidden">
+                                <SummaryCell label="Valor total" value={formatBRL(calc.vt)} />
+                                <SummaryCell label="Reserva" value={formatBRL(calc.rv)} />
+                                <SummaryCell label="Saldo" value={formatBRL(calc.saldo)} emphasize />
+                                <SummaryCell
+                                    label="Alocado"
+                                    value={formatBRL(calc.totalCondicoes)}
+                                    tone={isClosed ? "ok" : calc.totalCondicoes > 0 ? "warn" : "neutral"}
+                                />
                             </div>
                         )}
-                    </div>
+                    </section>
 
-                    <p className="text-[10px] text-[#888] italic">
+                    <p className="text-[11px] text-[#9ca3af] italic pt-1">
                         O PDF do contrato pode ser anexado após a criação, clicando no ícone de upload no card.
                     </p>
                 </div>
 
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-                        Cancelar
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="bg-[#1a2e4a] hover:bg-[#0f1f33] text-white"
-                    >
-                        {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                        Criar contrato
-                    </Button>
-                </DialogFooter>
+                {/* Footer com CTA primária */}
+                <div className="px-8 py-4 border-t border-[#eef0f3] bg-white flex items-center justify-between gap-4">
+                    <p className={`text-[11px] font-medium ${
+                        statusTone === "ok" ? "text-[#0a5c2e]"
+                        : statusTone === "warn" ? "text-[#8b0000]"
+                        : "text-[#9ca3af]"
+                    }`}>
+                        {statusTone === "ok" && "Pronto para criar — valores conferem"}
+                        {statusTone === "warn" && statusLabel}
+                        {statusTone === "neutral" && "Preencha os campos obrigatórios"}
+                    </p>
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            disabled={saving}
+                            className="h-10 px-5"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={saving}
+                            className="h-10 px-6 bg-[#1a2e4a] hover:bg-[#0f1f33] text-white transition-colors disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+                            Criar contrato
+                        </Button>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/* ─── Subcomponentes de layout ──────────────────────────────── */
+
+function SectionHeader({
+    number,
+    title,
+    hint,
+    inline,
+}: {
+    number: string;
+    title: string;
+    hint?: string;
+    inline?: boolean;
+}) {
+    return (
+        <div className={inline ? "" : "mb-4"}>
+            <div className="flex items-baseline gap-3">
+                <span className="text-[10px] font-bold tracking-[0.12em] text-[#1a2e4a]/60 tabular-nums">
+                    {number}
+                </span>
+                <h3 className="text-[13px] font-bold text-[#1a2e4a] tracking-tight">
+                    {title}
+                </h3>
+                {hint && (
+                    <span className="text-[11px] text-[#9ca3af] font-normal">
+                        · {hint}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <Label className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#6b7280] mb-1.5 block">
+                {label}
+            </Label>
+            {children}
+        </div>
+    );
+}
+
+function MiniLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <Label className="text-[9px] font-bold uppercase tracking-[0.05em] text-[#9ca3af] mb-1 block">
+            {children}
+        </Label>
+    );
+}
+
+function SummaryCell({
+    label,
+    value,
+    emphasize,
+    tone = "neutral",
+}: {
+    label: string;
+    value: string;
+    emphasize?: boolean;
+    tone?: "ok" | "warn" | "neutral";
+}) {
+    const color =
+        tone === "ok" ? "#0a5c2e"
+        : tone === "warn" ? "#8b0000"
+        : emphasize ? "#1a2e4a"
+        : "#374151";
+    return (
+        <div className="px-4 py-3 border-r last:border-r-0 border-[#e5e7eb]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#9ca3af]">
+                {label}
+            </p>
+            <p className="text-[14px] font-bold tabular-nums mt-0.5" style={{ color }}>
+                {value}
+            </p>
+        </div>
     );
 }
 
