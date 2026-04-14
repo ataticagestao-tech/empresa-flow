@@ -373,27 +373,11 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                 Pagamentos abatem automaticamente do saldo.
                             </DialogDescription>
                         </div>
-                        <div
-                            className={`text-right pl-6 border-l ${
-                                statusTone === "ok"
-                                    ? "border-[#0a5c2e]/25"
-                                    : statusTone === "warn"
-                                    ? "border-[#8b0000]/25"
-                                    : "border-[#e5e7eb]"
-                            }`}
-                        >
+                        <div className="text-right pl-6 border-l border-[#e5e7eb]">
                             <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#9ca3af]">
                                 Saldo a alocar
                             </p>
-                            <p
-                                className={`text-[20px] font-bold tabular-nums mt-0.5 ${
-                                    statusTone === "ok"
-                                        ? "text-[#0a5c2e]"
-                                        : statusTone === "warn"
-                                        ? "text-[#8b0000]"
-                                        : "text-[#1a2e4a]"
-                                }`}
-                            >
+                            <p className="text-[20px] font-bold tabular-nums mt-0.5 text-[#1a2e4a]">
                                 {calc.saldo > 0 ? formatBRL(calc.saldo) : "—"}
                             </p>
                             <p
@@ -510,6 +494,16 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                     />
                                 </Field>
                             </div>
+                            {calc.vt > 0 && calc.rv > 0 && (
+                                <p className="text-[11px] text-[#6b7280] mt-3 tabular-nums">
+                                    <span className="text-[#1a2e4a] font-semibold">{formatBRL(calc.vt)}</span>
+                                    <span className="mx-1.5 text-[#9ca3af]">−</span>
+                                    <span className="text-[#1a2e4a] font-semibold">{formatBRL(calc.rv)}</span>
+                                    <span className="mx-1.5 text-[#9ca3af]">=</span>
+                                    <span className="text-[#1a2e4a] font-bold">{formatBRL(calc.saldo)}</span>
+                                    <span className="ml-2 text-[#9ca3af]">de saldo a distribuir</span>
+                                </p>
+                            )}
                         </div>
                     </section>
 
