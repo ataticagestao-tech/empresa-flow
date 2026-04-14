@@ -279,7 +279,31 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             const ac = activeClient as any;
             const now = new Date().toISOString();
 
-            // Soft-delete das CRs vinculadas (trigger bloqueia DELETE hard)
+            // 1. Identifica CRs do contrato que ja tem pagamento
+            //    (precisamos orfanizar as movimentacoes delas)
+            const { data: crsPagas } = await ac
+                .from("contas_receber")
+                .select("id")
+                .eq("venda_id", vendaId)
+                .is("deleted_at", null)
+                .or("status.eq.pago,valor_pago.gt.0");
+
+            const crsPagasIds = (crsPagas || []).map((c: any) => c.id);
+
+            // 2. Orfaniza movimentacoes das CRs pagas — dinheiro continua
+            //    no saldo do banco, mas volta como pendente de conciliacao
+            if (crsPagasIds.length > 0) {
+                const { error: movErr } = await ac
+                    .from("movimentacoes")
+                    .update({
+                        conta_receber_id: null,
+                        status_conciliacao: "pendente",
+                    })
+                    .in("conta_receber_id", crsPagasIds);
+                if (movErr) console.error("[deleteContrato] erro ao orfanizar movimentacoes:", movErr);
+            }
+
+            // 3. Soft-delete das CRs (trigger bloqueia DELETE hard)
             const { error: crsErr } = await ac
                 .from("contas_receber")
                 .update({ deleted_at: now })
@@ -287,9 +311,9 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 .is("deleted_at", null);
             if (crsErr) throw crsErr;
 
-            // vendas nao tem deleted_at nem trigger bloqueando — DELETE hard
-            // (a FK contas_receber.venda_id ON DELETE SET NULL nao interfere
-            //  porque as CRs ja foram soft-deletadas acima)
+            // 4. vendas nao tem deleted_at nem trigger bloqueando — DELETE hard
+            //    (FK contas_receber.venda_id ON DELETE SET NULL nao interfere:
+            //     CRs ja estao soft-deletadas)
             const { error: vendaErr } = await ac.from("vendas").delete().eq("id", vendaId);
             if (vendaErr) throw vendaErr;
         },

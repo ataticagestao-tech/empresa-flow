@@ -901,16 +901,47 @@ export default function Clientes() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={async () => {
-                                                                        if (!confirm(`Excluir este lançamento?\n\n${crDescription(cr)}\nValor: ${formatBRL(Number(cr.valor ?? 0))}\n\nA exclusão é reversível — o registro é marcado como removido mas permanece no banco.`)) return;
-                                                                        const { error } = await (activeClient as any)
+                                                                        const valorPago = Number(cr.valor_pago ?? 0);
+                                                                        const isPago = cr.status === "pago" || valorPago > 0;
+
+                                                                        const msg = isPago
+                                                                            ? `Excluir este lançamento PAGO?\n\n${crDescription(cr)}\nValor pago: ${formatBRL(valorPago)}\n\n⚠ ATENÇÃO: o pagamento bancário continua registrado no banco — mas volta como PENDENTE DE CONCILIAÇÃO.\n\nVocê deve reclassificá-lo depois em Conciliação Bancária, vinculando ao cliente e categoria corretos.\n\nDeseja continuar?`
+                                                                            : `Excluir este lançamento?\n\n${crDescription(cr)}\nValor: ${formatBRL(Number(cr.valor ?? 0))}`;
+
+                                                                        if (!confirm(msg)) return;
+
+                                                                        const ac = activeClient as any;
+
+                                                                        // 1. Soft-delete da CR
+                                                                        const { error: crErr } = await ac
                                                                             .from("contas_receber")
                                                                             .update({ deleted_at: new Date().toISOString() })
                                                                             .eq("id", cr.id);
-                                                                        if (error) {
-                                                                            toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+                                                                        if (crErr) {
+                                                                            toast({ title: "Erro ao excluir", description: crErr.message, variant: "destructive" });
                                                                             return;
                                                                         }
-                                                                        toast({ title: "Lançamento excluído" });
+
+                                                                        // 2. Se pago, orfã as movimentacoes vinculadas (dinheiro permanece no banco)
+                                                                        if (isPago) {
+                                                                            const { error: movErr } = await ac
+                                                                                .from("movimentacoes")
+                                                                                .update({
+                                                                                    conta_receber_id: null,
+                                                                                    status_conciliacao: "pendente",
+                                                                                })
+                                                                                .eq("conta_receber_id", cr.id);
+                                                                            if (movErr) {
+                                                                                console.error("[excluir CR] erro ao orfanizar movimentacao:", movErr);
+                                                                            }
+                                                                        }
+
+                                                                        toast({
+                                                                            title: "Lançamento excluído",
+                                                                            description: isPago
+                                                                                ? "Pagamento disponível em Conciliação Bancária para reclassificação"
+                                                                                : undefined,
+                                                                        });
                                                                         buscarFinanceiroCliente(selectedClient);
                                                                     }}
                                                                     className="p-1 rounded text-[#999] hover:text-[#8b0000] hover:bg-[#fdecea] transition-colors cursor-pointer"
