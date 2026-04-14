@@ -324,7 +324,7 @@ export default function Clientes() {
 
         let query = activeClient
             .from("contas_receber")
-            .select("id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes, venda_id")
+            .select("id, valor, valor_pago, status, data_vencimento, data_pagamento, forma_recebimento, observacoes, venda_id, conta_contabil_id, categoria:chart_of_accounts(name, code)")
             .eq("company_id", selectedCompany.id)
             .order("data_vencimento", { ascending: false });
 
@@ -345,7 +345,28 @@ export default function Clientes() {
 
         const lista = data ?? [];
 
-        const aReceber = lista
+        // Busca conta bancaria de quitacao via movimentacoes (se houver)
+        const pagosIds = lista.filter(cr => cr.status === "pago" || (cr.valor_pago ?? 0) > 0).map(cr => cr.id);
+        const bankByCr: Record<string, string> = {};
+        if (pagosIds.length > 0) {
+            const { data: movs } = await activeClient
+                .from("movimentacoes")
+                .select("conta_receber_id, conta_bancaria:bank_accounts(name)")
+                .in("conta_receber_id", pagosIds)
+                .eq("tipo", "credito");
+            (movs || []).forEach((m: any) => {
+                if (m.conta_receber_id && m.conta_bancaria?.name) {
+                    bankByCr[m.conta_receber_id] = m.conta_bancaria.name;
+                }
+            });
+        }
+
+        const listaEnriquecida = lista.map((cr: any) => ({
+            ...cr,
+            bank_account_name: bankByCr[cr.id] || null,
+        }));
+
+        const aReceber = listaEnriquecida
             .filter(cr => !["pago", "cancelado"].includes(cr.status))
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
 
@@ -358,7 +379,7 @@ export default function Clientes() {
             )
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
 
-        const pagos = lista.filter(cr => cr.status === "pago");
+        const pagos = listaEnriquecida.filter(cr => cr.status === "pago");
         const totalPago = pagos.reduce((acc, cr) => acc + Number(cr.valor_pago ?? 0), 0);
 
         const pagosNoPrazo = pagos.filter(cr =>
@@ -367,15 +388,15 @@ export default function Clientes() {
             new Date(cr.data_pagamento) <= new Date(cr.data_vencimento)
         ).length;
 
-        const totalComprado = lista.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0);
+        const totalComprado = listaEnriquecida.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0);
 
-        const sortedByDate = [...lista].sort((a, b) =>
+        const sortedByDate = [...listaEnriquecida].sort((a, b) =>
             (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "")
         );
         const ultimaCompra = sortedByDate[0]?.data_vencimento ?? null;
 
         setDetailFinancial({
-            crs: lista,
+            crs: listaEnriquecida,
             aReceber,
             vencido,
             totalPago,
@@ -489,20 +510,51 @@ export default function Clientes() {
         return "Conta a receber";
     };
 
+    const formaPagamentoLabel = (v: string | null | undefined): string | null => {
+        if (!v) return null;
+        const map: Record<string, string> = {
+            cartao_credito: "Cartão de crédito",
+            cartao_debito: "Cartão de débito",
+            pix: "PIX",
+            boleto: "Boleto",
+            dinheiro: "Dinheiro",
+            transferencia: "Transferência",
+            parcelado: "Parcelado",
+            misto: "Misto",
+            reserva: "Reserva de data",
+        };
+        return map[v] || v;
+    };
+
     const crSubtext = (cr: any) => {
         const today = new Date();
         const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
 
+        const parts: string[] = [];
+
+        // Data (vencimento/pagamento com contexto)
         if (cr.status === "pago" && cr.data_pagamento) {
-            return `Pago em ${formatData(cr.data_pagamento)}${cr.forma_recebimento ? ` · ${cr.forma_recebimento}` : ""}`;
+            parts.push(`Pago ${formatData(cr.data_pagamento)}`);
+        } else if (cr.status === "vencido" || (venc && venc < today && cr.status !== "pago" && cr.status !== "cancelado")) {
+            parts.push(`Venceu ${formatData(cr.data_vencimento)} · ${diasAtraso(cr.data_vencimento)}`);
+        } else if (cr.status === "parcial") {
+            parts.push(`Parcial · vence ${formatData(cr.data_vencimento)}`);
+        } else {
+            parts.push(`Vence ${formatData(cr.data_vencimento)}`);
         }
-        if (cr.status === "vencido" || (venc && venc < today && cr.status !== "pago" && cr.status !== "cancelado")) {
-            return `Venceu em ${formatData(cr.data_vencimento)} · ${diasAtraso(cr.data_vencimento)}`;
-        }
-        if (cr.status === "parcial") {
-            return `Parcial — Vence em ${formatData(cr.data_vencimento)}`;
-        }
-        return `Vence em ${formatData(cr.data_vencimento)}`;
+
+        // Forma de pagamento
+        const forma = formaPagamentoLabel(cr.forma_recebimento);
+        if (forma) parts.push(forma);
+
+        // Categoria (conta contábil)
+        const categoria = cr.categoria?.name;
+        if (categoria) parts.push(categoria);
+
+        // Conta bancária (se quitado via movimentacao)
+        if (cr.bank_account_name) parts.push(cr.bank_account_name);
+
+        return parts.join(" · ");
     };
 
     const getCRDisplayStatus = (cr: any) => {
