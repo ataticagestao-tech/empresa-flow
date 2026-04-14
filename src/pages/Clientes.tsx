@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
+import { ContratosKpiCard } from "@/modules/clients/presentation/components/ContratosKpiCard";
 import { hasContratosByCompany } from "@/config/features";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -709,7 +710,9 @@ export default function Clientes() {
                             </div>
 
                             {/* KPIs do cliente */}
-                            <div className="grid grid-cols-4 gap-3 px-6 py-4 bg-white border-b border-[#e5e7eb]">
+                            <div className={`grid gap-3 px-6 py-4 bg-white border-b border-[#e5e7eb] ${
+                                hasContratosByCompany(selectedCompany) ? "grid-cols-5" : "grid-cols-4"
+                            }`}>
                                 <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
                                     <div className="bg-[#1a2e4a] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
@@ -770,6 +773,12 @@ export default function Clientes() {
                                         </div>
                                     </div>
                                 </div>
+                                {hasContratosByCompany(selectedCompany) && (
+                                    <ContratosKpiCard
+                                        clientCpfCnpj={selectedClient?.cpf_cnpj}
+                                        loading={detailLoading}
+                                    />
+                                )}
                             </div>
 
                             {/* Tabs do detalhe */}
