@@ -19,11 +19,9 @@ export interface ContratoVenda {
     valor_total: number;
     data_venda: string;
     data_contrato: string | null;
+    previsao_cirurgia: string | null;
     contrato_url: string | null;
-    forma_pagamento: string | null;
-    parcelas: number;
     status: string;
-    observacoes: string | null;
     crs: ContratoParcela[];
     total_pago: number;
     saldo: number;
@@ -50,7 +48,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
 
             const { data: vendas, error: vendasErr } = await ac
                 .from("vendas")
-                .select("id, cliente_nome, cliente_cpf_cnpj, tipo, valor_total, data_venda, data_contrato, contrato_url, forma_pagamento, parcelas, status, observacoes")
+                .select("id, cliente_nome, cliente_cpf_cnpj, tipo, valor_total, data_venda, data_contrato, previsao_cirurgia, contrato_url, status, observacoes")
                 .eq("company_id", selectedCompany!.id)
                 .eq("tipo", "contrato")
                 .eq("cliente_cpf_cnpj", docLimpo)
@@ -62,7 +60,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
             const ids = vendas.map((v: any) => v.id);
             const { data: crs, error: crsErr } = await ac
                 .from("contas_receber")
-                .select("id, venda_id, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes")
+                .select("id, venda_id, valor, valor_pago, data_vencimento, data_pagamento, status")
                 .in("venda_id", ids)
                 .order("data_vencimento", { ascending: true });
 
@@ -83,15 +81,13 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 const valor_total = parseFloat(v.valor_total || 0);
                 return {
                     id: v.id,
-                    descricao: v.observacoes || `Contrato de ${v.data_venda}`,
+                    descricao: v.observacoes || "Contrato",
                     valor_total,
                     data_venda: v.data_venda,
                     data_contrato: v.data_contrato,
+                    previsao_cirurgia: v.previsao_cirurgia,
                     contrato_url: v.contrato_url,
-                    forma_pagamento: v.forma_pagamento,
-                    parcelas: v.parcelas || parcelas.length,
                     status: v.status,
-                    observacoes: v.observacoes,
                     crs: parcelas,
                     total_pago,
                     saldo: valor_total - total_pago,
@@ -102,21 +98,17 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
     });
 
     /**
-     * Cria contrato (venda tipo=contrato) + CRs das parcelas.
+     * Cria contrato (venda tipo=contrato) sem gerar CRs.
+     * Pagamentos serao vinculados depois via Contas a Receber ou Conciliacao.
      */
     const createContrato = useMutation({
         mutationFn: async (input: {
             clientName: string;
             descricao: string;
-            modalidade: "fixo" | "variavel";
-            valor_total: number;
-            numero_parcelas: number;
-            data_inicio: string;
-            dia_vencimento: number;
-            data_contrato?: string;
-            parcelas_custom?: Array<{ valor: number; data_vencimento: string }>;
+            valor: number;
+            data_venda: string;
+            previsao_cirurgia?: string | null;
             contrato_url?: string | null;
-            observacoes?: string;
         }) => {
             if (!selectedCompany?.id) throw new Error("Empresa nao selecionada");
             const ac = activeClient as any;
@@ -128,12 +120,12 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                     cliente_nome: input.clientName,
                     cliente_cpf_cnpj: docLimpo,
                     tipo: "contrato",
-                    valor_total: input.valor_total,
-                    data_venda: input.data_inicio,
-                    data_contrato: input.data_contrato || input.data_inicio,
+                    valor_total: input.valor,
+                    data_venda: input.data_venda,
+                    data_contrato: input.data_venda,
+                    previsao_cirurgia: input.previsao_cirurgia || null,
                     contrato_url: input.contrato_url || null,
-                    forma_pagamento: "parcelado",
-                    parcelas: input.numero_parcelas,
+                    parcelas: 1,
                     status: "confirmado",
                     observacoes: input.descricao,
                 })
@@ -141,39 +133,11 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 .single();
 
             if (vendaErr) throw vendaErr;
-
-            const parcelas =
-                input.modalidade === "variavel" && input.parcelas_custom
-                    ? input.parcelas_custom
-                    : gerarParcelasFixas(
-                          input.valor_total,
-                          input.numero_parcelas,
-                          input.data_inicio,
-                          input.dia_vencimento
-                      );
-
-            const crsPayload = parcelas.map((p, i) => ({
-                company_id: selectedCompany.id,
-                pagador_nome: input.clientName,
-                pagador_cpf_cnpj: docLimpo,
-                valor: p.valor,
-                valor_pago: 0,
-                data_vencimento: p.data_vencimento,
-                status: "aberto" as const,
-                forma_recebimento: "parcelado",
-                venda_id: venda.id,
-                observacoes: `Contrato ${input.descricao} — parcela ${i + 1}/${parcelas.length}`,
-            }));
-
-            const { error: crsErr } = await ac.from("contas_receber").insert(crsPayload);
-            if (crsErr) throw crsErr;
-
             return venda.id as string;
         },
         onSuccess: () => {
             toast.success("Contrato criado com sucesso!");
             queryClient.invalidateQueries({ queryKey: ["client-contratos"] });
-            queryClient.invalidateQueries({ queryKey: ["contas-receber"] });
         },
         onError: (err: any) => {
             toast.error("Erro ao criar contrato: " + (err?.message || "desconhecido"));
@@ -194,7 +158,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
 
             if (pagas && pagas.length > 0) {
                 throw new Error(
-                    `Contrato tem ${pagas.length} parcela(s) paga(s). Cancele-o em Vendas em vez de excluir.`
+                    `Contrato tem ${pagas.length} pagamento(s) vinculado(s). Cancele-o em Vendas em vez de excluir.`
                 );
             }
 
@@ -256,27 +220,4 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
         deleteContrato,
         uploadContratoPdf,
     };
-}
-
-function gerarParcelasFixas(
-    valorTotal: number,
-    n: number,
-    dataInicio: string,
-    diaVenc: number
-): Array<{ valor: number; data_vencimento: string }> {
-    const valorParcela = Math.round((valorTotal / n) * 100) / 100;
-    const [y, m] = dataInicio.split("-").map((s) => parseInt(s, 10));
-
-    return Array.from({ length: n }, (_, i) => {
-        const d = new Date(y, m - 1 + i + 1, 1);
-        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-        const day = Math.min(diaVenc, lastDay);
-        const data = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-        const valor =
-            i === n - 1
-                ? Math.round((valorTotal - valorParcela * (n - 1)) * 100) / 100
-                : valorParcela;
-        return { valor, data_vencimento: data };
-    });
 }
