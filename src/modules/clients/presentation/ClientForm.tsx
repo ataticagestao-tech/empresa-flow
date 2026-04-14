@@ -4,11 +4,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 
+import { useCompany } from "@/contexts/CompanyContext";
 import { useClientForm } from "./hooks/useClientForm";
 import { ClientHeader } from "./partials/ClientHeader";
 import { TabAddress } from "./partials/TabAddress";
 import { TabContact } from "./partials/TabContact";
 import { TabTax } from "./partials/TabTax";
+import { TabContracts } from "./partials/TabContracts";
+
+const CONTRACT_COMPANY_MATCH = "HAIR OF BRASIL";
+
+function isContractEnabledCompany(c: { razao_social?: string | null; nome_fantasia?: string | null } | null | undefined): boolean {
+    if (!c) return false;
+    const hay = `${c.razao_social || ""} ${c.nome_fantasia || ""}`.toUpperCase();
+    return hay.includes(CONTRACT_COMPANY_MATCH);
+}
 
 interface ClientFormProps {
     onSuccess: () => void;
@@ -20,6 +30,8 @@ const cnaeOptions: Array<{ codigo: string; descricao: string; origem: "principal
 export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
     const { form, onSubmit, handleCepBlur, handleCnpjLookup, isLoadingAddress, isLoadingCnpj } = useClientForm({ onSuccess, initialData });
     const [activeTab, setActiveTab] = useState("endereco");
+    const { selectedCompany } = useCompany();
+    const showContracts = isContractEnabledCompany(selectedCompany) && !!initialData?.id;
 
     return (
         <Form {...form}>
@@ -51,6 +63,14 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                         >
                             Dados Fiscais
                         </TabsTrigger>
+                        {showContracts && (
+                            <TabsTrigger
+                                value="contratos"
+                                className="border-b-2 border-transparent data-[state=active]:border-[#1a2e4a] data-[state=active]:text-[#1a2e4a] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                            >
+                                Contratos
+                            </TabsTrigger>
+                        )}
                     </TabsList>
 
                     <TabsContent value="endereco">
@@ -64,6 +84,15 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                     <TabsContent value="fiscal">
                         <TabTax form={form} cnaeOptions={cnaeOptions} />
                     </TabsContent>
+
+                    {showContracts && (
+                        <TabsContent value="contratos">
+                            <TabContracts
+                                clientId={initialData?.id}
+                                clientName={initialData?.razao_social || initialData?.nome_fantasia}
+                            />
+                        </TabsContent>
+                    )}
                 </Tabs>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-[#e0e0e0]">
