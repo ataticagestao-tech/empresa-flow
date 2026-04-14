@@ -5,20 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 
 import { useCompany } from "@/contexts/CompanyContext";
+import { hasContratos } from "@/config/features";
 import { useClientForm } from "./hooks/useClientForm";
 import { ClientHeader } from "./partials/ClientHeader";
 import { TabAddress } from "./partials/TabAddress";
 import { TabContact } from "./partials/TabContact";
 import { TabTax } from "./partials/TabTax";
 import { TabContracts } from "./partials/TabContracts";
-
-const CONTRACT_COMPANY_MATCH = "HAIR OF BRASIL";
-
-function isContractEnabledCompany(c: { razao_social?: string | null; nome_fantasia?: string | null } | null | undefined): boolean {
-    if (!c) return false;
-    const hay = `${c.razao_social || ""} ${c.nome_fantasia || ""}`.toUpperCase();
-    return hay.includes(CONTRACT_COMPANY_MATCH);
-}
 
 interface ClientFormProps {
     onSuccess: () => void;
@@ -31,7 +24,7 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
     const { form, onSubmit, handleCepBlur, handleCnpjLookup, isLoadingAddress, isLoadingCnpj } = useClientForm({ onSuccess, initialData });
     const [activeTab, setActiveTab] = useState("endereco");
     const { selectedCompany } = useCompany();
-    const showContracts = isContractEnabledCompany(selectedCompany) && !!initialData?.id;
+    const showContracts = hasContratos(selectedCompany?.id) && !!initialData?.id;
 
     return (
         <Form {...form}>
