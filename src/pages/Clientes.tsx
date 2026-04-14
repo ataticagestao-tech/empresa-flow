@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientSheet } from "@/components/clients/ClientSheet";
+import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
+import { hasContratosByCompany } from "@/config/features";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -24,7 +26,7 @@ import {
 /* ─── Tipos de filtro ──────────────────────────────────────── */
 
 type FilterTab = "todos" | "ativos" | "inadimplentes" | "inativos";
-type DetailTab = "historico" | "dados" | "anotacoes";
+type DetailTab = "historico" | "dados" | "anotacoes" | "contratos";
 
 /* ─── Interfaces ───────────────────────────────────────────── */
 
@@ -774,6 +776,9 @@ export default function Clientes() {
                                 {([
                                     { key: "historico" as DetailTab, label: "Histórico financeiro" },
                                     { key: "dados" as DetailTab, label: "Dados cadastrais" },
+                                    ...(hasContratosByCompany(selectedCompany)
+                                        ? [{ key: "contratos" as DetailTab, label: "Contratos" }]
+                                        : []),
                                     { key: "anotacoes" as DetailTab, label: "Anotações" },
                                 ]).map(tab => (
                                     <button
@@ -895,6 +900,16 @@ export default function Clientes() {
                                                 Excluir
                                             </Button>
                                         </div>
+                                    </div>
+                                )}
+
+                                {detailTab === "contratos" && hasContratosByCompany(selectedCompany) && (
+                                    <div className="p-6">
+                                        <TabContracts
+                                            clientId={selectedClient.id}
+                                            clientName={selectedClient.razao_social || selectedClient.nome_fantasia}
+                                            clientCpfCnpj={selectedClient.cpf_cnpj}
+                                        />
                                     </div>
                                 )}
 
