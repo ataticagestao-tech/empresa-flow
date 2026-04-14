@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Plus, Trash2, FileText, Check, Upload, ExternalLink, Loader2, Paperclip,
+    Plus, Pencil, Trash2, FileText, Check, Upload, ExternalLink, Loader2, Paperclip,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,10 +42,11 @@ interface TabContractsProps {
 }
 
 export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContractsProps) {
-    const { contratos, isLoading, createContrato, deleteContrato, uploadContratoPdf } =
+    const { contratos, isLoading, createContrato, updateContratoMetadata, deleteContrato, uploadContratoPdf } =
         useClientContratos(clientCpfCnpj);
 
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [editTarget, setEditTarget] = useState<ContratoVenda | null>(null);
 
     if (!clientId) {
         return (
@@ -99,6 +100,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                         <ContratoCard
                             key={c.id}
                             contrato={c}
+                            onEdit={() => setEditTarget(c)}
                             onDelete={() => {
                                 if (confirm("Excluir este contrato? Parcelas em aberto serão removidas. Parcelas pagas impedem exclusão.")) {
                                     deleteContrato.mutate(c.id);
@@ -121,6 +123,16 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                 }}
                 saving={createContrato.isPending}
             />
+
+            <EditContratoDialog
+                contrato={editTarget}
+                onClose={() => setEditTarget(null)}
+                onSave={async (input) => {
+                    await updateContratoMetadata.mutateAsync(input);
+                    setEditTarget(null);
+                }}
+                saving={updateContratoMetadata.isPending}
+            />
         </div>
     );
 }
@@ -129,11 +141,13 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
 
 function ContratoCard({
     contrato,
+    onEdit,
     onDelete,
     onUploadPdf,
     uploading,
 }: {
     contrato: ContratoVenda;
+    onEdit: () => void;
     onDelete: () => void;
     onUploadPdf: (file: File) => void;
     uploading: boolean;
@@ -192,6 +206,16 @@ function ContratoCard({
                             e.target.value = "";
                         }}
                     />
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={onEdit}
+                        className="h-7 w-7 p-0"
+                        title="Editar contrato"
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                         type="button"
                         size="sm"
@@ -731,6 +755,181 @@ function SummaryCell({
                 {value}
             </p>
         </div>
+    );
+}
+
+/* ─── Dialog de edição (metadados apenas) ───────────────────── */
+
+interface EditContratoDialogProps {
+    contrato: ContratoVenda | null;
+    onClose: () => void;
+    onSave: (input: {
+        vendaId: string;
+        consultora?: string | null;
+        procedimento?: string;
+        data_venda?: string;
+        previsao_cirurgia?: string | null;
+        observacoes?: string | null;
+        status?: string;
+    }) => Promise<void>;
+    saving: boolean;
+}
+
+function EditContratoDialog({ contrato, onClose, onSave, saving }: EditContratoDialogProps) {
+    const [consultora, setConsultora] = useState("");
+    const [procedimento, setProcedimento] = useState(PROCEDIMENTOS[0]);
+    const [procedimentoOutro, setProcedimentoOutro] = useState("");
+    const [dataVenda, setDataVenda] = useState("");
+    const [previsaoCirurgia, setPrevisaoCirurgia] = useState("");
+    const [status, setStatus] = useState("confirmado");
+
+    const open = !!contrato;
+
+    // Popula estado quando abre com um contrato
+    useEffect(() => {
+        if (contrato) {
+            setConsultora(contrato.consultora || "");
+            const procIsKnown = PROCEDIMENTOS.includes(contrato.procedimento || "");
+            setProcedimento(procIsKnown ? contrato.procedimento! : "Outro");
+            setProcedimentoOutro(procIsKnown ? "" : contrato.procedimento || "");
+            setDataVenda(contrato.data_venda || "");
+            setPrevisaoCirurgia(contrato.previsao_cirurgia || "");
+            setStatus(contrato.status || "confirmado");
+        }
+    }, [contrato?.id]);
+
+    const handleSubmit = async () => {
+        if (!contrato) return;
+        const proc = procedimento === "Outro" ? procedimentoOutro.trim() : procedimento;
+        if (!proc) return alert("Procedimento é obrigatório");
+        if (!dataVenda) return alert("Data de assinatura é obrigatória");
+
+        await onSave({
+            vendaId: contrato.id,
+            consultora: consultora.trim() || null,
+            procedimento: proc,
+            data_venda: dataVenda,
+            previsao_cirurgia: previsaoCirurgia || null,
+            status,
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="max-w-xl p-0 gap-0">
+                <div className="px-7 pt-6 pb-4 border-b border-[#eef0f3]">
+                    <DialogTitle className="text-[16px] font-bold text-[#1a2e4a]">
+                        Editar contrato
+                    </DialogTitle>
+                    <DialogDescription className="text-[11px] text-[#6b7280] mt-1">
+                        Apenas metadados. Para alterar valor, reserva ou parcelas, exclua e crie novamente.
+                    </DialogDescription>
+                </div>
+
+                <div className="px-7 py-5 space-y-4 bg-[#fafbfc]">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field label="Consultora responsável">
+                            <Input
+                                value={consultora}
+                                onChange={(e) => setConsultora(e.target.value)}
+                                placeholder="Ex: Mariana Melo"
+                                className="h-10 bg-white"
+                            />
+                        </Field>
+                        <Field label="Procedimento">
+                            <Select value={procedimento} onValueChange={setProcedimento}>
+                                <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {PROCEDIMENTOS.map((p) => (
+                                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {procedimento === "Outro" && (
+                                <Input
+                                    className="mt-2 h-10 bg-white"
+                                    value={procedimentoOutro}
+                                    onChange={(e) => setProcedimentoOutro(e.target.value)}
+                                    placeholder="Especifique"
+                                />
+                            )}
+                        </Field>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                        <Field label="Data assinatura">
+                            <Input
+                                type="date"
+                                value={dataVenda}
+                                onChange={(e) => setDataVenda(e.target.value)}
+                                className="h-10 bg-white"
+                            />
+                        </Field>
+                        <Field label="Previsão cirurgia">
+                            <Input
+                                type="date"
+                                value={previsaoCirurgia}
+                                onChange={(e) => setPrevisaoCirurgia(e.target.value)}
+                                className="h-10 bg-white"
+                            />
+                        </Field>
+                        <Field label="Status">
+                            <Select value={status} onValueChange={setStatus}>
+                                <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="confirmado">Ativo</SelectItem>
+                                    <SelectItem value="orcamento">Orçamento</SelectItem>
+                                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                    </div>
+
+                    {contrato && (
+                        <div className="mt-2 p-3 rounded border border-[#e5e7eb] bg-white">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af] mb-2">
+                                Financeiro (somente leitura)
+                            </p>
+                            <div className="grid grid-cols-4 gap-3 text-[11px]">
+                                <div>
+                                    <p className="text-[#9ca3af]">Valor total</p>
+                                    <p className="font-bold text-[#1a2e4a] tabular-nums">{formatBRL(contrato.valor_total)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[#9ca3af]">Reserva</p>
+                                    <p className="font-bold text-[#1a2e4a] tabular-nums">{formatBRL(contrato.reserva_valor || 0)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[#9ca3af]">Pago</p>
+                                    <p className="font-bold text-[#0a5c2e] tabular-nums">{formatBRL(contrato.total_pago)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[#9ca3af]">Saldo</p>
+                                    <p className="font-bold tabular-nums" style={{ color: contrato.saldo > 0 ? "#8b0000" : "#0a5c2e" }}>
+                                        {formatBRL(contrato.saldo)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="px-7 py-4 border-t border-[#eef0f3] bg-white flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={onClose} disabled={saving} className="h-10 px-5">
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={saving}
+                        className="h-10 px-6 bg-[#1a2e4a] hover:bg-[#0f1f33] text-white"
+                    >
+                        {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+                        Salvar alterações
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 

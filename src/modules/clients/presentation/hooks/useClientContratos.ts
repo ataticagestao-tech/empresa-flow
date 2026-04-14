@@ -231,6 +231,48 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
         },
     });
 
+    /**
+     * Atualiza APENAS metadados (nao-financeiros) de um contrato existente.
+     * Financeiros (valor_total, reserva, condicoes) nao sao editaveis — se
+     * precisar mudar, excluir e recriar.
+     */
+    const updateContratoMetadata = useMutation({
+        mutationFn: async (input: {
+            vendaId: string;
+            consultora?: string | null;
+            procedimento?: string;
+            data_venda?: string;
+            previsao_cirurgia?: string | null;
+            observacoes?: string | null;
+            status?: string;
+        }) => {
+            const ac = activeClient as any;
+            const patch: Record<string, any> = {};
+            if (input.consultora !== undefined) patch.consultora = input.consultora;
+            if (input.procedimento !== undefined) {
+                patch.procedimento = input.procedimento;
+                patch.observacoes = input.procedimento;
+            }
+            if (input.data_venda !== undefined) {
+                patch.data_venda = input.data_venda;
+                patch.data_contrato = input.data_venda;
+            }
+            if (input.previsao_cirurgia !== undefined) patch.previsao_cirurgia = input.previsao_cirurgia;
+            if (input.observacoes !== undefined) patch.observacoes = input.observacoes;
+            if (input.status !== undefined) patch.status = input.status;
+
+            const { error } = await ac.from("vendas").update(patch).eq("id", input.vendaId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success("Contrato atualizado");
+            queryClient.invalidateQueries({ queryKey: ["client-contratos"] });
+        },
+        onError: (err: any) => {
+            toast.error(err?.message || "Erro ao atualizar contrato");
+        },
+    });
+
     const deleteContrato = useMutation({
         mutationFn: async (vendaId: string) => {
             const ac = activeClient as any;
@@ -298,6 +340,7 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
         contratos: query.data || [],
         isLoading: query.isLoading,
         createContrato,
+        updateContratoMetadata,
         deleteContrato,
         uploadContratoPdf,
     };
