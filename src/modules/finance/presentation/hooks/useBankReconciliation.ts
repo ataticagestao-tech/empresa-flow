@@ -386,6 +386,8 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     company_id: companyId,
                     conta_bancaria_id: bankTx.bank_account_id,
                     conta_contabil_id: accountId,
+                    conta_receber_id: sysTx.type === 'receivable' ? sysTx.id : null,
+                    conta_pagar_id: sysTx.type === 'payable' ? sysTx.id : null,
                     tipo: sysTx.type === 'payable' ? 'debito' : 'credito',
                     valor: amount,
                     data: date,
@@ -534,14 +536,103 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
     });
 
     // Mutation: Deletar lote de importação
+    // Para transações já conciliadas, reverte a baixa no CR/CP e remove a movimentação
+    // antes de deletar o bank_transaction (bank_reconciliation_matches cai por CASCADE).
     const deleteImportBatch = useMutation({
         mutationFn: async (txIds: string[]) => {
             if (!txIds.length) throw new Error("Nenhuma transação para deletar");
 
-            // Deletar em batches de 50 (limite do Supabase IN filter)
             const batchSize = 50;
+            let revertedCR = 0;
+            let revertedCP = 0;
+            let removedMovs = 0;
+
             for (let i = 0; i < txIds.length; i += batchSize) {
                 const batch = txIds.slice(i, i + batchSize);
+
+                // 1. Buscar detalhes (precisamos saber quais estão conciliadas e o link com CR/CP)
+                const { data: bankTxs, error: fetchError } = await (activeClient as any)
+                    .from('bank_transactions')
+                    .select('id, status, amount, date, bank_account_id, reconciled_payable_id, reconciled_receivable_id')
+                    .in('id', batch);
+                if (fetchError) throw fetchError;
+
+                const reconciled = (bankTxs || []).filter((t: any) => t.status === 'reconciled');
+
+                // 2. Reverter baixa em CR/CP + remover movimentação para cada conciliada
+                for (const tx of reconciled) {
+                    const absAmount = Math.abs(Number(tx.amount || 0));
+
+                    if (tx.reconciled_receivable_id) {
+                        const { error: crError } = await (activeClient as any)
+                            .from('contas_receber')
+                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                            .eq('id', tx.reconciled_receivable_id);
+                        if (crError) throw crError;
+                        revertedCR++;
+
+                        // Caminho principal: FK direta (para movimentações novas)
+                        const { data: movsByFk, error: movFkError } = await (activeClient as any)
+                            .from('movimentacoes')
+                            .delete()
+                            .eq('conta_receber_id', tx.reconciled_receivable_id)
+                            .select('id');
+                        if (movFkError) throw movFkError;
+                        removedMovs += movsByFk?.length || 0;
+
+                        // Fallback: dados antigos sem FK preenchida (composto)
+                        if (!movsByFk?.length) {
+                            const { data: movsLegacy, error: movLegacyError } = await (activeClient as any)
+                                .from('movimentacoes')
+                                .delete()
+                                .eq('company_id', companyId)
+                                .eq('conta_bancaria_id', tx.bank_account_id)
+                                .eq('data', tx.date)
+                                .eq('valor', absAmount)
+                                .eq('origem', 'conta_receber')
+                                .is('conta_receber_id', null)
+                                .select('id');
+                            if (movLegacyError) throw movLegacyError;
+                            removedMovs += movsLegacy?.length || 0;
+                        }
+                    }
+
+                    if (tx.reconciled_payable_id) {
+                        const { error: cpError } = await (activeClient as any)
+                            .from('contas_pagar')
+                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                            .eq('id', tx.reconciled_payable_id);
+                        if (cpError) throw cpError;
+                        revertedCP++;
+
+                        // Caminho principal: FK direta
+                        const { data: movsByFk, error: movFkError } = await (activeClient as any)
+                            .from('movimentacoes')
+                            .delete()
+                            .eq('conta_pagar_id', tx.reconciled_payable_id)
+                            .select('id');
+                        if (movFkError) throw movFkError;
+                        removedMovs += movsByFk?.length || 0;
+
+                        // Fallback: dados antigos sem FK preenchida
+                        if (!movsByFk?.length) {
+                            const { data: movsLegacy, error: movLegacyError } = await (activeClient as any)
+                                .from('movimentacoes')
+                                .delete()
+                                .eq('company_id', companyId)
+                                .eq('conta_bancaria_id', tx.bank_account_id)
+                                .eq('data', tx.date)
+                                .eq('valor', absAmount)
+                                .eq('origem', 'conta_pagar')
+                                .is('conta_pagar_id', null)
+                                .select('id');
+                            if (movLegacyError) throw movLegacyError;
+                            removedMovs += movsLegacy?.length || 0;
+                        }
+                    }
+                }
+
+                // 3. Deletar bank_transactions (CASCADE remove bank_reconciliation_matches)
                 const { error } = await (activeClient as any)
                     .from('bank_transactions')
                     .delete()
@@ -549,13 +640,20 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 if (error) throw error;
             }
 
-            return txIds.length;
+            return { count: txIds.length, revertedCR, revertedCP, removedMovs };
         },
-        onSuccess: (count) => {
-            toast({ title: "Extrato excluído", description: `${count} transações removidas.` });
+        onSuccess: ({ count, revertedCR, revertedCP, removedMovs }) => {
+            const parts = [`${count} transações removidas`];
+            if (revertedCR > 0) parts.push(`${revertedCR} CR revertidas`);
+            if (revertedCP > 0) parts.push(`${revertedCP} CP revertidas`);
+            if (removedMovs > 0) parts.push(`${removedMovs} movimentações removidas`);
+            toast({ title: "Extrato excluído", description: parts.join(' · ') });
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['import_history'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['contas_receber'] });
+            queryClient.invalidateQueries({ queryKey: ['contas_pagar'] });
+            queryClient.invalidateQueries({ queryKey: ['movimentacoes'] });
         },
         onError: (err: any) => toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" })
     });

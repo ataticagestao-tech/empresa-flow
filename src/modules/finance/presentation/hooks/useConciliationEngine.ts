@@ -119,6 +119,26 @@ function extractBeneficiary(description: string): string | null {
     return null;
 }
 
+const NAME_STOP_WORDS = new Set([
+    "DA", "DE", "DO", "DAS", "DOS", "E", "DI", "LA", "LE",
+    "LTDA", "ME", "EPP", "SA", "EIRELI", "SOCIEDADE",
+]);
+
+/** True when two normalized names share >=2 meaningful words (ignores stop words + <3 char tokens). */
+function nameMatches(beneficiaryNorm: string, entityNorm: string): boolean {
+    const benWords = beneficiaryNorm.split(/\s+/).filter(w => w.length >= 3 && !NAME_STOP_WORDS.has(w));
+    const entSet = new Set(entityNorm.split(/\s+/).filter(w => w.length >= 3 && !NAME_STOP_WORDS.has(w)));
+    if (benWords.length === 0 || entSet.size === 0) return false;
+    let matches = 0;
+    for (const w of benWords) {
+        if (entSet.has(w)) {
+            matches++;
+            if (matches >= 2) return true;
+        }
+    }
+    return false;
+}
+
 /** Extract meaningful keywords from bank description for matching */
 function extractKeywordsForRule(description: string): string[] {
     const keywords: string[] = [];
@@ -461,6 +481,9 @@ function runMatchingEngine(
     let bestScore = 0;
     let bestResult: MatchSuggestion | null = null;
 
+    const beneficiary = extractBeneficiary(bt.description);
+    const beneficiaryNorm = beneficiary ? normalizeText(beneficiary) : null;
+
     for (const st of narrowCandidates) {
         const stAmount = Number(st.amount);
         const diff = stAmount - absAmount;
@@ -481,10 +504,19 @@ function runMatchingEngine(
         else if (exato && diffDays <= 35) { score = 60; method = "exact_amount"; label += ` (D+${Math.round(diffDays)})`; }
         else if (extratoMenor && pct <= 0.07 && diffDays <= 60) { score = 50; method = "taxa_maquininha"; label += ` (taxa ~${(pct*100).toFixed(1)}%, D+${Math.round(diffDays)})`; }
 
+        // Boost por nome do beneficiário (+15 aditivo, clampado em 100)
+        if (score > 0 && beneficiaryNorm && st.entity_name) {
+            const entityNorm = normalizeText(st.entity_name);
+            if (nameMatches(beneficiaryNorm, entityNorm)) {
+                score = Math.min(100, score + 15);
+                label += ` ✓ ${beneficiary}`;
+            }
+        }
+
         if (score > bestScore) {
             bestScore = score;
             bestResult = { ...base, systemTransaction: st, score, method, label };
-            if (score >= 95) return bestResult;
+            if (score >= 100) return bestResult;
         }
     }
 
