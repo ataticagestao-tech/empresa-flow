@@ -16,7 +16,7 @@ export const ClientSchema = z.object({
     // Contato
     contato_nome: z.string().nullish(),
     email: z.string().nullish(),
-    telefone: z.string().min(1, "Telefone obrigatório"),
+    telefone: z.string().nullish(),
     telefone_2: z.string().nullish(),
     celular: z.string().nullish(),
     fax: z.string().nullish(),
