@@ -36,10 +36,9 @@ export interface ContratoVenda {
 }
 
 export interface CondicaoPagamento {
-    forma: string;               // cartao_credito, pix, boleto, transferencia, dinheiro
-    valor: number;               // valor total desta condicao
-    parcelas: number;            // 1 = a vista; >1 = parcelado
-    data_primeira?: string | null; // data da primeira parcela (ISO yyyy-mm-dd); se null, usa data_venda + 1 mes
+    forma: string;          // cartao_credito, pix, boleto, transferencia, dinheiro
+    valor: number;          // valor total desta condicao
+    parcelas: number;       // 1 = a vista; >1 = parcelado
 }
 
 export interface CreateContratoInput {
@@ -187,24 +186,14 @@ export function useClientContratos(clientCpfCnpj: string | null | undefined) {
                 });
             }
 
-            const [yFallback, mFallback, dFallback] = input.data_venda.split("-").map((s) => parseInt(s, 10));
+            const [y, m, d] = input.data_venda.split("-").map((s) => parseInt(s, 10));
 
             input.condicoes.forEach((cond, condIdx) => {
                 const n = Math.max(cond.parcelas || 1, 1);
                 const valorParcela = Math.round((cond.valor / n) * 100) / 100;
 
-                // Primeira parcela: usa data_primeira da condicao, ou fallback data_venda + 1 mes
-                let y = yFallback;
-                let m = mFallback;
-                let d = dFallback;
-                let baseOffset = 1; // fallback: comeca no mes seguinte a data_venda
-                if (cond.data_primeira) {
-                    [y, m, d] = cond.data_primeira.split("-").map((s) => parseInt(s, 10));
-                    baseOffset = 0;
-                }
-
                 for (let i = 0; i < n; i++) {
-                    const dataVenc = new Date(y, m - 1 + i + baseOffset, d);
+                    const dataVenc = new Date(y, m - 1 + i + 1, d);
                     const iso = `${dataVenc.getFullYear()}-${String(dataVenc.getMonth() + 1).padStart(2, "0")}-${String(dataVenc.getDate()).padStart(2, "0")}`;
                     const valor =
                         i === n - 1

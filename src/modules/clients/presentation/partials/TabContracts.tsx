@@ -318,9 +318,9 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
     const [reservaValor, setReservaValor] = useState("");
     const [reservaData, setReservaData] = useState("");
 
-    type CondicaoForm = { forma: string; valor: string; parcelas: string; data_primeira: string };
+    type CondicaoForm = { forma: string; valor: string; parcelas: string };
     const [condicoes, setCondicoes] = useState<CondicaoForm[]>([
-        { forma: "cartao_credito", valor: "", parcelas: "10", data_primeira: "" },
+        { forma: "cartao_credito", valor: "", parcelas: "10" },
     ]);
 
     const resetOnOpen = (v: boolean) => {
@@ -333,7 +333,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
             setPrevisaoCirurgia("");
             setReservaValor("");
             setReservaData("");
-            setCondicoes([{ forma: "cartao_credito", valor: "", parcelas: "10", data_primeira: "" }]);
+            setCondicoes([{ forma: "cartao_credito", valor: "", parcelas: "10" }]);
         }
         onOpenChange(v);
     };
@@ -342,7 +342,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
         f === "cartao_credito" || f === "boleto";
 
     const addCondicao = () =>
-        setCondicoes((prev) => [...prev, { forma: "pix", valor: "", parcelas: "1", data_primeira: "" }]);
+        setCondicoes((prev) => [...prev, { forma: "pix", valor: "", parcelas: "1" }]);
 
     const removeCondicao = (idx: number) =>
         setCondicoes((prev) => prev.filter((_, i) => i !== idx));
@@ -377,14 +377,8 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                 forma: c.forma,
                 valor: parseFloat(c.valor) || 0,
                 parcelas: podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1,
-                data_primeira: c.data_primeira || null,
             }))
             .filter((c) => c.valor > 0);
-
-        const faltaData = condicoesValidas.find((c) => !c.data_primeira);
-        if (faltaData) {
-            return alert("Informe a data da primeira parcela em cada condição de pagamento.");
-        }
 
         if (condicoesValidas.length === 0 && calc.saldo > 0) {
             return alert("Adicione pelo menos uma condição de pagamento para o saldo");
@@ -597,7 +591,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                 return (
                                     <div
                                         key={idx}
-                                        className="grid grid-cols-[1fr_110px_65px_140px_1fr_32px] gap-2 items-end"
+                                        className="grid grid-cols-[1fr_130px_90px_1fr_32px] gap-2.5 items-end"
                                     >
                                         <div>
                                             {idx === 0 && <MiniLabel>Condição</MiniLabel>}
@@ -624,7 +618,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                             />
                                         </div>
                                         <div>
-                                            {idx === 0 && <MiniLabel>Parc.</MiniLabel>}
+                                            {idx === 0 && <MiniLabel>Parcelas</MiniLabel>}
                                             <Input
                                                 type="number"
                                                 min="1"
@@ -633,15 +627,6 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                                 onChange={(e) => updateCondicao(idx, "parcelas", e.target.value)}
                                                 disabled={!podeParcelarForma(c.forma)}
                                                 className="h-9 bg-white tabular-nums text-center"
-                                            />
-                                        </div>
-                                        <div>
-                                            {idx === 0 && <MiniLabel>1ª parcela</MiniLabel>}
-                                            <Input
-                                                type="date"
-                                                value={c.data_primeira}
-                                                onChange={(e) => updateCondicao(idx, "data_primeira", e.target.value)}
-                                                className="h-9 bg-white tabular-nums"
                                             />
                                         </div>
                                         <div>
