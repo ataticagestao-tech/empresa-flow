@@ -43,12 +43,18 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
     // Populando form com dados iniciais (Edição)
     useEffect(() => {
         if (initialData) {
+            // Normaliza null -> "" para evitar quebra do zod em campos string
+            const normalized: Record<string, any> = {};
+            for (const key in initialData) {
+                const v = initialData[key];
+                normalized[key] = v === null ? "" : v;
+            }
+
             const maskedData = {
-                ...initialData,
+                ...normalized,
                 cep: maskCEP(initialData.endereco_cep || ""),
                 cpf_cnpj: initialData.tipo_pessoa === "PJ" ? maskCNPJ(initialData.cpf_cnpj || "") : maskCPF(initialData.cpf_cnpj || ""),
                 telefone: maskPhone(initialData.telefone || ""),
-                // ... outros campos mascarados conforme necessidade
             };
             form.reset(maskedData);
         }
