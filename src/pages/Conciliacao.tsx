@@ -124,7 +124,8 @@ export default function Conciliacao() {
         uploadExcel,
         uploadCreditCardPDF,
         matchTransaction,
-        deleteImportBatch
+        deleteImportBatch,
+        deleteProgress,
     } = useBankReconciliation(selectedAccountId);
 
     const selectedAccount = accounts?.find((a: any) => a.id === selectedAccountId);
@@ -1185,6 +1186,14 @@ export default function Conciliacao() {
                                                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
                                                                 <p className="text-sm font-bold">{imp.count}</p>
                                                             </div>
+                                                            {deleteImportBatch.isPending && deleteProgress ? (
+                                                                <div className="text-right min-w-[90px]">
+                                                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Progresso</p>
+                                                                    <p className="text-sm font-bold text-blue-600">
+                                                                        {deleteProgress.processed}/{deleteProgress.total}
+                                                                    </p>
+                                                                </div>
+                                                            ) : null}
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
