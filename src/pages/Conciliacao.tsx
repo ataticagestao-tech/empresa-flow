@@ -746,24 +746,35 @@ export default function Conciliacao() {
             return;
         }
 
-        // Validar: itens sem conta contábil não alimentam DRE/BP/DFC
+        // Itens sem conta contábil são pulados (não alimentam DRE/BP/DFC).
+        // Processa apenas os que têm categoria; avisa a quantidade pulada.
         const semConta = toApprove.filter(s => !s.accountId);
-        if (semConta.length > 0) {
+        const comConta = toApprove.filter(s => !!s.accountId);
+
+        if (comConta.length === 0) {
             toast({
-                title: "Conta contábil obrigatória",
-                description: `${semConta.length} transação(ões) sem conta contábil. Classifique antes de conciliar para alimentar DRE, BP e Fluxo de Caixa.`,
+                title: "Nenhum item com conta contábil",
+                description: `Todos os ${semConta.length} itens selecionados estão sem categoria. Classifique ao menos um antes de conciliar.`,
                 variant: "destructive",
             });
             return;
         }
 
-        const total = toApprove.length;
+        if (semConta.length > 0) {
+            toast({
+                title: `${semConta.length} item(ns) pulados`,
+                description: `Sem conta contábil — serão ignorados. ${comConta.length} serão conciliados.`,
+            });
+        }
+
+        const effectiveToApprove = comConta;
+        const total = effectiveToApprove.length;
         let totalSuccess = 0;
         let totalFailed = 0;
         setBatchProgress({ total, done: 0, success: 0, failed: 0 });
 
         // Montar items para RPC
-        const items = toApprove.map(s => ({
+        const items = effectiveToApprove.map(s => ({
             bank_tx_id: s.bankTransaction.id,
             amount: Math.abs(s.bankTransaction.amount),
             date: s.bankTransaction.date,
@@ -795,7 +806,7 @@ export default function Conciliacao() {
         }
 
         // Aprender regra para CADA transação (descrição + tipo + valor + categoria)
-        for (const s of toApprove) {
+        for (const s of effectiveToApprove) {
             learnRule.mutate({ bankTx: s.bankTransaction, categoryId: s.accountId || undefined });
         }
 
