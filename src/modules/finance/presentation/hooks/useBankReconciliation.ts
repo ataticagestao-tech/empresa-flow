@@ -761,26 +761,68 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 }
 
                 // 6. Deletar bank_transactions (CASCADE remove bank_reconciliation_matches)
-                const { error } = await (activeClient as any)
+                const { data: deletedRows, error } = await (activeClient as any)
                     .from('bank_transactions')
                     .delete()
-                    .in('id', batch);
-                if (error) throw error;
+                    .in('id', batch)
+                    .select('id');
+                if (error) {
+                    console.error('[deleteImportBatch] bank_transactions delete falhou:', error);
+                    throw error;
+                }
+                const realDeleted = deletedRows?.length || 0;
+                const missedBankTx = batch.length - realDeleted;
+                if (missedBankTx > 0) {
+                    console.warn(`[deleteImportBatch] bank_transactions: esperado ${batch.length}, deletado ${realDeleted} — ${missedBankTx} linha(s) silenciadas (RLS provavelmente)`);
+                }
+                deletedBankTx += realDeleted;
+                skipped.bankTx += missedBankTx;
 
                 setDeleteProgress({ processed: Math.min(i + batchSize, txIds.length), total: txIds.length });
             }
 
             setDeleteProgress(null);
-            return { count: txIds.length, revertedCR, revertedCP, softDeletedCR, softDeletedCP, removedMovs };
+
+            const totalSkipped = skipped.crSoftDelete + skipped.crRevert + skipped.cpSoftDelete + skipped.cpRevert + skipped.bankTx;
+            if (totalSkipped > 0) {
+                console.warn('[deleteImportBatch] Resumo de linhas silenciadas:', skipped);
+            }
+
+            return {
+                count: deletedBankTx,
+                requested: txIds.length,
+                revertedCR,
+                revertedCP,
+                softDeletedCR,
+                softDeletedCP,
+                removedMovs,
+                skipped,
+            };
         },
-        onSuccess: ({ count, revertedCR, revertedCP, softDeletedCR, softDeletedCP, removedMovs }) => {
-            const parts = [`${count} transações removidas`];
+        onSuccess: ({ count, requested, revertedCR, revertedCP, softDeletedCR, softDeletedCP, removedMovs, skipped }) => {
+            const parts = [`${count}/${requested} transações removidas`];
             if (softDeletedCR > 0) parts.push(`${softDeletedCR} CR excluídos`);
             if (softDeletedCP > 0) parts.push(`${softDeletedCP} CP excluídos`);
             if (revertedCR > 0) parts.push(`${revertedCR} CR revertidas`);
             if (revertedCP > 0) parts.push(`${revertedCP} CP revertidas`);
             if (removedMovs > 0) parts.push(`${removedMovs} movimentações removidas`);
-            toast({ title: "Extrato excluído", description: parts.join(' · ') });
+
+            const totalSkipped = skipped.crSoftDelete + skipped.crRevert + skipped.cpSoftDelete + skipped.cpRevert + skipped.bankTx;
+            if (totalSkipped > 0) {
+                const skipParts: string[] = [];
+                if (skipped.bankTx > 0) skipParts.push(`${skipped.bankTx} bank_tx`);
+                if (skipped.crSoftDelete > 0) skipParts.push(`${skipped.crSoftDelete} CR soft-del`);
+                if (skipped.crRevert > 0) skipParts.push(`${skipped.crRevert} CR revert`);
+                if (skipped.cpSoftDelete > 0) skipParts.push(`${skipped.cpSoftDelete} CP soft-del`);
+                if (skipped.cpRevert > 0) skipParts.push(`${skipped.cpRevert} CP revert`);
+                toast({
+                    title: "Exclusão parcial — algumas linhas foram silenciadas",
+                    description: `${parts.join(' · ')}\nSilenciadas: ${skipParts.join(', ')} (ver console)`,
+                    variant: "destructive",
+                });
+            } else {
+                toast({ title: "Extrato excluído", description: parts.join(' · ') });
+            }
             queryClient.invalidateQueries({ queryKey: ['bank_transactions_pending'] });
             queryClient.invalidateQueries({ queryKey: ['import_history'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });

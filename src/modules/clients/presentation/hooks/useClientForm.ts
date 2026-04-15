@@ -46,7 +46,7 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
             const maskedData = {
                 ...initialData,
                 cep: maskCEP(initialData.endereco_cep || ""),
-                cpf_cnpj: initialData.tipo_pessoa === "PJ" ? maskCNPJ(initialData.cpf_cnpj) : maskCPF(initialData.cpf_cnpj),
+                cpf_cnpj: initialData.tipo_pessoa === "PJ" ? maskCNPJ(initialData.cpf_cnpj || "") : maskCPF(initialData.cpf_cnpj || ""),
                 telefone: maskPhone(initialData.telefone || ""),
                 // ... outros campos mascarados conforme necessidade
             };
