@@ -530,7 +530,18 @@ function runMatchingEngine(
 
         if (score > bestScore) {
             bestScore = score;
-            bestResult = { ...base, systemTransaction: st, score, method, label };
+            const stAccountId = (st as any).conta_contabil_id || undefined;
+            const stAccount = stAccountId ? accountMap.get(stAccountId) : null;
+            bestResult = {
+                ...base,
+                systemTransaction: st,
+                score,
+                method,
+                label,
+                accountId: stAccountId,
+                accountCode: stAccount?.code,
+                accountName: stAccount?.name,
+            };
             if (score >= 100) return bestResult;
         }
     }

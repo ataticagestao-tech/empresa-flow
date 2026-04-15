@@ -21,6 +21,7 @@ export interface SystemTransaction {
     status: string;
     entity_name?: string; // Nome do fornecedor ou cliente
     original_table_id: string; // ID na tabela original
+    conta_contabil_id?: string | null; // categoria contabil ja definida no lancamento
 }
 
 function hashString(input: string): string {
@@ -98,13 +99,13 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const [payResult, recResult, reconciledResult] = await Promise.all([
                 (activeClient as any)
                     .from('contas_pagar')
-                    .select('id, credor_nome, valor, data_vencimento, status')
+                    .select('id, credor_nome, valor, data_vencimento, status, conta_contabil_id')
                     .eq('company_id', companyId)
                     .eq('status', 'aberto')
                     .limit(1000),
                 (activeClient as any)
                     .from('contas_receber')
-                    .select('id, pagador_nome, valor, data_vencimento, status')
+                    .select('id, pagador_nome, valor, data_vencimento, status, conta_contabil_id')
                     .eq('company_id', companyId)
                     .in('status', ['aberto', 'parcial', 'vencido'])
                     .limit(1000),
@@ -139,7 +140,8 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     date: p.data_vencimento,
                     status: p.status,
                     entity_name: p.credor_nome || 'Fornecedor avulso',
-                    original_table_id: p.id
+                    original_table_id: p.id,
+                    conta_contabil_id: p.conta_contabil_id || null,
                 });
             });
 
@@ -154,7 +156,8 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     date: r.data_vencimento,
                     status: jaConciliado ? 'conciliado' : r.status,
                     entity_name: r.pagador_nome || 'Cliente avulso',
-                    original_table_id: r.id
+                    original_table_id: r.id,
+                    conta_contabil_id: r.conta_contabil_id || null,
                 });
             });
 
@@ -567,6 +570,14 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             let softDeletedCR = 0;
             let softDeletedCP = 0;
             let removedMovs = 0;
+            let deletedBankTx = 0;
+            const skipped = {
+                crSoftDelete: 0,
+                crRevert: 0,
+                cpSoftDelete: 0,
+                cpRevert: 0,
+                bankTx: 0,
+            };
             setDeleteProgress({ processed: 0, total: txIds.length });
             const nowIso = new Date().toISOString();
 
@@ -622,39 +633,71 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     }
                 }
 
-                // 3. Bulk updates em paralelo
-                const updateOps: Promise<any>[] = [];
+                // 3. Bulk updates em paralelo — usar .select('id') pra contar linhas reais afetadas
+                type UpdateTag = 'crSoft' | 'crRevert' | 'cpSoft' | 'cpRevert';
+                const tagged: { tag: UpdateTag; expected: number; promise: Promise<any> }[] = [];
                 if (crSoftDeleteIds.size) {
-                    updateOps.push((activeClient as any)
-                        .from('contas_receber')
-                        .update({ deleted_at: nowIso, deleted_by: user?.id ?? null })
-                        .in('id', Array.from(crSoftDeleteIds)));
+                    tagged.push({
+                        tag: 'crSoft',
+                        expected: crSoftDeleteIds.size,
+                        promise: (activeClient as any)
+                            .from('contas_receber')
+                            .update({ deleted_at: nowIso, deleted_by: user?.id ?? null })
+                            .in('id', Array.from(crSoftDeleteIds))
+                            .select('id'),
+                    });
                 }
                 if (crRevertIds.size) {
-                    updateOps.push((activeClient as any)
-                        .from('contas_receber')
-                        .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
-                        .in('id', Array.from(crRevertIds)));
+                    tagged.push({
+                        tag: 'crRevert',
+                        expected: crRevertIds.size,
+                        promise: (activeClient as any)
+                            .from('contas_receber')
+                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                            .in('id', Array.from(crRevertIds))
+                            .select('id'),
+                    });
                 }
                 if (cpSoftDeleteIds.size) {
-                    updateOps.push((activeClient as any)
-                        .from('contas_pagar')
-                        .update({ deleted_at: nowIso, deleted_by: user?.id ?? null })
-                        .in('id', Array.from(cpSoftDeleteIds)));
+                    tagged.push({
+                        tag: 'cpSoft',
+                        expected: cpSoftDeleteIds.size,
+                        promise: (activeClient as any)
+                            .from('contas_pagar')
+                            .update({ deleted_at: nowIso, deleted_by: user?.id ?? null })
+                            .in('id', Array.from(cpSoftDeleteIds))
+                            .select('id'),
+                    });
                 }
                 if (cpRevertIds.size) {
-                    updateOps.push((activeClient as any)
-                        .from('contas_pagar')
-                        .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
-                        .in('id', Array.from(cpRevertIds)));
+                    tagged.push({
+                        tag: 'cpRevert',
+                        expected: cpRevertIds.size,
+                        promise: (activeClient as any)
+                            .from('contas_pagar')
+                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                            .in('id', Array.from(cpRevertIds))
+                            .select('id'),
+                    });
                 }
-                const updateResults = await Promise.all(updateOps);
-                for (const r of updateResults) if (r.error) throw r.error;
-
-                softDeletedCR += crSoftDeleteIds.size;
-                softDeletedCP += cpSoftDeleteIds.size;
-                revertedCR += crRevertIds.size;
-                revertedCP += cpRevertIds.size;
+                const updateResults = await Promise.all(tagged.map(t => t.promise));
+                for (let idx = 0; idx < updateResults.length; idx++) {
+                    const r = updateResults[idx];
+                    const t = tagged[idx];
+                    if (r.error) {
+                        console.error(`[deleteImportBatch] ${t.tag} update falhou:`, r.error);
+                        throw r.error;
+                    }
+                    const real = r.data?.length || 0;
+                    const missed = t.expected - real;
+                    if (missed > 0) {
+                        console.warn(`[deleteImportBatch] ${t.tag}: esperado ${t.expected}, afetado ${real} — ${missed} linha(s) silenciadas (RLS ou trigger sem erro)`);
+                    }
+                    if (t.tag === 'crSoft') { softDeletedCR += real; skipped.crSoftDelete += missed; }
+                    if (t.tag === 'crRevert') { revertedCR += real; skipped.crRevert += missed; }
+                    if (t.tag === 'cpSoft') { softDeletedCP += real; skipped.cpSoftDelete += missed; }
+                    if (t.tag === 'cpRevert') { revertedCP += real; skipped.cpRevert += missed; }
+                }
 
                 // 4. Bulk delete movimentacoes via FK (cobre dados novos)
                 const allCrIds = [...crSoftDeleteIds, ...crRevertIds];
