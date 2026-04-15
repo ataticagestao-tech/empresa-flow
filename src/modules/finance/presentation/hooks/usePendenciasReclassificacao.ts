@@ -7,7 +7,14 @@ import { useCompany } from "@/contexts/CompanyContext";
  * precisam ser reclassificadas pelo usuario. Essas surgem quando CRs/CPs
  * pagas sao excluidas — a movimentacao bancaria continua no sistema mas
  * perde o vinculo com o lancamento original.
+ *
+ * Filtro: ignora movs com origem identificavel (conta_receber, conta_pagar,
+ * transferencia) — essas nasceram com vinculo implicito e nao devem ser
+ * tratadas como pendencia de reclassificacao, mesmo que o FK esteja NULL
+ * (bug historico da RPC conciliar_lote corrigido em 2026-04-15).
  */
+const ORIGENS_IGNORADAS = ["conta_receber", "conta_pagar", "transferencia"];
+
 export function usePendenciasReclassificacao() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
@@ -17,24 +24,27 @@ export function usePendenciasReclassificacao() {
         enabled: !!selectedCompany?.id,
         queryFn: async () => {
             const ac = activeClient as any;
+            const origensFilter = `(${ORIGENS_IGNORADAS.join(",")})`;
 
-            // Credito orfao (receita sem CR vinculada)
+            // Credito orfao (receita sem CR vinculada e sem origem identificavel)
             const { count: creditoCount } = await ac
                 .from("movimentacoes")
                 .select("id", { count: "exact", head: true })
                 .eq("company_id", selectedCompany!.id)
                 .eq("tipo", "credito")
                 .is("conta_receber_id", null)
-                .eq("status_conciliacao", "pendente");
+                .eq("status_conciliacao", "pendente")
+                .or(`origem.is.null,origem.not.in.${origensFilter}`);
 
-            // Debito orfao (despesa sem CP vinculada)
+            // Debito orfao (despesa sem CP vinculada e sem origem identificavel)
             const { count: debitoCount } = await ac
                 .from("movimentacoes")
                 .select("id", { count: "exact", head: true })
                 .eq("company_id", selectedCompany!.id)
                 .eq("tipo", "debito")
                 .is("conta_pagar_id", null)
-                .eq("status_conciliacao", "pendente");
+                .eq("status_conciliacao", "pendente")
+                .or(`origem.is.null,origem.not.in.${origensFilter}`);
 
             // Soma dos valores pendentes (para exibicao)
             const { data: pendencias } = await ac
@@ -42,7 +52,8 @@ export function usePendenciasReclassificacao() {
                 .select("tipo, valor")
                 .eq("company_id", selectedCompany!.id)
                 .or("and(tipo.eq.credito,conta_receber_id.is.null),and(tipo.eq.debito,conta_pagar_id.is.null)")
-                .eq("status_conciliacao", "pendente");
+                .eq("status_conciliacao", "pendente")
+                .or(`origem.is.null,origem.not.in.${origensFilter}`);
 
             const totalCredito = (pendencias || [])
                 .filter((m: any) => m.tipo === "credito")
