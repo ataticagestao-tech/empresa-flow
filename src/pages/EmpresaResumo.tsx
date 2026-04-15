@@ -3,9 +3,11 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera, Check, X } from "lucide-react";
+import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera, Check, X, Trash2 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useCompanies } from "@/hooks/useCompanies";
+import { useCompany } from "@/contexts/CompanyContext";
 
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
 
@@ -25,7 +27,7 @@ const regimeOptions = [
 
 export default function EmpresaResumo() {
   const { id } = useParams<{ id: string }>();
-  const { activeClient } = useAuth();
+  const { user, activeClient } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const db = activeClient as any;
@@ -34,6 +36,11 @@ export default function EmpresaResumo() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
+  const { forceDeleteCompany } = useCompanies(user?.id);
+  const { selectedCompany, setSelectedCompany } = useCompany();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -247,13 +254,81 @@ export default function EmpresaResumo() {
                 </button>
               </>
             ) : (
-              <button onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 bg-white text-[#1a2e4a] border border-[#1a2e4a] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f0f4f8] transition-colors">
-                <Pencil size={14} /> Editar
-              </button>
+              <>
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 bg-white text-[#1a2e4a] border border-[#1a2e4a] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f0f4f8] transition-colors">
+                  <Pencil size={14} /> Editar
+                </button>
+                <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
+                  className="flex items-center gap-1.5 bg-white text-[#8b0000] border border-[#8b0000] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#fdecea] transition-colors"
+                  title="Excluir empresa">
+                  <Trash2 size={14} /> Excluir
+                </button>
+              </>
             )}
           </div>
         </div>
+
+        {deleteOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+               onClick={() => !deleting && setDeleteOpen(false)}>
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-[#8b0000] mb-2">Excluir empresa definitivamente</h3>
+              <p className="text-sm text-[#0a0a0a] mb-3">
+                Esta ação é <strong>irreversível</strong>. Serão apagados permanentemente:
+              </p>
+              <ul className="text-xs text-[#555] list-disc pl-5 mb-4 space-y-0.5">
+                <li>Vendas, contas a receber e a pagar</li>
+                <li>Extratos bancários e movimentações</li>
+                <li>Funcionários, clientes, fornecedores</li>
+                <li>Plano de contas, categorias e contas bancárias</li>
+                <li>Todo o histórico fiscal e documentos</li>
+              </ul>
+              <p className="text-xs text-[#0a0a0a] mb-2">
+                Para confirmar, digite a razão social:
+                <br />
+                <span className="font-bold">{company.razao_social}</span>
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="Digite a razão social"
+                autoFocus
+                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#8b0000] focus:outline-none w-full mb-4"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={deleting}
+                  className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!id) return;
+                    if (deleteConfirmText.trim() !== (company.razao_social || "").trim()) {
+                      toast.error("Digite a razão social exatamente como aparece");
+                      return;
+                    }
+                    setDeleting(true);
+                    try {
+                      await forceDeleteCompany(id);
+                      if (selectedCompany?.id === id) setSelectedCompany(null);
+                      setDeleteOpen(false);
+                      navigate("/empresas");
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleting || deleteConfirmText.trim() !== (company.razao_social || "").trim()}
+                  className="bg-[#8b0000] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  {deleting ? "Excluindo..." : "Excluir definitivamente"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Company Header */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
