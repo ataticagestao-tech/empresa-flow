@@ -26,6 +26,7 @@ import {
     FileText, Upload, Download, X, Copy, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface ChartOfAccount {
     id: string;
@@ -93,6 +94,7 @@ const accountTypeColors = {
 
 export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProps) {
     const { activeClient, user } = useAuth();
+    const confirm = useConfirm();
     const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
     const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
@@ -411,7 +413,13 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
     };
 
     const handleDeleteAttachment = async (attachmentId: string, filePath: string) => {
-        if (!confirm('Tem certeza que deseja excluir este anexo?')) return;
+        const ok = await confirm({
+            title: 'Excluir este anexo?',
+            description: 'O arquivo será removido permanentemente.',
+            confirmLabel: 'Sim, excluir',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         try {
             // Deletar do storage
@@ -437,7 +445,13 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja excluir esta conta? Todas as subcategorias e anexos também serão excluídos.')) return;
+        const ok = await confirm({
+            title: 'Excluir esta conta?',
+            description: 'Todas as subcategorias e anexos também serão excluídos. Esta ação não pode ser desfeita.',
+            confirmLabel: 'Sim, excluir',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         try {
             const { error } = await activeClient
@@ -454,7 +468,13 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
     };
 
     const handleResetAndReimport = async () => {
-        if (!confirm('Tem certeza? Isso vai APAGAR todas as contas atuais e recriar a partir do template padrão.')) return;
+        const ok = await confirm({
+            title: 'Recriar plano de contas do zero?',
+            description: 'Isso vai APAGAR todas as contas atuais e recriar a partir do template padrão. Esta ação não pode ser desfeita.',
+            confirmLabel: 'Sim, recriar',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         try {
             setIsLoading(true);

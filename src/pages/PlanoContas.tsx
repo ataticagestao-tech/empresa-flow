@@ -5,6 +5,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PLANO_PATRIMONIAL, GRUPO_LABELS, type ContaModelo } from "@/data/planoContasPatrimonial";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { BookOpen, Plus, X, Check, ChevronRight, ChevronDown, Download } from "lucide-react";
 
 interface Conta {
@@ -50,6 +51,7 @@ export default function PlanoContas() {
   const { activeClient } = useAuth();
   const { selectedCompany } = useCompany();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -174,7 +176,13 @@ export default function PlanoContas() {
 
   const deleteConta = async (conta: Conta, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Excluir conta "${conta.code} — ${conta.name}"?`)) return;
+    const ok = await confirm({
+      title: `Excluir conta "${conta.code} — ${conta.name}"?`,
+      description: "A conta será desativada (soft delete). Lançamentos existentes não são afetados.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       const { error } = await (activeClient as any).from("chart_of_accounts").update({ status: "inactive" }).eq("id", conta.id);
       if (error) throw error;
@@ -388,7 +396,12 @@ export default function PlanoContas() {
     const toAdd = items.filter(c => !existingCodes.has(c.code));
 
     if (toAdd.length === 0) { toast.info("Todas as contas deste grupo já existem"); return; }
-    if (!confirm(`Adicionar ${toAdd.length} contas do grupo "${items[0]?.name}" à empresa?`)) return;
+    const ok = await confirm({
+      title: `Adicionar ${toAdd.length} contas do grupo "${items[0]?.name}"?`,
+      description: "As contas serão incluídas com mapeamento BP/DFC automático.",
+      confirmLabel: "Sim, adicionar",
+    });
+    if (!ok) return;
 
     const { added, insertedCodes } = await insertAccountsBatch(toAdd);
 
@@ -404,7 +417,12 @@ export default function PlanoContas() {
     if (!selectedCompany?.id) return;
     const toAdd = PLANO_PATRIMONIAL.filter(c => !existingCodes.has(c.code));
     if (toAdd.length === 0) { toast.info("Todas as contas do modelo já existem"); return; }
-    if (!confirm(`Adicionar ${toAdd.length} contas patrimoniais à empresa? Contas existentes NÃO serão substituídas.`)) return;
+    const ok = await confirm({
+      title: `Adicionar ${toAdd.length} contas patrimoniais?`,
+      description: "Contas existentes NÃO serão substituídas. Mapeamento BP/DFC automático é aplicado.",
+      confirmLabel: "Sim, adicionar",
+    });
+    if (!ok) return;
 
     const { added, skipped, insertedCodes } = await insertAccountsBatch(toAdd);
 
