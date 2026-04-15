@@ -152,6 +152,23 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
         try {
             // Prepara Payload (Remove máscaras e campos que não existem no banco)
             const { cep, ...rest } = values;
+            const cpfCnpjUnmasked = unmask(values.cpf_cnpj || "");
+
+            // Valida duplicidade de CPF/CNPJ na mesma empresa
+            if (cpfCnpjUnmasked) {
+                let dupQuery = activeClient
+                    .from("clients")
+                    .select("id, razao_social")
+                    .eq("company_id", selectedCompany.id)
+                    .eq("cpf_cnpj", cpfCnpjUnmasked)
+                    .limit(1);
+                if (initialData?.id) dupQuery = dupQuery.neq("id", initialData.id);
+                const { data: dupRows } = await dupQuery;
+                if (dupRows && dupRows.length) {
+                    toast.error(`Ja existe cliente cadastrado com este CPF/CNPJ: "${dupRows[0].razao_social}"`);
+                    return;
+                }
+            }
 
             const rawPayload: Record<string, any> = {
                 ...rest,
@@ -159,7 +176,7 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
                 razao_social: toTitleCase(values.razao_social),
                 nome_fantasia: values.nome_fantasia ? toTitleCase(values.nome_fantasia) : values.nome_fantasia,
                 endereco_cep: unmask(cep || ""),
-                cpf_cnpj: unmask(values.cpf_cnpj || "") || null,
+                cpf_cnpj: cpfCnpjUnmasked || null,
                 telefone: unmask(values.telefone || ""),
                 telefone_2: unmask(values.telefone_2 || ""),
                 celular: unmask(values.celular || ""),

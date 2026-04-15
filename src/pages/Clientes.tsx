@@ -4,18 +4,20 @@ import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, Bell, ShoppingCart,
     Receipt, DollarSign, Stethoscope, FileText, StickyNote,
-    CreditCard, Package,
+    CreditCard, Package, Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
 import { ContratosKpiCard } from "@/modules/clients/presentation/components/ContratosKpiCard";
+import { MergeDuplicatesDialog } from "@/modules/clients/presentation/components/MergeDuplicatesDialog";
 import { hasContratosByCompany } from "@/config/features";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { logDeletion } from "@/lib/audit";
 import { formatBRL, toTitleCase, getIniciais, formatDoc, formatData } from "@/lib/format";
@@ -149,7 +151,9 @@ export default function Clientes() {
     const [detailFinancial, setDetailFinancial] = useState<DetailFinancial | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailTab, setDetailTab] = useState<DetailTab>("historico");
+    const [mergeOpen, setMergeOpen] = useState(false);
     const { toast } = useToast();
+    const confirm = useConfirm();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
@@ -432,24 +436,110 @@ export default function Clientes() {
     };
 
     const handleDelete = async (client: any) => {
-        const ok = window.confirm(`Excluir o cliente "${client.razao_social}"?`);
+        const ok = await confirm({
+            title: `Excluir o cliente "${client.razao_social}"?`,
+            description: "Todas as vendas, contas a receber e registros vinculados a este cliente serão excluídos definitivamente. O histórico financeiro dele será perdido. Esta ação não pode ser desfeita.",
+            confirmLabel: "Sim, excluir tudo",
+            variant: "destructive",
+        });
         if (!ok) return;
-        const { error } = await activeClient.from("clients").delete().eq("id", client.id);
-        if (!error) {
+
+        try {
+            const now = new Date().toISOString();
+            const companyId = selectedCompany?.id;
+            const cpfCnpj = (client.cpf_cnpj || "").replace(/\D/g, "");
+
+            // 1. Buscar vendas vinculadas (match por CPF/CNPJ — vendas nao tem FK para clients)
+            let vendasIds: string[] = [];
+            if (cpfCnpj && companyId) {
+                const { data: vendas, error: vErr } = await activeClient
+                    .from("vendas")
+                    .select("id")
+                    .eq("company_id", companyId)
+                    .eq("cliente_cpf_cnpj", cpfCnpj);
+                if (vErr) throw vErr;
+                vendasIds = (vendas || []).map((v: any) => v.id);
+            }
+
+            // 2. Soft-delete das CRs (trigger bloqueia DELETE hard)
+            if (companyId) {
+                if (vendasIds.length) {
+                    const { error: crErr1 } = await activeClient
+                        .from("contas_receber")
+                        .update({ deleted_at: now })
+                        .in("venda_id", vendasIds)
+                        .is("deleted_at", null);
+                    if (crErr1) throw crErr1;
+                }
+                if (cpfCnpj) {
+                    const { error: crErr2 } = await activeClient
+                        .from("contas_receber")
+                        .update({ deleted_at: now })
+                        .eq("company_id", companyId)
+                        .eq("pagador_cpf_cnpj", cpfCnpj)
+                        .is("deleted_at", null);
+                    if (crErr2) throw crErr2;
+                }
+            }
+
+            // 3. Hard-delete das vendas (vendas_itens cascateia)
+            if (vendasIds.length) {
+                const { error: vDelErr } = await activeClient
+                    .from("vendas")
+                    .delete()
+                    .in("id", vendasIds);
+                if (vDelErr) throw vDelErr;
+            }
+
+            // 4. Hard-delete na tabela legada accounts_receivable (FK bloqueia delete do client)
+            await activeClient.from("accounts_receivable").delete().eq("client_id", client.id);
+
+            // 5. Hard-delete do cliente
+            const { error } = await activeClient.from("clients").delete().eq("id", client.id);
+            if (error) throw error;
+
             refetch();
-            toast({ title: "Sucesso", description: "Cliente excluído" });
+            toast({
+                title: "Cliente excluído",
+                description: vendasIds.length
+                    ? `${vendasIds.length} venda(s) e CRs vinculadas também removidas.`
+                    : "Cliente removido com sucesso.",
+            });
             if (selectedClient?.id === client.id) setSelectedClient(null);
             if (user?.id) {
                 await logDeletion(activeClient, {
-                    userId: user.id, companyId: selectedCompany?.id || null,
+                    userId: user.id, companyId: companyId || null,
                     entity: "clients", entityId: client.id,
-                    payload: { razao_social: client.razao_social },
+                    payload: {
+                        razao_social: client.razao_social,
+                        cpf_cnpj: cpfCnpj,
+                        vendas_removidas: vendasIds.length,
+                    },
                 });
             }
-        } else {
-            toast({ title: "Erro", description: "Erro ao excluir", variant: "destructive" });
+        } catch (err: any) {
+            console.error("[handleDelete cliente]", err);
+            toast({
+                title: "Erro ao excluir",
+                description: err?.message || "Erro desconhecido",
+                variant: "destructive",
+            });
         }
     };
+
+    /* ─── Duplicados (match por CPF/CNPJ) ───────────────────── */
+
+    const duplicatesCount = useMemo(() => {
+        const byDoc = new Map<string, number>();
+        (clients ?? []).forEach((c: any) => {
+            const doc = (c.cpf_cnpj || "").replace(/\D/g, "");
+            if (!doc) return;
+            byDoc.set(doc, (byDoc.get(doc) || 0) + 1);
+        });
+        let extras = 0;
+        byDoc.forEach((n) => { if (n > 1) extras += (n - 1); });
+        return extras;
+    }, [clients]);
 
     /* ─── Filtros ───────────────────────────────────────────── */
 
@@ -586,10 +676,24 @@ export default function Clientes() {
                     {/* Header */}
                     <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                         <h2 className="text-lg font-bold tracking-tight text-[#0a0a0a] uppercase">Clientes</h2>
-                        <Button onClick={handleNew} size="sm" className="bg-[#1a2e4a] hover:bg-[#243d5f] text-white">
-                            <Plus className="h-3.5 w-3.5 mr-1" />
-                            Novo cliente
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            {duplicatesCount > 0 && (
+                                <Button
+                                    onClick={() => setMergeOpen(true)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                                    title="Mesclar clientes com mesmo CPF/CNPJ"
+                                >
+                                    <Users className="h-3.5 w-3.5 mr-1" />
+                                    {duplicatesCount} duplicado{duplicatesCount > 1 ? "s" : ""}
+                                </Button>
+                            )}
+                            <Button onClick={handleNew} size="sm" className="bg-[#1a2e4a] hover:bg-[#243d5f] text-white">
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                Novo cliente
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Busca */}
@@ -904,11 +1008,21 @@ export default function Clientes() {
                                                                         const valorPago = Number(cr.valor_pago ?? 0);
                                                                         const isPago = cr.status === "pago" || valorPago > 0;
 
-                                                                        const msg = isPago
-                                                                            ? `Excluir este lançamento PAGO?\n\n${crDescription(cr)}\nValor pago: ${formatBRL(valorPago)}\n\n⚠ ATENÇÃO: o pagamento bancário continua registrado no banco — mas volta como PENDENTE DE CONCILIAÇÃO.\n\nVocê deve reclassificá-lo depois em Conciliação Bancária, vinculando ao cliente e categoria corretos.\n\nDeseja continuar?`
-                                                                            : `Excluir este lançamento?\n\n${crDescription(cr)}\nValor: ${formatBRL(Number(cr.valor ?? 0))}`;
+                                                                        const okConfirm = isPago
+                                                                            ? await confirm({
+                                                                                  title: "Excluir este lançamento PAGO?",
+                                                                                  description: `${crDescription(cr)}\nValor pago: ${formatBRL(valorPago)}\n\nO pagamento bancário continua registrado — mas volta como PENDENTE DE CONCILIAÇÃO. Reclassifique-o depois em Conciliação Bancária, vinculando ao cliente e categoria corretos.`,
+                                                                                  confirmLabel: "Sim, excluir",
+                                                                                  variant: "destructive",
+                                                                              })
+                                                                            : await confirm({
+                                                                                  title: "Excluir este lançamento?",
+                                                                                  description: `${crDescription(cr)}\nValor: ${formatBRL(Number(cr.valor ?? 0))}`,
+                                                                                  confirmLabel: "Sim, excluir",
+                                                                                  variant: "destructive",
+                                                                              });
 
-                                                                        if (!confirm(msg)) return;
+                                                                        if (!okConfirm) return;
 
                                                                         const ac = activeClient as any;
 
@@ -1055,6 +1169,14 @@ export default function Clientes() {
                     isOpen={isSheetOpen}
                     onClose={() => { setIsSheetOpen(false); setEditingClient(null); }}
                     clientToEdit={editingClient}
+                />
+
+                {/* ═══ Merge duplicados ═══ */}
+                <MergeDuplicatesDialog
+                    open={mergeOpen}
+                    onOpenChange={setMergeOpen}
+                    clients={clients ?? []}
+                    onMerged={() => { refetch(); setMergeOpen(false); }}
                 />
             </div>
         </AppLayout>
