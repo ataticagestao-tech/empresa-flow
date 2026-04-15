@@ -1,6 +1,5 @@
 
 import { UseFormReturn } from "react-hook-form";
-import { Search } from "lucide-react";
 
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Endereço</FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                    <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -45,7 +44,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Número</FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
                             </FormControl>
                         </FormItem>
                     )}
@@ -60,7 +59,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Bairro</FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                    <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
                             </FormItem>
                         )}
@@ -74,7 +73,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Estado</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value ?? ""}>
                                 <FormControl>
                                     <SelectTrigger className="h-9 border-[#E2E8F0]">
                                         <SelectValue placeholder="UF" />
@@ -99,7 +98,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Cidade</FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                    <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
                             </FormItem>
                         )}
@@ -120,6 +119,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                                 <Input
                                     className="h-9 border-[#E2E8F0] bg-blue-50/30"
                                     {...field}
+                                    value={field.value ?? ""}
                                     onChange={(e) => field.onChange(maskCEP(e.target.value))}
                                     onBlur={() => {
                                         field.onBlur();

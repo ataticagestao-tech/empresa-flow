@@ -28,7 +28,7 @@ export function TabContact({ form }: TabContactProps) {
                                     <Mail className="w-3 h-3" /> Email Principal
                                 </FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" placeholder="exemplo@empresa.com.br" {...field} />
+                                    <Input className="h-9 border-[#E2E8F0]" placeholder="exemplo@empresa.com.br" {...field} value={field.value ?? ""} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

@@ -14,21 +14,21 @@ export const ClientSchema = z.object({
 
     // Contato
     contato_nome: z.string().optional(),
-    email: z.string().email("Email inválido").optional().or(z.literal("")),
+    email: z.string().nullish(),
     telefone: z.string().min(1, "Telefone obrigatório"),
     telefone_2: z.string().optional(),
     celular: z.string().optional(),
     fax: z.string().optional(),
     website: z.string().optional(),
 
-    // Endereço
-    cep: z.string().optional(),
-    endereco_logradouro: z.string().optional(),
-    endereco_numero: z.string().optional(),
-    endereco_complemento: z.string().optional(),
-    endereco_bairro: z.string().optional(),
-    endereco_cidade: z.string().optional(),
-    endereco_estado: z.string().optional(),
+    // Endereço (todos opcionais, aceitam null do banco)
+    cep: z.string().nullish(),
+    endereco_logradouro: z.string().nullish(),
+    endereco_numero: z.string().nullish(),
+    endereco_complemento: z.string().nullish(),
+    endereco_bairro: z.string().nullish(),
+    endereco_cidade: z.string().nullish(),
+    endereco_estado: z.string().nullish(),
 
     // Fiscal
     inscricao_estadual: z.string().optional(),
