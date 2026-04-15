@@ -153,7 +153,7 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
             // Prepara Payload (Remove máscaras e campos que não existem no banco)
             const { cep, ...rest } = values;
 
-            const payload = {
+            const rawPayload: Record<string, any> = {
                 ...rest,
                 company_id: selectedCompany.id,
                 razao_social: toTitleCase(values.razao_social),
@@ -167,6 +167,13 @@ export function useClientForm({ onSuccess, initialData }: UseClientFormProps) {
                 dados_bancarios_titular_cpf_cnpj: unmask(values.dados_bancarios_titular_cpf_cnpj || ""),
                 is_active: true
             };
+
+            // Converte strings vazias para null (Postgres rejeita "" em colunas UUID/typed)
+            const payload: Record<string, any> = {};
+            for (const key in rawPayload) {
+                const v = rawPayload[key];
+                payload[key] = v === "" ? null : v;
+            }
 
             // Lógica de Persistência (Supabase)
             if (initialData?.id) {
