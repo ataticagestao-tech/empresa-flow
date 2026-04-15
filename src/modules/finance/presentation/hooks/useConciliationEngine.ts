@@ -144,8 +144,14 @@ function extractKeywordsForRule(description: string): string[] {
     const keywords: string[] = [];
     const normalized = normalizeText(description);
 
-    // 0. Descrição completa normalizada — garante match EXATO em descrições idênticas
-    if (normalized.length >= 4) {
+    // 0. REGRA PRINCIPAL: tudo que vem DEPOIS do primeiro "-" é a keyword de aprendizado.
+    //    Ex: "FERNANDA - Pix | Maquininha"  →  "pix | maquininha"
+    //    Se não tiver "-", usa a descrição inteira como fallback.
+    const dashIdx = description.indexOf("-");
+    if (dashIdx !== -1 && dashIdx < description.length - 1) {
+        const afterDash = normalizeText(description.substring(dashIdx + 1));
+        if (afterDash.length >= 2) keywords.push(afterDash);
+    } else if (normalized.length >= 4) {
         keywords.push(normalized);
     }
 
@@ -689,6 +695,8 @@ export function useConciliationEngine(
             const normalizedKws = keywords.map(k => normalizeText(k));
             const tipoTransacao = bankTx.amount < 0 ? "debit" : "credit";
             const valorReferencia = Math.abs(bankTx.amount);
+
+            console.log("[learnRule] aprendendo:", { descricao: description, keywords: normalizedKws, account_id: categoryId, tipo: tipoTransacao });
 
             // Verificar se já existe regra com keywords similares
             const existingRules = rules || [];

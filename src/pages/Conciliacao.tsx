@@ -797,6 +797,7 @@ export default function Conciliacao() {
 
         // Enviar em lotes de 100
         const batchSize = 100;
+        const failedReasons: Array<{ description?: string; error: string }> = [];
         for (let i = 0; i < items.length; i += batchSize) {
             const batch = items.slice(i, i + batchSize);
             try {
@@ -810,8 +811,13 @@ export default function Conciliacao() {
                 const result = data || { success: 0, failed: batch.length };
                 totalSuccess += result.success || 0;
                 totalFailed += result.failed || 0;
-            } catch {
+                if (Array.isArray(result.failed_reasons)) {
+                    for (const r of result.failed_reasons) failedReasons.push(r);
+                }
+            } catch (e: any) {
                 totalFailed += batch.length;
+                failedReasons.push({ error: e?.message || "erro desconhecido na RPC" });
+                console.error("[conciliar_lote] erro:", e);
             }
             setBatchProgress({ total, done: Math.min(i + batchSize, total), success: totalSuccess, failed: totalFailed });
         }
@@ -830,10 +836,20 @@ export default function Conciliacao() {
         queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard_cashflow'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard_dre'] });
-        toast({
-            title: "Conciliação em lote finalizada",
-            description: `${totalSuccess} conciliado(s)${totalFailed > 0 ? `, ${totalFailed} falha(s)` : ""}`,
-        });
+        if (totalFailed > 0 && failedReasons.length > 0) {
+            console.error("[conciliar_lote] motivos das falhas:", failedReasons);
+            const firstErr = failedReasons[0]?.error || "ver console";
+            toast({
+                title: `Conciliação em lote: ${totalSuccess} ok, ${totalFailed} falha(s)`,
+                description: `Motivo: ${firstErr}${failedReasons.length > 1 ? ` (+${failedReasons.length - 1} outras — ver F12)` : ""}`,
+                variant: "destructive",
+            });
+        } else {
+            toast({
+                title: "Conciliação em lote finalizada",
+                description: `${totalSuccess} conciliado(s)`,
+            });
+        }
     };
 
     const handleSelectHighConfidence = () => {
