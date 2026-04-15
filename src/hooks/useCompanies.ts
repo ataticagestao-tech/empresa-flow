@@ -234,6 +234,20 @@ export function useCompanies(userId?: string) {
         },
     });
 
+    const forceDeleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await activeClient.rpc("delete_company_cascade", { p_company_id: id });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["companies", isUsingSecondary, userId] });
+            toast.success("Empresa e todo o histórico excluídos definitivamente");
+        },
+        onError: (err: any) => {
+            toast.error("Erro ao excluir definitivamente: " + (err?.message || "desconhecido"));
+        },
+    });
+
     return {
         companies,
         isLoading,
@@ -242,6 +256,7 @@ export function useCompanies(userId?: string) {
         createCompany: createMutation,
         updateCompany: updateMutation,
         deleteCompany: deleteMutation.mutateAsync,
+        forceDeleteCompany: forceDeleteMutation.mutateAsync,
         suggestCategories: suggestCategoriesMutation,
     };
 }

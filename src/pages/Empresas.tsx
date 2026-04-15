@@ -5,7 +5,7 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const STEPS = ["CNPJ", "Dados Gerais", "Regime Tributário", "Responsável", "Confirmar"];
@@ -30,7 +30,11 @@ export default function Empresas() {
   const { user, activeClient } = useAuth();
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
-  const { companies, isLoading, error: companiesError, deleteCompany, refetch } = useCompanies(user?.id);
+  const { companies, isLoading, error: companiesError, forceDeleteCompany, refetch } = useCompanies(user?.id);
+
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const [mode, setMode] = useState<"list" | "create">("list");
   const [step, setStep] = useState(0);
@@ -180,9 +184,25 @@ export default function Empresas() {
     setMode("create");
   };
 
-  const handleDelete = async (company: Company) => {
-    if (!confirm(`Remover empresa "${company.razao_social}"?\n\nSe houver dados vinculados (vendas, lançamentos, funcionários etc.), a empresa será marcada como inativa (soft delete) e deixará de aparecer na listagem.`)) return;
-    await deleteCompany(company.id);
+  const handleDelete = (company: Company) => {
+    setDeleteTarget(company);
+    setDeleteConfirmText("");
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteConfirmText.trim() !== (deleteTarget.razao_social || "").trim()) {
+      toast.error("Digite a razão social exatamente como aparece para confirmar");
+      return;
+    }
+    setDeleting(true);
+    try {
+      await forceDeleteCompany(deleteTarget.id);
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const filtered = (companies || []).filter(c => {
@@ -503,6 +523,52 @@ export default function Empresas() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+               onClick={() => !deleting && setDeleteTarget(null)}>
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-[#8b0000] mb-2">Excluir empresa definitivamente</h3>
+              <p className="text-sm text-[#0a0a0a] mb-3">
+                Esta ação é <strong>irreversível</strong>. Serão apagados permanentemente:
+              </p>
+              <ul className="text-xs text-[#555] list-disc pl-5 mb-4 space-y-0.5">
+                <li>Vendas, contas a receber e a pagar</li>
+                <li>Extratos bancários e movimentações</li>
+                <li>Funcionários, clientes, fornecedores</li>
+                <li>Plano de contas, categorias e contas bancárias</li>
+                <li>Todo o histórico fiscal e documentos</li>
+              </ul>
+              <p className="text-xs text-[#0a0a0a] mb-2">
+                Para confirmar, digite a razão social:
+                <br />
+                <span className="font-bold">{deleteTarget.razao_social}</span>
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="Digite a razão social"
+                autoFocus
+                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#8b0000] focus:outline-none w-full mb-4"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting || deleteConfirmText.trim() !== (deleteTarget.razao_social || "").trim()}
+                  className="bg-[#8b0000] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  {deleting ? "Excluindo..." : "Excluir definitivamente"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
