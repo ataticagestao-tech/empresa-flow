@@ -157,10 +157,19 @@ function extractKeywordsForRule(description: string): string[] {
     }
 
     // 2. Known bank identifiers and payment providers
+    // Inclui padroes genericos (MAQUININHA, PIX, BOLETO) que permitem memorizacao
+    // cruzar beneficiarios distintos mas com mesmo tipo de transacao. Seguro porque
+    // regras sao filtradas por tipo_transacao (debit/credit).
     const identifiers = [
+        // Adquirentes
         "STONE", "CIELO", "REDE", "GETNET", "PAGSEGURO",
         "DOMCRED", "DOMDEB", "DOMCREDITO",
         "MARKETPLACE", "MERCADO PAGO", "PICPAY",
+        // Formas de pagamento (genericas)
+        "MAQUININHA", "PIX", "BOLETO", "TED", "DOC",
+        "ANTECIPACAO", "MAESTRO", "VISA", "MASTERCARD", "ELO", "HIPERCARD",
+        "RECEBIMENTO VENDAS", "TRANSFERENCIA",
+        // Servicos
         "UNIMED", "AMIL", "SULAMERICA",
         "OMIE", "RD STATION", "TOTVS",
         "CEMIG", "COPEL", "ENEL", "COPASA", "SABESP",
