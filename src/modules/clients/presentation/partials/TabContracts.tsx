@@ -318,9 +318,18 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
     const [reservaValor, setReservaValor] = useState("");
     const [reservaData, setReservaData] = useState("");
 
-    type CondicaoForm = { forma: string; valor: string; parcelas: string };
+    type CondicaoForm = { forma: string; valor: string; parcelas: string; primeiro_vencimento: string };
+
+    // Default do 1º vencimento: mesmo dia do mes seguinte à data da venda
+    const defaultPrimeiroVenc = (baseIso: string) => {
+        if (!baseIso) return "";
+        const [y, m, d] = baseIso.split("-").map((s) => parseInt(s, 10));
+        const dt = new Date(y, m, d); // mes seguinte (m já é 1-based → new Date com m = próximo mês)
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    };
+
     const [condicoes, setCondicoes] = useState<CondicaoForm[]>([
-        { forma: "cartao_credito", valor: "", parcelas: "10" },
+        { forma: "cartao_credito", valor: "", parcelas: "10", primeiro_vencimento: defaultPrimeiroVenc(new Date().toISOString().slice(0, 10)) },
     ]);
 
     const resetOnOpen = (v: boolean) => {
@@ -333,7 +342,12 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
             setPrevisaoCirurgia("");
             setReservaValor("");
             setReservaData("");
-            setCondicoes([{ forma: "cartao_credito", valor: "", parcelas: "10" }]);
+            setCondicoes([{
+                forma: "cartao_credito",
+                valor: "",
+                parcelas: "10",
+                primeiro_vencimento: defaultPrimeiroVenc(new Date().toISOString().slice(0, 10)),
+            }]);
         }
         onOpenChange(v);
     };
@@ -342,7 +356,12 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
         f === "cartao_credito" || f === "boleto";
 
     const addCondicao = () =>
-        setCondicoes((prev) => [...prev, { forma: "pix", valor: "", parcelas: "1" }]);
+        setCondicoes((prev) => [...prev, {
+            forma: "pix",
+            valor: "",
+            parcelas: "1",
+            primeiro_vencimento: defaultPrimeiroVenc(dataVenda || new Date().toISOString().slice(0, 10)),
+        }]);
 
     const removeCondicao = (idx: number) =>
         setCondicoes((prev) => prev.filter((_, i) => i !== idx));
@@ -377,11 +396,16 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                 forma: c.forma,
                 valor: parseFloat(c.valor) || 0,
                 parcelas: podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1,
+                primeiro_vencimento: c.primeiro_vencimento,
             }))
             .filter((c) => c.valor > 0);
 
         if (condicoesValidas.length === 0 && calc.saldo > 0) {
             return alert("Adicione pelo menos uma condição de pagamento para o saldo");
+        }
+
+        if (condicoesValidas.some((c) => !c.primeiro_vencimento)) {
+            return alert("Informe a data do 1º vencimento em todas as condições");
         }
 
         if (Math.abs(calc.falta) > 0.01) {
@@ -591,7 +615,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                 return (
                                     <div
                                         key={idx}
-                                        className="grid grid-cols-[1fr_130px_90px_1fr_32px] gap-2.5 items-end"
+                                        className="grid grid-cols-[1fr_120px_140px_80px_1fr_32px] gap-2.5 items-end"
                                     >
                                         <div>
                                             {idx === 0 && <MiniLabel>Condição</MiniLabel>}
@@ -614,6 +638,15 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                                 value={c.valor}
                                                 onChange={(e) => updateCondicao(idx, "valor", e.target.value)}
                                                 placeholder="0,00"
+                                                className="h-9 bg-white tabular-nums"
+                                            />
+                                        </div>
+                                        <div>
+                                            {idx === 0 && <MiniLabel>1º vencimento</MiniLabel>}
+                                            <Input
+                                                type="date"
+                                                value={c.primeiro_vencimento}
+                                                onChange={(e) => updateCondicao(idx, "primeiro_vencimento", e.target.value)}
                                                 className="h-9 bg-white tabular-nums"
                                             />
                                         </div>
