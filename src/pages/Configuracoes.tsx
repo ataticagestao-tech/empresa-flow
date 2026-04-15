@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -202,6 +203,7 @@ function PerfisDeAcesso() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const queryClient = useQueryClient();
+    const confirm = useConfirm();
     const [editingPerfil, setEditingPerfil] = useState<any>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -255,7 +257,13 @@ function PerfisDeAcesso() {
     });
 
     const deletePerfil = async (perfil: any) => {
-        if (!confirm(`Excluir o perfil "${perfil.nome}"?`)) return;
+        const ok = await confirm({
+            title: `Excluir o perfil "${perfil.nome}"?`,
+            description: "Usuários vinculados podem perder permissões. Esta ação não pode ser desfeita.",
+            confirmLabel: "Sim, excluir",
+            variant: "destructive",
+        });
+        if (!ok) return;
         const { error } = await activeClient.from("perfis_acesso").delete().eq("id", perfil.id);
         if (error) { toast.error(error.message); return; }
         queryClient.invalidateQueries({ queryKey: ["perfis_acesso"] });

@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatBRL } from "@/lib/format";
 import { useClientContratos, ContratoVenda, CreateContratoInput, CondicaoPagamento } from "../hooks/useClientContratos";
 import { RegistrarPagamentoDialog } from "../components/RegistrarPagamentoDialog";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const PROCEDIMENTOS = ["FUE", "DHI", "FUE + DHI", "Outro"];
 
@@ -45,6 +46,7 @@ interface TabContractsProps {
 export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContractsProps) {
     const { contratos, isLoading, createContrato, updateContratoFull, deleteContrato, uploadContratoPdf } =
         useClientContratos(clientCpfCnpj);
+    const confirm = useConfirm();
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<ContratoVenda | null>(null);
@@ -104,10 +106,14 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                             contrato={c}
                             onEdit={() => setEditTarget(c)}
                             onRegistrarPagamento={() => setPagamentoTarget(c)}
-                            onDelete={() => {
-                                if (confirm("Excluir este contrato? Parcelas em aberto serão removidas. Parcelas pagas impedem exclusão.")) {
-                                    deleteContrato.mutate(c.id);
-                                }
+                            onDelete={async () => {
+                                const ok = await confirm({
+                                    title: "Excluir este contrato?",
+                                    description: "Parcelas em aberto serão removidas. Parcelas pagas impedem a exclusão.",
+                                    confirmLabel: "Sim, excluir",
+                                    variant: "destructive",
+                                });
+                                if (ok) deleteContrato.mutate(c.id);
                             }}
                             onUploadPdf={(file) => uploadContratoPdf.mutate({ vendaId: c.id, file })}
                             uploading={uploadContratoPdf.isPending}

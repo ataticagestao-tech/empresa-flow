@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
 import {
@@ -155,6 +156,7 @@ export default function MultiEmpresa() {
 
 function ConsolidadoTab({ userId }: { userId?: string }) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [consolidados, setConsolidados] = useState<Consolidado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,7 +196,13 @@ function ConsolidadoTab({ userId }: { userId?: string }) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este grupo?")) return;
+    const ok = await confirm({
+      title: "Excluir este grupo?",
+      description: "Todas as consolidações e relatórios vinculados podem ser afetados.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     await supabase.from("grupos_empresariais").delete().eq("id", id);
     fetchData();
   };
@@ -484,6 +492,7 @@ function TransferenciasTab({ userId }: { userId?: string }) {
 
 function RelatoriosTab({ userId }: { userId?: string }) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [relatorios, setRelatorios] = useState<Relatorio[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -521,7 +530,13 @@ function RelatoriosTab({ userId }: { userId?: string }) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Excluir este relatório?")) return;
+    const ok = await confirm({
+      title: "Excluir este relatório?",
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     await supabase.from("relatorios_comparativos").delete().eq("id", id);
     fetchData();
   };

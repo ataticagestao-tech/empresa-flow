@@ -5,6 +5,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface CentroCusto {
   id: string; company_id: string; codigo: string; descricao: string;
@@ -19,6 +20,7 @@ export default function CentrosCusto() {
   const { activeClient } = useAuth();
   const { selectedCompany } = useCompany();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -92,7 +94,13 @@ export default function CentrosCusto() {
 
   const handleDelete = async (c: CentroCusto) => {
     if (c.is_padrao) { toast.error("Não é possível excluir setores padrão"); return; }
-    if (!confirm(`Excluir setor "${c.descricao}"?`)) return;
+    const ok = await confirm({
+      title: `Excluir setor "${c.descricao}"?`,
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       const { error } = await (activeClient as any).from("centros_custo").delete().eq("id", c.id);
       if (error) throw error;

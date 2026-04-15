@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ function saveLists(companyId: string, lists: PriceList[]) {
 export default function TabelaPrecos() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
+    const confirm = useConfirm();
     const { toast } = useToast();
 
     const [searchTerm, setSearchTerm] = useState("");
@@ -116,8 +118,15 @@ export default function TabelaPrecos() {
         setDialogOpen(false);
     };
 
-    const handleDelete = (idx: number) => {
-        if (!selectedCompany?.id || !window.confirm("Excluir esta tabela de preços?")) return;
+    const handleDelete = async (idx: number) => {
+        if (!selectedCompany?.id) return;
+        const ok = await confirm({
+            title: "Excluir esta tabela de preços?",
+            description: "Esta ação não pode ser desfeita.",
+            confirmLabel: "Sim, excluir",
+            variant: "destructive",
+        });
+        if (!ok) return;
         const current = loadLists(selectedCompany.id);
         current.splice(idx, 1);
         saveLists(selectedCompany.id, current);

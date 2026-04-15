@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   FolderOpen, Upload, Search, File, FileText, FileImage, FileSpreadsheet,
   FileArchive, Trash2, Download, Plus, Clock, AlertTriangle, CheckCircle2,
@@ -97,6 +98,7 @@ export default function Documentos() {
   const { activeClient } = useAuth();
   const db = activeClient as any;
   const { toast } = useToast();
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [tab, setTab] = useState<Tab>("explorador");
@@ -221,7 +223,13 @@ export default function Documentos() {
   // ── Delete ──
 
   async function handleDelete(doc: Documento) {
-    if (!confirm(`Excluir "${doc.nome}"?`)) return;
+    const ok = await confirm({
+      title: `Excluir "${doc.nome}"?`,
+      description: "O arquivo será removido permanentemente do storage e do banco.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       // Delete from storage
       await db.storage.from(doc.storage_bucket).remove([doc.storage_path]);

@@ -20,6 +20,7 @@ import { MoreHorizontal, Ban, UserCheck, Trash2, Key } from "lucide-react";
 import { UserProfile, UserStatus } from "@/types/admin";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface UserListProps {
   users: UserProfile[];
@@ -47,6 +48,7 @@ export function UserList({
   isUpdatingStatus,
   currentUserId,
 }: UserListProps) {
+  const confirm = useConfirm();
   const requestReason = (actionLabel: string, fullName: string) => {
     const reason = window.prompt(`Informe a justificativa para ${actionLabel} o usuário "${fullName}":`);
     const normalized = String(reason || "").trim();
@@ -143,16 +145,17 @@ export function UserList({
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Tem certeza que deseja remover o acesso de "${user.full_name}"?`
-                            )
-                          ) {
-                            const reason = requestReason("remover", user.full_name);
-                            if (!reason) return;
-                            onDeleteUser(user.id, reason);
-                          }
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: `Remover o acesso de "${user.full_name}"?`,
+                            description: "O usuário perderá acesso imediatamente ao sistema.",
+                            confirmLabel: "Sim, remover acesso",
+                            variant: "destructive",
+                          });
+                          if (!ok) return;
+                          const reason = requestReason("remover", user.full_name);
+                          if (!reason) return;
+                          onDeleteUser(user.id, reason);
                         }}
                         className="text-destructive focus:text-destructive"
                       >

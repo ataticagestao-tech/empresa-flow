@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
   Plus, Search, Trash2, Bell, Mail, MessageSquare, Play, Pause, Send,
@@ -132,6 +133,7 @@ function computeStatus(cr: CR): string {
 export default function ReguaCobranca() {
   const { selectedCompany } = useCompany()
   const { activeClient } = useAuth()
+  const confirm = useConfirm()
   const companyId = selectedCompany?.id
 
   // ── Reguas state ── (each row in regua_cobranca is one etapa/step)
@@ -413,7 +415,13 @@ export default function ReguaCobranca() {
 
   /* ── Delete regua (all rows in group) ── */
   async function deleteRegua(nomeKey: string) {
-    if (!confirm('Excluir esta regua de cobranca?')) return
+    const ok = await confirm({
+      title: 'Excluir esta régua de cobrança?',
+      description: 'Todas as etapas desta régua serão removidas. Esta ação não pode ser desfeita.',
+      confirmLabel: 'Sim, excluir',
+      variant: 'destructive',
+    })
+    if (!ok) return
     const group = reguasGrouped[nomeKey] || []
     const ids = group.map(r => r.id)
     const { error } = await supabase.from('regua_cobranca').delete().in('id', ids)

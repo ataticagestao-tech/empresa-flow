@@ -11,6 +11,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   Plus, Search, ClipboardCheck, CheckCircle, Eye, AlertTriangle
 } from "lucide-react";
@@ -53,6 +54,7 @@ export default function Inventario() {
   const db = activeClient as any;
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const [search, setSearch] = useState("");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -427,10 +429,13 @@ export default function Inventario() {
                   <Button variant="outline" onClick={() => saveContagemMutation.mutate()} disabled={saveContagemMutation.isPending} className="flex-1">
                     {saveContagemMutation.isPending ? "Salvando..." : "Salvar Contagem"}
                   </Button>
-                  <Button onClick={() => {
-                    if (window.confirm("Concluir inventário e aplicar ajustes de estoque? Esta ação não pode ser desfeita.")) {
-                      concluirMutation.mutate();
-                    }
+                  <Button onClick={async () => {
+                    const ok = await confirm({
+                      title: "Concluir inventário e aplicar ajustes de estoque?",
+                      description: "Esta ação não pode ser desfeita. Os saldos dos produtos serão ajustados conforme a contagem.",
+                      confirmLabel: "Sim, concluir",
+                    });
+                    if (ok) concluirMutation.mutate();
                   }} disabled={concluirMutation.isPending} className="flex-1">
                     {concluirMutation.isPending ? "Concluindo..." : "Concluir e Ajustar Estoque"}
                   </Button>

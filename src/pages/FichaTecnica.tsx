@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ function saveFichas(companyId: string, fichas: Ficha[]) {
 export default function FichaTecnica() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
+    const confirm = useConfirm();
     const { toast } = useToast();
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -150,8 +152,15 @@ export default function FichaTecnica() {
         setDialogOpen(true);
     };
 
-    const handleDelete = (idx: number) => {
-        if (!selectedCompany?.id || !window.confirm("Excluir esta ficha técnica?")) return;
+    const handleDelete = async (idx: number) => {
+        if (!selectedCompany?.id) return;
+        const ok = await confirm({
+            title: "Excluir esta ficha técnica?",
+            description: "Esta ação não pode ser desfeita.",
+            confirmLabel: "Sim, excluir",
+            variant: "destructive",
+        });
+        if (!ok) return;
         const current = loadFichas(selectedCompany.id);
         current.splice(idx, 1);
         saveFichas(selectedCompany.id, current);
