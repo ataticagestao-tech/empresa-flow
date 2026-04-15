@@ -480,16 +480,25 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         queryFn: async () => {
             if (!bankAccountId) return [];
 
-            // Buscar transações recentes para calcular períodos (limitado)
-            const { data: allTx, error: txError } = await (activeClient as any)
-                .from('bank_transactions')
-                .select('id, date, created_at, fit_id')
-                .eq('bank_account_id', bankAccountId)
-                .order('created_at', { ascending: false })
-                .limit(2000);
-
-            if (txError) throw txError;
-            if (!allTx?.length) return [];
+            // Paginar para buscar todas as transações (PostgREST default limita a 1000)
+            const pageSize = 1000;
+            let allTx: any[] = [];
+            let page = 0;
+            while (true) {
+                const { data, error: txError } = await (activeClient as any)
+                    .from('bank_transactions')
+                    .select('id, date, created_at, fit_id')
+                    .eq('bank_account_id', bankAccountId)
+                    .order('created_at', { ascending: false })
+                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                if (txError) throw txError;
+                if (!data?.length) break;
+                allTx = allTx.concat(data);
+                if (data.length < pageSize) break;
+                page++;
+                if (page > 50) break; // safety: 50k transacoes max
+            }
+            if (!allTx.length) return [];
 
             // Agrupar por lote de importação (created_at truncado ao minuto)
             const groups = new Map<string, {
