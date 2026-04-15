@@ -1,5 +1,5 @@
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { useBankReconciliation, SystemTransaction } from "@/modules/finance/presentation/hooks/useBankReconciliation";
@@ -477,6 +477,17 @@ export default function Conciliacao() {
     const { suggestions: createSuggestions } = useCategorySuggestion(
         createDescription, chartCategories || [], createType as "receita" | "despesa", externalSuggestions
     );
+
+    // Auto-pre-fill categoria com sugestão IA sempre que abrir o form
+    // sem categoria definida (fluxo de "Criar e Conciliar")
+    useEffect(() => {
+        if (!showCreateForm || !selectedBankTx) return;
+        if (newEntry.category_id) return; // já preenchido pelo usuário
+        const engineSuggestion = suggestionMap.get(selectedBankTx.id);
+        if (engineSuggestion?.accountId) {
+            setNewEntry(prev => ({ ...prev, category_id: engineSuggestion.accountId! }));
+        }
+    }, [showCreateForm, selectedBankTx?.id, suggestionMap]);
 
     // AI recategorization for reconciled batches
     const aiRecat = useAiRecategorization(chartCategories || []);
