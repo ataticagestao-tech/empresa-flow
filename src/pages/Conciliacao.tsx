@@ -612,6 +612,7 @@ export default function Conciliacao() {
                 data_vencimento: bt.date,
                 status: "aberto",
                 conta_contabil_id: accountId,
+                created_via_bank_tx_id: bt.id,
             };
             if ((bt as any).unidade_destino_id) payload.unidade_destino_id = (bt as any).unidade_destino_id;
 
@@ -687,6 +688,7 @@ export default function Conciliacao() {
                 valor: amount,
                 data_vencimento: selectedBankTx.date,
                 status: "aberto",
+                created_via_bank_tx_id: selectedBankTx.id,
             };
             if (newEntry.category_id && newEntry.category_id !== "none") {
                 payload.conta_contabil_id = newEntry.category_id;

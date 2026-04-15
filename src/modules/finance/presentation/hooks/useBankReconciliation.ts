@@ -536,8 +536,10 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
     });
 
     // Mutation: Deletar lote de importação
-    // Para transações já conciliadas, reverte a baixa no CR/CP e remove a movimentação
-    // antes de deletar o bank_transaction (bank_reconciliation_matches cai por CASCADE).
+    // Para CR/CP criados via extrato (created_via_bank_tx_id preenchido):
+    //   soft-delete (deleted_at) em vez de reverter.
+    // Para CR/CP pre-existentes (venda, contrato, manual): reverte para 'aberto'.
+    // Movimentações são removidas em ambos os casos.
     const deleteImportBatch = useMutation({
         mutationFn: async (txIds: string[]) => {
             if (!txIds.length) throw new Error("Nenhuma transação para deletar");
@@ -545,6 +547,8 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const batchSize = 50;
             let revertedCR = 0;
             let revertedCP = 0;
+            let softDeletedCR = 0;
+            let softDeletedCP = 0;
             let removedMovs = 0;
 
             for (let i = 0; i < txIds.length; i += batchSize) {
@@ -559,17 +563,50 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
                 const reconciled = (bankTxs || []).filter((t: any) => t.status === 'reconciled');
 
+                // 1b. Também pegar CR/CP marcados como criados via estes bank_tx
+                // (pode incluir CR/CP cujo bank_tx não está mais com status 'reconciled'
+                // por qualquer razão, garantindo limpeza completa)
+                const { data: crCreatedViaBatch, error: crViaErr } = await (activeClient as any)
+                    .from('contas_receber')
+                    .select('id, created_via_bank_tx_id')
+                    .in('created_via_bank_tx_id', batch)
+                    .is('deleted_at', null);
+                if (crViaErr) throw crViaErr;
+
+                const { data: cpCreatedViaBatch, error: cpViaErr } = await (activeClient as any)
+                    .from('contas_pagar')
+                    .select('id, created_via_bank_tx_id')
+                    .in('created_via_bank_tx_id', batch)
+                    .is('deleted_at', null);
+                if (cpViaErr) throw cpViaErr;
+
+                const crViaSet = new Set<string>((crCreatedViaBatch || []).map((r: any) => r.id));
+                const cpViaSet = new Set<string>((cpCreatedViaBatch || []).map((r: any) => r.id));
+
                 // 2. Reverter baixa em CR/CP + remover movimentação para cada conciliada
                 for (const tx of reconciled) {
                     const absAmount = Math.abs(Number(tx.amount || 0));
 
                     if (tx.reconciled_receivable_id) {
-                        const { error: crError } = await (activeClient as any)
-                            .from('contas_receber')
-                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
-                            .eq('id', tx.reconciled_receivable_id);
-                        if (crError) throw crError;
-                        revertedCR++;
+                        const wasCreatedViaExtrato = crViaSet.has(tx.reconciled_receivable_id);
+
+                        if (wasCreatedViaExtrato) {
+                            // Soft-delete: CR foi criado via extrato, some junto
+                            const { error: softErr } = await (activeClient as any)
+                                .from('contas_receber')
+                                .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id ?? null })
+                                .eq('id', tx.reconciled_receivable_id);
+                            if (softErr) throw softErr;
+                            softDeletedCR++;
+                        } else {
+                            // Revert: CR pre-existente (venda/contrato/manual), volta para aberto
+                            const { error: crError } = await (activeClient as any)
+                                .from('contas_receber')
+                                .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                                .eq('id', tx.reconciled_receivable_id);
+                            if (crError) throw crError;
+                            revertedCR++;
+                        }
 
                         // Caminho principal: FK direta (para movimentações novas)
                         const { data: movsByFk, error: movFkError } = await (activeClient as any)
@@ -598,12 +635,23 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     }
 
                     if (tx.reconciled_payable_id) {
-                        const { error: cpError } = await (activeClient as any)
-                            .from('contas_pagar')
-                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
-                            .eq('id', tx.reconciled_payable_id);
-                        if (cpError) throw cpError;
-                        revertedCP++;
+                        const wasCreatedViaExtrato = cpViaSet.has(tx.reconciled_payable_id);
+
+                        if (wasCreatedViaExtrato) {
+                            const { error: softErr } = await (activeClient as any)
+                                .from('contas_pagar')
+                                .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id ?? null })
+                                .eq('id', tx.reconciled_payable_id);
+                            if (softErr) throw softErr;
+                            softDeletedCP++;
+                        } else {
+                            const { error: cpError } = await (activeClient as any)
+                                .from('contas_pagar')
+                                .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                                .eq('id', tx.reconciled_payable_id);
+                            if (cpError) throw cpError;
+                            revertedCP++;
+                        }
 
                         // Caminho principal: FK direta
                         const { data: movsByFk, error: movFkError } = await (activeClient as any)
@@ -632,6 +680,45 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                     }
                 }
 
+                // 2b. Sweep final: soft-delete CR/CP marcados via_bank_tx que não foram
+                // capturados pelo loop acima (ex: bank_tx sem status='reconciled' mas
+                // com CR/CP apontando para ela via created_via_bank_tx_id)
+                const crRemaining = Array.from(crViaSet).filter(id =>
+                    !reconciled.some((tx: any) => tx.reconciled_receivable_id === id)
+                );
+                if (crRemaining.length) {
+                    const { error: sweepCrErr } = await (activeClient as any)
+                        .from('contas_receber')
+                        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id ?? null })
+                        .in('id', crRemaining);
+                    if (sweepCrErr) throw sweepCrErr;
+                    softDeletedCR += crRemaining.length;
+                    // Movimentações via FK direta
+                    const { data: movsSweep } = await (activeClient as any)
+                        .from('movimentacoes')
+                        .delete()
+                        .in('conta_receber_id', crRemaining)
+                        .select('id');
+                    removedMovs += movsSweep?.length || 0;
+                }
+                const cpRemaining = Array.from(cpViaSet).filter(id =>
+                    !reconciled.some((tx: any) => tx.reconciled_payable_id === id)
+                );
+                if (cpRemaining.length) {
+                    const { error: sweepCpErr } = await (activeClient as any)
+                        .from('contas_pagar')
+                        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id ?? null })
+                        .in('id', cpRemaining);
+                    if (sweepCpErr) throw sweepCpErr;
+                    softDeletedCP += cpRemaining.length;
+                    const { data: movsSweep } = await (activeClient as any)
+                        .from('movimentacoes')
+                        .delete()
+                        .in('conta_pagar_id', cpRemaining)
+                        .select('id');
+                    removedMovs += movsSweep?.length || 0;
+                }
+
                 // 3. Deletar bank_transactions (CASCADE remove bank_reconciliation_matches)
                 const { error } = await (activeClient as any)
                     .from('bank_transactions')
@@ -640,10 +727,12 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 if (error) throw error;
             }
 
-            return { count: txIds.length, revertedCR, revertedCP, removedMovs };
+            return { count: txIds.length, revertedCR, revertedCP, softDeletedCR, softDeletedCP, removedMovs };
         },
-        onSuccess: ({ count, revertedCR, revertedCP, removedMovs }) => {
+        onSuccess: ({ count, revertedCR, revertedCP, softDeletedCR, softDeletedCP, removedMovs }) => {
             const parts = [`${count} transações removidas`];
+            if (softDeletedCR > 0) parts.push(`${softDeletedCR} CR excluídos`);
+            if (softDeletedCP > 0) parts.push(`${softDeletedCP} CP excluídos`);
             if (revertedCR > 0) parts.push(`${revertedCR} CR revertidas`);
             if (revertedCP > 0) parts.push(`${revertedCP} CP revertidas`);
             if (removedMovs > 0) parts.push(`${removedMovs} movimentações removidas`);
