@@ -43,7 +43,7 @@ interface TabContractsProps {
 }
 
 export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContractsProps) {
-    const { contratos, isLoading, createContrato, updateContratoMetadata, deleteContrato, uploadContratoPdf } =
+    const { contratos, isLoading, createContrato, updateContratoFull, deleteContrato, uploadContratoPdf } =
         useClientContratos(clientCpfCnpj);
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -117,24 +117,27 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
             )}
 
             <ContratoDialog
-                open={dialogOpen}
-                onOpenChange={setDialogOpen}
+                open={dialogOpen || !!editTarget}
+                onOpenChange={(v) => {
+                    if (!v) {
+                        setDialogOpen(false);
+                        setEditTarget(null);
+                    } else {
+                        setDialogOpen(true);
+                    }
+                }}
                 clientName={clientName || ""}
-                onSubmit={async (input) => {
-                    await createContrato.mutateAsync(input);
-                    setDialogOpen(false);
-                }}
-                saving={createContrato.isPending}
-            />
-
-            <EditContratoDialog
                 contrato={editTarget}
-                onClose={() => setEditTarget(null)}
-                onSave={async (input) => {
-                    await updateContratoMetadata.mutateAsync(input);
-                    setEditTarget(null);
+                onSubmit={async (input) => {
+                    if (editTarget) {
+                        await updateContratoFull.mutateAsync({ ...input, vendaId: editTarget.id });
+                        setEditTarget(null);
+                    } else {
+                        await createContrato.mutateAsync(input);
+                        setDialogOpen(false);
+                    }
                 }}
-                saving={updateContratoMetadata.isPending}
+                saving={createContrato.isPending || updateContratoFull.isPending}
             />
 
             <RegistrarPagamentoDialog
@@ -304,11 +307,28 @@ interface ContratoDialogProps {
     open: boolean;
     onOpenChange: (v: boolean) => void;
     clientName: string;
+    contrato?: ContratoVenda | null;
     onSubmit: (input: CreateContratoInput) => Promise<void>;
     saving: boolean;
 }
 
-function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: ContratoDialogProps) {
+function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, saving }: ContratoDialogProps) {
+    const isEdit = !!contrato;
+
+    // CRs preservadas em edicao (ja tem pagamento)
+    const crsPreservadas = useMemo(
+        () => (contrato?.crs || []).filter((c) => c.valor_pago > 0),
+        [contrato]
+    );
+    const totalPreservado = useMemo(
+        () => crsPreservadas.reduce((s, c) => s + c.valor, 0),
+        [crsPreservadas]
+    );
+    const reservaPaga = useMemo(
+        () => crsPreservadas.find((c) => c.tipo === "reserva"),
+        [crsPreservadas]
+    );
+
     const [consultora, setConsultora] = useState("");
     const [procedimento, setProcedimento] = useState(PROCEDIMENTOS[0]);
     const [procedimentoOutro, setProcedimentoOutro] = useState("");
@@ -332,8 +352,26 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
         { forma: "cartao_credito", valor: "", parcelas: "10", primeiro_vencimento: defaultPrimeiroVenc(new Date().toISOString().slice(0, 10)) },
     ]);
 
-    const resetOnOpen = (v: boolean) => {
-        if (v) {
+    // Prefill quando o dialog abre
+    useEffect(() => {
+        if (!open) return;
+        if (contrato) {
+            setConsultora(contrato.consultora || "");
+            const procIsKnown = PROCEDIMENTOS.includes(contrato.procedimento || "");
+            setProcedimento(procIsKnown ? contrato.procedimento! : "Outro");
+            setProcedimentoOutro(procIsKnown ? "" : contrato.procedimento || "");
+            setValorTotal(String(contrato.valor_total || ""));
+            setDataVenda(contrato.data_venda || new Date().toISOString().slice(0, 10));
+            setPrevisaoCirurgia(contrato.previsao_cirurgia || "");
+            setReservaValor(contrato.reserva_valor ? String(contrato.reserva_valor) : "");
+            setReservaData(contrato.reserva_data || "");
+            setCondicoes([{
+                forma: "cartao_credito",
+                valor: "",
+                parcelas: "10",
+                primeiro_vencimento: defaultPrimeiroVenc(contrato.data_venda || new Date().toISOString().slice(0, 10)),
+            }]);
+        } else {
             setConsultora("");
             setProcedimento(PROCEDIMENTOS[0]);
             setProcedimentoOutro("");
@@ -349,8 +387,8 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                 primeiro_vencimento: defaultPrimeiroVenc(new Date().toISOString().slice(0, 10)),
             }]);
         }
-        onOpenChange(v);
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, contrato?.id]);
 
     const podeParcelarForma = (f: string) =>
         f === "cartao_credito" || f === "boleto";
@@ -375,12 +413,15 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
 
     const calc = useMemo(() => {
         const vt = parseFloat(valorTotal) || 0;
-        const rv = parseFloat(reservaValor) || 0;
-        const saldo = Math.max(0, vt - rv);
+        const rvInput = parseFloat(reservaValor) || 0;
+        // Em edit: se a reserva ja foi paga, ela faz parte do preservado (nao entra no saldo)
+        // Se nao foi paga (ou nao existe), a reserva nova sai do saldo como antes
+        const rvEfetiva = reservaPaga ? 0 : rvInput;
+        const saldo = Math.max(0, vt - totalPreservado - rvEfetiva);
         const totalCondicoes = condicoes.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
         const falta = Math.round((saldo - totalCondicoes) * 100) / 100;
-        return { vt, rv, saldo, totalCondicoes, falta };
-    }, [valorTotal, reservaValor, condicoes]);
+        return { vt, rv: rvInput, saldo, totalCondicoes, falta, preservado: totalPreservado };
+    }, [valorTotal, reservaValor, condicoes, totalPreservado, reservaPaga]);
 
     const handleSubmit = async () => {
         const proc = procedimento === "Outro" ? procedimentoOutro.trim() : procedimento;
@@ -388,8 +429,11 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
         if (!consultora.trim()) return alert("Consultora é obrigatória");
         if (calc.vt <= 0) return alert("Valor total inválido");
         if (!dataVenda) return alert("Data de assinatura é obrigatória");
-        if (calc.rv > 0 && !reservaData) return alert("Informe a data da reserva");
+        if (calc.rv > 0 && !reservaData && !reservaPaga) return alert("Informe a data da reserva");
         if (calc.rv > calc.vt) return alert("Reserva não pode ser maior que o valor total");
+        if (isEdit && calc.vt < calc.preservado - 0.01) {
+            return alert(`Valor total não pode ser menor que ${formatBRL(calc.preservado)} (já pago)`);
+        }
 
         const condicoesValidas: CondicaoPagamento[] = condicoes
             .map((c) => ({
@@ -438,18 +482,19 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
     const statusTone = calc.vt <= 0 ? "neutral" : isClosed ? "ok" : "warn";
 
     return (
-        <Dialog open={open} onOpenChange={resetOnOpen}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-0 gap-0">
                 {/* Header elegante com saldo live */}
                 <div className="px-8 pt-7 pb-5 border-b border-[#eef0f3] bg-white">
                     <div className="flex items-start justify-between gap-6">
                         <div>
                             <DialogTitle className="text-[18px] font-bold text-[#1a2e4a] tracking-tight">
-                                Novo contrato
+                                {isEdit ? "Editar contrato" : "Novo contrato"}
                             </DialogTitle>
                             <DialogDescription className="text-[12px] text-[#6b7280] mt-1 leading-relaxed max-w-md">
-                                As parcelas e a reserva se tornam Contas a Receber vinculadas ao contrato.
-                                Pagamentos abatem automaticamente do saldo.
+                                {isEdit
+                                    ? "Parcelas em aberto serão substituídas pelo novo plano. Parcelas já pagas permanecem intactas."
+                                    : "As parcelas e a reserva se tornam Contas a Receber vinculadas ao contrato. Pagamentos abatem automaticamente do saldo."}
                             </DialogDescription>
                         </div>
                         <div className="text-right pl-6 border-l border-[#e5e7eb]">
@@ -476,6 +521,18 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
 
                 {/* Corpo */}
                 <div className="px-8 py-6 space-y-8 bg-[#fafbfc]">
+
+                    {isEdit && crsPreservadas.length > 0 && (
+                        <div className="rounded-md border border-[#0a5c2e]/20 bg-[#f0f9f4] px-4 py-3 text-[12px] text-[#0a5c2e]">
+                            <strong className="font-semibold">
+                                {crsPreservadas.length} parcela{crsPreservadas.length === 1 ? "" : "s"} já paga{crsPreservadas.length === 1 ? "" : "s"} ({formatBRL(totalPreservado)})
+                            </strong>
+                            {" — "}
+                            <span className="text-[#3a5d48]">
+                                permanece{crsPreservadas.length === 1 ? "" : "m"} intacta{crsPreservadas.length === 1 ? "" : "s"}. Apenas as parcelas em aberto serão substituídas pelo novo plano abaixo.
+                            </span>
+                        </div>
+                    )}
 
                     {/* ─── Seção 01 ─── */}
                     <section>
@@ -553,6 +610,11 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                             hint="Opcional — abatida do valor total"
                         />
                         <div className="border-l-2 border-[#1a2e4a]/15 pl-5">
+                            {reservaPaga && (
+                                <p className="text-[11px] text-[#0a5c2e] mb-3 font-medium">
+                                    Reserva já paga em {formatDate(reservaPaga.data_vencimento)} — valor e data não podem ser alterados.
+                                </p>
+                            )}
                             <div className="grid grid-cols-2 gap-5">
                                 <Field label="Valor (R$)">
                                     <Input
@@ -561,7 +623,8 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                         value={reservaValor}
                                         onChange={(e) => setReservaValor(e.target.value)}
                                         placeholder="0,00"
-                                        className="h-10 bg-white tabular-nums"
+                                        disabled={!!reservaPaga}
+                                        className="h-10 bg-white tabular-nums disabled:bg-[#f3f4f6] disabled:text-[#6b7280]"
                                     />
                                 </Field>
                                 <Field label="Data do pagamento">
@@ -569,7 +632,8 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                                         type="date"
                                         value={reservaData}
                                         onChange={(e) => setReservaData(e.target.value)}
-                                        className="h-10 bg-white"
+                                        disabled={!!reservaPaga}
+                                        className="h-10 bg-white disabled:bg-[#f3f4f6] disabled:text-[#6b7280]"
                                     />
                                 </Field>
                             </div>
@@ -713,7 +777,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                         : statusTone === "warn" ? "text-[#8b0000]"
                         : "text-[#9ca3af]"
                     }`}>
-                        {statusTone === "ok" && "Pronto para criar — valores conferem"}
+                        {statusTone === "ok" && (isEdit ? "Pronto para salvar — valores conferem" : "Pronto para criar — valores conferem")}
                         {statusTone === "warn" && statusLabel}
                         {statusTone === "neutral" && "Preencha os campos obrigatórios"}
                     </p>
@@ -734,7 +798,7 @@ function ContratoDialog({ open, onOpenChange, clientName, onSubmit, saving }: Co
                             className="h-10 px-6 bg-[#1a2e4a] hover:bg-[#0f1f33] text-white transition-colors disabled:opacity-50"
                         >
                             {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
-                            Criar contrato
+                            {isEdit ? "Salvar alterações" : "Criar contrato"}
                         </Button>
                     </div>
                 </div>
@@ -819,181 +883,6 @@ function SummaryCell({
                 {value}
             </p>
         </div>
-    );
-}
-
-/* ─── Dialog de edição (metadados apenas) ───────────────────── */
-
-interface EditContratoDialogProps {
-    contrato: ContratoVenda | null;
-    onClose: () => void;
-    onSave: (input: {
-        vendaId: string;
-        consultora?: string | null;
-        procedimento?: string;
-        data_venda?: string;
-        previsao_cirurgia?: string | null;
-        observacoes?: string | null;
-        status?: string;
-    }) => Promise<void>;
-    saving: boolean;
-}
-
-function EditContratoDialog({ contrato, onClose, onSave, saving }: EditContratoDialogProps) {
-    const [consultora, setConsultora] = useState("");
-    const [procedimento, setProcedimento] = useState(PROCEDIMENTOS[0]);
-    const [procedimentoOutro, setProcedimentoOutro] = useState("");
-    const [dataVenda, setDataVenda] = useState("");
-    const [previsaoCirurgia, setPrevisaoCirurgia] = useState("");
-    const [status, setStatus] = useState("confirmado");
-
-    const open = !!contrato;
-
-    // Popula estado quando abre com um contrato
-    useEffect(() => {
-        if (contrato) {
-            setConsultora(contrato.consultora || "");
-            const procIsKnown = PROCEDIMENTOS.includes(contrato.procedimento || "");
-            setProcedimento(procIsKnown ? contrato.procedimento! : "Outro");
-            setProcedimentoOutro(procIsKnown ? "" : contrato.procedimento || "");
-            setDataVenda(contrato.data_venda || "");
-            setPrevisaoCirurgia(contrato.previsao_cirurgia || "");
-            setStatus(contrato.status || "confirmado");
-        }
-    }, [contrato?.id]);
-
-    const handleSubmit = async () => {
-        if (!contrato) return;
-        const proc = procedimento === "Outro" ? procedimentoOutro.trim() : procedimento;
-        if (!proc) return alert("Procedimento é obrigatório");
-        if (!dataVenda) return alert("Data de assinatura é obrigatória");
-
-        await onSave({
-            vendaId: contrato.id,
-            consultora: consultora.trim() || null,
-            procedimento: proc,
-            data_venda: dataVenda,
-            previsao_cirurgia: previsaoCirurgia || null,
-            status,
-        });
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-w-xl p-0 gap-0">
-                <div className="px-7 pt-6 pb-4 border-b border-[#eef0f3]">
-                    <DialogTitle className="text-[16px] font-bold text-[#1a2e4a]">
-                        Editar contrato
-                    </DialogTitle>
-                    <DialogDescription className="text-[11px] text-[#6b7280] mt-1">
-                        Apenas metadados. Para alterar valor, reserva ou parcelas, exclua e crie novamente.
-                    </DialogDescription>
-                </div>
-
-                <div className="px-7 py-5 space-y-4 bg-[#fafbfc]">
-                    <div className="grid grid-cols-2 gap-4">
-                        <Field label="Consultora responsável">
-                            <Input
-                                value={consultora}
-                                onChange={(e) => setConsultora(e.target.value)}
-                                placeholder="Ex: Mariana Melo"
-                                className="h-10 bg-white"
-                            />
-                        </Field>
-                        <Field label="Procedimento">
-                            <Select value={procedimento} onValueChange={setProcedimento}>
-                                <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {PROCEDIMENTOS.map((p) => (
-                                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {procedimento === "Outro" && (
-                                <Input
-                                    className="mt-2 h-10 bg-white"
-                                    value={procedimentoOutro}
-                                    onChange={(e) => setProcedimentoOutro(e.target.value)}
-                                    placeholder="Especifique"
-                                />
-                            )}
-                        </Field>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                        <Field label="Data assinatura">
-                            <Input
-                                type="date"
-                                value={dataVenda}
-                                onChange={(e) => setDataVenda(e.target.value)}
-                                className="h-10 bg-white"
-                            />
-                        </Field>
-                        <Field label="Previsão cirurgia">
-                            <Input
-                                type="date"
-                                value={previsaoCirurgia}
-                                onChange={(e) => setPrevisaoCirurgia(e.target.value)}
-                                className="h-10 bg-white"
-                            />
-                        </Field>
-                        <Field label="Status">
-                            <Select value={status} onValueChange={setStatus}>
-                                <SelectTrigger className="h-10 bg-white"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="confirmado">Ativo</SelectItem>
-                                    <SelectItem value="orcamento">Orçamento</SelectItem>
-                                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </Field>
-                    </div>
-
-                    {contrato && (
-                        <div className="mt-2 p-3 rounded border border-[#e5e7eb] bg-white">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af] mb-2">
-                                Financeiro (somente leitura)
-                            </p>
-                            <div className="grid grid-cols-4 gap-3 text-[11px]">
-                                <div>
-                                    <p className="text-[#9ca3af]">Valor total</p>
-                                    <p className="font-bold text-[#1a2e4a] tabular-nums">{formatBRL(contrato.valor_total)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[#9ca3af]">Reserva</p>
-                                    <p className="font-bold text-[#1a2e4a] tabular-nums">{formatBRL(contrato.reserva_valor || 0)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[#9ca3af]">Pago</p>
-                                    <p className="font-bold text-[#0a5c2e] tabular-nums">{formatBRL(contrato.total_pago)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[#9ca3af]">Saldo</p>
-                                    <p className="font-bold tabular-nums" style={{ color: contrato.saldo > 0 ? "#8b0000" : "#0a5c2e" }}>
-                                        {formatBRL(contrato.saldo)}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="px-7 py-4 border-t border-[#eef0f3] bg-white flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={onClose} disabled={saving} className="h-10 px-5">
-                        Cancelar
-                    </Button>
-                    <Button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="h-10 px-6 bg-[#1a2e4a] hover:bg-[#0f1f33] text-white"
-                    >
-                        {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
-                        Salvar alterações
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
     );
 }
 
