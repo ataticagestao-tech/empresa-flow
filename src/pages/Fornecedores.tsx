@@ -20,10 +20,12 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useSearchParams } from "react-router-dom";
 import { maskCNPJ, maskCPF, maskPhone } from "@/utils/masks";
 import { logDeletion } from "@/lib/audit";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export default function Fornecedores() {
     const { selectedCompany } = useCompany();
     const { activeClient, isUsingSecondary, user } = useAuth();
+    const confirm = useConfirm();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +74,12 @@ export default function Fornecedores() {
     };
 
     const handleDelete = async (supplier: any) => {
-        const ok = window.confirm(`Excluir o fornecedor "${supplier.razao_social}"?`);
+        const ok = await confirm({
+            title: `Excluir o fornecedor "${supplier.razao_social}"?`,
+            description: "Esta ação não pode ser desfeita.",
+            confirmLabel: "Sim, excluir",
+            variant: "destructive",
+        });
         if (!ok) return;
         const { error } = await activeClient.from("suppliers").delete().eq("id", supplier.id);
         if (!error) {

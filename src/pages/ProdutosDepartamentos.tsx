@@ -17,11 +17,13 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Product } from "@/types/product";
 import { formatBRL } from "@/lib/format";
 import { useCompanies } from "@/hooks/useCompanies";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export default function ProdutosDepartamentos() {
     const { selectedCompany } = useCompany();
     const { activeClient, isUsingSecondary, user } = useAuth();
     const queryClient = useQueryClient();
+    const confirm = useConfirm();
     const { companies } = useCompanies(user?.id);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<"products" | "departments">("products");
@@ -352,9 +354,14 @@ export default function ProdutosDepartamentos() {
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                             </button>
                                                             <button
-                                                                onClick={() => {
-                                                                    if (confirm("Excluir este produto?"))
-                                                                        deleteProductMutation.mutate(p.id);
+                                                                onClick={async () => {
+                                                                    const ok = await confirm({
+                                                                        title: "Excluir este produto?",
+                                                                        description: "Esta ação não pode ser desfeita.",
+                                                                        confirmLabel: "Sim, excluir",
+                                                                        variant: "destructive",
+                                                                    });
+                                                                    if (ok) deleteProductMutation.mutate(p.id);
                                                                 }}
                                                                 className="p-1.5 rounded hover:bg-red-50 text-[#8b0000] transition-colors"
                                                                 title="Excluir"
@@ -444,9 +451,14 @@ export default function ProdutosDepartamentos() {
                                                             <Pencil className="h-3.5 w-3.5" />
                                                         </button>
                                                         <button
-                                                            onClick={() => {
-                                                                if (confirm("Excluir este departamento?"))
-                                                                    deleteDeptMutation.mutate(d.id);
+                                                            onClick={async () => {
+                                                                const ok = await confirm({
+                                                                    title: "Excluir este departamento?",
+                                                                    description: "Esta ação não pode ser desfeita.",
+                                                                    confirmLabel: "Sim, excluir",
+                                                                    variant: "destructive",
+                                                                });
+                                                                if (ok) deleteDeptMutation.mutate(d.id);
                                                             }}
                                                             className="p-1.5 rounded hover:bg-red-50 text-[#8b0000] transition-colors"
                                                             title="Excluir"

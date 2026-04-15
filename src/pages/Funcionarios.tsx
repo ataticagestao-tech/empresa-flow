@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface Employee {
   id: string; company_id: string;
@@ -119,6 +120,7 @@ export default function Funcionarios() {
   const { activeClient, user } = useAuth();
   const { selectedCompany } = useCompany();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState("dados");
@@ -268,7 +270,13 @@ export default function Funcionarios() {
   };
 
   const handleDelete = async (emp: Employee) => {
-    if (!confirm(`Excluir "${getName(emp)}"?`)) return;
+    const ok = await confirm({
+      title: `Excluir "${getName(emp)}"?`,
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       const { error } = await (activeClient as any).from("employees").delete().eq("id", emp.id);
       if (error) throw error;

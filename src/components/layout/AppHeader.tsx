@@ -3,7 +3,15 @@ import { CompanySelector } from "@/components/CompanySelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Search, Moon, Sun } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Plus, Search, Moon, Sun, LogOut, Settings, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 
@@ -12,13 +20,18 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title }: AppHeaderProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
   };
 
   return (
@@ -66,14 +79,46 @@ export function AppHeader({ title }: AppHeaderProps) {
           <Plus className="h-4 w-4" />
         </button>
 
-        <div className="relative flex items-center">
-          <Avatar className="h-[32px] w-[32px]">
-            <AvatarFallback className="bg-[#2563EB] text-white text-[12px] font-semibold tracking-wide">
-              {user?.email ? getInitials(user.email) : "US"}
-            </AvatarFallback>
-          </Avatar>
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-[#121212]" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="relative flex items-center outline-none focus-visible:ring-2 focus-visible:ring-[#3b5bdb]/40 rounded-full"
+              aria-label="Abrir menu do usuário"
+            >
+              <Avatar className="h-[32px] w-[32px]">
+                <AvatarFallback className="bg-[#3b5bdb] text-white text-[12px] font-semibold tracking-wide">
+                  {user?.email ? getInitials(user.email) : "US"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#22C55E] border-2 border-[#121212]" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {user?.email && (
+              <>
+                <DropdownMenuLabel className="font-normal">
+                  <p className="text-[11px] text-muted-foreground">Conectado como</p>
+                  <p className="text-[13px] font-medium truncate">{user.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onSelect={() => navigate("/configuracoes")}>
+              <User className="mr-2 h-4 w-4" /> Perfil
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate("/configuracoes")}>
+              <Settings className="mr-2 h-4 w-4" /> Configurações
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={handleLogout}
+              className="text-[#D92D20] focus:text-[#D92D20] focus:bg-[#FEE2E2]"
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -19,11 +19,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { logDeletion } from "@/lib/audit";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export default function Categorias() {
     const { selectedCompany } = useCompany();
     const { activeClient, isUsingSecondary, user } = useAuth();
     const queryClient = useQueryClient();
+    const confirm = useConfirm();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -62,7 +64,12 @@ export default function Categorias() {
     };
 
     const handleDelete = async (cat: any) => {
-        const ok = window.confirm(`Excluir a categoria "${cat.name}"?`);
+        const ok = await confirm({
+            title: `Excluir a categoria "${cat.name}"?`,
+            description: "Esta ação não pode ser desfeita.",
+            confirmLabel: "Sim, excluir",
+            variant: "destructive",
+        });
         if (!ok) return;
         const { error } = await activeClient.from("categories").delete().eq("id", cat.id);
         if (!error) {
