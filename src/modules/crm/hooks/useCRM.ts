@@ -55,10 +55,10 @@ export function useCRM() {
 
                 // Cria stages padrão
                 const defaultStages = [
-                    { pipeline_id: pipelineId, name: 'Prospecção', position: 0, color: '#94a3b8' },
+                    { pipeline_id: pipelineId, name: 'Prospecção', position: 0, color: '#98A2B3' },
                     { pipeline_id: pipelineId, name: 'Qualificação', position: 1, color: '#60a5fa' },
                     { pipeline_id: pipelineId, name: 'Proposta', position: 2, color: '#fbbf24' },
-                    { pipeline_id: pipelineId, name: 'Negociação', position: 3, color: '#f87171' },
+                    { pipeline_id: pipelineId, name: 'Negociação', position: 3, color: '#D92D20' },
                     { pipeline_id: pipelineId, name: 'Fechado Ganho', position: 4, color: '#10b981' },
                 ];
                 await supabase.from('crm_stages').insert(defaultStages);

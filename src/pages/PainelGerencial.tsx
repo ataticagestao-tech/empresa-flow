@@ -35,14 +35,14 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 /* ── Design Tokens ──────────────────────────────────────────── */
 const C = {
-  darkCard: "#1A1F36",
-  gold: "#C5A24D",
-  green: "#2e7d32",
-  red: "#c62828",
-  text1: "#0f172a",
-  text2: "#475569",
-  textMuted: "#94a3b8",
-  border: "#e2e8f0",
+  darkCard: "#1D2939",
+  gold: "#1E3A8A",
+  green: "#039855",
+  red: "#D92D20",
+  text1: "#1D2939",
+  text2: "#667085",
+  textMuted: "#98A2B3",
+  border: "#EAECF0",
 } as const;
 
 /* ── Formatters ─────────────────────────────────────────────── */
@@ -74,7 +74,7 @@ function KpiCard({
   const hasDelta = delta !== undefined && delta !== null && isFinite(delta);
   return (
     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-      <div className="bg-[#1a2e4a] px-4 py-2">
+      <div className="bg-[#1E3A8A] px-4 py-2">
         <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
           {label}
         </h3>
@@ -88,7 +88,7 @@ function KpiCard({
             <span
               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
               style={{
-                backgroundColor: delta > 0 ? "#e8f5e9" : delta < 0 ? "#fde8e8" : "#f1f5f9",
+                backgroundColor: delta > 0 ? "#ECFDF3" : delta < 0 ? "#FEF3F2" : "#F6F2EB",
                 color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
               }}
             >
@@ -108,7 +108,7 @@ function KpiCard({
 /* ── Section Header ─────────────────────────────────────────── */
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-lg font-bold text-[#1A1F36] mt-8 mb-4">{children}</h2>
+    <h2 className="text-lg font-bold text-[#1D2939] mt-8 mb-4">{children}</h2>
   );
 }
 
@@ -1469,35 +1469,35 @@ export default function PainelGerencial() {
           <div className="flex items-center gap-2 flex-wrap">
             {/* Toggle Regime: Competência (vendas) vs Caixa (CR recebido) */}
             <div
-              className="flex border border-[#e2e8f0] rounded-lg overflow-hidden"
+              className="flex border border-[#EAECF0] rounded-lg overflow-hidden"
               title="Regime do faturamento: Competência soma as vendas emitidas no período; Caixa soma as contas a receber efetivamente recebidas."
             >
               <button
                 onClick={() => changeRegime("competencia")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${regime === "competencia" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${regime === "competencia" ? "bg-[#1E3A8A] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
               >Competência</button>
               <button
                 onClick={() => changeRegime("caixa")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${regime === "caixa" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${regime === "caixa" ? "bg-[#1E3A8A] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
               >Caixa</button>
             </div>
-            <div className="flex border border-[#e2e8f0] rounded-lg overflow-hidden">
+            <div className="flex border border-[#EAECF0] rounded-lg overflow-hidden">
               <button
                 onClick={() => { setPeriodoTipo("mes"); setMesSelecionado(format(realToday, "yyyy-MM")); }}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" && mesSelecionado === format(realToday, "yyyy-MM") ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" && mesSelecionado === format(realToday, "yyyy-MM") ? "bg-[#1E3A8A] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
               >Este mês</button>
               <button
                 onClick={() => { setPeriodoTipo("mes"); setMesSelecionado(format(subMonths(realToday, 1), "yyyy-MM")); }}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" && mesSelecionado === format(subMonths(realToday, 1), "yyyy-MM") ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "mes" && mesSelecionado === format(subMonths(realToday, 1), "yyyy-MM") ? "bg-[#1E3A8A] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
               >Mês passado</button>
               <button
                 onClick={() => { setPeriodoTipo("custom"); setDataInicio(format(subMonths(realToday, 3), "yyyy-MM-dd")); setDataFim(format(realToday, "yyyy-MM-dd")); }}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "custom" ? "bg-[#1a2e4a] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${periodoTipo === "custom" ? "bg-[#1E3A8A] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
               ><Calendar className="h-3 w-3 inline mr-1" />Personalizado</button>
             </div>
             {periodoTipo === "mes" ? (
               <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)}
-                className="h-8 px-3 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20">
+                className="h-8 px-3 text-xs border border-[#EAECF0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20">
                 {mesesOpcoes.map((m) => (
                   <option key={m} value={m}>{format(parse(m + "-01", "yyyy-MM-dd", new Date()), "MMMM yyyy", { locale: ptBR })}</option>
                 ))}
@@ -1505,10 +1505,10 @@ export default function PainelGerencial() {
             ) : (
               <div className="flex items-center gap-1.5">
                 <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
-                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20" />
+                  className="h-8 px-2 text-xs border border-[#EAECF0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20" />
                 <span className="text-xs text-gray-400">a</span>
                 <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
-                  className="h-8 px-2 text-xs border border-[#e2e8f0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1a2e4a]/20" />
+                  className="h-8 px-2 text-xs border border-[#EAECF0] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20" />
               </div>
             )}
           </div>
@@ -1567,10 +1567,10 @@ export default function PainelGerencial() {
 
         {/* ── RECEITA x DESPESAS — últimos 6 meses ─────────────── */}
         <SectionTitle>Receita x Despesas &mdash; últimos 6 meses</SectionTitle>
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
+        <div className="bg-white rounded-2xl border border-[#EAECF0] p-5 mb-6">
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={faturamentoMensal} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" />
               <XAxis dataKey="mes" stroke={C.text2} tick={{ fontSize: 12 }} />
               <YAxis
                 stroke={C.text2}
@@ -1620,7 +1620,7 @@ export default function PainelGerencial() {
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
                 <Tooltip formatter={(v: number, name: string) => [fmtR(v), name === "faturamento" ? "Entradas do dia" : "Média diária acumulada"]} />
                 <Legend formatter={(v: string) => v === "faturamento" ? "Entradas do dia" : "Média diária acumulada"} />
-                <Bar dataKey="faturamento" fill="#1a2e4a" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="faturamento" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
                 <Line type="monotone" dataKey="media" stroke={C.gold} strokeWidth={2} dot={{ r: 4, fill: C.gold }} name="media" />
               </ComposedChart>
             </ResponsiveContainer>
@@ -1645,7 +1645,7 @@ export default function PainelGerencial() {
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`} />
               <Tooltip formatter={(v: number) => [fmtR(v), "Valor (R$)"]} />
               <Legend formatter={() => "Valor (R$)"} />
-              <Bar dataKey="valor" fill="#1a2e4a" radius={[4, 4, 0, 0]} name="valor" />
+              <Bar dataKey="valor" fill="#1E3A8A" radius={[4, 4, 0, 0]} name="valor" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1672,7 +1672,7 @@ export default function PainelGerencial() {
                   return (
                     <tr key={c.nome} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-2 text-gray-400">{idx + 1}</td>
-                      <td className="px-4 py-2 font-medium text-[#0f172a]">{c.nome}</td>
+                      <td className="px-4 py-2 font-medium text-[#1D2939]">{c.nome}</td>
                       <td className="px-4 py-2 text-right text-gray-600">{c.count}</td>
                       <td className="px-4 py-2 text-right font-semibold" style={{ color: C.red }}>{fmt(c.total)}</td>
                       <td className="px-4 py-2 text-right text-gray-600">{fmtPct(pct)}</td>
@@ -1753,7 +1753,7 @@ export default function PainelGerencial() {
                 name === "saldo" ? "Saldo projetado" : name === "entradas" ? "Entradas" : "Saídas"
               ]} />
               <Legend formatter={(v: string) => v === "saldo" ? "Saldo projetado" : v === "entradas" ? "Entradas" : "Saídas"} />
-              <Area type="monotone" dataKey="saldo" stroke="#1a2e4a" fill="#1a2e4a" fillOpacity={0.08} strokeWidth={2.5} name="saldo" />
+              <Area type="monotone" dataKey="saldo" stroke="#1E3A8A" fill="#1E3A8A" fillOpacity={0.08} strokeWidth={2.5} name="saldo" />
               <Bar dataKey="entradas" fill={C.green} radius={[2, 2, 0, 0]} name="entradas" barSize={8} />
               <Bar dataKey="saidas" fill={C.red} radius={[2, 2, 0, 0]} name="saidas" barSize={8} />
             </ComposedChart>
@@ -1768,7 +1768,7 @@ export default function PainelGerencial() {
           ) : (
             movPorBanco.map((b) => (
               <div key={b.id} className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
-                <div className="bg-[#1a2e4a] px-4 py-2">
+                <div className="bg-[#1E3A8A] px-4 py-2">
                   <h3 className="text-[10px] font-bold text-white uppercase tracking-widest truncate">
                     {b.nome}
                   </h3>
@@ -1810,7 +1810,7 @@ export default function PainelGerencial() {
           </h3>
           <div className="space-y-3">
             {insights.map((ins, idx) => {
-              const dotColor = ins.type === "danger" ? "#ef4444" : ins.type === "warning" ? "#eab308" : "#22c55e";
+              const dotColor = ins.type === "danger" ? "#D92D20" : ins.type === "warning" ? "#F79009" : "#039855";
               return (
                 <div key={idx} className="flex items-start gap-3">
                   <span className="inline-block w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: dotColor }} />

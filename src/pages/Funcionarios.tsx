@@ -111,10 +111,10 @@ const formatSalary = (v: string) => {
 
 const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
-const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full";
-const ICE = "border border-[#c00] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-[#fff8f8] focus:border-[#c00] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
-const REQ = <span className="text-[#8b0000]">*</span>;
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full";
+const ICE = "border border-[#c00] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-[#fff8f8] focus:border-[#c00] focus:outline-none w-full";
+const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const REQ = <span className="text-[#D92D20]">*</span>;
 
 export default function Funcionarios() {
   const { activeClient, user } = useAuth();
@@ -308,31 +308,31 @@ export default function Funcionarios() {
       <div className="flex gap-4 h-[calc(100vh-120px)]">
         {/* LEFT: List */}
         <div className="w-1/3 min-w-[280px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Funcionários</h3>
-            <button onClick={startNew} className="text-xs font-semibold text-[#a8bfd4] hover:text-white">+ Novo</button>
+            <button onClick={startNew} className="text-xs font-semibold text-[#BFDBFE] hover:text-white">+ Novo</button>
           </div>
           <div className="p-3 border-b border-[#eee]">
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className={IC} />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {employeesError ? <p className="text-center py-8 text-sm text-[#8b0000]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
+            {employeesError ? <p className="text-center py-8 text-sm text-[#D92D20]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
              isLoading ? <p className="text-center py-8 text-sm text-[#555]">Carregando...</p> :
              filtered.length === 0 ? <p className="text-center py-8 text-sm text-[#555]">Nenhum funcionário</p> :
              filtered.map(emp => (
               <div key={emp.id} onClick={() => startEdit(emp)}
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#f0f0f0] transition-all ${
-                  selectedId === emp.id ? "bg-[#f0f4f8] border-l-2 border-l-[#1a2e4a]" : "hover:bg-[#fafafa]"
+                className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
+                  selectedId === emp.id ? "bg-[#EFF6FF] border-l-2 border-l-[#1E3A8A]" : "hover:bg-[#F6F2EB]"
                 }`}>
-                <div className="w-9 h-9 rounded-full bg-[#1a2e4a] flex items-center justify-center text-white text-xs font-bold shrink-0">{initials(getName(emp))}</div>
+                <div className="w-9 h-9 rounded-full bg-[#1E3A8A] flex items-center justify-center text-white text-xs font-bold shrink-0">{initials(getName(emp))}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#0a0a0a] truncate">{getName(emp)}</p>
+                  <p className="text-sm font-semibold text-[#1D2939] truncate">{getName(emp)}</p>
                   <p className="text-[11px] text-[#555] truncate">{emp.role || "Sem cargo"} · {tipoContratoLabels[emp.tipo_contrato || ""] || "—"}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs font-bold text-[#0a0a0a]">{formatBRL(emp.salario_base || emp.salary || 0)}</p>
+                  <p className="text-xs font-bold text-[#1D2939]">{formatBRL(emp.salario_base || emp.salary || 0)}</p>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                    isActive(emp.status) ? "bg-[#e6f4ec] text-[#0a5c2e]" : "bg-[#f0f0f0] text-[#555]"
+                    isActive(emp.status) ? "bg-[#ECFDF3] text-[#039855]" : "bg-[#EAECF0] text-[#555]"
                   }`}>{statusLabel(emp.status)}</span>
                 </div>
               </div>
@@ -346,12 +346,12 @@ export default function Funcionarios() {
             <div className="flex-1 flex items-center justify-center text-sm text-[#555]">Selecione um funcionário ou clique em "+ Novo"</div>
           ) : (
             <>
-              <div className="bg-[#1a2e4a] px-4 py-2 flex items-center gap-1">
+              <div className="bg-[#1E3A8A] px-4 py-2 flex items-center gap-1">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Histórico de Salários" },
                   { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
                     className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
-                      tab === t.id ? "bg-white/20 text-white" : "text-[#a8bfd4] hover:text-white"
+                      tab === t.id ? "bg-white/20 text-white" : "text-[#BFDBFE] hover:text-white"
                     }`}>{t.label}</button>
                 ))}
                 {selected && <button onClick={() => handleDelete(selected)} className="ml-auto text-[10px] font-bold text-[#ff9999] hover:text-white px-2">Excluir</button>}
@@ -445,7 +445,7 @@ export default function Funcionarios() {
                         <option value="ativo">Ativo</option><option value="inativo">Inativo</option><option value="ferias">Férias</option><option value="afastado">Afastado</option><option value="demitido">Demitido</option>
                       </select>
                     </div>
-                    <button onClick={handleSave} disabled={saving} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                    <button onClick={handleSave} disabled={saving} className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                       {saving ? "Salvando..." : isCreating ? "Cadastrar" : "Salvar Alterações"}
                     </button>
                   </div>
@@ -455,7 +455,7 @@ export default function Funcionarios() {
                   <div className="space-y-4">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead className="bg-[#f5f5f5]">
+                        <thead className="bg-[#F6F2EB]">
                           <tr><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Vigência</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Salário Base</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Variação</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Motivo</th></tr>
                         </thead>
                         <tbody>
@@ -463,7 +463,7 @@ export default function Funcionarios() {
                             <tr className="border-t border-[#eee] font-bold">
                               <td className="px-4 py-2.5">{selected.hire_date ? new Date(selected.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
                               <td className="px-4 py-2.5">{formatBRL(selected.salario_base || selected.salary || 0)}</td>
-                              <td className="px-4 py-2.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#f0f4f8] text-[#1a2e4a]">Atual</span></td>
+                              <td className="px-4 py-2.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#EFF6FF] text-[#1E3A8A]">Atual</span></td>
                               <td className="px-4 py-2.5 text-[#555]">Admissão</td>
                             </tr>
                           ) : <tr><td colSpan={4} className="px-4 py-8 text-center text-[#555]">Selecione um funcionário</td></tr>}
@@ -479,10 +479,10 @@ export default function Funcionarios() {
                     <div className="grid grid-cols-3 gap-4">
                       {["Jan/2026", "Fev/2026", "Mar/2026"].map((mes, i) => (
                         <div key={i} className="border border-[#ccc] rounded-lg overflow-hidden">
-                          <div className="bg-[#1a2e4a] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">{mes}</span></div>
+                          <div className="bg-[#1E3A8A] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">{mes}</span></div>
                           <div className="p-3 bg-white text-center">
-                            <p className="text-lg font-bold text-[#0a0a0a]">R$ 0,00</p>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#f5f5f5] text-[#555]">Sem lançamento</span>
+                            <p className="text-lg font-bold text-[#1D2939]">R$ 0,00</p>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Sem lançamento</span>
                           </div>
                         </div>
                       ))}
@@ -504,9 +504,9 @@ export default function Funcionarios() {
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                          <div className="bg-[#1a2e4a] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">INSS — Detalhamento por faixa</span></div>
+                          <div className="bg-[#1E3A8A] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">INSS — Detalhamento por faixa</span></div>
                           <table className="w-full text-xs">
-                            <thead className="bg-[#f5f5f5]"><tr><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[9px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
+                            <thead className="bg-[#F6F2EB]"><tr><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[9px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
                             <tbody>
                               {INSS_2025.map((f, i) => {
                                 if (calcSalario <= f.min) return null;
@@ -514,12 +514,12 @@ export default function Funcionarios() {
                                 const val = Math.round(base * f.aliq * 100) / 100;
                                 return (<tr key={i} className="border-t border-[#eee]"><td className="px-3 py-1.5">Até {formatBRL(f.max)}</td><td className="px-3 py-1.5">{(f.aliq * 100).toFixed(1)}%</td><td className="px-3 py-1.5 text-right font-semibold">{formatBRL(val)}</td></tr>);
                               })}
-                              <tr className="border-t-2 border-[#1a2e4a] font-bold"><td className="px-3 py-2" colSpan={2}>Total INSS</td><td className="px-3 py-2 text-right">{formatBRL(inssCalc)}</td></tr>
+                              <tr className="border-t-2 border-[#1E3A8A] font-bold"><td className="px-3 py-2" colSpan={2}>Total INSS</td><td className="px-3 py-2 text-right">{formatBRL(inssCalc)}</td></tr>
                             </tbody>
                           </table>
                         </div>
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                          <div className="bg-[#1a2e4a] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">IRRF</span></div>
+                          <div className="bg-[#1E3A8A] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">IRRF</span></div>
                           <div className="p-3 text-xs space-y-1">
                             <div className="flex justify-between"><span className="text-[#555]">Base de cálculo</span><span className="font-semibold">{formatBRL(Math.max(0, calcSalario - inssCalc - calcDependentes * DEDUCAO_DEPENDENTE))}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">Dedução dependentes ({calcDependentes})</span><span className="font-semibold">{formatBRL(calcDependentes * DEDUCAO_DEPENDENTE)}</span></div>
@@ -528,15 +528,15 @@ export default function Funcionarios() {
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <div className="border-2 border-[#1a2e4a] rounded-lg p-5">
-                          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a] mb-4">Resumo do Colaborador</h4>
+                        <div className="border-2 border-[#1E3A8A] rounded-lg p-5">
+                          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1E3A8A] mb-4">Resumo do Colaborador</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between"><span className="text-[#555]">Salário Bruto</span><span className="font-bold">{formatBRL(calcSalario)}</span></div>
-                            <div className="flex justify-between text-[#8b0000]"><span>(-) INSS</span><span>{formatBRL(inssCalc)}</span></div>
-                            <div className="flex justify-between text-[#8b0000]"><span>(-) IRRF</span><span>{formatBRL(irrfCalc)}</span></div>
-                            <div className="flex justify-between border-t-2 border-[#1a2e4a] pt-2 mt-2">
-                              <span className="font-bold text-[#0a5c2e] text-base">Líquido</span>
-                              <span className="font-bold text-[#0a5c2e] text-base">{formatBRL(liquido)}</span>
+                            <div className="flex justify-between text-[#D92D20]"><span>(-) INSS</span><span>{formatBRL(inssCalc)}</span></div>
+                            <div className="flex justify-between text-[#D92D20]"><span>(-) IRRF</span><span>{formatBRL(irrfCalc)}</span></div>
+                            <div className="flex justify-between border-t-2 border-[#1E3A8A] pt-2 mt-2">
+                              <span className="font-bold text-[#039855] text-base">Líquido</span>
+                              <span className="font-bold text-[#039855] text-base">{formatBRL(liquido)}</span>
                             </div>
                           </div>
                         </div>
@@ -546,7 +546,7 @@ export default function Funcionarios() {
                             <div className="flex justify-between"><span className="text-[#555]">Salário</span><span>{formatBRL(calcSalario)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">FGTS (8%)</span><span>{formatBRL(fgts)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">INSS Patronal (20%)</span><span>{formatBRL(inssPatronal)}</span></div>
-                            <div className="flex justify-between border-t border-[#eee] pt-2 font-bold"><span>Custo Total</span><span className="text-[#8b0000]">{formatBRL(custoTotal)}</span></div>
+                            <div className="flex justify-between border-t border-[#eee] pt-2 font-bold"><span>Custo Total</span><span className="text-[#D92D20]">{formatBRL(custoTotal)}</span></div>
                           </div>
                         </div>
                       </div>

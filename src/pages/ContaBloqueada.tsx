@@ -25,8 +25,8 @@ export default function ContaBloqueada() {
     : null;
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] p-4 sm:p-8 flex items-center justify-center">
-      <Card className="w-full max-w-2xl shadow-xl border-[#E2E8F0]">
+    <div className="min-h-screen bg-[#F6F2EB] p-4 sm:p-8 flex items-center justify-center">
+      <Card className="w-full max-w-2xl shadow-xl border-[#EAECF0]">
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-6 w-6 text-amber-600" />
@@ -48,7 +48,7 @@ export default function ContaBloqueada() {
             )}
           </div>
 
-          <div className="rounded-lg border border-[#E2E8F0] bg-white p-4">
+          <div className="rounded-lg border border-[#EAECF0] bg-white p-4">
             <p className="text-sm font-semibold text-muted-foreground">Suporte da plataforma</p>
             <a
               href={supportWhatsAppHref}

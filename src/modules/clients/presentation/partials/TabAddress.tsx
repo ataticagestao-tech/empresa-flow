@@ -28,7 +28,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Endereço</FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
+                                    <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -44,7 +44,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Número</FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
+                                <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                             </FormControl>
                         </FormItem>
                     )}
@@ -59,7 +59,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Bairro</FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
+                                    <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
                             </FormItem>
                         )}
@@ -75,7 +75,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Estado</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value ?? ""}>
                                 <FormControl>
-                                    <SelectTrigger className="h-9 border-[#E2E8F0]">
+                                    <SelectTrigger className="h-9 border-[#EAECF0]">
                                         <SelectValue placeholder="UF" />
                                     </SelectTrigger>
                                 </FormControl>
@@ -98,7 +98,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             <FormItem>
                                 <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Cidade</FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" {...field} value={field.value ?? ""} />
+                                    <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
                             </FormItem>
                         )}
@@ -117,7 +117,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                             </div>
                             <FormControl>
                                 <Input
-                                    className="h-9 border-[#E2E8F0] bg-blue-50/30"
+                                    className="h-9 border-[#EAECF0] bg-blue-50/30"
                                     {...field}
                                     value={field.value ?? ""}
                                     onChange={(e) => field.onChange(maskCEP(e.target.value))}

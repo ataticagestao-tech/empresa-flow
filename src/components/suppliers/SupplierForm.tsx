@@ -354,9 +354,9 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Cabeçalho do Formulário */}
-                <div className="flex gap-6 items-start bg-[#F8FAFC] p-4 rounded-lg border border-[#F1F5F9]">
+                <div className="flex gap-6 items-start bg-[#F6F2EB] p-4 rounded-lg border border-[#F6F2EB]">
                     <div className="flex flex-col items-center gap-2">
-                        <div className="w-20 h-20 bg-[#F1F5F9] rounded-full flex items-center justify-center border-4 border-white shadow-sm overflow-hidden">
+                        <div className="w-20 h-20 bg-[#F6F2EB] rounded-full flex items-center justify-center border-4 border-white shadow-sm overflow-hidden">
                             <User className="w-10 h-10 text-muted-foreground" />
                         </div>
                         <button type="button" className="text-xs text-blue-600 font-semibold hover:underline">Alterar</button>
@@ -374,7 +374,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <button type="button" className="text-[12px] text-green-600 flex items-center gap-1"><Search className="w-3 h-3" /> Consulta de Crédito</button>
                                         </div>
                                         <FormControl>
-                                            <Input className="h-9 focus-visible:ring-green-600 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 focus-visible:ring-green-600 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -400,7 +400,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         </div>
                                         <FormControl>
                                             <Input
-                                                className="h-9 focus-visible:ring-green-600 border-[#E2E8F0]"
+                                                className="h-9 focus-visible:ring-green-600 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
@@ -435,7 +435,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-xs font-bold uppercase">Nome Fantasia / Nome Abreviado</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 focus-visible:ring-green-600 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 focus-visible:ring-green-600 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -452,7 +452,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-xs font-bold uppercase">Telefone</FormLabel>
                                         <FormControl>
                                             <Input
-                                                className="h-9 focus-visible:ring-green-600 border-[#E2E8F0]"
+                                                className="h-9 focus-visible:ring-green-600 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
                                                 maxLength={15}
@@ -472,7 +472,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-xs font-bold uppercase">Nome do Contato</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 focus-visible:ring-green-600 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 focus-visible:ring-green-600 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -511,7 +511,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 </button>
                                             </div>
                                             <FormControl>
-                                                <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                                <Input className="h-9 border-[#EAECF0]" {...field} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -524,7 +524,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Número</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -537,7 +537,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormItem>
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Bairro</FormLabel>
                                             <FormControl>
-                                                <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                                <Input className="h-9 border-[#EAECF0]" {...field} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -551,7 +551,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormItem>
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Complemento</FormLabel>
                                             <FormControl>
-                                                <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                                <Input className="h-9 border-[#EAECF0]" {...field} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -565,7 +565,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Estado</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
-                                                <SelectTrigger className="h-9 border-[#E2E8F0]">
+                                                <SelectTrigger className="h-9 border-[#EAECF0]">
                                                     <SelectValue placeholder="UF" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -589,7 +589,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Cidade</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
-                                                    <Input className="h-9 border-[#E2E8F0] pr-8" {...field} />
+                                                    <Input className="h-9 border-[#EAECF0] pr-8" {...field} />
                                                     <Search className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
                                                 </div>
                                             </FormControl>
@@ -608,7 +608,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         </div>
                                         <FormControl>
                                             <Input
-                                                className="h-9 border-[#E2E8F0] bg-blue-50/30"
+                                                className="h-9 border-[#EAECF0] bg-blue-50/30"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskCEP(e.target.value))}
                                                 onBlur={handleCEPBlur}
@@ -630,7 +630,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Telefone 2</FormLabel>
                                         <FormControl>
                                             <Input
-                                                className="h-9 border-[#E2E8F0]"
+                                                className="h-9 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
                                                 maxLength={15}
@@ -647,7 +647,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Celular / WhatsApp</FormLabel>
                                         <FormControl>
                                             <Input
-                                                className="h-9 border-[#E2E8F0]"
+                                                className="h-9 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
                                                 maxLength={15}
@@ -664,7 +664,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Fax</FormLabel>
                                         <FormControl>
                                             <Input
-                                                className="h-9 border-[#E2E8F0]"
+                                                className="h-9 border-[#EAECF0]"
                                                 {...field}
                                                 onChange={(e) => field.onChange(maskPhone(e.target.value))}
                                                 maxLength={15}
@@ -682,7 +682,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">E-mail</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
-                                                    <Input className="h-9 border-[#E2E8F0] pr-8" {...field} />
+                                                    <Input className="h-9 border-[#EAECF0] pr-8" {...field} />
                                                     <Mail className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
                                                 </div>
                                             </FormControl>
@@ -699,7 +699,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">WebSite</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
-                                                    <Input className="h-9 border-[#E2E8F0] pr-8" {...field} onBlur={(e) => { field.onBlur(); field.onChange(autoCorrectUrl(e.target.value)); }} />
+                                                    <Input className="h-9 border-[#EAECF0] pr-8" {...field} onBlur={(e) => { field.onBlur(); field.onChange(autoCorrectUrl(e.target.value)); }} />
                                                     <Globe className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
                                                 </div>
                                             </FormControl>
@@ -722,7 +722,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Banco</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
-                                                <SelectTrigger className="h-9 border-[#E2E8F0]">
+                                                <SelectTrigger className="h-9 border-[#EAECF0]">
                                                     <SelectValue placeholder="Selecione" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -743,7 +743,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Agência</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -755,7 +755,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Conta Corrente</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -767,7 +767,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Chave Pix</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -781,7 +781,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">CNPJ ou CPF do Titular</FormLabel>
                                             <FormControl>
                                                 <Input
-                                                    className="h-9 border-[#E2E8F0]"
+                                                    className="h-9 border-[#EAECF0]"
                                                     placeholder="Opcional."
                                                     {...field}
                                                     onChange={(e) => {
@@ -803,7 +803,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormItem>
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Nome do Titular da Conta</FormLabel>
                                             <FormControl>
-                                                <Input className="h-9 border-[#E2E8F0]" placeholder="Opcional." {...field} />
+                                                <Input className="h-9 border-[#EAECF0]" placeholder="Opcional." {...field} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -821,7 +821,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Inscrição Estadual</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -833,7 +833,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Inscrição Municipal</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -845,7 +845,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Inscrição SUFRAMA</FormLabel>
                                         <FormControl>
-                                            <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                            <Input className="h-9 border-[#EAECF0]" {...field} />
                                         </FormControl>
                                     </FormItem>
                                 )}
@@ -860,7 +860,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={(checked) => field.onChange(checked === true)}
-                                                    className="border-[#E2E8F0]"
+                                                    className="border-[#EAECF0]"
                                                 />
                                             </FormControl>
                                             <FormLabel className="text-xs text-muted-foreground font-normal">
@@ -878,7 +878,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={(checked) => field.onChange(checked === true)}
-                                                    className="border-[#E2E8F0]"
+                                                    className="border-[#EAECF0]"
                                                 />
                                             </FormControl>
                                             <FormLabel className="text-xs text-muted-foreground font-normal">
@@ -896,7 +896,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={(checked) => field.onChange(checked === true)}
-                                                    className="border-[#E2E8F0]"
+                                                    className="border-[#EAECF0]"
                                                 />
                                             </FormControl>
                                             <FormLabel className="text-xs text-muted-foreground font-normal">
@@ -915,7 +915,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Tipo de Atividade</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
-                                                <SelectTrigger className="h-9 border-[#E2E8F0]">
+                                                <SelectTrigger className="h-9 border-[#EAECF0]">
                                                     <SelectValue placeholder="Selecione" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -945,7 +945,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                     value={field.value}
                                                 >
                                                     <FormControl>
-                                                        <SelectTrigger className="h-9 border-[#E2E8F0]">
+                                                        <SelectTrigger className="h-9 border-[#EAECF0]">
                                                             <SelectValue placeholder="Selecione" />
                                                         </SelectTrigger>
                                                     </FormControl>
@@ -961,7 +961,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                 <FormControl>
                                                     <div className="relative">
                                                         <Input
-                                                            className="h-9 border-[#E2E8F0] pr-8"
+                                                            className="h-9 border-[#EAECF0] pr-8"
                                                             {...field}
                                                             onChange={(e) => {
                                                                 field.onChange(e);
@@ -988,7 +988,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                         <FormItem>
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Observações Internas</FormLabel>
                                             <FormControl>
-                                                <Textarea className="min-h-[100px] border-[#E2E8F0] text-xs" {...field} />
+                                                <Textarea className="min-h-[100px] border-[#EAECF0] text-xs" {...field} />
                                             </FormControl>
                                         </FormItem>
                                     )}
@@ -1003,7 +1003,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                             <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Observações Detalhadas</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
-                                                    <Textarea className="min-h-[100px] border-[#E2E8F0] text-xs" {...field} />
+                                                    <Textarea className="min-h-[100px] border-[#EAECF0] text-xs" {...field} />
                                                     <FileText className="w-4 h-4 text-muted-foreground absolute right-2 bottom-2" />
                                                 </div>
                                             </FormControl>
@@ -1020,7 +1020,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                         type="button"
                         variant="ghost"
                         onClick={onSuccess}
-                        className="text-muted-foreground hover:bg-[#F1F5F9]"
+                        className="text-muted-foreground hover:bg-[#F6F2EB]"
                     >
                         Cancelar
                     </Button>

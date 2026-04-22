@@ -13,12 +13,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useState } from "react";
 
 const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828", redLt: "#fde8e8",
+    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    green: "#039855", greenLt: "#ECFDF3",
+    red: "#D92D20", redLt: "#FEF3F2",
     amber: "#f57f17", amberLt: "#fff8e1",
-    text1: "#0f172a", text3: "#94a3b8",
-    border: "#e2e8f0",
+    text1: "#1D2939", text3: "#98A2B3",
+    border: "#EAECF0",
 } as const;
 const FONT = "var(--font-base)";
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -97,6 +97,7 @@ export default function ComposicaoCusto() {
     return (
         <AppLayout title="Composição de Custo">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
                         <Layers size={22} color={T.primary} />
@@ -131,7 +132,7 @@ export default function ComposicaoCusto() {
                         <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Custo vs Preço vs Lucro</p>
                         <ResponsiveContainer width="100%" height={280}>
                             <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
                                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip formatter={(v: number) => fmt(v)} />

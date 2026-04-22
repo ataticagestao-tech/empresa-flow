@@ -178,9 +178,9 @@ export const PLANO_PATRIMONIAL: ContaModelo[] = [
 ];
 
 export const GRUPO_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  ativo_circulante: { label: "Ativo Circulante", color: "#0a5c2e", bg: "#e6f4ec" },
-  ativo_nao_circulante: { label: "Ativo Não Circulante", color: "#1a2e4a", bg: "#f0f4f8" },
-  passivo_circulante: { label: "Passivo Circulante", color: "#8b0000", bg: "#fdecea" },
-  passivo_nao_circulante: { label: "Passivo Não Circulante", color: "#5c3a00", bg: "#fffbe6" },
-  patrimonio_liquido: { label: "Patrimônio Líquido", color: "#4a1a6b", bg: "#f3e8ff" },
+  ativo_circulante: { label: "Ativo Circulante", color: "#039855", bg: "#ECFDF3" },
+  ativo_nao_circulante: { label: "Ativo Não Circulante", color: "#1E3A8A", bg: "#EFF6FF" },
+  passivo_circulante: { label: "Passivo Circulante", color: "#D92D20", bg: "#FEF3F2" },
+  passivo_nao_circulante: { label: "Passivo Não Circulante", color: "#F79009", bg: "#FFFAEB" },
+  patrimonio_liquido: { label: "Patrimônio Líquido", color: "#1E3A8A", bg: "#EFF6FF" },
 };

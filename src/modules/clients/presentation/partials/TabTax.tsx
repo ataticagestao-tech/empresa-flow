@@ -27,7 +27,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição Estadual</FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#E2E8F0]" placeholder="Isento se vazio" {...field} />
+                                <Input className="h-9 border-[#EAECF0]" placeholder="Isento se vazio" {...field} />
                             </FormControl>
                         </FormItem>
                     )}
@@ -40,7 +40,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição Municipal</FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#E2E8F0]" {...field} />
+                                <Input className="h-9 border-[#EAECF0]" {...field} />
                             </FormControl>
                         </FormItem>
                     )}
@@ -58,7 +58,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                                 </FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value || undefined}>
                                     <FormControl>
-                                        <SelectTrigger className="h-9 border-[#E2E8F0]">
+                                        <SelectTrigger className="h-9 border-[#EAECF0]">
                                             <SelectValue placeholder="Selecione o CNAE..." />
                                         </SelectTrigger>
                                     </FormControl>

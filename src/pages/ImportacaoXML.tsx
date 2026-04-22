@@ -37,10 +37,10 @@ interface ImportacaoXML {
 
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  processado: { label: 'Processado', color: '#059669', bg: '#D1FAE5' },
-  erro: { label: 'Erro', color: '#DC2626', bg: '#FEE2E2' },
-  duplicado: { label: 'Duplicado', color: '#D97706', bg: '#FEF3C7' },
-  pendente: { label: 'Pendente', color: '#6B7280', bg: '#F3F4F6' },
+  processado: { label: 'Processado', color: '#059669', bg: '#ECFDF3' },
+  erro: { label: 'Erro', color: '#D92D20', bg: '#FEF3F2' },
+  duplicado: { label: 'Duplicado', color: '#F79009', bg: '#FFFAEB' },
+  pendente: { label: 'Pendente', color: '#667085', bg: '#F3F4F6' },
 }
 
 // ─── XML Parser (browser) ───────────────────────────────────────────
@@ -314,10 +314,10 @@ export default function ImportacaoXML() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total importados', value: kpis.total, icon: FileText, color: '#1a2e4a' },
+            { label: 'Total importados', value: kpis.total, icon: FileText, color: '#1E3A8A' },
             { label: 'Processados', value: kpis.processados, icon: Check, color: '#059669' },
-            { label: 'Valor total', value: formatBRL(kpis.totalValor), icon: FileText, color: '#1a2e4a' },
-            { label: 'Erros', value: kpis.erros, icon: AlertTriangle, color: '#DC2626' },
+            { label: 'Valor total', value: formatBRL(kpis.totalValor), icon: FileText, color: '#1E3A8A' },
+            { label: 'Erros', value: kpis.erros, icon: AlertTriangle, color: '#D92D20' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>

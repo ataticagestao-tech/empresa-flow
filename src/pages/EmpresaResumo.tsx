@@ -205,6 +205,15 @@ export default function EmpresaResumo() {
 
   const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
+  const enderecoFull = company
+    ? [company.endereco_logradouro, company.endereco_numero, company.endereco_bairro]
+        .filter(Boolean)
+        .join(", ")
+    : "";
+  const cidadeUf = company
+    ? [company.endereco_cidade, company.endereco_estado].filter(Boolean).join(" / ")
+    : "";
+
   if (isLoading) {
     return (
       <AppLayout title="Empresa">
@@ -216,65 +225,22 @@ export default function EmpresaResumo() {
   if (!company) {
     return (
       <AppLayout title="Empresa">
-        <div className="text-center py-20">
-          <p className="text-sm font-bold text-[#0a0a0a] mb-4">Empresa não encontrada</p>
-          <button onClick={() => navigate("/empresas")} className="text-sm text-[#1a2e4a] font-semibold hover:underline">Voltar para lista</button>
+        <div className="flex items-center justify-center py-20 text-sm text-[#555]">
+          Empresa não encontrada.
         </div>
       </AppLayout>
     );
   }
 
-  const endereco = [company.endereco_logradouro, company.endereco_numero].filter(Boolean).join(", ");
-  const enderecoFull = [endereco, company.endereco_bairro].filter(Boolean).join(" — ");
-  const cidadeUf = [company.endereco_cidade, company.endereco_estado].filter(Boolean).join(" / ");
-
   return (
     <AppLayout title={company.razao_social || "Empresa"}>
-      <div className="max-w-5xl mx-auto space-y-6">
-
-        {/* Back + Actions */}
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate("/empresas")} className="flex items-center gap-1.5 text-sm text-[#555] hover:text-[#0a0a0a] transition-colors">
-            <ArrowLeft size={16} /> Voltar
-          </button>
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate(`/dashboard/${id}`)}
-              className="flex items-center gap-1.5 bg-[#1a2e4a] text-white text-xs font-bold px-4 py-2 rounded-md hover:bg-[#253d5e] transition-colors">
-              <BarChart3 size={14} /> Dashboard Financeiro
-            </button>
-            {editing ? (
-              <>
-                <button onClick={() => setEditing(false)} disabled={saving}
-                  className="flex items-center gap-1.5 bg-white text-[#555] border border-[#ccc] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f5f5f5] transition-colors">
-                  <X size={14} /> Cancelar
-                </button>
-                <button onClick={handleSave} disabled={saving}
-                  className="flex items-center gap-1.5 bg-[#0a5c2e] text-white text-xs font-bold px-4 py-2 rounded-md hover:bg-[#08491f] transition-colors">
-                  <Check size={14} /> {saving ? "Salvando..." : "Salvar"}
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => setEditing(true)}
-                  className="flex items-center gap-1.5 bg-white text-[#1a2e4a] border border-[#1a2e4a] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#f0f4f8] transition-colors">
-                  <Pencil size={14} /> Editar
-                </button>
-                <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
-                  className="flex items-center gap-1.5 bg-white text-[#8b0000] border border-[#8b0000] text-xs font-bold px-4 py-2 rounded-md hover:bg-[#fdecea] transition-colors"
-                  title="Excluir empresa">
-                  <Trash2 size={14} /> Excluir
-                </button>
-              </>
-            )}
-          </div>
-        </div>
 
         {deleteOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
                onClick={() => !deleting && setDeleteOpen(false)}>
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-[#8b0000] mb-2">Excluir empresa definitivamente</h3>
-              <p className="text-sm text-[#0a0a0a] mb-3">
+              <h3 className="text-base font-bold text-[#D92D20] mb-2">Excluir empresa definitivamente</h3>
+              <p className="text-sm text-black mb-3">
                 Esta ação é <strong>irreversível</strong>. Serão apagados permanentemente:
               </p>
               <ul className="text-xs text-[#555] list-disc pl-5 mb-4 space-y-0.5">
@@ -284,7 +250,7 @@ export default function EmpresaResumo() {
                 <li>Plano de contas, categorias e contas bancárias</li>
                 <li>Todo o histórico fiscal e documentos</li>
               </ul>
-              <p className="text-xs text-[#0a0a0a] mb-2">
+              <p className="text-xs text-black mb-2">
                 Para confirmar, digite a razão social:
                 <br />
                 <span className="font-bold">{company.razao_social}</span>
@@ -295,13 +261,13 @@ export default function EmpresaResumo() {
                 onChange={e => setDeleteConfirmText(e.target.value)}
                 placeholder="Digite a razão social"
                 autoFocus
-                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#8b0000] focus:outline-none w-full mb-4"
+                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-black bg-white focus:border-[#D92D20] focus:outline-none w-full mb-4"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setDeleteOpen(false)}
                   disabled={deleting}
-                  className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50">
+                  className="bg-white text-black border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50">
                   Cancelar
                 </button>
                 <button
@@ -322,7 +288,7 @@ export default function EmpresaResumo() {
                     }
                   }}
                   disabled={deleting || deleteConfirmText.trim() !== (company.razao_social || "").trim()}
-                  className="bg-[#8b0000] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="bg-[#D92D20] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                   {deleting ? "Excluindo..." : "Excluir definitivamente"}
                 </button>
               </div>
@@ -330,21 +296,17 @@ export default function EmpresaResumo() {
           </div>
         )}
 
-        {/* Company Header */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-6 py-4 flex items-center gap-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleLogoUpload}
-            />
+        {/* Ficha única — sem blocos separados, sem cabeçalho azul */}
+        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden">
+
+          {/* Header sóbrio: logo + nome + stats inline */}
+          <div className="px-6 py-4 flex items-center gap-4 border-b border-[#EAECF0]">
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="relative w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center text-white text-xl font-bold overflow-hidden group shrink-0"
+              className="relative w-12 h-12 rounded-md bg-[#F6F2EB] flex items-center justify-center text-black text-xl font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
               title="Alterar logo"
             >
               {company.logo_url ? (
@@ -352,7 +314,7 @@ export default function EmpresaResumo() {
               ) : (
                 (company.razao_social || "E")[0]
               )}
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 {uploading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
@@ -360,120 +322,129 @@ export default function EmpresaResumo() {
                 )}
               </div>
             </button>
-            <div>
-              <h1 className="text-lg font-bold text-white">{company.razao_social}</h1>
-              {company.nome_fantasia && <p className="text-sm text-[#a8bfd4]">{company.nome_fantasia}</p>}
-              <div className="flex items-center gap-3 mt-1">
-                {company.cnpj && <span className="text-xs text-[#a8bfd4]">{maskCNPJ(company.cnpj)}</span>}
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${company.is_active ? "bg-[#0a5c2e]/20 text-[#86efac]" : "bg-white/10 text-[#a8bfd4]"}`}>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-[22px] font-semibold text-black truncate tracking-tight">{company.razao_social}</h1>
+              <div className="flex items-center gap-3 mt-1 text-sm text-[#667085]">
+                {company.nome_fantasia && <span className="truncate">{company.nome_fantasia}</span>}
+                {company.cnpj && <span>·</span>}
+                {company.cnpj && <span>{maskCNPJ(company.cnpj)}</span>}
+                <span>·</span>
+                <span className={company.is_active ? "text-[#039855] font-semibold" : "text-[#98A2B3] font-semibold"}>
                   {company.is_active ? "Ativa" : "Inativa"}
                 </span>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: "Funcionários", value: stats?.employees ?? "—", icon: Users, color: "#1a2e4a", url: "/funcionarios" },
-            { label: "Clientes", value: stats?.clients ?? "—", icon: User, color: "#0a5c2e", url: "/clientes" },
-            { label: "Contas Bancárias", value: stats?.bankAccounts ?? "—", icon: Wallet, color: "#b8960a", url: "/contas-bancarias" },
-            { label: "Plano de Contas", value: stats?.chartAccounts ?? "—", icon: Receipt, color: "#8b0000", url: "/plano-contas" },
-          ].map(card => (
-            <div key={card.label} onClick={() => navigate(card.url)}
-              className="border border-[#ccc] rounded-lg p-4 bg-white cursor-pointer hover:shadow-md transition-all group">
-              <div className="flex items-center justify-between mb-2">
-                <card.icon size={18} className="text-[#555] group-hover:text-[#0a0a0a] transition-colors" />
-                <span className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</span>
-              </div>
-              <p className={LB}>{card.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-4">
-
-          {/* Dados Cadastrais */}
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center gap-2">
-              <Building2 size={14} className="text-[#a8bfd4]" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Dados Cadastrais</h3>
-            </div>
-            <div className="p-5 bg-white space-y-3">
+            {/* Actions inline no header */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => navigate(`/dashboard/${id}`)}
+                className="flex items-center gap-1.5 bg-[#1D2939] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#111827] transition-colors">
+                <BarChart3 size={14} /> Dashboard
+              </button>
               {editing ? (
                 <>
+                  <button onClick={() => setEditing(false)} disabled={saving}
+                    className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors">
+                    <X size={14} /> Cancelar
+                  </button>
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex items-center gap-1.5 bg-[#039855] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#027A48] transition-colors">
+                    <Check size={14} /> {saving ? "Salvando..." : "Salvar"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setEditing(true)}
+                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors">
+                    <Pencil size={14} /> Editar
+                  </button>
+                  <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
+                    className="flex items-center gap-1.5 bg-white text-[#D92D20] border border-[#FECDCA] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#FEF3F2] transition-colors"
+                    title="Excluir empresa">
+                    <Trash2 size={14} /> Excluir
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Stats inline (sem cards, só números + label) */}
+          <div className="grid grid-cols-4 divide-x divide-[#EAECF0] border-b border-[#EAECF0]">
+            {[
+              { label: "Funcionários", value: stats?.employees ?? "—", url: "/funcionarios" },
+              { label: "Clientes", value: stats?.clients ?? "—", url: "/clientes" },
+              { label: "Contas Bancárias", value: stats?.bankAccounts ?? "—", url: "/contas-bancarias" },
+              { label: "Plano de Contas", value: stats?.chartAccounts ?? "—", url: "/plano-contas" },
+            ].map(s => (
+              <button key={s.label} onClick={() => navigate(s.url)}
+                className="px-6 py-3 text-left hover:bg-[#F6F2EB] transition-colors">
+                <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-0.5">{s.label}</div>
+                <div className="text-lg font-semibold text-black tabular-nums">{s.value}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Seções da ficha */}
+          <div className="divide-y divide-[#EAECF0]">
+
+            {/* Identificação */}
+            <Section icon={Building2} title="Identificação">
+              {editing ? (
+                <FieldGrid>
                   <EditRow label="Razão Social" value={form.razao_social} onChange={v => set("razao_social", v)} />
                   <EditRow label="Nome Fantasia" value={form.nome_fantasia} onChange={v => set("nome_fantasia", v)} />
                   <EditRow label="CNPJ" value={form.cnpj} onChange={v => set("cnpj", maskCNPJ(v))} />
                   <EditRow label="Data de Abertura" value={form.data_abertura} onChange={v => set("data_abertura", v)} type="date" />
                   <EditRow label="Inscrição Municipal" value={form.inscricao_municipal} onChange={v => set("inscricao_municipal", v)} />
                   <EditRow label="Inscrição Estadual" value={form.inscricao_estadual} onChange={v => set("inscricao_estadual", v)} />
-                </>
+                </FieldGrid>
               ) : (
-                <>
-                  <Row label="Razão Social" value={company.razao_social} />
-                  <Row label="Nome Fantasia" value={company.nome_fantasia} />
-                  <Row label="CNPJ" value={company.cnpj ? maskCNPJ(company.cnpj) : null} />
-                  <Row label="Data de Abertura" value={company.data_abertura ? new Date(company.data_abertura + "T12:00:00").toLocaleDateString("pt-BR") : null} />
-                  <Row label="Inscrição Municipal" value={company.inscricao_municipal} />
-                  <Row label="Inscrição Estadual" value={company.inscricao_estadual} />
-                </>
+                <FieldGrid>
+                  <Field label="Razão Social" value={company.razao_social} />
+                  <Field label="Nome Fantasia" value={company.nome_fantasia} />
+                  <Field label="CNPJ" value={company.cnpj ? maskCNPJ(company.cnpj) : null} />
+                  <Field label="Data de Abertura" value={company.data_abertura ? new Date(company.data_abertura + "T12:00:00").toLocaleDateString("pt-BR") : null} />
+                  <Field label="Inscrição Municipal" value={company.inscricao_municipal} />
+                  <Field label="Inscrição Estadual" value={company.inscricao_estadual} />
+                </FieldGrid>
               )}
-            </div>
-          </div>
+            </Section>
 
-          {/* Endereço */}
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center gap-2">
-              <MapPin size={14} className="text-[#a8bfd4]" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Endereço</h3>
-            </div>
-            <div className="p-5 bg-white space-y-3">
+            {/* Endereço */}
+            <Section icon={MapPin} title="Endereço & Contato">
               {editing ? (
-                <>
+                <FieldGrid>
                   <EditRow label="Logradouro" value={form.endereco_logradouro} onChange={v => set("endereco_logradouro", v)} />
-                  <div className="grid grid-cols-2 gap-3">
-                    <EditRow label="Número" value={form.endereco_numero} onChange={v => set("endereco_numero", v)} />
-                    <EditRow label="Bairro" value={form.endereco_bairro} onChange={v => set("endereco_bairro", v)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <EditRow label="Cidade" value={form.endereco_cidade} onChange={v => set("endereco_cidade", v)} />
-                    <EditRow label="UF" value={form.endereco_estado} onChange={v => set("endereco_estado", v)} />
-                  </div>
+                  <EditRow label="Número" value={form.endereco_numero} onChange={v => set("endereco_numero", v)} />
+                  <EditRow label="Bairro" value={form.endereco_bairro} onChange={v => set("endereco_bairro", v)} />
+                  <EditRow label="Cidade" value={form.endereco_cidade} onChange={v => set("endereco_cidade", v)} />
+                  <EditRow label="UF" value={form.endereco_estado} onChange={v => set("endereco_estado", v)} />
                   <EditRow label="CEP" value={form.endereco_cep} onChange={v => set("endereco_cep", v)} />
                   <EditRow label="Email" value={form.email} onChange={v => set("email", v)} type="email" />
                   <EditRow label="Telefone" value={form.telefone} onChange={v => set("telefone", v)} />
-                </>
+                </FieldGrid>
               ) : (
-                <>
-                  <Row label="Logradouro" value={enderecoFull || null} />
-                  <Row label="Cidade / UF" value={cidadeUf || null} />
-                  <Row label="CEP" value={company.endereco_cep} />
-                  <Row label="Email" value={company.email} />
-                  <Row label="Telefone" value={company.telefone} />
-                </>
+                <FieldGrid>
+                  <Field label="Logradouro" value={enderecoFull || null} />
+                  <Field label="Cidade / UF" value={cidadeUf || null} />
+                  <Field label="CEP" value={company.endereco_cep} />
+                  <Field label="Email" value={company.email} />
+                  <Field label="Telefone" value={company.telefone} />
+                </FieldGrid>
               )}
-            </div>
-          </div>
+            </Section>
 
-          {/* Regime Tributário */}
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center gap-2">
-              <FileText size={14} className="text-[#a8bfd4]" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Regime Tributário</h3>
-            </div>
-            <div className="p-5 bg-white">
+            {/* Regime Tributário */}
+            <Section icon={FileText} title="Regime Tributário">
               {editing ? (
                 <div className="flex flex-wrap gap-2">
                   {regimeOptions.map(r => (
                     <button key={r.id} type="button"
                       onClick={() => set("regime_tributario", r.id)}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-md border transition-colors ${
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors ${
                         form.regime_tributario === r.id
-                          ? "border-[#1a2e4a] bg-[#1a2e4a] text-white"
-                          : "border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a] hover:text-[#1a2e4a]"
+                          ? "border-[#1D2939] bg-[#1D2939] text-white"
+                          : "border-[#D0D5DD] bg-white text-[#667085] hover:border-[#1D2939] hover:text-black"
                       }`}
                     >
                       {r.label}
@@ -481,86 +452,102 @@ export default function EmpresaResumo() {
                   ))}
                 </div>
               ) : company.regime_tributario ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-[#1a2e4a] px-3 py-1.5 rounded-md border border-[#1a2e4a] bg-[#f0f4f8]">
-                    {regimeLabels[company.regime_tributario] || company.regime_tributario}
-                  </span>
-                </div>
+                <span className="text-[15px] font-semibold text-black px-4 py-2 rounded-md border border-[#EAECF0] bg-[#F6F2EB] inline-block">
+                  {regimeLabels[company.regime_tributario] || company.regime_tributario}
+                </span>
               ) : (
-                <p className="text-sm text-[#999]">Não configurado</p>
+                <p className="text-[15px] text-[#98A2B3]">Não configurado</p>
               )}
-            </div>
-          </div>
+            </Section>
 
-          {/* Responsável + Quadro Societário */}
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center gap-2">
-              <User size={14} className="text-[#a8bfd4]" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest">Responsável & Quadro Societário</h3>
-            </div>
-            <div className="p-5 bg-white space-y-4">
-              <div className="space-y-3">
-                {editing ? (
-                  <>
-                    <EditRow label="Nome" value={form.responsavel_nome} onChange={v => set("responsavel_nome", v)} />
-                    <EditRow label="CPF" value={form.responsavel_cpf} onChange={v => set("responsavel_cpf", v)} />
-                    <EditRow label="Email" value={form.responsavel_email} onChange={v => set("responsavel_email", v)} type="email" />
-                    <EditRow label="Telefone" value={form.responsavel_telefone} onChange={v => set("responsavel_telefone", v)} />
-                  </>
-                ) : (
-                  <>
-                    <Row label="Nome" value={company.responsavel_nome} />
-                    <Row label="CPF" value={company.responsavel_cpf} />
-                    <Row label="Email" value={company.responsavel_email} />
-                    <Row label="Telefone" value={company.responsavel_telefone} />
-                  </>
-                )}
-              </div>
+            {/* Responsável */}
+            <Section icon={User} title="Responsável Legal">
+              {editing ? (
+                <FieldGrid>
+                  <EditRow label="Nome" value={form.responsavel_nome} onChange={v => set("responsavel_nome", v)} />
+                  <EditRow label="CPF" value={form.responsavel_cpf} onChange={v => set("responsavel_cpf", v)} />
+                  <EditRow label="Email" value={form.responsavel_email} onChange={v => set("responsavel_email", v)} type="email" />
+                  <EditRow label="Telefone" value={form.responsavel_telefone} onChange={v => set("responsavel_telefone", v)} />
+                </FieldGrid>
+              ) : (
+                <FieldGrid>
+                  <Field label="Nome" value={company.responsavel_nome} />
+                  <Field label="CPF" value={company.responsavel_cpf} />
+                  <Field label="Email" value={company.responsavel_email} />
+                  <Field label="Telefone" value={company.responsavel_telefone} />
+                </FieldGrid>
+              )}
+            </Section>
 
-              {/* Quadro Societário */}
-              <div className="border-t border-[#eee] pt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <UserCheck size={14} className="text-[#1a2e4a]" />
-                  <span className={LB}>Quadro Societário (Receita Federal)</span>
-                </div>
-                {qsaLoading ? (
-                  <p className="text-xs text-[#555]">Consultando Receita Federal...</p>
-                ) : qsa.length === 0 ? (
-                  <p className="text-xs text-[#999]">Nenhum sócio encontrado</p>
-                ) : (
-                  <div className="space-y-2">
-                    {qsa.map((socio, i) => (
-                      <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-[#f8f9fa] border border-[#eee]">
-                        <div className="w-8 h-8 rounded-full bg-[#1a2e4a] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                          {(socio.nome_socio || "?")[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#0a0a0a] truncate">{socio.nome_socio}</p>
-                          <p className="text-[11px] text-[#555]">{socio.qualificacao_socio || "Sócio"}</p>
-                        </div>
-                        {socio.data_entrada_sociedade && (
-                          <span className="text-[10px] text-[#555] shrink-0">
-                            Desde {new Date(socio.data_entrada_sociedade + "T12:00:00").toLocaleDateString("pt-BR")}
-                          </span>
-                        )}
+            {/* Quadro Societário */}
+            <Section icon={UserCheck} title="Quadro Societário" subtitle="Receita Federal">
+              {qsaLoading ? (
+                <p className="text-sm text-[#667085]">Consultando Receita Federal...</p>
+              ) : qsa.length === 0 ? (
+                <p className="text-sm text-[#98A2B3]">Nenhum sócio encontrado</p>
+              ) : (
+                <div className="space-y-1">
+                  {qsa.map((socio, i) => (
+                    <div key={i} className="flex items-center gap-3 py-3 border-b border-[#F1F3F5] last:border-b-0">
+                      <div className="w-9 h-9 rounded-full bg-[#F6F2EB] border border-[#EAECF0] flex items-center justify-center text-black text-[13px] font-semibold shrink-0">
+                        {(socio.nome_socio || "?")[0]}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[15px] font-semibold text-black truncate">{socio.nome_socio}</p>
+                        <p className="text-[12.5px] text-[#667085]">{socio.qualificacao_socio || "Sócio"}</p>
+                      </div>
+                      {socio.data_entrada_sociedade && (
+                        <span className="text-xs text-[#98A2B3] shrink-0">
+                          Desde {new Date(socio.data_entrada_sociedade + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
           </div>
         </div>
-      </div>
     </AppLayout>
+  );
+}
+
+function Section({ icon: Icon, title, subtitle, children }: {
+  icon: any;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="px-6 py-5">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon size={17} className="text-black" />
+        <h3 className="text-[16px] font-bold text-black uppercase tracking-[0.06em]">{title}</h3>
+        {subtitle && <span className="text-[12px] text-[#98A2B3]">· {subtitle}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function FieldGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-2 gap-x-8 gap-y-2">{children}</div>;
+}
+
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex items-baseline gap-2 min-w-0 py-1 border-b border-dotted border-[#EAECF0] last:border-b-0">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#98A2B3] shrink-0 w-[130px]">{label}</span>
+      <span className="text-[14px] text-black truncate flex-1">{value || <span className="text-[#98A2B3]">—</span>}</span>
+    </div>
   );
 }
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div className="flex justify-between items-center py-1.5 border-b border-[#f0f0f0] last:border-0">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-[#555]">{label}</span>
-      <span className="text-sm text-[#0a0a0a]">{value || "—"}</span>
+    <div className="flex justify-between items-center py-1.5 border-b border-[#EAECF0] last:border-0">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#98A2B3]">{label}</span>
+      <span className="text-sm text-black">{value || "—"}</span>
     </div>
   );
 }
@@ -572,13 +559,13 @@ function EditRow({ label, value, onChange, type = "text" }: {
   type?: string;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">{label}</label>
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-[#98A2B3]">{label}</label>
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full h-9 px-3 text-sm border border-[#ccc] rounded-md bg-white focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]/20 outline-none transition-colors"
+        className="w-full h-9 px-3 text-[14px] border border-[#D0D5DD] rounded-md bg-white focus:border-[#1D2939] focus:ring-1 focus:ring-[#1D2939]/10 outline-none transition-colors"
       />
     </div>
   );

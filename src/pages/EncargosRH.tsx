@@ -38,9 +38,9 @@ interface Encargo {
 }
 
 const STATUS_GUIA: Record<string, { label: string; color: string; bg: string }> = {
-  pendente: { label: 'Pendente', color: '#D97706', bg: '#FEF3C7' },
-  recolhido: { label: 'Recolhido', color: '#059669', bg: '#D1FAE5' },
-  atrasado: { label: 'Atrasado', color: '#DC2626', bg: '#FEE2E2' },
+  pendente: { label: 'Pendente', color: '#F79009', bg: '#FFFAEB' },
+  recolhido: { label: 'Recolhido', color: '#059669', bg: '#ECFDF3' },
+  atrasado: { label: 'Atrasado', color: '#D92D20', bg: '#FEF3F2' },
 }
 
 const MESES = [
@@ -203,10 +203,10 @@ export default function EncargosRH() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), icon: DollarSign, color: '#2563EB' },
-            { label: 'INSS total', value: formatBRL(kpis.totalINSS), icon: Calculator, color: '#D97706' },
-            { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), icon: Calculator, color: '#DC2626' },
-            { label: 'Total encargos', value: formatBRL(kpis.totalGeral), icon: DollarSign, color: '#1a2e4a' },
+            { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), icon: DollarSign, color: '#1E3A8A' },
+            { label: 'INSS total', value: formatBRL(kpis.totalINSS), icon: Calculator, color: '#F79009' },
+            { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), icon: Calculator, color: '#D92D20' },
+            { label: 'Total encargos', value: formatBRL(kpis.totalGeral), icon: DollarSign, color: '#1E3A8A' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -251,7 +251,7 @@ export default function EncargosRH() {
                         onClick={() => calcularEncargos(comp)}
                         disabled={calculating}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                        style={{ backgroundColor: '#1a2e4a' }}
+                        style={{ backgroundColor: '#1E3A8A' }}
                       >
                         {calculating ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
                         Calcular

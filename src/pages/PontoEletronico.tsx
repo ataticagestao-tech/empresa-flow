@@ -40,12 +40,12 @@ interface Funcionario {
 }
 
 const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
-  falta: { label: 'Falta', color: '#DC2626' },
-  atraso: { label: 'Atraso', color: '#D97706' },
-  atestado: { label: 'Atestado', color: '#6B7280' },
+  falta: { label: 'Falta', color: '#D92D20' },
+  atraso: { label: 'Atraso', color: '#F79009' },
+  atestado: { label: 'Atestado', color: '#667085' },
   folga: { label: 'Folga', color: '#059669' },
-  feriado: { label: 'Feriado', color: '#2563EB' },
-  outros: { label: 'Outros', color: '#6B7280' },
+  feriado: { label: 'Feriado', color: '#1E3A8A' },
+  outros: { label: 'Outros', color: '#667085' },
 }
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
@@ -227,11 +227,11 @@ export default function PontoEletronico() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { label: 'Registros', value: kpis.totalRegistros, icon: Clock, color: '#1a2e4a' },
+            { label: 'Registros', value: kpis.totalRegistros, icon: Clock, color: '#1E3A8A' },
             { label: 'Horas trabalhadas', value: `${kpis.totalHoras}h`, icon: Clock, color: '#059669' },
-            { label: 'Horas extras', value: `${kpis.totalHE}h`, icon: Clock, color: '#D97706' },
-            { label: 'Faltas', value: kpis.faltas, icon: AlertTriangle, color: '#DC2626' },
-            { label: 'Pendentes aprovacao', value: kpis.pendentes, icon: Clock, color: '#6B7280' },
+            { label: 'Horas extras', value: `${kpis.totalHE}h`, icon: Clock, color: '#F79009' },
+            { label: 'Faltas', value: kpis.faltas, icon: AlertTriangle, color: '#D92D20' },
+            { label: 'Pendentes aprovacao', value: kpis.pendentes, icon: Clock, color: '#667085' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -257,7 +257,7 @@ export default function PontoEletronico() {
               setShowNewModal(true)
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1a2e4a' }}
+            style={{ backgroundColor: '#1E3A8A' }}
           >
             <Plus size={16} /> Registrar ponto
           </button>
@@ -499,7 +499,7 @@ export default function PontoEletronico() {
                 onClick={handleSalvarPonto}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1a2e4a' }}
+                style={{ backgroundColor: '#1E3A8A' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
                 Salvar

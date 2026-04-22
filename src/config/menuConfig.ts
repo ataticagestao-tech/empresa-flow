@@ -83,7 +83,6 @@ export const menuGroups: MenuGroup[] = [
     id: 'financeiro',
     labelKey: 'menu.finance',
     items: [
-      { titleKey: 'Painel Gerencial', icon: BarChart3, url: '/painel-gerencial', isHardcoded: true },
       { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },

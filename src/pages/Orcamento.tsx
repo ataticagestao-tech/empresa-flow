@@ -121,26 +121,26 @@ export default function Orcamento() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                         <h2 style={{ fontSize: 20, fontWeight: 700 }}>Orçamento</h2>
-                        <p style={{ fontSize: 13, color: "#94a3b8" }}>{format(monthStart, "MMMM yyyy", { locale: ptBR })}</p>
+                        <p style={{ fontSize: 13, color: "#98A2B3" }}>{format(monthStart, "MMMM yyyy", { locale: ptBR })}</p>
                     </div>
                     <select value={currentMonth} onChange={e => setCurrentMonth(e.target.value)}
-                        style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}>
+                        style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #EAECF0", fontSize: 13 }}>
                         {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                     </select>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
-                        { label: "ORÇAMENTO TOTAL", value: fmt(totalOrcado), icon: Calculator, color: "#3b5bdb", bg: "#eef2ff" },
-                        { label: "REALIZADO", value: fmt(totalRealizado), icon: DollarSign, color: "#c62828", bg: "#fde8e8" },
-                        { label: "DISPONÍVEL", value: fmt(totalDisponivel), icon: CheckCircle2, color: "#2e7d32", bg: "#e8f5e9" },
-                        { label: "% UTILIZADO", value: `${totalPct.toFixed(1)}%`, icon: PieChart, color: totalPct > 100 ? "#c62828" : "#f57f17", bg: totalPct > 100 ? "#fde8e8" : "#fff8e1" },
+                        { label: "ORÇAMENTO TOTAL", value: fmt(totalOrcado), icon: Calculator, color: "#1E3A8A", bg: "#EFF6FF" },
+                        { label: "REALIZADO", value: fmt(totalRealizado), icon: DollarSign, color: "#D92D20", bg: "#FEF3F2" },
+                        { label: "DISPONÍVEL", value: fmt(totalDisponivel), icon: CheckCircle2, color: "#039855", bg: "#ECFDF3" },
+                        { label: "% UTILIZADO", value: `${totalPct.toFixed(1)}%`, icon: PieChart, color: totalPct > 100 ? "#D92D20" : "#f57f17", bg: totalPct > 100 ? "#FEF3F2" : "#fff8e1" },
                     ].map((kpi, i) => (
-                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                 <div style={{ background: kpi.bg, borderRadius: 10, padding: 10 }}><kpi.icon size={20} color={kpi.color} /></div>
                                 <div>
-                                    <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{kpi.label}</p>
+                                    <p style={{ fontSize: 11, color: "#98A2B3", fontWeight: 600 }}>{kpi.label}</p>
                                     <p style={{ fontSize: 20, fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
                                 </div>
                             </div>
@@ -149,24 +149,24 @@ export default function Orcamento() {
                 </div>
 
                 {chartData.length > 0 && (
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Orçado vs Realizado</p>
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
                                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip formatter={(v: number) => fmt(v)} />
                                 <Legend />
-                                <Bar dataKey="Orçado" fill="#3b5bdb" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="Realizado" fill="#c62828" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Orçado" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Realizado" fill="#D92D20" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </Card>
                 )}
 
-                <Card style={{ borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                    <div style={{ padding: "16px 20px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden" }}>
+                    <div style={{ padding: "16px 20px", borderBottom: "1px solid #EAECF0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <p style={{ fontWeight: 700, fontSize: 14 }}>Detalhamento por Categoria</p>
                         <Button size="sm" variant="outline" onClick={() => { setEditCategory(null); setEditValue(""); setEditDialog(true); }}>
                             Definir Orçamento
@@ -190,12 +190,12 @@ export default function Orcamento() {
                                 <TableRow key={r.id}>
                                     <TableCell className="font-medium">{r.code} - {r.name}</TableCell>
                                     <TableCell className="text-right">{fmt(r.orcado)}</TableCell>
-                                    <TableCell className="text-right" style={{ color: "#c62828" }}>{fmt(r.realizado)}</TableCell>
-                                    <TableCell className="text-right" style={{ color: r.disponivel >= 0 ? "#2e7d32" : "#c62828" }}>{fmt(r.disponivel)}</TableCell>
+                                    <TableCell className="text-right" style={{ color: "#D92D20" }}>{fmt(r.realizado)}</TableCell>
+                                    <TableCell className="text-right" style={{ color: r.disponivel >= 0 ? "#039855" : "#D92D20" }}>{fmt(r.disponivel)}</TableCell>
                                     <TableCell>
                                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                             <Progress value={Math.min(r.pct, 100)} className="h-2" />
-                                            <span style={{ fontSize: 12, color: r.pct > 100 ? "#c62828" : "#475569", minWidth: 40 }}>{r.pct.toFixed(0)}%</span>
+                                            <span style={{ fontSize: 12, color: r.pct > 100 ? "#D92D20" : "#667085", minWidth: 40 }}>{r.pct.toFixed(0)}%</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>

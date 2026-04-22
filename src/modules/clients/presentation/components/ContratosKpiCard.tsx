@@ -39,10 +39,10 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
             subtitle = `Cirurgia ${formatDateShort(proximaCirurgia.previsao_cirurgia)} (passada)`;
         } else if (diasCirurgia === 0) {
             subtitle = `Cirurgia HOJE (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
-            subtitleClass = "text-[#8b0000] font-bold";
+            subtitleClass = "text-[#D92D20] font-bold";
         } else if (diasCirurgia <= 7) {
             subtitle = `Cirurgia em ${diasCirurgia}d (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
-            subtitleClass = "text-[#8b0000] font-bold";
+            subtitleClass = "text-[#D92D20] font-bold";
         } else if (diasCirurgia <= 30) {
             subtitle = `Cirurgia em ${diasCirurgia}d (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
             subtitleClass = "text-[#7a5400] font-semibold";
@@ -54,11 +54,11 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
     }
 
     const mainValue = busy ? "..." : ativos.length > 0 ? formatBRL(saldoTotal) : "—";
-    const mainColor = saldoTotal > 0 ? "text-[#8b0000]" : "text-[#0a5c2e]";
+    const mainColor = saldoTotal > 0 ? "text-[#D92D20]" : "text-[#039855]";
 
     return (
-        <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-3 py-1.5">
+        <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
+            <div className="bg-[#1E3A8A] px-3 py-1.5">
                 <span className="text-[9px] font-bold text-white uppercase tracking-widest">Contratos</span>
             </div>
             <div className="px-3 py-2.5 bg-white">

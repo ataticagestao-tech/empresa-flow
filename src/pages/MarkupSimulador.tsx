@@ -17,12 +17,12 @@ import { Target, Search, DollarSign, TrendingUp, Percent, AlertTriangle } from "
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828", redLt: "#fde8e8",
+    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    green: "#039855", greenLt: "#ECFDF3",
+    red: "#D92D20", redLt: "#FEF3F2",
     amber: "#f57f17", amberLt: "#fff8e1",
-    text1: "#0f172a", text3: "#94a3b8",
-    border: "#e2e8f0",
+    text1: "#1D2939", text3: "#98A2B3",
+    border: "#EAECF0",
 } as const;
 const FONT = "var(--font-base)";
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -125,6 +125,7 @@ export default function MarkupSimulador() {
     return (
         <AppLayout title="Markup / Simulador">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
@@ -170,7 +171,7 @@ export default function MarkupSimulador() {
                             <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Margem por Produto</p>
                             <ResponsiveContainer width="100%" height={280}>
                                 <BarChart data={chartData} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
                                     <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
                                     <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
                                     <Tooltip formatter={(v: number) => `${v}%`} />

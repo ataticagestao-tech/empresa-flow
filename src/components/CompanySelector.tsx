@@ -47,10 +47,10 @@ export function CompanySelector() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[160px] md:w-[250px] justify-between bg-background border-border hover:border-primary text-[12px] font-medium h-8"
+          className="w-[160px] md:w-[250px] justify-between bg-white/10 border-white/10 hover:bg-white/15 hover:border-white/20 text-white text-[12px] font-medium h-8"
         >
           <div className="flex items-center gap-1.5 truncate">
-            <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <Building2 className="h-3.5 w-3.5 shrink-0 text-white/60" />
             <span className="truncate">
               {selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Selecione uma empresa"}
             </span>

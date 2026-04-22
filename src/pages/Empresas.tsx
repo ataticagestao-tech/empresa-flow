@@ -215,8 +215,8 @@ export default function Empresas() {
   });
 
   const inputCls = (field?: string) =>
-    `border rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none w-full ${
-      field && autoFilled.has(field) ? "border-[#0a5c2e]" : "border-[#ccc] focus:border-[#1a2e4a]"
+    `border rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none w-full ${
+      field && autoFilled.has(field) ? "border-[#039855]" : "border-[#ccc] focus:border-[#1E3A8A]"
     }`;
 
   // ─── STEPPER WIZARD ───
@@ -225,7 +225,7 @@ export default function Empresas() {
       <AppLayout title={editingId ? "Editar Empresa" : "Nova Empresa"}>
         <div className="max-w-3xl mx-auto py-6">
           <button onClick={() => { setMode("list"); setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); }}
-            className="text-sm text-[#555] mb-6 hover:text-[#0a0a0a]">&larr; Voltar para lista</button>
+            className="text-sm text-[#555] mb-6 hover:text-[#1D2939]">&larr; Voltar para lista</button>
 
           {/* Stepper */}
           <div className="flex items-center justify-center mb-8">
@@ -233,22 +233,22 @@ export default function Empresas() {
               <div key={i} className="flex items-center">
                 <button onClick={() => i <= step && setStep(i)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-                    i < step ? "bg-[#1a2e4a] border-[#1a2e4a] text-white" :
-                    i === step ? "border-[#1a2e4a] text-[#1a2e4a] bg-white" :
+                    i < step ? "bg-[#1E3A8A] border-[#1E3A8A] text-white" :
+                    i === step ? "border-[#1E3A8A] text-[#1E3A8A] bg-white" :
                     "border-[#ccc] text-[#ccc] bg-white"
                   }`}>
                   {i < step ? "\u2713" : i + 1}
                 </button>
                 <span className={`text-[10px] font-bold uppercase tracking-wider ml-1 mr-3 hidden sm:inline ${
-                  i <= step ? "text-[#1a2e4a]" : "text-[#ccc]"
+                  i <= step ? "text-[#1E3A8A]" : "text-[#ccc]"
                 }`}>{s}</span>
-                {i < STEPS.length - 1 && <div className={`w-8 h-0.5 mr-2 ${i < step ? "bg-[#1a2e4a]" : "bg-[#ccc]"}`} />}
+                {i < STEPS.length - 1 && <div className={`w-8 h-0.5 mr-2 ${i < step ? "bg-[#1E3A8A]" : "bg-[#ccc]"}`} />}
               </div>
             ))}
           </div>
 
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5">
+            <div className="bg-[#1E3A8A] px-4 py-2.5">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">Etapa {step + 1} — {STEPS[step]}</h3>
             </div>
             <div className="p-6 bg-white">
@@ -258,21 +258,21 @@ export default function Empresas() {
                   {/* Option 1: Com CNPJ */}
                   <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-[#1a2e4a] flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-[#1E3A8A] flex items-center justify-center">
                         <span className="text-white text-xs font-bold">1</span>
                       </div>
-                      <span className="text-sm font-bold text-[#0a0a0a]">Com CNPJ</span>
+                      <span className="text-sm font-bold text-[#1D2939]">Com CNPJ</span>
                       <span className="text-[10px] text-[#555] ml-1">— preenche dados automaticamente via Receita Federal</span>
                     </div>
                     <div className="flex gap-2">
                       <input value={form.cnpj} onChange={e => set("cnpj", maskCNPJ(e.target.value))} placeholder="00.000.000/0000-00" className={inputCls()} />
                       <button onClick={buscarCNPJ} disabled={fetchingCnpj}
-                        className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md whitespace-nowrap disabled:opacity-50">
+                        className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md whitespace-nowrap disabled:opacity-50">
                         {fetchingCnpj ? "Buscando..." : "Consultar Receita"}
                       </button>
                     </div>
                     {autoFilled.size > 0 && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">
                         Preenchido automaticamente via Receita Federal
                       </span>
                     )}
@@ -288,13 +288,13 @@ export default function Empresas() {
                   {/* Option 2: Sem CNPJ */}
                   <button
                     onClick={() => { set("cnpj", ""); setStep(1); }}
-                    className="w-full border border-[#ccc] rounded-lg p-4 flex items-center gap-3 hover:bg-[#f5f5f5] transition-colors text-left"
+                    className="w-full border border-[#ccc] rounded-lg p-4 flex items-center gap-3 hover:bg-[#F6F2EB] transition-colors text-left"
                   >
                     <div className="w-7 h-7 rounded-full bg-[#555] flex items-center justify-center">
                       <span className="text-white text-xs font-bold">2</span>
                     </div>
                     <div>
-                      <span className="text-sm font-bold text-[#0a0a0a]">Sem CNPJ</span>
+                      <span className="text-sm font-bold text-[#1D2939]">Sem CNPJ</span>
                       <p className="text-[11px] text-[#555]">Pessoa fisica, MEI informal ou empresa estrangeira — preencha os dados manualmente</p>
                     </div>
                   </button>
@@ -305,64 +305,64 @@ export default function Empresas() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Razão Social <span className="text-[#8b0000]">*</span></label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Razão Social <span className="text-[#D92D20]">*</span></label>
                       <input value={form.razao_social} onChange={e => set("razao_social", e.target.value)} className={inputCls("razao_social")} />
-                      {autoFilled.has("razao_social") && <span className="text-[9px] text-[#0a5c2e]">✓ Via Receita Federal</span>}
+                      {autoFilled.has("razao_social") && <span className="text-[9px] text-[#039855]">✓ Via Receita Federal</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Nome Fantasia</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Nome Fantasia</label>
                       <input value={form.nome_fantasia} onChange={e => set("nome_fantasia", e.target.value)} className={inputCls("nome_fantasia")} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Data de Abertura</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Data de Abertura</label>
                       <input type="date" value={form.data_abertura} onChange={e => set("data_abertura", e.target.value)} className={inputCls("data_abertura")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Email</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Email</label>
                       <input type="email" value={form.email} onChange={e => set("email", e.target.value)} className={inputCls()} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Telefone</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Telefone</label>
                       <input value={form.telefone} onChange={e => set("telefone", e.target.value)} className={inputCls()} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1 md:col-span-2">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Endereço</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Endereço</label>
                       <input value={form.endereco_logradouro} onChange={e => set("endereco_logradouro", e.target.value)} className={inputCls("endereco_logradouro")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Número</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Número</label>
                       <input value={form.endereco_numero} onChange={e => set("endereco_numero", e.target.value)} className={inputCls("endereco_numero")} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Bairro</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Bairro</label>
                       <input value={form.endereco_bairro} onChange={e => set("endereco_bairro", e.target.value)} className={inputCls("endereco_bairro")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Cidade</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Cidade</label>
                       <input value={form.endereco_cidade} onChange={e => set("endereco_cidade", e.target.value)} className={inputCls("endereco_cidade")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Estado</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Estado</label>
                       <input value={form.endereco_estado} onChange={e => set("endereco_estado", e.target.value)} className={inputCls("endereco_estado")} maxLength={2} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">CEP</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">CEP</label>
                       <input value={form.endereco_cep} onChange={e => set("endereco_cep", e.target.value)} className={inputCls("endereco_cep")} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Inscrição Municipal</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Inscrição Municipal</label>
                       <input value={form.inscricao_municipal} onChange={e => set("inscricao_municipal", e.target.value)} className={inputCls()} placeholder="Preencher manualmente" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Inscrição Estadual</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Inscrição Estadual</label>
                       <input value={form.inscricao_estadual} onChange={e => set("inscricao_estadual", e.target.value)} className={inputCls()} placeholder="Preencher manualmente" />
                     </div>
                   </div>
@@ -371,16 +371,16 @@ export default function Empresas() {
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <div className="bg-[#fffbe6] border border-[#e6c200] border-l-4 border-l-[#b8960a] rounded-md px-4 py-2.5 text-sm font-semibold text-[#5c3a00]">
+                  <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-2.5 text-sm font-semibold text-[#F79009]">
                     O regime tributário define como os impostos são calculados, quais obrigações fiscais são geradas e como o DRE é estruturado. Verifique com o contador antes de confirmar.
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     {regimes.map(r => (
                       <button key={r.id} onClick={() => set("regime_tributario", r.id)}
                         className={`text-left p-4 rounded-lg border-2 transition-all ${
-                          form.regime_tributario === r.id ? "border-[#1a2e4a] bg-[#f0f4f8]" : "border-[#ccc] bg-white hover:border-[#999]"
+                          form.regime_tributario === r.id ? "border-[#1E3A8A] bg-[#EFF6FF]" : "border-[#ccc] bg-white hover:border-[#999]"
                         }`}>
-                        <p className="text-sm font-bold text-[#0a0a0a]">{r.nome}</p>
+                        <p className="text-sm font-bold text-[#1D2939]">{r.nome}</p>
                         <p className="text-xs text-[#555] mt-1">{r.desc}</p>
                       </button>
                     ))}
@@ -392,21 +392,21 @@ export default function Empresas() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Nome do Responsável</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Nome do Responsável</label>
                       <input value={form.responsavel_nome} onChange={e => set("responsavel_nome", e.target.value)} className={inputCls()} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">CPF</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">CPF</label>
                       <input value={form.responsavel_cpf} onChange={e => set("responsavel_cpf", e.target.value)} className={inputCls()} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Email</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Email</label>
                       <input type="email" value={form.responsavel_email} onChange={e => set("responsavel_email", e.target.value)} className={inputCls()} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]">Telefone</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Telefone</label>
                       <input value={form.responsavel_telefone} onChange={e => set("responsavel_telefone", e.target.value)} className={inputCls()} />
                     </div>
                   </div>
@@ -426,7 +426,7 @@ export default function Empresas() {
                     <SummaryRow label="Email" value={form.email} />
                   </div>
                   {!editingId && (
-                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">
+                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">
                       ✓ Plano de contas padrão Tática será aplicado automaticamente — 54 contas · 3 níveis
                     </span>
                   )}
@@ -437,15 +437,15 @@ export default function Empresas() {
 
           <div className="flex justify-between mt-6">
             <button onClick={() => step > 0 ? setStep(step - 1) : setMode("list")}
-              className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">
+              className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">
               {step === 0 ? "Cancelar" : "Voltar"}
             </button>
             {step < 4 ? (
               <button onClick={() => setStep(step + 1)} disabled={step === 0 && !form.cnpj.replace(/\D/g, "")}
-                className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">Próximo</button>
+                className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">Próximo</button>
             ) : (
               <button onClick={handleSave} disabled={saving || !form.razao_social}
-                className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                 {saving ? "Salvando..." : editingId ? "Salvar Alterações" : "Criar Empresa"}
               </button>
             )}
@@ -459,21 +459,22 @@ export default function Empresas() {
   return (
     <AppLayout title="Empresas">
       <div className="space-y-6">
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-lg font-bold text-[#0a0a0a]">Empresas</h2>
+            <h2 className="text-lg font-bold text-[#1D2939]">Empresas</h2>
             <p className="text-sm text-[#555]">Gerencie suas unidades de negócio</p>
           </div>
           <button onClick={() => { setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); setMode("create"); }}
-            className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
+            className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
         </div>
 
         {!selectedCompany && (
           <div className="flex flex-wrap items-center gap-3">
             <input type="text" placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)}
-              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none flex-1 min-w-[200px]" />
-            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]">{companies?.length || 0} empresas</span>
-            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">{companiesWithCharts.size} configuradas</span>
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none flex-1 min-w-[200px]" />
+            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]">{companies?.length || 0} empresas</span>
+            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">{companiesWithCharts.size} configuradas</span>
           </div>
         )}
 
@@ -481,13 +482,13 @@ export default function Empresas() {
           <div className="text-center py-16 text-sm text-[#555]">Carregando empresas...</div>
         ) : companiesError ? (
           <div className="text-center py-16">
-            <p className="text-sm text-[#0a0a0a] font-bold mb-2">Não foi possível carregar as empresas.</p>
-            <button onClick={() => window.location.reload()} className="bg-white text-[#1a2e4a] border border-[#1a2e4a] text-sm font-bold px-4 py-2 rounded-md">Tentar novamente</button>
+            <p className="text-sm text-[#1D2939] font-bold mb-2">Não foi possível carregar as empresas.</p>
+            <button onClick={() => window.location.reload()} className="bg-white text-[#1E3A8A] border border-[#1E3A8A] text-sm font-bold px-4 py-2 rounded-md">Tentar novamente</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-sm text-[#0a0a0a] font-bold mb-2">{search ? "Nenhuma empresa encontrada" : "Nenhuma empresa cadastrada"}</p>
-            {!search && <button onClick={() => setMode("create")} className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">Cadastrar Primeira Empresa</button>}
+            <p className="text-sm text-[#1D2939] font-bold mb-2">{search ? "Nenhuma empresa encontrada" : "Nenhuma empresa cadastrada"}</p>
+            {!search && <button onClick={() => setMode("create")} className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">Cadastrar Primeira Empresa</button>}
           </div>
         ) : (
           <div className="space-y-3">
@@ -495,18 +496,18 @@ export default function Empresas() {
               const hasChart = companiesWithCharts.has(company.id);
               return (
                 <div key={company.id}
-                  className={`border rounded-lg p-4 bg-white cursor-pointer transition-all hover:shadow-md border-l-4 border-[#ccc] ${hasChart ? "border-l-[#0a5c2e]" : "border-l-[#b8960a]"}`}
+                  className={`border rounded-lg p-4 bg-white cursor-pointer transition-all hover:shadow-md border-l-4 border-[#ccc] ${hasChart ? "border-l-[#039855]" : "border-l-[#F79009]"}`}
                   onClick={() => navigate(`/empresas/${company.id}`)}>
                   <div className="flex items-center gap-4">
-                    <div className={`w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0 ${hasChart ? "bg-[#0a5c2e]" : "bg-[#b8960a]"}`}>
+                    <div className={`w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0 ${hasChart ? "bg-[#039855]" : "bg-[#F79009]"}`}>
                       {(company.razao_social || "E")[0]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-bold text-[#0a0a0a] truncate">{company.razao_social}</h3>
+                        <h3 className="text-sm font-bold text-[#1D2939] truncate">{company.razao_social}</h3>
                         {hasChart
-                          ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">Configurado</span>
-                          : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#b8960a] bg-[#fffbe6] text-[#5c3a00]">Pendente</span>}
+                          ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Configurado</span>
+                          : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#F79009] bg-[#FFFAEB] text-[#F79009]">Pendente</span>}
                       </div>
                       <div className="flex items-center gap-4 text-xs text-[#555]">
                         {company.cnpj && <span>{maskCNPJ(company.cnpj)}</span>}
@@ -515,9 +516,9 @@ export default function Empresas() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button onClick={e => { e.stopPropagation(); handleEdit(company); }}
-                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#f0f4f8] text-[#1a2e4a] text-sm" title="Editar">✎</button>
+                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] text-sm" title="Editar">✎</button>
                       <button onClick={e => { e.stopPropagation(); handleDelete(company); }}
-                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#fdecea] text-[#8b0000] text-sm" title="Remover">✕</button>
+                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#FEF3F2] text-[#D92D20] text-sm" title="Remover">✕</button>
                     </div>
                   </div>
                 </div>
@@ -530,8 +531,8 @@ export default function Empresas() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
                onClick={() => !deleting && setDeleteTarget(null)}>
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-[#8b0000] mb-2">Excluir empresa definitivamente</h3>
-              <p className="text-sm text-[#0a0a0a] mb-3">
+              <h3 className="text-base font-bold text-[#D92D20] mb-2">Excluir empresa definitivamente</h3>
+              <p className="text-sm text-[#1D2939] mb-3">
                 Esta ação é <strong>irreversível</strong>. Serão apagados permanentemente:
               </p>
               <ul className="text-xs text-[#555] list-disc pl-5 mb-4 space-y-0.5">
@@ -541,7 +542,7 @@ export default function Empresas() {
                 <li>Plano de contas, categorias e contas bancárias</li>
                 <li>Todo o histórico fiscal e documentos</li>
               </ul>
-              <p className="text-xs text-[#0a0a0a] mb-2">
+              <p className="text-xs text-[#1D2939] mb-2">
                 Para confirmar, digite a razão social:
                 <br />
                 <span className="font-bold">{deleteTarget.razao_social}</span>
@@ -552,19 +553,19 @@ export default function Empresas() {
                 onChange={e => setDeleteConfirmText(e.target.value)}
                 placeholder="Digite a razão social"
                 autoFocus
-                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#8b0000] focus:outline-none w-full mb-4"
+                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#D92D20] focus:outline-none w-full mb-4"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setDeleteTarget(null)}
                   disabled={deleting}
-                  className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50">
+                  className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50">
                   Cancelar
                 </button>
                 <button
                   onClick={confirmDelete}
                   disabled={deleting || deleteConfirmText.trim() !== (deleteTarget.razao_social || "").trim()}
-                  className="bg-[#8b0000] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="bg-[#D92D20] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                   {deleting ? "Excluindo..." : "Excluir definitivamente"}
                 </button>
               </div>
@@ -580,7 +581,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between py-1.5 border-b border-[#eee]">
       <span className="text-[#555] text-xs font-bold uppercase">{label}</span>
-      <span className="text-[#0a0a0a]">{value || "—"}</span>
+      <span className="text-[#1D2939]">{value || "—"}</span>
     </div>
   );
 }

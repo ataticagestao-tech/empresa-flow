@@ -215,7 +215,7 @@ export default function Auth() {
       </div>
 
       {/* Right: Blue Panel */}
-      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#1E40AF] items-center justify-center p-14">
+      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#1E3A8A] items-center justify-center p-14">
         <div className="w-full">
           <p className="text-[18px] font-medium text-white/90 leading-relaxed tracking-tight mb-8">
             Gerencie seu negócio com inteligência. Plataforma completa para gestão financeira.

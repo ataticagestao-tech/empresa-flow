@@ -45,18 +45,18 @@ interface Funcionario {
 const TIPO_LABELS: Record<string, { label: string; color: string; icon: any }> = {
   ferias: { label: 'Ferias', color: '#059669', icon: Palmtree },
   licenca_maternidade: { label: 'Licenca maternidade', color: '#7C3AED', icon: Users },
-  licenca_paternidade: { label: 'Licenca paternidade', color: '#2563EB', icon: Users },
-  atestado: { label: 'Atestado', color: '#D97706', icon: FileText },
-  afastamento_inss: { label: 'Afastamento INSS', color: '#DC2626', icon: AlertTriangle },
-  suspensao: { label: 'Suspensao', color: '#DC2626', icon: AlertTriangle },
-  outros: { label: 'Outros', color: '#6B7280', icon: FileText },
+  licenca_paternidade: { label: 'Licenca paternidade', color: '#1E3A8A', icon: Users },
+  atestado: { label: 'Atestado', color: '#F79009', icon: FileText },
+  afastamento_inss: { label: 'Afastamento INSS', color: '#D92D20', icon: AlertTriangle },
+  suspensao: { label: 'Suspensao', color: '#D92D20', icon: AlertTriangle },
+  outros: { label: 'Outros', color: '#667085', icon: FileText },
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  programado: { label: 'Programado', color: '#2563EB', bg: '#DBEAFE' },
-  em_curso: { label: 'Em curso', color: '#D97706', bg: '#FEF3C7' },
-  concluido: { label: 'Concluido', color: '#059669', bg: '#D1FAE5' },
-  cancelado: { label: 'Cancelado', color: '#DC2626', bg: '#FEE2E2' },
+  programado: { label: 'Programado', color: '#1E3A8A', bg: '#BFDBFE' },
+  em_curso: { label: 'Em curso', color: '#F79009', bg: '#FFFAEB' },
+  concluido: { label: 'Concluido', color: '#059669', bg: '#ECFDF3' },
+  cancelado: { label: 'Cancelado', color: '#D92D20', bg: '#FEF3F2' },
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -208,10 +208,10 @@ export default function FeriasAfastamentos() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total registros', value: kpis.total, icon: Calendar, color: '#1a2e4a' },
+            { label: 'Total registros', value: kpis.total, icon: Calendar, color: '#1E3A8A' },
             { label: 'Ferias', value: kpis.ferias, icon: Palmtree, color: '#059669' },
-            { label: 'Em curso', value: kpis.emCurso, icon: Calendar, color: '#D97706' },
-            { label: 'Programados', value: kpis.programados, icon: Calendar, color: '#2563EB' },
+            { label: 'Em curso', value: kpis.emCurso, icon: Calendar, color: '#F79009' },
+            { label: 'Programados', value: kpis.programados, icon: Calendar, color: '#1E3A8A' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -237,7 +237,7 @@ export default function FeriasAfastamentos() {
               setShowNewModal(true)
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1a2e4a' }}
+            style={{ backgroundColor: '#1E3A8A' }}
           >
             <Plus size={16} /> Novo registro
           </button>
@@ -472,7 +472,7 @@ export default function FeriasAfastamentos() {
                 onClick={handleSalvar}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1a2e4a' }}
+                style={{ backgroundColor: '#1E3A8A' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                 Salvar

@@ -174,7 +174,7 @@ export async function criarRecibo(
     descricao: descricaoConta,
     empresa_nome: empresaNome,
     empresa_cnpj: empresa?.cnpj ?? undefined,
-    cor_primaria: template?.cor_primaria ?? "#0d1b2a",
+    cor_primaria: template?.cor_primaria ?? "#1D2939",
     rodape_texto: template?.rodape_texto,
     tipo: input.tipo,
   };

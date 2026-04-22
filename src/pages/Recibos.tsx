@@ -120,10 +120,10 @@ function valorPorExtenso(valor: number): string {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { text: string; bg: string; border: string; color: string }> = {
-    enviado: { text: 'Enviado', bg: 'bg-[#e6f4ec]', border: 'border-[#0a5c2e]', color: 'text-[#0a5c2e]' },
-    pendente: { text: 'Pendente envio', bg: 'bg-[#fffbe6]', border: 'border-[#b8960a]', color: 'text-[#5c3a00]' },
-    erro: { text: 'Erro', bg: 'bg-[#fdecea]', border: 'border-[#8b0000]', color: 'text-[#8b0000]' },
-    manual: { text: 'Manual', bg: 'bg-[#f0f4f8]', border: 'border-[#1a2e4a]', color: 'text-[#1a2e4a]' },
+    enviado: { text: 'Enviado', bg: 'bg-[#ECFDF3]', border: 'border-[#039855]', color: 'text-[#039855]' },
+    pendente: { text: 'Pendente envio', bg: 'bg-[#FFFAEB]', border: 'border-[#F79009]', color: 'text-[#F79009]' },
+    erro: { text: 'Erro', bg: 'bg-[#FEF3F2]', border: 'border-[#D92D20]', color: 'text-[#D92D20]' },
+    manual: { text: 'Manual', bg: 'bg-[#EFF6FF]', border: 'border-[#1E3A8A]', color: 'text-[#1E3A8A]' },
   }
   const c = config[status] || config.pendente
   return (
@@ -141,16 +141,16 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
   return (
     <div className="p-6 bg-white min-h-[400px]">
       {/* Header */}
-      <div className="flex justify-between pb-4 mb-4 border-b-2 border-[#1a2e4a]">
+      <div className="flex justify-between pb-4 mb-4 border-b-2 border-[#1E3A8A]">
         <div>
-          <div className="text-sm font-bold text-[#1a2e4a]">{empresa?.name || '---'}</div>
+          <div className="text-sm font-bold text-[#1E3A8A]">{empresa?.name || '---'}</div>
           <div className="text-xs text-[#555]">
             CNPJ: {empresa?.document ? formatCNPJ(empresa.document) : '---'}
           </div>
         </div>
         <div className="text-right">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[#555]">Recibo</div>
-          <div className="text-lg font-bold text-[#1a2e4a]">#{recibo.numero}</div>
+          <div className="text-lg font-bold text-[#1E3A8A]">#{recibo.numero}</div>
           <div className="text-xs text-[#555]">{formatData(recibo.data_pagamento)}</div>
         </div>
       </div>
@@ -158,7 +158,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       {/* Pagador */}
       <div className="mb-4 p-3 bg-[#f9f9f9] rounded border border-[#eee]">
         <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Pagador / Favorecido</div>
-        <div className="text-sm font-semibold text-[#0a0a0a]">{recibo.favorecido}</div>
+        <div className="text-sm font-semibold text-[#1D2939]">{recibo.favorecido}</div>
         {recibo.pagador_cpf_cnpj && (
           <div className="text-xs text-[#555] mt-0.5">CPF/CNPJ: {recibo.pagador_cpf_cnpj}</div>
         )}
@@ -168,12 +168,12 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       {recibo.descricao && (
         <div className="mb-4">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Descricao</div>
-          <div className="text-sm text-[#0a0a0a] leading-relaxed">{recibo.descricao}</div>
+          <div className="text-sm text-[#1D2939] leading-relaxed">{recibo.descricao}</div>
         </div>
       )}
 
       {/* Valor total */}
-      <div className="mb-4 p-4 bg-[#1a2e4a] rounded">
+      <div className="mb-4 p-4 bg-[#1E3A8A] rounded">
         <div className="text-[10px] font-bold uppercase tracking-widest text-white/70 mb-1">Valor Total</div>
         <div className="text-2xl font-bold text-white">{formatBRL(recibo.valor)}</div>
       </div>
@@ -181,7 +181,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       {/* Valor por extenso */}
       <div className="mb-4">
         <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Valor por Extenso</div>
-        <div className="text-xs text-[#0a0a0a] italic">
+        <div className="text-xs text-[#1D2939] italic">
           {valorPorExtenso(recibo.valor)}
         </div>
       </div>
@@ -190,19 +190,19 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       {recibo.forma_pagamento && (
         <div className="mb-6">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Forma de Pagamento</div>
-          <div className="text-sm text-[#0a0a0a]">{recibo.forma_pagamento}</div>
+          <div className="text-sm text-[#1D2939]">{recibo.forma_pagamento}</div>
         </div>
       )}
 
       {/* Assinaturas */}
       <div className="grid grid-cols-2 gap-8 mt-8 mb-6">
         <div className="text-center">
-          <div className="border-t border-[#0a0a0a] pt-2 mx-4">
+          <div className="border-t border-[#1D2939] pt-2 mx-4">
             <div className="text-xs text-[#555]">Emitente</div>
           </div>
         </div>
         <div className="text-center">
-          <div className="border-t border-[#0a0a0a] pt-2 mx-4">
+          <div className="border-t border-[#1D2939] pt-2 mx-4">
             <div className="text-xs text-[#555]">Recebedor</div>
           </div>
         </div>
@@ -344,7 +344,7 @@ export default function Recibos() {
         <div className="w-[420px] min-w-[360px] flex flex-col">
           <div className="border border-[#ccc] rounded-lg overflow-hidden flex flex-col h-full">
             {/* Card header */}
-            <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between shrink-0">
+            <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between shrink-0">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Recibos</h3>
               <span className="text-[10px] text-white/60 font-medium">{filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}</span>
             </div>
@@ -359,7 +359,7 @@ export default function Recibos() {
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   placeholder="Buscar por nome ou numero..."
-                  className="flex-1 text-xs text-[#0a0a0a] placeholder:text-[#999] bg-transparent outline-none border-none"
+                  className="flex-1 text-xs text-[#1D2939] placeholder:text-[#999] bg-transparent outline-none border-none"
                 />
               </div>
 
@@ -376,8 +376,8 @@ export default function Recibos() {
                     onClick={() => setFiltroStatus(f.key)}
                     className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded border transition-colors ${
                       filtroStatus === f.key
-                        ? 'bg-[#1a2e4a] text-white border-[#1a2e4a]'
-                        : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'
+                        ? 'bg-[#1E3A8A] text-white border-[#1E3A8A]'
+                        : 'bg-white text-[#555] border-[#ccc] hover:bg-[#F6F2EB]'
                     }`}
                   >
                     {f.label}
@@ -402,17 +402,17 @@ export default function Recibos() {
                   <button
                     key={r.id}
                     onClick={() => setSelecionado(r)}
-                    className={`w-full text-left px-4 py-3 border-b border-[#f0f0f0] transition-colors hover:bg-[#f7f9fb] ${
-                      selecionado?.id === r.id ? 'bg-[#f0f4f8] border-l-2 border-l-[#1a2e4a]' : ''
+                    className={`w-full text-left px-4 py-3 border-b border-[#EAECF0] transition-colors hover:bg-[#f7f9fb] ${
+                      selecionado?.id === r.id ? 'bg-[#EFF6FF] border-l-2 border-l-[#1E3A8A]' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[10px] font-mono text-[#1a2e4a] font-bold">#{r.numero}</span>
+                          <span className="text-[10px] font-mono text-[#1E3A8A] font-bold">#{r.numero}</span>
                           <StatusBadge status={r.status_email} />
                         </div>
-                        <div className="text-xs font-semibold text-[#0a0a0a] truncate">{r.favorecido}</div>
+                        <div className="text-xs font-semibold text-[#1D2939] truncate">{r.favorecido}</div>
                         {r.descricao && (
                           <div className="text-[11px] text-[#555] truncate mt-0.5">
                             {r.descricao.length > 60 ? r.descricao.slice(0, 60) + '...' : r.descricao}
@@ -421,7 +421,7 @@ export default function Recibos() {
                         <div className="text-[10px] text-[#999] mt-1">{formatData(r.data_pagamento)}</div>
                       </div>
                       <div className="flex flex-col items-end shrink-0">
-                        <div className="text-sm font-bold text-[#0a0a0a]">{formatBRL(r.valor)}</div>
+                        <div className="text-sm font-bold text-[#1D2939]">{formatBRL(r.valor)}</div>
                         <ChevronRight className="w-3.5 h-3.5 text-[#ccc] mt-1" />
                       </div>
                     </div>
@@ -438,7 +438,7 @@ export default function Recibos() {
             {selecionado ? (
               <>
                 {/* Preview header */}
-                <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between shrink-0">
+                <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between shrink-0">
                   <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
                     Recibo #{selecionado.numero}
                   </h3>
@@ -452,7 +452,7 @@ export default function Recibos() {
                     </button>
                     <button
                       onClick={() => handleDownloadPDF(selecionado)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white text-[#1a2e4a] hover:bg-white/90 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white text-[#1E3A8A] hover:bg-white/90 transition-colors"
                     >
                       <Download className="w-3 h-3" />
                       Download PDF
@@ -461,7 +461,7 @@ export default function Recibos() {
                 </div>
 
                 {/* Preview body */}
-                <div className="flex-1 overflow-y-auto bg-[#f5f5f5] p-4">
+                <div className="flex-1 overflow-y-auto bg-[#F6F2EB] p-4">
                   <div className="max-w-[700px] mx-auto shadow-sm border border-[#e0e0e0] rounded bg-white">
                     <PreviewRecibo recibo={selecionado} empresa={empresa} />
                   </div>

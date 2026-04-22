@@ -82,7 +82,7 @@ export default function BankAccountsPage() {
                 {isLoading && <p>Carregando contas...</p>}
 
                 {!isLoading && accounts.length === 0 && (
-                    <div className="col-span-full text-center py-12 bg-[#F8FAFC] rounded-lg border border-dashed">
+                    <div className="col-span-full text-center py-12 bg-[#F6F2EB] rounded-lg border border-dashed">
                         <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                         <h3 className="text-lg font-medium text-foreground">Nenhuma conta cadastrada</h3>
                         <p className="text-muted-foreground">Cadastre uma conta bancária para começar a conciliação.</p>
@@ -107,7 +107,7 @@ export default function BankAccountsPage() {
                         <CardContent>
                             <div className="mt-2">
                                 <p className="text-sm text-muted-foreground font-medium uppercase">Saldo Atual</p>
-                                <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-foreground' : 'text-[#EF4444]'}`}>
+                                <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-foreground' : 'text-[#D92D20]'}`}>
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(account.current_balance)}
                                 </p>
                             </div>

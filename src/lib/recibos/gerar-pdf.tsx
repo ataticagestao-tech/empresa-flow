@@ -34,7 +34,7 @@ function hexToRgb(hex: string): [number, number, number] {
 
 export async function gerarReciboPDF(data: ReciboPDFData): Promise<Blob> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const cor = data.cor_primaria || "#0d1b2a";
+  const cor = data.cor_primaria || "#1D2939";
   const [cr, cg, cb] = hexToRgb(cor);
   const tipoLabel = data.tipo === "receivable" ? "COMPROVANTE DE RECEBIMENTO" : "COMPROVANTE DE PAGAMENTO";
   const statusLabel = data.tipo === "receivable" ? "VALOR RECEBIDO" : "VALOR PAGO";

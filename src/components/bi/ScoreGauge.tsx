@@ -14,15 +14,15 @@ const dimensoes = [
 ] as const;
 
 function getScoreColor(v: number) {
-  if (v >= 70) return "#2e7d32";
+  if (v >= 70) return "#039855";
   if (v >= 40) return "#f57f17";
-  return "#c62828";
+  return "#D92D20";
 }
 
 function getScoreBg(v: number) {
-  if (v >= 70) return "#e8f5e9";
+  if (v >= 70) return "#ECFDF3";
   if (v >= 40) return "#fff8e1";
-  return "#fde8e8";
+  return "#FEF3F2";
 }
 
 export function ScoreGauge({ score }: ScoreGaugeProps) {
@@ -44,7 +44,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
         <div style={{
           position: "relative", width: 80, height: 80,
           borderRadius: "50%",
-          background: `conic-gradient(${color} ${pct * 3.6}deg, #e2e8f0 0deg)`,
+          background: `conic-gradient(${color} ${pct * 3.6}deg, #EAECF0 0deg)`,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
@@ -58,7 +58,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
           </div>
         </div>
         <div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>Score Financeiro</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "#1D2939" }}>Score Financeiro</p>
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 500,
@@ -79,10 +79,10 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
           return (
             <div key={d.key}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                <span style={{ fontSize: 12, color: "#475569" }}>{d.label}</span>
+                <span style={{ fontSize: 12, color: "#667085" }}>{d.label}</span>
                 <span style={{ fontSize: 12, fontWeight: 600, color: barColor }}>{Math.round(val)}</span>
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: "#e2e8f0", overflow: "hidden" }}>
+              <div style={{ height: 6, borderRadius: 3, background: "#EAECF0", overflow: "hidden" }}>
                 <div style={{
                   height: "100%", borderRadius: 3,
                   width: `${Math.min(100, val)}%`,
@@ -102,7 +102,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
             <div key={i} style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "8px 12px", borderRadius: 8,
-              background: "#FFF7ED", border: "1px solid #FED7AA",
+              background: "#FFFAEB", border: "1px solid #FED7AA",
               fontSize: 12, color: "#92400e",
             }}>
               <AlertTriangle size={14} />

@@ -24,9 +24,9 @@ interface ScenarioConfig {
 }
 
 const defaultScenarios: ScenarioConfig[] = [
-    { name: "Pessimista", revenueVar: -20, expenseVar: 10, newClients: 0, extraTicket: 0, color: "#c62828", borderColor: "#c62828", bgColor: "#fde8e8" },
-    { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#3b5bdb", borderColor: "#3b5bdb", bgColor: "#eef2ff" },
-    { name: "Otimista", revenueVar: 20, expenseVar: -10, newClients: 5, extraTicket: 500, color: "#2e7d32", borderColor: "#2e7d32", bgColor: "#e8f5e9" },
+    { name: "Pessimista", revenueVar: -20, expenseVar: 10, newClients: 0, extraTicket: 0, color: "#D92D20", borderColor: "#D92D20", bgColor: "#FEF3F2" },
+    { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#1E3A8A", borderColor: "#1E3A8A", bgColor: "#EFF6FF" },
+    { name: "Otimista", revenueVar: 20, expenseVar: -10, newClients: 5, extraTicket: 500, color: "#039855", borderColor: "#039855", bgColor: "#ECFDF3" },
 ];
 
 export default function Cenarios() {
@@ -95,11 +95,12 @@ export default function Cenarios() {
     return (
         <AppLayout title="Cenários Financeiros">
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
+
                 <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                        <GitBranch size={24} color="#3b5bdb" /> Cenários Financeiros
+                        <GitBranch size={24} color="#1E3A8A" /> Cenários Financeiros
                     </h2>
-                    <p style={{ fontSize: 13, color: "#94a3b8" }}>
+                    <p style={{ fontSize: 13, color: "#98A2B3" }}>
                         Base: Receita {fmt(baseReceita)} | Despesa {fmt(baseDespesa)} ({format(now, "MMMM/yyyy")})
                     </p>
                 </div>
@@ -134,38 +135,38 @@ export default function Cenarios() {
 
                             <div style={{ borderTop: `1px solid ${r.borderColor}40`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ fontSize: 12, color: "#475569" }}>Receita</span>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#2e7d32" }}>{fmt(r.receita)}</span>
+                                    <span style={{ fontSize: 12, color: "#667085" }}>Receita</span>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#039855" }}>{fmt(r.receita)}</span>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ fontSize: 12, color: "#475569" }}>Despesa</span>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#c62828" }}>{fmt(r.despesa)}</span>
+                                    <span style={{ fontSize: 12, color: "#667085" }}>Despesa</span>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#D92D20" }}>{fmt(r.despesa)}</span>
                                 </div>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #EAECF0", paddingTop: 8 }}>
                                     <span style={{ fontSize: 13, fontWeight: 700 }}>Resultado</span>
-                                    <span style={{ fontSize: 15, fontWeight: 800, color: r.resultado >= 0 ? "#2e7d32" : "#c62828" }}>{fmt(r.resultado)}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 800, color: r.resultado >= 0 ? "#039855" : "#D92D20" }}>{fmt(r.resultado)}</span>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <span style={{ fontSize: 12, color: "#94a3b8" }}>Margem</span>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: r.margem >= 0 ? "#2e7d32" : "#c62828" }}>{r.margem.toFixed(1)}%</span>
+                                    <span style={{ fontSize: 12, color: "#98A2B3" }}>Margem</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: r.margem >= 0 ? "#039855" : "#D92D20" }}>{r.margem.toFixed(1)}%</span>
                                 </div>
                             </div>
                         </Card>
                     ))}
                 </div>
 
-                <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                     <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Comparativo de Cenários</p>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
                             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                             <Tooltip formatter={(v: number) => fmt(v)} />
                             <Legend />
-                            <Bar dataKey="Pessimista" fill="#c62828" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Realista" fill="#3b5bdb" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Otimista" fill="#2e7d32" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Pessimista" fill="#D92D20" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Realista" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Otimista" fill="#039855" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </Card>

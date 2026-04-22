@@ -91,10 +91,11 @@ export default function FluxoCaixaProjetado() {
     return (
         <AppLayout title="Fluxo de Caixa Projetado">
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                         <h2 style={{ fontSize: 20, fontWeight: 700 }}>Fluxo de Caixa Projetado</h2>
-                        <p style={{ fontSize: 13, color: "#94a3b8" }}>Próximos {days} dias</p>
+                        <p style={{ fontSize: 13, color: "#98A2B3" }}>Próximos {days} dias</p>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                         {[30, 60, 90].map(d => (
@@ -106,56 +107,56 @@ export default function FluxoCaixaProjetado() {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: "#e8f5e9", borderRadius: 10, padding: 10 }}><TrendingUp size={20} color="#2e7d32" /></div>
+                            <div style={{ background: "#ECFDF3", borderRadius: 10, padding: 10 }}><TrendingUp size={20} color="#039855" /></div>
                             <div>
-                                <p style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>ENTRADAS PREVISTAS</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: "#2e7d32" }}>{fmt(totalEntradas)}</p>
-                                <p style={{ fontSize: 11, color: "#94a3b8" }}>{receivables.length} recebíveis</p>
+                                <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>ENTRADAS PREVISTAS</p>
+                                <p style={{ fontSize: 22, fontWeight: 800, color: "#039855" }}>{fmt(totalEntradas)}</p>
+                                <p style={{ fontSize: 11, color: "#98A2B3" }}>{receivables.length} recebíveis</p>
                             </div>
                         </div>
                     </Card>
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: "#fde8e8", borderRadius: 10, padding: 10 }}><TrendingDown size={20} color="#c62828" /></div>
+                            <div style={{ background: "#FEF3F2", borderRadius: 10, padding: 10 }}><TrendingDown size={20} color="#D92D20" /></div>
                             <div>
-                                <p style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>SAÍDAS PREVISTAS</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: "#c62828" }}>{fmt(totalSaidas)}</p>
-                                <p style={{ fontSize: 11, color: "#94a3b8" }}>{payables.length} contas a pagar</p>
+                                <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SAÍDAS PREVISTAS</p>
+                                <p style={{ fontSize: 22, fontWeight: 800, color: "#D92D20" }}>{fmt(totalSaidas)}</p>
+                                <p style={{ fontSize: 11, color: "#98A2B3" }}>{payables.length} contas a pagar</p>
                             </div>
                         </div>
                     </Card>
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: saldoProjetado >= 0 ? "#eef2ff" : "#fde8e8", borderRadius: 10, padding: 10 }}>
-                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#3b5bdb" : "#c62828"} />
+                            <div style={{ background: saldoProjetado >= 0 ? "#EFF6FF" : "#FEF3F2", borderRadius: 10, padding: 10 }}>
+                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#1E3A8A" : "#D92D20"} />
                             </div>
                             <div>
-                                <p style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>SALDO PROJETADO</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#3b5bdb" : "#c62828" }}>{fmt(saldoProjetado)}</p>
-                                <p style={{ fontSize: 11, color: "#94a3b8" }}>Entradas - Saídas</p>
+                                <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SALDO PROJETADO</p>
+                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#1E3A8A" : "#D92D20" }}>{fmt(saldoProjetado)}</p>
+                                <p style={{ fontSize: 11, color: "#98A2B3" }}>Entradas - Saídas</p>
                             </div>
                         </div>
                     </Card>
                 </div>
 
                 {chartData.length > 0 && (
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Saldo Acumulado Projetado</p>
                         <ResponsiveContainer width="100%" height={280}>
                             <AreaChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
                                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip formatter={(v: number) => fmt(v)} />
-                                <Area type="monotone" dataKey="saldo" stroke="#3b5bdb" fill="#eef2ff" strokeWidth={2} />
+                                <Area type="monotone" dataKey="saldo" stroke="#1E3A8A" fill="#EFF6FF" strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </Card>
                 )}
 
-                <Card style={{ borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden" }}>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -178,10 +179,10 @@ export default function FluxoCaixaProjetado() {
                                             {item.tipo === "entrada" ? "Entrada" : "Saída"}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right" style={{ color: item.tipo === "entrada" ? "#2e7d32" : "#c62828" }}>
+                                    <TableCell className="text-right" style={{ color: item.tipo === "entrada" ? "#039855" : "#D92D20" }}>
                                         {fmt(Number(item.amount))}
                                     </TableCell>
-                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#3b5bdb" : "#c62828" }}>
+                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#1E3A8A" : "#D92D20" }}>
                                         {fmt(item.saldo_acumulado)}
                                     </TableCell>
                                 </TableRow>

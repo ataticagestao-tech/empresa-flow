@@ -129,6 +129,7 @@ export default function ImportData() {
     return (
         <AppLayout title="Importar Dados">
             <div className="p-8 max-w-4xl mx-auto">
+
                 <Card className="mb-6">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center justify-between">
@@ -138,7 +139,7 @@ export default function ImportData() {
                             </Button>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs font-mono bg-[#F8FAFC] p-4 rounded-b-md">
+                    <CardContent className="text-xs font-mono bg-[#F6F2EB] p-4 rounded-b-md">
                         {permissionCheck?.status === 'done' ? (
                             <div className="space-y-2">
                                 <div className="grid grid-cols-2 gap-4">
@@ -157,7 +158,7 @@ export default function ImportData() {
                                     {permissionCheck.companyAccess ? (
                                         <span className="text-green-600 ml-2">OK</span>
                                     ) : (
-                                        <span className="text-[#EF4444] ml-2">
+                                        <span className="text-[#D92D20] ml-2">
                                             ERRO{permissionCheck.companyError?.message ? ` (${permissionCheck.companyError.message})` : ""}
                                         </span>
                                     )}
@@ -168,7 +169,7 @@ export default function ImportData() {
                                     {permissionCheck.linkAccess ? (
                                         <span className="text-green-600 ml-2">OK</span>
                                     ) : (
-                                        <span className="text-[#EF4444] ml-2">
+                                        <span className="text-[#D92D20] ml-2">
                                             ERRO{permissionCheck.linkError?.message ? ` (${permissionCheck.linkError.message})` : ""}
                                         </span>
                                     )}

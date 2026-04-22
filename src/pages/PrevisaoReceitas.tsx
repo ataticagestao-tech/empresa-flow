@@ -87,21 +87,21 @@ export default function PrevisaoReceitas() {
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
                 <div>
                     <h2 style={{ fontSize: 20, fontWeight: 700 }}>Previsão de Receitas</h2>
-                    <p style={{ fontSize: 13, color: "#94a3b8" }}>Baseada nos últimos 6 meses + projeção 3 meses</p>
+                    <p style={{ fontSize: 13, color: "#98A2B3" }}>Baseada nos últimos 6 meses + projeção 3 meses</p>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
-                        { label: "RECEITA MÉDIA MENSAL", value: fmt(mediamensal), icon: DollarSign, color: "#3b5bdb", bg: "#eef2ff" },
-                        { label: "TENDÊNCIA", value: `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`, icon: trend >= 0 ? TrendingUp : TrendingDown, color: trend >= 0 ? "#2e7d32" : "#c62828", bg: trend >= 0 ? "#e8f5e9" : "#fde8e8" },
-                        { label: "PREVISÃO PRÓXIMO MÊS", value: fmt(avgLast3), icon: Target, color: "#3b5bdb", bg: "#eef2ff" },
-                        { label: "PREVISÃO TRIMESTRE", value: fmt(previsaoTrimestre), icon: TrendingUp, color: "#2e7d32", bg: "#e8f5e9" },
+                        { label: "RECEITA MÉDIA MENSAL", value: fmt(mediamensal), icon: DollarSign, color: "#1E3A8A", bg: "#EFF6FF" },
+                        { label: "TENDÊNCIA", value: `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`, icon: trend >= 0 ? TrendingUp : TrendingDown, color: trend >= 0 ? "#039855" : "#D92D20", bg: trend >= 0 ? "#ECFDF3" : "#FEF3F2" },
+                        { label: "PREVISÃO PRÓXIMO MÊS", value: fmt(avgLast3), icon: Target, color: "#1E3A8A", bg: "#EFF6FF" },
+                        { label: "PREVISÃO TRIMESTRE", value: fmt(previsaoTrimestre), icon: TrendingUp, color: "#039855", bg: "#ECFDF3" },
                     ].map((kpi, i) => (
-                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                 <div style={{ background: kpi.bg, borderRadius: 10, padding: 10 }}><kpi.icon size={20} color={kpi.color} /></div>
                                 <div>
-                                    <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{kpi.label}</p>
+                                    <p style={{ fontSize: 11, color: "#98A2B3", fontWeight: 600 }}>{kpi.label}</p>
                                     <p style={{ fontSize: 20, fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
                                 </div>
                             </div>
@@ -109,21 +109,21 @@ export default function PrevisaoReceitas() {
                     ))}
                 </div>
 
-                <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #e2e8f0" }}>
+                <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                     <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Histórico + Projeção</p>
                     <ResponsiveContainer width="100%" height={280}>
                         <AreaChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
                             <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                             <Tooltip formatter={(v: number) => fmt(v)} />
-                            <Area type="monotone" dataKey="real" stroke="#2e7d32" fill="#e8f5e9" strokeWidth={2} name="Real" />
-                            <Area type="monotone" dataKey="previsto" stroke="#3b5bdb" fill="#eef2ff" strokeWidth={2} strokeDasharray="5 5" name="Previsto" />
+                            <Area type="monotone" dataKey="real" stroke="#039855" fill="#ECFDF3" strokeWidth={2} name="Real" />
+                            <Area type="monotone" dataKey="previsto" stroke="#1E3A8A" fill="#EFF6FF" strokeWidth={2} strokeDasharray="5 5" name="Previsto" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </Card>
 
-                <Card style={{ borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden" }}>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -142,7 +142,7 @@ export default function PrevisaoReceitas() {
                                         <TableCell className="font-medium capitalize">{m.label}</TableCell>
                                         <TableCell className="text-right">{fmt(m.real)}</TableCell>
                                         <TableCell className="text-right text-muted-foreground">{fmt(mediamensal)}</TableCell>
-                                        <TableCell className="text-right" style={{ color: diff >= 0 ? "#2e7d32" : "#c62828" }}>
+                                        <TableCell className="text-right" style={{ color: diff >= 0 ? "#039855" : "#D92D20" }}>
                                             {diff >= 0 ? "+" : ""}{fmt(diff)}
                                         </TableCell>
                                         <TableCell>
@@ -157,7 +157,7 @@ export default function PrevisaoReceitas() {
                                 <TableRow key={p.key} className="bg-blue-50/30">
                                     <TableCell className="font-medium capitalize">{p.label}</TableCell>
                                     <TableCell className="text-right text-muted-foreground">—</TableCell>
-                                    <TableCell className="text-right" style={{ color: "#3b5bdb", fontWeight: 600 }}>{fmt(p.previsto)}</TableCell>
+                                    <TableCell className="text-right" style={{ color: "#1E3A8A", fontWeight: 600 }}>{fmt(p.previsto)}</TableCell>
                                     <TableCell className="text-right">—</TableCell>
                                     <TableCell><Badge className="bg-blue-100 text-blue-700">Projeção</Badge></TableCell>
                                 </TableRow>

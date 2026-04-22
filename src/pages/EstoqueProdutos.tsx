@@ -194,6 +194,7 @@ export default function EstoqueProdutos() {
   return (
     <AppLayout title="Estoque">
       <div className="space-y-5 animate-fade-in">
+
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -222,7 +223,7 @@ export default function EstoqueProdutos() {
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Abaixo do Mínimo</p>
-            <p className="text-2xl font-bold mt-1" style={{ color: stats.abaixoMin > 0 ? "#c62828" : "#2e7d32" }}>{stats.abaixoMin}</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: stats.abaixoMin > 0 ? "#D92D20" : "#039855" }}>{stats.abaixoMin}</p>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Valor em Estoque</p>

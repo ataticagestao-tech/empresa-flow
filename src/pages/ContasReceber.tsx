@@ -8,13 +8,15 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TablePagination } from '@/components/ui/table-pagination'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, Loader2, UserPlus,
+  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 // Cast for GESTAP tables not in generated types
 const db = supabase as any
@@ -85,15 +87,15 @@ function deriveTipo(cr: CR): string {
 function statusBadge(status: string) {
   switch (status) {
     case 'aberto':
-      return { label: 'Em aberto', text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a' }
+      return { label: 'Em aberto', text: '#1E3A8A', bg: '#EFF6FF', border: '#1E3A8A' }
     case 'vencido':
-      return { label: 'Vencido', text: '#8b0000', bg: '#fdecea', border: '#8b0000' }
+      return { label: 'Vencido', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
     case 'parcial':
-      return { label: 'Parcial', text: '#5c3a00', bg: '#fffbe6', border: '#b8960a' }
+      return { label: 'Parcial', text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
     case 'pago':
-      return { label: 'Pago', text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e' }
+      return { label: 'Pago', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     default:
-      return { label: status, text: '#555', bg: '#f5f5f5', border: '#ccc' }
+      return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
 }
 
@@ -113,6 +115,7 @@ function computeStatus(cr: CR): string {
 
 export default function ContasReceber() {
   const { selectedCompany } = useCompany()
+  const confirm = useConfirm()
 
   // ── Data ──
   const [items, setItems] = useState<CR[]>([])
@@ -132,6 +135,8 @@ export default function ContasReceber() {
   const [statusFilter, setStatusFilter] = useState('todos')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
+  const [selectedAgendaDate, setSelectedAgendaDate] = useState<string | null>(null)
 
   // ── Modals ──
   const [quitarModal, setQuitarModal] = useState<CR | null>(null)
@@ -259,9 +264,13 @@ export default function ContasReceber() {
     const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
     let totalAberto = 0
+    let countAberto = 0
     let vencendo7d = 0
+    let countVencendo = 0
     let totalVencido = 0
+    let countVencido = 0
     let recebidoMes = 0
+    let countRecebido = 0
 
     for (const cr of enrichedItems) {
       const saldo = cr.valor - (cr.valor_pago || 0)
@@ -269,20 +278,145 @@ export default function ContasReceber() {
 
       if (['aberto', 'parcial', 'vencido'].includes(st)) {
         totalAberto += saldo
+        countAberto += 1
       }
       if (st === 'aberto' && cr.data_vencimento >= hoje && cr.data_vencimento <= em7dias) {
         vencendo7d += saldo
+        countVencendo += 1
       }
       if (cr.data_vencimento < hoje && ['aberto', 'parcial'].includes(st)) {
         totalVencido += saldo
+        countVencido += 1
       }
       if (cr.data_pagamento && cr.data_pagamento >= mesInicio && cr.data_pagamento <= mesFim) {
         recebidoMes += (cr.valor_pago || 0)
+        countRecebido += 1
       }
     }
 
-    return { totalAberto, vencendo7d, totalVencido, recebidoMes }
+    return {
+      totalAberto, countAberto,
+      vencendo7d, countVencendo,
+      totalVencido, countVencido,
+      recebidoMes, countRecebido,
+    }
   }, [enrichedItems])
+
+  // ─── Agenda 30 dias (heatmap estilo GitHub) ─────────────────────
+  const agenda30 = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const startDate = addDays(today, -15)
+    const days: { date: Date; dateStr: string; value: number; count: number; isPast: boolean; hasOverdue: boolean }[] = []
+    const byDay: Record<string, { value: number; count: number; hasOverdue: boolean }> = {}
+
+    for (const cr of enrichedItems) {
+      if (cr._status === 'pago' || cr._status === 'cancelado') continue
+      const key = cr.data_vencimento
+      if (!key) continue
+      const venc = parseISO(key)
+      venc.setHours(0, 0, 0, 0)
+      const diff = differenceInDays(venc, today)
+      if (diff < -15 || diff > 14) continue
+      const pendente = Number(cr.valor || 0) - Number(cr.valor_pago || 0)
+      if (pendente <= 0) continue
+      if (!byDay[key]) byDay[key] = { value: 0, count: 0, hasOverdue: false }
+      byDay[key].value += pendente
+      byDay[key].count += 1
+      if (venc < today) byDay[key].hasOverdue = true
+    }
+
+    for (let i = 0; i < 30; i++) {
+      const d = addDays(startDate, i)
+      const dateStr = format(d, 'yyyy-MM-dd')
+      const b = byDay[dateStr]
+      days.push({
+        date: d,
+        dateStr,
+        value: b?.value || 0,
+        count: b?.count || 0,
+        isPast: d < today,
+        hasOverdue: b?.hasOverdue || false,
+      })
+    }
+
+    const vals = days.map(x => x.value).filter(v => v > 0)
+    const max = vals.length ? Math.max(...vals) : 0
+    const total = days.reduce((s, x) => s + x.value, 0)
+    const totalVencido = days.filter(d => d.hasOverdue).reduce((s, d) => s + d.value, 0)
+    const diasComEntrada = days.filter(d => d.value > 0).length
+    const diasVencidos = days.filter(d => d.hasOverdue).length
+
+    const weeks: (typeof days[number] | null)[][] = []
+    let col: (typeof days[number] | null)[] = Array(7).fill(null)
+    days.forEach((day, idx) => {
+      const dow = day.date.getDay()
+      col[dow] = day
+      if (dow === 6 || idx === days.length - 1) {
+        weeks.push(col)
+        col = Array(7).fill(null)
+      }
+    })
+
+    const monthLabels: { weekIndex: number; label: string }[] = []
+    let lastMonth = -1
+    weeks.forEach((week, i) => {
+      const firstDay = week.find((x): x is typeof days[number] => x !== null)
+      if (!firstDay) return
+      const m = firstDay.date.getMonth()
+      if (m !== lastMonth) {
+        monthLabels.push({
+          weekIndex: i,
+          label: format(firstDay.date, 'MMM').replace(/^./, c => c.toUpperCase()),
+        })
+        lastMonth = m
+      }
+    })
+
+    return { days, weeks, max, total, totalVencido, diasComEntrada, diasVencidos, monthLabels }
+  }, [enrichedItems])
+
+  // Lista de recebimentos para o painel lateral da agenda
+  const agendaDiaLista = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const inicio = addDays(today, -15)
+    const fim = addDays(today, 14)
+    const result: (typeof enrichedItems[number] & { _pendente: number })[] = []
+    for (const cr of enrichedItems) {
+      if (cr._status === 'pago' || cr._status === 'cancelado') continue
+      if (!cr.data_vencimento) continue
+      const venc = parseISO(cr.data_vencimento)
+      venc.setHours(0, 0, 0, 0)
+      if (venc < inicio || venc > fim) continue
+      const pendente = Number(cr.valor || 0) - Number(cr.valor_pago || 0)
+      if (pendente <= 0) continue
+      if (selectedAgendaDate && cr.data_vencimento !== selectedAgendaDate) continue
+      result.push({ ...cr, _pendente: pendente })
+    }
+    result.sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento) || b._pendente - a._pendente)
+    return result
+  }, [enrichedItems, selectedAgendaDate])
+
+  const agendaDiaTotal = useMemo(
+    () => agendaDiaLista.reduce((s, cr) => s + cr._pendente, 0),
+    [agendaDiaLista]
+  )
+
+  const agendaColor = (value: number, max: number, isOverdue: boolean) => {
+    if (value === 0 || max === 0) return '#F3F4F6'
+    const r = value / max
+    if (isOverdue) {
+      if (r < 0.25) return '#FED7AA'
+      if (r < 0.5) return '#FDBA74'
+      if (r < 0.75) return '#F97316'
+      return '#C2410C'
+    }
+    if (r < 0.25) return '#BBF7D0'
+    if (r < 0.5) return '#86EFAC'
+    if (r < 0.75) return '#22C55E'
+    return '#15803D'
+  }
 
   /* ================================================================
      RENDER
@@ -292,119 +426,348 @@ export default function ContasReceber() {
     <AppLayout>
       <div className="p-6 max-w-[1400px] mx-auto space-y-6">
 
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-[#0a0a0a] tracking-tight">Contas a Receber</h1>
-            <p className="text-[13px] text-[#555] mt-0.5">Gerencie titulos, cobran&ccedil;as e recebimentos</p>
-          </div>
-          <button
-            onClick={() => setNovoModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1a2e4a] text-white text-[13px] font-semibold rounded-lg hover:bg-[#15253d] transition-colors"
-          >
-            <Plus size={16} />
-            Novo titulo
-          </button>
+
+        {/* ── KPI Cards (padrão Vendas) ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            {
+              label: 'Total em aberto',
+              value: formatBRL(kpis.totalAberto),
+              color: '#1D2939',
+              sub: `${kpis.countAberto} título${kpis.countAberto !== 1 ? 's' : ''} em aberto`,
+            },
+            {
+              label: 'Vencendo em 7 dias',
+              value: formatBRL(kpis.vencendo7d),
+              color: '#F79009',
+              sub: `${kpis.countVencendo} título${kpis.countVencendo !== 1 ? 's' : ''} a vencer`,
+            },
+            {
+              label: 'Vencidos',
+              value: formatBRL(kpis.totalVencido),
+              color: '#7F1D1D',
+              sub: `${kpis.countVencido} título${kpis.countVencido !== 1 ? 's' : ''} em atraso`,
+            },
+            {
+              label: 'Recebido no mês',
+              value: formatBRL(kpis.recebidoMes),
+              color: '#039855',
+              sub: `${kpis.countRecebido} recebimento${kpis.countRecebido !== 1 ? 's' : ''} no período`,
+            },
+          ].map(kpi => (
+            <div
+              key={kpi.label}
+              className="bg-white border border-[#EAECF0] rounded-xl px-4 py-3 min-w-0"
+              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
+            >
+              <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
+              <p
+                className="mt-1.5 font-extrabold truncate"
+                style={{ fontSize: 18, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
+              >
+                {kpi.value}
+              </p>
+              <p className="text-[11px] text-[#98A2B3] mt-1 truncate">{kpi.sub}</p>
+            </div>
+          ))}
         </div>
 
-        {/* ── KPI Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            icon={<DollarSign size={18} />}
-            label="Total em aberto"
-            value={formatBRL(kpis.totalAberto)}
-            color={{ text: '#1a2e4a', bg: '#f0f4f8', border: '#1a2e4a', icon: '#1a2e4a' }}
-          />
-          <KpiCard
-            icon={<Clock size={18} />}
-            label="Vencendo em 7 dias"
-            value={formatBRL(kpis.vencendo7d)}
-            color={{ text: '#5c3a00', bg: '#fffbe6', border: '#b8960a', icon: '#b8960a' }}
-          />
-          <KpiCard
-            icon={<AlertTriangle size={18} />}
-            label="Vencidos"
-            value={formatBRL(kpis.totalVencido)}
-            color={{ text: '#8b0000', bg: '#fdecea', border: '#8b0000', icon: '#8b0000' }}
-          />
-          <KpiCard
-            icon={<CheckCircle2 size={18} />}
-            label="Recebido no mes"
-            value={formatBRL(kpis.recebidoMes)}
-            color={{ text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e', icon: '#0a5c2e' }}
-          />
-        </div>
-
-        {/* ── Filters ── */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
-          </div>
-          <div className="p-4 bg-white flex flex-wrap gap-3 items-end">
-            {/* Search */}
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">Pagador</label>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
-                <input
-                  type="text"
-                  placeholder="Buscar por nome..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-                />
+        {/* ── Agenda 30d (esquerda) + Contas a receber do dia (direita) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Agenda heatmap */}
+          <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAECF0]">
+              <div>
+                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">Agenda de Recebimentos</div>
+                <div className="text-[12px] text-[#98A2B3] mt-1">
+                  Pr&oacute;ximos 30 dias &middot; {agenda30.diasComEntrada} dia{agenda30.diasComEntrada !== 1 ? 's' : ''} com entrada
+                  {agenda30.diasVencidos > 0 && (
+                    <span className="text-[#C2410C] font-semibold"> &middot; {agenda30.diasVencidos} em atraso</span>
+                  )}
+                  &middot; clique em um dia
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-[10.5px] text-[#98A2B3]">
+                <div className="flex items-center gap-1">
+                  <span style={{ width: 10, height: 10, background: '#22C55E', borderRadius: 2 }} />
+                  A receber
+                </div>
+                <div className="flex items-center gap-1">
+                  <span style={{ width: 10, height: 10, background: '#F97316', borderRadius: 2 }} />
+                  Vencida
+                </div>
               </div>
             </div>
+            <div className="px-5 py-5">
+              <div className="flex gap-2">
+                {/* Day-of-week labels */}
+                <div className="flex flex-col gap-1.5 text-[11px] text-[#98A2B3]" style={{ paddingTop: 22 }}>
+                  {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'S\u00e1b'].map(d => (
+                    <div key={d} style={{ height: 32, display: 'flex', alignItems: 'center' }}>{d}</div>
+                  ))}
+                </div>
+                {/* Weeks */}
+                <div className="flex flex-col flex-1 min-w-0">
+                  {/* Month labels row */}
+                  <div className="flex gap-1.5 mb-1" style={{ height: 14 }}>
+                    {agenda30.weeks.map((_, wi) => {
+                      const monthAtCol = agenda30.monthLabels.find(m => m.weekIndex === wi)
+                      return (
+                        <div key={wi} className="flex-1" style={{ fontSize: 11, fontWeight: 600, color: '#667085', marginLeft: wi > 0 && agenda30.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
+                          {monthAtCol?.label || ''}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="flex gap-1.5">
+                    {agenda30.weeks.map((week, wi) => (
+                      <div key={wi} className="flex flex-col gap-1.5 flex-1 min-w-0" style={{ marginLeft: wi > 0 && agenda30.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
+                        {week.map((day, di) => day ? (
+                          <button
+                            key={di}
+                            type="button"
+                            onClick={() => day.value > 0 ? setSelectedAgendaDate(d => d === day.dateStr ? null : day.dateStr) : undefined}
+                            title={`${format(day.date, 'dd/MM')}${day.value > 0 ? ` \u00b7 ${formatBRL(day.value)} \u00b7 ${day.count} t\u00edtulo${day.count !== 1 ? 's' : ''}${day.hasOverdue ? ' (vencido sem baixa)' : ''}` : ' \u00b7 sem recebimentos'}`}
+                            className={day.value > 0 ? 'transition-transform hover:scale-110' : ''}
+                            style={{
+                              width: '100%', aspectRatio: '1 / 1', maxWidth: 40, minHeight: 32, height: 32, borderRadius: 6,
+                              background: agendaColor(day.value, agenda30.max, day.hasOverdue),
+                              border: selectedAgendaDate === day.dateStr
+                                ? '2px solid #1D2939'
+                                : format(day.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                                ? '2px solid #1E3A8A'
+                                : day.value === 0 ? '1px solid #EAECF0' : 'none',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, fontWeight: 700,
+                              color: day.value === 0 ? '#98A2B3' : (day.value / (agenda30.max || 1)) >= 0.5 ? '#fff' : (day.hasOverdue ? '#7C2D12' : '#14532D'),
+                              cursor: day.value > 0 ? 'pointer' : 'default',
+                            }}
+                          >
+                            {format(day.date, 'd')}
+                          </button>
+                        ) : (
+                          <div key={di} style={{ aspectRatio: '1 / 1', minHeight: 32, height: 32 }} />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Rodapé com totais */}
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#EAECF0]">
+                <div className="flex flex-col">
+                  <span className="text-[10.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Total previsto (30d)</span>
+                  <span className="text-[16px] font-extrabold text-[#039855] tracking-[-0.01em] tabular-nums">{formatBRL(agenda30.total)}</span>
+                </div>
+                {agenda30.totalVencido > 0 && (
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Vencido sem baixa</span>
+                    <span className="text-[16px] font-extrabold text-[#C2410C] tracking-[-0.01em] tabular-nums">{formatBRL(agenda30.totalVencido)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Contas a receber (painel lateral) */}
+          <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAECF0]">
+              <div>
+                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">Contas a receber</div>
+                <div className="text-[12px] text-[#98A2B3] mt-1">
+                  {selectedAgendaDate
+                    ? `Vencimento em ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}`
+                    : 'Todas \u00b7 janela de 30 dias'}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wide"
+                  style={{
+                    background: selectedAgendaDate ? '#1D2939' : '#E5E7EB',
+                    color: selectedAgendaDate ? '#fff' : '#1D2939',
+                  }}
+                >
+                  {selectedAgendaDate ? format(parseISO(selectedAgendaDate), 'dd/MM') : 'Todas'}
+                </span>
+                <button
+                  onClick={async () => {
+                    if (agendaDiaLista.length === 0) {
+                      toast.error('Nenhuma conta para copiar')
+                      return
+                    }
+                    const titulo = selectedAgendaDate
+                      ? `*Contas a receber - ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}*`
+                      : '*Contas a receber - Janela de 30 dias*'
+                    const linhas = agendaDiaLista.map(cr => {
+                      const data = selectedAgendaDate ? '' : `${format(parseISO(cr.data_vencimento), 'dd/MM')} \u2014 `
+                      const cat = cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '\u2014') : '\u2014'
+                      return `\u2022 ${data}${cr.pagador_nome} \u2014 ${cat} \u2014 ${formatBRL(cr._pendente)}`
+                    }).join('\n')
+                    const total = `*Total a receber: ${formatBRL(agendaDiaTotal)}*`
+                    const texto = `${titulo}\n\n${linhas}\n\n${total}`
+                    try {
+                      await navigator.clipboard.writeText(texto)
+                      toast.success('Lista copiada! Cole no WhatsApp.')
+                    } catch {
+                      toast.error('N\u00e3o foi poss\u00edvel copiar')
+                    }
+                  }}
+                  title="Copiar lista para WhatsApp"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-[#667085] hover:text-black px-2 h-7 border border-[#D0D5DD] rounded"
+                >
+                  <Copy size={11} /> Copiar
+                </button>
+                {selectedAgendaDate && (
+                  <button
+                    onClick={() => setSelectedAgendaDate(null)}
+                    className="text-[11px] font-semibold text-[#667085] hover:text-black"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto" style={{ maxHeight: 360 }}>
+              {agendaDiaLista.length === 0 ? (
+                <div className="px-5 py-10 text-center text-[13px] text-[#98A2B3]">
+                  Nenhuma conta a receber {selectedAgendaDate ? 'nesta data' : 'nesta janela'}.
+                </div>
+              ) : (
+                <table className="w-full text-[12.5px]">
+                  <thead className="bg-[#F9FAFB] sticky top-0">
+                    <tr>
+                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Nome</th>
+                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Categoria</th>
+                      <th className="py-2 px-3 text-right font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {agendaDiaLista.map(cr => {
+                      const hoje = format(new Date(), 'yyyy-MM-dd')
+                      const isVencido = cr.data_vencimento < hoje
+                      return (
+                        <tr key={cr.id} style={{ borderTop: '1px solid #F2F4F7' }}>
+                          <td className="py-2 px-3 text-[#1D2939]">
+                            <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cr.pagador_nome}</div>
+                            {!selectedAgendaDate && (
+                              <div className={`text-[10.5px] ${isVencido ? 'text-[#C2410C] font-semibold' : 'text-[#98A2B3]'}`}>
+                                {format(parseISO(cr.data_vencimento), 'dd/MM')}{isVencido ? ' · vencida' : ''}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-[#555]">
+                            {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
+                          </td>
+                          <td className={`py-2 px-3 text-right font-semibold tabular-nums ${isVencido ? 'text-[#C2410C]' : 'text-[#1D2939]'}`}>
+                            {formatBRL(cr._pendente)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="px-5 py-3 border-t border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">
+              <span className="text-[11.5px] font-bold uppercase tracking-wide text-[#1D2939]">Total a receber</span>
+              <span className="text-[18px] font-extrabold text-[#039855] tracking-[-0.01em] tabular-nums">
+                {formatBRL(agendaDiaTotal)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Filtros compactos (padrão Vendas — minimizados, clique em "Mais filtros" para expandir) ── */}
+        <div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[160px] max-w-[240px]">
+              <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+              <input
+                type="text"
+                placeholder="Buscar pagador..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-7 pr-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black placeholder-[#98A2B3] focus:outline-none focus:border-black"
+              />
+            </div>
             {/* Status */}
-            <div className="min-w-[140px]">
-              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">Status</label>
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-              >
-                {STATUS_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-            {/* Date from */}
-            <div className="min-w-[140px]">
-              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">De</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-              />
-            </div>
-            {/* Date to */}
-            <div className="min-w-[140px]">
-              <label className="block text-[11px] font-semibold text-[#555] uppercase tracking-wide mb-1">Ate</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-              />
-            </div>
-            {/* Clear */}
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
+            >
+              {STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {/* Limpar */}
             {(search || statusFilter !== 'todos' || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setStatusFilter('todos'); setDateFrom(''); setDateTo('') }}
-                className="px-3 py-2 text-[12px] text-[#8b0000] font-semibold hover:underline"
+                className="text-[11px] font-semibold text-[#667085] hover:text-black px-1.5 h-7"
               >
                 Limpar
               </button>
             )}
+            {/* Expandir */}
+            <button
+              onClick={() => setFiltersExpanded(v => !v)}
+              className="flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#667085] hover:text-black"
+            >
+              {filtersExpanded ? 'Recolher' : 'Mais filtros'}
+              {filtersExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            </button>
+            <div className="flex-1" />
+            {(dateFrom || dateTo) && (
+              <span className="text-[10.5px] text-[#98A2B3] whitespace-nowrap">
+                {dateFrom ? format(parseISO(dateFrom), 'dd/MM/yyyy') : '—'} &ndash; {dateTo ? format(parseISO(dateTo), 'dd/MM/yyyy') : '—'}
+              </span>
+            )}
+            <button
+              onClick={() => setNovoModal(true)}
+              className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
+            >
+              <Plus size={11} /> Novo t&iacute;tulo
+            </button>
           </div>
+
+          {/* Painel expandido: período por datas */}
+          {filtersExpanded && (
+            <div className="flex flex-wrap items-end gap-2 mt-2 p-3 border border-[#EAECF0] rounded-lg bg-[#FAFBFC]">
+              <div>
+                <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wide mb-1">De</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wide mb-1">At&eacute;</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
+                />
+              </div>
+              <p className="text-[10.5px] text-[#98A2B3] ml-1 mb-1">
+                Filtrar por intervalo de vencimento.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ── Table ── */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-              Titulos ({filtered.length})
+        <div className="border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest">
+              T&iacute;tulos ({filtered.length})
             </h3>
             {someSelected && (
               <div className="flex items-center gap-3">
@@ -413,7 +776,7 @@ export default function ContasReceber() {
                 </span>
                 <button
                   onClick={() => setQuitarLoteModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-[#0a5c2e] bg-white rounded hover:bg-[#e6f4ec] transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-[#039855] bg-white rounded hover:bg-[#ECFDF3] transition-colors"
                 >
                   <CheckCircle2 size={12} />
                   Quitar em lote
@@ -439,18 +802,18 @@ export default function ContasReceber() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e5e5e5]">
-                    <th className="px-3 py-3 w-10">
+                    <th className="px-3 py-2 w-10">
                       <input
                         type="checkbox"
                         checked={allSelectableSelected}
                         onChange={toggleSelectAll}
-                        className="w-4 h-4 rounded border-[#ccc] text-[#1a2e4a] focus:ring-[#1a2e4a] cursor-pointer"
+                        className="w-4 h-4 rounded border-[#ccc] text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
                       />
                     </th>
                     {['Pagador', 'Tipo', 'Categoria', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
                       <th
                         key={h}
-                        className="px-4 py-3 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"
+                        className="px-4 py-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"
                       >
                         {h}
                       </th>
@@ -469,29 +832,29 @@ export default function ContasReceber() {
                     return (
                       <tr
                         key={cr.id}
-                        className={`border-b border-[#f0f0f0] hover:bg-[#fafafa] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#f0f4f8]' : ''}`}
+                        className={`border-b border-[#EAECF0] hover:bg-[#F6F2EB] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#EFF6FF]' : ''}`}
                       >
                         {/* Checkbox */}
-                        <td className="px-3 py-3 w-10">
+                        <td className="px-3 py-2 w-10 align-middle">
                           {isSelectable && (
                             <input
                               type="checkbox"
                               checked={selectedIds.has(cr.id)}
                               onChange={() => toggleSelect(cr.id)}
-                              className="w-4 h-4 rounded border-[#ccc] text-[#1a2e4a] focus:ring-[#1a2e4a] cursor-pointer"
+                              className="w-4 h-4 rounded border-[#ccc] text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
                             />
                           )}
                         </td>
                         {/* Pagador */}
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</div>
+                        <td className="px-4 py-2 align-middle">
+                          <div className="font-semibold text-[#1D2939]">{cr.pagador_nome}</div>
                           {cr.pagador_cpf_cnpj && (
                             <div className="text-[11px] text-[#999] mt-0.5">{cr.pagador_cpf_cnpj}</div>
                           )}
                         </td>
                         {/* Tipo */}
-                        <td className="px-4 py-3">
-                          <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-[#f5f5f5] border border-[#ddd] rounded">
+                        <td className="px-4 py-2 align-middle">
+                          <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-[#F6F2EB] border border-[#ddd] rounded">
                             {deriveTipo(cr)}
                           </span>
                         </td>
@@ -500,30 +863,30 @@ export default function ContasReceber() {
                           {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
                         </td>
                         {/* Vencimento */}
-                        <td className="px-4 py-3">
-                          <span className={isVencido ? 'text-[#8b0000] font-semibold' : 'text-[#0a0a0a]'}>
+                        <td className="px-4 py-2 align-middle">
+                          <span className={isVencido ? 'text-[#D92D20] font-semibold' : 'text-[#1D2939]'}>
                             {formatData(cr.data_vencimento)}
                           </span>
                           {isVencido && diasAtraso > 0 && (
-                            <div className="text-[10px] text-[#8b0000] mt-0.5">
+                            <div className="text-[10px] text-[#D92D20] mt-0.5">
                               {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
                             </div>
                           )}
                         </td>
                         {/* Valor */}
-                        <td className="px-4 py-3 font-medium text-[#0a0a0a]">
+                        <td className="px-4 py-3 font-medium text-[#1D2939]">
                           {formatBRL(cr.valor)}
                         </td>
                         {/* Pago */}
-                        <td className="px-4 py-3 text-[#0a5c2e] font-medium">
+                        <td className="px-4 py-3 text-[#039855] font-medium">
                           {formatBRL(cr.valor_pago || 0)}
                         </td>
                         {/* Saldo */}
-                        <td className="px-4 py-3 font-semibold text-[#0a0a0a]">
+                        <td className="px-4 py-3 font-semibold text-[#1D2939]">
                           {formatBRL(saldo)}
                         </td>
                         {/* Status */}
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-2 align-middle">
                           <span
                             className="inline-block px-2.5 py-1 text-[11px] font-semibold rounded border"
                             style={{ color: st.text, backgroundColor: st.bg, borderColor: st.border }}
@@ -532,12 +895,12 @@ export default function ContasReceber() {
                           </span>
                         </td>
                         {/* Acoes */}
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-2 align-middle">
                           <div className="flex items-center gap-2">
                             {cr._status !== 'pago' && cr._status !== 'cancelado' && (
                               <button
                                 onClick={() => setQuitarModal(cr)}
-                                className="px-3 py-1.5 text-[11px] font-semibold text-white bg-[#0a5c2e] rounded hover:bg-[#084d25] transition-colors"
+                                className="px-3 py-1.5 text-[11px] font-semibold text-white bg-[#039855] rounded hover:bg-[#084d25] transition-colors"
                               >
                                 Quitar
                               </button>
@@ -546,7 +909,7 @@ export default function ContasReceber() {
                             <div className="relative">
                               <button
                                 onClick={e => { e.stopPropagation(); setDropdownOpen(dropdownOpen === cr.id ? null : cr.id) }}
-                                className="p-1.5 rounded hover:bg-[#f0f0f0] transition-colors"
+                                className="p-1.5 rounded hover:bg-[#EAECF0] transition-colors"
                               >
                                 <MoreHorizontal size={16} className="text-[#555]" />
                               </button>
@@ -554,18 +917,24 @@ export default function ContasReceber() {
                                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ccc] rounded-lg shadow-lg z-50">
                                   <button
                                     onClick={() => { setRenegociarModal(cr); setDropdownOpen(null) }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors first:rounded-t-lg"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors first:rounded-t-lg"
                                   >
                                     Renegociar
                                   </button>
                                   <button
                                     onClick={async () => {
                                       setDropdownOpen(null)
-                                      if (!confirm('Cancelar este titulo?')) return
+                                      const ok = await confirm({
+                                        title: 'Cancelar este título?',
+                                        description: 'O lançamento será marcado como cancelado e sairá do total a receber.',
+                                        confirmLabel: 'Sim, cancelar título',
+                                        variant: 'destructive',
+                                      })
+                                      if (!ok) return
                                       await db.from('contas_receber').update({ status: 'cancelado' }).eq('id', cr.id)
                                       fetchItems()
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#8b0000] hover:bg-[#fdecea] transition-colors"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#D92D20] hover:bg-[#FEF3F2] transition-colors"
                                   >
                                     Cancelar titulo
                                   </button>
@@ -574,7 +943,7 @@ export default function ContasReceber() {
                                       setDropdownOpen(null)
                                       alert('Funcionalidade de cobranca manual sera implementada em breve.')
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors"
                                   >
                                     Enviar cobranca manual
                                   </button>
@@ -586,7 +955,7 @@ export default function ContasReceber() {
                                       if (error) { alert('Erro ao excluir: ' + error.message); return }
                                       fetchItems()
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#8b0000] hover:bg-[#fdecea] transition-colors last:rounded-b-lg"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#D92D20] hover:bg-[#FEF3F2] transition-colors last:rounded-b-lg"
                                   >
                                     Excluir titulo
                                   </button>
@@ -759,7 +1128,7 @@ function ModalQuitarLote({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="bg-[#0a5c2e] px-6 py-4 flex items-center justify-between">
+        <div className="bg-[#039855] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={18} className="text-white" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Quitar em Lote</h2>
@@ -770,10 +1139,10 @@ function ModalQuitarLote({
         </div>
 
         {/* Summary */}
-        <div className="px-6 py-4 bg-[#e6f4ec] border-b border-[#c3e6d1]">
+        <div className="px-6 py-4 bg-[#ECFDF3] border-b border-[#c3e6d1]">
           <div className="flex justify-between text-sm">
-            <span className="text-[#0a5c2e] font-semibold">{selectedCrs.length} titulo{selectedCrs.length !== 1 ? 's' : ''} selecionado{selectedCrs.length !== 1 ? 's' : ''}</span>
-            <span className="text-[#0a5c2e] font-bold">{formatBRL(totalSaldo)}</span>
+            <span className="text-[#039855] font-semibold">{selectedCrs.length} titulo{selectedCrs.length !== 1 ? 's' : ''} selecionado{selectedCrs.length !== 1 ? 's' : ''}</span>
+            <span className="text-[#039855] font-bold">{formatBRL(totalSaldo)}</span>
           </div>
         </div>
 
@@ -784,7 +1153,7 @@ function ModalQuitarLote({
             <select
               value={contaBancariaId}
               onChange={e => setContaBancariaId(e.target.value)}
-              className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] bg-white focus:outline-none focus:border-[#0a5c2e]"
+              className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] bg-white focus:outline-none focus:border-[#039855]"
               disabled={submitting}
             >
               <option value="">Selecione...</option>
@@ -801,7 +1170,7 @@ function ModalQuitarLote({
                 type="button"
                 onClick={() => setUsarDataVencimento(false)}
                 disabled={submitting}
-                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${!usarDataVencimento ? 'bg-[#0a5c2e] text-white border-[#0a5c2e]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'}`}
+                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${!usarDataVencimento ? 'bg-[#039855] text-white border-[#039855]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#F6F2EB]'}`}
               >
                 Data fixa
               </button>
@@ -809,7 +1178,7 @@ function ModalQuitarLote({
                 type="button"
                 onClick={() => setUsarDataVencimento(true)}
                 disabled={submitting}
-                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${usarDataVencimento ? 'bg-[#0a5c2e] text-white border-[#0a5c2e]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#f5f5f5]'}`}
+                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${usarDataVencimento ? 'bg-[#039855] text-white border-[#039855]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#F6F2EB]'}`}
               >
                 Na data de vencimento
               </button>
@@ -823,7 +1192,7 @@ function ModalQuitarLote({
                   type="date"
                   value={dataPagamento}
                   onChange={e => setDataPagamento(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] focus:outline-none focus:border-[#0a5c2e]"
+                  className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] focus:outline-none focus:border-[#039855]"
                   disabled={submitting}
                 />
               ) : (
@@ -837,7 +1206,7 @@ function ModalQuitarLote({
               <select
                 value={formaRecebimento}
                 onChange={e => setFormaRecebimento(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] bg-white focus:outline-none focus:border-[#0a5c2e]"
+                className="w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] bg-white focus:outline-none focus:border-[#039855]"
                 disabled={submitting}
               >
                 <option value="pix">PIX</option>
@@ -855,16 +1224,16 @@ function ModalQuitarLote({
           {submitting && progress.total > 0 && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-[#0a5c2e]">
+                <span className="text-xs font-semibold text-[#039855]">
                   Quitando... {progress.current} de {progress.total}
                 </span>
-                <span className="text-xs font-bold text-[#0a5c2e]">
+                <span className="text-xs font-bold text-[#039855]">
                   {Math.round((progress.current / progress.total) * 100)}%
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-[#e5e7eb] rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-[#EAECF0] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#0a5c2e] rounded-full transition-all duration-300 ease-out"
+                  className="h-full bg-[#039855] rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${(progress.current / progress.total) * 100}%` }}
                 />
               </div>
@@ -873,18 +1242,18 @@ function ModalQuitarLote({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#eee] px-6 py-4 flex justify-end gap-3 bg-[#fafafa]">
+        <div className="border-t border-[#eee] px-6 py-4 flex justify-end gap-3 bg-[#F6F2EB]">
           <button
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={() => onConfirm({ dataPagamento, formaRecebimento, contaBancariaId, usarDataVencimento })}
             disabled={submitting || !contaBancariaId || (!usarDataVencimento && !dataPagamento)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#0a5c2e] rounded-md hover:bg-[#084d25] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#039855] rounded-md hover:bg-[#084d25] transition-colors disabled:opacity-50"
           >
             {submitting ? (
               <><Loader2 size={14} className="animate-spin" /> Quitando...</>
@@ -912,22 +1281,32 @@ function KpiCard({
 }) {
   return (
     <div
-      className="rounded-lg border p-4 flex items-center gap-4"
-      style={{ borderColor: color.border, backgroundColor: color.bg }}
+      className="bg-white border border-[#EAECF0] rounded-xl p-5 flex flex-col gap-2"
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
     >
-      <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-        style={{ backgroundColor: color.border + '18' }}
-      >
-        <span style={{ color: color.icon }}>{icon}</span>
-      </div>
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: color.text }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[13px] font-bold text-[#1D2939] uppercase tracking-[0.05em] whitespace-nowrap">
           {label}
-        </p>
-        <p className="text-lg font-bold mt-0.5" style={{ color: color.text }}>
-          {value}
-        </p>
+        </div>
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: color.bg, color: color.icon }}
+        >
+          {icon}
+        </div>
+      </div>
+      <div
+        className="font-extrabold leading-[1.1]"
+        style={{
+          color: color.text,
+          fontSize: 'clamp(18px, 1.8vw, 26px)',
+          letterSpacing: '-0.5px',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {value}
       </div>
     </div>
   )
@@ -952,9 +1331,9 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-xl">
+    <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-xl">
       <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">{title}</h3>
-      <button onClick={onClose} className="text-[#a8bfd4] hover:text-white transition-colors">
+      <button onClick={onClose} className="text-[#BFDBFE] hover:text-white transition-colors">
         <X size={18} />
       </button>
     </div>
@@ -970,7 +1349,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 const inputCls =
-  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a] disabled:bg-[#f5f5f5] disabled:text-[#999]'
+  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] disabled:bg-[#F6F2EB] disabled:text-[#999]'
 
 /* ================================================================
    MODAL: QUITAR CR
@@ -1027,18 +1406,18 @@ function ModalQuitarCR({
         {/* Saldo devedor badge */}
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-lg border"
-          style={{ backgroundColor: '#f0f4f8', borderColor: '#1a2e4a' }}
+          style={{ backgroundColor: '#EFF6FF', borderColor: '#1E3A8A' }}
         >
-          <DollarSign size={16} className="text-[#1a2e4a]" />
+          <DollarSign size={16} className="text-[#1E3A8A]" />
           <div>
-            <span className="text-[10px] font-bold text-[#1a2e4a] uppercase tracking-widest">Saldo devedor</span>
-            <p className="text-lg font-bold text-[#1a2e4a]">{formatBRL(saldo)}</p>
+            <span className="text-[10px] font-bold text-[#1E3A8A] uppercase tracking-widest">Saldo devedor</span>
+            <p className="text-lg font-bold text-[#1E3A8A]">{formatBRL(saldo)}</p>
           </div>
         </div>
 
         {/* Pagador info */}
         <div className="text-[13px] text-[#555]">
-          Pagador: <span className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</span>
+          Pagador: <span className="font-semibold text-[#1D2939]">{cr.pagador_nome}</span>
         </div>
 
         {/* Valor recebido */}
@@ -1141,7 +1520,7 @@ function ModalQuitarCR({
         {/* Recibo badge */}
         <div
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-[12px] font-medium"
-          style={{ backgroundColor: '#e6f4ec', borderColor: '#0a5c2e', color: '#0a5c2e' }}
+          style={{ backgroundColor: '#ECFDF3', borderColor: '#039855', color: '#039855' }}
         >
           <CheckCircle2 size={14} />
           Recibo sera gerado e enviado automaticamente por e-mail ao pagador
@@ -1152,14 +1531,14 @@ function ModalQuitarCR({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#0a5c2e] rounded-lg hover:bg-[#084d25] transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#039855] rounded-lg hover:bg-[#084d25] transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
             Confirmar recebimento
@@ -1343,8 +1722,8 @@ function ModalNovoCR({
                 onClick={() => setTipo(t.value)}
                 className={`px-3 py-2.5 rounded-lg border text-[12px] font-semibold text-center transition-colors ${
                   tipo === t.value
-                    ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
-                    : 'border-[#ccc] bg-white text-[#555] hover:bg-[#fafafa]'
+                    ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]'
+                    : 'border-[#ccc] bg-white text-[#555] hover:bg-[#F6F2EB]'
                 }`}
               >
                 <span className="block text-[16px] mb-0.5">{t.icon}</span>
@@ -1377,9 +1756,9 @@ function ModalNovoCR({
                     key={c.id}
                     type="button"
                     onClick={() => selectCliente(c)}
-                    className="w-full text-left px-3 py-2 hover:bg-[#f0f4f8] border-b border-[#eee] last:border-0"
+                    className="w-full text-left px-3 py-2 hover:bg-[#EFF6FF] border-b border-[#eee] last:border-0"
                   >
-                    <div className="text-[13px] font-semibold text-[#0a0a0a]">
+                    <div className="text-[13px] font-semibold text-[#1D2939]">
                       {c.nome_fantasia || c.razao_social}
                     </div>
                     {c.cpf_cnpj && (
@@ -1393,7 +1772,7 @@ function ModalNovoCR({
                 <button
                   type="button"
                   onClick={() => setShowNovoCliente(true)}
-                  className="w-full text-left px-3 py-2 text-[13px] font-semibold text-[#1a2e4a] hover:bg-[#f0f4f8] flex items-center gap-2 border-t border-[#ccc]"
+                  className="w-full text-left px-3 py-2 text-[13px] font-semibold text-[#1E3A8A] hover:bg-[#EFF6FF] flex items-center gap-2 border-t border-[#ccc]"
                 >
                   <UserPlus size={14} /> + Adicionar cliente
                 </button>
@@ -1403,9 +1782,9 @@ function ModalNovoCR({
 
           {/* Novo cliente inline modal */}
           {showNovoCliente && (
-            <div className="border border-[#1a2e4a] rounded-lg p-3 bg-[#f0f4f8] space-y-2">
+            <div className="border border-[#1E3A8A] rounded-lg p-3 bg-[#EFF6FF] space-y-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[12px] font-bold text-[#1a2e4a] uppercase tracking-wider">Novo cliente</span>
+                <span className="text-[12px] font-bold text-[#1E3A8A] uppercase tracking-wider">Novo cliente</span>
                 <button type="button" onClick={() => setShowNovoCliente(false)}><X size={14} className="text-[#999]" /></button>
               </div>
               <input
@@ -1434,7 +1813,7 @@ function ModalNovoCR({
               <button
                 type="button"
                 onClick={salvarNovoCliente}
-                className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d]"
+                className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939]"
               >
                 Salvar cliente
               </button>
@@ -1565,14 +1944,14 @@ function ModalNovoCR({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d] transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {tipo === 'parcelado' ? `Criar ${parseInt(numParcelas) || 2} parcelas` : 'Criar titulo'}
@@ -1613,9 +1992,9 @@ function ModalRenegociar({
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {/* Info */}
         <div className="text-[13px] text-[#555] space-y-1">
-          <p>Pagador: <span className="font-semibold text-[#0a0a0a]">{cr.pagador_nome}</span></p>
-          <p>Valor: <span className="font-semibold text-[#0a0a0a]">{formatBRL(cr.valor)}</span></p>
-          <p>Vencimento atual: <span className="font-semibold text-[#0a0a0a]">{formatData(cr.data_vencimento)}</span></p>
+          <p>Pagador: <span className="font-semibold text-[#1D2939]">{cr.pagador_nome}</span></p>
+          <p>Valor: <span className="font-semibold text-[#1D2939]">{formatBRL(cr.valor)}</span></p>
+          <p>Vencimento atual: <span className="font-semibold text-[#1D2939]">{formatData(cr.data_vencimento)}</span></p>
         </div>
 
         <div>
@@ -1633,14 +2012,14 @@ function ModalRenegociar({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d] transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
             Confirmar renegociacao

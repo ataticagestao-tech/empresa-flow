@@ -19,12 +19,12 @@ import { TableProperties, Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828",
+    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    green: "#039855", greenLt: "#ECFDF3",
+    red: "#D92D20",
     amber: "#f57f17",
-    text1: "#0f172a", text3: "#94a3b8",
-    border: "#e2e8f0",
+    text1: "#1D2939", text3: "#98A2B3",
+    border: "#EAECF0",
 } as const;
 const FONT = "var(--font-base)";
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -264,7 +264,7 @@ export default function TabelaPrecos() {
                                 <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden", maxHeight: 400, overflowY: "auto" }}>
                                     <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
                                         <thead>
-                                            <tr style={{ background: "#f8fafc", borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0 }}>
+                                            <tr style={{ background: "#F6F2EB", borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0 }}>
                                                 <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, color: T.text3, fontWeight: 600 }}>PRODUTO</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "right", fontSize: 11, color: T.text3, fontWeight: 600, width: 120 }}>PREÇO PADRÃO</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "right", fontSize: 11, color: T.text3, fontWeight: 600, width: 140 }}>PREÇO TABELA</th>

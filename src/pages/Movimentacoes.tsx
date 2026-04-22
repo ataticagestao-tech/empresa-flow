@@ -647,19 +647,19 @@ export default function Movimentacoes() {
   const TypeIcon = ({ tipo }: { tipo: string }) => {
     if (tipo === 'credito')
       return (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#e6f4ec] border border-[#0a5c2e]">
-          <ArrowUp className="w-3.5 h-3.5 text-[#0a5c2e]" />
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#ECFDF3] border border-[#039855]">
+          <ArrowUp className="w-3.5 h-3.5 text-[#039855]" />
         </span>
       )
     if (tipo === 'debito')
       return (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#fdecea] border border-[#8b0000]">
-          <ArrowDown className="w-3.5 h-3.5 text-[#8b0000]" />
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#FEF3F2] border border-[#D92D20]">
+          <ArrowDown className="w-3.5 h-3.5 text-[#D92D20]" />
         </span>
       )
     return (
-      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#f0f4f8] border border-[#1a2e4a]">
-        <ArrowLeftRight className="w-3.5 h-3.5 text-[#1a2e4a]" />
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EFF6FF] border border-[#1E3A8A]">
+        <ArrowLeftRight className="w-3.5 h-3.5 text-[#1E3A8A]" />
       </span>
     )
   }
@@ -681,44 +681,44 @@ export default function Movimentacoes() {
         {/* ====== KPI CARDS ====== */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Saldo Atual */}
-          <div className="border border-[#1a2e4a] rounded-lg p-4 bg-white">
-            <p className="text-[10px] font-bold text-[#1a2e4a] uppercase tracking-widest mb-1">Saldo Atual</p>
-            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(bankTotals.total)}</p>
+          <div className="border border-[#1E3A8A] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#1E3A8A] uppercase tracking-widest mb-1">Saldo Atual</p>
+            <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(bankTotals.total)}</p>
             <p className="text-[11px] text-[#777] mt-1">Todas as contas</p>
-            <span className="inline-block mt-2 text-[10px] font-semibold text-[#0a5c2e] bg-[#e6f4ec] px-2 py-0.5 rounded">
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#039855] bg-[#ECFDF3] px-2 py-0.5 rounded">
               Atualizado agora
             </span>
           </div>
 
           {/* Entradas do Mes */}
-          <div className="border border-[#0a5c2e] rounded-lg p-4 bg-white">
-            <p className="text-[10px] font-bold text-[#0a5c2e] uppercase tracking-widest mb-1">Entradas do Mes</p>
-            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(entradasMes)}</p>
+          <div className="border border-[#039855] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#039855] uppercase tracking-widest mb-1">Entradas do Mes</p>
+            <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(entradasMes)}</p>
             <p className="text-[11px] text-[#777] mt-1">{qtdEntradas} lancamento{qtdEntradas !== 1 ? 's' : ''}</p>
-            <span className="inline-block mt-2 text-[10px] font-semibold text-[#0a5c2e] bg-[#e6f4ec] px-2 py-0.5 rounded">
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#039855] bg-[#ECFDF3] px-2 py-0.5 rounded">
               +{formatBRL(entradasMes)}
             </span>
           </div>
 
           {/* Saidas do Mes */}
-          <div className="border border-[#8b0000] rounded-lg p-4 bg-white">
-            <p className="text-[10px] font-bold text-[#8b0000] uppercase tracking-widest mb-1">Saidas do Mes</p>
-            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(saidasMes)}</p>
+          <div className="border border-[#D92D20] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#D92D20] uppercase tracking-widest mb-1">Saidas do Mes</p>
+            <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(saidasMes)}</p>
             <p className="text-[11px] text-[#777] mt-1">{qtdSaidas} lancamento{qtdSaidas !== 1 ? 's' : ''}</p>
-            <span className="inline-block mt-2 text-[10px] font-semibold text-[#8b0000] bg-[#fdecea] px-2 py-0.5 rounded">
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#D92D20] bg-[#FEF3F2] px-2 py-0.5 rounded">
               -{formatBRL(saidasMes)}
             </span>
           </div>
 
           {/* Resultado do Mes */}
-          <div className={`border rounded-lg p-4 bg-white ${resultadoMes >= 0 ? 'border-[#0a5c2e]' : 'border-[#8b0000]'}`}>
-            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${resultadoMes >= 0 ? 'text-[#0a5c2e]' : 'text-[#8b0000]'}`}>
+          <div className={`border rounded-lg p-4 bg-white ${resultadoMes >= 0 ? 'border-[#039855]' : 'border-[#D92D20]'}`}>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${resultadoMes >= 0 ? 'text-[#039855]' : 'text-[#D92D20]'}`}>
               Resultado do Mes
             </p>
-            <p className="text-2xl font-bold text-[#0a0a0a]">{formatBRL(Math.abs(resultadoMes))}</p>
+            <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(Math.abs(resultadoMes))}</p>
             <p className="text-[11px] text-[#777] mt-1">Entradas - saidas</p>
             <span className={`inline-block mt-2 text-[10px] font-semibold px-2 py-0.5 rounded ${
-              resultadoMes >= 0 ? 'text-[#0a5c2e] bg-[#e6f4ec]' : 'text-[#8b0000] bg-[#fdecea]'
+              resultadoMes >= 0 ? 'text-[#039855] bg-[#ECFDF3]' : 'text-[#D92D20] bg-[#FEF3F2]'
             }`}>
               {resultadoMes >= 0 ? '\u25B2 positivo' : '\u25BC negativo'}
             </span>
@@ -729,7 +729,7 @@ export default function Movimentacoes() {
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
 
           {/* Header */}
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Movimentacoes
             </h3>
@@ -750,7 +750,7 @@ export default function Movimentacoes() {
               </button>
               <button
                 onClick={openModal}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white text-[#1a2e4a] text-xs font-semibold hover:bg-gray-100 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white text-[#1E3A8A] text-xs font-semibold hover:bg-gray-100 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Lancamento manual
@@ -766,8 +766,8 @@ export default function Movimentacoes() {
                 onClick={() => setSelectedBankId(null)}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                   ${!selectedBankId
-                    ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
-                    : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a]'
+                    ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]'
+                    : 'border-[#ccc] bg-white text-[#555] hover:border-[#1E3A8A]'
                   }`}
               >
                 <Landmark className="w-3.5 h-3.5" />
@@ -783,8 +783,8 @@ export default function Movimentacoes() {
                     onClick={() => setSelectedBankId(active ? null : ba.id)}
                     className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                       ${active
-                        ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]'
-                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a]'
+                        ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]'
+                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#1E3A8A]'
                       }`}
                   >
                     {maskAccount(ba.name)}
@@ -816,14 +816,14 @@ export default function Movimentacoes() {
                         setShowSuggestions(false)
                       }
                     }}
-                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-9 py-2.5 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-9 py-2.5 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#1E3A8A]"
                   />
                   {(searchInput || searchTerm) && (
                     <button
                       type="button"
                       onClick={clearSearch}
                       aria-label="Limpar busca"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#1a2e4a]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#1E3A8A]"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -838,7 +838,7 @@ export default function Movimentacoes() {
                             e.preventDefault()
                             commitSearch(s)
                           }}
-                          className="w-full text-left px-3 py-2 text-xs text-[#0a0a0a] hover:bg-[#f0f4f8] border-b border-[#eee] last:border-b-0"
+                          className="w-full text-left px-3 py-2 text-xs text-[#1D2939] hover:bg-[#EFF6FF] border-b border-[#eee] last:border-b-0"
                         >
                           {s}
                         </button>
@@ -849,7 +849,7 @@ export default function Movimentacoes() {
                 <button
                   type="button"
                   onClick={() => commitSearch()}
-                  className="px-4 py-2.5 rounded-lg bg-[#1a2e4a] text-white text-xs font-semibold hover:bg-[#2a3e5a] transition-colors"
+                  className="px-4 py-2.5 rounded-lg bg-[#1E3A8A] text-white text-xs font-semibold hover:bg-[#2a3e5a] transition-colors"
                 >
                   Buscar
                 </button>
@@ -869,8 +869,8 @@ export default function Movimentacoes() {
                   onClick={() => setTipoFilter(tab.id)}
                   className={`px-3 py-1.5 rounded text-xs font-semibold border transition-colors ${
                     tipoFilter === tab.id
-                      ? 'border-[#1a2e4a] bg-[#1a2e4a] text-white'
-                      : 'border-[#ccc] bg-white text-[#555] hover:border-[#1a2e4a] hover:text-[#1a2e4a]'
+                      ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white'
+                      : 'border-[#ccc] bg-white text-[#555] hover:border-[#1E3A8A] hover:text-[#1E3A8A]'
                   }`}
                 >
                   {tab.label}
@@ -893,14 +893,14 @@ export default function Movimentacoes() {
                     type="date"
                     value={dateStart}
                     onChange={(e) => setDateStart(e.target.value)}
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
                   />
                   <p className="text-[11px] text-[#999]">ate</p>
                   <input
                     type="date"
                     value={dateEnd}
                     onChange={(e) => setDateEnd(e.target.value)}
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </>
               )}
@@ -912,7 +912,7 @@ export default function Movimentacoes() {
                 <select
                   value={selectedBankId || ''}
                   onChange={(e) => setSelectedBankId(e.target.value || null)}
-                  className="w-full appearance-none border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a] pr-8"
+                  className="w-full appearance-none border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A] pr-8"
                 >
                   <option value="">Todas as contas</option>
                   {bankAccounts.map((ba) => (
@@ -937,20 +937,20 @@ export default function Movimentacoes() {
               dayGroups.map((group) => (
                 <div key={group.date}>
                   {/* Day header */}
-                  <div className="bg-[#f0f4f8] px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#ccc]">
-                    <span className="text-[11px] font-bold text-[#1a2e4a] tracking-wide">
+                  <div className="bg-[#EFF6FF] px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#ccc]">
+                    <span className="text-[11px] font-bold text-[#1E3A8A] tracking-wide">
                       {group.label}
                     </span>
                     <div className="flex items-center gap-4 text-[11px]">
-                      <span className="text-[#0a5c2e] font-semibold">
+                      <span className="text-[#039855] font-semibold">
                         +{formatBRL(group.entradas)}
                       </span>
-                      <span className="text-[#8b0000] font-semibold">
+                      <span className="text-[#D92D20] font-semibold">
                         -{formatBRL(group.saidas)}
                       </span>
                       <span
                         className={`font-bold ${
-                          group.saldo >= 0 ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
+                          group.saldo >= 0 ? 'text-[#039855]' : 'text-[#D92D20]'
                         }`}
                       >
                         Saldo: {group.saldo >= 0 ? '+' : ''}
@@ -968,7 +968,7 @@ export default function Movimentacoes() {
                     return (
                       <div
                         key={row.id}
-                        className="flex items-center gap-3 px-4 py-3 border-b border-[#eee] hover:bg-[#fafafa] transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 border-b border-[#eee] hover:bg-[#F6F2EB] transition-colors"
                       >
                         {/* Icon */}
                         <TypeIcon tipo={row.tipo} />
@@ -976,16 +976,16 @@ export default function Movimentacoes() {
                         {/* Description + badge + category */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-[#0a0a0a] truncate">
+                            <span className="text-sm font-medium text-[#1D2939] truncate">
                               {row.descricao || '(sem descricao)'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              row.origem === 'cr' || row.origem === 'conta_receber' ? 'bg-[#e6f4ec] text-[#0a5c2e]' :
-                              row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#fdecea] text-[#8b0000]' :
+                              row.origem === 'cr' || row.origem === 'conta_receber' ? 'bg-[#ECFDF3] text-[#039855]' :
+                              row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#FEF3F2] text-[#D92D20]' :
                               row.origem === 'venda' ? 'bg-[#e8eaf6] text-[#283593]' :
-                              'bg-[#f0f0f0] text-[#555]'
+                              'bg-[#EAECF0] text-[#555]'
                             }`}>
                               {ORIGEM_LABELS[row.origem] || row.origem}
                               {row.origem === 'venda' && row.origem_id ? ` #${row.origem_id.substring(0, 4)}` : ''}
@@ -1006,7 +1006,7 @@ export default function Movimentacoes() {
                         {/* Value */}
                         <div
                           className={`text-sm font-bold text-right w-28 whitespace-nowrap ${
-                            row.tipo === 'credito' ? 'text-[#0a5c2e]' : 'text-[#8b0000]'
+                            row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#D92D20]'
                           }`}
                         >
                           {row.tipo === 'credito' ? '+' : '-'}
@@ -1018,7 +1018,7 @@ export default function Movimentacoes() {
                           {bankName && bankBal != null && (
                             <>
                               <p className="text-[10px] text-[#999]">Saldo {bankName.split(/\s/)[0]}</p>
-                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#1a2e4a]' : 'text-[#8b0000]'}`}>
+                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#1E3A8A]' : 'text-[#D92D20]'}`}>
                                 {formatBRL(bankBal)}
                               </p>
                             </>
@@ -1026,7 +1026,7 @@ export default function Movimentacoes() {
                         </div>
 
                         {/* Action button */}
-                        <button className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[#ccc] text-xs font-medium text-[#555] hover:border-[#1a2e4a] hover:text-[#1a2e4a] transition-colors whitespace-nowrap">
+                        <button className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[#ccc] text-xs font-medium text-[#555] hover:border-[#1E3A8A] hover:text-[#1E3A8A] transition-colors whitespace-nowrap">
                           <Eye className="w-3 h-3" />
                           {ORIGEM_ACTION_LABELS[row.origem] || 'Ver'}
                         </button>
@@ -1052,7 +1052,7 @@ export default function Movimentacoes() {
           {/* Panel */}
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="bg-[#1a2e4a] px-4 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#1E3A8A] px-4 py-3 flex items-center justify-between rounded-t-lg">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
                 Lancamento Manual
               </h3>
@@ -1066,7 +1066,7 @@ export default function Movimentacoes() {
 
             <div className="p-5 space-y-4">
               {/* Warning */}
-              <div className="flex items-start gap-2 px-3 py-2 rounded border border-[#b8960a] bg-[#fffbe6] text-[#5c3a00] text-xs">
+              <div className="flex items-start gap-2 px-3 py-2 rounded border border-[#F79009] bg-[#FFFAEB] text-[#F79009] text-xs">
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
                   Use lancamentos manuais apenas para transacoes sem CR ou CP.
@@ -1082,8 +1082,8 @@ export default function Movimentacoes() {
                     onClick={() => setFormTipo('credito')}
                     className={`flex items-center justify-center gap-2 py-2.5 rounded border text-sm font-medium transition-colors ${
                       formTipo === 'credito'
-                        ? 'border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]'
-                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#0a5c2e]'
+                        ? 'border-[#039855] bg-[#ECFDF3] text-[#039855]'
+                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#039855]'
                     }`}
                   >
                     <ArrowUp className="w-4 h-4" />
@@ -1094,8 +1094,8 @@ export default function Movimentacoes() {
                     onClick={() => setFormTipo('debito')}
                     className={`flex items-center justify-center gap-2 py-2.5 rounded border text-sm font-medium transition-colors ${
                       formTipo === 'debito'
-                        ? 'border-[#8b0000] bg-[#fdecea] text-[#8b0000]'
-                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#8b0000]'
+                        ? 'border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]'
+                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#D92D20]'
                     }`}
                   >
                     <ArrowDown className="w-4 h-4" />
@@ -1107,12 +1107,12 @@ export default function Movimentacoes() {
               {/* Descricao (Produto/Servico do Operacional) */}
               <div>
                 <label className="block text-xs font-medium text-[#555] mb-1">
-                  Descricao (Produto/Servico) <span className="text-[#8b0000]">*</span>
+                  Descricao (Produto/Servico) <span className="text-[#D92D20]">*</span>
                 </label>
                 <select
                   value={formDescricao}
                   onChange={(e) => setFormDescricao(e.target.value)}
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a]"
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
                 >
                   <option value="">Selecione um produto/servico...</option>
                   {products.map((p) => (
@@ -1127,7 +1127,7 @@ export default function Movimentacoes() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Valor <span className="text-[#8b0000]">*</span>
+                    Valor <span className="text-[#D92D20]">*</span>
                   </label>
                   <input
                     type="number"
@@ -1136,18 +1136,18 @@ export default function Movimentacoes() {
                     value={formValor}
                     onChange={(e) => setFormValor(e.target.value)}
                     placeholder="0,00"
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Data <span className="text-[#8b0000]">*</span>
+                    Data <span className="text-[#D92D20]">*</span>
                   </label>
                   <input
                     type="date"
                     value={formData}
                     onChange={(e) => setFormData(e.target.value)}
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
               </div>
@@ -1156,12 +1156,12 @@ export default function Movimentacoes() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Conta bancaria <span className="text-[#8b0000]">*</span>
+                    Conta bancaria <span className="text-[#D92D20]">*</span>
                   </label>
                   <select
                     value={formBankId}
                     onChange={(e) => setFormBankId(e.target.value)}
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
                   >
                     <option value="">Selecione...</option>
                     {bankAccounts.map((ba) => (
@@ -1173,12 +1173,12 @@ export default function Movimentacoes() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Conta contabil <span className="text-[#8b0000]">*</span>
+                    Conta contabil <span className="text-[#D92D20]">*</span>
                   </label>
                   <select
                     value={formContaContabilId}
                     onChange={(e) => setFormContaContabilId(e.target.value)}
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
                   >
                     <option value="">Selecione...</option>
                     {chartAccounts.map((ca) => (
@@ -1198,7 +1198,7 @@ export default function Movimentacoes() {
                 <select
                   value={formCentroCustoId}
                   onChange={(e) => setFormCentroCustoId(e.target.value)}
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:outline-none focus:border-[#1a2e4a]"
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
                 >
                   <option value="">Nenhum</option>
                   {centrosCusto.map((cc) => (
@@ -1217,7 +1217,7 @@ export default function Movimentacoes() {
                   onChange={(e) => setFormObservacao(e.target.value)}
                   rows={2}
                   placeholder="Observacoes adicionais..."
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#999] focus:outline-none focus:border-[#1a2e4a] resize-none"
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#1E3A8A] resize-none"
                 />
               </div>
 
@@ -1226,7 +1226,7 @@ export default function Movimentacoes() {
                 <button
                   type="button"
                   onClick={() => !modalSaving && setModalOpen(false)}
-                  className="px-4 py-2 rounded border border-[#ccc] text-sm text-[#555] hover:bg-[#f5f5f5] transition-colors"
+                  className="px-4 py-2 rounded border border-[#ccc] text-sm text-[#555] hover:bg-[#F6F2EB] transition-colors"
                   disabled={modalSaving}
                 >
                   Cancelar
@@ -1242,7 +1242,7 @@ export default function Movimentacoes() {
                     !formBankId ||
                     !formContaContabilId
                   }
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[#1a2e4a] text-white text-sm font-medium hover:bg-[#15243a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[#1E3A8A] text-white text-sm font-medium hover:bg-[#15243a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {modalSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Confirmar Lancamento

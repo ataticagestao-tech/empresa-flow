@@ -18,12 +18,12 @@ import { Percent, Search, Pencil, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828",
+    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    green: "#039855", greenLt: "#ECFDF3",
+    red: "#D92D20",
     amber: "#f57f17", amberLt: "#fff8e1",
-    text1: "#0f172a", text3: "#94a3b8",
-    border: "#e2e8f0",
+    text1: "#1D2939", text3: "#98A2B3",
+    border: "#EAECF0",
 } as const;
 const FONT = "var(--font-base)";
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -141,6 +141,7 @@ export default function MargensDesconto() {
     return (
         <AppLayout title="Margens de Desconto">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ background: T.amberLt, borderRadius: 12, padding: 10 }}>

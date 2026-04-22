@@ -68,12 +68,12 @@ interface Empresa {
 
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  rascunho: { label: 'Rascunho', color: '#6B7280', bg: '#F3F4F6' },
-  enviando: { label: 'Enviando', color: '#D97706', bg: '#FEF3C7' },
-  autorizada: { label: 'Autorizada', color: '#059669', bg: '#D1FAE5' },
-  cancelada: { label: 'Cancelada', color: '#DC2626', bg: '#FEE2E2' },
-  denegada: { label: 'Denegada', color: '#DC2626', bg: '#FEE2E2' },
-  rejeitada: { label: 'Rejeitada', color: '#DC2626', bg: '#FEE2E2' },
+  rascunho: { label: 'Rascunho', color: '#667085', bg: '#F3F4F6' },
+  enviando: { label: 'Enviando', color: '#F79009', bg: '#FFFAEB' },
+  autorizada: { label: 'Autorizada', color: '#059669', bg: '#ECFDF3' },
+  cancelada: { label: 'Cancelada', color: '#D92D20', bg: '#FEF3F2' },
+  denegada: { label: 'Denegada', color: '#D92D20', bg: '#FEF3F2' },
+  rejeitada: { label: 'Rejeitada', color: '#D92D20', bg: '#FEF3F2' },
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -408,10 +408,10 @@ export default function NotasFiscais() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total NFs', value: kpis.total, icon: FileText, color: '#1a2e4a' },
+            { label: 'Total NFs', value: kpis.total, icon: FileText, color: '#1E3A8A' },
             { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
-            { label: 'Total emitido', value: formatBRL(kpis.totalEmitido), icon: FileText, color: '#1a2e4a' },
-            { label: 'ISS destacado', value: formatBRL(kpis.totalISS), icon: FileText, color: '#D97706' },
+            { label: 'Total emitido', value: formatBRL(kpis.totalEmitido), icon: FileText, color: '#1E3A8A' },
+            { label: 'ISS destacado', value: formatBRL(kpis.totalISS), icon: FileText, color: '#F79009' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -430,7 +430,7 @@ export default function NotasFiscais() {
           <button
             onClick={() => { resetEmitirForm(); setShowEmitirModal(true) }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1a2e4a' }}
+            style={{ backgroundColor: '#1E3A8A' }}
           >
             <Plus size={16} /> Emitir NFS-e
           </button>
@@ -800,7 +800,7 @@ export default function NotasFiscais() {
                 onClick={handleEmitir}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1a2e4a' }}
+                style={{ backgroundColor: '#1E3A8A' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                 Emitir NFS-e

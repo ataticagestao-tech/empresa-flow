@@ -80,9 +80,9 @@ const diasAtraso = (data: string | null): string => {
 
 const StatusBadge = ({ status }: { status: string }) => {
     const estilos: Record<string, string> = {
-        inadimplente: "text-[#8b0000] border-[#8b0000] bg-[#fdecea]",
-        ativo:        "text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]",
-        inativo:      "text-[#666] border-[#aaa] bg-[#f5f5f5]",
+        inadimplente: "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
+        ativo:        "text-[#039855] border-[#039855] bg-[#ECFDF3]",
+        inativo:      "text-[#666] border-[#aaa] bg-[#F6F2EB]",
     };
     const labels: Record<string, string> = {
         inadimplente: "Inadimplente",
@@ -90,7 +90,7 @@ const StatusBadge = ({ status }: { status: string }) => {
         inativo:      "Inativo",
     };
     return (
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${estilos[status] ?? estilos.inativo}`}>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap flex-shrink-0 ${estilos[status] ?? estilos.inativo}`}>
             {labels[status] ?? status}
         </span>
     );
@@ -100,12 +100,12 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 const CRStatusBadge = ({ status }: { status: string }) => {
     const map: Record<string, string> = {
-        pago:          "text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]",
-        vencido:       "text-[#8b0000] border-[#8b0000] bg-[#fdecea]",
-        parcial:       "text-[#5c3a00] border-[#b8960a] bg-[#fffbe6]",
-        aberto:        "text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]",
-        em_andamento:  "text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]",
-        cancelado:     "text-[#555] border-[#aaa] bg-[#f5f5f5]",
+        pago:          "text-[#039855] border-[#039855] bg-[#ECFDF3]",
+        vencido:       "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
+        parcial:       "text-[#F79009] border-[#F79009] bg-[#FFFAEB]",
+        aberto:        "text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]",
+        em_andamento:  "text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]",
+        cancelado:     "text-[#555] border-[#aaa] bg-[#F6F2EB]",
     };
     const labels: Record<string, string> = {
         pago: "Pago", vencido: "Vencido", parcial: "Parcial",
@@ -122,18 +122,18 @@ const CRStatusBadge = ({ status }: { status: string }) => {
 
 const HistoryIcon = ({ status }: { status: string }) => {
     if (status === "pago") return (
-        <div className="w-9 h-9 rounded-full bg-[#e6f4ec] flex items-center justify-center flex-shrink-0">
-            <DollarSign className="h-4 w-4 text-[#0a5c2e]" />
+        <div className="w-9 h-9 rounded-full bg-[#ECFDF3] flex items-center justify-center flex-shrink-0">
+            <DollarSign className="h-4 w-4 text-[#039855]" />
         </div>
     );
     if (status === "vencido") return (
-        <div className="w-9 h-9 rounded-full bg-[#fdecea] flex items-center justify-center flex-shrink-0">
-            <Receipt className="h-4 w-4 text-[#8b0000]" />
+        <div className="w-9 h-9 rounded-full bg-[#FEF3F2] flex items-center justify-center flex-shrink-0">
+            <Receipt className="h-4 w-4 text-[#D92D20]" />
         </div>
     );
     return (
-        <div className="w-9 h-9 rounded-full bg-[#f0f4f8] flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="h-4 w-4 text-[#1a2e4a]" />
+        <div className="w-9 h-9 rounded-full bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
+            <ShoppingCart className="h-4 w-4 text-[#1E3A8A]" />
         </div>
     );
 };
@@ -185,6 +185,7 @@ export default function Clientes() {
                 .from("contas_receber")
                 .select("id, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes, forma_recebimento")
                 .eq("company_id", selectedCompany.id)
+                .is("deleted_at", null)
                 .limit(5000);
             if (error) throw error;
             return data || [];
@@ -200,6 +201,7 @@ export default function Clientes() {
                 .from("contas_pagar")
                 .select("id, credor_nome, credor_cpf_cnpj, valor, valor_pago, data_vencimento, status")
                 .eq("company_id", selectedCompany.id)
+                .is("deleted_at", null)
                 .limit(5000);
             if (error) throw error;
             return data || [];
@@ -424,6 +426,23 @@ export default function Clientes() {
             setSearchParams(newParams);
         }
     }, [searchParams, setSearchParams]);
+
+    // Auto-selecionar cliente via ?cliente=<nome|cpf/cnpj>
+    useEffect(() => {
+        const q = searchParams.get("cliente");
+        if (!q || !clients?.length) return;
+        const norm = q.toLowerCase().trim();
+        const onlyDigits = q.replace(/\D/g, "");
+        const target = clients.find((c: any) =>
+            (c.razao_social || "").toLowerCase() === norm ||
+            (c.nome_fantasia || "").toLowerCase() === norm ||
+            (onlyDigits && (c.cpf_cnpj || "").replace(/\D/g, "") === onlyDigits)
+        );
+        if (target && selectedClient?.id !== target.id) {
+            handleSelectClient(target);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [clients, searchParams]);
 
     const handleEdit = (client: any) => { setEditingClient(client); setIsSheetOpen(true); };
     const handleNew = () => { setEditingClient(null); setIsSheetOpen(true); };
@@ -668,41 +687,36 @@ export default function Clientes() {
 
     return (
         <AppLayout title="Clientes">
-            <div className="flex h-[calc(100vh-80px)] gap-0 animate-in fade-in duration-500">
+            <div className="flex gap-4 h-[calc(100vh-120px)] animate-in fade-in duration-500">
 
                 {/* ═══ PAINEL ESQUERDO — Lista ═══ */}
-                <div className="w-full md:w-[420px] lg:w-[440px] flex-shrink-0 border-r border-[#e5e7eb] bg-white flex flex-col">
+                <div className="w-1/3 min-w-[360px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
 
-                    {/* Header */}
-                    <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-                        <h2 className="text-lg font-bold tracking-tight text-[#0a0a0a] uppercase">Clientes</h2>
-                        <div className="flex items-center gap-2">
+                    {/* Header azul */}
+                    <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-white uppercase tracking-widest">Clientes</h3>
+                        <div className="flex items-center gap-3">
                             {duplicatesCount > 0 && (
-                                <Button
+                                <button
                                     onClick={() => setMergeOpen(true)}
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                                    className="text-xs font-semibold text-amber-200 hover:text-white flex items-center gap-1"
                                     title="Mesclar clientes com mesmo CPF/CNPJ"
                                 >
-                                    <Users className="h-3.5 w-3.5 mr-1" />
-                                    {duplicatesCount} duplicado{duplicatesCount > 1 ? "s" : ""}
-                                </Button>
+                                    <Users className="h-3 w-3" />
+                                    {duplicatesCount} dup.
+                                </button>
                             )}
-                            <Button onClick={handleNew} size="sm" className="bg-[#1a2e4a] hover:bg-[#243d5f] text-white">
-                                <Plus className="h-3.5 w-3.5 mr-1" />
-                                Novo cliente
-                            </Button>
+                            <button onClick={handleNew} className="text-xs font-semibold text-[#BFDBFE] hover:text-white">+ Novo</button>
                         </div>
                     </div>
 
                     {/* Busca */}
-                    <div className="px-5 pb-3">
+                    <div className="p-3 border-b border-[#eee]">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#999] pointer-events-none" />
                             <Input
                                 placeholder="Buscar por nome, CPF/CNPJ..."
-                                className="pl-9 h-10 text-[13px] border-[#ddd] rounded-lg bg-[#fafafa] focus:bg-white"
+                                className="pl-9 h-9 text-[13px] border-[#ddd] rounded-md bg-white"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -710,15 +724,15 @@ export default function Clientes() {
                     </div>
 
                     {/* Tabs de filtro */}
-                    <div className="px-5 pb-3 flex gap-1">
+                    <div className="px-3 py-2 border-b border-[#eee] flex gap-1">
                         {tabs.map(tab => (
                             <button
                                 key={tab.key}
                                 onClick={() => setFilterTab(tab.key)}
-                                className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                                className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${
                                     filterTab === tab.key
-                                        ? "bg-[#1a2e4a] text-white"
-                                        : "bg-[#f0f0f0] text-[#555] hover:bg-[#e0e0e0]"
+                                        ? "bg-[#1E3A8A] text-white"
+                                        : "bg-[#EAECF0] text-[#555] hover:bg-[#e0e0e0]"
                                 }`}
                             >
                                 {tab.label}
@@ -727,83 +741,69 @@ export default function Clientes() {
                     </div>
 
                     {/* Lista de clientes */}
-                    <ScrollArea className="flex-1">
-                        <div className="px-3 pb-3">
-                            {!selectedCompany?.id ? (
-                                <div className="py-12 text-center text-[13px] text-[#999]">
-                                    Selecione uma empresa para visualizar os clientes.
-                                </div>
-                            ) : isLoading ? (
-                                <div className="py-12 flex items-center justify-center text-[#999]">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#1a2e4a] border-t-transparent mr-2" />
-                                    Carregando...
-                                </div>
-                            ) : filteredClients.length === 0 ? (
-                                <div className="py-12 text-center text-[13px] text-[#999]">
-                                    Nenhum cliente encontrado.
-                                </div>
-                            ) : (
-                                filteredClients.map((client: any) => {
-                                    const fin = getClientFinancial(client);
-                                    const status = getClientStatus(client);
-                                    const isSelected = selectedClient?.id === client.id;
-                                    const hasOpen = fin.totalReceberAberto > 0;
-                                    const hasOverdue = fin.totalReceberVencido > 0;
+                    <div className="flex-1 overflow-y-auto">
+                        {!selectedCompany?.id ? (
+                            <p className="text-center py-8 text-sm text-[#555]">Selecione uma empresa.</p>
+                        ) : isLoading ? (
+                            <p className="text-center py-8 text-sm text-[#555]">Carregando...</p>
+                        ) : filteredClients.length === 0 ? (
+                            <p className="text-center py-8 text-sm text-[#555]">Nenhum cliente encontrado.</p>
+                        ) : (
+                            filteredClients.map((client: any) => {
+                                const fin = getClientFinancial(client);
+                                const status = getClientStatus(client);
+                                const isSelected = selectedClient?.id === client.id;
+                                const hasOpen = fin.totalReceberAberto > 0;
+                                const hasOverdue = fin.totalReceberVencido > 0;
 
-                                    return (
-                                        <div
-                                            key={client.id}
-                                            onClick={() => handleSelectClient(client)}
-                                            className={`flex items-center gap-3 px-3 py-3.5 rounded-xl cursor-pointer transition-all mb-0.5 ${
-                                                isSelected
-                                                    ? "bg-[#1a2e4a]/5 border-l-[3px] border-l-[#1a2e4a]"
-                                                    : "hover:bg-[#f8f9fa] border-l-[3px] border-l-transparent"
-                                            }`}
-                                        >
-                                            {/* Avatar */}
-                                            <div className={`w-10 h-10 rounded-full text-white text-[12px] font-bold flex items-center justify-center flex-shrink-0 ${
-                                                status === "inadimplente" ? "bg-[#8b0000]"
-                                                : status === "inativo" ? "bg-[#999]"
-                                                : "bg-[#1a2e4a]"
-                                            }`}>
-                                                {getIniciais(client.razao_social)}
-                                            </div>
-
-                                            {/* Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[13px] font-semibold text-[#0a0a0a] truncate">
-                                                        {toTitleCase(client.razao_social)}
-                                                    </span>
-                                                    {hasOverdue && (
-                                                        <span className="text-[12px] font-bold text-[#8b0000] whitespace-nowrap">
-                                                            {formatBRL(fin.totalReceberVencido)} em aberto
-                                                        </span>
-                                                    )}
-                                                    {!hasOverdue && hasOpen && (
-                                                        <span className="text-[12px] font-bold text-[#1a2e4a] whitespace-nowrap">
-                                                            {formatBRL(fin.totalReceberAberto)} a receber
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2 mt-1">
-                                                    <span className="text-[12px] text-[#888]">
-                                                        {client.cpf_cnpj ? (formatDoc(client.cpf_cnpj).length > 14 ? "CNPJ: " : "CPF: ") : ""}
-                                                        {formatDoc(client.cpf_cnpj)}
-                                                    </span>
-                                                    <StatusBadge status={status} />
-                                                </div>
-                                            </div>
+                                return (
+                                    <div
+                                        key={client.id}
+                                        onClick={() => handleSelectClient(client)}
+                                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
+                                            isSelected ? "bg-[#EFF6FF] border-l-2 border-l-[#1E3A8A]" : "hover:bg-[#F6F2EB]"
+                                        }`}
+                                    >
+                                        {/* Avatar */}
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${
+                                            status === "inadimplente" ? "bg-[#D92D20]"
+                                            : status === "inativo" ? "bg-[#999]"
+                                            : "bg-[#1E3A8A]"
+                                        }`}>
+                                            {getIniciais(client.razao_social)}
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </ScrollArea>
+
+                                        {/* Info central */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-[#1D2939] truncate">
+                                                {toTitleCase(client.razao_social)}
+                                            </p>
+                                            <p className="text-[11px] text-[#555] truncate">
+                                                {client.cpf_cnpj ? (formatDoc(client.cpf_cnpj).length > 14 ? "CNPJ: " : "CPF: ") : "Sem documento"}
+                                                {formatDoc(client.cpf_cnpj)}
+                                            </p>
+                                        </div>
+
+                                        {/* Valor + status empilhados à direita */}
+                                        <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
+                                            {hasOverdue ? (
+                                                <p className="text-xs font-bold text-[#D92D20] whitespace-nowrap">{formatBRL(fin.totalReceberVencido)}</p>
+                                            ) : hasOpen ? (
+                                                <p className="text-xs font-bold text-[#1E3A8A] whitespace-nowrap">{formatBRL(fin.totalReceberAberto)}</p>
+                                            ) : (
+                                                <p className="text-xs font-bold text-[#98A2B3] whitespace-nowrap">—</p>
+                                            )}
+                                            <StatusBadge status={status} />
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
 
                 {/* ═══ PAINEL DIREITO — Detalhe ═══ */}
-                <div className="hidden md:flex flex-1 flex-col bg-[#fafbfc] overflow-hidden">
+                <div className="hidden md:flex flex-1 flex-col bg-white border border-[#ccc] rounded-lg overflow-hidden">
                     {!selectedClient ? (
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center">
@@ -816,18 +816,18 @@ export default function Clientes() {
                     ) : (
                         <>
                             {/* Header do cliente */}
-                            <div className="bg-white border-b border-[#e5e7eb] px-6 py-5">
+                            <div className="bg-white border-b border-[#EAECF0] px-6 py-5">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-full text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
-                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#8b0000]"
+                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#D92D20]"
                                             : getClientStatus(selectedClient) === "inativo" ? "bg-[#999]"
-                                            : "bg-[#1a2e4a]"
+                                            : "bg-[#1E3A8A]"
                                         }`}>
                                             {getIniciais(selectedClient.razao_social)}
                                         </div>
                                         <div>
-                                            <h3 className="text-[17px] font-bold text-[#0a0a0a]">
+                                            <h3 className="text-[17px] font-bold text-[#1D2939]">
                                                 {toTitleCase(selectedClient.razao_social)}
                                             </h3>
                                             <div className="text-[12px] text-[#888] mt-0.5 space-y-0.5">
@@ -857,7 +857,7 @@ export default function Clientes() {
                                         <Button
                                             size="sm"
                                             onClick={() => navigate(`/vendas?cliente=${selectedClient.id}`)}
-                                            className="text-[12px] bg-[#1a2e4a] hover:bg-[#243d5f]"
+                                            className="text-[12px] bg-[#1E3A8A] hover:bg-[#243d5f]"
                                         >
                                             <Plus className="h-3 w-3 mr-1.5" />
                                             Nova venda
@@ -867,15 +867,15 @@ export default function Clientes() {
                             </div>
 
                             {/* KPIs do cliente */}
-                            <div className={`grid gap-3 px-6 py-4 bg-white border-b border-[#e5e7eb] ${
+                            <div className={`grid gap-3 px-6 py-4 bg-white border-b border-[#EAECF0] ${
                                 hasContratosByCompany(selectedCompany) ? "grid-cols-5" : "grid-cols-4"
                             }`}>
-                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
-                                        <div className="text-[17px] font-bold text-[#0a0a0a]">
+                                        <div className="text-[17px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
                                         </div>
                                         <div className="text-[10px] text-[#888] mt-0.5">
@@ -883,12 +883,12 @@ export default function Clientes() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
-                                        <div className={`text-[17px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#8b0000]" : "text-[#0a5c2e]"}`}>
+                                        <div className={`text-[17px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#D92D20]" : "text-[#039855]"}`}>
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
                                         </div>
                                         <div className="text-[10px] text-[#888] mt-0.5">
@@ -899,12 +899,12 @@ export default function Clientes() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Última Compra</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
-                                        <div className="text-[17px] font-bold text-[#0a0a0a]">
+                                        <div className="text-[17px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : detailFinancial?.ultimaCompra ? formatData(detailFinancial.ultimaCompra) : "—"}
                                         </div>
                                         <div className="text-[10px] text-[#888] mt-0.5">
@@ -912,16 +912,16 @@ export default function Clientes() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1a2e4a] px-3 py-1.5">
+                                <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
+                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
                                         <div className={`text-[17px] font-bold ${
                                             pontualidade === null ? "text-[#888]"
-                                            : pontualidade >= 80 ? "text-[#0a5c2e]"
-                                            : pontualidade >= 50 ? "text-[#b8960a]"
-                                            : "text-[#8b0000]"
+                                            : pontualidade >= 80 ? "text-[#039855]"
+                                            : pontualidade >= 50 ? "text-[#F79009]"
+                                            : "text-[#D92D20]"
                                         }`}>
                                             {detailLoading ? "..." : pontualidade !== null ? `${pontualidade}%` : "—"}
                                         </div>
@@ -939,7 +939,7 @@ export default function Clientes() {
                             </div>
 
                             {/* Tabs do detalhe */}
-                            <div className="flex border-b border-[#e5e7eb] bg-white px-6">
+                            <div className="flex border-b border-[#EAECF0] bg-white px-6">
                                 {([
                                     { key: "historico" as DetailTab, label: "Histórico financeiro" },
                                     { key: "dados" as DetailTab, label: "Dados cadastrais" },
@@ -953,7 +953,7 @@ export default function Clientes() {
                                         onClick={() => setDetailTab(tab.key)}
                                         className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-all ${
                                             detailTab === tab.key
-                                                ? "border-[#1a2e4a] text-[#1a2e4a]"
+                                                ? "border-[#1E3A8A] text-[#1E3A8A]"
                                                 : "border-transparent text-[#888] hover:text-[#555]"
                                         }`}
                                     >
@@ -968,7 +968,7 @@ export default function Clientes() {
                                     <div className="p-6">
                                         {detailLoading ? (
                                             <div className="flex items-center justify-center py-12 text-[#999]">
-                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#1a2e4a] border-t-transparent mr-2" />
+                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#1E3A8A] border-t-transparent mr-2" />
                                                 Carregando...
                                             </div>
                                         ) : detailFinancial && detailFinancial.crs.length > 0 ? (
@@ -978,11 +978,11 @@ export default function Clientes() {
                                                     return (
                                                         <div
                                                             key={cr.id}
-                                                            className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl hover:bg-white transition-all border border-transparent hover:border-[#e5e7eb]"
+                                                            className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl hover:bg-white transition-all border border-transparent hover:border-[#EAECF0]"
                                                         >
                                                             <HistoryIcon status={displayStatus} />
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="text-[13px] font-semibold text-[#0a0a0a] truncate">
+                                                                <div className="text-[13px] font-semibold text-[#1D2939] truncate">
                                                                     {crDescription(cr)}
                                                                 </div>
                                                                 <div className="text-[12px] text-[#888] mt-0.5">
@@ -999,7 +999,7 @@ export default function Clientes() {
                                                                     />
                                                                 )}
                                                                 <CRStatusBadge status={displayStatus} />
-                                                                <span className="text-[12px] font-semibold text-[#0a0a0a] min-w-[80px] text-right">
+                                                                <span className="text-[12px] font-semibold text-[#1D2939] min-w-[80px] text-right">
                                                                     {formatBRL(Number(cr.valor ?? 0))}
                                                                 </span>
                                                                 <button
@@ -1058,7 +1058,7 @@ export default function Clientes() {
                                                                         });
                                                                         buscarFinanceiroCliente(selectedClient);
                                                                     }}
-                                                                    className="p-1 rounded text-[#999] hover:text-[#8b0000] hover:bg-[#fdecea] transition-colors cursor-pointer"
+                                                                    className="p-1 rounded text-[#999] hover:text-[#D92D20] hover:bg-[#FEF3F2] transition-colors cursor-pointer"
                                                                     title="Excluir lançamento"
                                                                 >
                                                                     <Trash2 className="h-3.5 w-3.5" />
@@ -1105,11 +1105,11 @@ export default function Clientes() {
                                                 { label: "Categoria", value: selectedClient.category?.name },
                                                 { label: "Observações", value: selectedClient.observacoes },
                                             ]).map((item, i) => (
-                                                <div key={i} className="bg-white rounded-lg border border-[#e5e7eb] p-3.5">
+                                                <div key={i} className="bg-white rounded-lg border border-[#EAECF0] p-3.5">
                                                     <div className="text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1">
                                                         {item.label}
                                                     </div>
-                                                    <div className="text-[13px] text-[#0a0a0a]">
+                                                    <div className="text-[13px] text-[#1D2939]">
                                                         {item.value || "—"}
                                                     </div>
                                                 </div>
@@ -1130,7 +1130,7 @@ export default function Clientes() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => handleDelete(selectedClient)}
-                                                className="text-[12px] text-[#EF4444] border-[#fca5a5] hover:bg-[#fef2f2]"
+                                                className="text-[12px] text-[#D92D20] border-[#fca5a5] hover:bg-[#fef2f2]"
                                             >
                                                 <Trash2 className="h-3 w-3 mr-1.5" />
                                                 Excluir

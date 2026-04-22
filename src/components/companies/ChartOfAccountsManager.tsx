@@ -561,11 +561,11 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
 
             return (
                 <div key={account.id} className={`transition-all ml-${level * 6}`}>
-                    <div className="flex items-center gap-2 py-2 px-3 hover:bg-[#F8FAFC] rounded-lg group">
+                    <div className="flex items-center gap-2 py-2 px-3 hover:bg-[#F6F2EB] rounded-lg group">
                         {hasChildren ? (
                             <button
                                 onClick={() => toggleExpand(account.id)}
-                                className="p-1 hover:bg-[#F1F5F9] rounded"
+                                className="p-1 hover:bg-[#F6F2EB] rounded"
                             >
                                 {isExpanded ? (
                                     <ChevronDown className="w-4 h-4" />
@@ -619,7 +619,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDelete(account.id)}
-                                className="h-8 w-8 p-0 text-[#EF4444] hover:text-red-700"
+                                className="h-8 w-8 p-0 text-[#D92D20] hover:text-red-700"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
@@ -714,7 +714,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                     <div className="space-y-4">
                         <div>
                             <Label htmlFor="file-upload" className="cursor-pointer">
-                                <div className="border-2 border-dashed border-[#E2E8F0] rounded-lg p-6 hover:border-slate-400 transition-colors text-center">
+                                <div className="border-2 border-dashed border-[#EAECF0] rounded-lg p-6 hover:border-slate-400 transition-colors text-center">
                                     <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground">
                                         Clique para selecionar arquivos ou arraste aqui
@@ -745,7 +745,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                 {attachments.map(attachment => (
                                     <div
                                         key={attachment.id}
-                                        className="flex items-center gap-2 p-3 border rounded-lg hover:bg-[#F8FAFC]"
+                                        className="flex items-center gap-2 p-3 border rounded-lg hover:bg-[#F6F2EB]"
                                     >
                                         <FileText className="w-4 h-4 text-muted-foreground" />
                                         <div className="flex-1 min-w-0">
@@ -765,7 +765,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                             size="sm"
                                             variant="ghost"
                                             onClick={() => handleDeleteAttachment(attachment.id, attachment.file_path)}
-                                            className="text-[#EF4444] hover:text-red-700"
+                                            className="text-[#D92D20] hover:text-red-700"
                                         >
                                             <X className="w-4 h-4" />
                                         </Button>

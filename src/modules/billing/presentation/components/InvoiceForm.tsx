@@ -27,7 +27,7 @@ export function InvoiceForm({ initialData, onSuccess }: InvoiceFormProps) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-5xl mx-auto py-6 animate-in fade-in transition-all">
 
                 {/* Header com Totais */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2 bg-[#F8FAFC] p-4 rounded-lg border">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2 bg-[#F6F2EB] p-4 rounded-lg border">
                     <div>
                         <h2 className="text-xl font-bold tracking-tight text-foreground">Nova Fatura de Serviço</h2>
                         <p className="text-sm text-muted-foreground">Preencha os dados abaixo para emitir a NFS-e</p>
@@ -35,7 +35,7 @@ export function InvoiceForm({ initialData, onSuccess }: InvoiceFormProps) {
                     <div className="text-right flex gap-6">
                         <div>
                             <p className="text-xs text-muted-foreground font-medium uppercase">Impostos (Estimado)</p>
-                            <p className="text-lg font-mono font-bold text-[#EF4444]">
+                            <p className="text-lg font-mono font-bold text-[#D92D20]">
                                 {formatCurrency(totalTax)}
                             </p>
                         </div>

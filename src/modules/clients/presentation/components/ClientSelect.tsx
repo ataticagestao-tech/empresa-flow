@@ -103,7 +103,7 @@ export function ClientSelect({ value, onChange, placeholder = "Selecione um clie
                             </CommandGroup>
                         </CommandList>
                     </Command>
-                    <div className="p-2 border-t bg-[#F8FAFC]">
+                    <div className="p-2 border-t bg-[#F6F2EB]">
                         <Button
                             variant="ghost"
                             className="w-full text-xs h-7 justify-start text-blue-600"

@@ -28,7 +28,7 @@ export function CompanyDocumentsTab({
     return (
         <div className="space-y-6">
             {/* Cartão CNPJ */}
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+            <div className="rounded-xl border border-[#EAECF0] bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-green-50 rounded-lg">
@@ -73,7 +73,7 @@ export function CompanyDocumentsTab({
             </div>
 
             {/* Certificado A1 */}
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+            <div className="rounded-xl border border-[#EAECF0] bg-white p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 rounded-lg">

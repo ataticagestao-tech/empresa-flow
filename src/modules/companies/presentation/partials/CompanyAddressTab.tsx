@@ -9,7 +9,7 @@ export function CompanyAddressTab() {
     const { control } = useFormContext<Company>();
 
     return (
-        <div className="bg-white p-4 rounded-xl border border-[#E2E8F0]">
+        <div className="bg-white p-4 rounded-xl border border-[#EAECF0]">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <FormField
                     control={control}

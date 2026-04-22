@@ -233,7 +233,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Código
                         </label>
-                        <div className="bg-[#f0f4f8] border-[1.5px] border-[#1a2e4a] rounded px-3 py-2 text-[13px] font-bold text-[#1a2e4a]">
+                        <div className="bg-[#EFF6FF] border-[1.5px] border-[#1E3A8A] rounded px-3 py-2 text-[13px] font-bold text-[#1E3A8A]">
                             {codigoGerado || "Gerando..."}
                         </div>
                     </div>
@@ -243,7 +243,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
-                                    Tipo <span className="text-[#8b0000]">*</span>
+                                    Tipo <span className="text-[#D92D20]">*</span>
                                 </FormLabel>
                                 <FormControl>
                                     <Select onValueChange={field.onChange} value={field.value}>
@@ -269,7 +269,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
-                                Nome / Descrição <span className="text-[#8b0000]">*</span>
+                                Nome / Descrição <span className="text-[#D92D20]">*</span>
                             </FormLabel>
                             <FormControl>
                                 <Input placeholder="Nome do produto ou serviço" className="text-[13px]" {...field} />
@@ -352,7 +352,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     </div>
                     <div>
                         <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                            Preço <span className="text-[#8b0000]">*</span>
+                            Preço <span className="text-[#D92D20]">*</span>
                         </label>
                         <Input
                             value={preco}
@@ -365,7 +365,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Líquido
                         </label>
-                        <div className="bg-[#f0f4f8] border border-[#ccc] rounded px-3 py-2 text-[13px] font-bold text-[#1a2e4a]">
+                        <div className="bg-[#EFF6FF] border border-[#ccc] rounded px-3 py-2 text-[13px] font-bold text-[#1E3A8A]">
                             {liquido
                                 ? liquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                                 : "R$ 0,00"}
@@ -437,7 +437,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                                             value="ativo"
                                             checked={field.value === "ativo"}
                                             onChange={() => field.onChange("ativo")}
-                                            className="accent-[#1a2e4a]"
+                                            className="accent-[#1E3A8A]"
                                         />
                                         Ativo
                                     </label>
@@ -448,7 +448,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                                             value="inativo"
                                             checked={field.value === "inativo"}
                                             onChange={() => field.onChange("inativo")}
-                                            className="accent-[#1a2e4a]"
+                                            className="accent-[#1E3A8A]"
                                         />
                                         Inativo
                                     </label>
@@ -462,12 +462,12 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 <div className="flex justify-end gap-2 pt-4 border-t border-[#eee]">
                     {onCancel && (
                         <Button type="button" variant="outline" onClick={onCancel}
-                            className="bg-white border-[#ccc] text-[#0a0a0a] text-[12px] font-bold">
+                            className="bg-white border-[#ccc] text-[#1D2939] text-[12px] font-bold">
                             Cancelar
                         </Button>
                     )}
                     <Button type="submit" disabled={mutation.isPending}
-                        className="bg-[#1a2e4a] hover:bg-[#0f1f33] text-white text-[12px] font-bold">
+                        className="bg-[#1E3A8A] hover:bg-[#0f1f33] text-white text-[12px] font-bold">
                         {mutation.isPending ? "Salvando..." : "Salvar"}
                     </Button>
                 </div>

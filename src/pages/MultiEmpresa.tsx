@@ -118,13 +118,6 @@ export default function MultiEmpresa() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <GitMerge className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Multi-empresa</h1>
-            <p className="text-sm text-muted-foreground">Gestão de grupos empresariais e consolidado</p>
-          </div>
-        </div>
 
         <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
           {[

@@ -48,7 +48,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                 {linkedTo ? (
                     <button
                         type="button"
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded border border-[#1a2e4a]/25 bg-[#1a2e4a]/5 text-[#1a2e4a] hover:bg-[#1a2e4a]/10 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded border border-[#1E3A8A]/25 bg-[#1E3A8A]/5 text-[#1E3A8A] hover:bg-[#1E3A8A]/10 transition-colors cursor-pointer"
                         title="Vinculado — clique para gerenciar"
                     >
                         <Link2 className="h-3 w-3" />
@@ -57,7 +57,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                 ) : (
                     <button
                         type="button"
-                        className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border border-transparent text-[#888] hover:text-[#1a2e4a] hover:border-[#e5e7eb] hover:bg-white transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border border-transparent text-[#888] hover:text-[#1E3A8A] hover:border-[#EAECF0] hover:bg-white transition-colors cursor-pointer"
                         title="Vincular a um contrato"
                     >
                         <Link2 className="h-3 w-3" /> Vincular
@@ -67,7 +67,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
 
             <PopoverContent className="w-80 p-0" align="end">
                 <div className="px-4 py-3 border-b border-[#eef0f3]">
-                    <p className="text-[12px] font-bold text-[#1a2e4a]">
+                    <p className="text-[12px] font-bold text-[#1E3A8A]">
                         {linkedTo ? "Alterar vínculo" : "Vincular ao contrato"}
                     </p>
                     <p className="text-[10px] text-[#888] mt-0.5">
@@ -96,23 +96,23 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                                     disabled={mutation.isPending || selected}
                                     className={`w-full text-left px-4 py-2.5 border-b border-[#f3f4f6] last:border-b-0 transition-colors ${
                                         selected
-                                            ? "bg-[#1a2e4a]/5 cursor-default"
+                                            ? "bg-[#1E3A8A]/5 cursor-default"
                                             : "hover:bg-[#f8f9fa] cursor-pointer"
                                     }`}
                                 >
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-[12px] font-bold text-[#1a2e4a] truncate">
+                                        <span className="text-[12px] font-bold text-[#1E3A8A] truncate">
                                             {c.procedimento || c.descricao}
                                         </span>
                                         {selected && (
-                                            <span className="text-[9px] font-bold uppercase text-[#0a5c2e]">
+                                            <span className="text-[9px] font-bold uppercase text-[#039855]">
                                                 Atual
                                             </span>
                                         )}
                                     </div>
                                     <div className="text-[10px] text-[#666] mt-0.5 flex gap-3">
                                         <span>Total: <strong>{formatBRL(c.valor_total)}</strong></span>
-                                        <span className={c.saldo > 0 ? "text-[#8b0000]" : "text-[#0a5c2e]"}>
+                                        <span className={c.saldo > 0 ? "text-[#D92D20]" : "text-[#039855]"}>
                                             Saldo: <strong>{formatBRL(c.saldo)}</strong>
                                         </span>
                                     </div>
@@ -128,7 +128,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                             type="button"
                             onClick={() => mutation.mutate(null)}
                             disabled={mutation.isPending}
-                            className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#8b0000] hover:bg-[#fdecea] py-1.5 rounded transition-colors cursor-pointer"
+                            className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#D92D20] hover:bg-[#FEF3F2] py-1.5 rounded transition-colors cursor-pointer"
                         >
                             <Link2Off className="h-3 w-3" /> Desvincular do contrato
                         </button>

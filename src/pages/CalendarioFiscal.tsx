@@ -49,11 +49,11 @@ interface Certificado {
 
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  pendente: { label: 'Pendente', color: '#D97706', bg: '#FEF3C7', icon: Clock },
-  entregue: { label: 'Entregue', color: '#059669', bg: '#D1FAE5', icon: Check },
-  atrasado: { label: 'Atrasado', color: '#DC2626', bg: '#FEE2E2', icon: AlertTriangle },
-  pago: { label: 'Pago', color: '#059669', bg: '#D1FAE5', icon: Check },
-  apurado: { label: 'Apurado', color: '#059669', bg: '#D1FAE5', icon: Check },
+  pendente: { label: 'Pendente', color: '#F79009', bg: '#FFFAEB', icon: Clock },
+  entregue: { label: 'Entregue', color: '#059669', bg: '#ECFDF3', icon: Check },
+  atrasado: { label: 'Atrasado', color: '#D92D20', bg: '#FEF3F2', icon: AlertTriangle },
+  pago: { label: 'Pago', color: '#059669', bg: '#ECFDF3', icon: Check },
+  apurado: { label: 'Apurado', color: '#059669', bg: '#ECFDF3', icon: Check },
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -185,9 +185,9 @@ export default function CalendarioFiscal() {
     const venc = parseISO(dataVenc)
     venc.setHours(0, 0, 0, 0)
 
-    if (isBefore(venc, hoje)) return { color: '#DC2626', label: 'Vencido' }
+    if (isBefore(venc, hoje)) return { color: '#D92D20', label: 'Vencido' }
     const diff = Math.ceil((venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
-    if (diff <= 5) return { color: '#D97706', label: `${diff} dias` }
+    if (diff <= 5) return { color: '#F79009', label: `${diff} dias` }
     return { color: '#059669', label: 'OK' }
   }
 
@@ -198,10 +198,10 @@ export default function CalendarioFiscal() {
     const validade = parseISO(certificado.data_validade)
     const diff = Math.ceil((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (diff <= 0) return { label: 'Expirado', color: '#DC2626', bg: '#FEE2E2', dias: diff }
-    if (diff <= 30) return { label: 'Vencendo', color: '#D97706', bg: '#FEF3C7', dias: diff }
-    if (diff <= 60) return { label: 'Atencao', color: '#D97706', bg: '#FEF3C7', dias: diff }
-    return { label: 'Valido', color: '#059669', bg: '#D1FAE5', dias: diff }
+    if (diff <= 0) return { label: 'Expirado', color: '#D92D20', bg: '#FEF3F2', dias: diff }
+    if (diff <= 30) return { label: 'Vencendo', color: '#F79009', bg: '#FFFAEB', dias: diff }
+    if (diff <= 60) return { label: 'Atencao', color: '#F79009', bg: '#FFFAEB', dias: diff }
+    return { label: 'Valido', color: '#059669', bg: '#ECFDF3', dias: diff }
   }, [certificado])
 
   const DIAS_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom']

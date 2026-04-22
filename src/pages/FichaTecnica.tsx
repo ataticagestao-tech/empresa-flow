@@ -21,11 +21,11 @@ import { ClipboardList, Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const T = {
-    primary: "#3b5bdb", primaryLt: "#eef2ff",
-    green: "#2e7d32", greenLt: "#e8f5e9",
-    red: "#c62828",
-    text1: "#0f172a", text3: "#94a3b8",
-    border: "#e2e8f0",
+    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    green: "#039855", greenLt: "#ECFDF3",
+    red: "#D92D20",
+    text1: "#1D2939", text3: "#98A2B3",
+    border: "#EAECF0",
 } as const;
 const FONT = "var(--font-base)";
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -178,6 +178,7 @@ export default function FichaTecnica() {
     return (
         <AppLayout title="Ficha Técnica">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
@@ -269,7 +270,7 @@ export default function FichaTecnica() {
                                 <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
                                     <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
                                         <thead>
-                                            <tr style={{ background: "#f8fafc", borderBottom: `1px solid ${T.border}` }}>
+                                            <tr style={{ background: "#F6F2EB", borderBottom: `1px solid ${T.border}` }}>
                                                 <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, color: T.text3, fontWeight: 600 }}>INSUMO</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "center", fontSize: 11, color: T.text3, fontWeight: 600, width: 70 }}>QTD</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "center", fontSize: 11, color: T.text3, fontWeight: 600, width: 70 }}>UN</th>
@@ -294,7 +295,7 @@ export default function FichaTecnica() {
                                                 </tr>
                                             ))}
                                             {/* Add row */}
-                                            <tr style={{ borderBottom: `1px solid ${T.border}`, background: "#f8fafc" }}>
+                                            <tr style={{ borderBottom: `1px solid ${T.border}`, background: "#F6F2EB" }}>
                                                 <td style={{ padding: "4px 8px" }}>
                                                     <Input value={newInsumo} onChange={e => setNewInsumo(e.target.value)}
                                                         placeholder="Nome do insumo" className="h-7 text-sm" />

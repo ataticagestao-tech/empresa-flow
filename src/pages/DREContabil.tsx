@@ -122,6 +122,7 @@ export default function DREContabil() {
   return (
     <AppLayout title="DRE Contábil">
       <div className="space-y-5 animate-fade-in">
+
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -168,10 +169,10 @@ export default function DREContabil() {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Receita Líquida", value: fmt(receitaLiquida), color: "#2e7d32" },
-            { label: "Lucro Bruto", value: fmt(lucroBruto), color: lucroBruto >= 0 ? "#2e7d32" : "#c62828" },
-            { label: "Resultado Líquido", value: fmt(resultadoLiquido), color: resultadoLiquido >= 0 ? "#2e7d32" : "#c62828" },
-            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#2e7d32" : "#c62828" },
+            { label: "Receita Líquida", value: fmt(receitaLiquida), color: "#039855" },
+            { label: "Lucro Bruto", value: fmt(lucroBruto), color: lucroBruto >= 0 ? "#039855" : "#D92D20" },
+            { label: "Resultado Líquido", value: fmt(resultadoLiquido), color: resultadoLiquido >= 0 ? "#039855" : "#D92D20" },
+            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#D92D20" },
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
@@ -184,7 +185,7 @@ export default function DREContabil() {
 
         {/* Tabela DRE */}
         <Card>
-          <CardHeader className="border-b border-border" style={{ backgroundColor: "#1a2e4a" }}>
+          <CardHeader className="border-b border-border" style={{ backgroundColor: "#1E3A8A" }}>
             <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2 text-white">
               <FileText className="h-4 w-4" /> DRE — Demonstração do Resultado do Exercício
             </CardTitle>
@@ -256,7 +257,7 @@ function LinhaGrupoDRE({
   isResultado: boolean;
   onToggle: () => void;
 }) {
-  const corValor = grupo.valor >= 0 ? "#2e7d32" : "#c62828";
+  const corValor = grupo.valor >= 0 ? "#039855" : "#D92D20";
   const bgClass = isResultado
     ? "bg-muted/50 border-t border-b border-foreground/20"
     : "bg-muted/20";
@@ -287,7 +288,7 @@ function LinhaGrupoDRE({
             <td className="py-2 px-4 pl-8">{f.nome}</td>
             <td
               className="text-right py-2 px-4 tabular-nums"
-              style={{ color: f.valor >= 0 ? "#2e7d32" : "#c62828" }}
+              style={{ color: f.valor >= 0 ? "#039855" : "#D92D20" }}
             >
               {fmt(f.valor)}
             </td>

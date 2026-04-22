@@ -28,7 +28,7 @@ export function TabContact({ form }: TabContactProps) {
                                     <Mail className="w-3 h-3" /> Email Principal
                                 </FormLabel>
                                 <FormControl>
-                                    <Input className="h-9 border-[#E2E8F0]" placeholder="exemplo@empresa.com.br" {...field} value={field.value ?? ""} />
+                                    <Input className="h-9 border-[#EAECF0]" placeholder="exemplo@empresa.com.br" {...field} value={field.value ?? ""} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -47,7 +47,7 @@ export function TabContact({ form }: TabContactProps) {
                             </FormLabel>
                             <FormControl>
                                 <Input
-                                    className="h-9 border-[#E2E8F0]"
+                                    className="h-9 border-[#EAECF0]"
                                     {...field}
                                     onChange={(e) => field.onChange(maskPhone(e.target.value))}
                                     maxLength={15}
@@ -68,7 +68,7 @@ export function TabContact({ form }: TabContactProps) {
                             </FormLabel>
                             <FormControl>
                                 <Input
-                                    className="h-9 border-[#E2E8F0]"
+                                    className="h-9 border-[#EAECF0]"
                                     {...field}
                                     onChange={(e) => field.onChange(maskPhone(e.target.value))}
                                     maxLength={15}
@@ -87,7 +87,7 @@ export function TabContact({ form }: TabContactProps) {
                                 <User className="w-3 h-3" /> Nome do Contato
                             </FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#E2E8F0]" placeholder="Pessoa de referência" {...field} />
+                                <Input className="h-9 border-[#EAECF0]" placeholder="Pessoa de referência" {...field} />
                             </FormControl>
                         </FormItem>
                     )}
@@ -100,7 +100,7 @@ export function TabContact({ form }: TabContactProps) {
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Website</FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#E2E8F0]" placeholder="www.seusite.com.br" {...field} />
+                                <Input className="h-9 border-[#EAECF0]" placeholder="www.seusite.com.br" {...field} />
                             </FormControl>
                         </FormItem>
                     )}

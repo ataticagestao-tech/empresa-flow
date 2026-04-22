@@ -258,6 +258,7 @@ export default function Inventario() {
   return (
     <AppLayout title="Inventário">
       <div className="space-y-5 animate-fade-in">
+
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-foreground tracking-tight">Inventário</h2>

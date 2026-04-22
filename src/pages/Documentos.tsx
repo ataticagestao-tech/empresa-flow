@@ -292,14 +292,9 @@ export default function Documentos() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Documentos</h1>
-            <p className="text-sm text-muted-foreground">
-              Gerencie documentos da empresa com controle de vencimentos
-            </p>
-          </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end">
           <div className="flex gap-2">
             {tab === "explorador" && (
               <Button onClick={() => setShowUpload(true)}>

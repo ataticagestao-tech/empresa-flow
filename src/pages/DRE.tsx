@@ -310,6 +310,7 @@ export default function DRE() {
   return (
     <AppLayout title="DRE">
       <div className="space-y-5 animate-fade-in">
+
         <PendenciasBanner variant="full" filter="credito" />
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -359,10 +360,10 @@ export default function DRE() {
         {/* KPIs resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Receita Bruta", value: fmt(receitaTotal), color: "#2e7d32" },
-            { label: "Despesas", value: fmt(despesaTotal), color: "#c62828" },
-            { label: "Resultado Líquido", value: fmt(resultado), color: resultado >= 0 ? "#2e7d32" : "#c62828" },
-            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#2e7d32" : "#c62828" },
+            { label: "Receita Bruta", value: fmt(receitaTotal), color: "#039855" },
+            { label: "Despesas", value: fmt(despesaTotal), color: "#D92D20" },
+            { label: "Resultado Líquido", value: fmt(resultado), color: resultado >= 0 ? "#039855" : "#D92D20" },
+            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#D92D20" },
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
@@ -382,14 +383,14 @@ export default function DRE() {
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={dadosGrafico}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" />
                   <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Receita" fill="#2e7d32" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Despesa" fill="#c62828" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Resultado" fill="#3b5bdb" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Receita" fill="#039855" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Despesa" fill="#D92D20" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Resultado" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -440,7 +441,7 @@ export default function DRE() {
                     {/* Resultado Final */}
                     <tr className="border-t-2 border-foreground bg-muted/50 font-bold">
                       <td className="py-3 px-4" colSpan={2}>RESULTADO LÍQUIDO</td>
-                      <td className="text-right py-3 px-4" style={{ color: resultado >= 0 ? "#2e7d32" : "#c62828" }}>
+                      <td className="text-right py-3 px-4" style={{ color: resultado >= 0 ? "#039855" : "#D92D20" }}>
                         {fmt(resultado)}
                       </td>
                       <td className="text-right py-3 px-4">—</td>
@@ -482,10 +483,10 @@ function GrupoDRE({ nome, grupo, isOpen, onToggle }: {
         </td>
         <td className="text-right py-2.5 px-4 font-bold">{fmt(grupo.totalRealizado)}</td>
         <td className="text-right py-2.5 px-4 font-bold text-muted-foreground">{fmt(grupo.totalOrcado)}</td>
-        <td className="text-right py-2.5 px-4 font-bold" style={{ color: varTotal >= 0 ? "#2e7d32" : "#c62828" }}>
+        <td className="text-right py-2.5 px-4 font-bold" style={{ color: varTotal >= 0 ? "#039855" : "#D92D20" }}>
           {fmt(varTotal)}
         </td>
-        <td className="text-right py-2.5 px-4 font-bold" style={{ color: (varPct ?? 0) >= 0 ? "#2e7d32" : "#c62828" }}>
+        <td className="text-right py-2.5 px-4 font-bold" style={{ color: (varPct ?? 0) >= 0 ? "#039855" : "#D92D20" }}>
           {fmtPct(varPct)}
         </td>
       </tr>
@@ -496,10 +497,10 @@ function GrupoDRE({ nome, grupo, isOpen, onToggle }: {
           <td className="py-2 px-4">{l.descricao}</td>
           <td className="text-right py-2 px-4 tabular-nums">{fmt(l.realizado)}</td>
           <td className="text-right py-2 px-4 tabular-nums text-muted-foreground">{fmt(l.orcado)}</td>
-          <td className="text-right py-2 px-4 tabular-nums" style={{ color: l.variacao >= 0 ? "#2e7d32" : "#c62828" }}>
+          <td className="text-right py-2 px-4 tabular-nums" style={{ color: l.variacao >= 0 ? "#039855" : "#D92D20" }}>
             {fmt(l.variacao)}
           </td>
-          <td className="text-right py-2 px-4" style={{ color: (l.variacao_pct ?? 0) >= 0 ? "#2e7d32" : "#c62828" }}>
+          <td className="text-right py-2 px-4" style={{ color: (l.variacao_pct ?? 0) >= 0 ? "#039855" : "#D92D20" }}>
             <div className="flex items-center justify-end gap-1">
               {l.variacao_pct != null && l.variacao_pct !== 0 && (
                 l.variacao_pct > 0

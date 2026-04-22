@@ -20,8 +20,8 @@ interface TreeNode extends Conta {
   filhos: TreeNode[];
 }
 
-const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full";
+const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 const DRE_GROUPS = [
   { value: "receita_bruta", label: "Receita Bruta" },
@@ -35,16 +35,16 @@ const DRE_GROUPS = [
 ];
 
 function getBadge(c: Conta) {
-  if (c.account_type === "revenue") return { label: "Receita", cls: "border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]" };
-  if (c.account_type === "asset") return { label: "Ativo", cls: "border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]" };
-  if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
-  if (c.account_type === "equity") return { label: "PL", cls: "border-[#4a1a6b] bg-[#f3e8ff] text-[#4a1a6b]" };
-  if (c.account_type === "cost") return { label: "Custo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
-  if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#b8960a] bg-[#fffbe6] text-[#5c3a00]" };
-  if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#8b0000] bg-[#fdecea] text-[#8b0000]" };
-  if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]" };
-  if (c.account_type === "expense") return { label: "Despesa", cls: "border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]" };
-  return { label: "Outros", cls: "border-[#ccc] bg-[#f5f5f5] text-[#555]" };
+  if (c.account_type === "revenue") return { label: "Receita", cls: "border-[#039855] bg-[#ECFDF3] text-[#039855]" };
+  if (c.account_type === "asset") return { label: "Ativo", cls: "border-[#039855] bg-[#ECFDF3] text-[#039855]" };
+  if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
+  if (c.account_type === "equity") return { label: "PL", cls: "border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]" };
+  if (c.account_type === "cost") return { label: "Custo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
+  if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#F79009] bg-[#FFFAEB] text-[#F79009]" };
+  if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
+  if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]" };
+  if (c.account_type === "expense") return { label: "Despesa", cls: "border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]" };
+  return { label: "Outros", cls: "border-[#ccc] bg-[#F6F2EB] text-[#555]" };
 }
 
 export default function PlanoContas() {
@@ -500,14 +500,14 @@ export default function PlanoContas() {
 
   // ─── Inline edit row ───
   const renderEditRow = (conta: Conta) => (
-    <div key={conta.id + "-edit"} className="bg-[#fffbe6] border-b border-[#e6c200] px-4 py-3 space-y-3">
+    <div key={conta.id + "-edit"} className="bg-[#FFFAEB] border-b border-[#e6c200] px-4 py-3 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-mono text-[#555]">{conta.code}</span>
-        <span className="text-[10px] font-bold uppercase text-[#5c3a00]">Editando</span>
+        <span className="text-[10px] font-bold uppercase text-[#F79009]">Editando</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="flex flex-col gap-1">
-          <label className={LB}>Nome <span className="text-[#8b0000]">*</span></label>
+          <label className={LB}>Nome <span className="text-[#D92D20]">*</span></label>
           <input value={editForm.name} onChange={e => setEdit("name", e.target.value)} className={IC} />
         </div>
         <div className="flex flex-col gap-1">
@@ -533,18 +533,18 @@ export default function PlanoContas() {
       </div>
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={editForm.show_in_dre} onChange={e => setEdit("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#1a2e4a]" />
-          <span className="text-xs text-[#0a0a0a]">Aparece no DRE</span>
+          <input type="checkbox" checked={editForm.show_in_dre} onChange={e => setEdit("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#1E3A8A]" />
+          <span className="text-xs text-[#1D2939]">Aparece no DRE</span>
         </label>
         <div className="flex flex-col gap-1">
           <label className={LB}>Ordem DRE</label>
           <input type="number" value={editForm.dre_order} onChange={e => setEdit("dre_order", e.target.value)} className={`${IC} w-20`} placeholder="0" />
         </div>
         <div className="flex gap-2 ml-auto">
-          <button onClick={saveEdit} disabled={savingEdit} className="bg-[#1a2e4a] text-white text-xs font-bold px-4 py-1.5 rounded-md disabled:opacity-40">
+          <button onClick={saveEdit} disabled={savingEdit} className="bg-[#1E3A8A] text-white text-xs font-bold px-4 py-1.5 rounded-md disabled:opacity-40">
             {savingEdit ? "Salvando..." : "Salvar"}
           </button>
-          <button onClick={cancelEdit} className="bg-white text-[#0a0a0a] border border-[#ccc] text-xs font-bold px-4 py-1.5 rounded-md">Cancelar</button>
+          <button onClick={cancelEdit} className="bg-white text-[#1D2939] border border-[#ccc] text-xs font-bold px-4 py-1.5 rounded-md">Cancelar</button>
         </div>
       </div>
     </div>
@@ -554,64 +554,49 @@ export default function PlanoContas() {
   const renderActions = (conta: Conta) => (
     <div className="flex items-center gap-1 shrink-0 ml-2">
       <button onClick={e => startEdit(conta, e)} title="Editar"
-        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#f0f4f8] text-[#1a2e4a] text-sm transition-all">✎</button>
+        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] text-sm transition-all">✎</button>
       <button onClick={e => deleteConta(conta, e)} title="Desativar"
-        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#fdecea] text-[#8b0000] text-sm transition-all">✕</button>
+        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#FEF3F2] text-[#D92D20] text-sm transition-all">✕</button>
     </div>
   );
 
   return (
     <AppLayout title="Plano de Contas">
-      <div className="space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: "Total de Contas", value: stats.total },
-            { label: "Grupos", value: stats.grupos },
-            { label: "Subgrupos", value: stats.subgrupos },
-            { label: "Analíticas", value: stats.analiticas },
-          ].map((s, i) => (
-            <div key={i} className="border border-[#ccc] rounded-lg p-3 bg-white text-center">
-              <p className="text-xl font-bold text-[#1a2e4a]">{s.value}</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#555]">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
+      <div className="space-y-2 px-4 pt-3 pb-4">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <input type="text" placeholder="Buscar por nome ou código..." value={search}
             onChange={e => setSearch(e.target.value)}
-            className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none flex-1 min-w-[200px]" />
+            className="border border-[#D0D5DD] rounded px-3 py-1.5 text-[13px] text-black bg-white focus:border-black focus:outline-none flex-1 min-w-[200px]" />
           {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas"].map(f => (
             <button key={f} onClick={() => setFilterType(f)}
-              className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-all ${
-                filterType === f ? "bg-[#1a2e4a] text-white border-[#1a2e4a]" : "bg-white text-[#555] border-[#ccc] hover:border-[#1a2e4a]"
+              className={`text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1.5 rounded border transition-colors ${
+                filterType === f ? "bg-black text-white border-black" : "bg-white text-[#667085] border-[#D0D5DD] hover:border-black hover:text-black"
               }`}>
               {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : "Analíticas"}
             </button>
           ))}
-          <button onClick={expandAll} className="text-[10px] font-bold text-[#1a2e4a] px-2 py-1.5 hover:underline">Expandir</button>
-          <button onClick={collapseAll} className="text-[10px] font-bold text-[#555] px-2 py-1.5 hover:underline">Recolher</button>
+          <button onClick={expandAll} className="text-[11px] font-semibold text-black px-2 py-1.5 hover:underline">Expandir</button>
+          <button onClick={collapseAll} className="text-[11px] font-semibold text-[#667085] px-2 py-1.5 hover:underline">Recolher</button>
           <button onClick={() => setShowModeloPopup(true)}
-            className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-md transition-all bg-white text-[#b8960a] border border-[#b8960a] hover:bg-[#fffbe6]">
-            <BookOpen size={14} /> Modelo Padrão
+            className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded bg-white text-black border border-[#D0D5DD] hover:bg-[#F6F2EB] transition-colors">
+            <BookOpen size={13} /> Modelo Padrão
           </button>
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); }}
-            className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Conta</button>
+            className="bg-black text-white text-[12px] font-semibold px-3 py-1.5 rounded hover:bg-[#1D2939]">+ Nova Conta</button>
         </div>
 
         {/* Modelo Padrão Panel */}
         {showModelo && (
-          <div className="border border-[#b8960a] rounded-lg overflow-hidden">
-            <div className="bg-[#b8960a] px-4 py-3 flex items-center justify-between">
+          <div className="border border-[#F79009] rounded-lg overflow-hidden">
+            <div className="bg-[#F79009] px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen size={16} className="text-white" />
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Plano de Contas Patrimoniais — Modelo Padrão</h3>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={addAllPatrimonial}
-                  className="flex items-center gap-1.5 bg-white text-[#b8960a] text-[10px] font-bold px-3 py-1.5 rounded-md hover:bg-[#fffbe6] transition-colors">
+                  className="flex items-center gap-1.5 bg-white text-[#F79009] text-[10px] font-bold px-3 py-1.5 rounded-md hover:bg-[#FFFAEB] transition-colors">
                   <Download size={12} /> Aplicar Modelo Completo
                 </button>
                 <button onClick={() => setShowModelo(false)} className="text-white/70 hover:text-white">
@@ -620,11 +605,11 @@ export default function PlanoContas() {
               </div>
             </div>
 
-            <div className="bg-[#fffbe6] border-b border-[#e6c200] px-4 py-2.5 flex items-center gap-3">
+            <div className="bg-[#FFFAEB] border-b border-[#e6c200] px-4 py-2.5 flex items-center gap-3">
               <input type="text" placeholder="Buscar no modelo..." value={modeloSearch}
                 onChange={e => setModeloSearch(e.target.value)}
-                className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#b8960a] focus:outline-none flex-1" />
-              <span className="text-[10px] font-bold text-[#5c3a00] shrink-0">
+                className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#F79009] focus:outline-none flex-1" />
+              <span className="text-[10px] font-bold text-[#F79009] shrink-0">
                 {PLANO_PATRIMONIAL.length} contas no modelo · {PLANO_PATRIMONIAL.filter(c => existingCodes.has(c.code)).length} já adicionadas
               </span>
             </div>
@@ -636,8 +621,8 @@ export default function PlanoContas() {
                 return (
                   <div key={grupo.code}>
                     {/* Grupo header */}
-                    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#eee] cursor-pointer hover:bg-[#fafafa]"
-                      style={{ backgroundColor: grupoInfo?.bg || "#f5f5f5" }}>
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#eee] cursor-pointer hover:bg-[#F6F2EB]"
+                      style={{ backgroundColor: grupoInfo?.bg || "#F6F2EB" }}>
                       <button onClick={() => toggleModelo(grupo.code)} className="text-xs text-[#555]">
                         {modeloExpandidos.has(grupo.code) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </button>
@@ -647,10 +632,10 @@ export default function PlanoContas() {
                         {grupo.filhos.reduce((a, s) => a + s.filhos.length, 0) + grupo.filhos.length} contas
                       </span>
                       {grupoExists ? (
-                        <span className="text-[10px] font-bold text-[#0a5c2e] flex items-center gap-1"><Check size={12} /> Existe</span>
+                        <span className="text-[10px] font-bold text-[#039855] flex items-center gap-1"><Check size={12} /> Existe</span>
                       ) : (
                         <button onClick={() => addGrupoFromModelo(grupo.code)}
-                          className="flex items-center gap-1 text-[10px] font-bold text-[#1a2e4a] px-2 py-1 rounded border border-[#1a2e4a] hover:bg-[#f0f4f8] transition-colors">
+                          className="flex items-center gap-1 text-[10px] font-bold text-[#1E3A8A] px-2 py-1 rounded border border-[#1E3A8A] hover:bg-[#EFF6FF] transition-colors">
                           <Plus size={12} /> Grupo
                         </button>
                       )}
@@ -659,20 +644,20 @@ export default function PlanoContas() {
                     {modeloExpandidos.has(grupo.code) && grupo.filhos.map(sub => (
                       <div key={sub.code}>
                         {/* Subgrupo */}
-                        <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-[#f0f0f0] cursor-pointer hover:bg-[#fafafa]"
+                        <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-[#EAECF0] cursor-pointer hover:bg-[#F6F2EB]"
                           onClick={() => toggleModelo(sub.code)}>
                           <span className="text-xs text-[#999]">
                             {modeloExpandidos.has(sub.code) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                           </span>
                           <span className="text-xs text-[#999] w-8">{sub.code}</span>
-                          <span className="text-sm text-[#0a0a0a] flex-1">{sub.name}</span>
+                          <span className="text-sm text-[#1D2939] flex-1">{sub.name}</span>
                           <span className="text-[10px] text-[#555]">{sub.filhos.length}</span>
                           {existingCodes.has(sub.code) ? (
-                            <Check size={12} className="text-[#0a5c2e]" />
+                            <Check size={12} className="text-[#039855]" />
                           ) : (
                             <button onClick={e => { e.stopPropagation(); addFromModelo(sub); }}
                               disabled={addingCodes.has(sub.code)}
-                              className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#f0f4f8] text-[#1a2e4a] transition-all">
+                              className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] transition-all">
                               <Plus size={14} />
                             </button>
                           )}
@@ -680,18 +665,18 @@ export default function PlanoContas() {
 
                         {modeloExpandidos.has(sub.code) && sub.filhos.map(analitica => (
                           <div key={analitica.code}
-                            className="flex items-center gap-2 pl-14 pr-4 py-1.5 border-b border-[#f8f8f8] hover:bg-[#fafafa]">
+                            className="flex items-center gap-2 pl-14 pr-4 py-1.5 border-b border-[#f8f8f8] hover:bg-[#F6F2EB]">
                             <span className="text-xs text-[#999] font-mono w-12">{analitica.code}</span>
-                            <span className="text-sm text-[#0a0a0a] flex-1">{analitica.name}</span>
+                            <span className="text-sm text-[#1D2939] flex-1">{analitica.name}</span>
                             <span className="text-[10px] text-[#999]">{analitica.account_nature === "debit" ? "D" : "C"}</span>
                             {existingCodes.has(analitica.code) ? (
-                              <Check size={12} className="text-[#0a5c2e]" />
+                              <Check size={12} className="text-[#039855]" />
                             ) : (
                               <button onClick={() => addFromModelo(analitica)}
                                 disabled={addingCodes.has(analitica.code)}
-                                className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#f0f4f8] text-[#1a2e4a] transition-all">
+                                className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] transition-all">
                                 {addingCodes.has(analitica.code)
-                                  ? <div className="w-3 h-3 border-2 border-[#1a2e4a]/30 border-t-[#1a2e4a] rounded-full animate-spin" />
+                                  ? <div className="w-3 h-3 border-2 border-[#1E3A8A]/30 border-t-[#1E3A8A] rounded-full animate-spin" />
                                   : <Plus size={14} />}
                               </button>
                             )}
@@ -709,11 +694,11 @@ export default function PlanoContas() {
         {/* New account form */}
         {showForm && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Nova Conta</h3></div>
+            <div className="bg-[#1E3A8A] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Nova Conta</h3></div>
             <div className="p-5 bg-white space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1"><label className={LB}>Código <span className="text-[#8b0000]">*</span></label><input value={newConta.code} onChange={e => setNew("code", e.target.value)} className={IC} placeholder="Ex: 4.1.09" /></div>
-                <div className="flex flex-col gap-1"><label className={LB}>Nome <span className="text-[#8b0000]">*</span></label><input value={newConta.name} onChange={e => setNew("name", e.target.value)} className={IC} /></div>
+                <div className="flex flex-col gap-1"><label className={LB}>Código <span className="text-[#D92D20]">*</span></label><input value={newConta.code} onChange={e => setNew("code", e.target.value)} className={IC} placeholder="Ex: 4.1.09" /></div>
+                <div className="flex flex-col gap-1"><label className={LB}>Nome <span className="text-[#D92D20]">*</span></label><input value={newConta.name} onChange={e => setNew("name", e.target.value)} className={IC} /></div>
               </div>
               <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1"><label className={LB}>Tipo</label>
@@ -741,12 +726,12 @@ export default function PlanoContas() {
                 </div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={newConta.show_in_dre} onChange={e => setNew("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#1a2e4a]" />
-                <span className="text-sm text-[#0a0a0a]">Aparece no DRE</span>
+                <input type="checkbox" checked={newConta.show_in_dre} onChange={e => setNew("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#1E3A8A]" />
+                <span className="text-sm text-[#1D2939]">Aparece no DRE</span>
               </label>
               <div className="flex gap-3">
-                <button onClick={handleAddConta} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md">Salvar</button>
-                <button onClick={() => setShowForm(false)} className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
+                <button onClick={handleAddConta} className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md">Salvar</button>
+                <button onClick={() => setShowForm(false)} className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
               </div>
             </div>
           </div>
@@ -757,39 +742,55 @@ export default function PlanoContas() {
           <div className="text-center py-12 text-sm text-[#555]">Carregando plano de contas...</div>
         ) : filteredContas.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-sm text-[#0a0a0a] font-bold mb-2">Nenhuma conta encontrada.</p>
+            <p className="text-sm text-[#1D2939] font-bold mb-2">Nenhuma conta encontrada.</p>
             <p className="text-xs text-[#555]">Cadastre uma empresa e aplique o plano de contas template.</p>
           </div>
         ) : (
-          <div className="border border-[#ccc] rounded-lg overflow-hidden">
+          <div className="border border-[#D0D5DD] rounded bg-white overflow-hidden max-w-5xl mx-auto">
+            {/* Cabeçalho tipo planilha */}
+            <div className="bg-white border-b-2 border-[#D0D5DD] px-3 py-3.5 flex items-center gap-6 text-[13px] font-bold uppercase tracking-wider text-black">
+              <span className="w-4" />
+              <span className="w-20">Código</span>
+              <span className="flex-1 min-w-0">Conta</span>
+              <span className="w-16 text-right">Contas</span>
+              <span className="w-28">Natureza</span>
+              <span className="w-20 text-right">Ações</span>
+            </div>
             {tree.map(grupo => (
               <div key={grupo.id}>
-                {/* Level 1 — Group */}
+                {/* Nível 1 — Grupo */}
                 <div onClick={() => toggle(grupo.code)}
-                  className="bg-[#f0f4f8] px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-[#e8edf5] border-b border-[#ddd]">
-                  <span className="text-xs text-[#1a2e4a]">{expandidos.has(grupo.code) ? "▼" : "▶"}</span>
-                  <span className="text-xs font-bold text-[#1a2e4a] w-8">{grupo.code}</span>
-                  <span className="text-sm font-bold text-[#1a2e4a] flex-1">{grupo.name}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-[#ccc] text-[#555]">
-                    {grupo.filhos.reduce((acc, s) => acc + s.filhos.length, 0) + grupo.filhos.length} contas
+                  className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-[#F6F2EB] border-b border-[#D0D5DD]">
+                  <span className="text-[10px] text-black w-4">{expandidos.has(grupo.code) ? "▼" : "▶"}</span>
+                  <span className="text-[12.5px] font-bold text-black w-20 font-mono">{grupo.code}</span>
+                  <span className="text-[13px] font-bold text-black flex-1 min-w-0 uppercase tracking-wide truncate">{grupo.name}</span>
+                  <span className="text-[11px] text-[#667085] w-16 text-right tabular-nums">
+                    {grupo.filhos.reduce((acc, s) => acc + s.filhos.length, 0) + grupo.filhos.length}
                   </span>
-                  {(() => { const b = getBadge(grupo); return <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${b.cls}`}>{b.label}</span>; })()}
-                  {renderActions(grupo)}
+                  <span className="w-28">
+                    {(() => {
+                      const b = getBadge(grupo);
+                      const isReceita = /receita/i.test(b.label);
+                      const isDespCusto = /despesa|custo/i.test(b.label);
+                      const color = isReceita ? "#039855" : isDespCusto ? "#D92D20" : "#667085";
+                      return <span className="text-[10.5px] font-semibold" style={{ color }}>{b.label}</span>;
+                    })()}
+                  </span>
+                  <span className="w-20 flex justify-end">{renderActions(grupo)}</span>
                 </div>
                 {editingId === grupo.id && renderEditRow(grupo)}
 
                 {expandidos.has(grupo.code) && grupo.filhos.map(sub => (
                   <div key={sub.id}>
-                    {/* Level 2 — Subgroup */}
+                    {/* Nível 2 — Subgrupo */}
                     <div onClick={() => toggle(sub.code)}
-                      className="bg-[#fafafa] pl-8 pr-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#eee]">
-                      <span className="text-xs text-[#555]">{expandidos.has(sub.code) ? "▼" : "▶"}</span>
-                      <span className="text-xs text-[#999] w-10">{sub.code}</span>
-                      <span className="text-sm text-[#0a0a0a] flex-1">{sub.name}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-[#ccc] text-[#555]">
-                        {sub.filhos.length}
-                      </span>
-                      {renderActions(sub)}
+                      className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-[#F6F2EB] border-b border-[#EAECF0]">
+                      <span className="text-[10px] text-[#667085] w-4 pl-4">{expandidos.has(sub.code) ? "▼" : "▶"}</span>
+                      <span className="text-[12.5px] text-black w-20 font-mono pl-4">{sub.code}</span>
+                      <span className="text-[13px] font-semibold text-black flex-1 min-w-0 pl-4 truncate">{sub.name}</span>
+                      <span className="text-[11px] text-[#667085] w-16 text-right tabular-nums">{sub.filhos.length}</span>
+                      <span className="w-28"></span>
+                      <span className="w-20 flex justify-end">{renderActions(sub)}</span>
                     </div>
                     {editingId === sub.id && renderEditRow(sub)}
 
@@ -797,11 +798,13 @@ export default function PlanoContas() {
                       const badge = getBadge(analitica);
                       return (
                         <div key={analitica.id}>
-                          <div className="bg-white pl-16 pr-4 py-2 flex items-center gap-3 border-b border-[#f0f0f0] hover:bg-[#fafafa]">
-                            <span className="text-xs text-[#999] w-14 font-mono">{analitica.code}</span>
-                            <span className="text-sm text-[#0a0a0a] flex-1">{analitica.name}</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${badge.cls}`}>{badge.label}</span>
-                            {renderActions(analitica)}
+                          <div className="bg-white px-3 py-1 flex items-center gap-6 border-b border-[#F1F3F5] hover:bg-[#F6F2EB]">
+                            <span className="w-4" />
+                            <span className="text-[12px] text-[#667085] w-20 font-mono pl-8">{analitica.code}</span>
+                            <span className="text-[13px] text-black flex-1 min-w-0 pl-8 truncate">{analitica.name}</span>
+                            <span className="w-16"></span>
+                            <span className="w-28 text-[10.5px] font-semibold" style={{ color: /receita/i.test(badge.label) ? "#039855" : /despesa|custo/i.test(badge.label) ? "#D92D20" : "#667085" }}>{badge.label}</span>
+                            <span className="w-20 flex justify-end">{renderActions(analitica)}</span>
                           </div>
                           {editingId === analitica.id && renderEditRow(analitica)}
                         </div>
@@ -820,7 +823,7 @@ export default function PlanoContas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !replacingAll && setShowModeloPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-[#1a2e4a] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#1E3A8A] px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen size={18} className="text-white" />
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider">Modelo Padrão Patrimonial</h2>
@@ -840,19 +843,19 @@ export default function PlanoContas() {
               <button
                 onClick={replaceAllWithModelo}
                 disabled={replacingAll}
-                className="w-full text-left border border-[#8b0000] rounded-lg p-4 hover:bg-[#fdecea] transition-colors group disabled:opacity-60"
+                className="w-full text-left border border-[#D92D20] rounded-lg p-4 hover:bg-[#FEF3F2] transition-colors group disabled:opacity-60"
               >
                 <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#8b0000] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#D92D20] flex items-center justify-center shrink-0">
                     <Download size={16} className="text-white" />
                   </div>
-                  <span className="text-sm font-bold text-[#8b0000]">
+                  <span className="text-sm font-bold text-[#D92D20]">
                     {replacingAll ? "Substituindo..." : "Substituir plano inteiro"}
                   </span>
                 </div>
                 <p className="text-xs text-[#555] ml-11">
                   Remove todas as contas atuais e aplica o modelo padrão completo.
-                  <span className="font-bold text-[#8b0000]"> Atenção: as contas existentes serão desativadas.</span>
+                  <span className="font-bold text-[#D92D20]"> Atenção: as contas existentes serão desativadas.</span>
                 </p>
               </button>
 
@@ -860,17 +863,17 @@ export default function PlanoContas() {
               <button
                 onClick={() => { setShowModeloPopup(false); setShowModelo(true); }}
                 disabled={replacingAll}
-                className="w-full text-left border border-[#1a2e4a] rounded-lg p-4 hover:bg-[#f0f4f8] transition-colors group disabled:opacity-60"
+                className="w-full text-left border border-[#1E3A8A] rounded-lg p-4 hover:bg-[#EFF6FF] transition-colors group disabled:opacity-60"
               >
                 <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#1a2e4a] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#1E3A8A] flex items-center justify-center shrink-0">
                     <Plus size={16} className="text-white" />
                   </div>
-                  <span className="text-sm font-bold text-[#1a2e4a]">Escolher categorias para adicionar</span>
+                  <span className="text-sm font-bold text-[#1E3A8A]">Escolher categorias para adicionar</span>
                 </div>
                 <p className="text-xs text-[#555] ml-11">
                   Abre o painel de referência para você selecionar quais contas ou grupos adicionar.
-                  <span className="font-bold text-[#0a5c2e]"> Contas existentes não serão alteradas.</span>
+                  <span className="font-bold text-[#039855]"> Contas existentes não serão alteradas.</span>
                 </p>
               </button>
             </div>

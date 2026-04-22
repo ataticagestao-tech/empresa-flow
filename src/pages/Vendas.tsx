@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -6,6 +7,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { CollapsibleCard } from '@/components/ui/collapsible-card'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -15,6 +17,7 @@ import {
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 
 // Cast supabase for GESTAP tables not in the generated types
 const db = supabase as any
@@ -237,6 +240,58 @@ export default function Vendas() {
       return true
     })
   }, [vendas, searchTerm, filtroTipo, filtroForma])
+
+  // ─── Ranking produtos × faturamento (para gráfico) ─────────
+  const produtosRanking = useMemo(() => {
+    const map: Record<string, { descricao: string; total: number; quantidade: number }> = {}
+    vendasFiltradas.forEach(v => {
+      ;(v.vendas_itens || []).forEach(it => {
+        const key = (it.descricao || 'Sem descrição').trim()
+        if (!map[key]) map[key] = { descricao: key, total: 0, quantidade: 0 }
+        map[key].total += Number(it.valor_total || 0)
+        map[key].quantidade += Number(it.quantidade || 0)
+      })
+    })
+    return Object.values(map)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+  }, [vendasFiltradas])
+
+  // ─── Ranking "à receber" por cliente ────────────────────────
+  const aReceberRanking = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const map: Record<string, { cliente: string; total: number; vencido: number; titulos: number }> = {}
+    vendasFiltradas.forEach(v => {
+      const cliente = (v.cliente_nome || 'Sem cliente').trim()
+      ;(v.contas_receber || []).forEach(cr => {
+        if (cr.status === 'pago' || cr.status === 'cancelado') return
+        const pendente = Number(cr.valor || 0) - Number(cr.valor_pago || 0)
+        if (pendente <= 0) return
+        if (!map[cliente]) map[cliente] = { cliente, total: 0, vencido: 0, titulos: 0 }
+        map[cliente].total += pendente
+        map[cliente].titulos += 1
+        const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null
+        if (venc && venc < today) map[cliente].vencido += pendente
+      })
+    })
+    return Object.values(map)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+  }, [vendasFiltradas])
+
+  // ─── Mapa de código sequencial (V-0001, V-0002...) ─────────
+  const vendaCodigoMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    const ordenadas = [...vendas].sort((a, b) => {
+      const d = a.data_venda.localeCompare(b.data_venda)
+      return d !== 0 ? d : a.id.localeCompare(b.id)
+    })
+    ordenadas.forEach((v, i) => {
+      map[v.id] = `V-${String(i + 1).padStart(4, '0')}`
+    })
+    return map
+  }, [vendas])
 
   // ─── Filtered clients for dropdown ───────────────────────────
   const clientesFiltrados = useMemo(() => {
@@ -1055,10 +1110,10 @@ export default function Vendas() {
   function CRBadge({ venda }: { venda: Venda }) {
     const st = getCRStatus(venda)
     const styles: Record<string, string> = {
-      pago: 'text-[#0a5c2e] bg-[#e6f4ec] border border-[#0a5c2e]',
-      aberto: 'text-[#1a2e4a] bg-[#f0f4f8] border border-[#1a2e4a]',
-      parcial: 'text-[#5c3a00] bg-[#fffbe6] border border-[#b8960a]',
-      avista: 'text-[#555] bg-[#f5f5f5] border border-[#ccc]',
+      pago: 'text-[#039855] bg-[#ECFDF3] border border-[#039855]',
+      aberto: 'text-[#1E3A8A] bg-[#EFF6FF] border border-[#1E3A8A]',
+      parcial: 'text-[#F79009] bg-[#FFFAEB] border border-[#F79009]',
+      avista: 'text-[#555] bg-[#F6F2EB] border border-[#ccc]',
     }
     const labels: Record<string, string> = {
       pago: 'Pago', aberto: 'CR \u2014 aberto', parcial: 'CR \u2014 parcial', avista: 'À vista',
@@ -1072,7 +1127,7 @@ export default function Vendas() {
 
   function TipoBadge({ tipo }: { tipo: string }) {
     return (
-      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold text-[#555] bg-[#f5f5f5] border border-[#ccc]">
+      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold text-[#555] bg-[#F6F2EB] border border-[#ccc]">
         {LABEL_TIPO[tipo] || tipo}
       </span>
     )
@@ -1082,112 +1137,299 @@ export default function Vendas() {
      RENDER
      ================================================================ */
   return (
-    <AppLayout>
+    <AppLayout title="Vendas">
       <div className="max-w-[1400px] mx-auto space-y-5">
 
-        {/* ─── KPIs ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+
+        {/* ─── KPIs (mesma estética do Dashboard) ─────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
-            { label: 'Vendas do mês', value: formatBRL(kpis.total), color: '#1a2e4a' },
-            { label: 'Vendas', value: String(kpis.count), color: '#1a2e4a' },
-            { label: 'Ticket médio', value: formatBRL(kpis.ticket), color: '#1a2e4a' },
-            { label: 'À vista', value: formatBRL(kpis.aVista), color: '#0a5c2e' },
-            { label: 'A prazo', value: formatBRL(kpis.aPrazo), color: '#5c3a00' },
+            {
+              label: 'Vendas do mês',
+              value: formatBRL(kpis.total),
+              color: '#1D2939',
+              sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
+            },
+            {
+              label: 'Vendas',
+              value: String(kpis.count),
+              color: '#1D2939',
+              sub: `ticket médio ${formatBRL(kpis.ticket)}`,
+            },
+            {
+              label: 'Ticket médio',
+              value: formatBRL(kpis.ticket),
+              color: '#1D2939',
+              sub: 'média por venda',
+            },
+            {
+              label: 'À vista',
+              value: formatBRL(kpis.aVista),
+              color: '#039855',
+              sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do total` : '—',
+            },
+            {
+              label: 'A prazo',
+              value: formatBRL(kpis.aPrazo),
+              color: '#7F1D1D',
+              sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do total` : '—',
+            },
           ].map(kpi => (
-            <div key={kpi.label} className="border border-[#ccc] rounded-lg overflow-hidden">
-              <div className="bg-[#1a2e4a] px-4 py-2">
-                <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">{kpi.label}</h3>
-              </div>
-              <div className="p-4 bg-white">
-                <p className="text-xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
+            <div
+              key={kpi.label}
+              className="bg-white border border-[#EAECF0] rounded-xl px-4 py-3 min-w-0"
+              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
+            >
+              <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
+              <p
+                className="mt-1.5 font-extrabold truncate"
+                style={{ fontSize: 18, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
+              >
+                {kpi.value}
+              </p>
+              <p className="text-[11px] text-[#98A2B3] mt-1 truncate">{kpi.sub}</p>
             </div>
           ))}
         </div>
 
-        {/* ─── Filtros ──────────────────────────────────────── */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
+        {/* ─── Filtros (compactos, uma linha) ─────────────────── */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[160px] max-w-[220px]">
+            <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+            <input
+              type="text"
+              placeholder="Buscar cliente..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-7 pr-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black placeholder-[#98A2B3] focus:outline-none focus:border-black"
+            />
+          </div>
+          {/* Month */}
+          <input
+            type="month"
+            value={mesAtual}
+            onChange={e => setMesAtual(e.target.value)}
+            className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
+          />
+          {/* Tipo */}
+          <select
+            value={filtroTipo}
+            onChange={e => setFiltroTipo(e.target.value)}
+            className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
+          >
+            <option value="">Todos os tipos</option>
+            {TIPOS_VENDA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          {/* Forma */}
+          <select
+            value={filtroForma}
+            onChange={e => setFiltroForma(e.target.value)}
+            className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
+          >
+            <option value="">Todas as formas</option>
+            {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+          {/* Limpar */}
+          {(searchTerm || filtroTipo || filtroForma) && (
             <button
               onClick={() => { setSearchTerm(''); setFiltroTipo(''); setFiltroForma('') }}
-              className="text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
+              className="text-[11px] font-semibold text-[#667085] hover:text-black px-1.5 h-7"
             >
               Limpar
             </button>
-          </div>
-          <div className="p-4 bg-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]" />
-              <input
-                type="text"
-                placeholder="Buscar cliente..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-              />
-            </div>
-            {/* Month */}
-            <input
-              type="month"
-              value={mesAtual}
-              onChange={e => setMesAtual(e.target.value)}
-              className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
-            />
-            {/* Tipo */}
-            <select
-              value={filtroTipo}
-              onChange={e => setFiltroTipo(e.target.value)}
-              className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+          )}
+          <div className="flex-1" />
+          {/* Ações */}
+          <button
+            onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null) }}
+            className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] transition-colors"
+          >
+            <Upload size={11} /> Importar
+          </button>
+          <button
+            onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
+            className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
+          >
+            <Plus size={11} /> Nova Venda
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileImport}
+          />
+        </div>
+
+        {/* ─── Gráficos lado-a-lado: Produtos × Vendas + Vendas à Receber ──────────────────── */}
+        <div className="flex gap-4 w-full flex-wrap lg:flex-nowrap">
+        {/* ─── Gráfico: Produtos × Vendas ──────────────────── */}
+        {produtosRanking.length > 0 && (() => {
+          const totalGeral = produtosRanking.reduce((s, p) => s + p.total, 0)
+          return (
+            <CollapsibleCard
+              className="flex-1 min-w-0"
+              storageKey="vendas-produtos-x-vendas"
+              title="Produtos × Vendas"
+              subtitle={`Top ${produtosRanking.length} mais vendidos no período`}
+              rightSlot={
+                <div className="text-right">
+                  <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Total</div>
+                  <div className="text-[16px] font-extrabold text-[#039855] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
+                    {formatBRL(totalGeral)}
+                  </div>
+                </div>
+              }
             >
-              <option value="">Todos os tipos</option>
-              {TIPOS_VENDA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-            {/* Forma */}
-            <select
-              value={filtroForma}
-              onChange={e => setFiltroForma(e.target.value)}
-              className="px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+              <ResponsiveContainer width="100%" height={Math.max(200, produtosRanking.length * 22)}>
+                <BarChart data={produtosRanking} layout="vertical" margin={{ top: 4, right: 90, left: 0, bottom: 4 }}>
+                  <defs>
+                    <linearGradient id="prodVendaGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#039855" stopOpacity={0.7} />
+                      <stop offset="100%" stopColor="#039855" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis type="number" hide domain={[0, 'dataMax']} />
+                  <YAxis
+                    type="category"
+                    dataKey="descricao"
+                    tick={(props: any) => {
+                      const { y, payload } = props
+                      const txt = String(payload.value || '')
+                      const shown = txt.length > 16 ? txt.slice(0, 16) + '…' : txt
+                      return (
+                        <text x={0} y={y} dy={4} textAnchor="start" fontSize={11} fontWeight={500} fill="#1D2939">
+                          {shown}
+                        </text>
+                      )
+                    }}
+                    axisLine={{ stroke: '#039855', strokeWidth: 2 }}
+                    tickLine={false}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
+                    itemStyle={{ color: '#fff' }}
+                    labelStyle={{ color: '#fff', fontWeight: 600 }}
+                    formatter={(v: number, _n: string, entry: any) => [
+                      `${formatBRL(v)} · ${entry.payload.quantidade} un`,
+                      'Faturamento',
+                    ]}
+                    cursor={{ fill: 'rgba(3, 152, 85, 0.08)' }}
+                  />
+                  <Bar dataKey="total" fill="url(#prodVendaGrad)" radius={[0, 3, 3, 0]} barSize={9}>
+                    <LabelList
+                      dataKey="total"
+                      position="right"
+                      fontSize={10}
+                      fill="#1D2939"
+                      fontWeight={600}
+                      formatter={(v: number) => formatBRL(v)}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CollapsibleCard>
+          )
+        })()}
+
+        {/* ─── Gráfico: Vendas à Receber ──────────────────── */}
+        {aReceberRanking.length > 0 && (() => {
+          const totalPendente = aReceberRanking.reduce((s, c) => s + c.total, 0)
+          const totalVencido = aReceberRanking.reduce((s, c) => s + c.vencido, 0)
+          return (
+            <CollapsibleCard
+              className="flex-1 min-w-0"
+              storageKey="vendas-a-receber"
+              title="Vendas à Receber"
+              subtitle={`Top ${aReceberRanking.length} clientes com títulos em aberto`}
+              rightSlot={
+                <div className="text-right">
+                  <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Em aberto</div>
+                  <div className="text-[16px] font-extrabold text-[#D97706] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
+                    {formatBRL(totalPendente)}
+                  </div>
+                  {totalVencido > 0 && (
+                    <div className="text-[10.5px] font-semibold text-[#D92D20] mt-0.5">
+                      {formatBRL(totalVencido)} vencido
+                    </div>
+                  )}
+                </div>
+              }
             >
-              <option value="">Todas as formas</option>
-              {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-            {/* Ações */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null) }}
-                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors"
-              >
-                <Upload size={14} /> Importar
-              </button>
-              <button
-                onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
-                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
-              >
-                <Plus size={14} /> Nova Venda
-              </button>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={handleFileImport}
-            />
-          </div>
+              <ResponsiveContainer width="100%" height={Math.max(200, aReceberRanking.length * 22)}>
+                <BarChart data={aReceberRanking} layout="vertical" margin={{ top: 4, right: 90, left: 0, bottom: 4 }}>
+                  <defs>
+                    <linearGradient id="aReceberGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.7} />
+                      <stop offset="100%" stopColor="#D97706" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis type="number" hide domain={[0, 'dataMax']} />
+                  <YAxis
+                    type="category"
+                    dataKey="cliente"
+                    tick={(props: any) => {
+                      const { y, payload } = props
+                      const txt = String(payload.value || '')
+                      const shown = txt.length > 16 ? txt.slice(0, 16) + '…' : txt
+                      return (
+                        <Link to={`/clientes?cliente=${encodeURIComponent(txt)}`}>
+                          <text
+                            x={0} y={y} dy={4}
+                            textAnchor="start" fontSize={11} fontWeight={500}
+                            fill="#1D2939"
+                            style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent', transition: 'text-decoration-color .15s' }}
+                            onMouseEnter={(e) => { (e.currentTarget as SVGTextElement).style.textDecorationColor = '#1E3A8A' }}
+                            onMouseLeave={(e) => { (e.currentTarget as SVGTextElement).style.textDecorationColor = 'transparent' }}
+                          >
+                            {shown}
+                          </text>
+                        </Link>
+                      )
+                    }}
+                    axisLine={{ stroke: '#D97706', strokeWidth: 2 }}
+                    tickLine={false}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
+                    itemStyle={{ color: '#fff' }}
+                    labelStyle={{ color: '#fff', fontWeight: 600 }}
+                    formatter={(v: number, _n: string, entry: any) => [
+                      `${formatBRL(v)} · ${entry.payload.titulos} título${entry.payload.titulos !== 1 ? 's' : ''}${entry.payload.vencido > 0 ? ` · ${formatBRL(entry.payload.vencido)} vencido` : ''}`,
+                      'Em aberto',
+                    ]}
+                    cursor={{ fill: 'rgba(217, 119, 6, 0.08)' }}
+                  />
+                  <Bar dataKey="total" fill="url(#aReceberGrad)" radius={[0, 3, 3, 0]} barSize={9}>
+                    <LabelList
+                      dataKey="total"
+                      position="right"
+                      fontSize={10}
+                      fill="#1D2939"
+                      fontWeight={600}
+                      formatter={(v: number) => formatBRL(v)}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CollapsibleCard>
+          )
+        })()}
         </div>
 
         {/* ─── Tabela ───────────────────────────────────────── */}
-        <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+          <div className="bg-white border-b border-[#EAECF0] px-4 py-2.5 flex items-center justify-between">
+            <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">
               Vendas &mdash; {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
             </h3>
             <button
               onClick={() => setConfirmDeleteMes(true)}
               disabled={vendas.length === 0}
-              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#a8bfd4] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#667085] hover:text-[#D92D20] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Excluir todas as vendas do mês selecionado"
             >
               <Trash2 size={12} /> Excluir mês
@@ -1199,7 +1441,7 @@ export default function Vendas() {
                 <Loader2 size={20} className="animate-spin mr-2" /> Carregando...
               </div>
             ) : error ? (
-              <div className="flex items-center justify-center py-12 text-[#8b0000]">
+              <div className="flex items-center justify-center py-12 text-[#D92D20]">
                 <AlertCircle size={16} className="mr-2" /> {error}
               </div>
             ) : vendasFiltradas.length === 0 ? (
@@ -1207,42 +1449,54 @@ export default function Vendas() {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider border-b border-[#ccc]">
-                    <th className="text-left px-4 py-2.5">Cliente</th>
-                    <th className="text-center px-3 py-2.5">Itens</th>
-                    <th className="text-center px-3 py-2.5">Tipo</th>
-                    <th className="text-center px-3 py-2.5">Data</th>
-                    <th className="text-center px-3 py-2.5">Forma pgto</th>
-                    <th className="text-right px-3 py-2.5">Valor total</th>
-                    <th className="text-center px-3 py-2.5">CR</th>
-                    <th className="text-center px-3 py-2.5 w-28">Ações</th>
+                  <tr className="bg-white text-[11.5px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                    <th className="text-left px-2 py-2 w-20">Código</th>
+                    <th className="text-center px-2 py-2 w-20">Data</th>
+                    <th className="text-left px-2 py-2">Cliente</th>
+                    <th className="text-left px-2 py-2">Produto</th>
+                    <th className="text-center px-2 py-2 w-12">Itens</th>
+                    <th className="text-center px-2 py-2 w-24">Forma pgto</th>
+                    <th className="text-right px-2 py-2 w-24">Valor</th>
+                    <th className="text-center px-2 py-2 w-16">CR</th>
+                    <th className="text-center px-2 py-2 w-24">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {vendasFiltradas.map(v => (
-                    <tr key={v.id} className="border-b border-[#eee] hover:bg-[#fafafa] transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-[#0a0a0a]">{v.cliente_nome}</div>
-                        {v.cliente_cpf_cnpj && (
-                          <div className="text-[11px] text-[#555]">{formatDoc(v.cliente_cpf_cnpj)}</div>
-                        )}
+                    <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px] whitespace-nowrap">
+                      <td className="px-2 py-1 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
+                      <td className="px-2 py-1 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
+                      <td className="px-2 py-1 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
+                        <Link
+                          to={`/clientes?cliente=${encodeURIComponent(v.cliente_cpf_cnpj || v.cliente_nome)}`}
+                          className="hover:text-[#1E3A8A] hover:underline"
+                          title={`Abrir cliente: ${v.cliente_nome}`}
+                        >
+                          {v.cliente_nome}
+                        </Link>
                       </td>
-                      <td className="px-3 py-3 text-center text-[#555]">{v.vendas_itens?.length || 0}</td>
-                      <td className="px-3 py-3 text-center"><TipoBadge tipo={v.tipo} /></td>
-                      <td className="px-3 py-3 text-center text-[#555]">{formatData(v.data_venda)}</td>
-                      <td className="px-3 py-3 text-center text-[#555]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
-                      <td className="px-3 py-3 text-right font-semibold text-[#0a0a0a]">{formatBRL(v.valor_total)}</td>
-                      <td className="px-3 py-3 text-center"><CRBadge venda={v} /></td>
-                      <td className="px-3 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => setModalDetalhes(v)} className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors" title="Ver detalhes">
-                            <Eye size={14} />
+                      <td className="px-2 py-1 text-left text-[#1D2939] truncate max-w-[130px]">
+                        {v.vendas_itens && v.vendas_itens.length > 0
+                          ? <>
+                              {v.vendas_itens[0].descricao}
+                              {v.vendas_itens.length > 1 && <span className="text-[#98A2B3] text-[10px] ml-1">+{v.vendas_itens.length - 1}</span>}
+                            </>
+                          : <span className="text-[#98A2B3] italic">—</span>}
+                      </td>
+                      <td className="px-2 py-1 text-center text-[#667085]">{v.vendas_itens?.length || 0}</td>
+                      <td className="px-2 py-1 text-center text-[#667085]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
+                      <td className="px-2 py-1 text-right font-semibold text-[#1D2939]">{formatBRL(v.valor_total)}</td>
+                      <td className="px-2 py-1 text-center"><CRBadge venda={v} /></td>
+                      <td className="px-2 py-1 text-center">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <button onClick={() => setModalDetalhes(v)} className="p-1 rounded hover:bg-[#EFF6FF] text-[#1E3A8A] transition-colors" title="Ver detalhes">
+                            <Eye size={12} />
                           </button>
-                          <button onClick={() => carregarVendaParaEdicao(v)} className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors" title="Editar venda">
-                            <Pencil size={14} />
+                          <button onClick={() => carregarVendaParaEdicao(v)} className="p-1 rounded hover:bg-[#EFF6FF] text-[#1E3A8A] transition-colors" title="Editar venda">
+                            <Pencil size={12} />
                           </button>
-                          <button onClick={() => setConfirmDelete(v.id)} className="p-1.5 rounded hover:bg-[#fdecea] text-[#8b0000] transition-colors" title="Excluir">
-                            <Trash2 size={14} />
+                          <button onClick={() => setConfirmDelete(v.id)} className="p-1 rounded hover:bg-[#FEF3F2] text-[#D92D20] transition-colors" title="Excluir">
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>
@@ -1262,9 +1516,9 @@ export default function Vendas() {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto">
             {/* Header */}
-            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">{editandoVenda ? 'Editar Venda' : 'Nova Venda'}</h2>
-              <button onClick={() => { setModalAberto(false); setEditandoVenda(null) }} className="text-[#a8bfd4] hover:text-white transition-colors">
+              <button onClick={() => { setModalAberto(false); setEditandoVenda(null) }} className="text-[#BFDBFE] hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -1282,7 +1536,7 @@ export default function Vendas() {
                         key={t.value}
                         onClick={() => setFormTipo(t.value)}
                         className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-md border text-xs font-semibold transition-all ${
-                          sel ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
+                          sel ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
                         }`}
                       >
                         <Icon size={16} />
@@ -1314,7 +1568,7 @@ export default function Vendas() {
                         }}
                         onFocus={() => setClienteDropdownOpen(true)}
                         placeholder="Buscar cliente cadastrado..."
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] placeholder-[#999] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                       />
                     </div>
                     <button
@@ -1322,7 +1576,7 @@ export default function Vendas() {
                         setModalNovoCliente(true)
                         setNovoClienteNome(clienteSearch)
                       }}
-                      className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-[#1a2e4a] border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-[#1E3A8A] border border-[#1E3A8A] rounded-md hover:bg-[#EFF6FF] transition-colors whitespace-nowrap"
                       title="Adicionar novo cliente"
                     >
                       <UserPlus size={14} /> Novo
@@ -1341,7 +1595,7 @@ export default function Vendas() {
                               setNovoClienteNome(clienteSearch)
                               setClienteDropdownOpen(false)
                             }}
-                            className="block mx-auto mt-2 text-[#1a2e4a] font-semibold hover:underline"
+                            className="block mx-auto mt-2 text-[#1E3A8A] font-semibold hover:underline"
                           >
                             + Adicionar cliente
                           </button>
@@ -1351,11 +1605,11 @@ export default function Vendas() {
                           <button
                             key={c.id}
                             onClick={() => selectCliente(c)}
-                            className={`w-full text-left px-3 py-2 hover:bg-[#f0f4f8] transition-colors border-b border-[#eee] last:border-b-0 ${
-                              formClienteId === c.id ? 'bg-[#f0f4f8]' : ''
+                            className={`w-full text-left px-3 py-2 hover:bg-[#EFF6FF] transition-colors border-b border-[#eee] last:border-b-0 ${
+                              formClienteId === c.id ? 'bg-[#EFF6FF]' : ''
                             }`}
                           >
-                            <div className="text-sm font-medium text-[#0a0a0a]">
+                            <div className="text-sm font-medium text-[#1D2939]">
                               {c.nome_fantasia || c.razao_social}
                             </div>
                             <div className="text-[11px] text-[#555]">
@@ -1369,7 +1623,7 @@ export default function Vendas() {
                   )}
                 </div>
                 {formClienteId && (
-                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-[#0a5c2e]">
+                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-[#039855]">
                     <Check size={12} />
                     <span><strong>{formCliente}</strong> {formCpfCnpj && `· ${formatDoc(formCpfCnpj)}`}</span>
                   </div>
@@ -1383,7 +1637,7 @@ export default function Vendas() {
                   type="date"
                   value={formDataVenda}
                   onChange={e => setFormDataVenda(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 />
               </div>
 
@@ -1393,7 +1647,7 @@ export default function Vendas() {
                 <div className="border border-[#ccc] rounded-md overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                      <tr className="bg-[#F6F2EB] text-[10px] font-bold text-[#555] uppercase tracking-wider">
                         <th className="text-left px-3 py-2">Descrição</th>
                         <th className="text-center px-3 py-2 w-20">Qtd</th>
                         <th className="text-center px-3 py-2 w-28">Valor unit.</th>
@@ -1408,10 +1662,10 @@ export default function Vendas() {
                             <button
                               type="button"
                               onClick={() => abrirModalProduto(idx)}
-                              className="w-full flex items-center gap-2 px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-left hover:border-[#1a2e4a] hover:bg-[#f8fafc] transition-colors"
+                              className="w-full flex items-center gap-2 px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-left hover:border-[#1E3A8A] hover:bg-[#F6F2EB] transition-colors"
                             >
                               <Package size={13} className="text-[#999] shrink-0" />
-                              <span className={it.descricao ? 'text-[#0a0a0a]' : 'text-[#999]'}>
+                              <span className={it.descricao ? 'text-[#1D2939]' : 'text-[#999]'}>
                                 {it.descricao || 'Selecionar do catálogo...'}
                               </span>
                             </button>
@@ -1422,7 +1676,7 @@ export default function Vendas() {
                               min={1}
                               value={it.quantidade}
                               onChange={e => updateItem(idx, 'quantidade', parseInt(e.target.value) || 1)}
-                              className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                              className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
                             />
                           </td>
                           <td className="px-2 py-1.5">
@@ -1432,15 +1686,15 @@ export default function Vendas() {
                               step={0.01}
                               value={it.valor_unitario}
                               onChange={e => updateItem(idx, 'valor_unitario', parseFloat(e.target.value) || 0)}
-                              className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a]"
+                              className="w-full px-2 py-1 text-sm text-center border border-[#ccc] rounded bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
                             />
                           </td>
-                          <td className="px-3 py-1.5 text-right text-sm font-medium text-[#0a0a0a]">
+                          <td className="px-3 py-1.5 text-right text-sm font-medium text-[#1D2939]">
                             {formatBRL(it.quantidade * it.valor_unitario)}
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             {formItens.length > 1 && (
-                              <button onClick={() => removeItem(idx)} className="text-[#8b0000] hover:text-red-700 transition-colors">
+                              <button onClick={() => removeItem(idx)} className="text-[#D92D20] hover:text-red-700 transition-colors">
                                 <X size={14} />
                               </button>
                             )}
@@ -1452,7 +1706,7 @@ export default function Vendas() {
                 </div>
                 <button
                   onClick={addItem}
-                  className="mt-2 text-[11px] font-semibold text-[#1a2e4a] hover:underline flex items-center gap-1"
+                  className="mt-2 text-[11px] font-semibold text-[#1E3A8A] hover:underline flex items-center gap-1"
                 >
                   <Plus size={12} /> Item
                 </button>
@@ -1470,7 +1724,7 @@ export default function Vendas() {
                         key={f.value}
                         onClick={() => setFormPagamento(f.value)}
                         className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md border text-[10px] font-semibold transition-all ${
-                          sel ? 'border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
+                          sel ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
                         }`}
                       >
                         <Icon size={14} />
@@ -1488,7 +1742,7 @@ export default function Vendas() {
                   <select
                     value={formParcelas}
                     onChange={e => setFormParcelas(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                   >
                     <option value={1}>1x de {formatBRL(totalVenda)} (à vista)</option>
                     {Array.from({ length: Math.min(taxaPreview?.max_parcelas || 12, 24) - 1 }, (_, i) => i + 2).map(n => (
@@ -1500,8 +1754,8 @@ export default function Vendas() {
 
               {/* Taxa info badge */}
               {taxaPreview && (
-                <div className="bg-[#f0f4f8] border border-[#1a2e4a]/20 rounded-md px-4 py-2.5 text-xs text-[#333]">
-                  <p className="font-bold text-[10px] uppercase tracking-wider text-[#1a2e4a] mb-1">Taxas configuradas para esta conta</p>
+                <div className="bg-[#EFF6FF] border border-[#1E3A8A]/20 rounded-md px-4 py-2.5 text-xs text-[#333]">
+                  <p className="font-bold text-[10px] uppercase tracking-wider text-[#1E3A8A] mb-1">Taxas configuradas para esta conta</p>
                   <div className="flex flex-wrap gap-4">
                     <span>Taxa: <strong>{taxaPreview.taxa_percentual}%</strong></span>
                     <span>Prazo: <strong>D+{taxaPreview.dias_recebimento}</strong></span>
@@ -1517,7 +1771,7 @@ export default function Vendas() {
                 <select
                   value={formContaBancaria}
                   onChange={e => setFormContaBancaria(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 >
                   <option value="">Selecione...</option>
                   {bankAccounts.map(ba => (
@@ -1538,10 +1792,10 @@ export default function Vendas() {
                 const txAntc = taxaPreview?.taxa_antecipacao || 0
 
                 return (
-                  <div className="rounded-md border border-[#0a5c2e] bg-[#e6f4ec] p-3">
+                  <div className="rounded-md border border-[#039855] bg-[#ECFDF3] p-3">
                     <div className="flex items-start gap-2">
-                      <Check size={16} className="text-[#0a5c2e] mt-0.5 flex-shrink-0" />
-                      <div className="text-[12px] text-[#0a5c2e] w-full">
+                      <Check size={16} className="text-[#039855] mt-0.5 flex-shrink-0" />
+                      <div className="text-[12px] text-[#039855] w-full">
                         {txPct > 0 && (
                           <p className="mb-1 text-[11px] text-[#555]">
                             Bruto: {formatBRL(totalVenda)} &minus; Taxa {txPct}%: {formatBRL(vlTaxa)} = <strong>Liquido: {formatBRL(vlLiq)}</strong>
@@ -1593,7 +1847,7 @@ export default function Vendas() {
 
               {/* Error */}
               {erroModal && (
-                <div className="rounded-md border border-[#8b0000] bg-[#fdecea] p-3 flex items-center gap-2 text-[12px] text-[#8b0000]">
+                <div className="rounded-md border border-[#D92D20] bg-[#FEF3F2] p-3 flex items-center gap-2 text-[12px] text-[#D92D20]">
                   <AlertCircle size={14} className="flex-shrink-0" />
                   {erroModal}
                 </div>
@@ -1603,19 +1857,19 @@ export default function Vendas() {
               <div className="flex items-center justify-between pt-2 border-t border-[#ccc]">
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Total: </span>
-                  <span className="text-lg font-bold text-[#0a0a0a]">{formatBRL(totalVenda)}</span>
+                  <span className="text-lg font-bold text-[#1D2939]">{formatBRL(totalVenda)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { setModalAberto(false); setEditandoVenda(null) }}
-                    className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={salvarVenda}
                     disabled={salvando}
-                    className="px-5 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    className="px-5 py-2 text-sm font-semibold text-white bg-[#1E3A8A] rounded-md hover:bg-[#1D2939] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {salvando && <Loader2 size={14} className="animate-spin" />}
                     {editandoVenda ? 'Salvar alterações' : 'Confirmar venda'}
@@ -1633,9 +1887,9 @@ export default function Vendas() {
       {modalNovoCliente && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Novo Cliente</h2>
-              <button onClick={() => setModalNovoCliente(false)} className="text-[#a8bfd4] hover:text-white transition-colors">
+              <button onClick={() => setModalNovoCliente(false)} className="text-[#BFDBFE] hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -1646,7 +1900,7 @@ export default function Vendas() {
                   type="text"
                   value={novoClienteNome}
                   onChange={e => setNovoClienteNome(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -1656,7 +1910,7 @@ export default function Vendas() {
                   value={novoClienteCpfCnpj}
                   onChange={e => setNovoClienteCpfCnpj(e.target.value)}
                   placeholder="Opcional"
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] placeholder-[#999] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -1666,20 +1920,20 @@ export default function Vendas() {
                   value={novoClienteEmail}
                   onChange={e => setNovoClienteEmail(e.target.value)}
                   placeholder="Opcional"
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] placeholder-[#999] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-[#ccc]">
                 <button
                   onClick={() => setModalNovoCliente(false)}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={salvarNovoCliente}
                   disabled={salvandoCliente || !novoClienteNome.trim()}
-                  className="px-5 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="px-5 py-2 text-sm font-semibold text-white bg-[#1E3A8A] rounded-md hover:bg-[#1D2939] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                   {salvandoCliente && <Loader2 size={14} className="animate-spin" />}
                   Cadastrar e selecionar
@@ -1696,9 +1950,9 @@ export default function Vendas() {
       {modalDetalhes && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 my-auto">
-            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Detalhes da Venda</h2>
-              <button onClick={() => setModalDetalhes(null)} className="text-[#a8bfd4] hover:text-white transition-colors">
+              <button onClick={() => setModalDetalhes(null)} className="text-[#BFDBFE] hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -1706,14 +1960,14 @@ export default function Vendas() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Cliente</span>
-                  <span className="text-[#0a0a0a] font-medium">{modalDetalhes.cliente_nome}</span>
+                  <span className="text-[#1D2939] font-medium">{modalDetalhes.cliente_nome}</span>
                   {modalDetalhes.cliente_cpf_cnpj && (
                     <span className="block text-[11px] text-[#555]">{formatDoc(modalDetalhes.cliente_cpf_cnpj)}</span>
                   )}
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Data</span>
-                  <span className="text-[#0a0a0a]">{formatData(modalDetalhes.data_venda)}</span>
+                  <span className="text-[#1D2939]">{formatData(modalDetalhes.data_venda)}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Tipo</span>
@@ -1721,11 +1975,11 @@ export default function Vendas() {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Forma pgto</span>
-                  <span className="text-[#0a0a0a]">{LABEL_FORMA[modalDetalhes.forma_pagamento] || modalDetalhes.forma_pagamento}</span>
+                  <span className="text-[#1D2939]">{LABEL_FORMA[modalDetalhes.forma_pagamento] || modalDetalhes.forma_pagamento}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Valor total</span>
-                  <span className="text-[#0a0a0a] font-bold">{formatBRL(modalDetalhes.valor_total)}</span>
+                  <span className="text-[#1D2939] font-bold">{formatBRL(modalDetalhes.valor_total)}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">CR</span>
@@ -1740,7 +1994,7 @@ export default function Vendas() {
                   <div className="border border-[#ccc] rounded-md overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-[#f5f5f5] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                        <tr className="bg-[#F6F2EB] text-[10px] font-bold text-[#555] uppercase tracking-wider">
                           <th className="text-left px-3 py-2">Descrição</th>
                           <th className="text-center px-3 py-2 w-16">Qtd</th>
                           <th className="text-right px-3 py-2 w-24">Unit.</th>
@@ -1750,10 +2004,10 @@ export default function Vendas() {
                       <tbody>
                         {modalDetalhes.vendas_itens.map(it => (
                           <tr key={it.id} className="border-t border-[#eee]">
-                            <td className="px-3 py-2 text-[#0a0a0a]">{it.descricao}</td>
+                            <td className="px-3 py-2 text-[#1D2939]">{it.descricao}</td>
                             <td className="px-3 py-2 text-center text-[#555]">{it.quantidade}</td>
                             <td className="px-3 py-2 text-right text-[#555]">{formatBRL(it.valor_unitario)}</td>
-                            <td className="px-3 py-2 text-right font-medium text-[#0a0a0a]">{formatBRL(it.valor_total)}</td>
+                            <td className="px-3 py-2 text-right font-medium text-[#1D2939]">{formatBRL(it.valor_total)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1768,16 +2022,16 @@ export default function Vendas() {
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Contas a Receber</span>
                   <div className="space-y-1.5">
                     {modalDetalhes.contas_receber.map((cr, idx) => (
-                      <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-[#fafafa]">
+                      <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-[#F6F2EB]">
                         <span className="text-[#555]">
                           {modalDetalhes.contas_receber!.length > 1 ? `Parcela ${idx + 1}` : 'CR'} &mdash; venc. {formatData(cr.data_vencimento)}
                         </span>
                         <div className="flex items-center gap-3">
-                          <span className="font-medium text-[#0a0a0a]">{formatBRL(cr.valor)}</span>
+                          <span className="font-medium text-[#1D2939]">{formatBRL(cr.valor)}</span>
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                            cr.status === 'pago' ? 'text-[#0a5c2e] bg-[#e6f4ec]' :
-                            cr.status === 'parcial' ? 'text-[#5c3a00] bg-[#fffbe6]' :
-                            'text-[#1a2e4a] bg-[#f0f4f8]'
+                            cr.status === 'pago' ? 'text-[#039855] bg-[#ECFDF3]' :
+                            cr.status === 'parcial' ? 'text-[#F79009] bg-[#FFFAEB]' :
+                            'text-[#1E3A8A] bg-[#EFF6FF]'
                           }`}>
                             {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
                           </span>
@@ -1791,13 +2045,13 @@ export default function Vendas() {
               <div className="pt-2 border-t border-[#ccc] flex justify-end gap-2">
                 <button
                   onClick={() => setModalDetalhes(null)}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                 >
                   Fechar
                 </button>
                 <button
                   onClick={() => carregarVendaParaEdicao(modalDetalhes)}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#1E3A8A] rounded-md hover:bg-[#1D2939] transition-colors flex items-center gap-2"
                 >
                   <Pencil size={14} /> Editar venda
                 </button>
@@ -1815,24 +2069,24 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-[#fdecea] flex items-center justify-center">
-                  <Trash2 size={18} className="text-[#8b0000]" />
+                <div className="w-10 h-10 rounded-full bg-[#FEF3F2] flex items-center justify-center">
+                  <Trash2 size={18} className="text-[#D92D20]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[#0a0a0a]">Excluir venda</h3>
+                  <h3 className="font-semibold text-[#1D2939]">Excluir venda</h3>
                   <p className="text-sm text-[#555]">Esta ação não pode ser desfeita.</p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmDelete(null)}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => deletarVenda(confirmDelete)}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#8b0000] rounded-md hover:bg-[#6d0000] transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#D92D20] rounded-md hover:bg-[#6d0000] transition-colors"
                 >
                   Excluir
                 </button>
@@ -1850,31 +2104,31 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-[#fdecea] flex items-center justify-center">
-                  <AlertCircle size={18} className="text-[#8b0000]" />
+                <div className="w-10 h-10 rounded-full bg-[#FEF3F2] flex items-center justify-center">
+                  <AlertCircle size={18} className="text-[#D92D20]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[#0a0a0a]">Excluir todas as vendas do mês</h3>
+                  <h3 className="font-semibold text-[#1D2939]">Excluir todas as vendas do mês</h3>
                   <p className="text-sm text-[#555]">
                     {format(mesDate, 'MM/yyyy')} &mdash; {vendas.length} venda{vendas.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
-              <div className="mb-4 p-3 rounded-md bg-[#fffbe6] border border-[#b8960a] text-[12px] text-[#5c3a00]">
+              <div className="mb-4 p-3 rounded-md bg-[#FFFAEB] border border-[#F79009] text-[12px] text-[#F79009]">
                 Todas as vendas, itens e contas a receber vinculadas ao mês selecionado serão removidas permanentemente. Esta ação não pode ser desfeita.
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmDeleteMes(false)}
                   disabled={deletandoMes}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] disabled:opacity-50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={deletarVendasDoMes}
                   disabled={deletandoMes || vendas.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#8b0000] rounded-md hover:bg-[#6d0000] disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#D92D20] rounded-md hover:bg-[#6d0000] disabled:opacity-50 transition-colors"
                 >
                   {deletandoMes && <Loader2 size={14} className="animate-spin" />}
                   {deletandoMes ? 'Excluindo...' : 'Excluir tudo'}
@@ -1892,7 +2146,7 @@ export default function Vendas() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
             {/* Header */}
-            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
                 <Package size={16} /> Catálogo de Produtos e Serviços
               </h2>
@@ -1911,7 +2165,7 @@ export default function Vendas() {
                   value={produtoSearchTerm}
                   onChange={e => setProdutoSearchTerm(e.target.value)}
                   placeholder="Buscar por nome ou código..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] placeholder-[#999] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] placeholder-[#999] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 />
               </div>
               <p className="text-[10px] text-[#999] mt-1.5">{produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}</p>
@@ -1929,7 +2183,7 @@ export default function Vendas() {
                 </div>
               ) : (
                 <table className="w-full text-sm">
-                  <thead className="bg-[#f5f5f5] sticky top-0">
+                  <thead className="bg-[#F6F2EB] sticky top-0">
                     <tr>
                       <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Nome</th>
                       <th className="text-right px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Preço</th>
@@ -1943,13 +2197,13 @@ export default function Vendas() {
                           selectProduto(modalProdutoIdx, p)
                           setModalProdutoIdx(null)
                         }}
-                        className="cursor-pointer hover:bg-[#f0f4f8] transition-colors"
+                        className="cursor-pointer hover:bg-[#EFF6FF] transition-colors"
                       >
-                        <td className="px-4 py-3 font-medium text-[#0a0a0a]">
+                        <td className="px-4 py-3 font-medium text-[#1D2939]">
                           {p.description}
                           {p.code && <span className="ml-2 text-[10px] text-[#999]">{p.code}</span>}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-[#0a5c2e] whitespace-nowrap">
+                        <td className="px-4 py-3 text-right font-semibold text-[#039855] whitespace-nowrap">
                           {p.price != null && p.price > 0 ? formatBRL(p.price) : <span className="text-[#ccc]">—</span>}
                         </td>
                       </tr>
@@ -1960,10 +2214,10 @@ export default function Vendas() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-[#eee] px-5 py-3 flex justify-end bg-[#fafafa] rounded-b-lg">
+            <div className="border-t border-[#eee] px-5 py-3 flex justify-end bg-[#F6F2EB] rounded-b-lg">
               <button
                 onClick={() => setModalProdutoIdx(null)}
-                className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
               >
                 Cancelar
               </button>
@@ -1979,7 +2233,7 @@ export default function Vendas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
             {/* Header */}
-            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
                 <Upload size={16} /> Importar Vendas da Planilha
               </h2>
@@ -1997,7 +2251,7 @@ export default function Vendas() {
                   </p>
 
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                    <div className="bg-[#f5f5f5] px-4 py-2">
+                    <div className="bg-[#F6F2EB] px-4 py-2">
                       <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas obrigatórias</h4>
                     </div>
                     <div className="p-4">
@@ -2009,7 +2263,7 @@ export default function Vendas() {
                             <th className="text-left py-1.5 text-xs font-bold text-[#555] uppercase">Exemplo</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#f0f0f0]">
+                        <tbody className="divide-y divide-[#EAECF0]">
                           {[
                             ['cliente_nome', 'Nome do cliente', 'João Silva'],
                             ['descricao', 'Descrição do item/serviço', 'Consultoria mensal'],
@@ -2019,7 +2273,7 @@ export default function Vendas() {
                             ['forma_pagamento', 'Forma de pagamento', 'pix'],
                           ].map(([col, desc, ex]) => (
                             <tr key={col}>
-                              <td className="py-1.5 font-mono text-xs font-semibold text-[#1a2e4a]">{col}</td>
+                              <td className="py-1.5 font-mono text-xs font-semibold text-[#1E3A8A]">{col}</td>
                               <td className="py-1.5 text-[#333]">{desc}</td>
                               <td className="py-1.5 text-[#999] italic">{ex}</td>
                             </tr>
@@ -2030,12 +2284,12 @@ export default function Vendas() {
                   </div>
 
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                    <div className="bg-[#f5f5f5] px-4 py-2">
+                    <div className="bg-[#F6F2EB] px-4 py-2">
                       <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas opcionais</h4>
                     </div>
                     <div className="p-4">
                       <table className="w-full text-sm">
-                        <tbody className="divide-y divide-[#f0f0f0]">
+                        <tbody className="divide-y divide-[#EAECF0]">
                           {[
                             ['cliente_cpf_cnpj', 'CPF ou CNPJ do cliente', '12345678900'],
                             ['tipo', 'Tipo: servico, produto, pacote, contrato', 'servico'],
@@ -2054,7 +2308,7 @@ export default function Vendas() {
                     </div>
                   </div>
 
-                  <div className="bg-[#f0f4f8] border border-[#c5d5e8] rounded-lg p-4">
+                  <div className="bg-[#EFF6FF] border border-[#c5d5e8] rounded-lg p-4">
                     <p className="text-xs text-[#555] mb-1"><strong>Formas de pagamento aceitas:</strong></p>
                     <p className="text-xs text-[#777]">pix, dinheiro, cartao_credito, cartao_debito, boleto, parcelado</p>
                   </div>
@@ -2062,13 +2316,13 @@ export default function Vendas() {
                   <div className="flex items-center gap-3 pt-2">
                     <button
                       onClick={baixarModeloPlanilha}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded-md hover:bg-[#f0f4f8] transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#1E3A8A] bg-white border border-[#1E3A8A] rounded-md hover:bg-[#EFF6FF] transition-colors"
                     >
                       <Download size={14} /> Baixar modelo CSV
                     </button>
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1E3A8A] rounded-md hover:bg-[#1D2939] transition-colors"
                     >
                       <Upload size={14} /> Selecionar planilha
                     </button>
@@ -2078,18 +2332,18 @@ export default function Vendas() {
 
               {/* Error de parse */}
               {importError && !importResult && (
-                <div className="p-4 bg-[#fdecea] border border-[#e57373] rounded-lg">
+                <div className="p-4 bg-[#FEF3F2] border border-[#e57373] rounded-lg">
                   <div className="flex items-start gap-3">
-                    <AlertCircle size={18} className="text-[#8b0000] mt-0.5 shrink-0" />
+                    <AlertCircle size={18} className="text-[#D92D20] mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#8b0000] text-sm">Erro ao processar planilha</p>
-                      <p className="text-sm text-[#8b0000]/80 mt-1 whitespace-pre-line">{importError}</p>
+                      <p className="font-semibold text-[#D92D20] text-sm">Erro ao processar planilha</p>
+                      <p className="text-sm text-[#D92D20]/80 mt-1 whitespace-pre-line">{importError}</p>
                     </div>
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button
                       onClick={baixarModeloPlanilha}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#1a2e4a] bg-white border border-[#1a2e4a] rounded hover:bg-[#f0f4f8] transition-colors"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#1E3A8A] bg-white border border-[#1E3A8A] rounded hover:bg-[#EFF6FF] transition-colors"
                     >
                       <Download size={12} /> Baixar modelo
                     </button>
@@ -2099,15 +2353,15 @@ export default function Vendas() {
 
               {/* Result */}
               {importResult && (
-                <div className={`p-4 rounded-lg border ${importResult.fail > 0 ? 'bg-[#fff8e1] border-[#ffc107]' : 'bg-[#e6f4ec] border-[#0a5c2e]'}`}>
+                <div className={`p-4 rounded-lg border ${importResult.fail > 0 ? 'bg-[#fff8e1] border-[#ffc107]' : 'bg-[#ECFDF3] border-[#039855]'}`}>
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 size={20} className="text-[#0a5c2e]" />
+                    <CheckCircle2 size={20} className="text-[#039855]" />
                     <div>
                       <p className="font-semibold text-sm">Importação concluída</p>
                       <p className="text-sm mt-0.5">
-                        <span className="text-[#0a5c2e] font-semibold">{importResult.ok} vendas importadas</span>
+                        <span className="text-[#039855] font-semibold">{importResult.ok} vendas importadas</span>
                         {importResult.fail > 0 && (
-                          <span className="text-[#8b0000] font-semibold ml-2">{importResult.fail} com erro</span>
+                          <span className="text-[#D92D20] font-semibold ml-2">{importResult.fail} com erro</span>
                         )}
                       </p>
                     </div>
@@ -2120,15 +2374,15 @@ export default function Vendas() {
                 <>
                   {/* Summary */}
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="font-semibold text-[#0a0a0a]">
+                    <span className="font-semibold text-[#1D2939]">
                       {importRows.length} linha{importRows.length !== 1 ? 's' : ''} encontrada{importRows.length !== 1 ? 's' : ''}
                     </span>
                     {importErros > 0 && (
-                      <span className="flex items-center gap-1 text-[#8b0000] font-semibold">
+                      <span className="flex items-center gap-1 text-[#D92D20] font-semibold">
                         <XCircle size={14} /> {importErros} com erro{importErros !== 1 ? 's' : ''} (serão ignoradas)
                       </span>
                     )}
-                    <span className="flex items-center gap-1 text-[#0a5c2e] font-semibold">
+                    <span className="flex items-center gap-1 text-[#039855] font-semibold">
                       <CheckCircle2 size={14} /> {importRows.filter(r => r.erros.length === 0).length} válida{importRows.filter(r => r.erros.length === 0).length !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -2140,7 +2394,7 @@ export default function Vendas() {
                       <select
                         value={importContaBancaria}
                         onChange={e => setImportContaBancaria(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                        className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                       >
                         <option value="">Selecione...</option>
                         {bankAccounts.map(b => (
@@ -2153,7 +2407,7 @@ export default function Vendas() {
                       <select
                         value={importCentroCusto}
                         onChange={e => setImportCentroCusto(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#0a0a0a] focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                        className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                       >
                         <option value="">Nenhum</option>
                         {centrosCusto.map(c => (
@@ -2167,7 +2421,7 @@ export default function Vendas() {
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
                     <div className="overflow-x-auto max-h-[40vh]">
                       <table className="w-full text-sm">
-                        <thead className="bg-[#f5f5f5] sticky top-0">
+                        <thead className="bg-[#F6F2EB] sticky top-0">
                           <tr>
                             <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Linha</th>
                             <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Cliente</th>
@@ -2184,9 +2438,9 @@ export default function Vendas() {
                           {importRows.map((row, idx) => {
                             const hasError = row.erros.length > 0
                             return (
-                              <tr key={idx} className={hasError ? 'bg-[#fdecea]' : 'hover:bg-[#fafafa]'}>
+                              <tr key={idx} className={hasError ? 'bg-[#FEF3F2]' : 'hover:bg-[#F6F2EB]'}>
                                 <td className="px-3 py-2 text-[#999] text-xs">{row.linha}</td>
-                                <td className="px-3 py-2 font-medium text-[#0a0a0a]">
+                                <td className="px-3 py-2 font-medium text-[#1D2939]">
                                   {row.cliente_nome || '-'}
                                   {row.cliente_cpf_cnpj && (
                                     <span className="block text-[10px] text-[#999]">{row.cliente_cpf_cnpj}</span>
@@ -2195,16 +2449,16 @@ export default function Vendas() {
                                 <td className="px-3 py-2 text-[#333] max-w-[200px] truncate">{row.descricao || '-'}</td>
                                 <td className="px-3 py-2 text-right text-[#333]">{row.quantidade}</td>
                                 <td className="px-3 py-2 text-right text-[#333]">{formatBRL(row.valor_unitario)}</td>
-                                <td className="px-3 py-2 text-right font-semibold text-[#0a0a0a]">{formatBRL(row.valor_total)}</td>
+                                <td className="px-3 py-2 text-right font-semibold text-[#1D2939]">{formatBRL(row.valor_total)}</td>
                                 <td className="px-3 py-2 text-[#333]">{row.data_venda ? formatData(row.data_venda) : '-'}</td>
                                 <td className="px-3 py-2 text-[#333]">{LABEL_FORMA[row.forma_pagamento] || row.forma_pagamento}</td>
                                 <td className="px-3 py-2">
                                   {hasError ? (
-                                    <span className="flex items-center gap-1 text-[#8b0000] text-xs font-semibold" title={row.erros.join(', ')}>
+                                    <span className="flex items-center gap-1 text-[#D92D20] text-xs font-semibold" title={row.erros.join(', ')}>
                                       <XCircle size={12} /> {row.erros[0]}
                                     </span>
                                   ) : (
-                                    <span className="flex items-center gap-1 text-[#0a5c2e] text-xs font-semibold">
+                                    <span className="flex items-center gap-1 text-[#039855] text-xs font-semibold">
                                       <CheckCircle2 size={12} /> OK
                                     </span>
                                   )}
@@ -2224,16 +2478,16 @@ export default function Vendas() {
             {importando && importProgress.total > 0 && (
               <div className="border-t border-[#eee] px-5 py-3 bg-white">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-[#1a2e4a]">
+                  <span className="text-xs font-semibold text-[#1E3A8A]">
                     Importando vendas... {importProgress.current} de {importProgress.total}
                   </span>
-                  <span className="text-xs font-bold text-[#1a2e4a]">
+                  <span className="text-xs font-bold text-[#1E3A8A]">
                     {Math.round((importProgress.current / importProgress.total) * 100)}%
                   </span>
                 </div>
-                <div className="w-full h-2.5 bg-[#e5e7eb] rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-[#EAECF0] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#1a2e4a] rounded-full transition-all duration-300 ease-out"
+                    className="h-full bg-[#1E3A8A] rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                   />
                 </div>
@@ -2244,10 +2498,10 @@ export default function Vendas() {
             )}
 
             {/* Footer */}
-            <div className="border-t border-[#eee] px-5 py-3 flex items-center justify-between bg-[#fafafa] rounded-b-lg">
+            <div className="border-t border-[#eee] px-5 py-3 flex items-center justify-between bg-[#F6F2EB] rounded-b-lg">
               <button
                 onClick={baixarModeloPlanilha}
-                className="flex items-center gap-2 text-xs font-semibold text-[#555] hover:text-[#1a2e4a] transition-colors"
+                className="flex items-center gap-2 text-xs font-semibold text-[#555] hover:text-[#1E3A8A] transition-colors"
               >
                 <Download size={12} /> Baixar modelo CSV
               </button>
@@ -2255,7 +2509,7 @@ export default function Vendas() {
                 <button
                   onClick={fecharModalImport}
                   disabled={importando}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#f5f5f5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {importResult ? 'Fechar' : 'Cancelar'}
                 </button>
@@ -2263,7 +2517,7 @@ export default function Vendas() {
                   <button
                     onClick={executarImportacao}
                     disabled={importando || !importContaBancaria || importRows.filter(r => r.erros.length === 0).length === 0}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1a2e4a] rounded-md hover:bg-[#15253d] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1E3A8A] rounded-md hover:bg-[#1D2939] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {importando ? (
                       <><Loader2 size={14} className="animate-spin" /> Importando...</>

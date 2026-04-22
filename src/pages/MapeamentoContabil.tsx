@@ -345,6 +345,7 @@ export default function MapeamentoContabil() {
   return (
     <AppLayout title="Mapeamento Contábil">
       <div className="space-y-5 animate-fade-in">
+
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -421,7 +422,7 @@ export default function MapeamentoContabil() {
 
         {/* Estrutura do demonstrativo com mapeamentos inline */}
         <Card>
-          <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+          <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
             <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
               <Settings2 className="h-4 w-4" /> Estrutura — {demFiltro}
             </CardTitle>

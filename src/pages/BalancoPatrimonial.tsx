@@ -160,6 +160,7 @@ export default function BalancoPatrimonial() {
   return (
     <AppLayout title="Balanço Patrimonial">
       <div className="space-y-5 animate-fade-in">
+
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -209,10 +210,10 @@ export default function BalancoPatrimonial() {
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Total Ativo", value: fmt(totalAtivo), color: "#2e7d32" },
-            { label: "Total Passivo + PL", value: fmt(totalPassivoPL), color: "#3b5bdb" },
-            { label: "Patrimônio Líquido", value: fmt(patrimonioLiquido), color: patrimonioLiquido >= 0 ? "#2e7d32" : "#c62828" },
-            { label: "Diferença (A-P)", value: fmt(diferenca), color: Math.abs(diferenca) < 0.01 ? "#2e7d32" : "#c62828" },
+            { label: "Total Ativo", value: fmt(totalAtivo), color: "#039855" },
+            { label: "Total Passivo + PL", value: fmt(totalPassivoPL), color: "#1E3A8A" },
+            { label: "Patrimônio Líquido", value: fmt(patrimonioLiquido), color: patrimonioLiquido >= 0 ? "#039855" : "#D92D20" },
+            { label: "Diferença (A-P)", value: fmt(diferenca), color: Math.abs(diferenca) < 0.01 ? "#039855" : "#D92D20" },
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
@@ -227,7 +228,7 @@ export default function BalancoPatrimonial() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* ATIVO */}
           <Card>
-            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
               <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                 <Scale className="h-4 w-4" /> ATIVO
               </CardTitle>
@@ -247,7 +248,7 @@ export default function BalancoPatrimonial() {
 
           {/* PASSIVO + PL */}
           <Card>
-            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
               <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                 <Scale className="h-4 w-4" /> PASSIVO + PATRIMÔNIO LÍQUIDO
               </CardTitle>
@@ -306,7 +307,7 @@ function SecaoBP({
             (l) => l.nivel === 2 && l.codigo.startsWith(g.codigo + ".")
           );
           const isTotal = g.codigo === "BP.AT" || g.codigo === "BP.PT";
-          const corValor = g.valor >= 0 ? "#2e7d32" : "#c62828";
+          const corValor = g.valor >= 0 ? "#039855" : "#D92D20";
 
           return (
             <React.Fragment key={g.codigo}>
@@ -350,7 +351,7 @@ function SecaoBP({
                             }
                           />
                         ) : (
-                          <span style={{ color: f.valor >= 0 ? "#2e7d32" : "#c62828" }}>
+                          <span style={{ color: f.valor >= 0 ? "#039855" : "#D92D20" }}>
                             {fmt(f.valor)}
                           </span>
                         )}

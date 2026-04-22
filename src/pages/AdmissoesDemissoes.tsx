@@ -228,10 +228,10 @@ export default function AdmissoesDemissoes() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total registros', value: kpis.total, icon: Users, color: '#1a2e4a' },
+            { label: 'Total registros', value: kpis.total, icon: Users, color: '#1E3A8A' },
             { label: 'Admissoes', value: kpis.admissoes, icon: UserPlus, color: '#059669' },
-            { label: 'Demissoes', value: kpis.demissoes, icon: UserMinus, color: '#DC2626' },
-            { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), icon: FileText, color: '#D97706' },
+            { label: 'Demissoes', value: kpis.demissoes, icon: UserMinus, color: '#D92D20' },
+            { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), icon: FileText, color: '#F79009' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -258,7 +258,7 @@ export default function AdmissoesDemissoes() {
               setShowNewModal(true)
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1a2e4a' }}
+            style={{ backgroundColor: '#1E3A8A' }}
           >
             <Plus size={16} /> Novo registro
           </button>
@@ -328,8 +328,8 @@ export default function AdmissoesDemissoes() {
                         <span
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                           style={{
-                            color: r.tipo === 'admissao' ? '#059669' : '#DC2626',
-                            backgroundColor: r.tipo === 'admissao' ? '#D1FAE5' : '#FEE2E2',
+                            color: r.tipo === 'admissao' ? '#059669' : '#D92D20',
+                            backgroundColor: r.tipo === 'admissao' ? '#ECFDF3' : '#FEF3F2',
                           }}
                         >
                           {r.tipo === 'admissao' ? <UserPlus size={12} /> : <UserMinus size={12} />}
@@ -494,7 +494,7 @@ export default function AdmissoesDemissoes() {
                 onClick={handleSalvar}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1a2e4a' }}
+                style={{ backgroundColor: '#1E3A8A' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                 Salvar

@@ -126,6 +126,7 @@ export default function Fornecedores() {
     return (
         <AppLayout title="Fornecedores">
             <div className="space-y-6 animate-fade-in">
+
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-bold tracking-tight">Fornecedores</h2>
                     <Button onClick={handleNew}>

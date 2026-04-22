@@ -120,19 +120,19 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-lg p-0 gap-0">
                 <div className="px-7 pt-6 pb-4 border-b border-[#eef0f3]">
-                    <DialogTitle className="text-[16px] font-bold text-[#1a2e4a]">
+                    <DialogTitle className="text-[16px] font-bold text-[#1E3A8A]">
                         Registrar pagamento avulso
                     </DialogTitle>
-                    <DialogDescription className="text-[11px] text-[#6b7280] mt-1">
+                    <DialogDescription className="text-[11px] text-[#667085] mt-1">
                         {contrato?.procedimento && <>Contrato: <strong>{contrato.procedimento}</strong> · </>}
-                        Saldo atual: <strong className="text-[#1a2e4a]">{formatBRL(contrato?.saldo || 0)}</strong>
+                        Saldo atual: <strong className="text-[#1E3A8A]">{formatBRL(contrato?.saldo || 0)}</strong>
                     </DialogDescription>
                 </div>
 
                 <div className="px-7 py-5 space-y-4 bg-[#fafbfc]">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#6b7280] mb-1.5 block">
+                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Valor (R$)
                             </Label>
                             <Input
@@ -145,7 +145,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                             />
                         </div>
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#6b7280] mb-1.5 block">
+                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Data do pagamento
                             </Label>
                             <Input
@@ -159,7 +159,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#6b7280] mb-1.5 block">
+                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Forma de pagamento
                             </Label>
                             <Select value={forma} onValueChange={setForma}>
@@ -172,7 +172,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                             </Select>
                         </div>
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#6b7280] mb-1.5 block">
+                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Conta de recebimento
                             </Label>
                             <Select value={contaBancaria} onValueChange={setContaBancaria}>
@@ -191,7 +191,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                     </div>
 
                     <div>
-                        <Label className="text-[10px] font-bold uppercase tracking-wide text-[#6b7280] mb-1.5 block">
+                        <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                             Observações
                         </Label>
                         <Textarea
@@ -204,23 +204,23 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                     </div>
 
                     {v > 0 && (
-                        <div className="rounded border border-[#e5e7eb] bg-white p-3 text-[11px] tabular-nums">
-                            <div className="flex justify-between text-[#6b7280]">
+                        <div className="rounded border border-[#EAECF0] bg-white p-3 text-[11px] tabular-nums">
+                            <div className="flex justify-between text-[#667085]">
                                 <span>Saldo atual</span>
                                 <span>{formatBRL(contrato?.saldo || 0)}</span>
                             </div>
-                            <div className="flex justify-between text-[#6b7280]">
+                            <div className="flex justify-between text-[#667085]">
                                 <span>Pagamento</span>
-                                <span className="text-[#0a5c2e]">− {formatBRL(v)}</span>
+                                <span className="text-[#039855]">− {formatBRL(v)}</span>
                             </div>
-                            <div className="flex justify-between mt-1 pt-1 border-t border-[#e5e7eb] font-bold text-[13px]">
-                                <span className="text-[#1a2e4a]">Novo saldo</span>
-                                <span style={{ color: saldoApos > 0 ? "#8b0000" : "#0a5c2e" }}>
+                            <div className="flex justify-between mt-1 pt-1 border-t border-[#EAECF0] font-bold text-[13px]">
+                                <span className="text-[#1E3A8A]">Novo saldo</span>
+                                <span style={{ color: saldoApos > 0 ? "#D92D20" : "#039855" }}>
                                     {formatBRL(Math.max(0, saldoApos))}
                                 </span>
                             </div>
                             {saldoApos < -0.01 && (
-                                <p className="text-[10px] text-[#8b0000] mt-1">
+                                <p className="text-[10px] text-[#D92D20] mt-1">
                                     Pagamento excede o saldo em {formatBRL(Math.abs(saldoApos))}
                                 </p>
                             )}
@@ -236,7 +236,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                         type="button"
                         onClick={() => mutation.mutate()}
                         disabled={mutation.isPending || !v || v <= 0 || !contaBancaria}
-                        className="h-10 px-6 bg-[#1a2e4a] hover:bg-[#0f1f33] text-white"
+                        className="h-10 px-6 bg-[#1E3A8A] hover:bg-[#0f1f33] text-white"
                     >
                         {mutation.isPending
                             ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />

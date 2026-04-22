@@ -76,7 +76,7 @@ function buildMonthOptions(): { value: string; label: string }[] {
 function KpiCard({
   label,
   value,
-  color = "#0a0a0a",
+  color = "#1D2939",
 }: {
   label: string;
   value: string;
@@ -84,7 +84,7 @@ function KpiCard({
 }) {
   return (
     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-      <div className="bg-[#1a2e4a] px-4 py-2">
+      <div className="bg-[#1E3A8A] px-4 py-2">
         <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
           {label}
         </h3>
@@ -369,19 +369,12 @@ export default function ExtratoReconciliado() {
   return (
     <AppLayout>
       <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0a0a0a]">
-              Extrato Reconciliado
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Extrato bancario importado via OFX com status de conciliacao
-            </p>
-          </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end">
           <Button
             variant="outline"
-            className="gap-2 border-[#ccc] text-[#0a0a0a] hover:bg-gray-50"
+            className="gap-2 border-[#ccc] text-[#1D2939] hover:bg-gray-50"
             onClick={() => exportCSV(rowsWithBalance)}
             disabled={rowsWithBalance.length === 0}
           >
@@ -393,11 +386,11 @@ export default function ExtratoReconciliado() {
         {/* Account + Month selectors */}
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[200px]">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a] block mb-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939] block mb-1">
               Conta Bancaria
             </label>
             <select
-              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full"
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full"
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
             >
@@ -413,11 +406,11 @@ export default function ExtratoReconciliado() {
           </div>
 
           <div className="min-w-[180px]">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a] block mb-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939] block mb-1">
               Periodo
             </label>
             <select
-              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full"
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
@@ -436,17 +429,17 @@ export default function ExtratoReconciliado() {
           <KpiCard
             label="Total Entradas"
             value={fmtBRL(totalEntradas)}
-            color="#16a34a"
+            color="#039855"
           />
           <KpiCard
             label="Total Saidas"
             value={fmtBRL(totalSaidas)}
-            color="#dc2626"
+            color="#D92D20"
           />
           <KpiCard
             label="Conciliadas"
             value={`${reconciledCount} de ${totalCount} (${reconciledPct}%)`}
-            color="#1a2e4a"
+            color="#1E3A8A"
           />
         </div>
 
@@ -459,8 +452,8 @@ export default function ExtratoReconciliado() {
                 onClick={() => setStatusFilter(tab.key)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   statusFilter === tab.key
-                    ? "bg-white text-[#0a0a0a] shadow-sm"
-                    : "text-gray-500 hover:text-[#0a0a0a]"
+                    ? "bg-white text-[#1D2939] shadow-sm"
+                    : "text-gray-500 hover:text-[#1D2939]"
                 }`}
               >
                 {tab.label}{" "}
@@ -499,7 +492,7 @@ export default function ExtratoReconciliado() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#1a2e4a]">
+                  <TableRow className="bg-[#1E3A8A]">
                     <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest">
                       Data
                     </TableHead>
@@ -539,7 +532,7 @@ export default function ExtratoReconciliado() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-[#0a0a0a]">
+                        <div className="text-sm text-[#1D2939]">
                           {truncate(row.description || "", 60)}
                         </div>
                         {row.memo &&
@@ -565,7 +558,7 @@ export default function ExtratoReconciliado() {
                       <TableCell
                         className={`text-sm font-medium text-right whitespace-nowrap ${
                           row.runningBalance >= 0
-                            ? "text-[#0a0a0a]"
+                            ? "text-[#1D2939]"
                             : "text-red-600"
                         }`}
                       >

@@ -23,7 +23,7 @@ export function PayableTaxTab({ form }: PayableTaxTabProps) {
         <div className="space-y-4 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                 {TAXES.map((tax) => (
-                    <div key={tax.id} className="flex items-end gap-2 p-2 border rounded bg-[#F8FAFC]">
+                    <div key={tax.id} className="flex items-end gap-2 p-2 border rounded bg-[#F6F2EB]">
                         <FormField
                             control={form.control}
                             name={`${tax.id}_amount` as any}

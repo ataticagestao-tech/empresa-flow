@@ -946,11 +946,11 @@ export default function Conciliacao() {
             <div className="space-y-6 animate-in fade-in duration-500">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#E2E8F0] shadow-sm">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#EAECF0] shadow-sm">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <Select value={selectedAccountId} onValueChange={handleAccountChange}>
-                                <SelectTrigger className="w-[280px] h-10 text-lg font-medium border-[#E2E8F0]">
+                                <SelectTrigger className="w-[280px] h-10 text-lg font-medium border-[#EAECF0]">
                                     <SelectValue placeholder="Selecione uma conta..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -977,14 +977,14 @@ export default function Conciliacao() {
                         <input type="file" accept=".xlsx,.xls,.csv" className="hidden" ref={excelFileInputRef}
                             onChange={handleExcelFileChange} />
 
-                        <Button variant="outline" className="border-[#E2E8F0]"
+                        <Button variant="outline" className="border-[#EAECF0]"
                             onClick={() => setShowRulesPanel(!showRulesPanel)}>
                             <Brain className="mr-2 h-4 w-4" />
                             Regras ({rules.length})
                         </Button>
 
                         {isCreditCard ? (
-                            <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                            <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                 onClick={() => ccFileInputRef.current?.click()}
                                 disabled={!selectedAccountId || uploadCreditCardPDF.isPending}>
                                 {uploadCreditCardPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
@@ -992,19 +992,19 @@ export default function Conciliacao() {
                             </Button>
                         ) : (
                             <>
-                                <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={!selectedAccountId || uploadOFX.isPending}>
                                     {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                                     OFX
                                 </Button>
-                                <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => pdfFileInputRef.current?.click()}
                                     disabled={!selectedAccountId || uploadPDF.isPending}>
                                     {uploadPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                                     PDF
                                 </Button>
-                                <Button variant="outline" className="border-[#E2E8F0] text-muted-foreground"
+                                <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => excelFileInputRef.current?.click()}
                                     disabled={!selectedAccountId || uploadExcel.isPending}>
                                     {uploadExcel.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
@@ -1016,7 +1016,7 @@ export default function Conciliacao() {
                 </div>
 
                 {!selectedAccountId ? (
-                    <div className="flex flex-col items-center justify-center p-16 bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0] text-center">
+                    <div className="flex flex-col items-center justify-center p-16 bg-[#F6F2EB] rounded-xl border border-dashed border-[#EAECF0] text-center">
                         <div className="bg-white p-4 rounded-full mb-4 shadow-sm">
                             <ArrowLeft className="h-8 w-8 text-muted-foreground" />
                         </div>
@@ -1094,7 +1094,7 @@ export default function Conciliacao() {
 
                         {/* Painel de Regras Aprendidas */}
                         {showRulesPanel && (
-                            <Card className="border-[#E2E8F0]">
+                            <Card className="border-[#EAECF0]">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="flex items-center gap-2 text-base">
                                         <Brain className="h-5 w-5 text-purple-600" />
@@ -1133,7 +1133,7 @@ export default function Conciliacao() {
                                                 const kws = (rule.palavras_chave || []).join(", ");
                                                 const confiancaScore = rule.confianca === "Alta" ? 95 : rule.confianca === "Média" ? 70 : 50;
                                                 return (
-                                                <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-white transition-colors">
+                                                <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#EAECF0] bg-[#F6F2EB] hover:bg-white transition-colors">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <Badge variant="outline" className={`text-[10px] ${rule.acao === "auto-conciliar" ? "border-emerald-200 text-emerald-600 bg-emerald-50" : "border-amber-200 text-amber-600 bg-amber-50"}`}>
@@ -1162,13 +1162,13 @@ export default function Conciliacao() {
                         )}
 
                         {/* Histórico de Importações (colapsado por padrão) */}
-                        <Card className="border-[#E2E8F0]">
+                        <Card className="border-[#EAECF0]">
                             <CardHeader className="pb-3">
                                 <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowImportHistory(!showImportHistory)}>
                                     <CardTitle className="flex items-center gap-2 text-base">
                                         <FileText className="h-5 w-5 text-primary" />
                                         Histórico de Importações
-                                        <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9] ml-2">
+                                        <Badge variant="secondary" className="text-muted-foreground bg-[#F6F2EB] ml-2">
                                             {importHistory?.length || 0}
                                         </Badge>
                                     </CardTitle>
@@ -1188,9 +1188,9 @@ export default function Conciliacao() {
                                             {importHistory.map((imp) => {
                                                 const isExpanded = expandedBatchKey === imp.key;
                                                 return (
-                                                <div key={imp.key} className="rounded-lg border border-[#E2E8F0] overflow-hidden">
+                                                <div key={imp.key} className="rounded-lg border border-[#EAECF0] overflow-hidden">
                                                     <div
-                                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#F8FAFC] cursor-pointer hover:bg-[#F1F5F9] transition-colors"
+                                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#F6F2EB] cursor-pointer hover:bg-[#F6F2EB] transition-colors"
                                                         onClick={() => {
                                                             if (isExpanded) {
                                                                 setExpandedBatchKey(null);
@@ -1259,7 +1259,7 @@ export default function Conciliacao() {
 
                                                     {/* Expanded: transaction details */}
                                                     {isExpanded && (
-                                                        <div className="border-t border-[#E2E8F0] bg-white">
+                                                        <div className="border-t border-[#EAECF0] bg-white">
                                                             {isBatchTxError ? (
                                                                 <div className="text-center py-6 text-sm">
                                                                     <p className="text-destructive">Erro ao carregar transações.</p>
@@ -1278,7 +1278,7 @@ export default function Conciliacao() {
                                                             ) : (
                                                                 <>
                                                                     {/* Batch-level AI button */}
-                                                                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAFBFC] border-b border-[#E2E8F0]">
+                                                                    <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAFBFC] border-b border-[#EAECF0]">
                                                                         <span className="text-xs text-muted-foreground">
                                                                             {expandedBatchTx.filter((t: any) => t.status === "reconciled").length} transações conciliadas
                                                                         </span>
@@ -1527,7 +1527,7 @@ export default function Conciliacao() {
                                     className={typeFilter === t
                                         ? t === "entradas" ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                                         : t === "saidas" ? "bg-red-600 hover:bg-red-700 text-white"
-                                        : "bg-[#1a2e4a] text-white"
+                                        : "bg-[#1E3A8A] text-white"
                                         : ""}
                                     onClick={() => setTypeFilter(t)}>
                                     {t === "all" ? "Todos" : t === "entradas" ? `Entradas (${(bankTransactions || []).filter(b => b.amount > 0).length})` : `Saídas (${(bankTransactions || []).filter(b => b.amount < 0).length})`}
@@ -1536,13 +1536,13 @@ export default function Conciliacao() {
                         </div>
 
                         {/* Transactions Table */}
-                        <Card className="border-[#E2E8F0]">
+                        <Card className="border-[#EAECF0]">
                             <CardHeader>
                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                                     <div>
                                         <CardTitle className="flex items-center gap-2">
                                             Transações do Extrato (Pendentes)
-                                            <Badge variant="secondary" className="text-muted-foreground bg-[#F1F5F9]">
+                                            <Badge variant="secondary" className="text-muted-foreground bg-[#F6F2EB]">
                                                 {filteredBankTransactions.length} itens
                                             </Badge>
                                         </CardTitle>
@@ -1610,7 +1610,7 @@ export default function Conciliacao() {
                                 ) : (
                                     <Table>
                                         <TableHeader>
-                                            <TableRow className="bg-[#F8FAFC]">
+                                            <TableRow className="bg-[#F6F2EB]">
                                                 <TableHead className="w-10">
                                                     <Checkbox
                                                         checked={paginatedTransactions.length > 0 && paginatedTransactions.every(bt => selectedIds.has(bt.id))}
@@ -1643,7 +1643,7 @@ export default function Conciliacao() {
                                                 const score = suggestion?.score || 0;
 
                                                 return (
-                                                    <TableRow key={bt.id} className="group hover:bg-[#F8FAFC] transition-colors">
+                                                    <TableRow key={bt.id} className="group hover:bg-[#F6F2EB] transition-colors">
                                                         <TableCell>
                                                             <Checkbox
                                                                 checked={selectedIds.has(bt.id)}
@@ -1658,7 +1658,7 @@ export default function Conciliacao() {
                                                             {bt.memo && <div className="text-xs text-muted-foreground">{bt.memo}</div>}
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
+                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-[#D92D20]' : 'text-emerald-600'}`}>
                                                                 {formatBRL(bt.amount)}
                                                             </span>
                                                         </TableCell>
@@ -1765,7 +1765,7 @@ export default function Conciliacao() {
                                                                             Conciliar
                                                                         </Button>
                                                                     )}
-                                                                    <Button variant="outline" size="sm" className="h-7 text-xs border-[#E2E8F0]"
+                                                                    <Button variant="outline" size="sm" className="h-7 text-xs border-[#EAECF0]"
                                                                         onClick={() => {
                                                                         setSelectedBankTx(bt);
                                                                         setSearchTerm("");
@@ -1837,13 +1837,13 @@ export default function Conciliacao() {
                         {selectedBankTx && (
                             <div className="space-y-4">
                                 {/* Info da transação bancária */}
-                                <div className="bg-[#F8FAFC] p-4 rounded-lg flex justify-between items-center border border-[#F1F5F9]">
+                                <div className="bg-[#F6F2EB] p-4 rounded-lg flex justify-between items-center border border-[#F6F2EB]">
                                     <div>
                                         <p className="font-semibold text-foreground">{selectedBankTx.description}</p>
                                         <p className="text-sm text-muted-foreground">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
                                     </div>
                                     <div className="text-right">
-                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#EF4444]' : 'text-emerald-600'}`}>
+                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#D92D20]' : 'text-emerald-600'}`}>
                                             {formatBRL(selectedBankTx.amount)}
                                         </span>
                                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -1917,8 +1917,8 @@ export default function Conciliacao() {
                                                             <div key={`${st.type}-${st.id}`}
                                                                 className={`flex items-center justify-between p-3 rounded-md border transition-all ${
                                                                     jaConciliado
-                                                                        ? 'opacity-50 border-transparent hover:opacity-80 hover:bg-[#F8FAFC] cursor-pointer'
-                                                                        : 'hover:bg-[#F8FAFC] cursor-pointer border-transparent hover:border-[#E2E8F0]'
+                                                                        ? 'opacity-50 border-transparent hover:opacity-80 hover:bg-[#F6F2EB] cursor-pointer'
+                                                                        : 'hover:bg-[#F6F2EB] cursor-pointer border-transparent hover:border-[#EAECF0]'
                                                                 }`}
                                                                 onClick={() => {
                                                                     handleMatch(selectedBankTx, st);

@@ -44,7 +44,7 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
             <button
                 type="button"
                 onClick={() => navigate("/conciliacao")}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#fbbf24] bg-[#fffbe6] text-[#7a5400] text-[11px] font-semibold hover:bg-[#fde68a] transition-colors cursor-pointer ${className}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#fbbf24] bg-[#FFFAEB] text-[#7a5400] text-[11px] font-semibold hover:bg-[#fde68a] transition-colors cursor-pointer ${className}`}
                 title="Ir para Conciliação Bancária"
             >
                 <AlertTriangle className="h-3 w-3" />
@@ -55,8 +55,8 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
     }
 
     return (
-        <div className={`flex items-start gap-3 px-4 py-3 rounded-md border border-[#fbbf24] bg-[#fffbe6] ${className}`}>
-            <AlertTriangle className="h-4 w-4 text-[#b8960a] flex-shrink-0 mt-0.5" />
+        <div className={`flex items-start gap-3 px-4 py-3 rounded-md border border-[#fbbf24] bg-[#FFFAEB] ${className}`}>
+            <AlertTriangle className="h-4 w-4 text-[#F79009] flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-bold text-[#7a5400]">
                     {count} movimenta{count > 1 ? "ções" : "ção"} pendente{count > 1 ? "s" : ""} de reclassificação
@@ -68,7 +68,7 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
             <button
                 type="button"
                 onClick={() => navigate("/conciliacao")}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1a2e4a] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E3A8A] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
             >
                 Reclassificar <ArrowRight className="h-3 w-3" />
             </button>

@@ -59,8 +59,8 @@ const MEIO_LABEL: Record<string, string> = {
   pix: 'PIX',
 };
 
-const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#0a0a0a]";
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full";
+const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 export default function ContasBancarias() {
   const { activeClient } = useAuth();
@@ -326,20 +326,21 @@ export default function ContasBancarias() {
   return (
     <AppLayout title="Contas Bancárias">
       <div className="space-y-6">
+
         {/* Consolidated Balance */}
-        <div className="bg-[#f0f4f8] border border-[#1a2e4a] rounded-lg p-5 flex items-center justify-between">
+        <div className="bg-[#EFF6FF] border border-[#1E3A8A] rounded-lg p-5 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#1a2e4a]">Saldo Total Consolidado</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#1E3A8A]">Saldo Total Consolidado</p>
             <p className="text-xs text-[#555] mt-0.5">{activeAccounts.length} conta(s) ativa(s)</p>
           </div>
-          <p className="text-2xl font-bold text-[#1a2e4a]">{formatBRL(totalBalance)}</p>
+          <p className="text-2xl font-bold text-[#1E3A8A]">{formatBRL(totalBalance)}</p>
         </div>
 
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold text-[#0a0a0a]">Contas Bancárias</h2>
+          <h2 className="text-lg font-bold text-[#1D2939]">Contas Bancárias</h2>
           <button onClick={() => { setEditingId(null); setFormData(emptyForm); setShowForm(!showForm); }}
-            className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+            className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">
             {showForm ? "Fechar" : "+ Nova Conta"}
           </button>
         </div>
@@ -347,13 +348,13 @@ export default function ContasBancarias() {
         {/* New Account Form */}
         {showForm && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1a2e4a] px-4 py-2.5">
+            <div className="bg-[#1E3A8A] px-4 py-2.5">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">{editingId ? "Editar Conta" : "Nova Conta Bancária"}</h3>
             </div>
             <div className="p-5 bg-white space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className={LB}>Tipo de Conta <span className="text-[#8b0000]">*</span></label>
+                  <label className={LB}>Tipo de Conta <span className="text-[#D92D20]">*</span></label>
                   <select value={formData.type} onChange={e => set("type", e.target.value)} className={IC}>
                     <option value="checking">Conta Corrente</option><option value="savings">Conta Poupança</option>
                     <option value="cash">Caixa Interno</option><option value="investment">Conta Investimento</option>
@@ -364,7 +365,7 @@ export default function ContasBancarias() {
                   <BancoCombobox value={formData.banco} onChange={v => set("banco", v)} />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className={LB}>Nome de Identificação <span className="text-[#8b0000]">*</span></label>
+                  <label className={LB}>Nome de Identificação <span className="text-[#D92D20]">*</span></label>
                   <input value={formData.name} onChange={e => set("name", e.target.value)} placeholder="Ex: BB Principal" className={IC} />
                 </div>
               </div>
@@ -373,7 +374,7 @@ export default function ContasBancarias() {
                 <div className="flex flex-col gap-1"><label className={LB}>Número da Conta</label><input value={formData.conta} onChange={e => set("conta", e.target.value)} className={IC} /></div>
                 <div className="flex flex-col gap-1"><label className={LB}>Chave PIX</label><input value={formData.chave_pix} onChange={e => set("chave_pix", e.target.value)} className={IC} placeholder="Opcional" /></div>
               </div>
-              <div className="bg-[#fffbe6] border border-[#e6c200] border-l-4 border-l-[#b8960a] rounded-md px-4 py-2.5 text-sm font-semibold text-[#5c3a00]">
+              <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-2.5 text-sm font-semibold text-[#F79009]">
                 O saldo inicial define o ponto de partida do fluxo de caixa. Informe o saldo real na data de início do uso do sistema.
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -382,15 +383,15 @@ export default function ContasBancarias() {
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={formData.ofx_ativo} onChange={e => set("ofx_ativo", e.target.checked)} className="w-4 h-4 accent-[#1a2e4a]" />
-                  <span className="text-sm text-[#0a0a0a]">Importação OFX ativa</span>
+                  <input type="checkbox" checked={formData.ofx_ativo} onChange={e => set("ofx_ativo", e.target.checked)} className="w-4 h-4 accent-[#1E3A8A]" />
+                  <span className="text-sm text-[#1D2939]">Importação OFX ativa</span>
                 </label>
               </div>
               <div className="flex gap-3">
-                <button onClick={handleSave} disabled={saving} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                <button onClick={handleSave} disabled={saving} className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                   {saving ? "Salvando..." : editingId ? "Salvar" : "Cadastrar"}
                 </button>
-                <button onClick={() => { setShowForm(false); setEditingId(null); }} className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
+                <button onClick={() => { setShowForm(false); setEditingId(null); }} className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
               </div>
             </div>
           </div>
@@ -405,29 +406,29 @@ export default function ContasBancarias() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {accounts.map(acc => (
               <div key={acc.id} className="border border-[#ccc] rounded-lg overflow-hidden">
-                <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+                <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-white uppercase tracking-widest">{acc.banco || "Sem banco"}</h3>
-                    <p className="text-[10px] text-[#a8bfd4]">{tipoLabels[acc.type] || acc.type}</p>
+                    <p className="text-[10px] text-[#BFDBFE]">{tipoLabels[acc.type] || acc.type}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => handleEdit(acc)} className="text-[#a8bfd4] hover:text-white text-xs px-1">✎</button>
+                    <button onClick={() => handleEdit(acc)} className="text-[#BFDBFE] hover:text-white text-xs px-1">✎</button>
                     <button onClick={() => handleDelete(acc)} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>
                   </div>
                 </div>
                 <div className="p-4 bg-white">
-                  <p className="text-sm font-semibold text-[#0a0a0a] mb-1">{acc.name}</p>
-                  <p className="text-xl font-bold text-[#0a0a0a] mb-2">{formatBRL(getSaldo(acc))}</p>
+                  <p className="text-sm font-semibold text-[#1D2939] mb-1">{acc.name}</p>
+                  <p className="text-xl font-bold text-[#1D2939] mb-2">{formatBRL(getSaldo(acc))}</p>
                   {acc.agencia && <p className="text-xs text-[#555] mb-2">Ag: {acc.agencia} · Cc: {acc.conta}{acc.digito ? `-${acc.digito}` : ""}</p>}
                   <div className="flex flex-wrap gap-1.5">
                     {(acc.status === "ativa" || acc.status === "active") && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#0a5c2e] bg-[#e6f4ec] text-[#0a5c2e]">Ativa</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Ativa</span>
                     )}
                     {acc.ofx_ativo && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#1a2e4a] bg-[#f0f4f8] text-[#1a2e4a]">OFX</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]">OFX</span>
                     )}
                     {acc.chave_pix && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#b8960a] bg-[#fffbe6] text-[#5c3a00]">PIX</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#F79009] bg-[#FFFAEB] text-[#F79009]">PIX</span>
                     )}
                   </div>
                 </div>
@@ -439,16 +440,16 @@ export default function ContasBancarias() {
         {/* ─── Credit Cards Section ─── */}
         <div className="border-t border-[#ccc] pt-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-[#0a0a0a]">Cartões de Crédito</h2>
+            <h2 className="text-lg font-bold text-[#1D2939]">Cartões de Crédito</h2>
             <button onClick={() => setShowCartaoForm(!showCartaoForm)}
-              className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+              className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">
               {showCartaoForm ? "Fechar" : "+ Novo Cartão"}
             </button>
           </div>
 
           {showCartaoForm && (
             <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-              <div className="bg-[#1a2e4a] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Novo Cartão de Crédito</h3></div>
+              <div className="bg-[#1E3A8A] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Novo Cartão de Crédito</h3></div>
               <div className="p-5 bg-white space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1"><label className={LB}>Nome</label><input value={cartaoForm.nome} onChange={e => setCartaoForm(f => ({...f, nome: e.target.value}))} className={IC} placeholder="Ex: Nubank Empresarial" /></div>
@@ -470,7 +471,7 @@ export default function ContasBancarias() {
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
-                <button onClick={addCartao} className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md">Adicionar Cartão</button>
+                <button onClick={addCartao} className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md">Adicionar Cartão</button>
               </div>
             </div>
           )}
@@ -482,17 +483,17 @@ export default function ContasBancarias() {
               {cartoes.map(c => {
                 const pct = c.limite > 0 ? (c.utilizado / c.limite) * 100 : 0;
                 return (
-                  <div key={c.id} className="rounded-lg overflow-hidden" style={{ background: c.conta_vinculada ? "#1a2e4a" : "#333" }}>
+                  <div key={c.id} className="rounded-lg overflow-hidden" style={{ background: c.conta_vinculada ? "#1E3A8A" : "#333" }}>
                     <div className="p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <p className="text-white text-sm font-bold">{c.nome}</p>
-                          <p className="text-[#a8bfd4] text-xs">{c.bandeira} · **** {c.final}</p>
+                          <p className="text-[#BFDBFE] text-xs">{c.bandeira} · **** {c.final}</p>
                         </div>
                         <span className="text-white text-xs font-bold">{c.bandeira}</span>
                       </div>
                       <div className="mb-2">
-                        <div className="flex justify-between text-xs text-[#a8bfd4] mb-1">
+                        <div className="flex justify-between text-xs text-[#BFDBFE] mb-1">
                           <span>Utilizado: {formatBRL(c.utilizado)}</span>
                           <span>Limite: {formatBRL(c.limite)}</span>
                         </div>
@@ -500,7 +501,7 @@ export default function ContasBancarias() {
                           <div className={`h-2 rounded-full transition-all ${pct > 80 ? "bg-[#ff6b6b]" : "bg-white"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
                       </div>
-                      <div className="flex gap-4 text-[10px] text-[#a8bfd4]">
+                      <div className="flex gap-4 text-[10px] text-[#BFDBFE]">
                         <span>Fecha dia {c.dia_fechamento}</span>
                         <span>Vence dia {c.dia_vencimento}</span>
                       </div>
@@ -516,11 +517,11 @@ export default function ContasBancarias() {
         <div className="border-t border-[#ccc] pt-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-lg font-bold text-[#0a0a0a]">Taxas por Meio de Pagamento</h2>
+              <h2 className="text-lg font-bold text-[#1D2939]">Taxas por Meio de Pagamento</h2>
               <p className="text-xs text-[#777] mt-0.5">Configure taxas, parcelas e antecipacao por conta bancaria</p>
             </div>
             <button onClick={() => setShowTaxaSection(!showTaxaSection)}
-              className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+              className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">
               {showTaxaSection ? "Fechar" : "Configurar Taxas"}
             </button>
           </div>
@@ -542,19 +543,19 @@ export default function ContasBancarias() {
                   {loadingTaxas ? (
                     <div className="text-center py-6 text-sm text-[#555]">Carregando configuracoes...</div>
                   ) : taxas.length === 0 && !showTaxaForm ? (
-                    <div className="bg-[#fffbe6] border border-[#e6c200] border-l-4 border-l-[#b8960a] rounded-md px-4 py-3 text-sm text-[#5c3a00]">
+                    <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-3 text-sm text-[#F79009]">
                       Nenhuma taxa configurada para esta conta. Clique em "+ Nova Taxa" para configurar.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {taxas.map(t => (
                         <div key={t.id} className={`border rounded-lg overflow-hidden ${t.ativo ? "border-[#ccc]" : "border-[#eee] opacity-60"}`}>
-                          <div className="bg-[#1a2e4a] px-4 py-2 flex items-center justify-between">
+                          <div className="bg-[#1E3A8A] px-4 py-2 flex items-center justify-between">
                             <span className="text-xs font-bold text-white uppercase tracking-widest">
                               {MEIO_LABEL[t.meio_pagamento] || t.meio_pagamento}
                             </span>
                             <div className="flex gap-1">
-                              <button onClick={() => handleEditTaxa(t)} className="text-[#a8bfd4] hover:text-white text-xs px-1">✎</button>
+                              <button onClick={() => handleEditTaxa(t)} className="text-[#BFDBFE] hover:text-white text-xs px-1">✎</button>
                               <button onClick={() => handleDeleteTaxa(t.id!)} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>
                             </div>
                           </div>
@@ -562,25 +563,25 @@ export default function ContasBancarias() {
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div>
                                 <span className="text-[10px] font-bold text-[#777] uppercase">Taxa</span>
-                                <p className="font-semibold text-[#0a0a0a]">{t.taxa_percentual}%</p>
+                                <p className="font-semibold text-[#1D2939]">{t.taxa_percentual}%</p>
                               </div>
                               <div>
                                 <span className="text-[10px] font-bold text-[#777] uppercase">Max Parcelas</span>
-                                <p className="font-semibold text-[#0a0a0a]">{t.max_parcelas}x</p>
+                                <p className="font-semibold text-[#1D2939]">{t.max_parcelas}x</p>
                               </div>
                               <div>
                                 <span className="text-[10px] font-bold text-[#777] uppercase">Prazo Recebimento</span>
-                                <p className="font-semibold text-[#0a0a0a]">D+{t.dias_recebimento}</p>
+                                <p className="font-semibold text-[#1D2939]">D+{t.dias_recebimento}</p>
                               </div>
                               <div>
                                 <span className="text-[10px] font-bold text-[#777] uppercase">Antecipacao</span>
-                                <p className={`font-semibold ${t.antecipacao_ativa ? "text-[#0a5c2e]" : "text-[#777]"}`}>
+                                <p className={`font-semibold ${t.antecipacao_ativa ? "text-[#039855]" : "text-[#777]"}`}>
                                   {t.antecipacao_ativa ? `Sim (${t.taxa_antecipacao}% a.m.)` : "Nao"}
                                 </p>
                               </div>
                             </div>
                             {!t.ativo && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#f5f5f5] text-[#777]">Inativo</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#777]">Inativo</span>
                             )}
                           </div>
                         </div>
@@ -592,7 +593,7 @@ export default function ContasBancarias() {
                   <div className="flex gap-2">
                     {!showTaxaForm && (
                       <button onClick={() => { resetTaxaForm(taxaContaSelecionada); setShowTaxaForm(true); }}
-                        className="bg-[#1a2e4a] text-white text-sm font-bold px-4 py-2 rounded-md">
+                        className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">
                         + Nova Taxa
                       </button>
                     )}
@@ -600,7 +601,7 @@ export default function ContasBancarias() {
 
                   {showTaxaForm && (
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                      <div className="bg-[#1a2e4a] px-4 py-2.5">
+                      <div className="bg-[#1E3A8A] px-4 py-2.5">
                         <h3 className="text-xs font-bold text-white uppercase tracking-widest">
                           {editingTaxaId ? "Editar Configuracao de Taxa" : "Nova Configuracao de Taxa"}
                         </h3>
@@ -608,7 +609,7 @@ export default function ContasBancarias() {
                       <div className="p-5 bg-white space-y-4">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="flex flex-col gap-1">
-                            <label className={LB}>Meio de Pagamento <span className="text-[#8b0000]">*</span></label>
+                            <label className={LB}>Meio de Pagamento <span className="text-[#D92D20]">*</span></label>
                             <select value={taxaForm.meio_pagamento} onChange={e => setTx("meio_pagamento", e.target.value)}
                               className={IC} disabled={!!editingTaxaId}>
                               {MEIOS_PAGAMENTO.map(m => (
@@ -620,7 +621,7 @@ export default function ContasBancarias() {
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className={LB}>Taxa (%) <span className="text-[#8b0000]">*</span></label>
+                            <label className={LB}>Taxa (%) <span className="text-[#D92D20]">*</span></label>
                             <input type="number" step="0.01" min="0" max="100"
                               value={taxaForm.taxa_percentual}
                               onChange={e => setTx("taxa_percentual", parseFloat(e.target.value) || 0)}
@@ -647,8 +648,8 @@ export default function ContasBancarias() {
                             <label className="flex items-center gap-2 cursor-pointer mt-1">
                               <input type="checkbox" checked={taxaForm.antecipacao_ativa}
                                 onChange={e => setTx("antecipacao_ativa", e.target.checked)}
-                                className="w-4 h-4 accent-[#1a2e4a]" />
-                              <span className="text-sm text-[#0a0a0a]">Ativa</span>
+                                className="w-4 h-4 accent-[#1E3A8A]" />
+                              <span className="text-sm text-[#1D2939]">Ativa</span>
                             </label>
                           </div>
                           {taxaForm.antecipacao_ativa && (
@@ -665,12 +666,12 @@ export default function ContasBancarias() {
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={taxaForm.ativo}
                               onChange={e => setTx("ativo", e.target.checked)}
-                              className="w-4 h-4 accent-[#1a2e4a]" />
-                            <span className="text-sm text-[#0a0a0a]">Configuracao ativa</span>
+                              className="w-4 h-4 accent-[#1E3A8A]" />
+                            <span className="text-sm text-[#1D2939]">Configuracao ativa</span>
                           </label>
                         </div>
                         {/* Info box */}
-                        <div className="bg-[#f0f4f8] border border-[#1a2e4a]/20 rounded-md px-4 py-2.5 text-xs text-[#333] space-y-1">
+                        <div className="bg-[#EFF6FF] border border-[#1E3A8A]/20 rounded-md px-4 py-2.5 text-xs text-[#333] space-y-1">
                           <p><strong>Como funciona:</strong></p>
                           <p>- <strong>Taxa:</strong> percentual descontado do valor bruto da venda pela operadora</p>
                           <p>- <strong>Max Parcelas:</strong> limite de parcelamento aceito nesta conta</p>
@@ -679,11 +680,11 @@ export default function ContasBancarias() {
                         </div>
                         <div className="flex gap-3">
                           <button onClick={handleSaveTaxa} disabled={savingTaxa}
-                            className="bg-[#1a2e4a] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                            className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                             {savingTaxa ? "Salvando..." : editingTaxaId ? "Salvar" : "Cadastrar"}
                           </button>
                           <button onClick={() => { setShowTaxaForm(false); setEditingTaxaId(null); }}
-                            className="bg-white text-[#0a0a0a] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">
+                            className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">
                             Cancelar
                           </button>
                         </div>
@@ -730,7 +731,7 @@ function BancoCombobox({ value, onChange }: { value: string; onChange: (v: strin
         placeholder="Digite para buscar..."
         onFocus={() => { setOpen(true); setSearch(""); }}
         onChange={e => { setSearch(e.target.value); if (!open) setOpen(true); }}
-        className="w-full border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#0a0a0a] bg-white focus:border-[#1a2e4a] focus:outline-none"
+        className="w-full border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none"
       />
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -744,7 +745,7 @@ function BancoCombobox({ value, onChange }: { value: string; onChange: (v: strin
                   key={b.codigo}
                   type="button"
                   onClick={() => { onChange(val); setOpen(false); setSearch(""); }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-[#f0f4f8] transition-colors ${value === val ? "bg-[#f0f4f8] font-semibold text-[#1a2e4a]" : "text-[#0a0a0a]"}`}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-[#EFF6FF] transition-colors ${value === val ? "bg-[#EFF6FF] font-semibold text-[#1E3A8A]" : "text-[#1D2939]"}`}
                 >
                   {b.codigo} – {b.nome}
                 </button>

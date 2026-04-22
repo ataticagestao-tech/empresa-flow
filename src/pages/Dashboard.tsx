@@ -201,9 +201,10 @@ export default function Dashboard() {
   return (
     <AppLayout title={t('dashboard.title')}>
       <div className="space-y-6 animate-fade-in">
+
         <PendenciasBanner variant="full" filter="all" />
 
-        {/* Page Header */}
+        {/* Page Subheader */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-foreground tracking-tight">{t('dashboard.title')}</h2>

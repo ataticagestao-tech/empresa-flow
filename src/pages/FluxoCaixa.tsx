@@ -31,9 +31,9 @@ const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 const CORES_ATIVIDADE: Record<string, string> = {
-  operacional: "#2e7d32",
+  operacional: "#039855",
   investimento: "#e65100",
-  financiamento: "#3b5bdb",
+  financiamento: "#1E3A8A",
 };
 
 export default function FluxoCaixa() {
@@ -558,6 +558,7 @@ export default function FluxoCaixa() {
   return (
     <AppLayout title="Fluxo de Caixa">
       <div className="space-y-5 animate-fade-in">
+
         <PendenciasBanner variant="full" filter="all" />
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -632,7 +633,7 @@ export default function FluxoCaixa() {
                 <Card className="col-span-2 md:col-span-1">
                   <CardContent className="p-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Saldo</p>
-                    <p className="text-lg font-bold mt-1" style={{ color: relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#dc2626" }}>
+                    <p className="text-lg font-bold mt-1" style={{ color: relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#D92D20" }}>
                       {fmt(relatorio.totalEntradas - relatorio.totalSaidas)}
                     </p>
                   </CardContent>
@@ -727,7 +728,7 @@ export default function FluxoCaixa() {
                                   isOpen={isOpen}
                                   onToggle={() => toggleRelExpand(`s_${catId}`)}
                                   onEditCategoria={abrirEditCategoria}
-                                  cor="#dc2626"
+                                  cor="#D92D20"
                                 />
                               );
                             })}
@@ -759,7 +760,7 @@ export default function FluxoCaixa() {
                   { label: "Caixa Operacional", value: fmt(caixaOperacional), color: CORES_ATIVIDADE.operacional },
                   { label: "Caixa Investimento", value: fmt(caixaInvestimento), color: CORES_ATIVIDADE.investimento },
                   { label: "Caixa Financiamento", value: fmt(caixaFinanciamento), color: CORES_ATIVIDADE.financiamento },
-                  { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#2e7d32" : "#c62828" },
+                  { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#039855" : "#D92D20" },
                 ].map((kpi) => (
                   <Card key={kpi.label}>
                     <CardContent className="p-4">
@@ -772,7 +773,7 @@ export default function FluxoCaixa() {
 
               {/* Tabela DFC */}
               <Card>
-                <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+                <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
                   <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                     <Banknote className="h-4 w-4" /> DFC — Demonstração dos Fluxos de Caixa
                   </CardTitle>
@@ -827,7 +828,7 @@ export default function FluxoCaixa() {
                               <td className="py-3 px-4">{variacaoLinha.nome}</td>
                               <td
                                 className="text-right py-3 px-4 tabular-nums"
-                                style={{ color: variacaoLinha.valor >= 0 ? "#2e7d32" : "#c62828" }}
+                                style={{ color: variacaoLinha.valor >= 0 ? "#039855" : "#D92D20" }}
                               >
                                 {fmt(variacaoLinha.valor)}
                               </td>
@@ -880,7 +881,7 @@ export default function FluxoCaixa() {
                       {diagnostico.semCategoria.length > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
                       Sem categoria
                     </p>
-                    <p className="text-lg font-bold mt-1" style={{ color: diagnostico.semCategoria.length > 0 ? "#d97706" : "#059669" }}>
+                    <p className="text-lg font-bold mt-1" style={{ color: diagnostico.semCategoria.length > 0 ? "#F79009" : "#059669" }}>
                       {diagnostico.semCategoria.length}
                     </p>
                   </CardContent>
@@ -926,7 +927,7 @@ export default function FluxoCaixa() {
                                   <td className="py-2 px-4 font-mono text-muted-foreground text-[11px]">{cat.cod}</td>
                                   <td className="py-2 px-4">{cat.nome}</td>
                                   <td className="text-right py-2 px-4 text-muted-foreground">{cat.count}</td>
-                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: cat.total >= 0 ? "#059669" : "#dc2626" }}>
+                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: cat.total >= 0 ? "#059669" : "#D92D20" }}>
                                     {fmt(cat.total)}
                                   </td>
                                 </tr>
@@ -971,7 +972,7 @@ export default function FluxoCaixa() {
                                     }`}>{r.vinculo}</span>
                                   </td>
                                   <td className="py-2 px-4 text-muted-foreground">{r.beneficiario}</td>
-                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#dc2626" }}>
+                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#D92D20" }}>
                                     {fmt(Number(r.valor))}
                                   </td>
                                 </tr>
@@ -985,7 +986,7 @@ export default function FluxoCaixa() {
 
                   {/* Todas as transações */}
                   <Card>
-                    <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1a2e4a" }}>
+                    <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
                       <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                         <Search className="h-4 w-4" /> Todas as transações conciliadas ({diagnostico.rows.length})
                       </CardTitle>
@@ -1032,7 +1033,7 @@ export default function FluxoCaixa() {
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">SEM CATEGORIA</span>
                                   )}
                                 </td>
-                                <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#dc2626" }}>
+                                <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#D92D20" }}>
                                   {fmt(Number(r.valor))}
                                 </td>
                               </tr>
@@ -1153,7 +1154,7 @@ function CategoriaExpandivel({
             <span className="text-[11px] text-muted-foreground ml-1">({lancamentos.length})</span>
           </div>
         </td>
-        <td className="text-right py-2.5 px-4 font-semibold tabular-nums" style={{ color: isTransf ? "#9ca3af" : cor }}>
+        <td className="text-right py-2.5 px-4 font-semibold tabular-nums" style={{ color: isTransf ? "#98A2B3" : cor }}>
           {isTransf ? "—" : fmt(total)}
         </td>
       </tr>
@@ -1220,7 +1221,7 @@ function AtividadeDFC({
               <td className="py-2 px-4 pl-8">{f.nome}</td>
               <td
                 className="text-right py-2 px-4 tabular-nums"
-                style={{ color: f.valor >= 0 ? "#2e7d32" : "#c62828" }}
+                style={{ color: f.valor >= 0 ? "#039855" : "#D92D20" }}
               >
                 {fmt(f.valor)}
               </td>
@@ -1232,7 +1233,7 @@ function AtividadeDFC({
               <td className="py-2 px-4 font-semibold italic">{total.nome}</td>
               <td
                 className="text-right py-2 px-4 font-semibold tabular-nums"
-                style={{ color: total.valor >= 0 ? "#2e7d32" : "#c62828" }}
+                style={{ color: total.valor >= 0 ? "#039855" : "#D92D20" }}
               >
                 {fmt(total.valor)}
               </td>

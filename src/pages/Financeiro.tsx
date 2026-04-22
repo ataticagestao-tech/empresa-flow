@@ -106,7 +106,8 @@ export default function Financeiro() {
 
     return (
         <AppLayout title="Finanças">
-            <div className="space-y-6 animate-fade-in p-4 bg-[#F8FAFC] min-h-screen">
+            <div className="space-y-6 animate-fade-in p-4 bg-[#F6F2EB] min-h-screen">
+
                 <h2 className="text-xl font-semibold text-green-700 mb-6">Finanças</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
@@ -125,7 +126,7 @@ export default function Financeiro() {
                                             to={item.href}
                                             className={`
                         flex items-center gap-2 text-sm px-2 py-1.5 rounded-md transition-colors
-                        ${item.highlight ? 'text-gray-600 hover:text-green-700' : 'text-gray-500 hover:text-green-600 hover:bg-[#F8FAFC]'}
+                        ${item.highlight ? 'text-gray-600 hover:text-green-700' : 'text-gray-500 hover:text-green-600 hover:bg-[#F6F2EB]'}
                         ${(item as any).action ? 'font-medium text-gray-700' : ''}
                       `}
                                         >

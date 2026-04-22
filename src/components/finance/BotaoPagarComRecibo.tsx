@@ -145,15 +145,15 @@ export function ReciboModalProvider() {
             {resultado && (
                 <div style={{
                     position: "fixed", bottom: 24, right: 24, zIndex: 99999,
-                    background: resultado.ok ? "#0f172a" : "#fde8e8",
-                    color: resultado.ok ? "#ffffff" : "#c62828",
+                    background: resultado.ok ? "#1D2939" : "#FEF3F2",
+                    color: resultado.ok ? "#ffffff" : "#D92D20",
                     padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500,
                     boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
                     display: "flex", alignItems: "center", gap: 10,
                 }}>
                     {resultado.ok
-                        ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round"><path d="M3 8l4 4 6-6" /></svg>
-                        : <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#c62828" strokeWidth="2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                        ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#039855" strokeWidth="2" strokeLinecap="round"><path d="M3 8l4 4 6-6" /></svg>
+                        : <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#D92D20" strokeWidth="2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
                     }
                     {resultado.msg}
                 </div>
@@ -168,27 +168,27 @@ export function ReciboModalProvider() {
                         style={{ background: "#fff", borderRadius: 14, padding: 28, width: 440, maxWidth: "90vw", border: "0.5px solid #e8e4dc" }}
                         onMouseDown={e => e.stopPropagation()}
                     >
-                        <div style={{ fontSize: 16, fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>
+                        <div style={{ fontSize: 16, fontWeight: 600, color: "#1D2939", marginBottom: 6 }}>
                             {params.apenasRecibo ? "Gerar Comprovante" : `Confirmar ${params.tipo === "payable" ? "pagamento" : "recebimento"}`}
                         </div>
-                        <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4, lineHeight: 1.5 }}>
+                        <div style={{ fontSize: 13, color: "#667085", marginBottom: 4, lineHeight: 1.5 }}>
                             <strong>{params.descricao}</strong>
                         </div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#2e7d32", marginBottom: 16 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#039855", marginBottom: 16 }}>
                             {fmt(params.valor)}
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
-                                Conta Bancária / Caixa {params.apenasRecibo && <span style={{ fontWeight: 400, color: "#94a3b8" }}>(opcional)</span>}
+                            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#1D2939", marginBottom: 6 }}>
+                                Conta Bancária / Caixa {params.apenasRecibo && <span style={{ fontWeight: 400, color: "#98A2B3" }}>(opcional)</span>}
                             </label>
                             <select
                                 value={selectedBankId}
                                 onChange={e => setSelectedBankId(e.target.value)}
                                 style={{
                                     width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13,
-                                    border: "1px solid #e2e8f0", outline: "none", background: "#f8f9fb",
-                                    color: "#0f172a", cursor: "pointer",
+                                    border: "1px solid #EAECF0", outline: "none", background: "#f8f9fb",
+                                    color: "#1D2939", cursor: "pointer",
                                 }}
                             >
                                 <option value="">Selecione...</option>
@@ -200,15 +200,15 @@ export function ReciboModalProvider() {
                             </select>
                         </div>
 
-                        <div style={{ background: "#f8f9fb", borderRadius: 8, border: "0.5px solid #e2e8f0", padding: 14, marginBottom: 20 }}>
+                        <div style={{ background: "#f8f9fb", borderRadius: 8, border: "0.5px solid #EAECF0", padding: 14, marginBottom: 20 }}>
                             <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginBottom: enviarEmail ? 12 : 0 }}>
                                 <input
                                     type="checkbox"
                                     checked={enviarEmail}
                                     onChange={e => setEnviarEmail(e.target.checked)}
-                                    style={{ width: 16, height: 16, accentColor: "#3b5bdb", cursor: "pointer" }}
+                                    style={{ width: 16, height: 16, accentColor: "#1E3A8A", cursor: "pointer" }}
                                 />
-                                <span style={{ fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                                <span style={{ fontSize: 13, color: "#1D2939", fontWeight: 500 }}>
                                     Enviar comprovante por e-mail
                                 </span>
                             </label>
@@ -220,14 +220,14 @@ export function ReciboModalProvider() {
                                     placeholder="email@exemplo.com"
                                     style={{
                                         width: "100%", padding: "8px 12px", borderRadius: 6, fontSize: 13,
-                                        border: "0.5px solid #e2e8f0", outline: "none", background: "#ffffff",
-                                        color: "#0f172a", boxSizing: "border-box" as const,
+                                        border: "0.5px solid #EAECF0", outline: "none", background: "#ffffff",
+                                        color: "#1D2939", boxSizing: "border-box" as const,
                                     }}
                                 />
                             )}
                         </div>
 
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16, lineHeight: 1.5 }}>
+                        <div style={{ fontSize: 11, color: "#98A2B3", marginBottom: 16, lineHeight: 1.5 }}>
                             {params.apenasRecibo
                                 ? "Um comprovante PDF será gerado e poderá ser baixado ou enviado por e-mail."
                                 : <>O pagamento será marcado como <strong>Pago</strong>, o saldo da conta será atualizado e um comprovante PDF será gerado automaticamente.</>
@@ -236,11 +236,11 @@ export function ReciboModalProvider() {
 
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                             <button onClick={fechar}
-                                style={{ padding: "9px 18px", borderRadius: 8, border: "0.5px solid #e2e8f0", background: "#f8f9fb", cursor: "pointer", fontSize: 13, color: "#475569" }}>
+                                style={{ padding: "9px 18px", borderRadius: 8, border: "0.5px solid #EAECF0", background: "#f8f9fb", cursor: "pointer", fontSize: 13, color: "#667085" }}>
                                 Cancelar
                             </button>
                             <button onClick={confirmar} disabled={isPending}
-                                style={{ padding: "9px 18px", borderRadius: 8, border: "none", background: "#2e7d32", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, opacity: isPending ? 0.7 : 1 }}>
+                                style={{ padding: "9px 18px", borderRadius: 8, border: "none", background: "#039855", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, opacity: isPending ? 0.7 : 1 }}>
                                 {isPending ? "Processando..." : params.apenasRecibo ? "Gerar comprovante" : "Confirmar pagamento"}
                             </button>
                         </div>
@@ -282,7 +282,7 @@ export function BotaoPagarComRecibo({
             style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "7px 14px", borderRadius: 7, border: "none",
-                background: "#2e7d32", color: "#ffffff",
+                background: "#039855", color: "#ffffff",
                 fontSize: 13, fontWeight: 500, cursor: "pointer",
                 width: "100%",
             }}

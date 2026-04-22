@@ -190,39 +190,39 @@ export default function ProdutosDepartamentos() {
 
     const StatusBadge = ({ active }: { active: boolean }) =>
         active ? (
-            <span className={`${badgeBase} text-[#0a5c2e] border-[#0a5c2e] bg-[#e6f4ec]`}>Ativo</span>
+            <span className={`${badgeBase} text-[#039855] border-[#039855] bg-[#ECFDF3]`}>Ativo</span>
         ) : (
-            <span className={`${badgeBase} text-[#555] border-[#aaa] bg-[#f5f5f5]`}>Inativo</span>
+            <span className={`${badgeBase} text-[#555] border-[#aaa] bg-[#F6F2EB]`}>Inativo</span>
         );
 
     const TipoBadge = ({ tipo }: { tipo: string | null }) =>
         tipo === "servico" ? (
-            <span className={`${badgeBase} text-[#1a2e4a] border-[#1a2e4a] bg-[#f0f4f8]`}>Serviço</span>
+            <span className={`${badgeBase} text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]`}>Serviço</span>
         ) : (
-            <span className={`${badgeBase} text-[#555] border-[#ccc] bg-[#f5f5f5]`}>Produto</span>
+            <span className={`${badgeBase} text-[#555] border-[#ccc] bg-[#F6F2EB]`}>Produto</span>
         );
 
     /* ── Thead style ── */
-    const thClass = "text-[10px] font-bold uppercase tracking-[0.06em] text-[#555]";
+    const thClass = "text-[10px] font-bold uppercase tracking-[0.06em] text-[#555] !bg-white";
 
     return (
         <AppLayout title="Operacional">
             <div className="space-y-4 animate-fade-in">
                 {/* Cabeçalho */}
                 <div className="mb-4">
-                    <h1 className="text-xl font-bold text-[#0a0a0a]">Operacional</h1>
+                    <h1 className="text-xl font-bold text-[#1D2939]">Operacional</h1>
                     <p className="text-[12px] text-[#555] mt-1">
                         Catálogo de produtos e serviços da empresa
                     </p>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-b-[#0a0a0a] mb-4">
+                <div className="flex border-b border-b-[#1D2939] mb-4">
                     <button
                         onClick={() => setActiveTab("products")}
                         className={`px-5 py-2 text-[12px] font-bold -mb-[1.5px] transition-colors ${
                             activeTab === "products"
-                                ? "text-[#1a2e4a] border-b-2 border-[#1a2e4a]"
+                                ? "text-[#1E3A8A] border-b-2 border-[#1E3A8A]"
                                 : "text-[#555] font-semibold"
                         }`}
                     >
@@ -232,7 +232,7 @@ export default function ProdutosDepartamentos() {
                         onClick={() => setActiveTab("departments")}
                         className={`px-5 py-2 text-[12px] font-bold -mb-[1.5px] transition-colors ${
                             activeTab === "departments"
-                                ? "text-[#1a2e4a] border-b-2 border-[#1a2e4a]"
+                                ? "text-[#1E3A8A] border-b-2 border-[#1E3A8A]"
                                 : "text-[#555] font-semibold"
                         }`}
                     >
@@ -242,22 +242,22 @@ export default function ProdutosDepartamentos() {
 
                 {/* ════════════ ABA PRODUTOS ════════════ */}
                 {activeTab === "products" && (
-                    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                    <div className="border border-[#D0D5DD] rounded-lg overflow-hidden bg-white">
                         {/* Header do card */}
-                        <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-                            <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
+                        <div className="bg-white border-b border-[#EAECF0] px-4 py-3 flex items-center justify-between">
+                            <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">
                                 Catálogo de Produtos e Serviços
                             </h3>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setIsCopyModalOpen(true)}
-                                    className="text-[11px] font-bold bg-transparent border border-white/40 text-white px-3 py-1.5 rounded hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                                    className="text-[11px] font-semibold bg-white border border-[#D0D5DD] text-black px-3 py-1.5 rounded hover:bg-[#F6F2EB] transition-colors flex items-center gap-1.5"
                                 >
                                     <Copy className="h-3 w-3" /> Copiar de outra loja
                                 </button>
                                 <button
                                     onClick={handleCreate}
-                                    className="text-[11px] font-bold bg-white text-[#1a2e4a] px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
+                                    className="text-[11px] font-semibold bg-black text-white px-3 py-1.5 rounded hover:bg-[#1D2939] transition-colors"
                                 >
                                     + Novo produto
                                 </button>
@@ -270,7 +270,7 @@ export default function ProdutosDepartamentos() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#999]" />
                                 <input
                                     placeholder="Pesquisar produtos..."
-                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#1a2e4a]"
+                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -278,10 +278,10 @@ export default function ProdutosDepartamentos() {
                         </div>
 
                         {/* Tabela */}
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto bg-white">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-b-[1.5px] border-[#0a0a0a]">
+                                    <TableRow className="border-b-[1.5px] border-[#1D2939]">
                                         <TableHead className={thClass}>Código</TableHead>
                                         <TableHead className={thClass}>Nome</TableHead>
                                         <TableHead className={thClass}>Família</TableHead>
@@ -313,11 +313,11 @@ export default function ProdutosDepartamentos() {
                                             const custo = Number(p.cost_price || 0);
                                             const liquido = preco - custo;
                                             return (
-                                                <TableRow key={p.id} className="border-b border-[#eee] hover:bg-[#fafafa]">
-                                                    <TableCell className="font-mono text-[11px] font-bold text-[#1a2e4a]">
+                                                <TableRow key={p.id} className="border-b border-[#eee] hover:bg-[#F6F2EB]">
+                                                    <TableCell className="font-mono text-[11px] font-bold text-[#1E3A8A]">
                                                         {p.code || "-"}
                                                     </TableCell>
-                                                    <TableCell className="text-[12px] font-semibold text-[#0a0a0a]">
+                                                    <TableCell className="text-[12px] font-semibold text-[#1D2939]">
                                                         {p.description}
                                                     </TableCell>
                                                     <TableCell className="text-[12px] text-[#555]">
@@ -329,10 +329,10 @@ export default function ProdutosDepartamentos() {
                                                     <TableCell className="text-[12px] text-[#555]">
                                                         {formatBRL(custo)}
                                                     </TableCell>
-                                                    <TableCell className="text-[12px] font-bold text-[#0a0a0a]">
+                                                    <TableCell className="text-[12px] font-bold text-[#1D2939]">
                                                         {formatBRL(preco)}
                                                     </TableCell>
-                                                    <TableCell className="text-[12px] font-bold text-[#1a2e4a]">
+                                                    <TableCell className="text-[12px] font-bold text-[#1E3A8A]">
                                                         {formatBRL(liquido)}
                                                     </TableCell>
                                                     <TableCell className="text-[11px] text-[#777]">
@@ -348,7 +348,7 @@ export default function ProdutosDepartamentos() {
                                                         <div className="flex justify-end gap-1">
                                                             <button
                                                                 onClick={() => handleEdit(p)}
-                                                                className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors"
+                                                                className="p-1.5 rounded hover:bg-[#EFF6FF] text-[#1E3A8A] transition-colors"
                                                                 title="Editar"
                                                             >
                                                                 <Pencil className="h-3.5 w-3.5" />
@@ -363,7 +363,7 @@ export default function ProdutosDepartamentos() {
                                                                     });
                                                                     if (ok) deleteProductMutation.mutate(p.id);
                                                                 }}
-                                                                className="p-1.5 rounded hover:bg-red-50 text-[#8b0000] transition-colors"
+                                                                className="p-1.5 rounded hover:bg-red-50 text-[#D92D20] transition-colors"
                                                                 title="Excluir"
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -382,15 +382,15 @@ export default function ProdutosDepartamentos() {
 
                 {/* ════════════ ABA DEPARTAMENTOS ════════════ */}
                 {activeTab === "departments" && (
-                    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                    <div className="border border-[#D0D5DD] rounded-lg overflow-hidden bg-white">
                         {/* Header do card */}
-                        <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
-                            <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
+                        <div className="bg-white border-b border-[#EAECF0] px-4 py-3 flex items-center justify-between">
+                            <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">
                                 Departamentos / Centros de Custo
                             </h3>
                             <button
                                 onClick={() => handleOpenDeptModal()}
-                                className="text-[11px] font-bold bg-white text-[#1a2e4a] px-3 py-1.5 rounded hover:bg-gray-100 transition-colors"
+                                className="text-[11px] font-semibold bg-black text-white px-3 py-1.5 rounded hover:bg-[#1D2939] transition-colors"
                             >
                                 + Novo departamento
                             </button>
@@ -402,7 +402,7 @@ export default function ProdutosDepartamentos() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#999]" />
                                 <input
                                     placeholder="Pesquisar departamentos..."
-                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#1a2e4a]"
+                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -410,10 +410,10 @@ export default function ProdutosDepartamentos() {
                         </div>
 
                         {/* Tabela */}
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto bg-white">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-b-[1.5px] border-[#0a0a0a]">
+                                    <TableRow className="border-b-[1.5px] border-[#1D2939]">
                                         <TableHead className={thClass}>Nome do Departamento</TableHead>
                                         <TableHead className={thClass}>Nº de Produtos</TableHead>
                                         <TableHead className={`${thClass} text-right`}>Ações</TableHead>
@@ -434,8 +434,8 @@ export default function ProdutosDepartamentos() {
                                         </TableRow>
                                     ) : (
                                         filteredDepartments?.map((d) => (
-                                            <TableRow key={d.id} className="border-b border-[#eee] hover:bg-[#fafafa]">
-                                                <TableCell className="text-[13px] font-semibold text-[#0a0a0a]">
+                                            <TableRow key={d.id} className="border-b border-[#eee] hover:bg-[#F6F2EB]">
+                                                <TableCell className="text-[13px] font-semibold text-[#1D2939]">
                                                     {d.name}
                                                 </TableCell>
                                                 <TableCell className="text-[12px] text-[#555]">
@@ -445,7 +445,7 @@ export default function ProdutosDepartamentos() {
                                                     <div className="flex justify-end gap-1">
                                                         <button
                                                             onClick={() => handleOpenDeptModal(d)}
-                                                            className="p-1.5 rounded hover:bg-[#f0f4f8] text-[#1a2e4a] transition-colors"
+                                                            className="p-1.5 rounded hover:bg-[#EFF6FF] text-[#1E3A8A] transition-colors"
                                                             title="Editar"
                                                         >
                                                             <Pencil className="h-3.5 w-3.5" />
@@ -460,7 +460,7 @@ export default function ProdutosDepartamentos() {
                                                                 });
                                                                 if (ok) deleteDeptMutation.mutate(d.id);
                                                             }}
-                                                            className="p-1.5 rounded hover:bg-red-50 text-[#8b0000] transition-colors"
+                                                            className="p-1.5 rounded hover:bg-red-50 text-[#D92D20] transition-colors"
                                                             title="Excluir"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
@@ -480,7 +480,7 @@ export default function ProdutosDepartamentos() {
                 {isDeptModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                         <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                            <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
+                            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between">
                                 <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
                                     {editingDept ? "Editar Departamento" : "Novo Departamento"}
                                 </h3>
@@ -491,13 +491,13 @@ export default function ProdutosDepartamentos() {
                             <div className="p-5 space-y-4">
                                 <div>
                                     <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                                        Nome do Departamento <span className="text-[#8b0000]">*</span>
+                                        Nome do Departamento <span className="text-[#D92D20]">*</span>
                                     </label>
                                     <input
                                         value={deptName}
                                         onChange={(e) => setDeptName(e.target.value)}
                                         placeholder="Ex: Administrativo, Comercial..."
-                                        className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1a2e4a]"
+                                        className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
                                         autoFocus
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter" && deptName.trim()) {
@@ -510,14 +510,14 @@ export default function ProdutosDepartamentos() {
                                 <div className="flex justify-end gap-2 pt-2 border-t border-[#eee]">
                                     <button
                                         onClick={() => { setIsDeptModalOpen(false); setEditingDept(null); setDeptName(""); }}
-                                        className="px-4 py-2 text-[12px] font-bold bg-white border border-[#ccc] text-[#0a0a0a] rounded hover:bg-gray-50"
+                                        className="px-4 py-2 text-[12px] font-bold bg-white border border-[#ccc] text-[#1D2939] rounded hover:bg-gray-50"
                                     >
                                         Cancelar
                                     </button>
                                     <button
                                         onClick={() => saveDeptMutation.mutate()}
                                         disabled={!deptName.trim() || saveDeptMutation.isPending}
-                                        className="px-4 py-2 text-[12px] font-bold bg-[#1a2e4a] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
+                                        className="px-4 py-2 text-[12px] font-bold bg-[#1E3A8A] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
                                     >
                                         {saveDeptMutation.isPending ? "Salvando..." : "Salvar"}
                                     </button>
@@ -532,7 +532,7 @@ export default function ProdutosDepartamentos() {
             {isCopyModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                        <div className="bg-[#1a2e4a] px-5 py-3 flex items-center justify-between">
+                        <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between">
                             <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
                                 Copiar Produtos de Outra Loja
                             </h3>
@@ -546,12 +546,12 @@ export default function ProdutosDepartamentos() {
                             </p>
                             <div>
                                 <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                                    Loja de Origem <span className="text-[#8b0000]">*</span>
+                                    Loja de Origem <span className="text-[#D92D20]">*</span>
                                 </label>
                                 <select
                                     value={selectedOrigemId}
                                     onChange={(e) => setSelectedOrigemId(e.target.value)}
-                                    className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1a2e4a]"
+                                    className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
                                 >
                                     <option value="">Selecione...</option>
                                     {companies
@@ -566,14 +566,14 @@ export default function ProdutosDepartamentos() {
                             <div className="flex justify-end gap-2 pt-2 border-t border-[#eee]">
                                 <button
                                     onClick={() => { setIsCopyModalOpen(false); setSelectedOrigemId(""); }}
-                                    className="px-4 py-2 text-[12px] font-bold bg-white border border-[#ccc] text-[#0a0a0a] rounded hover:bg-gray-50"
+                                    className="px-4 py-2 text-[12px] font-bold bg-white border border-[#ccc] text-[#1D2939] rounded hover:bg-gray-50"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={() => copyProductsMutation.mutate()}
                                     disabled={!selectedOrigemId || copyProductsMutation.isPending}
-                                    className="px-4 py-2 text-[12px] font-bold bg-[#1a2e4a] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
+                                    className="px-4 py-2 text-[12px] font-bold bg-[#1E3A8A] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
                                 >
                                     {copyProductsMutation.isPending ? "Copiando..." : "Copiar Produtos"}
                                 </button>

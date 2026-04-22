@@ -4,128 +4,129 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - Gestap / Tatica Gestao Empresarial
-   Estilo: Swiss Luxury Minimal
-   Primary: #3b5bdb
-   White dominant + fine borders (0.5px)
+/* Design System - Tatica Gestao v1
+   Fundo: off-white #F6F2EB | Surface: #FFFFFF
+   Brand: #1E3A8A (navy) / #1E40AF (mid) / #EFF6FF (soft)
+   Semânticas: success #039855 · warning #F79009 · error #D92D20 (vencido)
+   Sidebar: cinza escuro (#1D2939) com texto branco
 */
 
 @layer base {
   :root {
-    /* Backgrounds */
-    --background: 40 18% 95%;        /* #f7f5f0 */
-    --foreground: 222 47% 11%;       /* #0f172a */
+    /* Backgrounds — creme */
+    --background: 40 44% 94%;        /* #F6F2EB */
+    --foreground: 222 47% 11%;       /* #0F172A near-black */
 
-    --card: 0 0% 100%;              /* #ffffff */
+    --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary — #3b5bdb */
-    --primary: 228 66% 55%;
+    /* Primary — #1E3A8A azul marinho */
+    --primary: 226 71% 33%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary */
-    --secondary: 214 32% 91%;       /* #e2e8f0 */
+    /* Secondary — neutro claro */
+    --secondary: 220 16% 93%;        /* #EAECF0 divider */
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96%;           /* #f1f5f9 */
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 218 11% 55%;
 
-    /* Accent */
-    --accent: 226 100% 97%;         /* #eef2ff */
-    --accent-foreground: 228 66% 55%;
+    /* Accent — brand soft (blue-50) */
+    --accent: 214 100% 97%;          /* #EFF6FF */
+    --accent-foreground: 226 71% 33%; /* #1E3A8A */
 
-    /* Destructive — #c62828 */
-    --destructive: 0 66% 47%;
+    /* Destructive — #D92D20 (vencido) */
+    --destructive: 4 74% 49%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success — #2e7d32 */
-    --success: 123 46% 34%;
+    /* Success — #039855 (a receber) */
+    --success: 152 96% 30%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning — #f57f17 */
-    --warning: 33 92% 53%;
+    /* Warning — #F79009 */
+    --warning: 35 93% 50%;
     --warning-foreground: 0 0% 100%;
 
-    /* Info */
-    --info: 228 66% 55%;
+    /* Info — brand-mid */
+    --info: 226 71% 33%;
     --info-foreground: 0 0% 100%;
 
     /* Borders */
-    --border: 214 32% 91%;          /* #e2e8f0 */
-    --input: 214 32% 91%;
-    --ring: 228 66% 55%;
+    --border: 220 16% 90%;
+    --input: 215 17% 84%;
+    --ring: 226 71% 33%;
 
     /* Extra surfaces */
-    --surface-2: 210 40% 98%;
-    --border-light: 210 40% 96%;
+    --surface-2: 220 14% 96%;
+    --border-light: 220 16% 94%;
 
-    --radius: 0.75rem;              /* 12px base */
+    --radius: 0.5rem;                /* 8px corporativo */
 
-    /* Sidebar — Dark/Black */
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 228 66% 55%;
+    /* Sidebar — Cinza bem escuro */
+    --sidebar-background: 220 39% 11%;        /* #111827 gray-900 */
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 226 71% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent: 220 26% 18%;            /* #1F2937 hover */
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 228 66% 55%;
-    --sidebar-muted: 0 0% 55%;
+    --sidebar-border: 220 24% 16%;
+    --sidebar-ring: 226 71% 55%;
+    --sidebar-muted: 218 11% 65%;
   }
 
   .dark {
-    --background: 222 47% 7%;          /* #0c1220 */
-    --foreground: 210 40% 93%;         /* #e2e8f0 */
+    --background: 216 36% 10%;
+    --foreground: 40 44% 95%;
 
-    --card: 222 47% 10%;              /* #141e30 */
-    --card-foreground: 210 40% 93%;
+    --card: 216 36% 13%;
+    --card-foreground: 40 44% 95%;
 
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 93%;
+    --popover: 216 36% 13%;
+    --popover-foreground: 40 44% 95%;
 
-    --primary: 228 66% 60%;
+    --primary: 158 64% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 30% 18%;
-    --secondary-foreground: 210 40% 90%;
+    --secondary: 216 30% 20%;
+    --secondary-foreground: 40 44% 92%;
 
-    --muted: 222 30% 15%;
-    --muted-foreground: 215 16% 60%;
+    --muted: 216 30% 15%;
+    --muted-foreground: 218 11% 65%;
 
-    --accent: 228 40% 18%;
-    --accent-foreground: 228 66% 70%;
+    --accent: 162 50% 20%;
+    --accent-foreground: 152 80% 88%;
 
-    --destructive: 0 66% 50%;
+    --destructive: 4 74% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 123 46% 40%;
+    --success: 152 70% 40%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 33 92% 55%;
+    --warning: 35 93% 55%;
     --warning-foreground: 0 0% 100%;
 
-    --info: 228 66% 60%;
+    --info: 158 64% 52%;
     --info-foreground: 0 0% 100%;
 
-    --border: 222 30% 20%;
-    --input: 222 30% 20%;
-    --ring: 228 66% 60%;
+    --border: 216 30% 22%;
+    --input: 216 30% 22%;
+    --ring: 158 64% 52%;
 
-    --surface-2: 222 30% 12%;
-    --border-light: 222 30% 18%;
+    --surface-2: 216 30% 12%;
+    --border-light: 216 30% 18%;
 
-    --sidebar-background: 0 0% 5%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 228 66% 60%;
+    --sidebar-background: 216 36% 8%;
+    --sidebar-foreground: 40 20% 88%;
+    --sidebar-primary: 158 64% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent: 216 30% 18%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 228 66% 60%;
-    --sidebar-muted: 0 0% 50%;
+    --sidebar-border: 216 30% 20%;
+    --sidebar-ring: 158 64% 52%;
+    --sidebar-muted: 218 11% 60%;
   }
 }
 
@@ -138,9 +139,6 @@
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-base);
     font-feature-settings: "rlig" 1, "calt" 1;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Cdefs%3E%3Cpattern id='sketch' x='0' y='0' width='600' height='400' patternUnits='userSpaceOnUse'%3E%3Crect width='600' height='400' fill='%23f7f5f0'/%3E%3Cpath d='M-10 340 Q80 310 160 328 Q240 345 320 312 Q400 280 480 298 Q550 312 610 295' fill='none' stroke='%230d1b2a' stroke-width='0.8' stroke-linecap='round' opacity='0.055'/%3E%3Cpath d='M-10 358 Q90 326 170 344 Q250 360 330 328 Q410 296 490 314 Q555 326 615 310' fill='none' stroke='%230d1b2a' stroke-width='0.5' stroke-linecap='round' opacity='0.035'/%3E%3Cpath d='M-10 72 Q90 38 180 60 Q270 82 360 48 Q440 20 520 42 Q575 56 615 40' fill='none' stroke='%23c9a84c' stroke-width='1' stroke-linecap='round' opacity='0.16'/%3E%3Cpath d='M-10 195 Q110 172 210 194 Q310 215 400 182 Q480 154 560 172 Q595 180 615 168' fill='none' stroke='%230d1b2a' stroke-width='0.6' stroke-linecap='round' opacity='0.045'/%3E%3Cpath d='M38 108 Q48 100 56 106' fill='none' stroke='%23c9a84c' stroke-width='1.1' stroke-linecap='round' opacity='0.2'/%3E%3Cpath d='M40 116 Q52 110 62 115' fill='none' stroke='%23c9a84c' stroke-width='0.7' stroke-linecap='round' opacity='0.13'/%3E%3Cpath d='M528 258 Q538 250 548 256 Q556 262 564 254' fill='none' stroke='%23c9a84c' stroke-width='1.1' stroke-linecap='round' opacity='0.2'/%3E%3Cpath d='M530 268 Q543 262 554 267' fill='none' stroke='%230d1b2a' stroke-width='0.6' stroke-linecap='round' opacity='0.07'/%3E%3Cpath d='M55 365 L72 365' fill='none' stroke='%23c9a84c' stroke-width='0.8' stroke-linecap='round' stroke-dasharray='3 5' opacity='0.18'/%3E%3Cpath d='M57 372 L78 372' fill='none' stroke='%23c9a84c' stroke-width='0.6' stroke-linecap='round' stroke-dasharray='2 6' opacity='0.12'/%3E%3Cpath d='M380 22 Q440 8 510 18 Q560 24 610 14' fill='none' stroke='%230d1b2a' stroke-width='0.4' stroke-linecap='round' opacity='0.04'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='600' height='400' fill='url(%23sketch)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 600px 400px;
   }
 
   .dark body,
@@ -152,7 +150,7 @@
 @layer components {
   /* Solid surfaces over diagonal pattern */
   [data-sidebar] {
-    background: hsl(0 0% 7%) !important;
+    background: hsl(var(--sidebar-background)) !important;
   }
   [role="dialog"],
   .glass {
@@ -334,6 +332,24 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground));
   }
+
+}
+
+/* Sidebar — barra de rolagem totalmente invisível (continua scrollável) */
+/* (fora do @layer para garantir cascade) */
+[data-sidebar="content"],
+[data-sidebar="sidebar"],
+.scrollbar-thin[data-sidebar="content"] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+[data-sidebar="content"]::-webkit-scrollbar,
+[data-sidebar="sidebar"]::-webkit-scrollbar,
+.scrollbar-thin[data-sidebar="content"]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 /* Global scrollbar */

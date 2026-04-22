@@ -68,15 +68,15 @@ const PERIODICIDADE_CARDS = [
 function statusBadge(status: string) {
   switch (status) {
     case 'ativo':
-      return { label: 'Ativo', text: '#0a5c2e', bg: '#e6f4ec', border: '#0a5c2e' }
+      return { label: 'Ativo', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     case 'pausado':
-      return { label: 'Pausado', text: '#5c3a00', bg: '#fffbe6', border: '#b8960a' }
+      return { label: 'Pausado', text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
     case 'inativo':
-      return { label: 'Inativo', text: '#555', bg: '#f5f5f5', border: '#ccc' }
+      return { label: 'Inativo', text: '#555', bg: '#F6F2EB', border: '#ccc' }
     case 'encerrado':
-      return { label: 'Encerrado', text: '#8b0000', bg: '#fdecea', border: '#8b0000' }
+      return { label: 'Encerrado', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
     default:
-      return { label: status, text: '#555', bg: '#f5f5f5', border: '#ccc' }
+      return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
 }
 
@@ -97,10 +97,10 @@ function vencimentoLabel(proximo: string | null): { text: string; color: string 
   const venc = parseISO(proximo)
   venc.setHours(0, 0, 0, 0)
   const diff = differenceInDays(venc, hoje)
-  if (diff === 0) return { text: 'hoje', color: '#5c3a00' }
-  if (diff > 0) return { text: `em ${diff} dia${diff > 1 ? 's' : ''}`, color: diff <= 7 ? '#5c3a00' : '#0a5c2e' }
+  if (diff === 0) return { text: 'hoje', color: '#F79009' }
+  if (diff > 0) return { text: `em ${diff} dia${diff > 1 ? 's' : ''}`, color: diff <= 7 ? '#F79009' : '#039855' }
   const abs = Math.abs(diff)
-  return { text: `${abs} dia${abs > 1 ? 's' : ''} atras`, color: '#8b0000' }
+  return { text: `${abs} dia${abs > 1 ? 's' : ''} atras`, color: '#D92D20' }
 }
 
 function calcularPrimeiroVencimento(dataInicio: string, diaVencimento: number): string {
@@ -395,9 +395,9 @@ export default function ContratosRecorrentes() {
           <div
             className="fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg border text-[13px] font-medium shadow-lg flex items-center gap-2"
             style={{
-              background: toast.type === 'success' ? '#e6f4ec' : '#fdecea',
-              borderColor: toast.type === 'success' ? '#0a5c2e' : '#8b0000',
-              color: toast.type === 'success' ? '#0a5c2e' : '#8b0000',
+              background: toast.type === 'success' ? '#ECFDF3' : '#FEF3F2',
+              borderColor: toast.type === 'success' ? '#039855' : '#D92D20',
+              color: toast.type === 'success' ? '#039855' : '#D92D20',
             }}
           >
             {toast.msg}
@@ -410,14 +410,14 @@ export default function ContratosRecorrentes() {
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-[#0a0a0a]">Contratos Recorrentes</h1>
+            <h1 className="text-xl font-bold text-[#1D2939]">Contratos Recorrentes</h1>
             <p className="text-[13px] text-[#555] mt-0.5">
               Gerencie contratos e gere contas a receber automaticamente.
             </p>
           </div>
           <button
             onClick={() => { setEditingContrato(null); setShowModal(true) }}
-            className="flex items-center gap-2 bg-[#1a2e4a] text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg hover:bg-[#15253d] transition-colors"
+            className="flex items-center gap-2 bg-[#1E3A8A] text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg hover:bg-[#1D2939] transition-colors"
           >
             <Plus size={16} />
             Novo contrato
@@ -426,19 +426,19 @@ export default function ContratosRecorrentes() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard title="Contratos ativos" value={String(kpis.ativos)} color="#0a5c2e" bgColor="#e6f4ec" />
-          <KPICard title="Receita mensal recorrente" value={formatBRL(kpis.receitaMensal)} color="#1a2e4a" bgColor="#f0f4f8" />
-          <KPICard title="Vencendo esta semana" value={String(kpis.vencendoSemana)} color="#5c3a00" bgColor="#fffbe6" />
-          <KPICard title="Inativos / Pausados" value={String(kpis.inativosPausados)} color="#555" bgColor="#f5f5f5" />
+          <KPICard title="Contratos ativos" value={String(kpis.ativos)} color="#039855" bgColor="#ECFDF3" />
+          <KPICard title="Receita mensal recorrente" value={formatBRL(kpis.receitaMensal)} color="#1E3A8A" bgColor="#EFF6FF" />
+          <KPICard title="Vencendo esta semana" value={String(kpis.vencendoSemana)} color="#F79009" bgColor="#FFFAEB" />
+          <KPICard title="Inativos / Pausados" value={String(kpis.inativosPausados)} color="#555" bgColor="#F6F2EB" />
         </div>
 
         {/* FILTERS */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
             <button
               onClick={() => { setSearch(''); setStatusFilter('todos'); setPeriodicidadeFilter('todos') }}
-              className="text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors"
+              className="text-[11px] font-semibold text-[#BFDBFE] hover:text-white transition-colors"
             >
               Limpar
             </button>
@@ -454,7 +454,7 @@ export default function ContratosRecorrentes() {
                   placeholder="Nome do cliente..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                  className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -465,7 +465,7 @@ export default function ContratosRecorrentes() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
               >
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -477,7 +477,7 @@ export default function ContratosRecorrentes() {
               <select
                 value={periodicidadeFilter}
                 onChange={e => setPeriodicidadeFilter(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
               >
                 {PERIODICIDADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -487,13 +487,13 @@ export default function ContratosRecorrentes() {
 
         {/* TABLE */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1a2e4a] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Contratos ({filtered.length})
             </h3>
             <button
               onClick={fetchContratos}
-              className="text-[11px] font-semibold text-[#a8bfd4] hover:text-white transition-colors flex items-center gap-1"
+              className="text-[11px] font-semibold text-[#BFDBFE] hover:text-white transition-colors flex items-center gap-1"
             >
               <RefreshCw size={12} />
               Atualizar
@@ -502,7 +502,7 @@ export default function ContratosRecorrentes() {
           <div className="bg-white overflow-x-auto">
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 size={20} className="animate-spin text-[#1a2e4a]" />
+                <Loader2 size={20} className="animate-spin text-[#1E3A8A]" />
                 <span className="ml-2 text-[13px] text-[#555]">Carregando...</span>
               </div>
             ) : filtered.length === 0 ? (
@@ -528,13 +528,13 @@ export default function ContratosRecorrentes() {
                     const sb = statusBadge(c.status)
                     const vl = vencimentoLabel(c.proximo_vencimento)
                     return (
-                      <tr key={c.id} className="border-b border-[#f0f0f0] hover:bg-[#fafbfc] transition-colors">
-                        <td className="px-4 py-3 font-medium text-[#0a0a0a]">{c.cliente_nome}</td>
+                      <tr key={c.id} className="border-b border-[#EAECF0] hover:bg-[#fafbfc] transition-colors">
+                        <td className="px-4 py-3 font-medium text-[#1D2939]">{c.cliente_nome}</td>
                         <td className="px-4 py-3 text-[#555] max-w-[200px] truncate">{c.descricao}</td>
-                        <td className="px-4 py-3 text-right font-medium text-[#0a0a0a]">{formatBRL(c.valor)}</td>
+                        <td className="px-4 py-3 text-right font-medium text-[#1D2939]">{formatBRL(c.valor)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full border"
-                            style={{ color: '#555', background: '#f5f5f5', borderColor: '#ccc' }}>
+                            style={{ color: '#555', background: '#F6F2EB', borderColor: '#ccc' }}>
                             {periodicidadeBadge(c.periodicidade)}
                           </span>
                         </td>
@@ -555,7 +555,7 @@ export default function ContratosRecorrentes() {
                         <td className="px-4 py-3 text-center relative" ref={openDropdown === c.id ? dropdownRef : undefined}>
                           <button
                             onClick={() => setOpenDropdown(openDropdown === c.id ? null : c.id)}
-                            className="p-1.5 rounded-lg hover:bg-[#f0f0f0] transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-[#EAECF0] transition-colors"
                           >
                             <MoreHorizontal size={16} className="text-[#555]" />
                           </button>
@@ -563,36 +563,36 @@ export default function ContratosRecorrentes() {
                             <div className="absolute right-4 top-10 z-50 bg-white border border-[#ccc] rounded-lg shadow-lg py-1 min-w-[180px]">
                               <button
                                 onClick={() => togglePausar(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#f5f5f5] flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
-                                {c.status === 'ativo' ? <Pause size={14} className="text-[#5c3a00]" /> : <Play size={14} className="text-[#0a5c2e]" />}
+                                {c.status === 'ativo' ? <Pause size={14} className="text-[#F79009]" /> : <Play size={14} className="text-[#039855]" />}
                                 {c.status === 'ativo' ? 'Pausar' : 'Reativar'}
                               </button>
                               <button
                                 onClick={() => { setEditingContrato(c); setShowModal(true); setOpenDropdown(null) }}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#f5f5f5] flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
                                 <Pencil size={14} className="text-[#555]" />
                                 Editar
                               </button>
                               <button
                                 onClick={() => encerrarContrato(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#f5f5f5] flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
-                                <AlertTriangle size={14} className="text-[#5c3a00]" />
+                                <AlertTriangle size={14} className="text-[#F79009]" />
                                 Encerrar contrato
                               </button>
                               <button
                                 onClick={() => gerarCRAgora(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#f5f5f5] flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
-                                <RefreshCw size={14} className="text-[#1a2e4a]" />
+                                <RefreshCw size={14} className="text-[#1E3A8A]" />
                                 Gerar CR agora
                               </button>
                               <div className="border-t border-[#eee] my-1" />
                               <button
                                 onClick={() => excluirContrato(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#fdecea] flex items-center gap-2 text-[#8b0000] transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#FEF3F2] flex items-center gap-2 text-[#D92D20] transition-colors"
                               >
                                 <Trash2 size={14} />
                                 Excluir
@@ -738,11 +738,11 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[540px] max-h-[90vh] overflow-y-auto mx-4">
         {/* Header */}
-        <div className="bg-[#1a2e4a] px-5 py-3.5 flex items-center justify-between rounded-t-xl">
+        <div className="bg-[#1E3A8A] px-5 py-3.5 flex items-center justify-between rounded-t-xl">
           <h2 className="text-[12px] font-bold text-white uppercase tracking-widest">
             {isEdit ? 'Editar contrato' : 'Novo contrato'}
           </h2>
-          <button onClick={onClose} className="text-[#a8bfd4] hover:text-white transition-colors">
+          <button onClick={onClose} className="text-[#BFDBFE] hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -750,7 +750,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
         <div className="p-5 space-y-4">
           {error && (
             <div className="px-3 py-2 rounded-lg text-[13px] font-medium border"
-              style={{ background: '#fdecea', borderColor: '#8b0000', color: '#8b0000' }}>
+              style={{ background: '#FEF3F2', borderColor: '#D92D20', color: '#D92D20' }}>
               {error}
             </div>
           )}
@@ -765,7 +765,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
               value={clienteNome}
               onChange={e => setClienteNome(e.target.value)}
               placeholder="Nome do cliente"
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
             />
           </div>
 
@@ -779,7 +779,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
               value={descricao}
               onChange={e => setDescricao(e.target.value)}
               placeholder="Servico mensal, consultoria, etc."
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
             />
           </div>
 
@@ -795,7 +795,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
               value={valor}
               onChange={e => setValor(e.target.value)}
               placeholder="0,00"
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
             />
           </div>
 
@@ -812,8 +812,8 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
                   onClick={() => setPeriodicidade(p.value)}
                   className="py-2 px-2 text-[12px] font-semibold rounded-lg border text-center transition-colors"
                   style={{
-                    borderColor: periodicidade === p.value ? '#1a2e4a' : '#ccc',
-                    background: periodicidade === p.value ? '#1a2e4a' : '#fff',
+                    borderColor: periodicidade === p.value ? '#1E3A8A' : '#ccc',
+                    background: periodicidade === p.value ? '#1E3A8A' : '#fff',
                     color: periodicidade === p.value ? '#fff' : '#555',
                   }}
                 >
@@ -835,7 +835,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
                 max="28"
                 value={diaVencimento}
                 onChange={e => setDiaVencimento(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
               />
             </div>
             <div>
@@ -846,7 +846,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
                 type="date"
                 value={dataInicio}
                 onChange={e => setDataInicio(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
               />
             </div>
           </div>
@@ -859,7 +859,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
             <select
               value={contaContabilId}
               onChange={e => setContaContabilId(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
             >
               <option value="">Selecionar (opcional)</option>
               {chartAccounts.map(a => (
@@ -876,7 +876,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
             <select
               value={centroCustoId}
               onChange={e => setCentroCustoId(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1a2e4a] focus:ring-1 focus:ring-[#1a2e4a]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
             >
               <option value="">Selecionar (opcional)</option>
               {centrosCusto.map(cc => (
@@ -889,7 +889,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
           {!isEdit && primeiroVencimento && valorNum > 0 && (
             <div
               className="px-4 py-3 rounded-lg border text-[13px] font-medium"
-              style={{ background: '#e6f4ec', borderColor: '#0a5c2e', color: '#0a5c2e' }}
+              style={{ background: '#ECFDF3', borderColor: '#039855', color: '#039855' }}
             >
               Primeiro CR sera gerado em {formatData(primeiroVencimento)} no valor de {formatBRL(valorNum)}
             </div>
@@ -899,14 +899,14 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#f5f5f5] transition-colors"
+              className="px-4 py-2.5 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2.5 text-[13px] font-semibold text-white bg-[#1a2e4a] rounded-lg hover:bg-[#15253d] transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2.5 text-[13px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
               {isEdit ? 'Salvar alteracoes' : 'Criar contrato'}
