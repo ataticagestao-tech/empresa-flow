@@ -58,12 +58,12 @@ export function CompanySelector() {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[160px] md:w-[250px] p-0">
+      <PopoverContent className="w-[210px] md:w-[260px] p-0">
         <Command>
-          <CommandInput placeholder="Buscar empresa..." />
-          <CommandList>
-            <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-            <CommandGroup>
+          <CommandInput placeholder="Buscar empresa..." className="text-[11px] h-7" />
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty className="py-3 text-[11px]">Nenhuma empresa encontrada.</CommandEmpty>
+            <CommandGroup className="p-1">
               {companies.map((company) => (
                 <CommandItem
                   key={company.id}
@@ -79,19 +79,20 @@ export function CompanySelector() {
                     setSelectedCompany(company);
                     setOpen(false);
                   }}
+                  className="py-1 px-1.5"
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "mr-1.5 h-3 w-3 shrink-0",
                       selectedCompany?.id === company.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">
+                  <div className="flex flex-col min-w-0 leading-[1.15]">
+                    <span className="text-[11px] font-medium truncate">
                       {company.nome_fantasia || company.razao_social}
                     </span>
                     {company.cnpj && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[9.5px] text-muted-foreground tabular-nums">
                         {maskCNPJ(company.cnpj)}
                       </span>
                     )}
