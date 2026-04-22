@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /* Design System - gestap system v2 (Emerald)
-   Fundo: off-white #F6F8F7 (subtom verde) | Surface: #FFFFFF
+   Fundo: creme #F6F2EB | Surface: #FFFFFF
    Brand: #059669 (emerald-600) / #10B981 (mid) / #ECFDF4 (soft)
    Logo vivid: #0BE041 (detalhes/indicadores)
    Semânticas: success #039855 · warning #F79009 · error #D92D20 (vencido)
@@ -14,8 +14,8 @@
 
 @layer base {
   :root {
-    /* Backgrounds — off-white com subtom verde */
-    --background: 150 10% 97%;       /* #F6F8F7 */
+    /* Backgrounds — creme */
+    --background: 40 44% 94%;        /* #F6F2EB */
     --foreground: 155 25% 10%;       /* #131E18 near-black green undertone */
 
     --card: 0 0% 100%;
