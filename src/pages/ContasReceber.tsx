@@ -89,9 +89,9 @@ function statusBadge(status: string) {
     case 'aberto':
       return { label: 'Em aberto', text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'vencido':
-      return { label: 'Vencido', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
+      return { label: 'Vencido', text: '#E53E3E', bg: '#FEE2E2', border: '#E53E3E' }
     case 'parcial':
-      return { label: 'Parcial', text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
+      return { label: 'Parcial', text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     case 'pago':
       return { label: 'Pago', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     default:
@@ -439,7 +439,7 @@ export default function ContasReceber() {
             {
               label: 'Vencendo em 7 dias',
               value: formatBRL(kpis.vencendo7d),
-              color: '#F79009',
+              color: '#EA580C',
               sub: `${kpis.countVencendo} título${kpis.countVencendo !== 1 ? 's' : ''} a vencer`,
             },
             {
@@ -864,11 +864,11 @@ export default function ContasReceber() {
                         </td>
                         {/* Vencimento */}
                         <td className="px-4 py-2 align-middle">
-                          <span className={isVencido ? 'text-[#D92D20] font-semibold' : 'text-[#1D2939]'}>
+                          <span className={isVencido ? 'text-[#E53E3E] font-semibold' : 'text-[#1D2939]'}>
                             {formatData(cr.data_vencimento)}
                           </span>
                           {isVencido && diasAtraso > 0 && (
-                            <div className="text-[10px] text-[#D92D20] mt-0.5">
+                            <div className="text-[10px] text-[#E53E3E] mt-0.5">
                               {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
                             </div>
                           )}
@@ -934,7 +934,7 @@ export default function ContasReceber() {
                                       await db.from('contas_receber').update({ status: 'cancelado' }).eq('id', cr.id)
                                       fetchItems()
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#D92D20] hover:bg-[#FEF3F2] transition-colors"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors"
                                   >
                                     Cancelar titulo
                                   </button>
@@ -955,7 +955,7 @@ export default function ContasReceber() {
                                       if (error) { alert('Erro ao excluir: ' + error.message); return }
                                       fetchItems()
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#D92D20] hover:bg-[#FEF3F2] transition-colors last:rounded-b-lg"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors last:rounded-b-lg"
                                   >
                                     Excluir titulo
                                   </button>

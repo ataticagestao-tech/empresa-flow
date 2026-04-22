@@ -37,11 +37,11 @@ const DRE_GROUPS = [
 function getBadge(c: Conta) {
   if (c.account_type === "revenue") return { label: "Receita", cls: "border-[#039855] bg-[#ECFDF3] text-[#039855]" };
   if (c.account_type === "asset") return { label: "Ativo", cls: "border-[#039855] bg-[#ECFDF3] text-[#039855]" };
-  if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
+  if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]" };
   if (c.account_type === "equity") return { label: "PL", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
-  if (c.account_type === "cost") return { label: "Custo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
-  if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#F79009] bg-[#FFFAEB] text-[#F79009]" };
-  if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
+  if (c.account_type === "cost") return { label: "Custo", cls: "border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]" };
+  if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]" };
+  if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]" };
   if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
   if (c.account_type === "expense") return { label: "Despesa", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
   return { label: "Outros", cls: "border-[#ccc] bg-[#F6F2EB] text-[#555]" };
@@ -500,14 +500,14 @@ export default function PlanoContas() {
 
   // ─── Inline edit row ───
   const renderEditRow = (conta: Conta) => (
-    <div key={conta.id + "-edit"} className="bg-[#FFFAEB] border-b border-[#e6c200] px-4 py-3 space-y-3">
+    <div key={conta.id + "-edit"} className="bg-[#FFF0EB] border-b border-[#e6c200] px-4 py-3 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-mono text-[#555]">{conta.code}</span>
-        <span className="text-[10px] font-bold uppercase text-[#F79009]">Editando</span>
+        <span className="text-[10px] font-bold uppercase text-[#EA580C]">Editando</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="flex flex-col gap-1">
-          <label className={LB}>Nome <span className="text-[#D92D20]">*</span></label>
+          <label className={LB}>Nome <span className="text-[#E53E3E]">*</span></label>
           <input value={editForm.name} onChange={e => setEdit("name", e.target.value)} className={IC} />
         </div>
         <div className="flex flex-col gap-1">
@@ -556,7 +556,7 @@ export default function PlanoContas() {
       <button onClick={e => startEdit(conta, e)} title="Editar"
         className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#ECFDF4] text-[#059669] text-sm transition-all">✎</button>
       <button onClick={e => deleteConta(conta, e)} title="Desativar"
-        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#FEF3F2] text-[#D92D20] text-sm transition-all">✕</button>
+        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#FEE2E2] text-[#E53E3E] text-sm transition-all">✕</button>
     </div>
   );
 
@@ -588,15 +588,15 @@ export default function PlanoContas() {
 
         {/* Modelo Padrão Panel */}
         {showModelo && (
-          <div className="border border-[#F79009] rounded-lg overflow-hidden">
-            <div className="bg-[#F79009] px-4 py-3 flex items-center justify-between">
+          <div className="border border-[#EA580C] rounded-lg overflow-hidden">
+            <div className="bg-[#EA580C] px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen size={16} className="text-white" />
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Plano de Contas Patrimoniais — Modelo Padrão</h3>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={addAllPatrimonial}
-                  className="flex items-center gap-1.5 bg-white text-[#F79009] text-[10px] font-bold px-3 py-1.5 rounded-md hover:bg-[#FFFAEB] transition-colors">
+                  className="flex items-center gap-1.5 bg-white text-[#EA580C] text-[10px] font-bold px-3 py-1.5 rounded-md hover:bg-[#FFF0EB] transition-colors">
                   <Download size={12} /> Aplicar Modelo Completo
                 </button>
                 <button onClick={() => setShowModelo(false)} className="text-white/70 hover:text-white">
@@ -605,11 +605,11 @@ export default function PlanoContas() {
               </div>
             </div>
 
-            <div className="bg-[#FFFAEB] border-b border-[#e6c200] px-4 py-2.5 flex items-center gap-3">
+            <div className="bg-[#FFF0EB] border-b border-[#e6c200] px-4 py-2.5 flex items-center gap-3">
               <input type="text" placeholder="Buscar no modelo..." value={modeloSearch}
                 onChange={e => setModeloSearch(e.target.value)}
-                className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#F79009] focus:outline-none flex-1" />
-              <span className="text-[10px] font-bold text-[#F79009] shrink-0">
+                className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#EA580C] focus:outline-none flex-1" />
+              <span className="text-[10px] font-bold text-[#EA580C] shrink-0">
                 {PLANO_PATRIMONIAL.length} contas no modelo · {PLANO_PATRIMONIAL.filter(c => existingCodes.has(c.code)).length} já adicionadas
               </span>
             </div>
@@ -697,8 +697,8 @@ export default function PlanoContas() {
             <div className="bg-[#059669] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Nova Conta</h3></div>
             <div className="p-5 bg-white space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1"><label className={LB}>Código <span className="text-[#D92D20]">*</span></label><input value={newConta.code} onChange={e => setNew("code", e.target.value)} className={IC} placeholder="Ex: 4.1.09" /></div>
-                <div className="flex flex-col gap-1"><label className={LB}>Nome <span className="text-[#D92D20]">*</span></label><input value={newConta.name} onChange={e => setNew("name", e.target.value)} className={IC} /></div>
+                <div className="flex flex-col gap-1"><label className={LB}>Código <span className="text-[#E53E3E]">*</span></label><input value={newConta.code} onChange={e => setNew("code", e.target.value)} className={IC} placeholder="Ex: 4.1.09" /></div>
+                <div className="flex flex-col gap-1"><label className={LB}>Nome <span className="text-[#E53E3E]">*</span></label><input value={newConta.name} onChange={e => setNew("name", e.target.value)} className={IC} /></div>
               </div>
               <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1"><label className={LB}>Tipo</label>
@@ -772,7 +772,7 @@ export default function PlanoContas() {
                       const b = getBadge(grupo);
                       const isReceita = /receita/i.test(b.label);
                       const isDespCusto = /despesa|custo/i.test(b.label);
-                      const color = isReceita ? "#039855" : isDespCusto ? "#D92D20" : "#667085";
+                      const color = isReceita ? "#039855" : isDespCusto ? "#E53E3E" : "#667085";
                       return <span className="text-[10.5px] font-semibold" style={{ color }}>{b.label}</span>;
                     })()}
                   </span>
@@ -803,7 +803,7 @@ export default function PlanoContas() {
                             <span className="text-[12px] text-[#667085] w-20 font-mono pl-8">{analitica.code}</span>
                             <span className="text-[13px] text-black flex-1 min-w-0 pl-8 truncate">{analitica.name}</span>
                             <span className="w-16"></span>
-                            <span className="w-28 text-[10.5px] font-semibold" style={{ color: /receita/i.test(badge.label) ? "#039855" : /despesa|custo/i.test(badge.label) ? "#D92D20" : "#667085" }}>{badge.label}</span>
+                            <span className="w-28 text-[10.5px] font-semibold" style={{ color: /receita/i.test(badge.label) ? "#039855" : /despesa|custo/i.test(badge.label) ? "#E53E3E" : "#667085" }}>{badge.label}</span>
                             <span className="w-20 flex justify-end">{renderActions(analitica)}</span>
                           </div>
                           {editingId === analitica.id && renderEditRow(analitica)}
@@ -843,19 +843,19 @@ export default function PlanoContas() {
               <button
                 onClick={replaceAllWithModelo}
                 disabled={replacingAll}
-                className="w-full text-left border border-[#D92D20] rounded-lg p-4 hover:bg-[#FEF3F2] transition-colors group disabled:opacity-60"
+                className="w-full text-left border border-[#E53E3E] rounded-lg p-4 hover:bg-[#FEE2E2] transition-colors group disabled:opacity-60"
               >
                 <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#D92D20] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#E53E3E] flex items-center justify-center shrink-0">
                     <Download size={16} className="text-white" />
                   </div>
-                  <span className="text-sm font-bold text-[#D92D20]">
+                  <span className="text-sm font-bold text-[#E53E3E]">
                     {replacingAll ? "Substituindo..." : "Substituir plano inteiro"}
                   </span>
                 </div>
                 <p className="text-xs text-[#555] ml-11">
                   Remove todas as contas atuais e aplica o modelo padrão completo.
-                  <span className="font-bold text-[#D92D20]"> Atenção: as contas existentes serão desativadas.</span>
+                  <span className="font-bold text-[#E53E3E]"> Atenção: as contas existentes serão desativadas.</span>
                 </p>
               </button>
 

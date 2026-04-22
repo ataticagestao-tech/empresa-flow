@@ -230,8 +230,8 @@ export default function AdmissoesDemissoes() {
           {[
             { label: 'Total registros', value: kpis.total, icon: Users, color: '#059669' },
             { label: 'Admissoes', value: kpis.admissoes, icon: UserPlus, color: '#059669' },
-            { label: 'Demissoes', value: kpis.demissoes, icon: UserMinus, color: '#D92D20' },
-            { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), icon: FileText, color: '#F79009' },
+            { label: 'Demissoes', value: kpis.demissoes, icon: UserMinus, color: '#E53E3E' },
+            { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), icon: FileText, color: '#EA580C' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -328,8 +328,8 @@ export default function AdmissoesDemissoes() {
                         <span
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                           style={{
-                            color: r.tipo === 'admissao' ? '#059669' : '#D92D20',
-                            backgroundColor: r.tipo === 'admissao' ? '#ECFDF3' : '#FEF3F2',
+                            color: r.tipo === 'admissao' ? '#059669' : '#E53E3E',
+                            backgroundColor: r.tipo === 'admissao' ? '#ECFDF3' : '#FEE2E2',
                           }}
                         >
                           {r.tipo === 'admissao' ? <UserPlus size={12} /> : <UserMinus size={12} />}

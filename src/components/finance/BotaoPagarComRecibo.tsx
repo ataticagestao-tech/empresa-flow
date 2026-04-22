@@ -145,15 +145,15 @@ export function ReciboModalProvider() {
             {resultado && (
                 <div style={{
                     position: "fixed", bottom: 24, right: 24, zIndex: 99999,
-                    background: resultado.ok ? "#1D2939" : "#FEF3F2",
-                    color: resultado.ok ? "#ffffff" : "#D92D20",
+                    background: resultado.ok ? "#1D2939" : "#FEE2E2",
+                    color: resultado.ok ? "#ffffff" : "#E53E3E",
                     padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500,
                     boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
                     display: "flex", alignItems: "center", gap: 10,
                 }}>
                     {resultado.ok
                         ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#039855" strokeWidth="2" strokeLinecap="round"><path d="M3 8l4 4 6-6" /></svg>
-                        : <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#D92D20" strokeWidth="2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                        : <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#E53E3E" strokeWidth="2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
                     }
                     {resultado.msg}
                 </div>

@@ -9,7 +9,7 @@
    Brand: #059669 (emerald-600) · vivid #0BE041 (logo)
    Navy: #0F2544 (sidebar/header) · #1E3A8A (mid)
    Preto: #0F172A (foreground) · Cinzas neutros (#E5E7EB, #9CA3AF)
-   Semânticas: success #039855 · warning #F79009 · error #D92D20
+   Semânticas: success #039855 · warning #EA580C · error #E53E3E
 */
 
 @layer base {
@@ -39,16 +39,16 @@
     --accent: 150 70% 96%;           /* #ECFDF4 */
     --accent-foreground: 160 84% 24%; /* emerald-700 */
 
-    /* Destructive — #D92D20 */
-    --destructive: 4 74% 49%;
+    /* Destructive — #E53E3E */
+    --destructive: 0 77% 57%;
     --destructive-foreground: 0 0% 100%;
 
     /* Success — #039855 */
     --success: 152 96% 30%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning — #F79009 */
-    --warning: 35 93% 50%;
+    /* Warning — #EA580C */
+    --warning: 19 90% 48%;
     --warning-foreground: 0 0% 100%;
 
     /* Info — navy */
@@ -100,13 +100,13 @@
     --accent: 162 50% 20%;
     --accent-foreground: 152 80% 88%;
 
-    --destructive: 4 74% 55%;
+    --destructive: 0 77% 62%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 152 70% 40%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 35 93% 55%;
+    --warning: 19 90% 53%;
     --warning-foreground: 0 0% 100%;
 
     --info: 158 64% 52%;

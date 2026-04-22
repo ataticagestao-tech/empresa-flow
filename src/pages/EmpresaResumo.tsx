@@ -239,7 +239,7 @@ export default function EmpresaResumo() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
                onClick={() => !deleting && setDeleteOpen(false)}>
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-[#D92D20] mb-2">Excluir empresa definitivamente</h3>
+              <h3 className="text-base font-bold text-[#E53E3E] mb-2">Excluir empresa definitivamente</h3>
               <p className="text-sm text-black mb-3">
                 Esta ação é <strong>irreversível</strong>. Serão apagados permanentemente:
               </p>
@@ -261,7 +261,7 @@ export default function EmpresaResumo() {
                 onChange={e => setDeleteConfirmText(e.target.value)}
                 placeholder="Digite a razão social"
                 autoFocus
-                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-black bg-white focus:border-[#D92D20] focus:outline-none w-full mb-4"
+                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-black bg-white focus:border-[#E53E3E] focus:outline-none w-full mb-4"
               />
               <div className="flex justify-end gap-2">
                 <button
@@ -288,7 +288,7 @@ export default function EmpresaResumo() {
                     }
                   }}
                   disabled={deleting || deleteConfirmText.trim() !== (company.razao_social || "").trim()}
-                  className="bg-[#D92D20] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="bg-[#E53E3E] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                   {deleting ? "Excluindo..." : "Excluir definitivamente"}
                 </button>
               </div>
@@ -359,7 +359,7 @@ export default function EmpresaResumo() {
                     <Pencil size={14} /> Editar
                   </button>
                   <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
-                    className="flex items-center gap-1.5 bg-white text-[#D92D20] border border-[#FECDCA] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#FEF3F2] transition-colors"
+                    className="flex items-center gap-1.5 bg-white text-[#E53E3E] border border-[#FECDCA] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#FEE2E2] transition-colors"
                     title="Excluir empresa">
                     <Trash2 size={14} /> Excluir
                   </button>

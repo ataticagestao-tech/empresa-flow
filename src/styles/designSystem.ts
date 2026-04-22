@@ -32,13 +32,13 @@ export const colors = {
   successSoft: "#ECFDF3",
 
   // Erro (vencido, inadimplente, excluir)
-  danger: "#D92D20",
-  dangerSoft: "#FEF3F2",
+  danger: "#E53E3E",
+  dangerSoft: "#FEE2E2",
 
   // Atenção (em aberto, pendente)
-  warning: "#D97706",
+  warning: "#EA580C",
   warningBright: "#F59E0B",
-  warningSoft: "#FFFBEB",
+  warningSoft: "#FFF0EB",
   warningBorder: "#FEDF89",
 
   // Texto — preto + escala cinza neutra
@@ -72,19 +72,19 @@ export const chartColors = {
     "#10B981", // verde claro
     "#6B7280", // cinza médio
     "#3B82F6", // azul claro (navy accent)
-    "#D97706", // âmbar (atenção)
+    "#EA580C", // âmbar (atenção)
     "#64748B", // cinza azulado
   ] as const,
 
   /** Semânticas para BI / status em gráficos. */
   positive: "#059669", // verde (receita, crescimento)
   positiveSoft: "#ECFDF4",
-  negative: "#D92D20", // vermelho (despesa, queda)
-  negativeSoft: "#FEF3F2",
+  negative: "#E53E3E", // vermelho (despesa, queda)
+  negativeSoft: "#FEE2E2",
   neutral: "#1E3A8A", // navy (baseline, projeção)
   neutralSoft: "#EFF6FF",
-  warning: "#F59E0B",
-  warningSoft: "#FFFBEB",
+  warning: "#EA580C",
+  warningSoft: "#FFF0EB",
 
   /** Eixos e grids do gráfico. */
   axis: "#6B7280",
@@ -158,7 +158,7 @@ export const button = {
   /** Botão secundário (branco com borda) */
   secondary: "bg-white border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#0F172A]",
   /** Botão de destruir */
-  danger: "bg-[#D92D20] hover:bg-[#B42318] text-white",
+  danger: "bg-[#E53E3E] hover:bg-[#B42318] text-white",
   /** Link discreto (ação secundária) */
   link: "text-[#059669] hover:underline",
 } as const;
@@ -166,11 +166,11 @@ export const button = {
 /* ─── Badges de status ────────────────────────────────────────── */
 export const statusBadge = {
   ativo: "text-[#039855] border-[#039855] bg-[#ECFDF3]",
-  inadimplente: "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
+  inadimplente: "text-[#E53E3E] border-[#E53E3E] bg-[#FEE2E2]",
   inativo: "text-[#4B5563] border-[#9CA3AF] bg-[#F3F4F6]",
-  aberto: "text-[#D97706] border-[#D97706] bg-[#FFFBEB]",
+  aberto: "text-[#EA580C] border-[#EA580C] bg-[#FFF0EB]",
   pago: "text-[#039855] border-[#039855] bg-[#ECFDF3]",
-  vencido: "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
+  vencido: "text-[#E53E3E] border-[#E53E3E] bg-[#FEE2E2]",
   projecao: "text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]",
 } as const;
 

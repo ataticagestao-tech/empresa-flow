@@ -97,7 +97,7 @@ export function AppHeader() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={handleLogout}
-              className="text-[#D92D20] focus:text-[#D92D20] focus:bg-[#FEF3F2]"
+              className="text-[#E53E3E] focus:text-[#E53E3E] focus:bg-[#FEE2E2]"
             >
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </DropdownMenuItem>

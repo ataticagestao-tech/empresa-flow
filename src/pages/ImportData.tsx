@@ -158,7 +158,7 @@ export default function ImportData() {
                                     {permissionCheck.companyAccess ? (
                                         <span className="text-green-600 ml-2">OK</span>
                                     ) : (
-                                        <span className="text-[#D92D20] ml-2">
+                                        <span className="text-[#E53E3E] ml-2">
                                             ERRO{permissionCheck.companyError?.message ? ` (${permissionCheck.companyError.message})` : ""}
                                         </span>
                                     )}
@@ -169,7 +169,7 @@ export default function ImportData() {
                                     {permissionCheck.linkAccess ? (
                                         <span className="text-green-600 ml-2">OK</span>
                                     ) : (
-                                        <span className="text-[#D92D20] ml-2">
+                                        <span className="text-[#E53E3E] ml-2">
                                             ERRO{permissionCheck.linkError?.message ? ` (${permissionCheck.linkError.message})` : ""}
                                         </span>
                                     )}

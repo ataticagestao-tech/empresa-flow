@@ -24,7 +24,7 @@ interface ScenarioConfig {
 }
 
 const defaultScenarios: ScenarioConfig[] = [
-    { name: "Pessimista", revenueVar: -20, expenseVar: 10, newClients: 0, extraTicket: 0, color: "#D92D20", borderColor: "#D92D20", bgColor: "#FEF3F2" },
+    { name: "Pessimista", revenueVar: -20, expenseVar: 10, newClients: 0, extraTicket: 0, color: "#E53E3E", borderColor: "#E53E3E", bgColor: "#FEE2E2" },
     { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#1E3A8A", borderColor: "#1E3A8A", bgColor: "#EFF6FF" },
     { name: "Otimista", revenueVar: 20, expenseVar: -10, newClients: 5, extraTicket: 500, color: "#059669", borderColor: "#059669", bgColor: "#ECFDF4" },
 ];
@@ -140,15 +140,15 @@ export default function Cenarios() {
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                                     <span style={{ fontSize: 12, color: "#667085" }}>Despesa</span>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#D92D20" }}>{fmt(r.despesa)}</span>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#E53E3E" }}>{fmt(r.despesa)}</span>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #EAECF0", paddingTop: 8 }}>
                                     <span style={{ fontSize: 13, fontWeight: 700 }}>Resultado</span>
-                                    <span style={{ fontSize: 15, fontWeight: 800, color: r.resultado >= 0 ? "#039855" : "#D92D20" }}>{fmt(r.resultado)}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 800, color: r.resultado >= 0 ? "#039855" : "#E53E3E" }}>{fmt(r.resultado)}</span>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                                     <span style={{ fontSize: 12, color: "#98A2B3" }}>Margem</span>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: r.margem >= 0 ? "#039855" : "#D92D20" }}>{r.margem.toFixed(1)}%</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: r.margem >= 0 ? "#039855" : "#E53E3E" }}>{r.margem.toFixed(1)}%</span>
                                 </div>
                             </div>
                         </Card>
@@ -164,7 +164,7 @@ export default function Cenarios() {
                             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                             <Tooltip formatter={(v: number) => fmt(v)} />
                             <Legend />
-                            <Bar dataKey="Pessimista" fill="#D92D20" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Pessimista" fill="#E53E3E" radius={[4, 4, 0, 0]} />
                             <Bar dataKey="Realista" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
                             <Bar dataKey="Otimista" fill="#059669" radius={[4, 4, 0, 0]} />
                         </BarChart>

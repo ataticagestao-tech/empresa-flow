@@ -653,8 +653,8 @@ export default function Movimentacoes() {
       )
     if (tipo === 'debito')
       return (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#FEF3F2] border border-[#D92D20]">
-          <ArrowDown className="w-3.5 h-3.5 text-[#D92D20]" />
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#FEE2E2] border border-[#E53E3E]">
+          <ArrowDown className="w-3.5 h-3.5 text-[#E53E3E]" />
         </span>
       )
     return (
@@ -701,24 +701,24 @@ export default function Movimentacoes() {
           </div>
 
           {/* Saidas do Mes */}
-          <div className="border border-[#D92D20] rounded-lg p-4 bg-white">
-            <p className="text-[10px] font-bold text-[#D92D20] uppercase tracking-widest mb-1">Saidas do Mes</p>
+          <div className="border border-[#E53E3E] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#E53E3E] uppercase tracking-widest mb-1">Saidas do Mes</p>
             <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(saidasMes)}</p>
             <p className="text-[11px] text-[#777] mt-1">{qtdSaidas} lancamento{qtdSaidas !== 1 ? 's' : ''}</p>
-            <span className="inline-block mt-2 text-[10px] font-semibold text-[#D92D20] bg-[#FEF3F2] px-2 py-0.5 rounded">
+            <span className="inline-block mt-2 text-[10px] font-semibold text-[#E53E3E] bg-[#FEE2E2] px-2 py-0.5 rounded">
               -{formatBRL(saidasMes)}
             </span>
           </div>
 
           {/* Resultado do Mes */}
-          <div className={`border rounded-lg p-4 bg-white ${resultadoMes >= 0 ? 'border-[#039855]' : 'border-[#D92D20]'}`}>
-            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${resultadoMes >= 0 ? 'text-[#039855]' : 'text-[#D92D20]'}`}>
+          <div className={`border rounded-lg p-4 bg-white ${resultadoMes >= 0 ? 'border-[#039855]' : 'border-[#E53E3E]'}`}>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${resultadoMes >= 0 ? 'text-[#039855]' : 'text-[#E53E3E]'}`}>
               Resultado do Mes
             </p>
             <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(Math.abs(resultadoMes))}</p>
             <p className="text-[11px] text-[#777] mt-1">Entradas - saidas</p>
             <span className={`inline-block mt-2 text-[10px] font-semibold px-2 py-0.5 rounded ${
-              resultadoMes >= 0 ? 'text-[#039855] bg-[#ECFDF3]' : 'text-[#D92D20] bg-[#FEF3F2]'
+              resultadoMes >= 0 ? 'text-[#039855] bg-[#ECFDF3]' : 'text-[#E53E3E] bg-[#FEE2E2]'
             }`}>
               {resultadoMes >= 0 ? '\u25B2 positivo' : '\u25BC negativo'}
             </span>
@@ -945,12 +945,12 @@ export default function Movimentacoes() {
                       <span className="text-[#039855] font-semibold">
                         +{formatBRL(group.entradas)}
                       </span>
-                      <span className="text-[#D92D20] font-semibold">
+                      <span className="text-[#E53E3E] font-semibold">
                         -{formatBRL(group.saidas)}
                       </span>
                       <span
                         className={`font-bold ${
-                          group.saldo >= 0 ? 'text-[#039855]' : 'text-[#D92D20]'
+                          group.saldo >= 0 ? 'text-[#039855]' : 'text-[#E53E3E]'
                         }`}
                       >
                         Saldo: {group.saldo >= 0 ? '+' : ''}
@@ -983,7 +983,7 @@ export default function Movimentacoes() {
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                               row.origem === 'cr' || row.origem === 'conta_receber' ? 'bg-[#ECFDF3] text-[#039855]' :
-                              row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#FEF3F2] text-[#D92D20]' :
+                              row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#FEE2E2] text-[#E53E3E]' :
                               row.origem === 'venda' ? 'bg-[#e8eaf6] text-[#283593]' :
                               'bg-[#EAECF0] text-[#555]'
                             }`}>
@@ -1006,7 +1006,7 @@ export default function Movimentacoes() {
                         {/* Value */}
                         <div
                           className={`text-sm font-bold text-right w-28 whitespace-nowrap ${
-                            row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#D92D20]'
+                            row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#E53E3E]'
                           }`}
                         >
                           {row.tipo === 'credito' ? '+' : '-'}
@@ -1018,7 +1018,7 @@ export default function Movimentacoes() {
                           {bankName && bankBal != null && (
                             <>
                               <p className="text-[10px] text-[#999]">Saldo {bankName.split(/\s/)[0]}</p>
-                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#059669]' : 'text-[#D92D20]'}`}>
+                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#059669]' : 'text-[#E53E3E]'}`}>
                                 {formatBRL(bankBal)}
                               </p>
                             </>
@@ -1066,7 +1066,7 @@ export default function Movimentacoes() {
 
             <div className="p-5 space-y-4">
               {/* Warning */}
-              <div className="flex items-start gap-2 px-3 py-2 rounded border border-[#F79009] bg-[#FFFAEB] text-[#F79009] text-xs">
+              <div className="flex items-start gap-2 px-3 py-2 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C] text-xs">
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
                   Use lancamentos manuais apenas para transacoes sem CR ou CP.
@@ -1094,8 +1094,8 @@ export default function Movimentacoes() {
                     onClick={() => setFormTipo('debito')}
                     className={`flex items-center justify-center gap-2 py-2.5 rounded border text-sm font-medium transition-colors ${
                       formTipo === 'debito'
-                        ? 'border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]'
-                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#D92D20]'
+                        ? 'border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]'
+                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#E53E3E]'
                     }`}
                   >
                     <ArrowDown className="w-4 h-4" />
@@ -1107,7 +1107,7 @@ export default function Movimentacoes() {
               {/* Descricao (Produto/Servico do Operacional) */}
               <div>
                 <label className="block text-xs font-medium text-[#555] mb-1">
-                  Descricao (Produto/Servico) <span className="text-[#D92D20]">*</span>
+                  Descricao (Produto/Servico) <span className="text-[#E53E3E]">*</span>
                 </label>
                 <select
                   value={formDescricao}
@@ -1127,7 +1127,7 @@ export default function Movimentacoes() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Valor <span className="text-[#D92D20]">*</span>
+                    Valor <span className="text-[#E53E3E]">*</span>
                   </label>
                   <input
                     type="number"
@@ -1141,7 +1141,7 @@ export default function Movimentacoes() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Data <span className="text-[#D92D20]">*</span>
+                    Data <span className="text-[#E53E3E]">*</span>
                   </label>
                   <input
                     type="date"
@@ -1156,7 +1156,7 @@ export default function Movimentacoes() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Conta bancaria <span className="text-[#D92D20]">*</span>
+                    Conta bancaria <span className="text-[#E53E3E]">*</span>
                   </label>
                   <select
                     value={formBankId}
@@ -1173,7 +1173,7 @@ export default function Movimentacoes() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#555] mb-1">
-                    Conta contabil <span className="text-[#D92D20]">*</span>
+                    Conta contabil <span className="text-[#E53E3E]">*</span>
                   </label>
                   <select
                     value={formContaContabilId}

@@ -170,9 +170,9 @@ export default function DREContabil() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Receita Líquida", value: fmt(receitaLiquida), color: "#039855" },
-            { label: "Lucro Bruto", value: fmt(lucroBruto), color: lucroBruto >= 0 ? "#039855" : "#D92D20" },
-            { label: "Resultado Líquido", value: fmt(resultadoLiquido), color: resultadoLiquido >= 0 ? "#039855" : "#D92D20" },
-            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#D92D20" },
+            { label: "Lucro Bruto", value: fmt(lucroBruto), color: lucroBruto >= 0 ? "#039855" : "#E53E3E" },
+            { label: "Resultado Líquido", value: fmt(resultadoLiquido), color: resultadoLiquido >= 0 ? "#039855" : "#E53E3E" },
+            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#E53E3E" },
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
@@ -257,7 +257,7 @@ function LinhaGrupoDRE({
   isResultado: boolean;
   onToggle: () => void;
 }) {
-  const corValor = grupo.valor >= 0 ? "#039855" : "#D92D20";
+  const corValor = grupo.valor >= 0 ? "#039855" : "#E53E3E";
   const bgClass = isResultado
     ? "bg-muted/50 border-t border-b border-foreground/20"
     : "bg-muted/20";
@@ -288,7 +288,7 @@ function LinhaGrupoDRE({
             <td className="py-2 px-4 pl-8">{f.nome}</td>
             <td
               className="text-right py-2 px-4 tabular-nums"
-              style={{ color: f.valor >= 0 ? "#039855" : "#D92D20" }}
+              style={{ color: f.valor >= 0 ? "#039855" : "#E53E3E" }}
             >
               {fmt(f.valor)}
             </td>

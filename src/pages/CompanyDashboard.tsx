@@ -25,9 +25,9 @@ const C = {
     green: "#039855",         // success
     greenSoft: "#ECFDF3",     // success-bg
     greenBadge: "#039855",
-    red: "#D92D20",           // error
-    redSoft: "#FEF3F2",       // error-bg
-    redBg: "#D92D20",
+    red: "#E53E3E",           // error
+    redSoft: "#FEE2E2",       // error-bg
+    redBg: "#E53E3E",
     text1: "#1D2939",
     text2: "#667085",
     textMuted: "#98A2B3",
@@ -856,7 +856,7 @@ export default function CompanyDashboard() {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Faturamento</div>
                             {receitaPeriodoAnterior > 0 && (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEF3F2", color: trendFat >= 0 ? "#039855" : "#D92D20", flexShrink: 0 }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                     {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
                                 </span>
                             )}
@@ -885,7 +885,7 @@ export default function CompanyDashboard() {
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Despesas</div>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#FEF3F2", color: "#D92D20", flexShrink: 0 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#FEE2E2", color: "#E53E3E", flexShrink: 0 }}>
                                 ▼ {receitaPeriodo > 0 ? `${((despesaLiq / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
                             </span>
                         </div>
@@ -899,11 +899,11 @@ export default function CompanyDashboard() {
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Resultado Líquido</div>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: resultadoPeriodo >= 0 ? "#ECFDF3" : "#FEF3F2", color: resultadoPeriodo >= 0 ? "#039855" : "#D92D20", flexShrink: 0 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: resultadoPeriodo >= 0 ? "#ECFDF3" : "#FEE2E2", color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                 {resultadoPeriodo >= 0 ? "▲" : "▼"} {receitaPeriodo > 0 ? `${Math.abs((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
                             </span>
                         </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#D92D20", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(resultadoPeriodo)}</div>
+                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(resultadoPeriodo)}</div>
                         <div style={{ fontSize: 12, color: C.textMuted }}>
                             {receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
                         </div>
@@ -994,7 +994,7 @@ export default function CompanyDashboard() {
                                             </thead>
                                             <tbody>
                                                 {monthlySales.productBreakdown.map((p, idx) => (
-                                                    <tr key={p.descricao + idx} style={{ borderBottom: idx === monthlySales.productBreakdown.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFFBEB" : "transparent" }}>
+                                                    <tr key={p.descricao + idx} style={{ borderBottom: idx === monthlySales.productBreakdown.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "transparent" }}>
                                                         <td style={{ padding: "7px 12px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{p.descricao}</td>
                                                         <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
                                                         <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{p.semProduto ? "—" : p.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td>
@@ -1117,14 +1117,14 @@ export default function CompanyDashboard() {
                             {/* A vencer em breve */}
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#F79009", flexShrink: 0 }} />
+                                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#EA580C", flexShrink: 0 }} />
                                     <div>
                                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text1 }}>A vencer em breve</div>
                                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>Próximos 30 dias</div>
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right" }}>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#F79009" }}>{fmt(crBuckets.aVencerBreve.total)}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#EA580C" }}>{fmt(crBuckets.aVencerBreve.total)}</div>
                                     <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{crBuckets.aVencerBreve.count} título{crBuckets.aVencerBreve.count !== 1 ? "s" : ""}</div>
                                 </div>
                             </div>
@@ -1132,14 +1132,14 @@ export default function CompanyDashboard() {
                             {/* Acima de 90 dias */}
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: crBuckets.acima90.count > 0 ? "#D92D20" : C.textMuted, flexShrink: 0 }} />
+                                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: crBuckets.acima90.count > 0 ? "#E53E3E" : C.textMuted, flexShrink: 0 }} />
                                     <div>
                                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text1 }}>Acima de 90 dias</div>
                                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>Inadimplência crítica</div>
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right" }}>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: crBuckets.acima90.count > 0 ? "#D92D20" : C.textMuted }}>{fmt(crBuckets.acima90.total)}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: crBuckets.acima90.count > 0 ? "#E53E3E" : C.textMuted }}>{fmt(crBuckets.acima90.total)}</div>
                                     <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{crBuckets.acima90.count} título{crBuckets.acima90.count !== 1 ? "s" : ""}</div>
                                 </div>
                             </div>
@@ -1227,13 +1227,13 @@ export default function CompanyDashboard() {
                                     const diff = differenceInDays(new Date(p.data_vencimento), today);
                                     const isLate = diff <= 1;
                                     const isWarn = diff > 1 && diff <= 3;
-                                    const iconBg = isLate ? "#FEF3F2" : isWarn ? "#FFFAEB" : C.goldBg;
+                                    const iconBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : C.goldBg;
                                     const iconColor = isLate ? "#991B1B" : isWarn ? "#92400E" : "#059669";
                                     const initials = (p.credor_nome || "??").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
-                                    const badgeBg = isLate ? "#FEF3F2" : isWarn ? "#FFFAEB" : "#F6F2EB";
+                                    const badgeBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : "#F6F2EB";
                                     const badgeBorder = isLate ? "#FECDCA" : isWarn ? "#FEDF89" : C.border;
                                     const badgeColor = isLate ? "#B42318" : isWarn ? "#B54708" : C.text2;
-                                    const badgeDot = isLate ? "#D92D20" : isWarn ? "#F79009" : C.textMuted;
+                                    const badgeDot = isLate ? "#E53E3E" : isWarn ? "#EA580C" : C.textMuted;
                                     const badgeLabel = isLate ? "Urgente" : isWarn ? "Em breve" : "Normal";
 
                                     return (
@@ -1246,7 +1246,7 @@ export default function CompanyDashboard() {
                                                 <div style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>{daysUntilDue(p.data_vencimento)}</div>
                                             </div>
                                             <div style={{ textAlign: "right" }}>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: isLate ? "#D92D20" : C.text1 }}>{fmt(saldo)}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: isLate ? "#E53E3E" : C.text1 }}>{fmt(saldo)}</div>
                                                 <div style={{ marginTop: 4 }}>
                                                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: badgeBg, color: badgeColor, border: `1.5px solid ${badgeBorder}` }}>
                                                         <span style={{ width: 5, height: 5, borderRadius: "50%", background: badgeDot }} />
@@ -1263,7 +1263,7 @@ export default function CompanyDashboard() {
                         {/* Footer total */}
                         <div style={{ padding: "12px 20px", borderTop: `1px solid ${C.border}`, background: "#FAFAF8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                             <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>Total a pagar</span>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: "#D92D20" }}>{fmt(totalPagar7d)}</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: "#E53E3E" }}>{fmt(totalPagar7d)}</span>
                         </div>
                     </div>
                 </div>
@@ -1290,7 +1290,7 @@ export default function CompanyDashboard() {
                             Nenhum gasto categorizado no período.
                         </p>
                     ) : (() => {
-                        const palette = ["#059669", "#1E3A8A", "#0F172A", "#10B981", "#6B7280", "#D97706"];
+                        const palette = ["#059669", "#1E3A8A", "#0F172A", "#10B981", "#6B7280", "#EA580C"];
                         const totalGeral = gastosCategorias.reduce((s: number, r: any) => s + r.total, 0);
                         return (
                             <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 32, alignItems: "center" }}>

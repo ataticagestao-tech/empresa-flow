@@ -38,8 +38,8 @@ interface ImportacaoXML {
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   processado: { label: 'Processado', color: '#059669', bg: '#ECFDF3' },
-  erro: { label: 'Erro', color: '#D92D20', bg: '#FEF3F2' },
-  duplicado: { label: 'Duplicado', color: '#F79009', bg: '#FFFAEB' },
+  erro: { label: 'Erro', color: '#E53E3E', bg: '#FEE2E2' },
+  duplicado: { label: 'Duplicado', color: '#EA580C', bg: '#FFF0EB' },
   pendente: { label: 'Pendente', color: '#667085', bg: '#F3F4F6' },
 }
 
@@ -317,7 +317,7 @@ export default function ImportacaoXML() {
             { label: 'Total importados', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Processados', value: kpis.processados, icon: Check, color: '#059669' },
             { label: 'Valor total', value: formatBRL(kpis.totalValor), icon: FileText, color: '#059669' },
-            { label: 'Erros', value: kpis.erros, icon: AlertTriangle, color: '#D92D20' },
+            { label: 'Erros', value: kpis.erros, icon: AlertTriangle, color: '#E53E3E' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>

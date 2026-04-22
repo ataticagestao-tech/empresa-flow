@@ -305,7 +305,7 @@ export default function Empresas() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Razão Social <span className="text-[#D92D20]">*</span></label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Razão Social <span className="text-[#E53E3E]">*</span></label>
                       <input value={form.razao_social} onChange={e => set("razao_social", e.target.value)} className={inputCls("razao_social")} />
                       {autoFilled.has("razao_social") && <span className="text-[9px] text-[#039855]">✓ Via Receita Federal</span>}
                     </div>
@@ -371,7 +371,7 @@ export default function Empresas() {
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-2.5 text-sm font-semibold text-[#F79009]">
+                  <div className="bg-[#FFF0EB] border border-[#e6c200] border-l-4 border-l-[#EA580C] rounded-md px-4 py-2.5 text-sm font-semibold text-[#EA580C]">
                     O regime tributário define como os impostos são calculados, quais obrigações fiscais são geradas e como o DRE é estruturado. Verifique com o contador antes de confirmar.
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -496,10 +496,10 @@ export default function Empresas() {
               const hasChart = companiesWithCharts.has(company.id);
               return (
                 <div key={company.id}
-                  className={`border rounded-lg p-4 bg-white cursor-pointer transition-all hover:shadow-md border-l-4 border-[#ccc] ${hasChart ? "border-l-[#039855]" : "border-l-[#F79009]"}`}
+                  className={`border rounded-lg p-4 bg-white cursor-pointer transition-all hover:shadow-md border-l-4 border-[#ccc] ${hasChart ? "border-l-[#039855]" : "border-l-[#EA580C]"}`}
                   onClick={() => navigate(`/empresas/${company.id}`)}>
                   <div className="flex items-center gap-4">
-                    <div className={`w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0 ${hasChart ? "bg-[#039855]" : "bg-[#F79009]"}`}>
+                    <div className={`w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0 ${hasChart ? "bg-[#039855]" : "bg-[#EA580C]"}`}>
                       {(company.razao_social || "E")[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -507,7 +507,7 @@ export default function Empresas() {
                         <h3 className="text-sm font-bold text-[#1D2939] truncate">{company.razao_social}</h3>
                         {hasChart
                           ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Configurado</span>
-                          : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#F79009] bg-[#FFFAEB] text-[#F79009]">Pendente</span>}
+                          : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">Pendente</span>}
                       </div>
                       <div className="flex items-center gap-4 text-xs text-[#555]">
                         {company.cnpj && <span>{maskCNPJ(company.cnpj)}</span>}
@@ -518,7 +518,7 @@ export default function Empresas() {
                       <button onClick={e => { e.stopPropagation(); handleEdit(company); }}
                         className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#ECFDF4] text-[#059669] text-sm" title="Editar">✎</button>
                       <button onClick={e => { e.stopPropagation(); handleDelete(company); }}
-                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#FEF3F2] text-[#D92D20] text-sm" title="Remover">✕</button>
+                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#FEE2E2] text-[#E53E3E] text-sm" title="Remover">✕</button>
                     </div>
                   </div>
                 </div>
@@ -531,7 +531,7 @@ export default function Empresas() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
                onClick={() => !deleting && setDeleteTarget(null)}>
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-[#D92D20] mb-2">Excluir empresa definitivamente</h3>
+              <h3 className="text-base font-bold text-[#E53E3E] mb-2">Excluir empresa definitivamente</h3>
               <p className="text-sm text-[#1D2939] mb-3">
                 Esta ação é <strong>irreversível</strong>. Serão apagados permanentemente:
               </p>
@@ -553,7 +553,7 @@ export default function Empresas() {
                 onChange={e => setDeleteConfirmText(e.target.value)}
                 placeholder="Digite a razão social"
                 autoFocus
-                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#D92D20] focus:outline-none w-full mb-4"
+                className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#E53E3E] focus:outline-none w-full mb-4"
               />
               <div className="flex justify-end gap-2">
                 <button
@@ -565,7 +565,7 @@ export default function Empresas() {
                 <button
                   onClick={confirmDelete}
                   disabled={deleting || deleteConfirmText.trim() !== (deleteTarget.razao_social || "").trim()}
-                  className="bg-[#D92D20] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="bg-[#E53E3E] text-white text-sm font-bold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                   {deleting ? "Excluindo..." : "Excluir definitivamente"}
                 </button>
               </div>

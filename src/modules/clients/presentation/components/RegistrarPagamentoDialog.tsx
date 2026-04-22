@@ -215,12 +215,12 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                             </div>
                             <div className="flex justify-between mt-1 pt-1 border-t border-[#EAECF0] font-bold text-[13px]">
                                 <span className="text-[#059669]">Novo saldo</span>
-                                <span style={{ color: saldoApos > 0 ? "#D92D20" : "#039855" }}>
+                                <span style={{ color: saldoApos > 0 ? "#E53E3E" : "#039855" }}>
                                     {formatBRL(Math.max(0, saldoApos))}
                                 </span>
                             </div>
                             {saldoApos < -0.01 && (
-                                <p className="text-[10px] text-[#D92D20] mt-1">
+                                <p className="text-[10px] text-[#E53E3E] mt-1">
                                     Pagamento excede o saldo em {formatBRL(Math.abs(saldoApos))}
                                 </p>
                             )}

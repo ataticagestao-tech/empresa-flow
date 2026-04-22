@@ -354,7 +354,7 @@ export default function ContasBancarias() {
             <div className="p-5 bg-white space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
-                  <label className={LB}>Tipo de Conta <span className="text-[#D92D20]">*</span></label>
+                  <label className={LB}>Tipo de Conta <span className="text-[#E53E3E]">*</span></label>
                   <select value={formData.type} onChange={e => set("type", e.target.value)} className={IC}>
                     <option value="checking">Conta Corrente</option><option value="savings">Conta Poupança</option>
                     <option value="cash">Caixa Interno</option><option value="investment">Conta Investimento</option>
@@ -365,7 +365,7 @@ export default function ContasBancarias() {
                   <BancoCombobox value={formData.banco} onChange={v => set("banco", v)} />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className={LB}>Nome de Identificação <span className="text-[#D92D20]">*</span></label>
+                  <label className={LB}>Nome de Identificação <span className="text-[#E53E3E]">*</span></label>
                   <input value={formData.name} onChange={e => set("name", e.target.value)} placeholder="Ex: BB Principal" className={IC} />
                 </div>
               </div>
@@ -374,7 +374,7 @@ export default function ContasBancarias() {
                 <div className="flex flex-col gap-1"><label className={LB}>Número da Conta</label><input value={formData.conta} onChange={e => set("conta", e.target.value)} className={IC} /></div>
                 <div className="flex flex-col gap-1"><label className={LB}>Chave PIX</label><input value={formData.chave_pix} onChange={e => set("chave_pix", e.target.value)} className={IC} placeholder="Opcional" /></div>
               </div>
-              <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-2.5 text-sm font-semibold text-[#F79009]">
+              <div className="bg-[#FFF0EB] border border-[#e6c200] border-l-4 border-l-[#EA580C] rounded-md px-4 py-2.5 text-sm font-semibold text-[#EA580C]">
                 O saldo inicial define o ponto de partida do fluxo de caixa. Informe o saldo real na data de início do uso do sistema.
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -428,7 +428,7 @@ export default function ContasBancarias() {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">OFX</span>
                     )}
                     {acc.chave_pix && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#F79009] bg-[#FFFAEB] text-[#F79009]">PIX</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">PIX</span>
                     )}
                   </div>
                 </div>
@@ -543,7 +543,7 @@ export default function ContasBancarias() {
                   {loadingTaxas ? (
                     <div className="text-center py-6 text-sm text-[#555]">Carregando configuracoes...</div>
                   ) : taxas.length === 0 && !showTaxaForm ? (
-                    <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-3 text-sm text-[#F79009]">
+                    <div className="bg-[#FFF0EB] border border-[#e6c200] border-l-4 border-l-[#EA580C] rounded-md px-4 py-3 text-sm text-[#EA580C]">
                       Nenhuma taxa configurada para esta conta. Clique em "+ Nova Taxa" para configurar.
                     </div>
                   ) : (
@@ -609,7 +609,7 @@ export default function ContasBancarias() {
                       <div className="p-5 bg-white space-y-4">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="flex flex-col gap-1">
-                            <label className={LB}>Meio de Pagamento <span className="text-[#D92D20]">*</span></label>
+                            <label className={LB}>Meio de Pagamento <span className="text-[#E53E3E]">*</span></label>
                             <select value={taxaForm.meio_pagamento} onChange={e => setTx("meio_pagamento", e.target.value)}
                               className={IC} disabled={!!editingTaxaId}>
                               {MEIOS_PAGAMENTO.map(m => (
@@ -621,7 +621,7 @@ export default function ContasBancarias() {
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className={LB}>Taxa (%) <span className="text-[#D92D20]">*</span></label>
+                            <label className={LB}>Taxa (%) <span className="text-[#E53E3E]">*</span></label>
                             <input type="number" step="0.01" min="0" max="100"
                               value={taxaForm.taxa_percentual}
                               onChange={e => setTx("taxa_percentual", parseFloat(e.target.value) || 0)}

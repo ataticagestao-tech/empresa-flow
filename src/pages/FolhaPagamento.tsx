@@ -72,9 +72,9 @@ interface FaixaIRRF {
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   rascunho: { label: 'Rascunho', color: '#667085', bg: '#F3F4F6' },
-  fechada: { label: 'Fechada', color: '#F79009', bg: '#FFFAEB' },
+  fechada: { label: 'Fechada', color: '#EA580C', bg: '#FFF0EB' },
   paga: { label: 'Paga', color: '#059669', bg: '#ECFDF3' },
-  retificada: { label: 'Retificada', color: '#D92D20', bg: '#FEF3F2' },
+  retificada: { label: 'Retificada', color: '#E53E3E', bg: '#FEE2E2' },
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -393,9 +393,9 @@ export default function FolhaPagamentoPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
             { label: 'Total proventos', value: formatBRL(kpis.totalProventos), icon: DollarSign, color: '#059669' },
-            { label: 'Total descontos', value: formatBRL(kpis.totalDescontos), icon: Calculator, color: '#D92D20' },
+            { label: 'Total descontos', value: formatBRL(kpis.totalDescontos), icon: Calculator, color: '#E53E3E' },
             { label: 'Liquido a pagar', value: formatBRL(kpis.totalLiquido), icon: DollarSign, color: '#059669' },
-            { label: 'Encargos patronais', value: formatBRL(kpis.totalEncargos), icon: Calculator, color: '#F79009' },
+            { label: 'Encargos patronais', value: formatBRL(kpis.totalEncargos), icon: Calculator, color: '#EA580C' },
             { label: 'Funcionarios', value: kpis.qtd, icon: Users, color: '#059669' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">

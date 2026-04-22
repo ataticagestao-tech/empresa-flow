@@ -69,11 +69,11 @@ interface Empresa {
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   rascunho: { label: 'Rascunho', color: '#667085', bg: '#F3F4F6' },
-  enviando: { label: 'Enviando', color: '#F79009', bg: '#FFFAEB' },
+  enviando: { label: 'Enviando', color: '#EA580C', bg: '#FFF0EB' },
   autorizada: { label: 'Autorizada', color: '#059669', bg: '#ECFDF3' },
-  cancelada: { label: 'Cancelada', color: '#D92D20', bg: '#FEF3F2' },
-  denegada: { label: 'Denegada', color: '#D92D20', bg: '#FEF3F2' },
-  rejeitada: { label: 'Rejeitada', color: '#D92D20', bg: '#FEF3F2' },
+  cancelada: { label: 'Cancelada', color: '#E53E3E', bg: '#FEE2E2' },
+  denegada: { label: 'Denegada', color: '#E53E3E', bg: '#FEE2E2' },
+  rejeitada: { label: 'Rejeitada', color: '#E53E3E', bg: '#FEE2E2' },
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -411,7 +411,7 @@ export default function NotasFiscais() {
             { label: 'Total NFs', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
             { label: 'Total emitido', value: formatBRL(kpis.totalEmitido), icon: FileText, color: '#059669' },
-            { label: 'ISS destacado', value: formatBRL(kpis.totalISS), icon: FileText, color: '#F79009' },
+            { label: 'ISS destacado', value: formatBRL(kpis.totalISS), icon: FileText, color: '#EA580C' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>

@@ -112,7 +112,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                                     </div>
                                     <div className="text-[10px] text-[#666] mt-0.5 flex gap-3">
                                         <span>Total: <strong>{formatBRL(c.valor_total)}</strong></span>
-                                        <span className={c.saldo > 0 ? "text-[#D92D20]" : "text-[#039855]"}>
+                                        <span className={c.saldo > 0 ? "text-[#E53E3E]" : "text-[#039855]"}>
                                             Saldo: <strong>{formatBRL(c.saldo)}</strong>
                                         </span>
                                     </div>
@@ -128,7 +128,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                             type="button"
                             onClick={() => mutation.mutate(null)}
                             disabled={mutation.isPending}
-                            className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#D92D20] hover:bg-[#FEF3F2] py-1.5 rounded transition-colors cursor-pointer"
+                            className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#E53E3E] hover:bg-[#FEE2E2] py-1.5 rounded transition-colors cursor-pointer"
                         >
                             <Link2Off className="h-3 w-3" /> Desvincular do contrato
                         </button>

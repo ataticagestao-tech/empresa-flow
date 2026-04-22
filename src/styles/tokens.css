@@ -35,10 +35,10 @@
   /* ── Semânticas ─────────────────────────── */
   --success:    #039855;
   --success-bg: #ECFDF3;
-  --warning:    #F79009;
-  --warning-bg: #FFFAEB;
-  --error:      #D92D20;
-  --error-bg:   #FEF3F2;
+  --warning:    #EA580C;
+  --warning-bg: #FFF0EB;
+  --error:      #E53E3E;
+  --error-bg:   #FEE2E2;
 
   --green:      #059669;
   --green-bg:   #ECFDF4;

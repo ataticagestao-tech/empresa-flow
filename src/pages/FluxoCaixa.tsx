@@ -633,7 +633,7 @@ export default function FluxoCaixa() {
                 <Card className="col-span-2 md:col-span-1">
                   <CardContent className="p-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Saldo</p>
-                    <p className="text-lg font-bold mt-1" style={{ color: relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#D92D20" }}>
+                    <p className="text-lg font-bold mt-1" style={{ color: relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#E53E3E" }}>
                       {fmt(relatorio.totalEntradas - relatorio.totalSaidas)}
                     </p>
                   </CardContent>
@@ -728,7 +728,7 @@ export default function FluxoCaixa() {
                                   isOpen={isOpen}
                                   onToggle={() => toggleRelExpand(`s_${catId}`)}
                                   onEditCategoria={abrirEditCategoria}
-                                  cor="#D92D20"
+                                  cor="#E53E3E"
                                 />
                               );
                             })}
@@ -760,7 +760,7 @@ export default function FluxoCaixa() {
                   { label: "Caixa Operacional", value: fmt(caixaOperacional), color: CORES_ATIVIDADE.operacional },
                   { label: "Caixa Investimento", value: fmt(caixaInvestimento), color: CORES_ATIVIDADE.investimento },
                   { label: "Caixa Financiamento", value: fmt(caixaFinanciamento), color: CORES_ATIVIDADE.financiamento },
-                  { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#039855" : "#D92D20" },
+                  { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#039855" : "#E53E3E" },
                 ].map((kpi) => (
                   <Card key={kpi.label}>
                     <CardContent className="p-4">
@@ -828,7 +828,7 @@ export default function FluxoCaixa() {
                               <td className="py-3 px-4">{variacaoLinha.nome}</td>
                               <td
                                 className="text-right py-3 px-4 tabular-nums"
-                                style={{ color: variacaoLinha.valor >= 0 ? "#039855" : "#D92D20" }}
+                                style={{ color: variacaoLinha.valor >= 0 ? "#039855" : "#E53E3E" }}
                               >
                                 {fmt(variacaoLinha.valor)}
                               </td>
@@ -881,7 +881,7 @@ export default function FluxoCaixa() {
                       {diagnostico.semCategoria.length > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
                       Sem categoria
                     </p>
-                    <p className="text-lg font-bold mt-1" style={{ color: diagnostico.semCategoria.length > 0 ? "#F79009" : "#059669" }}>
+                    <p className="text-lg font-bold mt-1" style={{ color: diagnostico.semCategoria.length > 0 ? "#EA580C" : "#059669" }}>
                       {diagnostico.semCategoria.length}
                     </p>
                   </CardContent>
@@ -927,7 +927,7 @@ export default function FluxoCaixa() {
                                   <td className="py-2 px-4 font-mono text-muted-foreground text-[11px]">{cat.cod}</td>
                                   <td className="py-2 px-4">{cat.nome}</td>
                                   <td className="text-right py-2 px-4 text-muted-foreground">{cat.count}</td>
-                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: cat.total >= 0 ? "#059669" : "#D92D20" }}>
+                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: cat.total >= 0 ? "#059669" : "#E53E3E" }}>
                                     {fmt(cat.total)}
                                   </td>
                                 </tr>
@@ -972,7 +972,7 @@ export default function FluxoCaixa() {
                                     }`}>{r.vinculo}</span>
                                   </td>
                                   <td className="py-2 px-4 text-muted-foreground">{r.beneficiario}</td>
-                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#D92D20" }}>
+                                  <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#E53E3E" }}>
                                     {fmt(Number(r.valor))}
                                   </td>
                                 </tr>
@@ -1033,7 +1033,7 @@ export default function FluxoCaixa() {
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">SEM CATEGORIA</span>
                                   )}
                                 </td>
-                                <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#D92D20" }}>
+                                <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#E53E3E" }}>
                                   {fmt(Number(r.valor))}
                                 </td>
                               </tr>
@@ -1221,7 +1221,7 @@ function AtividadeDFC({
               <td className="py-2 px-4 pl-8">{f.nome}</td>
               <td
                 className="text-right py-2 px-4 tabular-nums"
-                style={{ color: f.valor >= 0 ? "#039855" : "#D92D20" }}
+                style={{ color: f.valor >= 0 ? "#039855" : "#E53E3E" }}
               >
                 {fmt(f.valor)}
               </td>
@@ -1233,7 +1233,7 @@ function AtividadeDFC({
               <td className="py-2 px-4 font-semibold italic">{total.nome}</td>
               <td
                 className="text-right py-2 px-4 font-semibold tabular-nums"
-                style={{ color: total.valor >= 0 ? "#039855" : "#D92D20" }}
+                style={{ color: total.valor >= 0 ? "#039855" : "#E53E3E" }}
               >
                 {fmt(total.valor)}
               </td>

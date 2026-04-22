@@ -86,7 +86,7 @@ function tipoBadgeColors(tipo: string) {
   switch (tipo) {
     case 'email': return { text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'whatsapp': return { text: '#039855', bg: '#ECFDF3', border: '#039855' }
-    case 'sms': return { text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
+    case 'sms': return { text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     default: return { text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
 }
@@ -96,9 +96,9 @@ function statusBadge(status: string) {
     case 'aberto':
       return { label: 'Em aberto', text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'vencido':
-      return { label: 'Vencido', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
+      return { label: 'Vencido', text: '#E53E3E', bg: '#FEE2E2', border: '#E53E3E' }
     case 'parcial':
-      return { label: 'Parcial', text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
+      return { label: 'Parcial', text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     case 'pago':
       return { label: 'Pago', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     default:
@@ -111,9 +111,9 @@ function logStatusBadge(status: string) {
     case 'enviado':
       return { label: 'Enviado', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     case 'erro':
-      return { label: 'Erro', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
+      return { label: 'Erro', text: '#E53E3E', bg: '#FEE2E2', border: '#E53E3E' }
     case 'pendente':
-      return { label: 'Pendente', text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
+      return { label: 'Pendente', text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     default:
       return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
@@ -550,7 +550,7 @@ export default function ReguaCobranca() {
                         <button
                           onClick={() => toggleAtivo(nomeKey)}
                           className="flex items-center gap-1.5 text-[11px] font-medium"
-                          style={{ color: isAtivo ? '#039855' : '#D92D20' }}
+                          style={{ color: isAtivo ? '#039855' : '#E53E3E' }}
                         >
                           {isAtivo ? <Play size={12} /> : <Pause size={12} />}
                           {isAtivo ? 'Ativa' : 'Inativa'}
@@ -563,7 +563,7 @@ export default function ReguaCobranca() {
                         </button>
                         <button
                           onClick={() => deleteRegua(nomeKey)}
-                          className="text-[#D92D20] hover:opacity-70"
+                          className="text-[#E53E3E] hover:opacity-70"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -853,7 +853,7 @@ export default function ReguaCobranca() {
                                 {/* Remove */}
                                 <button
                                   onClick={() => removeEtapa(index)}
-                                  className="text-[#D92D20] hover:opacity-70 ml-1 mt-0.5"
+                                  className="text-[#E53E3E] hover:opacity-70 ml-1 mt-0.5"
                                 >
                                   <Trash2 size={13} />
                                 </button>

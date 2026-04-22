@@ -434,7 +434,7 @@ export default function ExtratoReconciliado() {
           <KpiCard
             label="Total Saidas"
             value={fmtBRL(totalSaidas)}
-            color="#D92D20"
+            color="#E53E3E"
           />
           <KpiCard
             label="Conciliadas"

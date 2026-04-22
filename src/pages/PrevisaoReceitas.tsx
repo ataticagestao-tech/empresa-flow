@@ -93,7 +93,7 @@ export default function PrevisaoReceitas() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
                         { label: "RECEITA MÉDIA MENSAL", value: fmt(mediamensal), icon: DollarSign, color: "#059669", bg: "#ECFDF4" },
-                        { label: "TENDÊNCIA", value: `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`, icon: trend >= 0 ? TrendingUp : TrendingDown, color: trend >= 0 ? "#039855" : "#D92D20", bg: trend >= 0 ? "#ECFDF3" : "#FEF3F2" },
+                        { label: "TENDÊNCIA", value: `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`, icon: trend >= 0 ? TrendingUp : TrendingDown, color: trend >= 0 ? "#039855" : "#E53E3E", bg: trend >= 0 ? "#ECFDF3" : "#FEE2E2" },
                         { label: "PREVISÃO PRÓXIMO MÊS", value: fmt(avgLast3), icon: Target, color: "#059669", bg: "#ECFDF4" },
                         { label: "PREVISÃO TRIMESTRE", value: fmt(previsaoTrimestre), icon: TrendingUp, color: "#039855", bg: "#ECFDF3" },
                     ].map((kpi, i) => (
@@ -142,7 +142,7 @@ export default function PrevisaoReceitas() {
                                         <TableCell className="font-medium capitalize">{m.label}</TableCell>
                                         <TableCell className="text-right">{fmt(m.real)}</TableCell>
                                         <TableCell className="text-right text-muted-foreground">{fmt(mediamensal)}</TableCell>
-                                        <TableCell className="text-right" style={{ color: diff >= 0 ? "#039855" : "#D92D20" }}>
+                                        <TableCell className="text-right" style={{ color: diff >= 0 ? "#039855" : "#E53E3E" }}>
                                             {diff >= 0 ? "+" : ""}{fmt(diff)}
                                         </TableCell>
                                         <TableCell>

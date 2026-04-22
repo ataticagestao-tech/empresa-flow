@@ -1112,7 +1112,7 @@ export default function Vendas() {
     const styles: Record<string, string> = {
       pago: 'text-[#039855] bg-[#ECFDF3] border border-[#039855]',
       aberto: 'text-[#059669] bg-[#ECFDF4] border border-[#059669]',
-      parcial: 'text-[#F79009] bg-[#FFFAEB] border border-[#F79009]',
+      parcial: 'text-[#EA580C] bg-[#FFF0EB] border border-[#EA580C]',
       avista: 'text-[#555] bg-[#F6F2EB] border border-[#ccc]',
     }
     const labels: Record<string, string> = {
@@ -1347,11 +1347,11 @@ export default function Vendas() {
               rightSlot={
                 <div className="text-right">
                   <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Em aberto</div>
-                  <div className="text-[16px] font-extrabold text-[#D97706] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
+                  <div className="text-[16px] font-extrabold text-[#EA580C] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
                     {formatBRL(totalPendente)}
                   </div>
                   {totalVencido > 0 && (
-                    <div className="text-[10.5px] font-semibold text-[#D92D20] mt-0.5">
+                    <div className="text-[10.5px] font-semibold text-[#E53E3E] mt-0.5">
                       {formatBRL(totalVencido)} vencido
                     </div>
                   )}
@@ -1363,7 +1363,7 @@ export default function Vendas() {
                   <defs>
                     <linearGradient id="aReceberGrad" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.7} />
-                      <stop offset="100%" stopColor="#D97706" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#EA580C" stopOpacity={1} />
                     </linearGradient>
                   </defs>
                   <XAxis type="number" hide domain={[0, 'dataMax']} />
@@ -1389,7 +1389,7 @@ export default function Vendas() {
                         </Link>
                       )
                     }}
-                    axisLine={{ stroke: '#D97706', strokeWidth: 2 }}
+                    axisLine={{ stroke: '#EA580C', strokeWidth: 2 }}
                     tickLine={false}
                     width={120}
                   />
@@ -1429,7 +1429,7 @@ export default function Vendas() {
             <button
               onClick={() => setConfirmDeleteMes(true)}
               disabled={vendas.length === 0}
-              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#667085] hover:text-[#D92D20] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#667085] hover:text-[#E53E3E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Excluir todas as vendas do mês selecionado"
             >
               <Trash2 size={12} /> Excluir mês
@@ -1441,7 +1441,7 @@ export default function Vendas() {
                 <Loader2 size={20} className="animate-spin mr-2" /> Carregando...
               </div>
             ) : error ? (
-              <div className="flex items-center justify-center py-12 text-[#D92D20]">
+              <div className="flex items-center justify-center py-12 text-[#E53E3E]">
                 <AlertCircle size={16} className="mr-2" /> {error}
               </div>
             ) : vendasFiltradas.length === 0 ? (
@@ -1495,7 +1495,7 @@ export default function Vendas() {
                           <button onClick={() => carregarVendaParaEdicao(v)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Editar venda">
                             <Pencil size={12} />
                           </button>
-                          <button onClick={() => setConfirmDelete(v.id)} className="p-1 rounded hover:bg-[#FEF3F2] text-[#D92D20] transition-colors" title="Excluir">
+                          <button onClick={() => setConfirmDelete(v.id)} className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors" title="Excluir">
                             <Trash2 size={12} />
                           </button>
                         </div>
@@ -1694,7 +1694,7 @@ export default function Vendas() {
                           </td>
                           <td className="px-2 py-1.5 text-center">
                             {formItens.length > 1 && (
-                              <button onClick={() => removeItem(idx)} className="text-[#D92D20] hover:text-red-700 transition-colors">
+                              <button onClick={() => removeItem(idx)} className="text-[#E53E3E] hover:text-red-700 transition-colors">
                                 <X size={14} />
                               </button>
                             )}
@@ -1847,7 +1847,7 @@ export default function Vendas() {
 
               {/* Error */}
               {erroModal && (
-                <div className="rounded-md border border-[#D92D20] bg-[#FEF3F2] p-3 flex items-center gap-2 text-[12px] text-[#D92D20]">
+                <div className="rounded-md border border-[#E53E3E] bg-[#FEE2E2] p-3 flex items-center gap-2 text-[12px] text-[#E53E3E]">
                   <AlertCircle size={14} className="flex-shrink-0" />
                   {erroModal}
                 </div>
@@ -2030,7 +2030,7 @@ export default function Vendas() {
                           <span className="font-medium text-[#1D2939]">{formatBRL(cr.valor)}</span>
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
                             cr.status === 'pago' ? 'text-[#039855] bg-[#ECFDF3]' :
-                            cr.status === 'parcial' ? 'text-[#F79009] bg-[#FFFAEB]' :
+                            cr.status === 'parcial' ? 'text-[#EA580C] bg-[#FFF0EB]' :
                             'text-[#059669] bg-[#ECFDF4]'
                           }`}>
                             {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
@@ -2069,8 +2069,8 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-[#FEF3F2] flex items-center justify-center">
-                  <Trash2 size={18} className="text-[#D92D20]" />
+                <div className="w-10 h-10 rounded-full bg-[#FEE2E2] flex items-center justify-center">
+                  <Trash2 size={18} className="text-[#E53E3E]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#1D2939]">Excluir venda</h3>
@@ -2086,7 +2086,7 @@ export default function Vendas() {
                 </button>
                 <button
                   onClick={() => deletarVenda(confirmDelete)}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#D92D20] rounded-md hover:bg-[#6d0000] transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#E53E3E] rounded-md hover:bg-[#6d0000] transition-colors"
                 >
                   Excluir
                 </button>
@@ -2104,8 +2104,8 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-[#FEF3F2] flex items-center justify-center">
-                  <AlertCircle size={18} className="text-[#D92D20]" />
+                <div className="w-10 h-10 rounded-full bg-[#FEE2E2] flex items-center justify-center">
+                  <AlertCircle size={18} className="text-[#E53E3E]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#1D2939]">Excluir todas as vendas do mês</h3>
@@ -2114,7 +2114,7 @@ export default function Vendas() {
                   </p>
                 </div>
               </div>
-              <div className="mb-4 p-3 rounded-md bg-[#FFFAEB] border border-[#F79009] text-[12px] text-[#F79009]">
+              <div className="mb-4 p-3 rounded-md bg-[#FFF0EB] border border-[#EA580C] text-[12px] text-[#EA580C]">
                 Todas as vendas, itens e contas a receber vinculadas ao mês selecionado serão removidas permanentemente. Esta ação não pode ser desfeita.
               </div>
               <div className="flex justify-end gap-2">
@@ -2128,7 +2128,7 @@ export default function Vendas() {
                 <button
                   onClick={deletarVendasDoMes}
                   disabled={deletandoMes || vendas.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#D92D20] rounded-md hover:bg-[#6d0000] disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#E53E3E] rounded-md hover:bg-[#6d0000] disabled:opacity-50 transition-colors"
                 >
                   {deletandoMes && <Loader2 size={14} className="animate-spin" />}
                   {deletandoMes ? 'Excluindo...' : 'Excluir tudo'}
@@ -2332,12 +2332,12 @@ export default function Vendas() {
 
               {/* Error de parse */}
               {importError && !importResult && (
-                <div className="p-4 bg-[#FEF3F2] border border-[#e57373] rounded-lg">
+                <div className="p-4 bg-[#FEE2E2] border border-[#e57373] rounded-lg">
                   <div className="flex items-start gap-3">
-                    <AlertCircle size={18} className="text-[#D92D20] mt-0.5 shrink-0" />
+                    <AlertCircle size={18} className="text-[#E53E3E] mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#D92D20] text-sm">Erro ao processar planilha</p>
-                      <p className="text-sm text-[#D92D20]/80 mt-1 whitespace-pre-line">{importError}</p>
+                      <p className="font-semibold text-[#E53E3E] text-sm">Erro ao processar planilha</p>
+                      <p className="text-sm text-[#E53E3E]/80 mt-1 whitespace-pre-line">{importError}</p>
                     </div>
                   </div>
                   <div className="mt-3 flex gap-2">
@@ -2361,7 +2361,7 @@ export default function Vendas() {
                       <p className="text-sm mt-0.5">
                         <span className="text-[#039855] font-semibold">{importResult.ok} vendas importadas</span>
                         {importResult.fail > 0 && (
-                          <span className="text-[#D92D20] font-semibold ml-2">{importResult.fail} com erro</span>
+                          <span className="text-[#E53E3E] font-semibold ml-2">{importResult.fail} com erro</span>
                         )}
                       </p>
                     </div>
@@ -2378,7 +2378,7 @@ export default function Vendas() {
                       {importRows.length} linha{importRows.length !== 1 ? 's' : ''} encontrada{importRows.length !== 1 ? 's' : ''}
                     </span>
                     {importErros > 0 && (
-                      <span className="flex items-center gap-1 text-[#D92D20] font-semibold">
+                      <span className="flex items-center gap-1 text-[#E53E3E] font-semibold">
                         <XCircle size={14} /> {importErros} com erro{importErros !== 1 ? 's' : ''} (serão ignoradas)
                       </span>
                     )}
@@ -2438,7 +2438,7 @@ export default function Vendas() {
                           {importRows.map((row, idx) => {
                             const hasError = row.erros.length > 0
                             return (
-                              <tr key={idx} className={hasError ? 'bg-[#FEF3F2]' : 'hover:bg-[#F6F2EB]'}>
+                              <tr key={idx} className={hasError ? 'bg-[#FEE2E2]' : 'hover:bg-[#F6F2EB]'}>
                                 <td className="px-3 py-2 text-[#999] text-xs">{row.linha}</td>
                                 <td className="px-3 py-2 font-medium text-[#1D2939]">
                                   {row.cliente_nome || '-'}
@@ -2454,7 +2454,7 @@ export default function Vendas() {
                                 <td className="px-3 py-2 text-[#333]">{LABEL_FORMA[row.forma_pagamento] || row.forma_pagamento}</td>
                                 <td className="px-3 py-2">
                                   {hasError ? (
-                                    <span className="flex items-center gap-1 text-[#D92D20] text-xs font-semibold" title={row.erros.join(', ')}>
+                                    <span className="flex items-center gap-1 text-[#E53E3E] text-xs font-semibold" title={row.erros.join(', ')}>
                                       <XCircle size={12} /> {row.erros[0]}
                                     </span>
                                   ) : (

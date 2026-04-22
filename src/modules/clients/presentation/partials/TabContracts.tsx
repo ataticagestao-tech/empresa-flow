@@ -33,7 +33,7 @@ const formaLabel = (v: string | null | undefined) =>
 
 const statusLabel: Record<string, { label: string; className: string }> = {
     confirmado: { label: "Ativo", className: "bg-[#ECFDF3] text-[#039855] border-[#039855]" },
-    orcamento: { label: "Orçamento", className: "bg-[#FFFAEB] text-[#F79009] border-[#F79009]" },
+    orcamento: { label: "Orçamento", className: "bg-[#FFF0EB] text-[#EA580C] border-[#EA580C]" },
     cancelado: { label: "Cancelado", className: "bg-[#F6F2EB] text-[#555] border-[#aaa]" },
 };
 
@@ -258,7 +258,7 @@ function ContratoCard({
                         size="sm"
                         variant="ghost"
                         onClick={onDelete}
-                        className="h-7 w-7 p-0 text-[#D92D20] hover:text-[#D92D20] hover:bg-[#FEF3F2]"
+                        className="h-7 w-7 p-0 text-[#E53E3E] hover:text-[#E53E3E] hover:bg-[#FEE2E2]"
                         title="Excluir contrato"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -269,7 +269,7 @@ function ContratoCard({
             <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-[#EAECF0]">
                 <Metric label="Valor total" value={formatBRL(contrato.valor_total)} />
                 <Metric label="Pago" value={formatBRL(contrato.total_pago)} color="#039855" />
-                <Metric label="Saldo" value={formatBRL(contrato.saldo)} color={contrato.saldo > 0 ? "#D92D20" : "#039855"} />
+                <Metric label="Saldo" value={formatBRL(contrato.saldo)} color={contrato.saldo > 0 ? "#E53E3E" : "#039855"} />
                 <Metric
                     label="Parcelas"
                     value={contrato.crs.length > 0 ? `${contrato.parcelas_pagas}/${contrato.crs.length}` : "—"}
@@ -515,7 +515,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                                     statusTone === "ok"
                                         ? "text-[#039855]"
                                         : statusTone === "warn"
-                                        ? "text-[#D92D20]"
+                                        ? "text-[#E53E3E]"
                                         : "text-[#667085]"
                                 }`}
                             >
@@ -746,7 +746,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                                             variant="ghost"
                                             onClick={() => removeCondicao(idx)}
                                             disabled={condicoes.length === 1}
-                                            className="text-[#D92D20] hover:bg-[#FEF3F2] h-9 w-9 p-0 disabled:opacity-30"
+                                            className="text-[#E53E3E] hover:bg-[#FEE2E2] h-9 w-9 p-0 disabled:opacity-30"
                                             aria-label="Remover condição"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
@@ -780,7 +780,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                 <div className="px-8 py-4 border-t border-[#eef0f3] bg-white flex items-center justify-between gap-4">
                     <p className={`text-[11px] font-medium ${
                         statusTone === "ok" ? "text-[#039855]"
-                        : statusTone === "warn" ? "text-[#D92D20]"
+                        : statusTone === "warn" ? "text-[#E53E3E]"
                         : "text-[#98A2B3]"
                     }`}>
                         {statusTone === "ok" && (isEdit ? "Pronto para salvar — valores conferem" : "Pronto para criar — valores conferem")}
@@ -877,7 +877,7 @@ function SummaryCell({
 }) {
     const color =
         tone === "ok" ? "#039855"
-        : tone === "warn" ? "#D92D20"
+        : tone === "warn" ? "#E53E3E"
         : emphasize ? "#059669"
         : "#667085";
     return (
@@ -906,13 +906,13 @@ function CirurgiaPill({ iso }: { iso: string }) {
             className = "text-[#667085]";
             suffix = ` (${Math.abs(dias)}d atrás)`;
         } else if (dias === 0) {
-            className = "text-[#D92D20] font-bold bg-[#FEF3F2] px-1.5 py-0.5 rounded";
+            className = "text-[#E53E3E] font-bold bg-[#FEE2E2] px-1.5 py-0.5 rounded";
             suffix = " (hoje)";
         } else if (dias <= 7) {
-            className = "text-[#D92D20] font-bold bg-[#FEF3F2] px-1.5 py-0.5 rounded";
+            className = "text-[#E53E3E] font-bold bg-[#FEE2E2] px-1.5 py-0.5 rounded";
             suffix = ` (em ${dias}d)`;
         } else if (dias <= 30) {
-            className = "text-[#7a5400] font-semibold bg-[#FFFAEB] px-1.5 py-0.5 rounded";
+            className = "text-[#7a5400] font-semibold bg-[#FFF0EB] px-1.5 py-0.5 rounded";
             suffix = ` (em ${dias}d)`;
         }
     }

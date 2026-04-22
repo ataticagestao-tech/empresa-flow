@@ -64,7 +64,7 @@ const REGIME_LABELS: Record<string, string> = {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   apurado: { label: 'Apurado', color: '#059669', bg: '#ECFDF3' },
-  pendente: { label: 'Pendente', color: '#F79009', bg: '#FFFAEB' },
+  pendente: { label: 'Pendente', color: '#EA580C', bg: '#FFF0EB' },
   pago: { label: 'Pago', color: '#059669', bg: '#ECFDF3' },
   retificado: { label: 'Retificado', color: '#667085', bg: '#F3F4F6' },
 }
@@ -302,8 +302,8 @@ export default function ApuracaoImpostos() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Receita bruta anual', value: formatBRL(kpis.totalReceita), icon: DollarSign, color: '#059669' },
-            { label: 'Total impostos', value: formatBRL(kpis.totalImpostos), icon: Calculator, color: '#D92D20' },
-            { label: 'Carga tributaria', value: `${kpis.cargaTributaria.toFixed(1)}%`, icon: TrendingUp, color: '#F79009' },
+            { label: 'Total impostos', value: formatBRL(kpis.totalImpostos), icon: Calculator, color: '#E53E3E' },
+            { label: 'Carga tributaria', value: `${kpis.cargaTributaria.toFixed(1)}%`, icon: TrendingUp, color: '#EA580C' },
             { label: 'Meses apurados', value: kpis.mesesApurados, icon: FileText, color: '#059669' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">

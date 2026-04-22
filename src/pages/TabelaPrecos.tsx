@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 const T = {
     primary: "#059669", primaryLt: "#ECFDF4",
     green: "#039855", greenLt: "#ECFDF3",
-    red: "#D92D20",
+    red: "#E53E3E",
     amber: "#f57f17",
     text1: "#1D2939", text3: "#98A2B3",
     border: "#EAECF0",

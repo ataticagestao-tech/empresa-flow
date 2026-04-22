@@ -223,7 +223,7 @@ export default function EstoqueProdutos() {
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Abaixo do Mínimo</p>
-            <p className="text-2xl font-bold mt-1" style={{ color: stats.abaixoMin > 0 ? "#D92D20" : "#039855" }}>{stats.abaixoMin}</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: stats.abaixoMin > 0 ? "#E53E3E" : "#039855" }}>{stats.abaixoMin}</p>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Valor em Estoque</p>

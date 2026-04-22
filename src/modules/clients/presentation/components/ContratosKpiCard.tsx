@@ -39,10 +39,10 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
             subtitle = `Cirurgia ${formatDateShort(proximaCirurgia.previsao_cirurgia)} (passada)`;
         } else if (diasCirurgia === 0) {
             subtitle = `Cirurgia HOJE (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
-            subtitleClass = "text-[#D92D20] font-bold";
+            subtitleClass = "text-[#E53E3E] font-bold";
         } else if (diasCirurgia <= 7) {
             subtitle = `Cirurgia em ${diasCirurgia}d (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
-            subtitleClass = "text-[#D92D20] font-bold";
+            subtitleClass = "text-[#E53E3E] font-bold";
         } else if (diasCirurgia <= 30) {
             subtitle = `Cirurgia em ${diasCirurgia}d (${formatDateShort(proximaCirurgia.previsao_cirurgia)})`;
             subtitleClass = "text-[#7a5400] font-semibold";
@@ -54,7 +54,7 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
     }
 
     const mainValue = busy ? "..." : ativos.length > 0 ? formatBRL(saldoTotal) : "—";
-    const mainColor = saldoTotal > 0 ? "text-[#D92D20]" : "text-[#039855]";
+    const mainColor = saldoTotal > 0 ? "text-[#E53E3E]" : "text-[#039855]";
 
     return (
         <div className="border border-[#EAECF0] rounded-lg overflow-hidden">

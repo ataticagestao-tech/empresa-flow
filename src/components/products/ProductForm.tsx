@@ -243,7 +243,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
-                                    Tipo <span className="text-[#D92D20]">*</span>
+                                    Tipo <span className="text-[#E53E3E]">*</span>
                                 </FormLabel>
                                 <FormControl>
                                     <Select onValueChange={field.onChange} value={field.value}>
@@ -269,7 +269,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-[12px] font-bold text-[#555] uppercase tracking-wider">
-                                Nome / Descrição <span className="text-[#D92D20]">*</span>
+                                Nome / Descrição <span className="text-[#E53E3E]">*</span>
                             </FormLabel>
                             <FormControl>
                                 <Input placeholder="Nome do produto ou serviço" className="text-[13px]" {...field} />
@@ -352,7 +352,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     </div>
                     <div>
                         <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                            Preço <span className="text-[#D92D20]">*</span>
+                            Preço <span className="text-[#E53E3E]">*</span>
                         </label>
                         <Input
                             value={preco}

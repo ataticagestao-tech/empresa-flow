@@ -619,7 +619,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDelete(account.id)}
-                                className="h-8 w-8 p-0 text-[#D92D20] hover:text-red-700"
+                                className="h-8 w-8 p-0 text-[#E53E3E] hover:text-red-700"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </Button>
@@ -765,7 +765,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                             size="sm"
                                             variant="ghost"
                                             onClick={() => handleDeleteAttachment(attachment.id, attachment.file_path)}
-                                            className="text-[#D92D20] hover:text-red-700"
+                                            className="text-[#E53E3E] hover:text-red-700"
                                         >
                                             <X className="w-4 h-4" />
                                         </Button>

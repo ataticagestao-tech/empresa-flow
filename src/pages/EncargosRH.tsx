@@ -38,9 +38,9 @@ interface Encargo {
 }
 
 const STATUS_GUIA: Record<string, { label: string; color: string; bg: string }> = {
-  pendente: { label: 'Pendente', color: '#F79009', bg: '#FFFAEB' },
+  pendente: { label: 'Pendente', color: '#EA580C', bg: '#FFF0EB' },
   recolhido: { label: 'Recolhido', color: '#059669', bg: '#ECFDF3' },
-  atrasado: { label: 'Atrasado', color: '#D92D20', bg: '#FEF3F2' },
+  atrasado: { label: 'Atrasado', color: '#E53E3E', bg: '#FEE2E2' },
 }
 
 const MESES = [
@@ -204,8 +204,8 @@ export default function EncargosRH() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), icon: DollarSign, color: '#059669' },
-            { label: 'INSS total', value: formatBRL(kpis.totalINSS), icon: Calculator, color: '#F79009' },
-            { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), icon: Calculator, color: '#D92D20' },
+            { label: 'INSS total', value: formatBRL(kpis.totalINSS), icon: Calculator, color: '#EA580C' },
+            { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), icon: Calculator, color: '#E53E3E' },
             { label: 'Total encargos', value: formatBRL(kpis.totalGeral), icon: DollarSign, color: '#059669' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">

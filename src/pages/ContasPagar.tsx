@@ -106,10 +106,10 @@ function classifyUrgency(cp: ContaPagar): UrgencyGroup {
 }
 
 const urgencyConfig: Record<UrgencyGroup, { label: string; textColor: string; bgColor: string; borderColor: string }> = {
-  hoje: { label: 'Vence hoje', textColor: '#D92D20', bgColor: '#FEF3F2', borderColor: '#D92D20' },
-  proximos7: { label: 'Proximos 7 dias', textColor: '#F79009', bgColor: '#FFFAEB', borderColor: '#F79009' },
+  hoje: { label: 'Vence hoje', textColor: '#E53E3E', bgColor: '#FEE2E2', borderColor: '#E53E3E' },
+  proximos7: { label: 'Proximos 7 dias', textColor: '#EA580C', bgColor: '#FFF0EB', borderColor: '#EA580C' },
   proximos30: { label: 'Proximos 30 dias', textColor: '#059669', bgColor: 'rgba(26,46,74,0.04)', borderColor: '#059669' },
-  vencidos: { label: 'Vencidos', textColor: '#D92D20', bgColor: '#FEF3F2', borderColor: '#D92D20' },
+  vencidos: { label: 'Vencidos', textColor: '#E53E3E', bgColor: '#FEE2E2', borderColor: '#E53E3E' },
   pagos: { label: 'Pagos', textColor: '#039855', bgColor: '#ECFDF3', borderColor: '#039855' },
 }
 
@@ -862,9 +862,9 @@ export default function ContasPagar() {
   // ─── Status badge ────────────────────────────────────────────────
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { dot: string; text: string; bg: string; label: string }> = {
-      aberto: { dot: '#F79009', text: '#F79009', bg: '#FFFAEB', label: 'Em aberto' },
+      aberto: { dot: '#EA580C', text: '#EA580C', bg: '#FFF0EB', label: 'Em aberto' },
       parcial: { dot: '#059669', text: '#059669', bg: '#ECFDF4', label: 'Parcial' },
-      vencido: { dot: '#D92D20', text: '#D92D20', bg: '#FEF3F2', label: 'Vencido' },
+      vencido: { dot: '#E53E3E', text: '#E53E3E', bg: '#FEE2E2', label: 'Vencido' },
       pago: { dot: '#039855', text: '#039855', bg: '#e1f5ee', label: 'Pago' },
     }
     const c = config[status] || config.aberto
@@ -942,8 +942,8 @@ export default function ContasPagar() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { label: 'Total a pagar', value: formatBRL(kpis.totalPagar), color: '#059669', sub: `${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto` },
-            { label: 'Vence hoje', value: formatBRL(kpis.venceHoje), color: '#D92D20', sub: `${kpis.hojeCount} t\u00edtulo${kpis.hojeCount !== 1 ? 's' : ''} vencendo` },
-            { label: 'Pr\u00f3ximos 7 dias', value: formatBRL(kpis.prox7), color: '#F79009', sub: `${kpis.prox7Count} t\u00edtulo${kpis.prox7Count !== 1 ? 's' : ''} a vencer` },
+            { label: 'Vence hoje', value: formatBRL(kpis.venceHoje), color: '#E53E3E', sub: `${kpis.hojeCount} t\u00edtulo${kpis.hojeCount !== 1 ? 's' : ''} vencendo` },
+            { label: 'Pr\u00f3ximos 7 dias', value: formatBRL(kpis.prox7), color: '#EA580C', sub: `${kpis.prox7Count} t\u00edtulo${kpis.prox7Count !== 1 ? 's' : ''} a vencer` },
             { label: 'Pago no m\u00eas', value: formatBRL(pagoNoMes), color: '#039855', sub: `${pagoNoMesCount} t\u00edtulo${pagoNoMesCount !== 1 ? 's' : ''} quitado${pagoNoMesCount !== 1 ? 's' : ''}` },
           ].map(kpi => (
             <div key={kpi.label} className="bg-white border border-[#EAECF0] rounded-xl px-4 py-3 min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
@@ -1027,7 +1027,7 @@ export default function ContasPagar() {
               {/* Rodapé com total 30d */}
               <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#EAECF0]">
                 <span className="text-[11.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Total previsto (30d)</span>
-                <span className="text-[16px] font-extrabold text-[#D92D20] tracking-[-0.01em] tabular-nums">{formatBRL(agenda30.total)}</span>
+                <span className="text-[16px] font-extrabold text-[#E53E3E] tracking-[-0.01em] tabular-nums">{formatBRL(agenda30.total)}</span>
               </div>
           </CollapsibleCard>
 
@@ -1128,7 +1128,7 @@ export default function ContasPagar() {
 
             <div className="px-5 py-3 border-t border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">
               <span className="text-[11.5px] font-bold uppercase tracking-wide text-[#1D2939]">Total a pagar</span>
-              <span className="text-[18px] font-extrabold text-[#D92D20] tracking-[-0.01em] tabular-nums">
+              <span className="text-[18px] font-extrabold text-[#E53E3E] tracking-[-0.01em] tabular-nums">
                 {formatBRL(agendaDiaTotal)}
               </span>
             </div>
@@ -1404,8 +1404,8 @@ export default function ContasPagar() {
                                     {(() => {
                                       const iconConf: Record<string, { Icon: typeof CheckCircle2; color: string; bg: string; title: string }> = {
                                         pago: { Icon: CheckCircle2, color: '#039855', bg: '#e1f5ee', title: 'Pago' },
-                                        vencido: { Icon: AlertTriangle, color: '#D92D20', bg: '#FEF3F2', title: 'Vencido' },
-                                        aberto: { Icon: CalendarClock, color: '#F79009', bg: '#FFFAEB', title: 'Em aberto' },
+                                        vencido: { Icon: AlertTriangle, color: '#E53E3E', bg: '#FEE2E2', title: 'Vencido' },
+                                        aberto: { Icon: CalendarClock, color: '#EA580C', bg: '#FFF0EB', title: 'Em aberto' },
                                         parcial: { Icon: Loader2, color: '#059669', bg: '#ECFDF4', title: 'Parcial' },
                                       }
                                       const ic = iconConf[cp.status] || iconConf.aberto
@@ -1435,7 +1435,7 @@ export default function ContasPagar() {
                                 </td>
                                 <td className="py-3 px-3" style={{ fontSize: 13 }}>
                                   {isHoje ? (
-                                    <span className="font-bold" style={{ color: '#D92D20' }}>Hoje</span>
+                                    <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
                                   ) : (
                                     <span style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
                                   )}
@@ -1456,9 +1456,9 @@ export default function ContasPagar() {
                                 <td className="py-3 px-3">
                                   {(() => {
                                     const statusConf: Record<string, { dot: string; text: string; bg: string; label: string }> = {
-                                      aberto: { dot: '#F79009', text: '#F79009', bg: '#FFFAEB', label: 'Em aberto' },
+                                      aberto: { dot: '#EA580C', text: '#EA580C', bg: '#FFF0EB', label: 'Em aberto' },
                                       parcial: { dot: '#059669', text: '#059669', bg: '#ECFDF4', label: 'Parcial' },
-                                      vencido: { dot: '#D92D20', text: '#D92D20', bg: '#FEF3F2', label: 'Vencido' },
+                                      vencido: { dot: '#E53E3E', text: '#E53E3E', bg: '#FEE2E2', label: 'Vencido' },
                                       pago: { dot: '#039855', text: '#039855', bg: '#e1f5ee', label: 'Pago' },
                                     }
                                     const sc = statusConf[cp.status] || statusConf.aberto
@@ -1533,7 +1533,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleCancelar(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#D92D20', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -1570,7 +1570,7 @@ export default function ContasPagar() {
                                               }
                                             }}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#D92D20', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(139,0,0,0.05)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2134,8 +2134,8 @@ export default function ContasPagar() {
                 )}
 
                 {!editingCpId && newForm.recorrencia !== 'sem' && (
-                  <div className="rounded-[8px] p-3" style={{ backgroundColor: '#FFFAEB', border: '1px solid rgba(186,117,23,0.25)' }}>
-                    <p style={{ fontSize: 12, color: '#F79009', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                  <div className="rounded-[8px] p-3" style={{ backgroundColor: '#FFF0EB', border: '1px solid rgba(186,117,23,0.25)' }}>
+                    <p style={{ fontSize: 12, color: '#EA580C', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
                       Serão geradas <strong>{newForm.numParcelas}</strong> parcelas de{' '}
                       <strong>{formatBRL(newForm.valor)}</strong> com vencimento{' '}
                       {newForm.recorrencia === 'mensal' ? 'mensal' : newForm.recorrencia === 'trimestral' ? 'trimestral' : 'anual'}.
@@ -2220,7 +2220,7 @@ export default function ContasPagar() {
                           type="button"
                           onClick={() => setNewForm({ ...newForm, fileUrl: '' })}
                           className="text-xs px-2 py-1.5 rounded-[6px] transition"
-                          style={{ color: '#D92D20' }}
+                          style={{ color: '#E53E3E' }}
                         >
                           <X size={14} />
                         </button>

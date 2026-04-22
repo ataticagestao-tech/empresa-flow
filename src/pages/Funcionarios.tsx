@@ -114,7 +114,7 @@ const onlyDigits = (v: string) => v.replace(/\D/g, "");
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
 const ICE = "border border-[#c00] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-[#fff8f8] focus:border-[#c00] focus:outline-none w-full";
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
-const REQ = <span className="text-[#D92D20]">*</span>;
+const REQ = <span className="text-[#E53E3E]">*</span>;
 
 export default function Funcionarios() {
   const { activeClient, user } = useAuth();
@@ -316,7 +316,7 @@ export default function Funcionarios() {
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className={IC} />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {employeesError ? <p className="text-center py-8 text-sm text-[#D92D20]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
+            {employeesError ? <p className="text-center py-8 text-sm text-[#E53E3E]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
              isLoading ? <p className="text-center py-8 text-sm text-[#555]">Carregando...</p> :
              filtered.length === 0 ? <p className="text-center py-8 text-sm text-[#555]">Nenhum funcionário</p> :
              filtered.map(emp => (
@@ -532,8 +532,8 @@ export default function Funcionarios() {
                           <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#059669] mb-4">Resumo do Colaborador</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between"><span className="text-[#555]">Salário Bruto</span><span className="font-bold">{formatBRL(calcSalario)}</span></div>
-                            <div className="flex justify-between text-[#D92D20]"><span>(-) INSS</span><span>{formatBRL(inssCalc)}</span></div>
-                            <div className="flex justify-between text-[#D92D20]"><span>(-) IRRF</span><span>{formatBRL(irrfCalc)}</span></div>
+                            <div className="flex justify-between text-[#E53E3E]"><span>(-) INSS</span><span>{formatBRL(inssCalc)}</span></div>
+                            <div className="flex justify-between text-[#E53E3E]"><span>(-) IRRF</span><span>{formatBRL(irrfCalc)}</span></div>
                             <div className="flex justify-between border-t-2 border-[#059669] pt-2 mt-2">
                               <span className="font-bold text-[#039855] text-base">Líquido</span>
                               <span className="font-bold text-[#039855] text-base">{formatBRL(liquido)}</span>
@@ -546,7 +546,7 @@ export default function Funcionarios() {
                             <div className="flex justify-between"><span className="text-[#555]">Salário</span><span>{formatBRL(calcSalario)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">FGTS (8%)</span><span>{formatBRL(fgts)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">INSS Patronal (20%)</span><span>{formatBRL(inssPatronal)}</span></div>
-                            <div className="flex justify-between border-t border-[#eee] pt-2 font-bold"><span>Custo Total</span><span className="text-[#D92D20]">{formatBRL(custoTotal)}</span></div>
+                            <div className="flex justify-between border-t border-[#eee] pt-2 font-bold"><span>Custo Total</span><span className="text-[#E53E3E]">{formatBRL(custoTotal)}</span></div>
                           </div>
                         </div>
                       </div>

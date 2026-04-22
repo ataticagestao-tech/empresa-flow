@@ -121,7 +121,7 @@ export default function CentrosCusto() {
       <div className="space-y-6">
 
         {/* Alert */}
-        <div className="bg-[#FFFAEB] border border-[#e6c200] border-l-4 border-l-[#F79009] rounded-md px-4 py-2.5 text-sm font-semibold text-[#F79009]">
+        <div className="bg-[#FFF0EB] border border-[#e6c200] border-l-4 border-l-[#EA580C] rounded-md px-4 py-2.5 text-sm font-semibold text-[#EA580C]">
           Os setores abaixo foram criados pela Tática como padrão para esta empresa. O cliente pode renomear ou adicionar novos setores, mas não pode excluir os padrões.
         </div>
 
@@ -143,7 +143,7 @@ export default function CentrosCusto() {
             <div className="p-5 bg-white space-y-4">
               <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1"><label className={LB}>Código</label><input value={formData.codigo} onChange={e => set("codigo", e.target.value)} className={IC} placeholder="Ex: ADM" /></div>
-                <div className="flex flex-col gap-1 col-span-2"><label className={LB}>Descrição <span className="text-[#D92D20]">*</span></label><input value={formData.descricao} onChange={e => set("descricao", e.target.value)} className={IC} /></div>
+                <div className="flex flex-col gap-1 col-span-2"><label className={LB}>Descrição <span className="text-[#E53E3E]">*</span></label><input value={formData.descricao} onChange={e => set("descricao", e.target.value)} className={IC} /></div>
                 <div className="flex flex-col gap-1"><label className={LB}>Meta Mensal (R$)</label><input value={formData.meta_mensal} onChange={e => set("meta_mensal", e.target.value)} className={IC} placeholder="0,00" /></div>
               </div>
               <div className="flex flex-col gap-1 max-w-xs">
@@ -173,7 +173,7 @@ export default function CentrosCusto() {
               const empCount = empCounts[c.id] || 0;
               const meta = c.meta_mensal || 0;
               const pct = getMetaPercent(c);
-              const barColor = pct > 100 ? "bg-[#D92D20]" : pct > 80 ? "bg-[#F79009]" : "bg-[#039855]";
+              const barColor = pct > 100 ? "bg-[#E53E3E]" : pct > 80 ? "bg-[#EA580C]" : "bg-[#039855]";
 
               return (
                 <div key={c.id}
@@ -205,7 +205,7 @@ export default function CentrosCusto() {
                       {isPadrao
                         ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">Padrão Tática</span>
                         : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Personalizado</span>}
-                      {!c.ativo && <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]">Inativo</span>}
+                      {!c.ativo && <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]">Inativo</span>}
                     </div>
                   </div>
                 </div>

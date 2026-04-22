@@ -132,9 +132,9 @@ export default function Orcamento() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
                         { label: "ORÇAMENTO TOTAL", value: fmt(totalOrcado), icon: Calculator, color: "#059669", bg: "#ECFDF4" },
-                        { label: "REALIZADO", value: fmt(totalRealizado), icon: DollarSign, color: "#D92D20", bg: "#FEF3F2" },
+                        { label: "REALIZADO", value: fmt(totalRealizado), icon: DollarSign, color: "#E53E3E", bg: "#FEE2E2" },
                         { label: "DISPONÍVEL", value: fmt(totalDisponivel), icon: CheckCircle2, color: "#039855", bg: "#ECFDF3" },
-                        { label: "% UTILIZADO", value: `${totalPct.toFixed(1)}%`, icon: PieChart, color: totalPct > 100 ? "#D92D20" : "#f57f17", bg: totalPct > 100 ? "#FEF3F2" : "#fff8e1" },
+                        { label: "% UTILIZADO", value: `${totalPct.toFixed(1)}%`, icon: PieChart, color: totalPct > 100 ? "#E53E3E" : "#f57f17", bg: totalPct > 100 ? "#FEE2E2" : "#fff8e1" },
                     ].map((kpi, i) => (
                         <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -159,7 +159,7 @@ export default function Orcamento() {
                                 <Tooltip formatter={(v: number) => fmt(v)} />
                                 <Legend />
                                 <Bar dataKey="Orçado" fill="#059669" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="Realizado" fill="#D92D20" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Realizado" fill="#E53E3E" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </Card>
@@ -190,12 +190,12 @@ export default function Orcamento() {
                                 <TableRow key={r.id}>
                                     <TableCell className="font-medium">{r.code} - {r.name}</TableCell>
                                     <TableCell className="text-right">{fmt(r.orcado)}</TableCell>
-                                    <TableCell className="text-right" style={{ color: "#D92D20" }}>{fmt(r.realizado)}</TableCell>
-                                    <TableCell className="text-right" style={{ color: r.disponivel >= 0 ? "#039855" : "#D92D20" }}>{fmt(r.disponivel)}</TableCell>
+                                    <TableCell className="text-right" style={{ color: "#E53E3E" }}>{fmt(r.realizado)}</TableCell>
+                                    <TableCell className="text-right" style={{ color: r.disponivel >= 0 ? "#039855" : "#E53E3E" }}>{fmt(r.disponivel)}</TableCell>
                                     <TableCell>
                                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                             <Progress value={Math.min(r.pct, 100)} className="h-2" />
-                                            <span style={{ fontSize: 12, color: r.pct > 100 ? "#D92D20" : "#667085", minWidth: 40 }}>{r.pct.toFixed(0)}%</span>
+                                            <span style={{ fontSize: 12, color: r.pct > 100 ? "#E53E3E" : "#667085", minWidth: 40 }}>{r.pct.toFixed(0)}%</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>

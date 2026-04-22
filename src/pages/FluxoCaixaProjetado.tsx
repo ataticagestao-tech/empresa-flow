@@ -119,22 +119,22 @@ export default function FluxoCaixaProjetado() {
                     </Card>
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: "#FEF3F2", borderRadius: 10, padding: 10 }}><TrendingDown size={20} color="#D92D20" /></div>
+                            <div style={{ background: "#FEE2E2", borderRadius: 10, padding: 10 }}><TrendingDown size={20} color="#E53E3E" /></div>
                             <div>
                                 <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SAÍDAS PREVISTAS</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: "#D92D20" }}>{fmt(totalSaidas)}</p>
+                                <p style={{ fontSize: 22, fontWeight: 800, color: "#E53E3E" }}>{fmt(totalSaidas)}</p>
                                 <p style={{ fontSize: 11, color: "#98A2B3" }}>{payables.length} contas a pagar</p>
                             </div>
                         </div>
                     </Card>
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: saldoProjetado >= 0 ? "#ECFDF4" : "#FEF3F2", borderRadius: 10, padding: 10 }}>
-                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#059669" : "#D92D20"} />
+                            <div style={{ background: saldoProjetado >= 0 ? "#ECFDF4" : "#FEE2E2", borderRadius: 10, padding: 10 }}>
+                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#059669" : "#E53E3E"} />
                             </div>
                             <div>
                                 <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SALDO PROJETADO</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#059669" : "#D92D20" }}>{fmt(saldoProjetado)}</p>
+                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#059669" : "#E53E3E" }}>{fmt(saldoProjetado)}</p>
                                 <p style={{ fontSize: 11, color: "#98A2B3" }}>Entradas - Saídas</p>
                             </div>
                         </div>
@@ -179,10 +179,10 @@ export default function FluxoCaixaProjetado() {
                                             {item.tipo === "entrada" ? "Entrada" : "Saída"}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right" style={{ color: item.tipo === "entrada" ? "#039855" : "#D92D20" }}>
+                                    <TableCell className="text-right" style={{ color: item.tipo === "entrada" ? "#039855" : "#E53E3E" }}>
                                         {fmt(Number(item.amount))}
                                     </TableCell>
-                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#059669" : "#D92D20" }}>
+                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#059669" : "#E53E3E" }}>
                                         {fmt(item.saldo_acumulado)}
                                     </TableCell>
                                 </TableRow>

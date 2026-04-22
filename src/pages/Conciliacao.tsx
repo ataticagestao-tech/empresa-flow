@@ -1658,7 +1658,7 @@ export default function Conciliacao() {
                                                             {bt.memo && <div className="text-xs text-muted-foreground">{bt.memo}</div>}
                                                         </TableCell>
                                                         <TableCell>
-                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-[#D92D20]' : 'text-emerald-600'}`}>
+                                                            <span className={`font-bold ${bt.amount < 0 ? 'text-[#E53E3E]' : 'text-emerald-600'}`}>
                                                                 {formatBRL(bt.amount)}
                                                             </span>
                                                         </TableCell>
@@ -1843,7 +1843,7 @@ export default function Conciliacao() {
                                         <p className="text-sm text-muted-foreground">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
                                     </div>
                                     <div className="text-right">
-                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#D92D20]' : 'text-emerald-600'}`}>
+                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#E53E3E]' : 'text-emerald-600'}`}>
                                             {formatBRL(selectedBankTx.amount)}
                                         </span>
                                         <p className="text-xs text-muted-foreground mt-0.5">

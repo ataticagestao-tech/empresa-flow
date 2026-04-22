@@ -38,7 +38,7 @@ const C = {
   darkCard: "#1D2939",
   gold: "#059669",
   green: "#039855",
-  red: "#D92D20",
+  red: "#E53E3E",
   text1: "#1D2939",
   text2: "#667085",
   textMuted: "#98A2B3",
@@ -88,7 +88,7 @@ function KpiCard({
             <span
               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
               style={{
-                backgroundColor: delta > 0 ? "#ECFDF3" : delta < 0 ? "#FEF3F2" : "#F6F2EB",
+                backgroundColor: delta > 0 ? "#ECFDF3" : delta < 0 ? "#FEE2E2" : "#F6F2EB",
                 color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
               }}
             >
@@ -1810,7 +1810,7 @@ export default function PainelGerencial() {
           </h3>
           <div className="space-y-3">
             {insights.map((ins, idx) => {
-              const dotColor = ins.type === "danger" ? "#D92D20" : ins.type === "warning" ? "#F79009" : "#039855";
+              const dotColor = ins.type === "danger" ? "#E53E3E" : ins.type === "warning" ? "#EA580C" : "#039855";
               return (
                 <div key={idx} className="flex items-start gap-3">
                   <span className="inline-block w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: dotColor }} />

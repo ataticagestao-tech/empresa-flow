@@ -241,7 +241,7 @@ export default function ImportacaoOmie() {
           </span>
         )}
         {errors > 0 && (
-          <span className="flex items-center gap-1 text-[#D92D20]">
+          <span className="flex items-center gap-1 text-[#E53E3E]">
             <XCircle className="h-4 w-4" />
             {errors} erros
           </span>

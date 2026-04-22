@@ -107,7 +107,7 @@ export default function BankAccountsPage() {
                         <CardContent>
                             <div className="mt-2">
                                 <p className="text-sm text-muted-foreground font-medium uppercase">Saldo Atual</p>
-                                <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-foreground' : 'text-[#D92D20]'}`}>
+                                <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-foreground' : 'text-[#E53E3E]'}`}>
                                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(account.current_balance)}
                                 </p>
                             </div>

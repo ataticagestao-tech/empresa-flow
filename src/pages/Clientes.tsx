@@ -80,7 +80,7 @@ const diasAtraso = (data: string | null): string => {
 
 const StatusBadge = ({ status }: { status: string }) => {
     const estilos: Record<string, string> = {
-        inadimplente: "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
+        inadimplente: "text-[#E53E3E] border-[#E53E3E] bg-[#FEE2E2]",
         ativo:        "text-[#039855] border-[#039855] bg-[#ECFDF3]",
         inativo:      "text-[#666] border-[#aaa] bg-[#F6F2EB]",
     };
@@ -101,8 +101,8 @@ const StatusBadge = ({ status }: { status: string }) => {
 const CRStatusBadge = ({ status }: { status: string }) => {
     const map: Record<string, string> = {
         pago:          "text-[#039855] border-[#039855] bg-[#ECFDF3]",
-        vencido:       "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
-        parcial:       "text-[#F79009] border-[#F79009] bg-[#FFFAEB]",
+        vencido:       "text-[#E53E3E] border-[#E53E3E] bg-[#FEE2E2]",
+        parcial:       "text-[#EA580C] border-[#EA580C] bg-[#FFF0EB]",
         aberto:        "text-[#059669] border-[#059669] bg-[#ECFDF4]",
         em_andamento:  "text-[#059669] border-[#059669] bg-[#ECFDF4]",
         cancelado:     "text-[#555] border-[#aaa] bg-[#F6F2EB]",
@@ -127,8 +127,8 @@ const HistoryIcon = ({ status }: { status: string }) => {
         </div>
     );
     if (status === "vencido") return (
-        <div className="w-9 h-9 rounded-full bg-[#FEF3F2] flex items-center justify-center flex-shrink-0">
-            <Receipt className="h-4 w-4 text-[#D92D20]" />
+        <div className="w-9 h-9 rounded-full bg-[#FEE2E2] flex items-center justify-center flex-shrink-0">
+            <Receipt className="h-4 w-4 text-[#E53E3E]" />
         </div>
     );
     return (
@@ -766,7 +766,7 @@ export default function Clientes() {
                                     >
                                         {/* Avatar */}
                                         <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                            status === "inadimplente" ? "bg-[#D92D20] text-white"
+                                            status === "inadimplente" ? "bg-[#E53E3E] text-white"
                                             : status === "inativo" ? "bg-[#999] text-white"
                                             : "bg-[#0BE041] text-[#064E3B]"
                                         }`}>
@@ -787,7 +787,7 @@ export default function Clientes() {
                                         {/* Valor + status empilhados à direita */}
                                         <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
                                             {hasOverdue ? (
-                                                <p className="text-xs font-bold text-[#D92D20] whitespace-nowrap">{formatBRL(fin.totalReceberVencido)}</p>
+                                                <p className="text-xs font-bold text-[#E53E3E] whitespace-nowrap">{formatBRL(fin.totalReceberVencido)}</p>
                                             ) : hasOpen ? (
                                                 <p className="text-xs font-bold text-[#059669] whitespace-nowrap">{formatBRL(fin.totalReceberAberto)}</p>
                                             ) : (
@@ -820,7 +820,7 @@ export default function Clientes() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-full text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
-                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#D92D20] text-white"
+                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#E53E3E] text-white"
                                             : getClientStatus(selectedClient) === "inativo" ? "bg-[#999] text-white"
                                             : "bg-[#0BE041] text-[#064E3B]"
                                         }`}>
@@ -888,7 +888,7 @@ export default function Clientes() {
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
-                                        <div className={`text-[17px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#D92D20]" : "text-[#039855]"}`}>
+                                        <div className={`text-[17px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
                                         </div>
                                         <div className="text-[10px] text-[#888] mt-0.5">
@@ -920,8 +920,8 @@ export default function Clientes() {
                                         <div className={`text-[17px] font-bold ${
                                             pontualidade === null ? "text-[#888]"
                                             : pontualidade >= 80 ? "text-[#039855]"
-                                            : pontualidade >= 50 ? "text-[#F79009]"
-                                            : "text-[#D92D20]"
+                                            : pontualidade >= 50 ? "text-[#EA580C]"
+                                            : "text-[#E53E3E]"
                                         }`}>
                                             {detailLoading ? "..." : pontualidade !== null ? `${pontualidade}%` : "—"}
                                         </div>
@@ -1058,7 +1058,7 @@ export default function Clientes() {
                                                                         });
                                                                         buscarFinanceiroCliente(selectedClient);
                                                                     }}
-                                                                    className="p-1 rounded text-[#999] hover:text-[#D92D20] hover:bg-[#FEF3F2] transition-colors cursor-pointer"
+                                                                    className="p-1 rounded text-[#999] hover:text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors cursor-pointer"
                                                                     title="Excluir lançamento"
                                                                 >
                                                                     <Trash2 className="h-3.5 w-3.5" />
@@ -1130,7 +1130,7 @@ export default function Clientes() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => handleDelete(selectedClient)}
-                                                className="text-[12px] text-[#D92D20] border-[#fca5a5] hover:bg-[#fef2f2]"
+                                                className="text-[12px] text-[#E53E3E] border-[#fca5a5] hover:bg-[#fef2f2]"
                                             >
                                                 <Trash2 className="h-3 w-3 mr-1.5" />
                                                 Excluir

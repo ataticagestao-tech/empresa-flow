@@ -97,7 +97,7 @@ export default function Configuracoes() {
                         <TabsTrigger value="perfis">Perfis de Acesso</TabsTrigger>
                         <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
                         <TabsTrigger value="integracoes">Integrações</TabsTrigger>
-                        <TabsTrigger value="perigo" className="text-[#D92D20] data-[state=active]:text-red-700">Zona de Perigo</TabsTrigger>
+                        <TabsTrigger value="perigo" className="text-[#E53E3E] data-[state=active]:text-red-700">Zona de Perigo</TabsTrigger>
                     </TabsList>
 
                     {/* ─── Geral ─── */}
@@ -165,7 +165,7 @@ export default function Configuracoes() {
                                     <AlertTriangle className="h-5 w-5" />
                                     Zona de Perigo
                                 </CardTitle>
-                                <CardDescription className="text-[#D92D20]">
+                                <CardDescription className="text-[#E53E3E]">
                                     Ações irreversíveis que afetam seus dados.
                                 </CardDescription>
                             </CardHeader>

@@ -46,17 +46,17 @@ const TIPO_LABELS: Record<string, { label: string; color: string; icon: any }> =
   ferias: { label: 'Ferias', color: '#059669', icon: Palmtree },
   licenca_maternidade: { label: 'Licenca maternidade', color: '#7C3AED', icon: Users },
   licenca_paternidade: { label: 'Licenca paternidade', color: '#059669', icon: Users },
-  atestado: { label: 'Atestado', color: '#F79009', icon: FileText },
-  afastamento_inss: { label: 'Afastamento INSS', color: '#D92D20', icon: AlertTriangle },
-  suspensao: { label: 'Suspensao', color: '#D92D20', icon: AlertTriangle },
+  atestado: { label: 'Atestado', color: '#EA580C', icon: FileText },
+  afastamento_inss: { label: 'Afastamento INSS', color: '#E53E3E', icon: AlertTriangle },
+  suspensao: { label: 'Suspensao', color: '#E53E3E', icon: AlertTriangle },
   outros: { label: 'Outros', color: '#667085', icon: FileText },
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   programado: { label: 'Programado', color: '#059669', bg: '#BFDBFE' },
-  em_curso: { label: 'Em curso', color: '#F79009', bg: '#FFFAEB' },
+  em_curso: { label: 'Em curso', color: '#EA580C', bg: '#FFF0EB' },
   concluido: { label: 'Concluido', color: '#059669', bg: '#ECFDF3' },
-  cancelado: { label: 'Cancelado', color: '#D92D20', bg: '#FEF3F2' },
+  cancelado: { label: 'Cancelado', color: '#E53E3E', bg: '#FEE2E2' },
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ export default function FeriasAfastamentos() {
           {[
             { label: 'Total registros', value: kpis.total, icon: Calendar, color: '#059669' },
             { label: 'Ferias', value: kpis.ferias, icon: Palmtree, color: '#059669' },
-            { label: 'Em curso', value: kpis.emCurso, icon: Calendar, color: '#F79009' },
+            { label: 'Em curso', value: kpis.emCurso, icon: Calendar, color: '#EA580C' },
             { label: 'Programados', value: kpis.programados, icon: Calendar, color: '#059669' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">

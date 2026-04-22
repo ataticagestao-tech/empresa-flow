@@ -361,9 +361,9 @@ export default function DRE() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Receita Bruta", value: fmt(receitaTotal), color: "#039855" },
-            { label: "Despesas", value: fmt(despesaTotal), color: "#D92D20" },
-            { label: "Resultado Líquido", value: fmt(resultado), color: resultado >= 0 ? "#039855" : "#D92D20" },
-            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#D92D20" },
+            { label: "Despesas", value: fmt(despesaTotal), color: "#E53E3E" },
+            { label: "Resultado Líquido", value: fmt(resultado), color: resultado >= 0 ? "#039855" : "#E53E3E" },
+            { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#E53E3E" },
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
@@ -389,7 +389,7 @@ export default function DRE() {
                   <Tooltip formatter={(v: number) => fmt(v)} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="Receita" fill="#039855" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Despesa" fill="#D92D20" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Despesa" fill="#E53E3E" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Resultado" fill="#059669" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -441,7 +441,7 @@ export default function DRE() {
                     {/* Resultado Final */}
                     <tr className="border-t-2 border-foreground bg-muted/50 font-bold">
                       <td className="py-3 px-4" colSpan={2}>RESULTADO LÍQUIDO</td>
-                      <td className="text-right py-3 px-4" style={{ color: resultado >= 0 ? "#039855" : "#D92D20" }}>
+                      <td className="text-right py-3 px-4" style={{ color: resultado >= 0 ? "#039855" : "#E53E3E" }}>
                         {fmt(resultado)}
                       </td>
                       <td className="text-right py-3 px-4">—</td>
@@ -483,10 +483,10 @@ function GrupoDRE({ nome, grupo, isOpen, onToggle }: {
         </td>
         <td className="text-right py-2.5 px-4 font-bold">{fmt(grupo.totalRealizado)}</td>
         <td className="text-right py-2.5 px-4 font-bold text-muted-foreground">{fmt(grupo.totalOrcado)}</td>
-        <td className="text-right py-2.5 px-4 font-bold" style={{ color: varTotal >= 0 ? "#039855" : "#D92D20" }}>
+        <td className="text-right py-2.5 px-4 font-bold" style={{ color: varTotal >= 0 ? "#039855" : "#E53E3E" }}>
           {fmt(varTotal)}
         </td>
-        <td className="text-right py-2.5 px-4 font-bold" style={{ color: (varPct ?? 0) >= 0 ? "#039855" : "#D92D20" }}>
+        <td className="text-right py-2.5 px-4 font-bold" style={{ color: (varPct ?? 0) >= 0 ? "#039855" : "#E53E3E" }}>
           {fmtPct(varPct)}
         </td>
       </tr>
@@ -497,10 +497,10 @@ function GrupoDRE({ nome, grupo, isOpen, onToggle }: {
           <td className="py-2 px-4">{l.descricao}</td>
           <td className="text-right py-2 px-4 tabular-nums">{fmt(l.realizado)}</td>
           <td className="text-right py-2 px-4 tabular-nums text-muted-foreground">{fmt(l.orcado)}</td>
-          <td className="text-right py-2 px-4 tabular-nums" style={{ color: l.variacao >= 0 ? "#039855" : "#D92D20" }}>
+          <td className="text-right py-2 px-4 tabular-nums" style={{ color: l.variacao >= 0 ? "#039855" : "#E53E3E" }}>
             {fmt(l.variacao)}
           </td>
-          <td className="text-right py-2 px-4" style={{ color: (l.variacao_pct ?? 0) >= 0 ? "#039855" : "#D92D20" }}>
+          <td className="text-right py-2 px-4" style={{ color: (l.variacao_pct ?? 0) >= 0 ? "#039855" : "#E53E3E" }}>
             <div className="flex items-center justify-end gap-1">
               {l.variacao_pct != null && l.variacao_pct !== 0 && (
                 l.variacao_pct > 0

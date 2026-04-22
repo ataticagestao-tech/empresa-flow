@@ -16,13 +16,13 @@ const dimensoes = [
 function getScoreColor(v: number) {
   if (v >= 70) return "#039855";
   if (v >= 40) return "#f57f17";
-  return "#D92D20";
+  return "#E53E3E";
 }
 
 function getScoreBg(v: number) {
   if (v >= 70) return "#ECFDF3";
   if (v >= 40) return "#fff8e1";
-  return "#FEF3F2";
+  return "#FEE2E2";
 }
 
 export function ScoreGauge({ score }: ScoreGaugeProps) {
@@ -102,7 +102,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
             <div key={i} style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "8px 12px", borderRadius: 8,
-              background: "#FFFAEB", border: "1px solid #FED7AA",
+              background: "#FFF0EB", border: "1px solid #FED7AA",
               fontSize: 12, color: "#92400e",
             }}>
               <AlertTriangle size={14} />

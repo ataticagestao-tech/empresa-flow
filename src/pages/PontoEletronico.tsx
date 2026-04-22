@@ -40,8 +40,8 @@ interface Funcionario {
 }
 
 const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
-  falta: { label: 'Falta', color: '#D92D20' },
-  atraso: { label: 'Atraso', color: '#F79009' },
+  falta: { label: 'Falta', color: '#E53E3E' },
+  atraso: { label: 'Atraso', color: '#EA580C' },
   atestado: { label: 'Atestado', color: '#667085' },
   folga: { label: 'Folga', color: '#059669' },
   feriado: { label: 'Feriado', color: '#059669' },
@@ -229,8 +229,8 @@ export default function PontoEletronico() {
           {[
             { label: 'Registros', value: kpis.totalRegistros, icon: Clock, color: '#059669' },
             { label: 'Horas trabalhadas', value: `${kpis.totalHoras}h`, icon: Clock, color: '#059669' },
-            { label: 'Horas extras', value: `${kpis.totalHE}h`, icon: Clock, color: '#F79009' },
-            { label: 'Faltas', value: kpis.faltas, icon: AlertTriangle, color: '#D92D20' },
+            { label: 'Horas extras', value: `${kpis.totalHE}h`, icon: Clock, color: '#EA580C' },
+            { label: 'Faltas', value: kpis.faltas, icon: AlertTriangle, color: '#E53E3E' },
             { label: 'Pendentes aprovacao', value: kpis.pendentes, icon: Clock, color: '#667085' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">

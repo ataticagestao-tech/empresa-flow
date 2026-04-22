@@ -121,8 +121,8 @@ function valorPorExtenso(valor: number): string {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { text: string; bg: string; border: string; color: string }> = {
     enviado: { text: 'Enviado', bg: 'bg-[#ECFDF3]', border: 'border-[#039855]', color: 'text-[#039855]' },
-    pendente: { text: 'Pendente envio', bg: 'bg-[#FFFAEB]', border: 'border-[#F79009]', color: 'text-[#F79009]' },
-    erro: { text: 'Erro', bg: 'bg-[#FEF3F2]', border: 'border-[#D92D20]', color: 'text-[#D92D20]' },
+    pendente: { text: 'Pendente envio', bg: 'bg-[#FFF0EB]', border: 'border-[#EA580C]', color: 'text-[#EA580C]' },
+    erro: { text: 'Erro', bg: 'bg-[#FEE2E2]', border: 'border-[#E53E3E]', color: 'text-[#E53E3E]' },
     manual: { text: 'Manual', bg: 'bg-[#ECFDF4]', border: 'border-[#059669]', color: 'text-[#059669]' },
   }
   const c = config[status] || config.pendente

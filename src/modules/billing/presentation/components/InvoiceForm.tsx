@@ -35,7 +35,7 @@ export function InvoiceForm({ initialData, onSuccess }: InvoiceFormProps) {
                     <div className="text-right flex gap-6">
                         <div>
                             <p className="text-xs text-muted-foreground font-medium uppercase">Impostos (Estimado)</p>
-                            <p className="text-lg font-mono font-bold text-[#D92D20]">
+                            <p className="text-lg font-mono font-bold text-[#E53E3E]">
                                 {formatCurrency(totalTax)}
                             </p>
                         </div>

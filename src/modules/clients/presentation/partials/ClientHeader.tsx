@@ -175,7 +175,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                         Opcional — usado para vincular pagamentos automaticamente
                                     </p>
                                     {docInvalido && (
-                                        <p className="text-[11px] text-[#D92D20] mt-1">
+                                        <p className="text-[11px] text-[#E53E3E] mt-1">
                                             CPF ou CNPJ inválido — verifique os dígitos
                                         </p>
                                     )}

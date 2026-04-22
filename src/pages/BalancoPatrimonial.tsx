@@ -212,8 +212,8 @@ export default function BalancoPatrimonial() {
           {[
             { label: "Total Ativo", value: fmt(totalAtivo), color: "#039855" },
             { label: "Total Passivo + PL", value: fmt(totalPassivoPL), color: "#059669" },
-            { label: "Patrimônio Líquido", value: fmt(patrimonioLiquido), color: patrimonioLiquido >= 0 ? "#039855" : "#D92D20" },
-            { label: "Diferença (A-P)", value: fmt(diferenca), color: Math.abs(diferenca) < 0.01 ? "#039855" : "#D92D20" },
+            { label: "Patrimônio Líquido", value: fmt(patrimonioLiquido), color: patrimonioLiquido >= 0 ? "#039855" : "#E53E3E" },
+            { label: "Diferença (A-P)", value: fmt(diferenca), color: Math.abs(diferenca) < 0.01 ? "#039855" : "#E53E3E" },
           ].map((kpi) => (
             <Card key={kpi.label}>
               <CardContent className="p-4">
@@ -307,7 +307,7 @@ function SecaoBP({
             (l) => l.nivel === 2 && l.codigo.startsWith(g.codigo + ".")
           );
           const isTotal = g.codigo === "BP.AT" || g.codigo === "BP.PT";
-          const corValor = g.valor >= 0 ? "#039855" : "#D92D20";
+          const corValor = g.valor >= 0 ? "#039855" : "#E53E3E";
 
           return (
             <React.Fragment key={g.codigo}>
@@ -351,7 +351,7 @@ function SecaoBP({
                             }
                           />
                         ) : (
-                          <span style={{ color: f.valor >= 0 ? "#039855" : "#D92D20" }}>
+                          <span style={{ color: f.valor >= 0 ? "#039855" : "#E53E3E" }}>
                             {fmt(f.valor)}
                           </span>
                         )}

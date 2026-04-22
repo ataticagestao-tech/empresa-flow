@@ -70,11 +70,11 @@ function statusBadge(status: string) {
     case 'ativo':
       return { label: 'Ativo', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     case 'pausado':
-      return { label: 'Pausado', text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
+      return { label: 'Pausado', text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     case 'inativo':
       return { label: 'Inativo', text: '#555', bg: '#F6F2EB', border: '#ccc' }
     case 'encerrado':
-      return { label: 'Encerrado', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
+      return { label: 'Encerrado', text: '#E53E3E', bg: '#FEE2E2', border: '#E53E3E' }
     default:
       return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
@@ -97,10 +97,10 @@ function vencimentoLabel(proximo: string | null): { text: string; color: string 
   const venc = parseISO(proximo)
   venc.setHours(0, 0, 0, 0)
   const diff = differenceInDays(venc, hoje)
-  if (diff === 0) return { text: 'hoje', color: '#F79009' }
-  if (diff > 0) return { text: `em ${diff} dia${diff > 1 ? 's' : ''}`, color: diff <= 7 ? '#F79009' : '#039855' }
+  if (diff === 0) return { text: 'hoje', color: '#EA580C' }
+  if (diff > 0) return { text: `em ${diff} dia${diff > 1 ? 's' : ''}`, color: diff <= 7 ? '#EA580C' : '#039855' }
   const abs = Math.abs(diff)
-  return { text: `${abs} dia${abs > 1 ? 's' : ''} atras`, color: '#D92D20' }
+  return { text: `${abs} dia${abs > 1 ? 's' : ''} atras`, color: '#E53E3E' }
 }
 
 function calcularPrimeiroVencimento(dataInicio: string, diaVencimento: number): string {
@@ -395,9 +395,9 @@ export default function ContratosRecorrentes() {
           <div
             className="fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg border text-[13px] font-medium shadow-lg flex items-center gap-2"
             style={{
-              background: toast.type === 'success' ? '#ECFDF3' : '#FEF3F2',
-              borderColor: toast.type === 'success' ? '#039855' : '#D92D20',
-              color: toast.type === 'success' ? '#039855' : '#D92D20',
+              background: toast.type === 'success' ? '#ECFDF3' : '#FEE2E2',
+              borderColor: toast.type === 'success' ? '#039855' : '#E53E3E',
+              color: toast.type === 'success' ? '#039855' : '#E53E3E',
             }}
           >
             {toast.msg}
@@ -428,7 +428,7 @@ export default function ContratosRecorrentes() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard title="Contratos ativos" value={String(kpis.ativos)} color="#039855" bgColor="#ECFDF3" />
           <KPICard title="Receita mensal recorrente" value={formatBRL(kpis.receitaMensal)} color="#059669" bgColor="#ECFDF4" />
-          <KPICard title="Vencendo esta semana" value={String(kpis.vencendoSemana)} color="#F79009" bgColor="#FFFAEB" />
+          <KPICard title="Vencendo esta semana" value={String(kpis.vencendoSemana)} color="#EA580C" bgColor="#FFF0EB" />
           <KPICard title="Inativos / Pausados" value={String(kpis.inativosPausados)} color="#555" bgColor="#F6F2EB" />
         </div>
 
@@ -565,7 +565,7 @@ export default function ContratosRecorrentes() {
                                 onClick={() => togglePausar(c)}
                                 className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
-                                {c.status === 'ativo' ? <Pause size={14} className="text-[#F79009]" /> : <Play size={14} className="text-[#039855]" />}
+                                {c.status === 'ativo' ? <Pause size={14} className="text-[#EA580C]" /> : <Play size={14} className="text-[#039855]" />}
                                 {c.status === 'ativo' ? 'Pausar' : 'Reativar'}
                               </button>
                               <button
@@ -579,7 +579,7 @@ export default function ContratosRecorrentes() {
                                 onClick={() => encerrarContrato(c)}
                                 className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
-                                <AlertTriangle size={14} className="text-[#F79009]" />
+                                <AlertTriangle size={14} className="text-[#EA580C]" />
                                 Encerrar contrato
                               </button>
                               <button
@@ -592,7 +592,7 @@ export default function ContratosRecorrentes() {
                               <div className="border-t border-[#eee] my-1" />
                               <button
                                 onClick={() => excluirContrato(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#FEF3F2] flex items-center gap-2 text-[#D92D20] transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#FEE2E2] flex items-center gap-2 text-[#E53E3E] transition-colors"
                               >
                                 <Trash2 size={14} />
                                 Excluir
@@ -750,7 +750,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
         <div className="p-5 space-y-4">
           {error && (
             <div className="px-3 py-2 rounded-lg text-[13px] font-medium border"
-              style={{ background: '#FEF3F2', borderColor: '#D92D20', color: '#D92D20' }}>
+              style={{ background: '#FEE2E2', borderColor: '#E53E3E', color: '#E53E3E' }}>
               {error}
             </div>
           )}

@@ -363,7 +363,7 @@ export default function ProdutosDepartamentos() {
                                                                     });
                                                                     if (ok) deleteProductMutation.mutate(p.id);
                                                                 }}
-                                                                className="p-1.5 rounded hover:bg-red-50 text-[#D92D20] transition-colors"
+                                                                className="p-1.5 rounded hover:bg-red-50 text-[#E53E3E] transition-colors"
                                                                 title="Excluir"
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -460,7 +460,7 @@ export default function ProdutosDepartamentos() {
                                                                 });
                                                                 if (ok) deleteDeptMutation.mutate(d.id);
                                                             }}
-                                                            className="p-1.5 rounded hover:bg-red-50 text-[#D92D20] transition-colors"
+                                                            className="p-1.5 rounded hover:bg-red-50 text-[#E53E3E] transition-colors"
                                                             title="Excluir"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
@@ -491,7 +491,7 @@ export default function ProdutosDepartamentos() {
                             <div className="p-5 space-y-4">
                                 <div>
                                     <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                                        Nome do Departamento <span className="text-[#D92D20]">*</span>
+                                        Nome do Departamento <span className="text-[#E53E3E]">*</span>
                                     </label>
                                     <input
                                         value={deptName}
@@ -546,7 +546,7 @@ export default function ProdutosDepartamentos() {
                             </p>
                             <div>
                                 <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                                    Loja de Origem <span className="text-[#D92D20]">*</span>
+                                    Loja de Origem <span className="text-[#E53E3E]">*</span>
                                 </label>
                                 <select
                                     value={selectedOrigemId}

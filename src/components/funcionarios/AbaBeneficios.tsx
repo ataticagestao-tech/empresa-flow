@@ -28,7 +28,7 @@ const LB = "text-[12px] font-bold uppercase tracking-wider text-[#1D2939]";
 const IC_EDIT = "border border-[#059669] rounded-md px-3 py-2 text-[13px] text-[#059669] bg-white focus:outline-none w-full";
 const IC_RO = "border border-[#059669] rounded-md px-3 py-2 text-[13px] bg-[#ECFDF4] text-[#059669] font-bold w-full";
 const IC_POS = "border border-[#039855] rounded-md px-3 py-2 text-[13px] bg-[#ECFDF3] text-[#039855] font-bold w-full";
-const IC_NEG = "border border-[#D92D20] rounded-md px-3 py-2 text-[13px] bg-[#FEF3F2] text-[#D92D20] font-bold w-full";
+const IC_NEG = "border border-[#E53E3E] rounded-md px-3 py-2 text-[13px] bg-[#FEE2E2] text-[#E53E3E] font-bold w-full";
 
 const REGIMES: { value: RegimeTrabalho; label: string }[] = [
   { value: "seg_sex", label: "Seg–Sex" },
@@ -46,7 +46,7 @@ const MESES = [
 
 const diaClasse = (tipo: DiaMes["tipo"]) => {
   if (tipo === "util") return "bg-[#ECFDF3] text-[#039855] border border-[#039855]";
-  if (tipo === "feriado") return "bg-[#FEF3F2] text-[#D92D20] border border-[#D92D20]";
+  if (tipo === "feriado") return "bg-[#FEE2E2] text-[#E53E3E] border border-[#E53E3E]";
   return "bg-[#F6F2EB] text-[#aaa]";
 };
 
@@ -193,7 +193,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         <div className="flex gap-4 mt-3 text-[12px]">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#ECFDF3] border border-[#039855]" /> Útil</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#F6F2EB]" /> FDS</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#FEF3F2] border border-[#D92D20]" /> Feriado</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#FEE2E2] border border-[#E53E3E]" /> Feriado</span>
         </div>
         {regime === "manual" && (
           <p className="text-[12px] text-[#555] mt-2">Clique nos dias para marcar/desmarcar como dia útil.</p>
@@ -288,8 +288,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <div className="flex justify-between"><span className="text-[#555]">VT Bruto</span><span className="font-semibold">{formatBRL(resultado.vtBruto)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VA Total</span><span className="font-semibold">{formatBRL(resultado.vaTotal)}</span></div>
-            <div className="flex justify-between text-[#D92D20]"><span>(-) Desc. VT func.</span><span>{formatBRL(resultado.vtDescontoFunc)}</span></div>
-            <div className="flex justify-between text-[#D92D20]"><span>(-) Desc. VA func.</span><span>{formatBRL(resultado.vaDescontoFunc)}</span></div>
+            <div className="flex justify-between text-[#E53E3E]"><span>(-) Desc. VT func.</span><span>{formatBRL(resultado.vtDescontoFunc)}</span></div>
+            <div className="flex justify-between text-[#E53E3E]"><span>(-) Desc. VA func.</span><span>{formatBRL(resultado.vaDescontoFunc)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VT custo empresa</span><span className="font-bold">{formatBRL(resultado.vtCustoEmpresa)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VA custo empresa</span><span className="font-bold">{formatBRL(resultado.vaCustoEmpresa)}</span></div>
           </div>
@@ -298,15 +298,15 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             <span className="font-bold text-[#039855]">{formatBRL(resultado.totalCustoEmpresa)}</span>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span className="text-[#D92D20] font-bold">Total desconto funcionário</span>
-            <span className="text-[#D92D20] font-bold">{formatBRL(resultado.totalDescontoFunc)}</span>
+            <span className="text-[#E53E3E] font-bold">Total desconto funcionário</span>
+            <span className="text-[#E53E3E] font-bold">{formatBRL(resultado.totalDescontoFunc)}</span>
           </div>
         </div>
       </div>
 
       {/* Alerta CPs */}
       {resultado.totalCustoEmpresa > 0 && !jaConfirmado && (
-        <div className="bg-[#FFFAEB] border border-[#e6c300] rounded-lg p-4 text-sm space-y-1">
+        <div className="bg-[#FFF0EB] border border-[#e6c300] rounded-lg p-4 text-sm space-y-1">
           <p className="font-bold text-[#8b6e00]">Ao confirmar, serão geradas as seguintes Contas a Pagar:</p>
           {resultado.vtCustoEmpresa > 0 && (
             <p className="text-[#8b6e00]">• VT {competencia} — {employeeNome}: <strong>{formatBRL(resultado.vtCustoEmpresa)}</strong></p>
@@ -361,10 +361,10 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
                     <td className="py-2 px-2 text-right">{formatBRL(Number(h.vt_valor_bruto))}</td>
                     <td className="py-2 px-2 text-right">{formatBRL(Number(h.va_valor_total))}</td>
                     <td className="py-2 px-2 text-right font-bold text-[#039855]">{formatBRL(Number(h.total_custo_empresa))}</td>
-                    <td className="py-2 px-2 text-right text-[#D92D20]">{formatBRL(Number(h.total_desconto_func))}</td>
+                    <td className="py-2 px-2 text-right text-[#E53E3E]">{formatBRL(Number(h.total_desconto_func))}</td>
                     <td className="py-2 px-2 text-center">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEF3F2] text-[#D92D20]" : "bg-[#F6F2EB] text-[#555]"
+                        h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEE2E2] text-[#E53E3E]" : "bg-[#F6F2EB] text-[#555]"
                       }`}>{h.status}</span>
                     </td>
                   </tr>

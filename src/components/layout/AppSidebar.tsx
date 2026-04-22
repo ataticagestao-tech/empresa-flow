@@ -183,7 +183,7 @@ export function AppSidebar() {
                   type="button"
                   isActive={isActive(item.url)}
                   onClick={() => handleMenuAction(item)}
-                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#D92D20] hover:text-[#D92D20] hover:bg-[#FEF3F2]" : ""}`}
+                  className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#E53E3E] hover:text-[#E53E3E] hover:bg-[#FEE2E2]" : ""}`}
                 >
                   <item.icon className={`h-[17px] w-[17px] ${item.action === "logout" ? "" : "text-white"}`} />
                   <span className="text-[12.5px]">{t(item.titleKey)}</span>

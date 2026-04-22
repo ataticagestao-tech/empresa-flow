@@ -86,10 +86,10 @@ interface NfseConfig {
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon?: 'check' | 'spin' | 'ban' | 'alert' }> = {
   rascunho:          { label: 'Rascunho',        color: '#667085', bg: '#F3F4F6' },
-  enviando:          { label: 'Enviando',         color: '#F79009', bg: '#FFFAEB', icon: 'spin' },
-  processando:       { label: 'Processando',      color: '#F79009', bg: '#FFFAEB', icon: 'spin' },
+  enviando:          { label: 'Enviando',         color: '#EA580C', bg: '#FFF0EB', icon: 'spin' },
+  processando:       { label: 'Processando',      color: '#EA580C', bg: '#FFF0EB', icon: 'spin' },
   autorizada:        { label: 'Autorizada',       color: '#059669', bg: '#ECFDF3', icon: 'check' },
-  erro_autorizacao:  { label: 'Erro',             color: '#D92D20', bg: '#FEF3F2', icon: 'alert' },
+  erro_autorizacao:  { label: 'Erro',             color: '#E53E3E', bg: '#FEE2E2', icon: 'alert' },
   cancelada:         { label: 'Cancelada',        color: '#4B5563', bg: '#EAECF0', icon: 'ban' },
 }
 
@@ -530,7 +530,7 @@ export default function NfseEmissao() {
             { label: 'Total NFSe', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
             { label: 'Valor emitido', value: formatBRL(kpis.totalEmitido), icon: DollarSign, color: '#059669' },
-            { label: 'Processando', value: kpis.processando, icon: Activity, color: '#F79009' },
+            { label: 'Processando', value: kpis.processando, icon: Activity, color: '#EA580C' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -1298,8 +1298,8 @@ export default function NfseEmissao() {
                         const isLast = idx === eventos.length - 1
                         let dotColor = '#98A2B3'
                         if (ev.tipo === 'autorizada' || ev.tipo === 'emissao_sucesso') dotColor = '#059669'
-                        if (ev.tipo === 'erro' || ev.tipo === 'erro_autorizacao') dotColor = '#D92D20'
-                        if (ev.tipo === 'enviado' || ev.tipo === 'processando') dotColor = '#F79009'
+                        if (ev.tipo === 'erro' || ev.tipo === 'erro_autorizacao') dotColor = '#E53E3E'
+                        if (ev.tipo === 'enviado' || ev.tipo === 'processando') dotColor = '#EA580C'
                         if (ev.tipo === 'cancelada') dotColor = '#4B5563'
 
                         return (
