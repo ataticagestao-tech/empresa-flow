@@ -765,7 +765,7 @@ export default function ContasReceber() {
 
         {/* ── Table ── */}
         <div className="border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">
               T&iacute;tulos ({filtered.length})
             </h3>
@@ -1331,7 +1331,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-xl">
+    <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-xl">
       <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">{title}</h3>
       <button onClick={onClose} className="text-[#BFDBFE] hover:text-white transition-colors">
         <X size={18} />

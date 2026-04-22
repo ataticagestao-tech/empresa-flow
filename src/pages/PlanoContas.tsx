@@ -823,7 +823,7 @@ export default function PlanoContas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !replacingAll && setShowModeloPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-[#059669] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#2A2724] px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen size={18} className="text-white" />
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider">Modelo Padrão Patrimonial</h2>

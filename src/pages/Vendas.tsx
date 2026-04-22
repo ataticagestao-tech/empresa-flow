@@ -1516,7 +1516,7 @@ export default function Vendas() {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-auto">
             {/* Header */}
-            <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">{editandoVenda ? 'Editar Venda' : 'Nova Venda'}</h2>
               <button onClick={() => { setModalAberto(false); setEditandoVenda(null) }} className="text-[#BFDBFE] hover:text-white transition-colors">
                 <X size={18} />
@@ -1887,7 +1887,7 @@ export default function Vendas() {
       {modalNovoCliente && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Novo Cliente</h2>
               <button onClick={() => setModalNovoCliente(false)} className="text-[#BFDBFE] hover:text-white transition-colors">
                 <X size={18} />
@@ -1950,7 +1950,7 @@ export default function Vendas() {
       {modalDetalhes && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 my-auto">
-            <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Detalhes da Venda</h2>
               <button onClick={() => setModalDetalhes(null)} className="text-[#BFDBFE] hover:text-white transition-colors">
                 <X size={18} />
@@ -2146,7 +2146,7 @@ export default function Vendas() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
             {/* Header */}
-            <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
                 <Package size={16} /> Catálogo de Produtos e Serviços
               </h2>

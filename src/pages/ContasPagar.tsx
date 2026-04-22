@@ -1138,7 +1138,7 @@ export default function ContasPagar() {
         {/* Toolbar */}
         <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           {/* Header */}
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">T&iacute;tulos</h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-white/15">{filteredContas.length}</span>

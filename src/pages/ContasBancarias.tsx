@@ -406,7 +406,7 @@ export default function ContasBancarias() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {accounts.map(acc => (
               <div key={acc.id} className="border border-[#ccc] rounded-lg overflow-hidden">
-                <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+                <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-white uppercase tracking-widest">{acc.banco || "Sem banco"}</h3>
                     <p className="text-[10px] text-[#BFDBFE]">{tipoLabels[acc.type] || acc.type}</p>
@@ -550,7 +550,7 @@ export default function ContasBancarias() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {taxas.map(t => (
                         <div key={t.id} className={`border rounded-lg overflow-hidden ${t.ativo ? "border-[#ccc]" : "border-[#eee] opacity-60"}`}>
-                          <div className="bg-[#059669] px-4 py-2 flex items-center justify-between">
+                          <div className="bg-[#2A2724] px-4 py-2 flex items-center justify-between">
                             <span className="text-xs font-bold text-white uppercase tracking-widest">
                               {MEIO_LABEL[t.meio_pagamento] || t.meio_pagamento}
                             </span>

@@ -512,7 +512,7 @@ export default function ReguaCobranca() {
            SECTION 1: Reguas de Cobranca
            ================================================================ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Reguas de Cobranca</h3>
             <button
               onClick={() => openModal()}
@@ -580,7 +580,7 @@ export default function ReguaCobranca() {
            SECTION 2: CRs com Cobranca Ativa
            ================================================================ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Contas a Receber com Cobranca</h3>
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-white/10 rounded px-2 py-1">
@@ -684,7 +684,7 @@ export default function ReguaCobranca() {
            SECTION 3: Log de Cobrancas
            ================================================================ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Log de Cobrancas</h3>
             <button
               onClick={fetchLogs}
@@ -757,7 +757,7 @@ export default function ReguaCobranca() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto mx-4">
               {/* Modal header */}
-              <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
                 <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">
                   {editingRegua ? 'Editar Regua' : 'Nova Regua de Cobranca'}
                 </h3>

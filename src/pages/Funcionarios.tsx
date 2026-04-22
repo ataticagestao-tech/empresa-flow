@@ -308,9 +308,9 @@ export default function Funcionarios() {
       <div className="flex gap-4 h-[calc(100vh-120px)]">
         {/* LEFT: List */}
         <div className="w-1/3 min-w-[280px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Funcionários</h3>
-            <button onClick={startNew} className="text-xs font-semibold text-[#BFDBFE] hover:text-white">+ Novo</button>
+            <button onClick={startNew} className="text-xs font-semibold text-white/80 hover:text-white">+ Novo</button>
           </div>
           <div className="p-3 border-b border-[#eee]">
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className={IC} />
@@ -324,7 +324,7 @@ export default function Funcionarios() {
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
                   selectedId === emp.id ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-[#F6F2EB]"
                 }`}>
-                <div className="w-9 h-9 rounded-full bg-[#059669] flex items-center justify-center text-white text-xs font-bold shrink-0">{initials(getName(emp))}</div>
+                <div className="w-9 h-9 rounded-full bg-[#0BE041] flex items-center justify-center text-[#064E3B] text-xs font-bold shrink-0">{initials(getName(emp))}</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#1D2939] truncate">{getName(emp)}</p>
                   <p className="text-[11px] text-[#555] truncate">{emp.role || "Sem cargo"} · {tipoContratoLabels[emp.tipo_contrato || ""] || "—"}</p>
@@ -346,15 +346,15 @@ export default function Funcionarios() {
             <div className="flex-1 flex items-center justify-center text-sm text-[#555]">Selecione um funcionário ou clique em "+ Novo"</div>
           ) : (
             <>
-              <div className="bg-[#059669] px-4 py-2 flex items-center gap-1">
+              <div className="bg-[#0BE041] px-4 py-2 flex items-center gap-1">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Histórico de Salários" },
                   { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
                     className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
-                      tab === t.id ? "bg-white/20 text-white" : "text-[#BFDBFE] hover:text-white"
+                      tab === t.id ? "bg-white text-[#064E3B]" : "text-[#064E3B] hover:bg-white/30"
                     }`}>{t.label}</button>
                 ))}
-                {selected && <button onClick={() => handleDelete(selected)} className="ml-auto text-[10px] font-bold text-[#ff9999] hover:text-white px-2">Excluir</button>}
+                {selected && <button onClick={() => handleDelete(selected)} className="ml-auto text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5">

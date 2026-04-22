@@ -480,7 +480,7 @@ export default function ProdutosDepartamentos() {
                 {isDeptModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                         <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                            <div className="bg-[#059669] px-5 py-3 flex items-center justify-between">
+                            <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between">
                                 <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
                                     {editingDept ? "Editar Departamento" : "Novo Departamento"}
                                 </h3>
@@ -532,7 +532,7 @@ export default function ProdutosDepartamentos() {
             {isCopyModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                        <div className="bg-[#059669] px-5 py-3 flex items-center justify-between">
+                        <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between">
                             <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
                                 Copiar Produtos de Outra Loja
                             </h3>

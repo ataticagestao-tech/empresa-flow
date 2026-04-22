@@ -693,7 +693,7 @@ export default function Clientes() {
                 <div className="w-1/3 min-w-[360px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
 
                     {/* Header azul */}
-                    <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+                    <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
                         <h3 className="text-xs font-bold text-white uppercase tracking-widest">Clientes</h3>
                         <div className="flex items-center gap-3">
                             {duplicatesCount > 0 && (
@@ -731,7 +731,7 @@ export default function Clientes() {
                                 onClick={() => setFilterTab(tab.key)}
                                 className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${
                                     filterTab === tab.key
-                                        ? "bg-[#059669] text-white"
+                                        ? "bg-[#0BE041] text-[#064E3B]"
                                         : "bg-[#EAECF0] text-[#555] hover:bg-[#e0e0e0]"
                                 }`}
                             >
@@ -765,10 +765,10 @@ export default function Clientes() {
                                         }`}
                                     >
                                         {/* Avatar */}
-                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${
-                                            status === "inadimplente" ? "bg-[#D92D20]"
-                                            : status === "inativo" ? "bg-[#999]"
-                                            : "bg-[#059669]"
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                            status === "inadimplente" ? "bg-[#D92D20] text-white"
+                                            : status === "inativo" ? "bg-[#999] text-white"
+                                            : "bg-[#0BE041] text-[#064E3B]"
                                         }`}>
                                             {getIniciais(client.razao_social)}
                                         </div>
@@ -819,10 +819,10 @@ export default function Clientes() {
                             <div className="bg-white border-b border-[#EAECF0] px-6 py-5">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-full text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
-                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#D92D20]"
-                                            : getClientStatus(selectedClient) === "inativo" ? "bg-[#999]"
-                                            : "bg-[#059669]"
+                                        <div className={`w-12 h-12 rounded-full text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
+                                            getClientStatus(selectedClient) === "inadimplente" ? "bg-[#D92D20] text-white"
+                                            : getClientStatus(selectedClient) === "inativo" ? "bg-[#999] text-white"
+                                            : "bg-[#0BE041] text-[#064E3B]"
                                         }`}>
                                             {getIniciais(selectedClient.razao_social)}
                                         </div>

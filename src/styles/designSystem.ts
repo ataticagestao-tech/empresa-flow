@@ -140,12 +140,12 @@ export const card = {
   },
 } as const;
 
-/* ─── Headers de card (barra navy) ────────────────────────────── */
+/* ─── Headers de card (barra graphite) ────────────────────────── */
 export const header = {
-  /** Header institucional navy (painéis tipo Clientes / Funcionários) */
-  blueBar: "bg-[#0F2544] px-4 py-2.5 flex items-center justify-between",
+  /** Header institucional graphite (painéis tipo Clientes / Funcionários) */
+  blueBar: "bg-[#2A2724] px-4 py-2.5 flex items-center justify-between",
   blueBarTitle: "text-xs font-bold text-white uppercase tracking-widest",
-  blueBarAction: "text-xs font-semibold text-[#C7D7F1] hover:text-white",
+  blueBarAction: "text-xs font-semibold text-white/70 hover:text-white",
 
   /** Header de card branco com borda inferior (padrão Dashboard) */
   cardHeader: "flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]",

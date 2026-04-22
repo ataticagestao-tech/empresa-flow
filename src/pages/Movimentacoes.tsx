@@ -729,7 +729,7 @@ export default function Movimentacoes() {
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
 
           {/* Header */}
-          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Movimentacoes
             </h3>
@@ -1052,7 +1052,7 @@ export default function Movimentacoes() {
           {/* Panel */}
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="bg-[#059669] px-4 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between rounded-t-lg">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
                 Lancamento Manual
               </h3>
