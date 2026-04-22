@@ -131,7 +131,7 @@ export default function Orcamento() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
-                        { label: "ORÇAMENTO TOTAL", value: fmt(totalOrcado), icon: Calculator, color: "#1E3A8A", bg: "#EFF6FF" },
+                        { label: "ORÇAMENTO TOTAL", value: fmt(totalOrcado), icon: Calculator, color: "#059669", bg: "#ECFDF4" },
                         { label: "REALIZADO", value: fmt(totalRealizado), icon: DollarSign, color: "#D92D20", bg: "#FEF3F2" },
                         { label: "DISPONÍVEL", value: fmt(totalDisponivel), icon: CheckCircle2, color: "#039855", bg: "#ECFDF3" },
                         { label: "% UTILIZADO", value: `${totalPct.toFixed(1)}%`, icon: PieChart, color: totalPct > 100 ? "#D92D20" : "#f57f17", bg: totalPct > 100 ? "#FEF3F2" : "#fff8e1" },
@@ -158,7 +158,7 @@ export default function Orcamento() {
                                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip formatter={(v: number) => fmt(v)} />
                                 <Legend />
-                                <Bar dataKey="Orçado" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Orçado" fill="#059669" radius={[4, 4, 0, 0]} />
                                 <Bar dataKey="Realizado" fill="#D92D20" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>

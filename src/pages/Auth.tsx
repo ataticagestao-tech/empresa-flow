@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { z } from "zod";
-import logoTatica from "@/assets/logo-tatica.png";
+const logoTatica = "/favicon.svg";
 import { Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
@@ -154,10 +154,8 @@ export default function Auth() {
         <div className="w-full max-w-[420px]">
           <div className="flex flex-col mb-8">
             <div className="flex items-center gap-2.5 mb-9">
-              <div className="w-[34px] h-[34px] bg-primary rounded-md flex items-center justify-center">
-                <img src={logoTatica} alt="Tática" className="w-5 h-5 object-contain brightness-0 invert" />
-              </div>
-              <span className="font-semibold text-[15px] text-foreground tracking-tight">Tática Gestão</span>
+              <img src={logoTatica} alt="gestap system" className="w-9 h-9 object-contain" />
+              <span className="font-semibold text-[15px] text-foreground tracking-tight">gestap system</span>
             </div>
             <h1 className="text-[22px] font-semibold text-foreground tracking-tight mb-1.5">{isRecoveryFlow ? "Redefinir senha" : "Bem-vindo de volta"}</h1>
             <p className="text-[13px] text-muted-foreground leading-relaxed">{isRecoveryFlow ? "Defina uma senha segura." : "Faça login para acessar sua plataforma."}</p>
@@ -215,7 +213,7 @@ export default function Auth() {
       </div>
 
       {/* Right: Blue Panel */}
-      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#1E3A8A] items-center justify-center p-14">
+      <div className="hidden lg:flex w-[460px] shrink-0 bg-[#059669] items-center justify-center p-14">
         <div className="w-full">
           <p className="text-[18px] font-medium text-white/90 leading-relaxed tracking-tight mb-8">
             Gerencie seu negócio com inteligência. Plataforma completa para gestão financeira.

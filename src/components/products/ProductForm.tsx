@@ -233,7 +233,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Código
                         </label>
-                        <div className="bg-[#EFF6FF] border-[1.5px] border-[#1E3A8A] rounded px-3 py-2 text-[13px] font-bold text-[#1E3A8A]">
+                        <div className="bg-[#ECFDF4] border-[1.5px] border-[#059669] rounded px-3 py-2 text-[13px] font-bold text-[#059669]">
                             {codigoGerado || "Gerando..."}
                         </div>
                     </div>
@@ -365,7 +365,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         <label className="block text-[12px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
                             Líquido
                         </label>
-                        <div className="bg-[#EFF6FF] border border-[#ccc] rounded px-3 py-2 text-[13px] font-bold text-[#1E3A8A]">
+                        <div className="bg-[#ECFDF4] border border-[#ccc] rounded px-3 py-2 text-[13px] font-bold text-[#059669]">
                             {liquido
                                 ? liquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                                 : "R$ 0,00"}
@@ -437,7 +437,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                                             value="ativo"
                                             checked={field.value === "ativo"}
                                             onChange={() => field.onChange("ativo")}
-                                            className="accent-[#1E3A8A]"
+                                            className="accent-[#059669]"
                                         />
                                         Ativo
                                     </label>
@@ -448,7 +448,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                                             value="inativo"
                                             checked={field.value === "inativo"}
                                             onChange={() => field.onChange("inativo")}
-                                            className="accent-[#1E3A8A]"
+                                            className="accent-[#059669]"
                                         />
                                         Inativo
                                     </label>
@@ -467,7 +467,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                         </Button>
                     )}
                     <Button type="submit" disabled={mutation.isPending}
-                        className="bg-[#1E3A8A] hover:bg-[#0f1f33] text-white text-[12px] font-bold">
+                        className="bg-[#059669] hover:bg-[#0f1f33] text-white text-[12px] font-bold">
                         {mutation.isPending ? "Salvando..." : "Salvar"}
                     </Button>
                 </div>

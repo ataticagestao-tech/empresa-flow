@@ -314,9 +314,9 @@ export default function ImportacaoXML() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total importados', value: kpis.total, icon: FileText, color: '#1E3A8A' },
+            { label: 'Total importados', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Processados', value: kpis.processados, icon: Check, color: '#059669' },
-            { label: 'Valor total', value: formatBRL(kpis.totalValor), icon: FileText, color: '#1E3A8A' },
+            { label: 'Valor total', value: formatBRL(kpis.totalValor), icon: FileText, color: '#059669' },
             { label: 'Erros', value: kpis.erros, icon: AlertTriangle, color: '#D92D20' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">

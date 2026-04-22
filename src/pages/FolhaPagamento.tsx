@@ -392,11 +392,11 @@ export default function FolhaPagamentoPage() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { label: 'Total proventos', value: formatBRL(kpis.totalProventos), icon: DollarSign, color: '#1E3A8A' },
+            { label: 'Total proventos', value: formatBRL(kpis.totalProventos), icon: DollarSign, color: '#059669' },
             { label: 'Total descontos', value: formatBRL(kpis.totalDescontos), icon: Calculator, color: '#D92D20' },
             { label: 'Liquido a pagar', value: formatBRL(kpis.totalLiquido), icon: DollarSign, color: '#059669' },
             { label: 'Encargos patronais', value: formatBRL(kpis.totalEncargos), icon: Calculator, color: '#F79009' },
-            { label: 'Funcionarios', value: kpis.qtd, icon: Users, color: '#1E3A8A' },
+            { label: 'Funcionarios', value: kpis.qtd, icon: Users, color: '#059669' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -415,7 +415,7 @@ export default function FolhaPagamentoPage() {
           <button
             onClick={() => setShowCalcModal(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1E3A8A' }}
+            style={{ backgroundColor: '#059669' }}
           >
             <Calculator size={16} /> Calcular folha
           </button>
@@ -643,7 +643,7 @@ export default function FolhaPagamentoPage() {
                 onClick={handleCalcularFolha}
                 disabled={calculating}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1E3A8A' }}
+                style={{ backgroundColor: '#059669' }}
               >
                 {calculating ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
                 Calcular

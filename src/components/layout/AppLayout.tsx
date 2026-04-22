@@ -39,7 +39,7 @@ function PageBreadcrumb({ title }: { title: string }) {
     >
       <Link
         to="/dashboard"
-        className="flex items-center hover:text-[#1E3A8A] transition-colors"
+        className="flex items-center hover:text-[#059669] transition-colors"
         aria-label="Ir para o dashboard"
       >
         <Home className="h-3.5 w-3.5" />

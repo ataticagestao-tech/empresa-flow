@@ -1527,7 +1527,7 @@ export default function Conciliacao() {
                                     className={typeFilter === t
                                         ? t === "entradas" ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                                         : t === "saidas" ? "bg-red-600 hover:bg-red-700 text-white"
-                                        : "bg-[#1E3A8A] text-white"
+                                        : "bg-[#059669] text-white"
                                         : ""}
                                     onClick={() => setTypeFilter(t)}>
                                     {t === "all" ? "Todos" : t === "entradas" ? `Entradas (${(bankTransactions || []).filter(b => b.amount > 0).length})` : `Saídas (${(bankTransactions || []).filter(b => b.amount < 0).length})`}

@@ -84,7 +84,7 @@ function tipoLabel(tipo: string): string {
 
 function tipoBadgeColors(tipo: string) {
   switch (tipo) {
-    case 'email': return { text: '#1E3A8A', bg: '#EFF6FF', border: '#1E3A8A' }
+    case 'email': return { text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'whatsapp': return { text: '#039855', bg: '#ECFDF3', border: '#039855' }
     case 'sms': return { text: '#F79009', bg: '#FFFAEB', border: '#F79009' }
     default: return { text: '#555', bg: '#F6F2EB', border: '#ccc' }
@@ -94,7 +94,7 @@ function tipoBadgeColors(tipo: string) {
 function statusBadge(status: string) {
   switch (status) {
     case 'aberto':
-      return { label: 'Em aberto', text: '#1E3A8A', bg: '#EFF6FF', border: '#1E3A8A' }
+      return { label: 'Em aberto', text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'vencido':
       return { label: 'Vencido', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
     case 'parcial':
@@ -501,7 +501,7 @@ export default function ReguaCobranca() {
           <button
             onClick={processarRegua}
             disabled={processing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1E3A8A] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#059669] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Play size={14} />
             {processing ? 'Processando...' : 'Processar regua agora'}
@@ -512,7 +512,7 @@ export default function ReguaCobranca() {
            SECTION 1: Reguas de Cobranca
            ================================================================ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Reguas de Cobranca</h3>
             <button
               onClick={() => openModal()}
@@ -557,7 +557,7 @@ export default function ReguaCobranca() {
                         </button>
                         <button
                           onClick={() => openModal(nomeKey)}
-                          className="text-[11px] font-medium text-[#1E3A8A] hover:underline"
+                          className="text-[11px] font-medium text-[#059669] hover:underline"
                         >
                           Editar
                         </button>
@@ -580,7 +580,7 @@ export default function ReguaCobranca() {
            SECTION 2: CRs com Cobranca Ativa
            ================================================================ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Contas a Receber com Cobranca</h3>
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-white/10 rounded px-2 py-1">
@@ -661,7 +661,7 @@ export default function ReguaCobranca() {
                         <td className="px-4 py-2.5">
                           {cr.nextAction ? (
                             <div>
-                              <p className="text-[11px] font-medium text-[#1E3A8A]">{cr.nextAction.tipo}</p>
+                              <p className="text-[11px] font-medium text-[#059669]">{cr.nextAction.tipo}</p>
                               <p className="text-[10px] text-[#999]">{cr.nextAction.diasLabel}</p>
                             </div>
                           ) : (
@@ -684,7 +684,7 @@ export default function ReguaCobranca() {
            SECTION 3: Log de Cobrancas
            ================================================================ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Log de Cobrancas</h3>
             <button
               onClick={fetchLogs}
@@ -757,7 +757,7 @@ export default function ReguaCobranca() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto mx-4">
               {/* Modal header */}
-              <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-lg">
+              <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-lg">
                 <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">
                   {editingRegua ? 'Editar Regua' : 'Nova Regua de Cobranca'}
                 </h3>
@@ -777,7 +777,7 @@ export default function ReguaCobranca() {
                     value={reguaNome}
                     onChange={e => setReguaNome(e.target.value)}
                     placeholder="Ex: Cobranca Padrao"
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-[13px] text-[#1D2939] outline-none focus:border-[#1E3A8A] transition-colors"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2 text-[13px] text-[#1D2939] outline-none focus:border-[#059669] transition-colors"
                   />
                 </div>
 
@@ -789,7 +789,7 @@ export default function ReguaCobranca() {
                     </label>
                     <button
                       onClick={addEtapa}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-[#1E3A8A] hover:underline"
+                      className="flex items-center gap-1 text-[11px] font-semibold text-[#059669] hover:underline"
                     >
                       <Plus size={13} /> Adicionar etapa
                     </button>
@@ -809,7 +809,7 @@ export default function ReguaCobranca() {
                           <div key={index} className="relative">
                             {/* Timeline dot */}
                             <div
-                              className="absolute -left-6 top-3 w-[14px] h-[14px] rounded-full border-2 border-[#1E3A8A] bg-white z-10"
+                              className="absolute -left-6 top-3 w-[14px] h-[14px] rounded-full border-2 border-[#059669] bg-white z-10"
                               style={{
                                 left: '-18px',
                               }}
@@ -843,7 +843,7 @@ export default function ReguaCobranca() {
                                     type="number"
                                     value={etapa.dias_antes_vencimento}
                                     onChange={e => updateEtapa(index, 'dias_antes_vencimento', parseInt(e.target.value) || 0)}
-                                    className="w-[60px] border border-[#ccc] rounded px-2 py-1 text-[12px] text-center outline-none focus:border-[#1E3A8A]"
+                                    className="w-[60px] border border-[#ccc] rounded px-2 py-1 text-[12px] text-center outline-none focus:border-[#059669]"
                                   />
                                   <span className="text-[10px] text-[#555] whitespace-nowrap">
                                     {diasLabel(etapa.dias_antes_vencimento)}
@@ -865,7 +865,7 @@ export default function ReguaCobranca() {
                                 onChange={e => updateEtapa(index, 'template_mensagem', e.target.value)}
                                 placeholder="Mensagem da cobranca. Use {nome}, {valor}, {data_vencimento}, {dias_atraso}..."
                                 rows={2}
-                                className="w-full border border-[#ccc] rounded px-3 py-2 text-[12px] text-[#1D2939] outline-none focus:border-[#1E3A8A] resize-none"
+                                className="w-full border border-[#ccc] rounded px-3 py-2 text-[12px] text-[#1D2939] outline-none focus:border-[#059669] resize-none"
                               />
 
                               {/* Preview line */}
@@ -891,7 +891,7 @@ export default function ReguaCobranca() {
                   <button
                     onClick={handleSave}
                     disabled={saving || !reguaNome.trim() || etapasForm.length === 0}
-                    className="flex-1 px-4 py-2 bg-[#1E3A8A] text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-[#059669] text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
                     {saving ? 'Salvando...' : editingRegua ? 'Salvar Alteracoes' : 'Criar Regua'}
                   </button>

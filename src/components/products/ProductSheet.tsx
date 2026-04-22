@@ -17,7 +17,7 @@ export function ProductSheet({ isOpen, onClose, product }: ProductSheetProps) {
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent className="sm:max-w-[600px] overflow-y-auto p-0">
-                <SheetHeader className="bg-[#1E3A8A] px-5 py-3.5">
+                <SheetHeader className="bg-[#059669] px-5 py-3.5">
                     <SheetTitle className="text-white text-[13px] font-bold uppercase tracking-widest">
                         {product ? "Editar Produto" : "Novo Produto"}
                     </SheetTitle>

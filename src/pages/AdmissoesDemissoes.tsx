@@ -228,7 +228,7 @@ export default function AdmissoesDemissoes() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total registros', value: kpis.total, icon: Users, color: '#1E3A8A' },
+            { label: 'Total registros', value: kpis.total, icon: Users, color: '#059669' },
             { label: 'Admissoes', value: kpis.admissoes, icon: UserPlus, color: '#059669' },
             { label: 'Demissoes', value: kpis.demissoes, icon: UserMinus, color: '#D92D20' },
             { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), icon: FileText, color: '#F79009' },
@@ -258,7 +258,7 @@ export default function AdmissoesDemissoes() {
               setShowNewModal(true)
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1E3A8A' }}
+            style={{ backgroundColor: '#059669' }}
           >
             <Plus size={16} /> Novo registro
           </button>
@@ -494,7 +494,7 @@ export default function AdmissoesDemissoes() {
                 onClick={handleSalvar}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1E3A8A' }}
+                style={{ backgroundColor: '#059669' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                 Salvar

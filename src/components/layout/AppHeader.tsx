@@ -31,8 +31,8 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 sm:h-16 items-center gap-2 sm:gap-3 border-b border-[#1F2937] bg-[#111827] px-3 sm:px-5 shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
-      <SidebarTrigger className="text-white/70 hover:text-white transition-colors flex-shrink-0" />
+    <header className="sticky top-0 z-10 flex h-14 sm:h-16 items-center gap-2 sm:gap-3 border-b border-sidebar-border bg-sidebar px-3 sm:px-5 shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
+      <SidebarTrigger className="text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors flex-shrink-0" />
 
       {location.pathname !== "/" && (
         <Button
@@ -40,7 +40,7 @@ export function AppHeader() {
           size="icon"
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="h-7 w-7 sm:h-8 sm:w-8 text-white/70 hover:text-white hover:bg-white/10 flex-shrink-0"
+          className="h-7 w-7 sm:h-8 sm:w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -51,14 +51,14 @@ export function AppHeader() {
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title={theme === "dark" ? "Modo claro" : "Modo escuro"}
-          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
         <button
           onClick={() => navigate("/empresas?nova=1")}
           title="Adicionar nova empresa"
-          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -67,15 +67,15 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="relative flex items-center outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]/40 rounded-full"
+              className="relative flex items-center outline-none focus-visible:ring-2 focus-visible:ring-[#059669]/40 rounded-full"
               aria-label="Abrir menu do usuário"
             >
               <Avatar className="h-[32px] w-[32px]">
-                <AvatarFallback className="bg-[#1E3A8A] text-white text-[12px] font-semibold tracking-wide">
+                <AvatarFallback className="bg-[#059669] text-white text-[12px] font-semibold tracking-wide">
                   {user?.email ? getInitials(user.email) : "US"}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#039855] border-2 border-[#111827]" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#0BE041] border-2 border-sidebar" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

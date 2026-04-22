@@ -33,7 +33,7 @@ const fmt = (v: number) =>
 const CORES_ATIVIDADE: Record<string, string> = {
   operacional: "#039855",
   investimento: "#e65100",
-  financiamento: "#1E3A8A",
+  financiamento: "#059669",
 };
 
 export default function FluxoCaixa() {
@@ -773,7 +773,7 @@ export default function FluxoCaixa() {
 
               {/* Tabela DFC */}
               <Card>
-                <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
+                <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#059669" }}>
                   <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                     <Banknote className="h-4 w-4" /> DFC — Demonstração dos Fluxos de Caixa
                   </CardTitle>
@@ -986,7 +986,7 @@ export default function FluxoCaixa() {
 
                   {/* Todas as transações */}
                   <Card>
-                    <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
+                    <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#059669" }}>
                       <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                         <Search className="h-4 w-4" /> Todas as transações conciliadas ({diagnostico.rows.length})
                       </CardTitle>

@@ -13,9 +13,9 @@
 /* ─── Paleta ──────────────────────────────────────────────────── */
 export const colors = {
   // Azul primário (brand)
-  primary: "#1E3A8A",
+  primary: "#059669",
   primaryHover: "#243d5f",
-  primarySoft: "#EFF6FF",
+  primarySoft: "#ECFDF4",
   primaryBorder: "#BFDBFE",
 
   // Sucesso (faturamento, ativo)
@@ -101,7 +101,7 @@ export const card = {
 /* ─── Headers de card (barra azul) ────────────────────────────── */
 export const header = {
   /** Header azul grosso (painéis tipo Clientes / Funcionários) */
-  blueBar: "bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between",
+  blueBar: "bg-[#059669] px-4 py-2.5 flex items-center justify-between",
   blueBarTitle: "text-xs font-bold text-white uppercase tracking-widest",
   blueBarAction: "text-xs font-semibold text-[#BFDBFE] hover:text-white",
 
@@ -112,13 +112,13 @@ export const header = {
 /* ─── Botões ──────────────────────────────────────────────────── */
 export const button = {
   /** Botão primário (azul) */
-  primary: "bg-[#1E3A8A] hover:bg-[#243d5f] text-white",
+  primary: "bg-[#059669] hover:bg-[#243d5f] text-white",
   /** Botão secundário (branco com borda) */
   secondary: "bg-white border border-[#EAECF0] hover:bg-[#F9FAFB] text-[#1D2939]",
   /** Botão de destruir */
   danger: "bg-[#D92D20] hover:bg-[#B42318] text-white",
   /** Link discreto (ação secundária) */
-  link: "text-[#1E3A8A] hover:underline",
+  link: "text-[#059669] hover:underline",
 } as const;
 
 /* ─── Badges de status ────────────────────────────────────────── */
@@ -170,8 +170,8 @@ export const table = {
 
 /* ─── Inputs ──────────────────────────────────────────────────── */
 export const input = {
-  base: "h-9 px-3 text-[13px] border border-[#ddd] rounded-md bg-white focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] outline-none",
-  withIcon: "h-9 pl-9 pr-3 text-[13px] border border-[#ddd] rounded-md bg-white focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] outline-none",
+  base: "h-9 px-3 text-[13px] border border-[#ddd] rounded-md bg-white focus:border-[#059669] focus:ring-1 focus:ring-[#059669] outline-none",
+  withIcon: "h-9 pl-9 pr-3 text-[13px] border border-[#ddd] rounded-md bg-white focus:border-[#059669] focus:ring-1 focus:ring-[#059669] outline-none",
 } as const;
 
 /* ─── Formatters (re-export para conveniência) ────────────────── */

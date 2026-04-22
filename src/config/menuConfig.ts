@@ -54,6 +54,7 @@ export interface MenuItem {
 export interface MenuGroup {
   id: string;
   labelKey?: string;
+  icon?: LucideIcon;
   items: MenuItem[];
   isHardcodedLabel?: boolean;
 }
@@ -68,6 +69,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'cadastros',
     labelKey: 'Cadastros',
+    icon: ClipboardList,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'menu.companies', icon: Building2, url: '/empresas' },
@@ -82,6 +84,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'financeiro',
     labelKey: 'menu.finance',
+    icon: DollarSign,
     items: [
       { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
@@ -101,6 +104,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'fiscal',
     labelKey: 'Fiscal',
+    icon: Receipt,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
@@ -114,6 +118,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'rh',
     labelKey: 'RH & Folha',
+    icon: Briefcase,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Folha de Pagamento', icon: Briefcase, url: '/folha-pagamento', isHardcoded: true },
@@ -126,6 +131,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'projecao',
     labelKey: 'Projeção Financeira',
+    icon: TrendingUp,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
@@ -137,6 +143,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'estoque',
     labelKey: 'Estoque & Compras',
+    icon: Package,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Estoque', icon: Package, url: '/estoque', isHardcoded: true },
@@ -147,6 +154,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'documentos',
     labelKey: 'Documentos',
+    icon: FolderOpen,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Explorador', icon: FolderOpen, url: '/documentos', isHardcoded: true },
@@ -157,6 +165,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'precificacao',
     labelKey: 'Precificação',
+    icon: Target,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
@@ -170,6 +179,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'multiempresa',
     labelKey: 'Multi-empresa',
+    icon: GitMerge,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Consolidado', icon: GitMerge, url: '/multiempresa', isHardcoded: true },
@@ -180,6 +190,7 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'admin',
     labelKey: 'Administração',
+    icon: Shield,
     isHardcodedLabel: true,
     items: [
       { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },

@@ -658,8 +658,8 @@ export default function Movimentacoes() {
         </span>
       )
     return (
-      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EFF6FF] border border-[#1E3A8A]">
-        <ArrowLeftRight className="w-3.5 h-3.5 text-[#1E3A8A]" />
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#ECFDF4] border border-[#059669]">
+        <ArrowLeftRight className="w-3.5 h-3.5 text-[#059669]" />
       </span>
     )
   }
@@ -681,8 +681,8 @@ export default function Movimentacoes() {
         {/* ====== KPI CARDS ====== */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Saldo Atual */}
-          <div className="border border-[#1E3A8A] rounded-lg p-4 bg-white">
-            <p className="text-[10px] font-bold text-[#1E3A8A] uppercase tracking-widest mb-1">Saldo Atual</p>
+          <div className="border border-[#059669] rounded-lg p-4 bg-white">
+            <p className="text-[10px] font-bold text-[#059669] uppercase tracking-widest mb-1">Saldo Atual</p>
             <p className="text-2xl font-bold text-[#1D2939]">{formatBRL(bankTotals.total)}</p>
             <p className="text-[11px] text-[#777] mt-1">Todas as contas</p>
             <span className="inline-block mt-2 text-[10px] font-semibold text-[#039855] bg-[#ECFDF3] px-2 py-0.5 rounded">
@@ -729,7 +729,7 @@ export default function Movimentacoes() {
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
 
           {/* Header */}
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Movimentacoes
             </h3>
@@ -750,7 +750,7 @@ export default function Movimentacoes() {
               </button>
               <button
                 onClick={openModal}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white text-[#1E3A8A] text-xs font-semibold hover:bg-gray-100 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white text-[#059669] text-xs font-semibold hover:bg-gray-100 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Lancamento manual
@@ -766,8 +766,8 @@ export default function Movimentacoes() {
                 onClick={() => setSelectedBankId(null)}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                   ${!selectedBankId
-                    ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]'
-                    : 'border-[#ccc] bg-white text-[#555] hover:border-[#1E3A8A]'
+                    ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]'
+                    : 'border-[#ccc] bg-white text-[#555] hover:border-[#059669]'
                   }`}
               >
                 <Landmark className="w-3.5 h-3.5" />
@@ -783,8 +783,8 @@ export default function Movimentacoes() {
                     onClick={() => setSelectedBankId(active ? null : ba.id)}
                     className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                       ${active
-                        ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]'
-                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#1E3A8A]'
+                        ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]'
+                        : 'border-[#ccc] bg-white text-[#555] hover:border-[#059669]'
                       }`}
                   >
                     {maskAccount(ba.name)}
@@ -816,14 +816,14 @@ export default function Movimentacoes() {
                         setShowSuggestions(false)
                       }
                     }}
-                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-9 py-2.5 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded-lg pl-9 pr-9 py-2.5 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#059669]"
                   />
                   {(searchInput || searchTerm) && (
                     <button
                       type="button"
                       onClick={clearSearch}
                       aria-label="Limpar busca"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#1E3A8A]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#059669]"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -838,7 +838,7 @@ export default function Movimentacoes() {
                             e.preventDefault()
                             commitSearch(s)
                           }}
-                          className="w-full text-left px-3 py-2 text-xs text-[#1D2939] hover:bg-[#EFF6FF] border-b border-[#eee] last:border-b-0"
+                          className="w-full text-left px-3 py-2 text-xs text-[#1D2939] hover:bg-[#ECFDF4] border-b border-[#eee] last:border-b-0"
                         >
                           {s}
                         </button>
@@ -849,7 +849,7 @@ export default function Movimentacoes() {
                 <button
                   type="button"
                   onClick={() => commitSearch()}
-                  className="px-4 py-2.5 rounded-lg bg-[#1E3A8A] text-white text-xs font-semibold hover:bg-[#2a3e5a] transition-colors"
+                  className="px-4 py-2.5 rounded-lg bg-[#059669] text-white text-xs font-semibold hover:bg-[#2a3e5a] transition-colors"
                 >
                   Buscar
                 </button>
@@ -869,8 +869,8 @@ export default function Movimentacoes() {
                   onClick={() => setTipoFilter(tab.id)}
                   className={`px-3 py-1.5 rounded text-xs font-semibold border transition-colors ${
                     tipoFilter === tab.id
-                      ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white'
-                      : 'border-[#ccc] bg-white text-[#555] hover:border-[#1E3A8A] hover:text-[#1E3A8A]'
+                      ? 'border-[#059669] bg-[#059669] text-white'
+                      : 'border-[#ccc] bg-white text-[#555] hover:border-[#059669] hover:text-[#059669]'
                   }`}
                 >
                   {tab.label}
@@ -893,14 +893,14 @@ export default function Movimentacoes() {
                     type="date"
                     value={dateStart}
                     onChange={(e) => setDateStart(e.target.value)}
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] focus:outline-none focus:border-[#059669]"
                   />
                   <p className="text-[11px] text-[#999]">ate</p>
                   <input
                     type="date"
                     value={dateEnd}
                     onChange={(e) => setDateEnd(e.target.value)}
-                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] focus:outline-none focus:border-[#059669]"
                   />
                 </>
               )}
@@ -912,7 +912,7 @@ export default function Movimentacoes() {
                 <select
                   value={selectedBankId || ''}
                   onChange={(e) => setSelectedBankId(e.target.value || null)}
-                  className="w-full appearance-none border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A] pr-8"
+                  className="w-full appearance-none border border-[#ccc] rounded-lg px-3 py-2.5 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#059669] pr-8"
                 >
                   <option value="">Todas as contas</option>
                   {bankAccounts.map((ba) => (
@@ -937,8 +937,8 @@ export default function Movimentacoes() {
               dayGroups.map((group) => (
                 <div key={group.date}>
                   {/* Day header */}
-                  <div className="bg-[#EFF6FF] px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#ccc]">
-                    <span className="text-[11px] font-bold text-[#1E3A8A] tracking-wide">
+                  <div className="bg-[#ECFDF4] px-4 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-[#ccc]">
+                    <span className="text-[11px] font-bold text-[#059669] tracking-wide">
                       {group.label}
                     </span>
                     <div className="flex items-center gap-4 text-[11px]">
@@ -1018,7 +1018,7 @@ export default function Movimentacoes() {
                           {bankName && bankBal != null && (
                             <>
                               <p className="text-[10px] text-[#999]">Saldo {bankName.split(/\s/)[0]}</p>
-                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#1E3A8A]' : 'text-[#D92D20]'}`}>
+                              <p className={`text-xs font-semibold ${bankBal >= 0 ? 'text-[#059669]' : 'text-[#D92D20]'}`}>
                                 {formatBRL(bankBal)}
                               </p>
                             </>
@@ -1026,7 +1026,7 @@ export default function Movimentacoes() {
                         </div>
 
                         {/* Action button */}
-                        <button className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[#ccc] text-xs font-medium text-[#555] hover:border-[#1E3A8A] hover:text-[#1E3A8A] transition-colors whitespace-nowrap">
+                        <button className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[#ccc] text-xs font-medium text-[#555] hover:border-[#059669] hover:text-[#059669] transition-colors whitespace-nowrap">
                           <Eye className="w-3 h-3" />
                           {ORIGEM_ACTION_LABELS[row.origem] || 'Ver'}
                         </button>
@@ -1052,7 +1052,7 @@ export default function Movimentacoes() {
           {/* Panel */}
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="bg-[#1E3A8A] px-4 py-3 flex items-center justify-between rounded-t-lg">
+            <div className="bg-[#059669] px-4 py-3 flex items-center justify-between rounded-t-lg">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
                 Lancamento Manual
               </h3>
@@ -1112,7 +1112,7 @@ export default function Movimentacoes() {
                 <select
                   value={formDescricao}
                   onChange={(e) => setFormDescricao(e.target.value)}
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#059669]"
                 >
                   <option value="">Selecione um produto/servico...</option>
                   {products.map((p) => (
@@ -1136,7 +1136,7 @@ export default function Movimentacoes() {
                     value={formValor}
                     onChange={(e) => setFormValor(e.target.value)}
                     placeholder="0,00"
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#059669]"
                   />
                 </div>
                 <div>
@@ -1147,7 +1147,7 @@ export default function Movimentacoes() {
                     type="date"
                     value={formData}
                     onChange={(e) => setFormData(e.target.value)}
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] focus:outline-none focus:border-[#059669]"
                   />
                 </div>
               </div>
@@ -1161,7 +1161,7 @@ export default function Movimentacoes() {
                   <select
                     value={formBankId}
                     onChange={(e) => setFormBankId(e.target.value)}
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#059669]"
                   >
                     <option value="">Selecione...</option>
                     {bankAccounts.map((ba) => (
@@ -1178,7 +1178,7 @@ export default function Movimentacoes() {
                   <select
                     value={formContaContabilId}
                     onChange={(e) => setFormContaContabilId(e.target.value)}
-                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#059669]"
                   >
                     <option value="">Selecione...</option>
                     {chartAccounts.map((ca) => (
@@ -1198,7 +1198,7 @@ export default function Movimentacoes() {
                 <select
                   value={formCentroCustoId}
                   onChange={(e) => setFormCentroCustoId(e.target.value)}
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none focus:border-[#059669]"
                 >
                   <option value="">Nenhum</option>
                   {centrosCusto.map((cc) => (
@@ -1217,7 +1217,7 @@ export default function Movimentacoes() {
                   onChange={(e) => setFormObservacao(e.target.value)}
                   rows={2}
                   placeholder="Observacoes adicionais..."
-                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#1E3A8A] resize-none"
+                  className="w-full border border-[#ccc] rounded px-3 py-2 text-sm text-[#1D2939] placeholder:text-[#999] focus:outline-none focus:border-[#059669] resize-none"
                 />
               </div>
 
@@ -1242,7 +1242,7 @@ export default function Movimentacoes() {
                     !formBankId ||
                     !formContaContabilId
                   }
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[#1E3A8A] text-white text-sm font-medium hover:bg-[#15243a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[#059669] text-white text-sm font-medium hover:bg-[#15243a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {modalSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Confirmar Lancamento

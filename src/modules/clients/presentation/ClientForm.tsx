@@ -40,26 +40,26 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                     <TabsList className="justify-start border-b border-[#e0e0e0] rounded-none h-auto p-0 bg-transparent space-x-1">
                         <TabsTrigger
                             value="endereco"
-                            className="border-b-2 border-transparent data-[state=active]:border-[#1E3A8A] data-[state=active]:text-[#1E3A8A] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                            className="border-b-2 border-transparent data-[state=active]:border-[#059669] data-[state=active]:text-[#059669] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
                         >
                             Endereço
                         </TabsTrigger>
                         <TabsTrigger
                             value="contato"
-                            className="border-b-2 border-transparent data-[state=active]:border-[#1E3A8A] data-[state=active]:text-[#1E3A8A] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                            className="border-b-2 border-transparent data-[state=active]:border-[#059669] data-[state=active]:text-[#059669] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
                         >
                             Contatos
                         </TabsTrigger>
                         <TabsTrigger
                             value="fiscal"
-                            className="border-b-2 border-transparent data-[state=active]:border-[#1E3A8A] data-[state=active]:text-[#1E3A8A] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                            className="border-b-2 border-transparent data-[state=active]:border-[#059669] data-[state=active]:text-[#059669] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
                         >
                             Dados Fiscais
                         </TabsTrigger>
                         {showContracts && (
                             <TabsTrigger
                                 value="contratos"
-                                className="border-b-2 border-transparent data-[state=active]:border-[#1E3A8A] data-[state=active]:text-[#1E3A8A] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
+                                className="border-b-2 border-transparent data-[state=active]:border-[#059669] data-[state=active]:text-[#059669] rounded-none px-4 py-2 text-xs font-semibold text-[#555] transition-all"
                             >
                                 Contratos
                             </TabsTrigger>
@@ -93,7 +93,7 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                     <Button type="button" variant="outline" onClick={() => onSuccess()} className="border-[#ccc] text-[#555] hover:bg-[#F6F2EB]">
                         Cancelar
                     </Button>
-                    <Button type="submit" className="bg-[#1E3A8A] hover:bg-[#0f1f33] text-white min-w-[150px]">
+                    <Button type="submit" className="bg-[#059669] hover:bg-[#0f1f33] text-white min-w-[150px]">
                         Salvar Cliente
                     </Button>
                 </div>

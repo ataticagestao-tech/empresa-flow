@@ -203,10 +203,10 @@ export default function EncargosRH() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), icon: DollarSign, color: '#1E3A8A' },
+            { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), icon: DollarSign, color: '#059669' },
             { label: 'INSS total', value: formatBRL(kpis.totalINSS), icon: Calculator, color: '#F79009' },
             { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), icon: Calculator, color: '#D92D20' },
-            { label: 'Total encargos', value: formatBRL(kpis.totalGeral), icon: DollarSign, color: '#1E3A8A' },
+            { label: 'Total encargos', value: formatBRL(kpis.totalGeral), icon: DollarSign, color: '#059669' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
@@ -251,7 +251,7 @@ export default function EncargosRH() {
                         onClick={() => calcularEncargos(comp)}
                         disabled={calculating}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                        style={{ backgroundColor: '#1E3A8A' }}
+                        style={{ backgroundColor: '#059669' }}
                       >
                         {calculating ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
                         Calcular

@@ -390,7 +390,7 @@ export default function DRE() {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="Receita" fill="#039855" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Despesa" fill="#D92D20" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Resultado" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Resultado" fill="#059669" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

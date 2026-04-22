@@ -1,29 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ============================================================
-   Design System — Tática Gestão v1
-   Paleta: creme bg + brand azul + semânticas Untitled UI
+   Design System — gestap system v2 (Emerald)
+   Paleta: off-white verde-soft + brand emerald + semânticas
    ============================================================ */
 
 :root {
   /* ── Fundos ──────────────────────────────── */
-  --bg:         #F6F2EB;
+  --bg:         #F6F8F7;
   --surface:    #FFFFFF;
 
   /* ── Tipografia ─────────────────────────── */
-  --text-1:     #1D2939;
-  --text-2:     #667085;
-  --text-3:     #98A2B3;
+  --text-1:     #131E18;
+  --text-2:     #5F6A65;
+  --text-3:     #8A948F;
 
   /* ── Divisores e bordas ─────────────────── */
-  --divider:    #EAECF0;
-  --border:     #D0D5DD;
+  --divider:    #E3EAE6;
+  --border:     #C8D2CD;
 
-  /* ── Brand — Azul marinho (corporativo sóbrio) ───────── */
-  --brand:      #1E3A8A;
-  --brand-mid:  #1E40AF;
-  --brand-soft: #EFF6FF;
-  --brand-text: #1E3A8A;
+  /* ── Brand — Emerald (moderno, planejamento, suave) ───── */
+  --brand:      #059669;
+  --brand-mid:  #10B981;
+  --brand-soft: #ECFDF4;
+  --brand-text: #065F46;
+  --brand-vivid: #0BE041;  /* logo — detalhes/indicadores */
 
   /* ── Semânticas ─────────────────────────── */
   --success:    #039855;
@@ -34,7 +35,7 @@
   --error-bg:   #FEF3F2;
 
   --green:      #059669;
-  --green-bg:   #EFF6FF;
+  --green-bg:   #ECFDF4;
 
   /* ── Geometria ──────────────────────────── */
   --r:    8px;
@@ -76,7 +77,7 @@
   /* Superfícies */
   --color-bg-page:       var(--bg);
   --color-bg-card:       var(--surface);
-  --color-bg-hover:      rgba(37,99,235,.04);
+  --color-bg-hover:      rgba(5,150,105,.04);
 
   /* Bordas */
   --color-border:        var(--divider);

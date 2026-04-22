@@ -20,7 +20,7 @@ interface TreeNode extends Conta {
   filhos: TreeNode[];
 }
 
-const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full";
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 const DRE_GROUPS = [
@@ -38,12 +38,12 @@ function getBadge(c: Conta) {
   if (c.account_type === "revenue") return { label: "Receita", cls: "border-[#039855] bg-[#ECFDF3] text-[#039855]" };
   if (c.account_type === "asset") return { label: "Ativo", cls: "border-[#039855] bg-[#ECFDF3] text-[#039855]" };
   if (c.account_type === "liability") return { label: "Passivo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
-  if (c.account_type === "equity") return { label: "PL", cls: "border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]" };
+  if (c.account_type === "equity") return { label: "PL", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
   if (c.account_type === "cost") return { label: "Custo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
   if (c.account_type === "expense" && c.dre_group === "deducoes") return { label: "Dedução", cls: "border-[#F79009] bg-[#FFFAEB] text-[#F79009]" };
   if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]" };
-  if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]" };
-  if (c.account_type === "expense") return { label: "Despesa", cls: "border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]" };
+  if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
+  if (c.account_type === "expense") return { label: "Despesa", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
   return { label: "Outros", cls: "border-[#ccc] bg-[#F6F2EB] text-[#555]" };
 }
 
@@ -533,7 +533,7 @@ export default function PlanoContas() {
       </div>
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={editForm.show_in_dre} onChange={e => setEdit("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#1E3A8A]" />
+          <input type="checkbox" checked={editForm.show_in_dre} onChange={e => setEdit("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#059669]" />
           <span className="text-xs text-[#1D2939]">Aparece no DRE</span>
         </label>
         <div className="flex flex-col gap-1">
@@ -541,7 +541,7 @@ export default function PlanoContas() {
           <input type="number" value={editForm.dre_order} onChange={e => setEdit("dre_order", e.target.value)} className={`${IC} w-20`} placeholder="0" />
         </div>
         <div className="flex gap-2 ml-auto">
-          <button onClick={saveEdit} disabled={savingEdit} className="bg-[#1E3A8A] text-white text-xs font-bold px-4 py-1.5 rounded-md disabled:opacity-40">
+          <button onClick={saveEdit} disabled={savingEdit} className="bg-[#059669] text-white text-xs font-bold px-4 py-1.5 rounded-md disabled:opacity-40">
             {savingEdit ? "Salvando..." : "Salvar"}
           </button>
           <button onClick={cancelEdit} className="bg-white text-[#1D2939] border border-[#ccc] text-xs font-bold px-4 py-1.5 rounded-md">Cancelar</button>
@@ -554,7 +554,7 @@ export default function PlanoContas() {
   const renderActions = (conta: Conta) => (
     <div className="flex items-center gap-1 shrink-0 ml-2">
       <button onClick={e => startEdit(conta, e)} title="Editar"
-        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] text-sm transition-all">✎</button>
+        className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#ECFDF4] text-[#059669] text-sm transition-all">✎</button>
       <button onClick={e => deleteConta(conta, e)} title="Desativar"
         className="w-7 h-7 rounded flex items-center justify-center hover:bg-[#FEF3F2] text-[#D92D20] text-sm transition-all">✕</button>
     </div>
@@ -635,7 +635,7 @@ export default function PlanoContas() {
                         <span className="text-[10px] font-bold text-[#039855] flex items-center gap-1"><Check size={12} /> Existe</span>
                       ) : (
                         <button onClick={() => addGrupoFromModelo(grupo.code)}
-                          className="flex items-center gap-1 text-[10px] font-bold text-[#1E3A8A] px-2 py-1 rounded border border-[#1E3A8A] hover:bg-[#EFF6FF] transition-colors">
+                          className="flex items-center gap-1 text-[10px] font-bold text-[#059669] px-2 py-1 rounded border border-[#059669] hover:bg-[#ECFDF4] transition-colors">
                           <Plus size={12} /> Grupo
                         </button>
                       )}
@@ -657,7 +657,7 @@ export default function PlanoContas() {
                           ) : (
                             <button onClick={e => { e.stopPropagation(); addFromModelo(sub); }}
                               disabled={addingCodes.has(sub.code)}
-                              className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] transition-all">
+                              className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#ECFDF4] text-[#059669] transition-all">
                               <Plus size={14} />
                             </button>
                           )}
@@ -674,9 +674,9 @@ export default function PlanoContas() {
                             ) : (
                               <button onClick={() => addFromModelo(analitica)}
                                 disabled={addingCodes.has(analitica.code)}
-                                className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] transition-all">
+                                className="w-6 h-6 rounded flex items-center justify-center hover:bg-[#ECFDF4] text-[#059669] transition-all">
                                 {addingCodes.has(analitica.code)
-                                  ? <div className="w-3 h-3 border-2 border-[#1E3A8A]/30 border-t-[#1E3A8A] rounded-full animate-spin" />
+                                  ? <div className="w-3 h-3 border-2 border-[#059669]/30 border-t-[#059669] rounded-full animate-spin" />
                                   : <Plus size={14} />}
                               </button>
                             )}
@@ -694,7 +694,7 @@ export default function PlanoContas() {
         {/* New account form */}
         {showForm && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1E3A8A] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Nova Conta</h3></div>
+            <div className="bg-[#059669] px-4 py-2.5"><h3 className="text-xs font-bold text-white uppercase tracking-widest">Nova Conta</h3></div>
             <div className="p-5 bg-white space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1"><label className={LB}>Código <span className="text-[#D92D20]">*</span></label><input value={newConta.code} onChange={e => setNew("code", e.target.value)} className={IC} placeholder="Ex: 4.1.09" /></div>
@@ -726,11 +726,11 @@ export default function PlanoContas() {
                 </div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={newConta.show_in_dre} onChange={e => setNew("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#1E3A8A]" />
+                <input type="checkbox" checked={newConta.show_in_dre} onChange={e => setNew("show_in_dre", e.target.checked)} className="w-4 h-4 accent-[#059669]" />
                 <span className="text-sm text-[#1D2939]">Aparece no DRE</span>
               </label>
               <div className="flex gap-3">
-                <button onClick={handleAddConta} className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md">Salvar</button>
+                <button onClick={handleAddConta} className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md">Salvar</button>
                 <button onClick={() => setShowForm(false)} className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
               </div>
             </div>
@@ -823,7 +823,7 @@ export default function PlanoContas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !replacingAll && setShowModeloPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-[#1E3A8A] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#059669] px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BookOpen size={18} className="text-white" />
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider">Modelo Padrão Patrimonial</h2>
@@ -863,13 +863,13 @@ export default function PlanoContas() {
               <button
                 onClick={() => { setShowModeloPopup(false); setShowModelo(true); }}
                 disabled={replacingAll}
-                className="w-full text-left border border-[#1E3A8A] rounded-lg p-4 hover:bg-[#EFF6FF] transition-colors group disabled:opacity-60"
+                className="w-full text-left border border-[#059669] rounded-lg p-4 hover:bg-[#ECFDF4] transition-colors group disabled:opacity-60"
               >
                 <div className="flex items-center gap-3 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#1E3A8A] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-[#059669] flex items-center justify-center shrink-0">
                     <Plus size={16} className="text-white" />
                   </div>
-                  <span className="text-sm font-bold text-[#1E3A8A]">Escolher categorias para adicionar</span>
+                  <span className="text-sm font-bold text-[#059669]">Escolher categorias para adicionar</span>
                 </div>
                 <p className="text-xs text-[#555] ml-11">
                   Abre o painel de referência para você selecionar quais contas ou grupos adicionar.

@@ -58,7 +58,7 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
 
     return (
         <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-            <div className="bg-[#1E3A8A] px-3 py-1.5">
+            <div className="bg-[#059669] px-3 py-1.5">
                 <span className="text-[9px] font-bold text-white uppercase tracking-widest">Contratos</span>
             </div>
             <div className="px-3 py-2.5 bg-white">

@@ -108,7 +108,7 @@ function classifyUrgency(cp: ContaPagar): UrgencyGroup {
 const urgencyConfig: Record<UrgencyGroup, { label: string; textColor: string; bgColor: string; borderColor: string }> = {
   hoje: { label: 'Vence hoje', textColor: '#D92D20', bgColor: '#FEF3F2', borderColor: '#D92D20' },
   proximos7: { label: 'Proximos 7 dias', textColor: '#F79009', bgColor: '#FFFAEB', borderColor: '#F79009' },
-  proximos30: { label: 'Proximos 30 dias', textColor: '#1E3A8A', bgColor: 'rgba(26,46,74,0.04)', borderColor: '#1E3A8A' },
+  proximos30: { label: 'Proximos 30 dias', textColor: '#059669', bgColor: 'rgba(26,46,74,0.04)', borderColor: '#059669' },
   vencidos: { label: 'Vencidos', textColor: '#D92D20', bgColor: '#FEF3F2', borderColor: '#D92D20' },
   pagos: { label: 'Pagos', textColor: '#039855', bgColor: '#ECFDF3', borderColor: '#039855' },
 }
@@ -863,7 +863,7 @@ export default function ContasPagar() {
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { dot: string; text: string; bg: string; label: string }> = {
       aberto: { dot: '#F79009', text: '#F79009', bg: '#FFFAEB', label: 'Em aberto' },
-      parcial: { dot: '#1E3A8A', text: '#1E3A8A', bg: '#EFF6FF', label: 'Parcial' },
+      parcial: { dot: '#059669', text: '#059669', bg: '#ECFDF4', label: 'Parcial' },
       vencido: { dot: '#D92D20', text: '#D92D20', bg: '#FEF3F2', label: 'Vencido' },
       pago: { dot: '#039855', text: '#039855', bg: '#e1f5ee', label: 'Pago' },
     }
@@ -941,7 +941,7 @@ export default function ContasPagar() {
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total a pagar', value: formatBRL(kpis.totalPagar), color: '#1E3A8A', sub: `${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto` },
+            { label: 'Total a pagar', value: formatBRL(kpis.totalPagar), color: '#059669', sub: `${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto` },
             { label: 'Vence hoje', value: formatBRL(kpis.venceHoje), color: '#D92D20', sub: `${kpis.hojeCount} t\u00edtulo${kpis.hojeCount !== 1 ? 's' : ''} vencendo` },
             { label: 'Pr\u00f3ximos 7 dias', value: formatBRL(kpis.prox7), color: '#F79009', sub: `${kpis.prox7Count} t\u00edtulo${kpis.prox7Count !== 1 ? 's' : ''} a vencer` },
             { label: 'Pago no m\u00eas', value: formatBRL(pagoNoMes), color: '#039855', sub: `${pagoNoMesCount} t\u00edtulo${pagoNoMesCount !== 1 ? 's' : ''} quitado${pagoNoMesCount !== 1 ? 's' : ''}` },
@@ -1138,7 +1138,7 @@ export default function ContasPagar() {
         {/* Toolbar */}
         <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           {/* Header */}
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">T&iacute;tulos</h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-white/15">{filteredContas.length}</span>
@@ -1155,7 +1155,7 @@ export default function ContasPagar() {
           {/* Batch selection bar */}
           {selectedIds.size > 0 && (
             <div className="px-5 py-3 border-b border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">
-              <p className="text-[13px] font-semibold text-[#1E3A8A]">
+              <p className="text-[13px] font-semibold text-[#059669]">
                 {selectedIds.size} t&iacute;tulo{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''} &mdash; {formatBRL(selectedTotal)}
               </p>
               <div className="flex items-center gap-2">
@@ -1167,13 +1167,13 @@ export default function ContasPagar() {
                 </button>
                 <button
                   onClick={openBatchCategorize}
-                  className="text-xs px-3 py-1.5 rounded-md border border-[#EAECF0] font-semibold text-[#1E3A8A] hover:bg-white transition"
+                  className="text-xs px-3 py-1.5 rounded-md border border-[#EAECF0] font-semibold text-[#059669] hover:bg-white transition"
                 >
                   Categorizar
                 </button>
                 <button
                   onClick={openBatchPay}
-                  className="text-xs px-3 py-1.5 rounded-md bg-[#1E3A8A] text-white font-semibold hover:bg-[#243d5f] transition"
+                  className="text-xs px-3 py-1.5 rounded-md bg-[#059669] text-white font-semibold hover:bg-[#243d5f] transition"
                 >
                   Pagar selecionados
                 </button>
@@ -1385,7 +1385,7 @@ export default function ContasPagar() {
                                 className="transition"
                                 style={{
                                   borderBottom: '1px solid rgba(26,46,74,0.06)',
-                                  ...(isHoje ? { borderLeft: '3px solid #1E3A8A' } : {}),
+                                  ...(isHoje ? { borderLeft: '3px solid #059669' } : {}),
                                 }}
                                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.02)' }}
                                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
@@ -1395,7 +1395,7 @@ export default function ContasPagar() {
                                     type="checkbox"
                                     checked={selectedIds.has(cp.id)}
                                     onChange={() => toggleSelect(cp.id)}
-                                    className="rounded w-4 h-4 accent-[#1E3A8A]"
+                                    className="rounded w-4 h-4 accent-[#059669]"
                                     style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                                   />
                                 </td>
@@ -1406,7 +1406,7 @@ export default function ContasPagar() {
                                         pago: { Icon: CheckCircle2, color: '#039855', bg: '#e1f5ee', title: 'Pago' },
                                         vencido: { Icon: AlertTriangle, color: '#D92D20', bg: '#FEF3F2', title: 'Vencido' },
                                         aberto: { Icon: CalendarClock, color: '#F79009', bg: '#FFFAEB', title: 'Em aberto' },
-                                        parcial: { Icon: Loader2, color: '#1E3A8A', bg: '#EFF6FF', title: 'Parcial' },
+                                        parcial: { Icon: Loader2, color: '#059669', bg: '#ECFDF4', title: 'Parcial' },
                                       }
                                       const ic = iconConf[cp.status] || iconConf.aberto
                                       const Icon = ic.Icon
@@ -1421,7 +1421,7 @@ export default function ContasPagar() {
                                       )
                                     })()}
                                     <div>
-                                      <div className="font-semibold" style={{ color: '#1E3A8A' }}>{cp.credor_nome}</div>
+                                      <div className="font-semibold" style={{ color: '#059669' }}>{cp.credor_nome}</div>
                                       {cp.credor_cpf_cnpj && (
                                         <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
                                       )}
@@ -1437,11 +1437,11 @@ export default function ContasPagar() {
                                   {isHoje ? (
                                     <span className="font-bold" style={{ color: '#D92D20' }}>Hoje</span>
                                   ) : (
-                                    <span style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
+                                    <span style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
                                   )}
                                 </td>
                                 <td className="py-3 px-3 text-right">
-                                  <div className="font-semibold" style={{ color: '#1E3A8A', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
+                                  <div className="font-semibold" style={{ color: '#059669', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
                                     {formatBRL(saldo(cp))}
                                   </div>
                                   {cp.valor_pago > 0 && (
@@ -1457,7 +1457,7 @@ export default function ContasPagar() {
                                   {(() => {
                                     const statusConf: Record<string, { dot: string; text: string; bg: string; label: string }> = {
                                       aberto: { dot: '#F79009', text: '#F79009', bg: '#FFFAEB', label: 'Em aberto' },
-                                      parcial: { dot: '#1E3A8A', text: '#1E3A8A', bg: '#EFF6FF', label: 'Parcial' },
+                                      parcial: { dot: '#059669', text: '#059669', bg: '#ECFDF4', label: 'Parcial' },
                                       vencido: { dot: '#D92D20', text: '#D92D20', bg: '#FEF3F2', label: 'Vencido' },
                                       pago: { dot: '#039855', text: '#039855', bg: '#e1f5ee', label: 'Pago' },
                                     }
@@ -1478,9 +1478,9 @@ export default function ContasPagar() {
                                     <button
                                       onClick={() => openPayModal(cp)}
                                       className="text-xs font-semibold px-3 py-1.5 rounded-[6px] transition"
-                                      style={{ border: '1px solid #1E3A8A', color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
-                                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#1E3A8A'; (e.currentTarget as HTMLElement).style.color = '#ffffff' }}
-                                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; (e.currentTarget as HTMLElement).style.color = '#1E3A8A' }}
+                                      style={{ border: '1px solid #059669', color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#059669'; (e.currentTarget as HTMLElement).style.color = '#ffffff' }}
+                                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; (e.currentTarget as HTMLElement).style.color = '#059669' }}
                                     >
                                       Pagar
                                     </button>
@@ -1506,7 +1506,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => openEditModal(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -1515,7 +1515,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleArquivar(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -1524,7 +1524,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleRenegociar(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -1542,7 +1542,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleDividir(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -1598,7 +1598,7 @@ export default function ContasPagar() {
         {showPayModal && payingCp && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setShowPayModal(false)}>
             <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#1E3A8A', borderRadius: '10px 10px 0 0' }}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
                   <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Pagar Conta</h3>
                   <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Registrar pagamento</p>
@@ -1609,7 +1609,7 @@ export default function ContasPagar() {
               </div>
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>{payingCp.credor_nome}</p>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>{payingCp.credor_nome}</p>
                   <p style={{ fontSize: 12, color: '#667085', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>
                     Saldo: {formatBRL(saldo(payingCp))} | Venc: {formatData(payingCp.data_vencimento)}
                   </p>
@@ -1624,7 +1624,7 @@ export default function ContasPagar() {
                       value={payForm.valorPago}
                       onChange={(e) => setPayForm({ ...payForm, valorPago: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                   <div>
@@ -1634,7 +1634,7 @@ export default function ContasPagar() {
                       value={payForm.dataPagamento}
                       onChange={(e) => setPayForm({ ...payForm, dataPagamento: e.target.value })}
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                 </div>
@@ -1645,7 +1645,7 @@ export default function ContasPagar() {
                     value={payForm.formaPagamento}
                     onChange={(e) => setPayForm({ ...payForm, formaPagamento: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     {FORMAS_PAGAMENTO.map((f) => (
                       <option key={f} value={f}>{f}</option>
@@ -1659,7 +1659,7 @@ export default function ContasPagar() {
                     value={payForm.contaBancariaId}
                     onChange={(e) => setPayForm({ ...payForm, contaBancariaId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Selecione...</option>
                     {bankAccounts.map((ba) => (
@@ -1677,7 +1677,7 @@ export default function ContasPagar() {
                       value={payForm.juros}
                       onChange={(e) => setPayForm({ ...payForm, juros: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                   <div>
@@ -1688,7 +1688,7 @@ export default function ContasPagar() {
                       value={payForm.desconto}
                       onChange={(e) => setPayForm({ ...payForm, desconto: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                 </div>
@@ -1701,7 +1701,7 @@ export default function ContasPagar() {
                     onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
                     placeholder="Linha digitavel do boleto"
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   />
                 </div>
 
@@ -1717,7 +1717,7 @@ export default function ContasPagar() {
                     onClick={handlePay}
                     disabled={submitting || !payForm.contaBancariaId}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Confirmar pagamento
@@ -1732,7 +1732,7 @@ export default function ContasPagar() {
         {showBatchPayModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setShowBatchPayModal(false)}>
             <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#1E3A8A', borderRadius: '10px 10px 0 0' }}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
                   <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Pagar em lote</h3>
                   <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Pagamento em massa</p>
@@ -1743,10 +1743,10 @@ export default function ContasPagar() {
               </div>
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
                     {selectedIds.size} titulo(s) selecionado(s)
                   </p>
-                  <p className="font-bold" style={{ fontSize: 18, color: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{formatBRL(selectedTotal)}</p>
+                  <p className="font-bold" style={{ fontSize: 18, color: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{formatBRL(selectedTotal)}</p>
                 </div>
 
                 <div>
@@ -1756,7 +1756,7 @@ export default function ContasPagar() {
                     value={batchForm.dataPagamento}
                     onChange={(e) => setBatchForm({ ...batchForm, dataPagamento: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   />
                 </div>
 
@@ -1766,7 +1766,7 @@ export default function ContasPagar() {
                     value={batchForm.formaPagamento}
                     onChange={(e) => setBatchForm({ ...batchForm, formaPagamento: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     {FORMAS_PAGAMENTO.map((f) => (
                       <option key={f} value={f}>{f}</option>
@@ -1780,7 +1780,7 @@ export default function ContasPagar() {
                     value={batchForm.contaBancariaId}
                     onChange={(e) => setBatchForm({ ...batchForm, contaBancariaId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Selecione...</option>
                     {bankAccounts.map((ba) => (
@@ -1801,7 +1801,7 @@ export default function ContasPagar() {
                     onClick={handleBatchPay}
                     disabled={submitting || !batchForm.contaBancariaId}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Pagar {selectedIds.size} titulo(s)
@@ -1816,7 +1816,7 @@ export default function ContasPagar() {
         {showBatchCategorizeModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setShowBatchCategorizeModal(false)}>
             <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#1E3A8A', borderRadius: '10px 10px 0 0' }}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
                   <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Categorizar em lote</h3>
                   <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Reclassificacao contabil (inclui pagos)</p>
@@ -1827,7 +1827,7 @@ export default function ContasPagar() {
               </div>
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
                     {selectedIds.size} titulo{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}
                   </p>
                   <p style={{ fontSize: 11, color: '#98A2B3', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>
@@ -1841,7 +1841,7 @@ export default function ContasPagar() {
                     value={batchCategorize.contaContabilId}
                     onChange={(e) => setBatchCategorize({ ...batchCategorize, contaContabilId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Nao alterar</option>
                     {chartAccounts.map((ca) => (
@@ -1856,7 +1856,7 @@ export default function ContasPagar() {
                     value={batchCategorize.centroCustoId}
                     onChange={(e) => setBatchCategorize({ ...batchCategorize, centroCustoId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Nao alterar</option>
                     {centrosCusto.map((cc) => (
@@ -1877,7 +1877,7 @@ export default function ContasPagar() {
                     onClick={handleBatchCategorize}
                     disabled={submitting || (!batchCategorize.contaContabilId && !batchCategorize.centroCustoId)}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Aplicar em {selectedIds.size} titulo(s)
@@ -1892,7 +1892,7 @@ export default function ContasPagar() {
         {showNewModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { setShowNewModal(false); setEditingCpId(null) }}>
             <div className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10" style={{ backgroundColor: '#1E3A8A', borderRadius: '10px 10px 0 0' }}>
+              <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
                   <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
                     {editingCpId ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar'}
@@ -1915,7 +1915,7 @@ export default function ContasPagar() {
                     onChange={(e) => setNewForm({ ...newForm, descricao: e.target.value })}
                     placeholder="Ex: Aluguel janeiro, Material escritorio..."
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   />
                 </div>
 
@@ -1948,7 +1948,7 @@ export default function ContasPagar() {
                         className="text-xs font-medium px-3 py-1.5 rounded-full transition"
                         style={
                           newForm.credorTipo === tipo.key
-                            ? { backgroundColor: '#1E3A8A', color: '#ffffff' }
+                            ? { backgroundColor: '#059669', color: '#ffffff' }
                             : { backgroundColor: 'transparent', color: '#667085', border: '1px solid rgba(26,46,74,0.18)' }
                         }
                       >
@@ -1973,7 +1973,7 @@ export default function ContasPagar() {
                       setNewForm({ ...newForm, credorId: id, credorNome: nome })
                     }}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">
                       {newForm.credorTipo === 'fornecedor' ? 'Selecione um fornecedor...' :
@@ -2003,7 +2003,7 @@ export default function ContasPagar() {
                       onChange={(e) => setNewForm({ ...newForm, valor: parseFloat(e.target.value) || 0 })}
                       placeholder="0,00"
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                   <div>
@@ -2013,7 +2013,7 @@ export default function ContasPagar() {
                       value={newForm.dataVencimento}
                       onChange={(e) => setNewForm({ ...newForm, dataVencimento: e.target.value })}
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                 </div>
@@ -2025,9 +2025,9 @@ export default function ContasPagar() {
                     type="button"
                     onClick={() => setShowCompetenciaPicker(!showCompetenciaPicker)}
                     className="w-full px-3 text-[13px] text-left rounded-[8px] focus:outline-none bg-white flex items-center justify-between"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
-                    <span style={{ color: newForm.competencia ? '#1E3A8A' : '#98A2B3' }}>
+                    <span style={{ color: newForm.competencia ? '#059669' : '#98A2B3' }}>
                       {newForm.competencia || 'Selecione mes/ano'}
                     </span>
                     <CalendarDays size={14} style={{ color: '#98A2B3' }} />
@@ -2036,7 +2036,7 @@ export default function ContasPagar() {
                     <div className="absolute z-20 mt-1 p-3 w-[280px]" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}>
                       <div className="flex items-center justify-between mb-3">
                         <button type="button" onClick={() => setCompetenciaYear(y => y - 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.05)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}>&lt;</button>
-                        <span className="text-sm font-semibold" style={{ color: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>{competenciaYear}</span>
+                        <span className="text-sm font-semibold" style={{ color: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>{competenciaYear}</span>
                         <button type="button" onClick={() => setCompetenciaYear(y => y + 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.05)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}>&gt;</button>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -2054,7 +2054,7 @@ export default function ContasPagar() {
                               className="text-xs px-2 py-1.5 rounded-[6px] transition"
                               style={
                                 isSelected
-                                  ? { backgroundColor: '#1E3A8A', color: '#ffffff' }
+                                  ? { backgroundColor: '#059669', color: '#ffffff' }
                                   : { backgroundColor: '#ffffff', color: '#667085', border: '1px solid rgba(26,46,74,0.12)' }
                               }
                             >
@@ -2074,7 +2074,7 @@ export default function ContasPagar() {
                     value={newForm.contaContabilId}
                     onChange={(e) => setNewForm({ ...newForm, contaContabilId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Selecione do plano de contas...</option>
                     {chartAccounts.map((ca) => (
@@ -2090,7 +2090,7 @@ export default function ContasPagar() {
                     value={newForm.centroCustoId}
                     onChange={(e) => setNewForm({ ...newForm, centroCustoId: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Nenhum</option>
                     {centrosCusto.map((cc) => (
@@ -2108,7 +2108,7 @@ export default function ContasPagar() {
                         value={newForm.recorrencia}
                         onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })}
                         className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
-                        style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                        style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                       >
                         <option value="sem">Sem recorrência</option>
                         <option value="mensal">Mensal</option>
@@ -2126,7 +2126,7 @@ export default function ContasPagar() {
                           value={newForm.numParcelas}
                           onChange={(e) => setNewForm({ ...newForm, numParcelas: parseInt(e.target.value) || 2 })}
                           className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                          style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                          style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                         />
                       </div>
                     )}
@@ -2152,7 +2152,7 @@ export default function ContasPagar() {
                     onChange={(e) => setNewForm({ ...newForm, codigoBarras: e.target.value })}
                     placeholder="Linha digitavel do boleto"
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#1E3A8A', height: 36 }}
+                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   />
                 </div>
 
@@ -2188,7 +2188,7 @@ export default function ContasPagar() {
                         onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
                         disabled={isUploading || isReadingBoleto}
                         className="w-full flex items-center justify-center gap-2 text-[13px] font-semibold text-white rounded-[8px] px-3 py-2.5 hover:opacity-90 transition disabled:opacity-50"
-                        style={{ backgroundColor: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                        style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
                       >
                         {isReadingBoleto ? (
                           <><Loader2 size={14} className="animate-spin" /> Lendo boleto com IA...</>
@@ -2213,7 +2213,7 @@ export default function ContasPagar() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
                         <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                        <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[13px] hover:underline flex-1 truncate" style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                        <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[13px] hover:underline flex-1 truncate" style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
                           Arquivo anexado — clique para visualizar
                         </a>
                         <button
@@ -2231,7 +2231,7 @@ export default function ContasPagar() {
                           onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
                           disabled={isUploading || isReadingBoleto}
                           className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold rounded-[6px] px-2 py-1.5 hover:opacity-80 transition disabled:opacity-50"
-                          style={{ color: '#1E3A8A', border: '1px solid #1E3A8A' }}
+                          style={{ color: '#059669', border: '1px solid #059669' }}
                         >
                           {isReadingBoleto ? <Loader2 size={12} className="animate-spin" /> : <ScanLine size={12} />}
                           {isReadingBoleto ? 'Lendo...' : 'Trocar e ler'}
@@ -2263,7 +2263,7 @@ export default function ContasPagar() {
                     onClick={handleCreateCP}
                     disabled={submitting || !newForm.descricao || !newForm.valor || !newForm.dataVencimento}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#1E3A8A', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     {editingCpId

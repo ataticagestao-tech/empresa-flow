@@ -417,7 +417,7 @@ export default function ContratosRecorrentes() {
           </div>
           <button
             onClick={() => { setEditingContrato(null); setShowModal(true) }}
-            className="flex items-center gap-2 bg-[#1E3A8A] text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg hover:bg-[#1D2939] transition-colors"
+            className="flex items-center gap-2 bg-[#059669] text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg hover:bg-[#1D2939] transition-colors"
           >
             <Plus size={16} />
             Novo contrato
@@ -427,14 +427,14 @@ export default function ContratosRecorrentes() {
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard title="Contratos ativos" value={String(kpis.ativos)} color="#039855" bgColor="#ECFDF3" />
-          <KPICard title="Receita mensal recorrente" value={formatBRL(kpis.receitaMensal)} color="#1E3A8A" bgColor="#EFF6FF" />
+          <KPICard title="Receita mensal recorrente" value={formatBRL(kpis.receitaMensal)} color="#059669" bgColor="#ECFDF4" />
           <KPICard title="Vencendo esta semana" value={String(kpis.vencendoSemana)} color="#F79009" bgColor="#FFFAEB" />
           <KPICard title="Inativos / Pausados" value={String(kpis.inativosPausados)} color="#555" bgColor="#F6F2EB" />
         </div>
 
         {/* FILTERS */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
             <button
               onClick={() => { setSearch(''); setStatusFilter('todos'); setPeriodicidadeFilter('todos') }}
@@ -454,7 +454,7 @@ export default function ContratosRecorrentes() {
                   placeholder="Nome do cliente..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+                  className="w-full pl-9 pr-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
                 />
               </div>
             </div>
@@ -465,7 +465,7 @@ export default function ContratosRecorrentes() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
               >
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -477,7 +477,7 @@ export default function ContratosRecorrentes() {
               <select
                 value={periodicidadeFilter}
                 onChange={e => setPeriodicidadeFilter(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
               >
                 {PERIODICIDADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -487,7 +487,7 @@ export default function ContratosRecorrentes() {
 
         {/* TABLE */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
               Contratos ({filtered.length})
             </h3>
@@ -502,7 +502,7 @@ export default function ContratosRecorrentes() {
           <div className="bg-white overflow-x-auto">
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 size={20} className="animate-spin text-[#1E3A8A]" />
+                <Loader2 size={20} className="animate-spin text-[#059669]" />
                 <span className="ml-2 text-[13px] text-[#555]">Carregando...</span>
               </div>
             ) : filtered.length === 0 ? (
@@ -586,7 +586,7 @@ export default function ContratosRecorrentes() {
                                 onClick={() => gerarCRAgora(c)}
                                 className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
-                                <RefreshCw size={14} className="text-[#1E3A8A]" />
+                                <RefreshCw size={14} className="text-[#059669]" />
                                 Gerar CR agora
                               </button>
                               <div className="border-t border-[#eee] my-1" />
@@ -738,7 +738,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[540px] max-h-[90vh] overflow-y-auto mx-4">
         {/* Header */}
-        <div className="bg-[#1E3A8A] px-5 py-3.5 flex items-center justify-between rounded-t-xl">
+        <div className="bg-[#059669] px-5 py-3.5 flex items-center justify-between rounded-t-xl">
           <h2 className="text-[12px] font-bold text-white uppercase tracking-widest">
             {isEdit ? 'Editar contrato' : 'Novo contrato'}
           </h2>
@@ -765,7 +765,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
               value={clienteNome}
               onChange={e => setClienteNome(e.target.value)}
               placeholder="Nome do cliente"
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             />
           </div>
 
@@ -779,7 +779,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
               value={descricao}
               onChange={e => setDescricao(e.target.value)}
               placeholder="Servico mensal, consultoria, etc."
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             />
           </div>
 
@@ -795,7 +795,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
               value={valor}
               onChange={e => setValor(e.target.value)}
               placeholder="0,00"
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             />
           </div>
 
@@ -812,8 +812,8 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
                   onClick={() => setPeriodicidade(p.value)}
                   className="py-2 px-2 text-[12px] font-semibold rounded-lg border text-center transition-colors"
                   style={{
-                    borderColor: periodicidade === p.value ? '#1E3A8A' : '#ccc',
-                    background: periodicidade === p.value ? '#1E3A8A' : '#fff',
+                    borderColor: periodicidade === p.value ? '#059669' : '#ccc',
+                    background: periodicidade === p.value ? '#059669' : '#fff',
                     color: periodicidade === p.value ? '#fff' : '#555',
                   }}
                 >
@@ -835,7 +835,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
                 max="28"
                 value={diaVencimento}
                 onChange={e => setDiaVencimento(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
               />
             </div>
             <div>
@@ -846,7 +846,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
                 type="date"
                 value={dataInicio}
                 onChange={e => setDataInicio(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+                className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
               />
             </div>
           </div>
@@ -859,7 +859,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
             <select
               value={contaContabilId}
               onChange={e => setContaContabilId(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             >
               <option value="">Selecionar (opcional)</option>
               {chartAccounts.map(a => (
@@ -876,7 +876,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
             <select
               value={centroCustoId}
               onChange={e => setCentroCustoId(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded-lg bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             >
               <option value="">Selecionar (opcional)</option>
               {centrosCusto.map(cc => (
@@ -906,7 +906,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2.5 text-[13px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2.5 text-[13px] font-semibold text-white bg-[#059669] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
               {isEdit ? 'Salvar alteracoes' : 'Criar contrato'}

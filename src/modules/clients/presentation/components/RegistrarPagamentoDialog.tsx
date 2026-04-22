@@ -120,12 +120,12 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-lg p-0 gap-0">
                 <div className="px-7 pt-6 pb-4 border-b border-[#eef0f3]">
-                    <DialogTitle className="text-[16px] font-bold text-[#1E3A8A]">
+                    <DialogTitle className="text-[16px] font-bold text-[#059669]">
                         Registrar pagamento avulso
                     </DialogTitle>
                     <DialogDescription className="text-[11px] text-[#667085] mt-1">
                         {contrato?.procedimento && <>Contrato: <strong>{contrato.procedimento}</strong> · </>}
-                        Saldo atual: <strong className="text-[#1E3A8A]">{formatBRL(contrato?.saldo || 0)}</strong>
+                        Saldo atual: <strong className="text-[#059669]">{formatBRL(contrato?.saldo || 0)}</strong>
                     </DialogDescription>
                 </div>
 
@@ -214,7 +214,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                                 <span className="text-[#039855]">− {formatBRL(v)}</span>
                             </div>
                             <div className="flex justify-between mt-1 pt-1 border-t border-[#EAECF0] font-bold text-[13px]">
-                                <span className="text-[#1E3A8A]">Novo saldo</span>
+                                <span className="text-[#059669]">Novo saldo</span>
                                 <span style={{ color: saldoApos > 0 ? "#D92D20" : "#039855" }}>
                                     {formatBRL(Math.max(0, saldoApos))}
                                 </span>
@@ -236,7 +236,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                         type="button"
                         onClick={() => mutation.mutate()}
                         disabled={mutation.isPending || !v || v <= 0 || !contaBancaria}
-                        className="h-10 px-6 bg-[#1E3A8A] hover:bg-[#0f1f33] text-white"
+                        className="h-10 px-6 bg-[#059669] hover:bg-[#0f1f33] text-white"
                     >
                         {mutation.isPending
                             ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />

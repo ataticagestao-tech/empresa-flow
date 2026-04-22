@@ -216,7 +216,7 @@ export default function Empresas() {
 
   const inputCls = (field?: string) =>
     `border rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:outline-none w-full ${
-      field && autoFilled.has(field) ? "border-[#039855]" : "border-[#ccc] focus:border-[#1E3A8A]"
+      field && autoFilled.has(field) ? "border-[#039855]" : "border-[#ccc] focus:border-[#059669]"
     }`;
 
   // ─── STEPPER WIZARD ───
@@ -233,22 +233,22 @@ export default function Empresas() {
               <div key={i} className="flex items-center">
                 <button onClick={() => i <= step && setStep(i)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-                    i < step ? "bg-[#1E3A8A] border-[#1E3A8A] text-white" :
-                    i === step ? "border-[#1E3A8A] text-[#1E3A8A] bg-white" :
+                    i < step ? "bg-[#059669] border-[#059669] text-white" :
+                    i === step ? "border-[#059669] text-[#059669] bg-white" :
                     "border-[#ccc] text-[#ccc] bg-white"
                   }`}>
                   {i < step ? "\u2713" : i + 1}
                 </button>
                 <span className={`text-[10px] font-bold uppercase tracking-wider ml-1 mr-3 hidden sm:inline ${
-                  i <= step ? "text-[#1E3A8A]" : "text-[#ccc]"
+                  i <= step ? "text-[#059669]" : "text-[#ccc]"
                 }`}>{s}</span>
-                {i < STEPS.length - 1 && <div className={`w-8 h-0.5 mr-2 ${i < step ? "bg-[#1E3A8A]" : "bg-[#ccc]"}`} />}
+                {i < STEPS.length - 1 && <div className={`w-8 h-0.5 mr-2 ${i < step ? "bg-[#059669]" : "bg-[#ccc]"}`} />}
               </div>
             ))}
           </div>
 
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1E3A8A] px-4 py-2.5">
+            <div className="bg-[#059669] px-4 py-2.5">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">Etapa {step + 1} — {STEPS[step]}</h3>
             </div>
             <div className="p-6 bg-white">
@@ -258,7 +258,7 @@ export default function Empresas() {
                   {/* Option 1: Com CNPJ */}
                   <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-[#1E3A8A] flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-[#059669] flex items-center justify-center">
                         <span className="text-white text-xs font-bold">1</span>
                       </div>
                       <span className="text-sm font-bold text-[#1D2939]">Com CNPJ</span>
@@ -267,7 +267,7 @@ export default function Empresas() {
                     <div className="flex gap-2">
                       <input value={form.cnpj} onChange={e => set("cnpj", maskCNPJ(e.target.value))} placeholder="00.000.000/0000-00" className={inputCls()} />
                       <button onClick={buscarCNPJ} disabled={fetchingCnpj}
-                        className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md whitespace-nowrap disabled:opacity-50">
+                        className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md whitespace-nowrap disabled:opacity-50">
                         {fetchingCnpj ? "Buscando..." : "Consultar Receita"}
                       </button>
                     </div>
@@ -378,7 +378,7 @@ export default function Empresas() {
                     {regimes.map(r => (
                       <button key={r.id} onClick={() => set("regime_tributario", r.id)}
                         className={`text-left p-4 rounded-lg border-2 transition-all ${
-                          form.regime_tributario === r.id ? "border-[#1E3A8A] bg-[#EFF6FF]" : "border-[#ccc] bg-white hover:border-[#999]"
+                          form.regime_tributario === r.id ? "border-[#059669] bg-[#ECFDF4]" : "border-[#ccc] bg-white hover:border-[#999]"
                         }`}>
                         <p className="text-sm font-bold text-[#1D2939]">{r.nome}</p>
                         <p className="text-xs text-[#555] mt-1">{r.desc}</p>
@@ -442,10 +442,10 @@ export default function Empresas() {
             </button>
             {step < 4 ? (
               <button onClick={() => setStep(step + 1)} disabled={step === 0 && !form.cnpj.replace(/\D/g, "")}
-                className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">Próximo</button>
+                className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">Próximo</button>
             ) : (
               <button onClick={handleSave} disabled={saving || !form.razao_social}
-                className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                 {saving ? "Salvando..." : editingId ? "Salvar Alterações" : "Criar Empresa"}
               </button>
             )}
@@ -466,14 +466,14 @@ export default function Empresas() {
             <p className="text-sm text-[#555]">Gerencie suas unidades de negócio</p>
           </div>
           <button onClick={() => { setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); setMode("create"); }}
-            className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
+            className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
         </div>
 
         {!selectedCompany && (
           <div className="flex flex-wrap items-center gap-3">
             <input type="text" placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)}
-              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none flex-1 min-w-[200px]" />
-            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]">{companies?.length || 0} empresas</span>
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none flex-1 min-w-[200px]" />
+            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">{companies?.length || 0} empresas</span>
             <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">{companiesWithCharts.size} configuradas</span>
           </div>
         )}
@@ -483,12 +483,12 @@ export default function Empresas() {
         ) : companiesError ? (
           <div className="text-center py-16">
             <p className="text-sm text-[#1D2939] font-bold mb-2">Não foi possível carregar as empresas.</p>
-            <button onClick={() => window.location.reload()} className="bg-white text-[#1E3A8A] border border-[#1E3A8A] text-sm font-bold px-4 py-2 rounded-md">Tentar novamente</button>
+            <button onClick={() => window.location.reload()} className="bg-white text-[#059669] border border-[#059669] text-sm font-bold px-4 py-2 rounded-md">Tentar novamente</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-sm text-[#1D2939] font-bold mb-2">{search ? "Nenhuma empresa encontrada" : "Nenhuma empresa cadastrada"}</p>
-            {!search && <button onClick={() => setMode("create")} className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">Cadastrar Primeira Empresa</button>}
+            {!search && <button onClick={() => setMode("create")} className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">Cadastrar Primeira Empresa</button>}
           </div>
         ) : (
           <div className="space-y-3">
@@ -516,7 +516,7 @@ export default function Empresas() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button onClick={e => { e.stopPropagation(); handleEdit(company); }}
-                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#EFF6FF] text-[#1E3A8A] text-sm" title="Editar">✎</button>
+                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#ECFDF4] text-[#059669] text-sm" title="Editar">✎</button>
                       <button onClick={e => { e.stopPropagation(); handleDelete(company); }}
                         className="w-8 h-8 rounded flex items-center justify-center hover:bg-[#FEF3F2] text-[#D92D20] text-sm" title="Remover">✕</button>
                     </div>

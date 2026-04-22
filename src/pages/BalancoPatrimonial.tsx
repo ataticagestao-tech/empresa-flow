@@ -211,7 +211,7 @@ export default function BalancoPatrimonial() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Total Ativo", value: fmt(totalAtivo), color: "#039855" },
-            { label: "Total Passivo + PL", value: fmt(totalPassivoPL), color: "#1E3A8A" },
+            { label: "Total Passivo + PL", value: fmt(totalPassivoPL), color: "#059669" },
             { label: "Patrimônio Líquido", value: fmt(patrimonioLiquido), color: patrimonioLiquido >= 0 ? "#039855" : "#D92D20" },
             { label: "Diferença (A-P)", value: fmt(diferenca), color: Math.abs(diferenca) < 0.01 ? "#039855" : "#D92D20" },
           ].map((kpi) => (
@@ -228,7 +228,7 @@ export default function BalancoPatrimonial() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* ATIVO */}
           <Card>
-            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
+            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#059669" }}>
               <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                 <Scale className="h-4 w-4" /> ATIVO
               </CardTitle>
@@ -248,7 +248,7 @@ export default function BalancoPatrimonial() {
 
           {/* PASSIVO + PL */}
           <Card>
-            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
+            <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#059669" }}>
               <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
                 <Scale className="h-4 w-4" /> PASSIVO + PATRIMÔNIO LÍQUIDO
               </CardTitle>

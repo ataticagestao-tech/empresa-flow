@@ -422,7 +422,7 @@ export default function MapeamentoContabil() {
 
         {/* Estrutura do demonstrativo com mapeamentos inline */}
         <Card>
-          <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#1E3A8A" }}>
+          <CardHeader className="border-b border-border py-3" style={{ backgroundColor: "#059669" }}>
             <CardTitle className="text-[13px] font-bold tracking-tight text-white flex items-center gap-2">
               <Settings2 className="h-4 w-4" /> Estrutura — {demFiltro}
             </CardTitle>

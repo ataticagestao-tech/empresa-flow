@@ -17,7 +17,7 @@ import { Target, Search, DollarSign, TrendingUp, Percent, AlertTriangle } from "
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const T = {
-    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    primary: "#059669", primaryLt: "#ECFDF4",
     green: "#039855", greenLt: "#ECFDF3",
     red: "#D92D20", redLt: "#FEF3F2",
     amber: "#f57f17", amberLt: "#fff8e1",

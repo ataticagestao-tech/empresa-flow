@@ -103,8 +103,8 @@ const CRStatusBadge = ({ status }: { status: string }) => {
         pago:          "text-[#039855] border-[#039855] bg-[#ECFDF3]",
         vencido:       "text-[#D92D20] border-[#D92D20] bg-[#FEF3F2]",
         parcial:       "text-[#F79009] border-[#F79009] bg-[#FFFAEB]",
-        aberto:        "text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]",
-        em_andamento:  "text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]",
+        aberto:        "text-[#059669] border-[#059669] bg-[#ECFDF4]",
+        em_andamento:  "text-[#059669] border-[#059669] bg-[#ECFDF4]",
         cancelado:     "text-[#555] border-[#aaa] bg-[#F6F2EB]",
     };
     const labels: Record<string, string> = {
@@ -132,8 +132,8 @@ const HistoryIcon = ({ status }: { status: string }) => {
         </div>
     );
     return (
-        <div className="w-9 h-9 rounded-full bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="h-4 w-4 text-[#1E3A8A]" />
+        <div className="w-9 h-9 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
+            <ShoppingCart className="h-4 w-4 text-[#059669]" />
         </div>
     );
 };
@@ -693,7 +693,7 @@ export default function Clientes() {
                 <div className="w-1/3 min-w-[360px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
 
                     {/* Header azul */}
-                    <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+                    <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
                         <h3 className="text-xs font-bold text-white uppercase tracking-widest">Clientes</h3>
                         <div className="flex items-center gap-3">
                             {duplicatesCount > 0 && (
@@ -731,7 +731,7 @@ export default function Clientes() {
                                 onClick={() => setFilterTab(tab.key)}
                                 className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${
                                     filterTab === tab.key
-                                        ? "bg-[#1E3A8A] text-white"
+                                        ? "bg-[#059669] text-white"
                                         : "bg-[#EAECF0] text-[#555] hover:bg-[#e0e0e0]"
                                 }`}
                             >
@@ -761,14 +761,14 @@ export default function Clientes() {
                                         key={client.id}
                                         onClick={() => handleSelectClient(client)}
                                         className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
-                                            isSelected ? "bg-[#EFF6FF] border-l-2 border-l-[#1E3A8A]" : "hover:bg-[#F6F2EB]"
+                                            isSelected ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-[#F6F2EB]"
                                         }`}
                                     >
                                         {/* Avatar */}
                                         <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${
                                             status === "inadimplente" ? "bg-[#D92D20]"
                                             : status === "inativo" ? "bg-[#999]"
-                                            : "bg-[#1E3A8A]"
+                                            : "bg-[#059669]"
                                         }`}>
                                             {getIniciais(client.razao_social)}
                                         </div>
@@ -789,7 +789,7 @@ export default function Clientes() {
                                             {hasOverdue ? (
                                                 <p className="text-xs font-bold text-[#D92D20] whitespace-nowrap">{formatBRL(fin.totalReceberVencido)}</p>
                                             ) : hasOpen ? (
-                                                <p className="text-xs font-bold text-[#1E3A8A] whitespace-nowrap">{formatBRL(fin.totalReceberAberto)}</p>
+                                                <p className="text-xs font-bold text-[#059669] whitespace-nowrap">{formatBRL(fin.totalReceberAberto)}</p>
                                             ) : (
                                                 <p className="text-xs font-bold text-[#98A2B3] whitespace-nowrap">—</p>
                                             )}
@@ -822,7 +822,7 @@ export default function Clientes() {
                                         <div className={`w-12 h-12 rounded-full text-white text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
                                             getClientStatus(selectedClient) === "inadimplente" ? "bg-[#D92D20]"
                                             : getClientStatus(selectedClient) === "inativo" ? "bg-[#999]"
-                                            : "bg-[#1E3A8A]"
+                                            : "bg-[#059669]"
                                         }`}>
                                             {getIniciais(selectedClient.razao_social)}
                                         </div>
@@ -857,7 +857,7 @@ export default function Clientes() {
                                         <Button
                                             size="sm"
                                             onClick={() => navigate(`/vendas?cliente=${selectedClient.id}`)}
-                                            className="text-[12px] bg-[#1E3A8A] hover:bg-[#243d5f]"
+                                            className="text-[12px] bg-[#059669] hover:bg-[#243d5f]"
                                         >
                                             <Plus className="h-3 w-3 mr-1.5" />
                                             Nova venda
@@ -871,7 +871,7 @@ export default function Clientes() {
                                 hasContratosByCompany(selectedCompany) ? "grid-cols-5" : "grid-cols-4"
                             }`}>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
@@ -884,7 +884,7 @@ export default function Clientes() {
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
@@ -900,7 +900,7 @@ export default function Clientes() {
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Última Compra</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
@@ -913,7 +913,7 @@ export default function Clientes() {
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#1E3A8A] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1.5">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
                                     </div>
                                     <div className="px-3 py-2.5 bg-white">
@@ -953,7 +953,7 @@ export default function Clientes() {
                                         onClick={() => setDetailTab(tab.key)}
                                         className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-all ${
                                             detailTab === tab.key
-                                                ? "border-[#1E3A8A] text-[#1E3A8A]"
+                                                ? "border-[#059669] text-[#059669]"
                                                 : "border-transparent text-[#888] hover:text-[#555]"
                                         }`}
                                     >
@@ -968,7 +968,7 @@ export default function Clientes() {
                                     <div className="p-6">
                                         {detailLoading ? (
                                             <div className="flex items-center justify-center py-12 text-[#999]">
-                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#1E3A8A] border-t-transparent mr-2" />
+                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#059669] border-t-transparent mr-2" />
                                                 Carregando...
                                             </div>
                                         ) : detailFinancial && detailFinancial.crs.length > 0 ? (

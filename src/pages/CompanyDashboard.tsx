@@ -19,8 +19,8 @@ import { ptBR } from "date-fns/locale";
 /* ── Design Tokens — alinhado ao Design System v1 ──────────── */
 const C = {
     darkCard: "#1D2939",     // text-1 (neutro escuro, substitui navy)
-    gold: "#1E3A8A",          // brand-mid (substitui ouro)
-    goldBg: "#EFF6FF",        // brand-soft
+    gold: "#059669",          // brand-mid (substitui ouro)
+    goldBg: "#ECFDF4",        // brand-soft
     goldBorder: "#BFDBFE",    // brand border claro
     green: "#039855",         // success
     greenSoft: "#ECFDF3",     // success-bg
@@ -769,7 +769,7 @@ export default function CompanyDashboard() {
                                             display: "flex", alignItems: "center", gap: 8, width: "100%",
                                             padding: "8px 12px", borderRadius: 6,
                                             background: period === p.key ? C.goldBg : "transparent",
-                                            color: period === p.key ? "#1E3A8A" : C.text1,
+                                            color: period === p.key ? "#059669" : C.text1,
                                             fontSize: 13, fontWeight: period === p.key ? 600 : 500,
                                             border: "none", cursor: "pointer", textAlign: "left",
                                         }}
@@ -803,7 +803,7 @@ export default function CompanyDashboard() {
                                                         padding: "6px 4px", fontSize: 12, borderRadius: 6,
                                                         border: "none", cursor: "pointer",
                                                         background: specificMonth === i ? C.goldBg : "transparent",
-                                                        color: specificMonth === i ? "#1E3A8A" : C.text1,
+                                                        color: specificMonth === i ? "#059669" : C.text1,
                                                         fontWeight: specificMonth === i ? 600 : 500,
                                                     }}
                                                 >
@@ -1228,7 +1228,7 @@ export default function CompanyDashboard() {
                                     const isLate = diff <= 1;
                                     const isWarn = diff > 1 && diff <= 3;
                                     const iconBg = isLate ? "#FEF3F2" : isWarn ? "#FFFAEB" : C.goldBg;
-                                    const iconColor = isLate ? "#991B1B" : isWarn ? "#92400E" : "#1E3A8A";
+                                    const iconColor = isLate ? "#991B1B" : isWarn ? "#92400E" : "#059669";
                                     const initials = (p.credor_nome || "??").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
                                     const badgeBg = isLate ? "#FEF3F2" : isWarn ? "#FFFAEB" : "#F6F2EB";
                                     const badgeBorder = isLate ? "#FECDCA" : isWarn ? "#FEDF89" : C.border;
@@ -1290,7 +1290,7 @@ export default function CompanyDashboard() {
                             Nenhum gasto categorizado no período.
                         </p>
                     ) : (() => {
-                        const palette = ["#1E3A8A", "#B91C1C", "#047857", "#F59E0B", "#7C3AED", "#64748B"];
+                        const palette = ["#059669", "#B91C1C", "#047857", "#F59E0B", "#7C3AED", "#64748B"];
                         const totalGeral = gastosCategorias.reduce((s: number, r: any) => s + r.total, 0);
                         return (
                             <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 32, alignItems: "center" }}>

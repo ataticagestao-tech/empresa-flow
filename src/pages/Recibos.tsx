@@ -123,7 +123,7 @@ function StatusBadge({ status }: { status: string }) {
     enviado: { text: 'Enviado', bg: 'bg-[#ECFDF3]', border: 'border-[#039855]', color: 'text-[#039855]' },
     pendente: { text: 'Pendente envio', bg: 'bg-[#FFFAEB]', border: 'border-[#F79009]', color: 'text-[#F79009]' },
     erro: { text: 'Erro', bg: 'bg-[#FEF3F2]', border: 'border-[#D92D20]', color: 'text-[#D92D20]' },
-    manual: { text: 'Manual', bg: 'bg-[#EFF6FF]', border: 'border-[#1E3A8A]', color: 'text-[#1E3A8A]' },
+    manual: { text: 'Manual', bg: 'bg-[#ECFDF4]', border: 'border-[#059669]', color: 'text-[#059669]' },
   }
   const c = config[status] || config.pendente
   return (
@@ -141,16 +141,16 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
   return (
     <div className="p-6 bg-white min-h-[400px]">
       {/* Header */}
-      <div className="flex justify-between pb-4 mb-4 border-b-2 border-[#1E3A8A]">
+      <div className="flex justify-between pb-4 mb-4 border-b-2 border-[#059669]">
         <div>
-          <div className="text-sm font-bold text-[#1E3A8A]">{empresa?.name || '---'}</div>
+          <div className="text-sm font-bold text-[#059669]">{empresa?.name || '---'}</div>
           <div className="text-xs text-[#555]">
             CNPJ: {empresa?.document ? formatCNPJ(empresa.document) : '---'}
           </div>
         </div>
         <div className="text-right">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[#555]">Recibo</div>
-          <div className="text-lg font-bold text-[#1E3A8A]">#{recibo.numero}</div>
+          <div className="text-lg font-bold text-[#059669]">#{recibo.numero}</div>
           <div className="text-xs text-[#555]">{formatData(recibo.data_pagamento)}</div>
         </div>
       </div>
@@ -173,7 +173,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       )}
 
       {/* Valor total */}
-      <div className="mb-4 p-4 bg-[#1E3A8A] rounded">
+      <div className="mb-4 p-4 bg-[#059669] rounded">
         <div className="text-[10px] font-bold uppercase tracking-widest text-white/70 mb-1">Valor Total</div>
         <div className="text-2xl font-bold text-white">{formatBRL(recibo.valor)}</div>
       </div>
@@ -344,7 +344,7 @@ export default function Recibos() {
         <div className="w-[420px] min-w-[360px] flex flex-col">
           <div className="border border-[#ccc] rounded-lg overflow-hidden flex flex-col h-full">
             {/* Card header */}
-            <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between shrink-0">
+            <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between shrink-0">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Recibos</h3>
               <span className="text-[10px] text-white/60 font-medium">{filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}</span>
             </div>
@@ -376,7 +376,7 @@ export default function Recibos() {
                     onClick={() => setFiltroStatus(f.key)}
                     className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded border transition-colors ${
                       filtroStatus === f.key
-                        ? 'bg-[#1E3A8A] text-white border-[#1E3A8A]'
+                        ? 'bg-[#059669] text-white border-[#059669]'
                         : 'bg-white text-[#555] border-[#ccc] hover:bg-[#F6F2EB]'
                     }`}
                   >
@@ -403,13 +403,13 @@ export default function Recibos() {
                     key={r.id}
                     onClick={() => setSelecionado(r)}
                     className={`w-full text-left px-4 py-3 border-b border-[#EAECF0] transition-colors hover:bg-[#f7f9fb] ${
-                      selecionado?.id === r.id ? 'bg-[#EFF6FF] border-l-2 border-l-[#1E3A8A]' : ''
+                      selecionado?.id === r.id ? 'bg-[#ECFDF4] border-l-2 border-l-[#059669]' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[10px] font-mono text-[#1E3A8A] font-bold">#{r.numero}</span>
+                          <span className="text-[10px] font-mono text-[#059669] font-bold">#{r.numero}</span>
                           <StatusBadge status={r.status_email} />
                         </div>
                         <div className="text-xs font-semibold text-[#1D2939] truncate">{r.favorecido}</div>
@@ -438,7 +438,7 @@ export default function Recibos() {
             {selecionado ? (
               <>
                 {/* Preview header */}
-                <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between shrink-0">
+                <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between shrink-0">
                   <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
                     Recibo #{selecionado.numero}
                   </h3>
@@ -452,7 +452,7 @@ export default function Recibos() {
                     </button>
                     <button
                       onClick={() => handleDownloadPDF(selecionado)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white text-[#1E3A8A] hover:bg-white/90 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white text-[#059669] hover:bg-white/90 transition-colors"
                     >
                       <Download className="w-3 h-3" />
                       Download PDF

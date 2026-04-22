@@ -87,7 +87,7 @@ function deriveTipo(cr: CR): string {
 function statusBadge(status: string) {
   switch (status) {
     case 'aberto':
-      return { label: 'Em aberto', text: '#1E3A8A', bg: '#EFF6FF', border: '#1E3A8A' }
+      return { label: 'Em aberto', text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'vencido':
       return { label: 'Vencido', text: '#D92D20', bg: '#FEF3F2', border: '#D92D20' }
     case 'parcial':
@@ -535,7 +535,7 @@ export default function ContasReceber() {
                               border: selectedAgendaDate === day.dateStr
                                 ? '2px solid #1D2939'
                                 : format(day.date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                                ? '2px solid #1E3A8A'
+                                ? '2px solid #059669'
                                 : day.value === 0 ? '1px solid #EAECF0' : 'none',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 11, fontWeight: 700,
@@ -765,7 +765,7 @@ export default function ContasReceber() {
 
         {/* ── Table ── */}
         <div className="border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="bg-[#1E3A8A] px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-[#059669] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">
               T&iacute;tulos ({filtered.length})
             </h3>
@@ -807,7 +807,7 @@ export default function ContasReceber() {
                         type="checkbox"
                         checked={allSelectableSelected}
                         onChange={toggleSelectAll}
-                        className="w-4 h-4 rounded border-[#ccc] text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
+                        className="w-4 h-4 rounded border-[#ccc] text-[#059669] focus:ring-[#059669] cursor-pointer"
                       />
                     </th>
                     {['Pagador', 'Tipo', 'Categoria', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
@@ -832,7 +832,7 @@ export default function ContasReceber() {
                     return (
                       <tr
                         key={cr.id}
-                        className={`border-b border-[#EAECF0] hover:bg-[#F6F2EB] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#EFF6FF]' : ''}`}
+                        className={`border-b border-[#EAECF0] hover:bg-[#F6F2EB] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#ECFDF4]' : ''}`}
                       >
                         {/* Checkbox */}
                         <td className="px-3 py-2 w-10 align-middle">
@@ -841,7 +841,7 @@ export default function ContasReceber() {
                               type="checkbox"
                               checked={selectedIds.has(cr.id)}
                               onChange={() => toggleSelect(cr.id)}
-                              className="w-4 h-4 rounded border-[#ccc] text-[#1E3A8A] focus:ring-[#1E3A8A] cursor-pointer"
+                              className="w-4 h-4 rounded border-[#ccc] text-[#059669] focus:ring-[#059669] cursor-pointer"
                             />
                           )}
                         </td>
@@ -1331,7 +1331,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 
 function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between rounded-t-xl">
+    <div className="bg-[#059669] px-5 py-3 flex items-center justify-between rounded-t-xl">
       <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">{title}</h3>
       <button onClick={onClose} className="text-[#BFDBFE] hover:text-white transition-colors">
         <X size={18} />
@@ -1349,7 +1349,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 const inputCls =
-  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#1D2939] bg-white focus:outline-none focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] disabled:bg-[#F6F2EB] disabled:text-[#999]'
+  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#1D2939] bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669] disabled:bg-[#F6F2EB] disabled:text-[#999]'
 
 /* ================================================================
    MODAL: QUITAR CR
@@ -1406,12 +1406,12 @@ function ModalQuitarCR({
         {/* Saldo devedor badge */}
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-lg border"
-          style={{ backgroundColor: '#EFF6FF', borderColor: '#1E3A8A' }}
+          style={{ backgroundColor: '#ECFDF4', borderColor: '#059669' }}
         >
-          <DollarSign size={16} className="text-[#1E3A8A]" />
+          <DollarSign size={16} className="text-[#059669]" />
           <div>
-            <span className="text-[10px] font-bold text-[#1E3A8A] uppercase tracking-widest">Saldo devedor</span>
-            <p className="text-lg font-bold text-[#1E3A8A]">{formatBRL(saldo)}</p>
+            <span className="text-[10px] font-bold text-[#059669] uppercase tracking-widest">Saldo devedor</span>
+            <p className="text-lg font-bold text-[#059669]">{formatBRL(saldo)}</p>
           </div>
         </div>
 
@@ -1722,7 +1722,7 @@ function ModalNovoCR({
                 onClick={() => setTipo(t.value)}
                 className={`px-3 py-2.5 rounded-lg border text-[12px] font-semibold text-center transition-colors ${
                   tipo === t.value
-                    ? 'border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]'
+                    ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]'
                     : 'border-[#ccc] bg-white text-[#555] hover:bg-[#F6F2EB]'
                 }`}
               >
@@ -1756,7 +1756,7 @@ function ModalNovoCR({
                     key={c.id}
                     type="button"
                     onClick={() => selectCliente(c)}
-                    className="w-full text-left px-3 py-2 hover:bg-[#EFF6FF] border-b border-[#eee] last:border-0"
+                    className="w-full text-left px-3 py-2 hover:bg-[#ECFDF4] border-b border-[#eee] last:border-0"
                   >
                     <div className="text-[13px] font-semibold text-[#1D2939]">
                       {c.nome_fantasia || c.razao_social}
@@ -1772,7 +1772,7 @@ function ModalNovoCR({
                 <button
                   type="button"
                   onClick={() => setShowNovoCliente(true)}
-                  className="w-full text-left px-3 py-2 text-[13px] font-semibold text-[#1E3A8A] hover:bg-[#EFF6FF] flex items-center gap-2 border-t border-[#ccc]"
+                  className="w-full text-left px-3 py-2 text-[13px] font-semibold text-[#059669] hover:bg-[#ECFDF4] flex items-center gap-2 border-t border-[#ccc]"
                 >
                   <UserPlus size={14} /> + Adicionar cliente
                 </button>
@@ -1782,9 +1782,9 @@ function ModalNovoCR({
 
           {/* Novo cliente inline modal */}
           {showNovoCliente && (
-            <div className="border border-[#1E3A8A] rounded-lg p-3 bg-[#EFF6FF] space-y-2">
+            <div className="border border-[#059669] rounded-lg p-3 bg-[#ECFDF4] space-y-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[12px] font-bold text-[#1E3A8A] uppercase tracking-wider">Novo cliente</span>
+                <span className="text-[12px] font-bold text-[#059669] uppercase tracking-wider">Novo cliente</span>
                 <button type="button" onClick={() => setShowNovoCliente(false)}><X size={14} className="text-[#999]" /></button>
               </div>
               <input
@@ -1813,7 +1813,7 @@ function ModalNovoCR({
               <button
                 type="button"
                 onClick={salvarNovoCliente}
-                className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939]"
+                className="px-4 py-1.5 text-[12px] font-semibold text-white bg-[#059669] rounded-lg hover:bg-[#1D2939]"
               >
                 Salvar cliente
               </button>
@@ -1951,7 +1951,7 @@ function ModalNovoCR({
           <button
             type="submit"
             disabled={saving}
-            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#059669] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {tipo === 'parcelado' ? `Criar ${parseInt(numParcelas) || 2} parcelas` : 'Criar titulo'}
@@ -2019,7 +2019,7 @@ function ModalRenegociar({
           <button
             type="submit"
             disabled={submitting}
-            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#1E3A8A] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 text-[13px] font-semibold text-white bg-[#059669] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
             Confirmar renegociacao

@@ -366,7 +366,7 @@ export default function NfseConfiguracoes() {
             onClick={handleSave}
             disabled={saving}
             className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#1E3A8A' }}
+            style={{ backgroundColor: '#059669' }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
             Salvar configuracoes

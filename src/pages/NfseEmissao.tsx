@@ -527,9 +527,9 @@ export default function NfseEmissao() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total NFSe', value: kpis.total, icon: FileText, color: '#1E3A8A' },
+            { label: 'Total NFSe', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
-            { label: 'Valor emitido', value: formatBRL(kpis.totalEmitido), icon: DollarSign, color: '#1E3A8A' },
+            { label: 'Valor emitido', value: formatBRL(kpis.totalEmitido), icon: DollarSign, color: '#059669' },
             { label: 'Processando', value: kpis.processando, icon: Activity, color: '#F79009' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
@@ -549,7 +549,7 @@ export default function NfseEmissao() {
           <button
             onClick={openNovaModal}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1E3A8A' }}
+            style={{ backgroundColor: '#059669' }}
           >
             <Plus size={16} /> Nova NFSe
           </button>
@@ -757,7 +757,7 @@ export default function NfseEmissao() {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 relative">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h2 className="text-lg font-semibold" style={{ color: '#1E3A8A' }}>Nova NFSe</h2>
+                <h2 className="text-lg font-semibold" style={{ color: '#059669' }}>Nova NFSe</h2>
                 <button onClick={() => { setShowNovaModal(false); stopPolling() }} className="p-1 rounded hover:bg-gray-100">
                   <X size={20} className="text-gray-400" />
                 </button>
@@ -768,7 +768,7 @@ export default function NfseEmissao() {
                 {/* ── Tomador ── */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <FileText size={16} style={{ color: '#1E3A8A' }} /> Tomador do Servico
+                    <FileText size={16} style={{ color: '#059669' }} /> Tomador do Servico
                   </h3>
 
                   <div className="space-y-3">
@@ -907,7 +907,7 @@ export default function NfseEmissao() {
                 {/* ── Servico ── */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <DollarSign size={16} style={{ color: '#1E3A8A' }} /> Dados do Servico
+                    <DollarSign size={16} style={{ color: '#059669' }} /> Dados do Servico
                   </h3>
 
                   <div className="space-y-3">
@@ -1005,7 +1005,7 @@ export default function NfseEmissao() {
                     )}
                     <div className="border-t border-gray-200 pt-2 flex justify-between">
                       <span className="font-semibold text-gray-700">Valor liquido</span>
-                      <span className="font-bold text-lg" style={{ color: '#1E3A8A' }}>{formatBRL(valorLiquido)}</span>
+                      <span className="font-bold text-lg" style={{ color: '#059669' }}>{formatBRL(valorLiquido)}</span>
                     </div>
                   </div>
                 </div>
@@ -1047,7 +1047,7 @@ export default function NfseEmissao() {
                   onClick={handleEmitir}
                   disabled={submitting || polling}
                   className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                  style={{ backgroundColor: '#1E3A8A' }}
+                  style={{ backgroundColor: '#059669' }}
                 >
                   {(submitting || polling) ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -1124,7 +1124,7 @@ export default function NfseEmissao() {
           <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 relative">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h2 className="text-lg font-semibold" style={{ color: '#1E3A8A' }}>
+                <h2 className="text-lg font-semibold" style={{ color: '#059669' }}>
                   Detalhes - {selectedEmissao.numero_nfse || selectedEmissao.referencia}
                 </h2>
                 <button onClick={() => { setShowDetailModal(false); setSelectedEmissao(null) }} className="p-1 rounded hover:bg-gray-100">
@@ -1249,7 +1249,7 @@ export default function NfseEmissao() {
                     </div>
                     <div className="border-t border-gray-200 pt-2 flex justify-between">
                       <span className="font-semibold text-gray-700">Valor liquido</span>
-                      <span className="font-bold text-lg" style={{ color: '#1E3A8A' }}>{formatBRL(selectedEmissao.valor_liquido)}</span>
+                      <span className="font-bold text-lg" style={{ color: '#059669' }}>{formatBRL(selectedEmissao.valor_liquido)}</span>
                     </div>
                   </div>
                 </div>

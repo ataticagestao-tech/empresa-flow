@@ -21,7 +21,7 @@ import { ClipboardList, Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const T = {
-    primary: "#1E3A8A", primaryLt: "#EFF6FF",
+    primary: "#059669", primaryLt: "#ECFDF4",
     green: "#039855", greenLt: "#ECFDF3",
     red: "#D92D20",
     text1: "#1D2939", text3: "#98A2B3",

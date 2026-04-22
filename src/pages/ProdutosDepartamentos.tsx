@@ -197,7 +197,7 @@ export default function ProdutosDepartamentos() {
 
     const TipoBadge = ({ tipo }: { tipo: string | null }) =>
         tipo === "servico" ? (
-            <span className={`${badgeBase} text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]`}>Serviço</span>
+            <span className={`${badgeBase} text-[#059669] border-[#059669] bg-[#ECFDF4]`}>Serviço</span>
         ) : (
             <span className={`${badgeBase} text-[#555] border-[#ccc] bg-[#F6F2EB]`}>Produto</span>
         );
@@ -222,7 +222,7 @@ export default function ProdutosDepartamentos() {
                         onClick={() => setActiveTab("products")}
                         className={`px-5 py-2 text-[12px] font-bold -mb-[1.5px] transition-colors ${
                             activeTab === "products"
-                                ? "text-[#1E3A8A] border-b-2 border-[#1E3A8A]"
+                                ? "text-[#059669] border-b-2 border-[#059669]"
                                 : "text-[#555] font-semibold"
                         }`}
                     >
@@ -232,7 +232,7 @@ export default function ProdutosDepartamentos() {
                         onClick={() => setActiveTab("departments")}
                         className={`px-5 py-2 text-[12px] font-bold -mb-[1.5px] transition-colors ${
                             activeTab === "departments"
-                                ? "text-[#1E3A8A] border-b-2 border-[#1E3A8A]"
+                                ? "text-[#059669] border-b-2 border-[#059669]"
                                 : "text-[#555] font-semibold"
                         }`}
                     >
@@ -270,7 +270,7 @@ export default function ProdutosDepartamentos() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#999]" />
                                 <input
                                     placeholder="Pesquisar produtos..."
-                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
+                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#059669]"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -314,7 +314,7 @@ export default function ProdutosDepartamentos() {
                                             const liquido = preco - custo;
                                             return (
                                                 <TableRow key={p.id} className="border-b border-[#eee] hover:bg-[#F6F2EB]">
-                                                    <TableCell className="font-mono text-[11px] font-bold text-[#1E3A8A]">
+                                                    <TableCell className="font-mono text-[11px] font-bold text-[#059669]">
                                                         {p.code || "-"}
                                                     </TableCell>
                                                     <TableCell className="text-[12px] font-semibold text-[#1D2939]">
@@ -332,7 +332,7 @@ export default function ProdutosDepartamentos() {
                                                     <TableCell className="text-[12px] font-bold text-[#1D2939]">
                                                         {formatBRL(preco)}
                                                     </TableCell>
-                                                    <TableCell className="text-[12px] font-bold text-[#1E3A8A]">
+                                                    <TableCell className="text-[12px] font-bold text-[#059669]">
                                                         {formatBRL(liquido)}
                                                     </TableCell>
                                                     <TableCell className="text-[11px] text-[#777]">
@@ -348,7 +348,7 @@ export default function ProdutosDepartamentos() {
                                                         <div className="flex justify-end gap-1">
                                                             <button
                                                                 onClick={() => handleEdit(p)}
-                                                                className="p-1.5 rounded hover:bg-[#EFF6FF] text-[#1E3A8A] transition-colors"
+                                                                className="p-1.5 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors"
                                                                 title="Editar"
                                                             >
                                                                 <Pencil className="h-3.5 w-3.5" />
@@ -402,7 +402,7 @@ export default function ProdutosDepartamentos() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#999]" />
                                 <input
                                     placeholder="Pesquisar departamentos..."
-                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
+                                    className="w-full pl-9 pr-3 py-2 text-[12px] border border-[#ccc] rounded focus:outline-none focus:border-[#059669]"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -445,7 +445,7 @@ export default function ProdutosDepartamentos() {
                                                     <div className="flex justify-end gap-1">
                                                         <button
                                                             onClick={() => handleOpenDeptModal(d)}
-                                                            className="p-1.5 rounded hover:bg-[#EFF6FF] text-[#1E3A8A] transition-colors"
+                                                            className="p-1.5 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors"
                                                             title="Editar"
                                                         >
                                                             <Pencil className="h-3.5 w-3.5" />
@@ -480,7 +480,7 @@ export default function ProdutosDepartamentos() {
                 {isDeptModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                         <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                            <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between">
+                            <div className="bg-[#059669] px-5 py-3 flex items-center justify-between">
                                 <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
                                     {editingDept ? "Editar Departamento" : "Novo Departamento"}
                                 </h3>
@@ -497,7 +497,7 @@ export default function ProdutosDepartamentos() {
                                         value={deptName}
                                         onChange={(e) => setDeptName(e.target.value)}
                                         placeholder="Ex: Administrativo, Comercial..."
-                                        className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
+                                        className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#059669]"
                                         autoFocus
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter" && deptName.trim()) {
@@ -517,7 +517,7 @@ export default function ProdutosDepartamentos() {
                                     <button
                                         onClick={() => saveDeptMutation.mutate()}
                                         disabled={!deptName.trim() || saveDeptMutation.isPending}
-                                        className="px-4 py-2 text-[12px] font-bold bg-[#1E3A8A] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
+                                        className="px-4 py-2 text-[12px] font-bold bg-[#059669] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
                                     >
                                         {saveDeptMutation.isPending ? "Salvando..." : "Salvar"}
                                     </button>
@@ -532,7 +532,7 @@ export default function ProdutosDepartamentos() {
             {isCopyModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                        <div className="bg-[#1E3A8A] px-5 py-3 flex items-center justify-between">
+                        <div className="bg-[#059669] px-5 py-3 flex items-center justify-between">
                             <h3 className="text-[13px] font-bold text-white uppercase tracking-widest">
                                 Copiar Produtos de Outra Loja
                             </h3>
@@ -551,7 +551,7 @@ export default function ProdutosDepartamentos() {
                                 <select
                                     value={selectedOrigemId}
                                     onChange={(e) => setSelectedOrigemId(e.target.value)}
-                                    className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#1E3A8A]"
+                                    className="w-full px-3 py-2 text-[13px] border border-[#ccc] rounded focus:outline-none focus:border-[#059669]"
                                 >
                                     <option value="">Selecione...</option>
                                     {companies
@@ -573,7 +573,7 @@ export default function ProdutosDepartamentos() {
                                 <button
                                     onClick={() => copyProductsMutation.mutate()}
                                     disabled={!selectedOrigemId || copyProductsMutation.isPending}
-                                    className="px-4 py-2 text-[12px] font-bold bg-[#1E3A8A] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
+                                    className="px-4 py-2 text-[12px] font-bold bg-[#059669] text-white rounded hover:bg-[#0f1f33] disabled:opacity-50"
                                 >
                                     {copyProductsMutation.isPending ? "Copiando..." : "Copiar Produtos"}
                                 </button>

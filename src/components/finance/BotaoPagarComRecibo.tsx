@@ -206,7 +206,7 @@ export function ReciboModalProvider() {
                                     type="checkbox"
                                     checked={enviarEmail}
                                     onChange={e => setEnviarEmail(e.target.checked)}
-                                    style={{ width: 16, height: 16, accentColor: "#1E3A8A", cursor: "pointer" }}
+                                    style={{ width: 16, height: 16, accentColor: "#059669", cursor: "pointer" }}
                                 />
                                 <span style={{ fontSize: 13, color: "#1D2939", fontWeight: 500 }}>
                                     Enviar comprovante por e-mail

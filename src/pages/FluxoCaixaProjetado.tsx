@@ -129,12 +129,12 @@ export default function FluxoCaixaProjetado() {
                     </Card>
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: saldoProjetado >= 0 ? "#EFF6FF" : "#FEF3F2", borderRadius: 10, padding: 10 }}>
-                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#1E3A8A" : "#D92D20"} />
+                            <div style={{ background: saldoProjetado >= 0 ? "#ECFDF4" : "#FEF3F2", borderRadius: 10, padding: 10 }}>
+                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#059669" : "#D92D20"} />
                             </div>
                             <div>
                                 <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SALDO PROJETADO</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#1E3A8A" : "#D92D20" }}>{fmt(saldoProjetado)}</p>
+                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#059669" : "#D92D20" }}>{fmt(saldoProjetado)}</p>
                                 <p style={{ fontSize: 11, color: "#98A2B3" }}>Entradas - Saídas</p>
                             </div>
                         </div>
@@ -150,7 +150,7 @@ export default function FluxoCaixaProjetado() {
                                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip formatter={(v: number) => fmt(v)} />
-                                <Area type="monotone" dataKey="saldo" stroke="#1E3A8A" fill="#EFF6FF" strokeWidth={2} />
+                                <Area type="monotone" dataKey="saldo" stroke="#059669" fill="#ECFDF4" strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </Card>
@@ -182,7 +182,7 @@ export default function FluxoCaixaProjetado() {
                                     <TableCell className="text-right" style={{ color: item.tipo === "entrada" ? "#039855" : "#D92D20" }}>
                                         {fmt(Number(item.amount))}
                                     </TableCell>
-                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#1E3A8A" : "#D92D20" }}>
+                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#059669" : "#D92D20" }}>
                                         {fmt(item.saldo_acumulado)}
                                     </TableCell>
                                 </TableRow>

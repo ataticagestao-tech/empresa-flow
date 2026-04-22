@@ -68,7 +68,7 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
             <button
                 type="button"
                 onClick={() => navigate("/conciliacao")}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E3A8A] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#059669] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
             >
                 Reclassificar <ArrowRight className="h-3 w-3" />
             </button>

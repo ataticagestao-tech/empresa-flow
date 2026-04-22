@@ -84,7 +84,7 @@ function KpiCard({
 }) {
   return (
     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-      <div className="bg-[#1E3A8A] px-4 py-2">
+      <div className="bg-[#059669] px-4 py-2">
         <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
           {label}
         </h3>
@@ -390,7 +390,7 @@ export default function ExtratoReconciliado() {
               Conta Bancaria
             </label>
             <select
-              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full"
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full"
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
             >
@@ -410,7 +410,7 @@ export default function ExtratoReconciliado() {
               Periodo
             </label>
             <select
-              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full"
+              className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
@@ -439,7 +439,7 @@ export default function ExtratoReconciliado() {
           <KpiCard
             label="Conciliadas"
             value={`${reconciledCount} de ${totalCount} (${reconciledPct}%)`}
-            color="#1E3A8A"
+            color="#059669"
           />
         </div>
 
@@ -492,7 +492,7 @@ export default function ExtratoReconciliado() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#1E3A8A]">
+                  <TableRow className="bg-[#059669]">
                     <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest">
                       Data
                     </TableHead>

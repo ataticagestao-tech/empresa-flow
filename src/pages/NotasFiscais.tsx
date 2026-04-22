@@ -408,9 +408,9 @@ export default function NotasFiscais() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total NFs', value: kpis.total, icon: FileText, color: '#1E3A8A' },
+            { label: 'Total NFs', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
-            { label: 'Total emitido', value: formatBRL(kpis.totalEmitido), icon: FileText, color: '#1E3A8A' },
+            { label: 'Total emitido', value: formatBRL(kpis.totalEmitido), icon: FileText, color: '#059669' },
             { label: 'ISS destacado', value: formatBRL(kpis.totalISS), icon: FileText, color: '#F79009' },
           ].map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
@@ -430,7 +430,7 @@ export default function NotasFiscais() {
           <button
             onClick={() => { resetEmitirForm(); setShowEmitirModal(true) }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1E3A8A' }}
+            style={{ backgroundColor: '#059669' }}
           >
             <Plus size={16} /> Emitir NFS-e
           </button>
@@ -800,7 +800,7 @@ export default function NotasFiscais() {
                 onClick={handleEmitir}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1E3A8A' }}
+                style={{ backgroundColor: '#059669' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                 Emitir NFS-e

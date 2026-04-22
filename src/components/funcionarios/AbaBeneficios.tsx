@@ -25,8 +25,8 @@ interface Props {
 }
 
 const LB = "text-[12px] font-bold uppercase tracking-wider text-[#1D2939]";
-const IC_EDIT = "border border-[#1E3A8A] rounded-md px-3 py-2 text-[13px] text-[#1E3A8A] bg-white focus:outline-none w-full";
-const IC_RO = "border border-[#1E3A8A] rounded-md px-3 py-2 text-[13px] bg-[#EFF6FF] text-[#1E3A8A] font-bold w-full";
+const IC_EDIT = "border border-[#059669] rounded-md px-3 py-2 text-[13px] text-[#059669] bg-white focus:outline-none w-full";
+const IC_RO = "border border-[#059669] rounded-md px-3 py-2 text-[13px] bg-[#ECFDF4] text-[#059669] font-bold w-full";
 const IC_POS = "border border-[#039855] rounded-md px-3 py-2 text-[13px] bg-[#ECFDF3] text-[#039855] font-bold w-full";
 const IC_NEG = "border border-[#D92D20] rounded-md px-3 py-2 text-[13px] bg-[#FEF3F2] text-[#D92D20] font-bold w-full";
 
@@ -170,7 +170,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
 
       {/* Calendário */}
       <div className="border border-[#ccc] rounded-lg p-4">
-        <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1E3A8A] mb-3">
+        <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#059669] mb-3">
           Calendário — {MESES[mes - 1]} {ano}
         </h4>
         <div className="grid grid-cols-7 gap-1 text-center text-[12px] font-bold uppercase tracking-wider text-[#555] mb-1">
@@ -183,7 +183,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
               key={d.data}
               onClick={() => toggleDiaManual(d.data, d.tipo)}
               className={`rounded text-center text-[12px] py-1 ${diaClasse(d.tipo)} ${
-                regime === "manual" && d.tipo !== "feriado" ? "cursor-pointer hover:ring-2 hover:ring-[#1E3A8A]" : ""
+                regime === "manual" && d.tipo !== "feriado" ? "cursor-pointer hover:ring-2 hover:ring-[#059669]" : ""
               }`}
             >
               {Number(d.data.split("-")[2])}
@@ -205,7 +205,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         {/* VT */}
         <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1E3A8A]">Vale Transporte</h4>
+            <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#059669]">Vale Transporte</h4>
             <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={vtAtivo} onChange={(e) => setVtAtivo(e.target.checked)} />
               Ativo
@@ -240,7 +240,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         {/* VA */}
         <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1E3A8A]">Vale Alimentação</h4>
+            <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#059669]">Vale Alimentação</h4>
             <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={vaAtivo} onChange={(e) => setVaAtivo(e.target.checked)} />
               Ativo
@@ -258,7 +258,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       {/* Salvar config */}
       <div className="flex justify-end">
         <button onClick={handleSalvarConfig} disabled={salvando}
-          className="bg-[#1E3A8A] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#1E3A8A] disabled:opacity-50 transition-all">
+          className="bg-[#059669] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#059669] disabled:opacity-50 transition-all">
           {salvando ? "Salvando..." : "Salvar Configuração"}
         </button>
       </div>
@@ -266,7 +266,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
       {/* Dias + Resumo */}
       <div className="grid grid-cols-[1fr_2fr] gap-6">
         <div className="border border-[#ccc] rounded-lg p-4 space-y-3">
-          <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1E3A8A]">Dias do Mês</h4>
+          <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#059669]">Dias do Mês</h4>
           <div className="flex flex-col gap-1">
             <label className={LB}>Dias úteis</label>
             <input readOnly value={diasUteis} className={IC_RO} />
@@ -283,8 +283,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
           </div>
         </div>
 
-        <div className="border-2 border-[#1E3A8A] rounded-lg p-4">
-          <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1E3A8A] mb-4">Resumo — {competencia}</h4>
+        <div className="border-2 border-[#059669] rounded-lg p-4">
+          <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#059669] mb-4">Resumo — {competencia}</h4>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <div className="flex justify-between"><span className="text-[#555]">VT Bruto</span><span className="font-semibold">{formatBRL(resultado.vtBruto)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VA Total</span><span className="font-semibold">{formatBRL(resultado.vaTotal)}</span></div>
@@ -293,7 +293,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             <div className="flex justify-between"><span className="text-[#555]">VT custo empresa</span><span className="font-bold">{formatBRL(resultado.vtCustoEmpresa)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VA custo empresa</span><span className="font-bold">{formatBRL(resultado.vaCustoEmpresa)}</span></div>
           </div>
-          <div className="border-t-2 border-[#1E3A8A] mt-4 pt-3 flex justify-between text-base">
+          <div className="border-t-2 border-[#059669] mt-4 pt-3 flex justify-between text-base">
             <span className="font-bold text-[#039855]">Total custo empresa</span>
             <span className="font-bold text-[#039855]">{formatBRL(resultado.totalCustoEmpresa)}</span>
           </div>
@@ -334,7 +334,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
 
       {/* Histórico */}
       <div className="border border-[#ccc] rounded-lg p-4">
-        <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#1E3A8A] mb-3">Histórico de Lançamentos</h4>
+        <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#059669] mb-3">Histórico de Lançamentos</h4>
         {loadingHist ? (
           <p className="text-sm text-[#555]">Carregando...</p>
         ) : historico.length === 0 ? (

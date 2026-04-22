@@ -13,7 +13,7 @@ interface CentroCusto {
   meta_mensal?: number | null; is_padrao?: boolean;
 }
 
-const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#1E3A8A] focus:outline-none w-full";
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 export default function CentrosCusto() {
@@ -129,7 +129,7 @@ export default function CentrosCusto() {
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold text-[#1D2939]">Setores / Centros de Custo</h2>
           <button onClick={() => { setEditingId(null); setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" }); setShowForm(!showForm); }}
-            className="bg-[#1E3A8A] text-white text-sm font-bold px-4 py-2 rounded-md">
+            className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">
             {showForm ? "Fechar" : "+ Adicionar Setor"}
           </button>
         </div>
@@ -137,7 +137,7 @@ export default function CentrosCusto() {
         {/* New Sector Form */}
         {showForm && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1E3A8A] px-4 py-2.5">
+            <div className="bg-[#059669] px-4 py-2.5">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">{editingId ? "Editar Setor" : "Novo Setor"}</h3>
             </div>
             <div className="p-5 bg-white space-y-4">
@@ -154,7 +154,7 @@ export default function CentrosCusto() {
                 </select>
               </div>
               <div className="flex gap-3">
-                <button onClick={handleSave} disabled={saving} className="bg-[#1E3A8A] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                <button onClick={handleSave} disabled={saving} className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                   {saving ? "Salvando..." : editingId ? "Salvar" : "Criar Setor"}
                 </button>
                 <button onClick={() => { setShowForm(false); setEditingId(null); }} className="bg-white text-[#1D2939] border border-[#ccc] text-sm font-bold px-4 py-2 rounded-md">Cancelar</button>
@@ -179,9 +179,9 @@ export default function CentrosCusto() {
                 <div key={c.id}
                   onClick={() => setSelectedId(selectedId === c.id ? null : c.id)}
                   className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-                    selectedId === c.id ? "border-[#1E3A8A] shadow-md" : "border-[#ccc] hover:shadow-sm"
+                    selectedId === c.id ? "border-[#059669] shadow-md" : "border-[#ccc] hover:shadow-sm"
                   }`}>
-                  <div className={`px-4 py-2.5 flex items-center justify-between ${isPadrao ? "bg-[#1E3A8A]" : "bg-[#555]"}`}>
+                  <div className={`px-4 py-2.5 flex items-center justify-between ${isPadrao ? "bg-[#059669]" : "bg-[#555]"}`}>
                     <div>
                       <h3 className="text-xs font-bold text-white uppercase tracking-widest">{c.descricao}</h3>
                       {c.codigo && <p className="text-[10px] text-[#BFDBFE]">{c.codigo}</p>}
@@ -203,7 +203,7 @@ export default function CentrosCusto() {
                     )}
                     <div className="flex items-center gap-2">
                       {isPadrao
-                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#1E3A8A] bg-[#EFF6FF] text-[#1E3A8A]">Padrão Tática</span>
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">Padrão Tática</span>
                         : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Personalizado</span>}
                       {!c.ativo && <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#D92D20] bg-[#FEF3F2] text-[#D92D20]">Inativo</span>}
                     </div>
@@ -214,7 +214,7 @@ export default function CentrosCusto() {
 
             {/* Add card */}
             <div onClick={() => { setEditingId(null); setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" }); setShowForm(true); }}
-              className="border-2 border-dashed border-[#ccc] rounded-lg flex items-center justify-center py-12 cursor-pointer hover:border-[#1E3A8A] transition-all">
+              className="border-2 border-dashed border-[#ccc] rounded-lg flex items-center justify-center py-12 cursor-pointer hover:border-[#059669] transition-all">
               <div className="text-center">
                 <p className="text-2xl text-[#ccc] mb-1">+</p>
                 <p className="text-sm text-[#555]">Adicionar setor</p>
@@ -226,7 +226,7 @@ export default function CentrosCusto() {
         {/* Detail Panel */}
         {selected && (
           <div className="border border-[#ccc] rounded-lg overflow-hidden">
-            <div className="bg-[#1E3A8A] px-4 py-2.5">
+            <div className="bg-[#059669] px-4 py-2.5">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">
                 Detalhe — {selected.descricao}
               </h3>

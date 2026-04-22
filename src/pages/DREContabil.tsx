@@ -185,7 +185,7 @@ export default function DREContabil() {
 
         {/* Tabela DRE */}
         <Card>
-          <CardHeader className="border-b border-border" style={{ backgroundColor: "#1E3A8A" }}>
+          <CardHeader className="border-b border-border" style={{ backgroundColor: "#059669" }}>
             <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2 text-white">
               <FileText className="h-4 w-4" /> DRE — Demonstração do Resultado do Exercício
             </CardTitle>

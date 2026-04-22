@@ -72,7 +72,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
         <div className="pt-4 space-y-4 animate-in fade-in duration-300">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-sm font-bold text-[#1E3A8A]">
+                    <h3 className="text-sm font-bold text-[#059669]">
                         Contratos {clientName ? `· ${clientName}` : ""}
                     </h3>
                     <p className="text-[11px] text-[#888]">
@@ -82,7 +82,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                 <Button
                     type="button"
                     onClick={() => setDialogOpen(true)}
-                    className="bg-[#1E3A8A] hover:bg-[#0f1f33] text-white"
+                    className="bg-[#059669] hover:bg-[#0f1f33] text-white"
                 >
                     <Plus className="h-4 w-4 mr-1" /> Novo contrato
                 </Button>
@@ -178,11 +178,11 @@ function ContratoCard({
     const statusInfo = statusLabel[contrato.status] || statusLabel.confirmado;
 
     return (
-        <div className="border border-[#e0e0e0] rounded p-4 hover:border-[#1E3A8A] transition-colors">
+        <div className="border border-[#e0e0e0] rounded p-4 hover:border-[#059669] transition-colors">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-[#1E3A8A]">
+                        <h4 className="text-sm font-bold text-[#059669]">
                             {contrato.procedimento || contrato.descricao}
                         </h4>
                         <Badge variant="outline" className={`text-[10px] ${statusInfo.className}`}>
@@ -193,7 +193,7 @@ function ContratoCard({
                                 href={contrato.contrato_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-[#1E3A8A] inline-flex items-center gap-1 hover:underline"
+                                className="text-[10px] text-[#059669] inline-flex items-center gap-1 hover:underline"
                             >
                                 <Paperclip className="h-3 w-3" /> PDF
                                 <ExternalLink className="h-2.5 w-2.5" />
@@ -283,7 +283,7 @@ function ContratoCard({
                         size="sm"
                         variant="outline"
                         onClick={onRegistrarPagamento}
-                        className="h-8 text-[11px] border-[#1E3A8A]/30 text-[#1E3A8A] hover:bg-[#1E3A8A] hover:text-white transition-colors"
+                        className="h-8 text-[11px] border-[#059669]/30 text-[#059669] hover:bg-[#059669] hover:text-white transition-colors"
                     >
                         <Plus className="h-3 w-3 mr-1" /> Registrar pagamento
                     </Button>
@@ -302,7 +302,7 @@ function Metric({ label, value, color }: { label: string; value: string; color?:
     return (
         <div>
             <p className="text-[9px] text-[#888] uppercase font-bold tracking-wide">{label}</p>
-            <p className="text-xs font-bold mt-0.5" style={{ color: color || "#1E3A8A" }}>{value}</p>
+            <p className="text-xs font-bold mt-0.5" style={{ color: color || "#059669" }}>{value}</p>
         </div>
     );
 }
@@ -494,7 +494,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                 <div className="px-8 pt-7 pb-5 border-b border-[#eef0f3] bg-white">
                     <div className="flex items-start justify-between gap-6">
                         <div>
-                            <DialogTitle className="text-[18px] font-bold text-[#1E3A8A] tracking-tight">
+                            <DialogTitle className="text-[18px] font-bold text-[#059669] tracking-tight">
                                 {isEdit ? "Editar contrato" : "Novo contrato"}
                             </DialogTitle>
                             <DialogDescription className="text-[12px] text-[#667085] mt-1 leading-relaxed max-w-md">
@@ -507,7 +507,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                             <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#98A2B3]">
                                 Saldo a alocar
                             </p>
-                            <p className="text-[20px] font-bold tabular-nums mt-0.5 text-[#1E3A8A]">
+                            <p className="text-[20px] font-bold tabular-nums mt-0.5 text-[#059669]">
                                 {calc.saldo > 0 ? formatBRL(calc.saldo) : "—"}
                             </p>
                             <p
@@ -586,7 +586,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                                     value={valorTotal}
                                     onChange={(e) => setValorTotal(e.target.value)}
                                     placeholder="0,00"
-                                    className="h-10 bg-white tabular-nums font-semibold text-[#1E3A8A]"
+                                    className="h-10 bg-white tabular-nums font-semibold text-[#059669]"
                                 />
                             </Field>
                             <Field label="Data assinatura">
@@ -615,7 +615,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                             title="Reserva de data"
                             hint="Opcional — abatida do valor total"
                         />
-                        <div className="border-l-2 border-[#1E3A8A]/15 pl-5">
+                        <div className="border-l-2 border-[#059669]/15 pl-5">
                             {reservaPaga && (
                                 <p className="text-[11px] text-[#039855] mb-3 font-medium">
                                     Reserva já paga em {formatDate(reservaPaga.data_vencimento)} — valor e data não podem ser alterados.
@@ -645,11 +645,11 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                             </div>
                             {calc.vt > 0 && calc.rv > 0 && (
                                 <p className="text-[11px] text-[#667085] mt-3 tabular-nums">
-                                    <span className="text-[#1E3A8A] font-semibold">{formatBRL(calc.vt)}</span>
+                                    <span className="text-[#059669] font-semibold">{formatBRL(calc.vt)}</span>
                                     <span className="mx-1.5 text-[#98A2B3]">−</span>
-                                    <span className="text-[#1E3A8A] font-semibold">{formatBRL(calc.rv)}</span>
+                                    <span className="text-[#059669] font-semibold">{formatBRL(calc.rv)}</span>
                                     <span className="mx-1.5 text-[#98A2B3]">=</span>
-                                    <span className="text-[#1E3A8A] font-bold">{formatBRL(calc.saldo)}</span>
+                                    <span className="text-[#059669] font-bold">{formatBRL(calc.saldo)}</span>
                                     <span className="ml-2 text-[#98A2B3]">de saldo a distribuir</span>
                                 </p>
                             )}
@@ -670,13 +670,13 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                                 size="sm"
                                 variant="outline"
                                 onClick={addCondicao}
-                                className="h-8 text-[11px] border-[#1E3A8A]/30 text-[#1E3A8A] hover:bg-[#1E3A8A] hover:text-white transition-colors"
+                                className="h-8 text-[11px] border-[#059669]/30 text-[#059669] hover:bg-[#059669] hover:text-white transition-colors"
                             >
                                 <Plus className="h-3 w-3 mr-1" /> Adicionar condição
                             </Button>
                         </div>
 
-                        <div className="border-l-2 border-[#1E3A8A]/15 pl-5 space-y-3">
+                        <div className="border-l-2 border-[#059669]/15 pl-5 space-y-3">
                             {condicoes.map((c, idx) => {
                                 const parcelasNum = podeParcelarForma(c.forma) ? Math.max(parseInt(c.parcelas, 10) || 1, 1) : 1;
                                 const valorNum = parseFloat(c.valor) || 0;
@@ -801,7 +801,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                             type="button"
                             onClick={handleSubmit}
                             disabled={saving}
-                            className="h-10 px-6 bg-[#1E3A8A] hover:bg-[#0f1f33] text-white transition-colors disabled:opacity-50"
+                            className="h-10 px-6 bg-[#059669] hover:bg-[#0f1f33] text-white transition-colors disabled:opacity-50"
                         >
                             {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
                             {isEdit ? "Salvar alterações" : "Criar contrato"}
@@ -829,10 +829,10 @@ function SectionHeader({
     return (
         <div className={inline ? "" : "mb-4"}>
             <div className="flex items-baseline gap-3">
-                <span className="text-[10px] font-bold tracking-[0.12em] text-[#1E3A8A]/60 tabular-nums">
+                <span className="text-[10px] font-bold tracking-[0.12em] text-[#059669]/60 tabular-nums">
                     {number}
                 </span>
-                <h3 className="text-[13px] font-bold text-[#1E3A8A] tracking-tight">
+                <h3 className="text-[13px] font-bold text-[#059669] tracking-tight">
                     {title}
                 </h3>
                 {hint && (
@@ -878,7 +878,7 @@ function SummaryCell({
     const color =
         tone === "ok" ? "#039855"
         : tone === "warn" ? "#D92D20"
-        : emphasize ? "#1E3A8A"
+        : emphasize ? "#059669"
         : "#667085";
     return (
         <div className="px-4 py-3 border-r last:border-r-0 border-[#EAECF0]">

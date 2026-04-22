@@ -301,7 +301,7 @@ export default function ApuracaoImpostos() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Receita bruta anual', value: formatBRL(kpis.totalReceita), icon: DollarSign, color: '#1E3A8A' },
+            { label: 'Receita bruta anual', value: formatBRL(kpis.totalReceita), icon: DollarSign, color: '#059669' },
             { label: 'Total impostos', value: formatBRL(kpis.totalImpostos), icon: Calculator, color: '#D92D20' },
             { label: 'Carga tributaria', value: `${kpis.cargaTributaria.toFixed(1)}%`, icon: TrendingUp, color: '#F79009' },
             { label: 'Meses apurados', value: kpis.mesesApurados, icon: FileText, color: '#059669' },
@@ -372,7 +372,7 @@ export default function ApuracaoImpostos() {
                       }}
                       disabled={calculating}
                       className="flex items-center gap-1.5 mx-auto px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                      style={{ backgroundColor: '#1E3A8A' }}
+                      style={{ backgroundColor: '#059669' }}
                     >
                       {calculating ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
                       Calcular
@@ -506,7 +506,7 @@ export default function ApuracaoImpostos() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-                  style={{ backgroundColor: '#1E3A8A' }}
+                  style={{ backgroundColor: '#059669' }}
                 >
                   <FileText size={14} /> Baixar guia DAS
                 </a>

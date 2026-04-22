@@ -24,10 +24,10 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
         <div className="flex flex-col md:flex-row gap-6 items-start border border-[#ccc] rounded-lg p-5 bg-white">
             {/* Avatar */}
             <div className="flex flex-col items-center gap-2 shrink-0 mx-auto md:mx-0">
-                <div className="w-20 h-20 bg-[#1E3A8A] rounded-full flex items-center justify-center border-4 border-[#e0e0e0] shadow-sm overflow-hidden">
+                <div className="w-20 h-20 bg-[#059669] rounded-full flex items-center justify-center border-4 border-[#e0e0e0] shadow-sm overflow-hidden">
                     <User className="w-8 h-8 text-white" />
                 </div>
-                <button type="button" className="text-[10px] text-[#1E3A8A] font-bold uppercase tracking-wider hover:underline">
+                <button type="button" className="text-[10px] text-[#059669] font-bold uppercase tracking-wider hover:underline">
                     Alterar Logo
                 </button>
             </div>
@@ -47,7 +47,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                 </FormLabel>
                                 <FormControl>
                                     <Input
-                                        className="h-10 border-[#ccc] focus:border-[#1E3A8A] focus:ring-[#1E3A8A]/20"
+                                        className="h-10 border-[#ccc] focus:border-[#059669] focus:ring-[#059669]/20"
                                         placeholder="Digite o nome principal"
                                         {...field}
                                         onBlur={(e) => {
@@ -73,7 +73,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                 <FormLabel className="text-[#555] text-[10px] font-bold uppercase tracking-wider">Tipo de Pessoa</FormLabel>
                                 <FormControl>
                                     <div className="flex items-center gap-4 h-10 px-3 bg-white border border-[#ccc] rounded-md">
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-[#1E3A8A]">
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-[#059669]">
                                             <input
                                                 type="radio"
                                                 value="PF"
@@ -82,12 +82,12 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                                     field.onChange("PF");
                                                     form.setValue("cpf_cnpj", "");
                                                 }}
-                                                className="accent-[#1E3A8A] w-4 h-4"
+                                                className="accent-[#059669] w-4 h-4"
                                             />
                                             Física
                                         </label>
                                         <div className="w-px h-4 bg-[#ccc]" />
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-[#1E3A8A]">
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-[#059669]">
                                             <input
                                                 type="radio"
                                                 value="PJ"
@@ -96,7 +96,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                                     field.onChange("PJ");
                                                     form.setValue("cpf_cnpj", "");
                                                 }}
-                                                className="accent-[#1E3A8A] w-4 h-4"
+                                                className="accent-[#059669] w-4 h-4"
                                             />
                                             Jurídica
                                         </label>
@@ -118,7 +118,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                 <FormLabel className="text-[#555] text-[10px] font-bold uppercase tracking-wider">Nome Fantasia (Opcional)</FormLabel>
                                 <FormControl>
                                     <Input
-                                        className="h-10 border-[#ccc] focus:border-[#1E3A8A] focus:ring-[#1E3A8A]/20"
+                                        className="h-10 border-[#ccc] focus:border-[#059669] focus:ring-[#059669]/20"
                                         placeholder="Nome comercial"
                                         {...field}
                                         onBlur={(e) => {
@@ -151,7 +151,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                         {isPJ && (
                                             <button
                                                 type="button"
-                                                className="text-[10px] uppercase font-bold text-[#1E3A8A] flex items-center gap-1 hover:text-[#0f1f33] hover:bg-[#EFF6FF] px-2 rounded transition-colors"
+                                                className="text-[10px] uppercase font-bold text-[#059669] flex items-center gap-1 hover:text-[#0f1f33] hover:bg-[#ECFDF4] px-2 rounded transition-colors"
                                                 onClick={onCnpjLookup}
                                                 disabled={isCnpjLoading}
                                             >
@@ -161,7 +161,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                                     </div>
                                     <FormControl>
                                         <Input
-                                            className={`h-10 border-[#ccc] focus:border-[#1E3A8A] focus:ring-[#1E3A8A]/20 ${isCnpjLoading ? 'opacity-50' : ''}`}
+                                            className={`h-10 border-[#ccc] focus:border-[#059669] focus:ring-[#059669]/20 ${isCnpjLoading ? 'opacity-50' : ''}`}
                                             {...field}
                                             placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
                                             onChange={(e) => {

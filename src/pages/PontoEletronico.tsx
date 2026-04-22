@@ -44,7 +44,7 @@ const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
   atraso: { label: 'Atraso', color: '#F79009' },
   atestado: { label: 'Atestado', color: '#667085' },
   folga: { label: 'Folga', color: '#059669' },
-  feriado: { label: 'Feriado', color: '#1E3A8A' },
+  feriado: { label: 'Feriado', color: '#059669' },
   outros: { label: 'Outros', color: '#667085' },
 }
 
@@ -227,7 +227,7 @@ export default function PontoEletronico() {
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { label: 'Registros', value: kpis.totalRegistros, icon: Clock, color: '#1E3A8A' },
+            { label: 'Registros', value: kpis.totalRegistros, icon: Clock, color: '#059669' },
             { label: 'Horas trabalhadas', value: `${kpis.totalHoras}h`, icon: Clock, color: '#059669' },
             { label: 'Horas extras', value: `${kpis.totalHE}h`, icon: Clock, color: '#F79009' },
             { label: 'Faltas', value: kpis.faltas, icon: AlertTriangle, color: '#D92D20' },
@@ -257,7 +257,7 @@ export default function PontoEletronico() {
               setShowNewModal(true)
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#1E3A8A' }}
+            style={{ backgroundColor: '#059669' }}
           >
             <Plus size={16} /> Registrar ponto
           </button>
@@ -499,7 +499,7 @@ export default function PontoEletronico() {
                 onClick={handleSalvarPonto}
                 disabled={submitting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: '#1E3A8A' }}
+                style={{ backgroundColor: '#059669' }}
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
                 Salvar
