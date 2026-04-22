@@ -122,7 +122,12 @@ export function AppSidebar() {
                         {visibleItems.map((item) => (
                           <SidebarMenuSubItem key={item.titleKey}>
                             {item.url ? (
-                              <SidebarMenuSubButton asChild isActive={isActive(item.url)} size="sm">
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={isActive(item.url)}
+                                size="sm"
+                                className="text-[10.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground"
+                              >
                                 <Link to={item.url} className="transition-colors duration-150">
                                   <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                                 </Link>
@@ -132,6 +137,7 @@ export function AppSidebar() {
                                 asChild
                                 isActive={isActive(item.url)}
                                 size="sm"
+                                className="text-[10.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground"
                               >
                                 <button type="button" onClick={() => handleMenuAction(item)} className="w-full text-left">
                                   <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
