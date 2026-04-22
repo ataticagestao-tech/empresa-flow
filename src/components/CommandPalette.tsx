@@ -9,13 +9,22 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { menuGroups, footerMenu } from "@/config/menuConfig";
+import { menuGroups, footerMenu, OWNER_EMAIL } from "@/config/menuConfig";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { isSuperAdmin } = useAdmin();
+  const { user } = useAuth();
+  const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
+
+  const isItemVisible = (item: { hidden?: boolean; adminOnly?: boolean; ownerOnly?: boolean; url?: string }) =>
+    !item.hidden &&
+    (!item.adminOnly || isSuperAdmin) &&
+    (!item.ownerOnly || isOwner) &&
+    Boolean(item.url);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -37,15 +46,12 @@ export function CommandPalette() {
   );
 
   const visibleGroups = menuGroups.filter((group) => {
-    const items = group.items.filter(
-      (item) => !item.hidden && (!item.adminOnly || isSuperAdmin) && item.url,
-    );
+    if (group.ownerOnly && !isOwner) return false;
+    const items = group.items.filter(isItemVisible);
     return items.length > 0;
   });
 
-  const visibleFooter = footerMenu.filter(
-    (item) => !item.hidden && (!item.adminOnly || isSuperAdmin) && item.url,
-  );
+  const visibleFooter = footerMenu.filter(isItemVisible);
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -58,24 +64,23 @@ export function CommandPalette() {
             heading={group.labelKey || "Principal"}
           >
             {group.items
-              .filter(
-                (item) =>
-                  !item.hidden &&
-                  (!item.adminOnly || isSuperAdmin) &&
-                  item.url,
-              )
-              .map((item) => (
-                <CommandItem
-                  key={item.url}
-                  value={`${item.isHardcoded ? item.titleKey : item.titleKey} ${item.url}`}
-                  onSelect={() => handleSelect(item.url!)}
-                >
-                  <item.icon className="mr-2 h-4 w-4 opacity-60" />
-                  <span>
-                    {item.isHardcoded ? item.titleKey : item.titleKey}
-                  </span>
-                </CommandItem>
-              ))}
+              .filter(isItemVisible)
+              .map((item) => {
+                const muted = group.ownerOnly || item.ownerOnly;
+                return (
+                  <CommandItem
+                    key={item.url}
+                    value={`${item.isHardcoded ? item.titleKey : item.titleKey} ${item.url}`}
+                    onSelect={() => handleSelect(item.url!)}
+                    className={muted ? "text-muted-foreground opacity-60" : undefined}
+                  >
+                    <item.icon className="mr-2 h-4 w-4 opacity-60" />
+                    <span>
+                      {item.isHardcoded ? item.titleKey : item.titleKey}
+                    </span>
+                  </CommandItem>
+                );
+              })}
           </CommandGroup>
         ))}
         {visibleFooter.length > 0 && (

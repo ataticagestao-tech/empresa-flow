@@ -41,6 +41,8 @@ import {
   LucideIcon
 } from "lucide-react";
 
+export const OWNER_EMAIL = 'izabelvier@outlook.com';
+
 export interface MenuItem {
   titleKey: string;
   icon: LucideIcon;
@@ -49,6 +51,7 @@ export interface MenuItem {
   isHardcoded?: boolean;
   hidden?: boolean;
   adminOnly?: boolean;
+  ownerOnly?: boolean;
 }
 
 export interface MenuGroup {
@@ -57,6 +60,7 @@ export interface MenuGroup {
   icon?: LucideIcon;
   items: MenuItem[];
   isHardcodedLabel?: boolean;
+  ownerOnly?: boolean;
 }
 
 export const menuGroups: MenuGroup[] = [
@@ -90,11 +94,11 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
-      { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true },
-      { titleKey: 'Extrato Reconciliado', icon: CheckSquare, url: '/extrato-reconciliado', isHardcoded: true },
+      { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true, ownerOnly: true },
+      { titleKey: 'Extrato Reconciliado', icon: CheckSquare, url: '/extrato-reconciliado', isHardcoded: true, ownerOnly: true },
       { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
       { titleKey: 'DRE Contábil', icon: BarChart3, url: '/demonstrativos/dre', isHardcoded: true },
-      { titleKey: 'Balanço Patrimonial', icon: Scale, url: '/demonstrativos/bp', isHardcoded: true },
+      { titleKey: 'Balanço Patrimonial', icon: Scale, url: '/demonstrativos/bp', isHardcoded: true, ownerOnly: true },
       { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
       { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
       { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
@@ -106,6 +110,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Fiscal',
     icon: Receipt,
     isHardcodedLabel: true,
+    ownerOnly: true,
     items: [
       { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
       { titleKey: 'Notas Fiscais', icon: FileText, url: '/notas-fiscais', isHardcoded: true },
@@ -133,6 +138,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Projeção Financeira',
     icon: TrendingUp,
     isHardcodedLabel: true,
+    ownerOnly: true,
     items: [
       { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
       { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
@@ -181,6 +187,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Multi-empresa',
     icon: GitMerge,
     isHardcodedLabel: true,
+    ownerOnly: true,
     items: [
       { titleKey: 'Consolidado', icon: GitMerge, url: '/multiempresa', isHardcoded: true },
       { titleKey: 'Transferências', icon: ArrowLeftRight, url: '/multiempresa/transferencias', isHardcoded: true },
@@ -192,6 +199,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Administração',
     icon: Shield,
     isHardcodedLabel: true,
+    ownerOnly: true,
     items: [
       { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },
     ]
