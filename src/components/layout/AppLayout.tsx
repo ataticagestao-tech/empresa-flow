@@ -6,6 +6,7 @@ import { AppHeader } from "./AppHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
 import { CommandPalette } from "@/components/CommandPalette";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { menuGroups } from "@/config/menuConfig";
 import { Home, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -62,14 +63,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const location = useLocation();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">Carregando...</span>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {

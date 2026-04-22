@@ -9,6 +9,7 @@ import { AdminProvider } from "@/contexts/AdminContext";
 import { ReciboModalProvider } from "@/components/finance/BotaoPagarComRecibo";
 import { ThemeProvider } from "next-themes";
 import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
@@ -84,9 +85,7 @@ const RequireAuth = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-sidebar">
-        <div className="animate-pulse text-sidebar-foreground">Carregando...</div>
-      </div>
+      <LoadingScreen />
     );
   }
 
@@ -103,9 +102,7 @@ const RequireSuperAdmin = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-sidebar">
-        <div className="animate-pulse text-sidebar-foreground">Carregando...</div>
-      </div>
+      <LoadingScreen />
     );
   }
 
@@ -120,9 +117,7 @@ const RequireActiveAccount = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-sidebar">
-        <div className="animate-pulse text-sidebar-foreground">Carregando...</div>
-      </div>
+      <LoadingScreen />
     );
   }
 
@@ -145,9 +140,7 @@ const RootRedirect = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-sidebar">
-        <div className="animate-pulse text-sidebar-foreground">Carregando...</div>
-      </div>
+      <LoadingScreen />
     );
   }
 
