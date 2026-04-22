@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Ban, UserCheck, Trash2, Key } from "lucide-react";
+import { MoreHorizontal, Ban, UserCheck, Trash2, Key, KeyRound } from "lucide-react";
 import { UserProfile, UserStatus } from "@/types/admin";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,7 +27,9 @@ interface UserListProps {
   onEditPermissions: (user: UserProfile) => void;
   onUpdateStatus: (userId: string, status: UserStatus, reason?: string) => void;
   onDeleteUser: (userId: string, reason: string) => void;
+  onResetPassword: (user: UserProfile) => void;
   isUpdatingStatus: boolean;
+  isResettingPassword?: boolean;
   currentUserId?: string;
 }
 
@@ -45,7 +47,9 @@ export function UserList({
   onEditPermissions,
   onUpdateStatus,
   onDeleteUser,
+  onResetPassword,
   isUpdatingStatus,
+  isResettingPassword,
   currentUserId,
 }: UserListProps) {
   const confirm = useConfirm();
@@ -119,6 +123,13 @@ export function UserList({
                       <DropdownMenuItem onClick={() => onEditPermissions(user)}>
                         <Key className="mr-2 h-4 w-4" />
                         Permissões
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onResetPassword(user)}
+                        disabled={isResettingPassword}
+                      >
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Redefinir senha
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {status === "active" && (

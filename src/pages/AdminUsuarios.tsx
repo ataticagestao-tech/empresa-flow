@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserList } from "@/components/admin/UserList";
 import { UserPermissionsModal } from "@/components/admin/UserPermissionsModal";
 import { CreateUserModal } from "@/components/admin/CreateUserModal";
+import { ResetPasswordModal } from "@/components/admin/ResetPasswordModal";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +30,8 @@ export default function AdminUsuarios() {
     updateUserStatus,
     isUpdatingStatus,
     deleteUser,
+    resetPassword,
+    isResettingPassword,
   } = useAdminUsers();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,6 +39,7 @@ export default function AdminUsuarios() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserProfile | null>(null);
 
   // Filtrar usuários
   const filteredUsers = useMemo(() => {
@@ -85,6 +89,20 @@ export default function AdminUsuarios() {
 
   const handleDeleteUser = (userId: string, reason: string) => {
     deleteUser({ userId, reason });
+  };
+
+  const handleOpenResetPassword = (userProfile: UserProfile) => {
+    setResetPasswordUser(userProfile);
+  };
+
+  const handleSubmitResetPassword = (password: string) => {
+    if (!resetPasswordUser) return;
+    resetPassword(
+      { userId: resetPasswordUser.id, password },
+      {
+        onSuccess: () => setResetPasswordUser(null),
+      }
+    );
   };
 
   // Stats
@@ -170,7 +188,9 @@ export default function AdminUsuarios() {
                 onEditPermissions={handleEditPermissions}
                 onUpdateStatus={handleUpdateStatus}
                 onDeleteUser={handleDeleteUser}
+                onResetPassword={handleOpenResetPassword}
                 isUpdatingStatus={isUpdatingStatus}
+                isResettingPassword={isResettingPassword}
                 currentUserId={user?.id}
               />
             )}
@@ -187,6 +207,15 @@ export default function AdminUsuarios() {
       <CreateUserModal
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
+      />
+      <ResetPasswordModal
+        open={!!resetPasswordUser}
+        onOpenChange={(open) => {
+          if (!open) setResetPasswordUser(null);
+        }}
+        user={resetPasswordUser}
+        onSubmit={handleSubmitResetPassword}
+        isSubmitting={isResettingPassword}
       />
     </AppLayout>
   );

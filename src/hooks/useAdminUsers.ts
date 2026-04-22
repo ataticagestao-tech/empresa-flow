@@ -228,6 +228,39 @@ export function useAdminUsers() {
     },
   });
 
+  // Redefinir senha de usuário (admin define diretamente via edge function)
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
+      if (!userId) throw new Error("userId obrigatório");
+      if (!password || password.length < 6) {
+        throw new Error("A senha deve ter no mínimo 6 caracteres.");
+      }
+
+      const { data, error } = await (activeClient as any).functions.invoke(
+        "admin-set-user-password",
+        { body: { userId, password } }
+      );
+
+      if (error) throw error;
+      if (data && data.ok === false) {
+        throw new Error(data.erro || "Falha ao redefinir senha");
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Senha redefinida",
+        description: "A nova senha foi aplicada com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao redefinir senha",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Deletar usuário (soft delete - muda status para 'deleted')
   const deleteUserMutation = useMutation({
     mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
@@ -284,5 +317,7 @@ export function useAdminUsers() {
     isInvitingUser: inviteUserMutation.isPending,
     deleteUser: deleteUserMutation.mutate,
     isDeletingUser: deleteUserMutation.isPending,
+    resetPassword: resetPasswordMutation.mutate,
+    isResettingPassword: resetPasswordMutation.isPending,
   };
 }
