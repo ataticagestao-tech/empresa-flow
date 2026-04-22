@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ============================================================
-   Design System — gestap system v2 (Emerald)
-   Paleta: off-white verde-soft + brand emerald + semânticas
+   Design System — gestap system v3 (Verde + Navy)
+   Paleta: creme + verde logo + preto + cinza + azul marinho
    ============================================================ */
 
 :root {
@@ -10,21 +10,27 @@
   --bg:         #F6F2EB;
   --surface:    #FFFFFF;
 
-  /* ── Tipografia ─────────────────────────── */
-  --text-1:     #131E18;
-  --text-2:     #5F6A65;
-  --text-3:     #8A948F;
+  /* ── Tipografia — preto + escala cinza ─── */
+  --text-1:     #0F172A;
+  --text-2:     #4B5563;
+  --text-3:     #9CA3AF;
 
-  /* ── Divisores e bordas ─────────────────── */
-  --divider:    #E3EAE6;
-  --border:     #C8D2CD;
+  /* ── Divisores e bordas — cinza neutro ─── */
+  --divider:    #E5E7EB;
+  --border:     #D1D5DB;
 
-  /* ── Brand — Emerald (moderno, planejamento, suave) ───── */
+  /* ── Brand — Verde logo ─────────────────── */
   --brand:      #059669;
   --brand-mid:  #10B981;
   --brand-soft: #ECFDF4;
   --brand-text: #065F46;
   --brand-vivid: #0BE041;  /* logo — detalhes/indicadores */
+
+  /* ── Navy — azul marinho ─────────────────── */
+  --navy:       #0F2544;
+  --navy-mid:   #1E3A8A;
+  --navy-soft:  #EFF6FF;
+  --navy-text:  #0B1B38;
 
   /* ── Semânticas ─────────────────────────── */
   --success:    #039855;
@@ -67,8 +73,8 @@
   --color-despesa-light: var(--error-bg);
   --color-alerta:        var(--warning);
   --color-alerta-light:  var(--warning-bg);
-  --color-info:          var(--brand-mid);
-  --color-info-light:    var(--brand-soft);
+  --color-info:          var(--navy-mid);
+  --color-info-light:    var(--navy-soft);
   --color-custo:         var(--warning);
   --color-custo-light:   var(--warning-bg);
   --color-neutro:        var(--brand-mid);
@@ -94,10 +100,10 @@
   --color-primary-light:  var(--brand-soft);
   --color-primary-mid:    var(--brand-mid);
   --color-primary-dark:   var(--brand);
-  --color-navy:           var(--brand-mid);
-  --color-navy-dark:      var(--brand);
-  --color-navy-mid:       var(--brand-mid);
-  --color-navy-light:     var(--brand-text);
+  --color-navy:           var(--navy);
+  --color-navy-dark:      var(--navy);
+  --color-navy-mid:       var(--navy-mid);
+  --color-navy-light:     var(--navy-soft);
   --color-gold:           var(--brand-mid);
   --color-gold-light:     var(--brand-text);
   --color-gold-pale:      var(--brand-soft);
@@ -105,9 +111,9 @@
   --color-purple-dark:    var(--brand-text);
   --color-purple-mid:     var(--brand);
   --color-purple-light:   var(--brand-soft);
-  --color-blue:           var(--brand-mid);
-  --color-blue-dark:      var(--brand);
-  --color-blue-mid:       var(--brand-mid);
-  --color-blue-light:     var(--brand-mid);
-  --color-blue-pale:      var(--brand-soft);
+  --color-blue:           var(--navy-mid);
+  --color-blue-dark:      var(--navy);
+  --color-blue-mid:       var(--navy-mid);
+  --color-blue-light:     var(--navy-mid);
+  --color-blue-pale:      var(--navy-soft);
 }

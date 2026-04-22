@@ -44,7 +44,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
         <div style={{
           position: "relative", width: 80, height: 80,
           borderRadius: "50%",
-          background: `conic-gradient(${color} ${pct * 3.6}deg, #EAECF0 0deg)`,
+          background: `conic-gradient(${color} ${pct * 3.6}deg, #E5E7EB 0deg)`,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
@@ -58,7 +58,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
           </div>
         </div>
         <div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "#1D2939" }}>Score Financeiro</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>Score Financeiro</p>
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 500,
@@ -79,10 +79,10 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
           return (
             <div key={d.key}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                <span style={{ fontSize: 12, color: "#667085" }}>{d.label}</span>
+                <span style={{ fontSize: 12, color: "#4B5563" }}>{d.label}</span>
                 <span style={{ fontSize: 12, fontWeight: 600, color: barColor }}>{Math.round(val)}</span>
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: "#EAECF0", overflow: "hidden" }}>
+              <div style={{ height: 6, borderRadius: 3, background: "#E5E7EB", overflow: "hidden" }}>
                 <div style={{
                   height: "100%", borderRadius: 3,
                   width: `${Math.min(100, val)}%`,

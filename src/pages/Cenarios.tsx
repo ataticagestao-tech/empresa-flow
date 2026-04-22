@@ -25,8 +25,8 @@ interface ScenarioConfig {
 
 const defaultScenarios: ScenarioConfig[] = [
     { name: "Pessimista", revenueVar: -20, expenseVar: 10, newClients: 0, extraTicket: 0, color: "#D92D20", borderColor: "#D92D20", bgColor: "#FEF3F2" },
-    { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#059669", borderColor: "#059669", bgColor: "#ECFDF4" },
-    { name: "Otimista", revenueVar: 20, expenseVar: -10, newClients: 5, extraTicket: 500, color: "#039855", borderColor: "#039855", bgColor: "#ECFDF3" },
+    { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#1E3A8A", borderColor: "#1E3A8A", bgColor: "#EFF6FF" },
+    { name: "Otimista", revenueVar: 20, expenseVar: -10, newClients: 5, extraTicket: 500, color: "#059669", borderColor: "#059669", bgColor: "#ECFDF4" },
 ];
 
 export default function Cenarios() {
@@ -165,8 +165,8 @@ export default function Cenarios() {
                             <Tooltip formatter={(v: number) => fmt(v)} />
                             <Legend />
                             <Bar dataKey="Pessimista" fill="#D92D20" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Realista" fill="#059669" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Otimista" fill="#039855" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Realista" fill="#1E3A8A" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Otimista" fill="#059669" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </Card>

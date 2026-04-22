@@ -423,7 +423,7 @@ export default function ContasReceber() {
      ================================================================ */
 
   return (
-    <AppLayout>
+    <AppLayout title="Contas a Receber">
       <div className="p-6 max-w-[1400px] mx-auto space-y-6">
 
 

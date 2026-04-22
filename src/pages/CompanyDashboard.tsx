@@ -1290,7 +1290,7 @@ export default function CompanyDashboard() {
                             Nenhum gasto categorizado no período.
                         </p>
                     ) : (() => {
-                        const palette = ["#059669", "#B91C1C", "#047857", "#F59E0B", "#7C3AED", "#64748B"];
+                        const palette = ["#059669", "#1E3A8A", "#0F172A", "#10B981", "#6B7280", "#D97706"];
                         const totalGeral = gastosCategorias.reduce((s: number, r: any) => s + r.total, 0);
                         return (
                             <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 32, alignItems: "center" }}>

@@ -4,36 +4,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - gestap system v2 (Emerald)
+/* Design System - gestap system v3 (Verde + Navy)
    Fundo: creme #F6F2EB | Surface: #FFFFFF
-   Brand: #059669 (emerald-600) / #10B981 (mid) / #ECFDF4 (soft)
-   Logo vivid: #0BE041 (detalhes/indicadores)
-   Semânticas: success #039855 · warning #F79009 · error #D92D20 (vencido)
-   Sidebar: slate escuro com subtom verde (#111C1A)
+   Brand: #059669 (emerald-600) · vivid #0BE041 (logo)
+   Navy: #0F2544 (sidebar/header) · #1E3A8A (mid)
+   Preto: #0F172A (foreground) · Cinzas neutros (#E5E7EB, #9CA3AF)
+   Semânticas: success #039855 · warning #F79009 · error #D92D20
 */
 
 @layer base {
   :root {
     /* Backgrounds — creme */
     --background: 40 44% 94%;        /* #F6F2EB */
-    --foreground: 155 25% 10%;       /* #131E18 near-black green undertone */
+    --foreground: 222 47% 11%;       /* #0F172A preto neutro */
 
     --card: 0 0% 100%;
-    --card-foreground: 155 25% 10%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 155 25% 10%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Primary — #059669 emerald-600 (refinado) */
+    /* Primary — #059669 emerald (verde logo) */
     --primary: 160 84% 31%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — neutro claro com tom verde */
-    --secondary: 150 12% 93%;        /* #E8EDEA */
-    --secondary-foreground: 155 25% 10%;
+    /* Secondary — cinza neutro */
+    --secondary: 220 14% 93%;        /* #E5E7EB */
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 150 10% 96%;
-    --muted-foreground: 150 8% 45%;
+    --muted: 220 14% 96%;            /* #F3F4F6 */
+    --muted-foreground: 220 9% 46%;  /* #6B7280 */
 
     /* Accent — emerald-50 soft */
     --accent: 150 70% 96%;           /* #ECFDF4 */
@@ -51,22 +51,22 @@
     --warning: 35 93% 50%;
     --warning-foreground: 0 0% 100%;
 
-    /* Info — = primary */
-    --info: 160 84% 31%;
+    /* Info — navy */
+    --info: 224 76% 33%;             /* #1E3A8A */
     --info-foreground: 0 0% 100%;
 
-    /* Borders */
-    --border: 150 13% 89%;
-    --input: 150 10% 84%;
+    /* Borders — cinza neutro */
+    --border: 220 13% 91%;           /* #E5E7EB */
+    --input: 220 13% 84%;            /* #D1D5DB */
     --ring: 160 84% 31%;
 
     /* Extra surfaces */
-    --surface-2: 150 10% 96%;
-    --border-light: 150 13% 94%;
+    --surface-2: 220 14% 96%;
+    --border-light: 220 13% 94%;
 
     --radius: 0.5rem;
 
-    /* Sidebar + Header — warm graphite #2A2724 (premium executive) */
+    /* Sidebar + Header — warm graphite #2A2724 */
     --sidebar-background: 27 7% 15%;          /* #2A2724 */
     --sidebar-foreground: 30 14% 92%;         /* #EEEBE6 off-white quente */
     --sidebar-primary: 145 75% 52%;           /* emerald vivid (active) */
