@@ -61,6 +61,7 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
                 .from('contas_receber')
                 .select('valor, data_vencimento, status')
                 .eq('company_id', selectedCompany.id)
+                .is('deleted_at', null)
                 .limit(5000);
             if (error) throw error;
             const today = startOfDay(new Date());
@@ -77,15 +78,17 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
         enabled: !!selectedCompany?.id,
     });
 
-    // 4. Top 5 Clientes por valor (receivables in period)
+    // 4. Top 5 Clientes por valor em aberto (receivables in period, not paid/deleted)
     const { data: topClients } = useQuery({
         queryKey: ['op_top_clients', selectedCompany?.id, rangeKey],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data, error } = await db
                 .from('contas_receber')
-                .select('valor, pagador_nome')
+                .select('valor, valor_pago, pagador_nome')
                 .eq('company_id', selectedCompany.id)
+                .eq('status', 'aberto')
+                .is('deleted_at', null)
                 .gte('data_vencimento', rangeStart.toISOString())
                 .lte('data_vencimento', rangeEnd.toISOString())
                 .limit(5000);
@@ -94,7 +97,8 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
             const byClient: Record<string, number> = {};
             data.forEach((r: any) => {
                 const name = r.pagador_nome || 'Sem cliente';
-                byClient[name] = (byClient[name] || 0) + Number(r.valor || 0);
+                const saldo = Number(r.valor || 0) - Number(r.valor_pago || 0);
+                if (saldo > 0) byClient[name] = (byClient[name] || 0) + saldo;
             });
 
             return Object.entries(byClient)

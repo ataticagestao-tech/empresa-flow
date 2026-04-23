@@ -382,6 +382,7 @@ export default function Vendas() {
           db.from('contas_receber')
             .select('id, venda_id, status, valor, valor_pago, data_vencimento')
             .in('venda_id', ids)
+            .is('deleted_at', null)
         )
 
         const [itensResults, crsResults] = await Promise.all([
