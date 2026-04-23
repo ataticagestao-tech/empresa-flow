@@ -8,7 +8,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Input } from "@/components/ui/input";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -295,31 +294,95 @@ export default function FluxoCaixa() {
   const empresa = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "";
   const periodo = `${mesInicio} a ${mesFim}`;
 
-  function pdfHeader(doc: jsPDF, titulo: string, W: number, margin: number) {
-    doc.setFillColor(26, 46, 74);
-    doc.rect(0, 0, W, 18, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(255, 255, 255);
-    doc.text(titulo, margin, 8);
-    doc.setFontSize(8);
+  // Margens generosas e "apresentáveis" para impressão profissional
+  const PDF_MARGIN = 18; // mm — lateral e conteúdo
+  const PDF_HEADER_H = 28; // mm — altura do cabeçalho
+  const PDF_FOOTER_H = 14; // mm — altura do rodapé
+  const BRAND = [26, 46, 74] as const; // azul institucional
+  const GREEN = [10, 92, 46] as const;
+  const RED = [180, 30, 30] as const;
+  const MUTED = [110, 110, 110] as const;
+
+  function pdfDrawHeader(doc: jsPDF, titulo: string, subtitulo: string, W: number) {
+    // Barra superior institucional fina
+    doc.setFillColor(BRAND[0], BRAND[1], BRAND[2]);
+    doc.rect(0, 0, W, 4, "F");
+
+    // Empresa (pequena, cinza, topo)
     doc.setFont("helvetica", "normal");
-    doc.text(`${empresa}  |  ${periodo}`, margin, 14);
+    doc.setFontSize(8);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    doc.text(empresa.toUpperCase(), PDF_MARGIN, 11);
+
+    // Data de emissão no canto direito
+    const emissao = format(new Date(), "dd/MM/yyyy HH:mm");
+    doc.text(`Emitido em ${emissao}`, W - PDF_MARGIN, 11, { align: "right" });
+
+    // Título principal
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(BRAND[0], BRAND[1], BRAND[2]);
+    doc.text(titulo, PDF_MARGIN, 19);
+
+    // Subtítulo (período / nota)
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    doc.text(subtitulo, PDF_MARGIN, 24.5);
+
+    // Linha separadora
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.3);
+    doc.line(PDF_MARGIN, PDF_HEADER_H, W - PDF_MARGIN, PDF_HEADER_H);
   }
 
-  function pdfNewPageIfNeeded(doc: jsPDF, y: number, limit: number, cols: { label: string; x: number }[], contentW: number, margin: number) {
-    if (y > limit) {
-      doc.addPage();
-      let ny = 12;
-      doc.setFillColor(240, 244, 248);
-      doc.rect(margin, ny, contentW, 6, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.5);
-      doc.setTextColor(30, 30, 30);
-      cols.forEach((c) => doc.text(c.label, c.x + 1, ny + 4));
-      ny += 7;
+  function pdfDrawFooter(doc: jsPDF, W: number, H: number) {
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.3);
+      doc.line(PDF_MARGIN, H - PDF_FOOTER_H + 2, W - PDF_MARGIN, H - PDF_FOOTER_H + 2);
+
       doc.setFont("helvetica", "normal");
-      return ny;
+      doc.setFontSize(8);
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      doc.text("Tatica Gestão — Relatório gerado automaticamente", PDF_MARGIN, H - 6);
+      doc.text(`Página ${p} de ${totalPages}`, W - PDF_MARGIN, H - 6, { align: "right" });
+    }
+  }
+
+  function pdfDrawTableHeader(
+    doc: jsPDF,
+    y: number,
+    cols: { label: string; x: number; align?: "left" | "right" }[],
+    contentW: number
+  ) {
+    doc.setFillColor(242, 245, 249);
+    doc.rect(PDF_MARGIN, y, contentW, 8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(40, 40, 40);
+    cols.forEach((c) => {
+      if (c.align === "right") {
+        doc.text(c.label, c.x - 2, y + 5.3, { align: "right" });
+      } else {
+        doc.text(c.label, c.x + 2, y + 5.3);
+      }
+    });
+    return y + 9;
+  }
+
+  function pdfEnsureSpace(
+    doc: jsPDF,
+    y: number,
+    needed: number,
+    H: number,
+    redrawHeader: () => number
+  ): number {
+    if (y + needed > H - PDF_FOOTER_H) {
+      doc.addPage();
+      return redrawHeader();
     }
     return y;
   }
@@ -328,75 +391,142 @@ export default function FluxoCaixa() {
     if (relatorio.entradas.length === 0 && relatorio.saidas.length === 0) return;
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
     const W = 297;
-    const margin = 12;
-    const contentW = W - margin * 2;
-
-    pdfHeader(doc, "RELATÓRIO DE FLUXO DE CAIXA", W, margin);
-
-    let y = 24;
+    const H = 210;
+    const contentW = W - PDF_MARGIN * 2;
     const saldo = relatorio.totalEntradas - relatorio.totalSaidas;
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Entradas: ${fmt(relatorio.totalEntradas)}    |    Saídas: ${fmt(relatorio.totalSaidas)}    |    Saldo: ${fmt(saldo)}`, margin, y);
-    y += 8;
+
+    const subtitulo = `Relatório de Fluxo de Caixa por Categoria  ·  Período: ${periodo}`;
 
     const cols = [
-      { label: "Tipo", x: margin },
-      { label: "Categoria", x: margin + 22 },
-      { label: "Data", x: margin + 120 },
-      { label: "Descrição", x: margin + 148 },
-      { label: "Valor (R$)", x: margin + 240 },
+      { label: "Categoria / Descrição", x: PDF_MARGIN },
+      { label: "Data", x: PDF_MARGIN + 150 },
+      { label: "Valor (R$)", x: W - PDF_MARGIN, align: "right" as const },
     ];
 
-    doc.setFillColor(240, 244, 248);
-    doc.rect(margin, y, contentW, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.setTextColor(30, 30, 30);
-    cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-
-    const renderSection = (items: typeof relatorio.entradas, tipo: string) => {
-      for (const [, cat] of items) {
-        y = pdfNewPageIfNeeded(doc, y, 195, cols, contentW, margin);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 30, 30);
-        doc.text(tipo, cols[0].x + 1, y + 3);
-        doc.text(cat.nome, cols[1].x + 1, y + 3);
-        doc.text(cat.isTransf ? "—" : fmt(cat.total), cols[4].x + 1, y + 3);
-        y += 5;
-        doc.setFont("helvetica", "normal");
-        for (const l of cat.lancamentos) {
-          y = pdfNewPageIfNeeded(doc, y, 195, cols, contentW, margin);
-          doc.setTextColor(80, 80, 80);
-          doc.text(l.data, cols[2].x + 1, y + 3);
-          doc.text((l.descricao || "—").substring(0, 60), cols[3].x + 1, y + 3);
-          doc.text(cat.isTransf ? "—" : fmt(l.valor), cols[4].x + 1, y + 3);
-          y += 4.5;
-        }
-        y += 1;
-      }
+    const drawPageChrome = () => {
+      pdfDrawHeader(doc, "Relatório de Fluxo de Caixa", subtitulo, W);
+      let yy = PDF_HEADER_H + 6;
+      yy = pdfDrawTableHeader(doc, yy, cols, contentW);
+      return yy;
     };
 
-    renderSection(relatorio.entradas, "ENTRADA");
-    y += 3;
-    renderSection(relatorio.saidas, "SAÍDA");
+    pdfDrawHeader(doc, "Relatório de Fluxo de Caixa", subtitulo, W);
+    let y = PDF_HEADER_H + 6;
 
+    // Bloco de resumo (3 KPIs)
+    const kpiW = (contentW - 8) / 3;
+    const kpis = [
+      { label: "ENTRADAS", val: fmt(relatorio.totalEntradas), color: GREEN },
+      { label: "SAÍDAS", val: fmt(relatorio.totalSaidas), color: RED },
+      { label: "SALDO", val: fmt(saldo), color: saldo >= 0 ? GREEN : RED },
+    ];
+    kpis.forEach((k, i) => {
+      const kx = PDF_MARGIN + i * (kpiW + 4);
+      doc.setDrawColor(230, 230, 230);
+      doc.setFillColor(250, 251, 253);
+      doc.roundedRect(kx, y, kpiW, 16, 1.5, 1.5, "FD");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      doc.text(k.label, kx + 4, y + 5.5);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(k.color[0], k.color[1], k.color[2]);
+      doc.text(k.val, kx + 4, y + 12.5);
+    });
+    y += 22;
+
+    y = pdfDrawTableHeader(doc, y, cols, contentW);
+
+    const renderSection = (
+      items: typeof relatorio.entradas,
+      titulo: string,
+      corSec: readonly [number, number, number]
+    ) => {
+      // Barra de seção
+      y = pdfEnsureSpace(doc, y, 12, H, drawPageChrome);
+      doc.setFillColor(corSec[0], corSec[1], corSec[2]);
+      doc.rect(PDF_MARGIN, y, contentW, 6.5, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(titulo, PDF_MARGIN + 3, y + 4.5);
+      y += 8;
+
+      let zebra = false;
+      for (const [, cat] of items) {
+        y = pdfEnsureSpace(doc, y, 8, H, drawPageChrome);
+
+        // Linha de categoria (negrito)
+        doc.setFillColor(246, 248, 251);
+        doc.rect(PDF_MARGIN, y, contentW, 6.5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(40, 40, 40);
+        doc.text(cat.nome, PDF_MARGIN + 2, y + 4.5);
+        doc.setTextColor(corSec[0], corSec[1], corSec[2]);
+        doc.text(
+          cat.isTransf ? "—" : fmt(cat.total),
+          W - PDF_MARGIN - 2,
+          y + 4.5,
+          { align: "right" }
+        );
+        y += 7;
+        zebra = false;
+
+        // Lançamentos
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        for (const l of cat.lancamentos) {
+          y = pdfEnsureSpace(doc, y, 6, H, drawPageChrome);
+          if (zebra) {
+            doc.setFillColor(252, 252, 253);
+            doc.rect(PDF_MARGIN, y, contentW, 5.2, "F");
+          }
+          zebra = !zebra;
+          doc.setTextColor(60, 60, 60);
+          doc.text(
+            (l.descricao || "—").substring(0, 85),
+            PDF_MARGIN + 6,
+            y + 3.7
+          );
+          doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+          doc.text(l.data, cols[1].x + 2, y + 3.7);
+          doc.setTextColor(60, 60, 60);
+          doc.text(
+            cat.isTransf ? "—" : fmt(l.valor),
+            W - PDF_MARGIN - 2,
+            y + 3.7,
+            { align: "right" }
+          );
+          y += 5.2;
+        }
+        y += 1.5;
+      }
+      y += 2;
+    };
+
+    renderSection(relatorio.entradas, "ENTRADAS", GREEN);
+    renderSection(relatorio.saidas, "SAÍDAS", RED);
+
+    // Totais finais
+    y = pdfEnsureSpace(doc, y, 20, H, drawPageChrome);
+    y += 2;
+    doc.setDrawColor(BRAND[0], BRAND[1], BRAND[2]);
+    doc.setLineWidth(0.5);
+    doc.line(PDF_MARGIN, y, W - PDF_MARGIN, y);
     y += 6;
-    doc.setDrawColor(26, 46, 74);
-    doc.line(margin, y, W - margin, y);
-    y += 5;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(10, 92, 46);
-    doc.text(`Total Entradas: ${fmt(relatorio.totalEntradas)}`, margin, y);
-    doc.setTextColor(180, 30, 30);
-    doc.text(`Total Saídas: ${fmt(relatorio.totalSaidas)}`, margin + 70, y);
-    doc.setTextColor(26, 46, 74);
-    doc.text(`Saldo: ${fmt(saldo)}`, margin + 140, y);
 
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
+    doc.text(`Total Entradas: ${fmt(relatorio.totalEntradas)}`, PDF_MARGIN, y);
+    doc.setTextColor(RED[0], RED[1], RED[2]);
+    doc.text(`Total Saídas: ${fmt(relatorio.totalSaidas)}`, PDF_MARGIN + 95, y);
+    doc.setTextColor(BRAND[0], BRAND[1], BRAND[2]);
+    doc.text(`Saldo: ${fmt(saldo)}`, W - PDF_MARGIN, y, { align: "right" });
+
+    pdfDrawFooter(doc, W, H);
     doc.save(`Relatorio_Fluxo_${mesInicio}_${mesFim}.pdf`);
   }
 
@@ -404,69 +534,102 @@ export default function FluxoCaixa() {
     if (linhas.length === 0) return;
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const W = 210;
-    const margin = 14;
-    const contentW = W - margin * 2;
+    const H = 297;
+    const contentW = W - PDF_MARGIN * 2;
 
-    pdfHeader(doc, "DFC — DEMONSTRAÇÃO DOS FLUXOS DE CAIXA", W, margin);
-
-    let y = 24;
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Método direto · CPC 03 (R2)`, margin, y);
-    y += 8;
+    const subtitulo = `Método direto · CPC 03 (R2)  ·  Período: ${periodo}`;
 
     const cols = [
-      { label: "Código", x: margin },
-      { label: "Descrição", x: margin + 30 },
-      { label: "Valor (R$)", x: margin + 140 },
+      { label: "Código", x: PDF_MARGIN },
+      { label: "Descrição", x: PDF_MARGIN + 32 },
+      { label: "Valor (R$)", x: W - PDF_MARGIN, align: "right" as const },
     ];
 
-    doc.setFillColor(240, 244, 248);
-    doc.rect(margin, y, contentW, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(30, 30, 30);
-    cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
-    y += 7;
+    const drawPageChrome = () => {
+      pdfDrawHeader(doc, "Demonstração dos Fluxos de Caixa", subtitulo, W);
+      let yy = PDF_HEADER_H + 6;
+      yy = pdfDrawTableHeader(doc, yy, cols, contentW);
+      return yy;
+    };
+
+    pdfDrawHeader(doc, "Demonstração dos Fluxos de Caixa", subtitulo, W);
+    let y = PDF_HEADER_H + 6;
+
+    // KPIs DFC
+    const kpiW = (contentW - 6) / 2;
+    const kpis = [
+      { label: "CAIXA OPERACIONAL", val: fmt(caixaOperacional), color: GREEN },
+      { label: "CAIXA INVESTIMENTO", val: fmt(caixaInvestimento), color: RED },
+      { label: "CAIXA FINANCIAMENTO", val: fmt(caixaFinanciamento), color: GREEN },
+      { label: "VARIAÇÃO LÍQUIDA", val: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? GREEN : RED },
+    ];
+    kpis.forEach((k, i) => {
+      const row = Math.floor(i / 2);
+      const col = i % 2;
+      const kx = PDF_MARGIN + col * (kpiW + 6);
+      const ky = y + row * 16;
+      doc.setDrawColor(230, 230, 230);
+      doc.setFillColor(250, 251, 253);
+      doc.roundedRect(kx, ky, kpiW, 14, 1.5, 1.5, "FD");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      doc.text(k.label, kx + 3, ky + 5);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(k.color[0], k.color[1], k.color[2]);
+      doc.text(k.val, kx + 3, ky + 11);
+    });
+    y += 36;
+
+    y = pdfDrawTableHeader(doc, y, cols, contentW);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
 
     for (const l of linhas) {
-      if (y > 275) {
-        doc.addPage();
-        y = 14;
-        doc.setFillColor(240, 244, 248);
-        doc.rect(margin, y, contentW, 6, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
-        doc.setTextColor(30, 30, 30);
-        cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
-        y += 7;
-      }
+      y = pdfEnsureSpace(doc, y, 7, H, drawPageChrome);
 
-      const isHeader = l.nivel === 1;
+      const isHeader = l.nivel === 1 && !l.codigo.includes(".T") && l.codigo !== "DFC.VAR";
       const isTotal = l.codigo.includes(".T") || l.codigo === "DFC.VAR";
+      const rowH = isHeader ? 7 : 5.8;
 
-      if (isHeader || isTotal) {
+      if (isHeader) {
+        doc.setFillColor(BRAND[0], BRAND[1], BRAND[2]);
+        doc.rect(PDF_MARGIN, y, contentW, rowH, "F");
         doc.setFont("helvetica", "bold");
-        if (isTotal) {
-          doc.setFillColor(245, 245, 245);
-          doc.rect(margin, y - 1, contentW, 5.5, "F");
-        }
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+      } else if (isTotal) {
+        doc.setFillColor(240, 244, 248);
+        doc.rect(PDF_MARGIN, y, contentW, rowH, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(40, 40, 40);
       } else {
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(60, 60, 60);
       }
 
-      doc.setFontSize(6.5);
-      doc.setTextColor(isHeader ? 26 : 60, isHeader ? 46 : 60, isHeader ? 74 : 60);
-      doc.text(l.codigo, cols[0].x + (isHeader ? 0 : 4), y + 3);
-      doc.text(isHeader ? l.nome.toUpperCase() : l.nome, cols[1].x + (isHeader ? 0 : 4), y + 3);
+      const indent = isHeader ? 0 : isTotal ? 2 : 5;
+      doc.text(l.codigo, cols[0].x + 2 + (isHeader ? 0 : 0), y + rowH - 2);
+      doc.text(
+        (isHeader ? l.nome.toUpperCase() : l.nome).substring(0, 55),
+        cols[1].x + indent,
+        y + rowH - 2
+      );
 
-      const cor = l.valor >= 0 ? [10, 92, 46] : [180, 30, 30];
-      doc.setTextColor(cor[0], cor[1], cor[2]);
-      doc.text(fmt(l.valor), cols[2].x + 1, y + 3);
+      if (!isHeader) {
+        const cor = l.valor >= 0 ? GREEN : RED;
+        doc.setTextColor(cor[0], cor[1], cor[2]);
+      }
+      doc.text(fmt(l.valor), W - PDF_MARGIN - 2, y + rowH - 2, { align: "right" });
 
-      y += isHeader ? 6 : 5;
+      y += rowH + 0.5;
     }
 
+    pdfDrawFooter(doc, W, H);
     doc.save(`DFC_${mesInicio}_${mesFim}.pdf`);
   }
 
@@ -474,84 +637,114 @@ export default function FluxoCaixa() {
     if (diagnostico.rows.length === 0) return;
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
     const W = 297;
-    const margin = 12;
-    const contentW = W - margin * 2;
+    const H = 210;
+    const contentW = W - PDF_MARGIN * 2;
 
-    pdfHeader(doc, "DIAGNÓSTICO DE CATEGORIAS", W, margin);
-
-    let y = 24;
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
-    doc.text(
-      `Receitas: ${fmt(diagnostico.totalReceita)}    |    Despesas: ${fmt(diagnostico.totalDespesa)}    |    Sem categoria: ${diagnostico.semCategoria.length}    |    Total: ${diagnostico.rows.length} transações`,
-      margin, y
-    );
-    y += 8;
+    const subtitulo = `Transações conciliadas  ·  Período: ${periodo}`;
 
     const cols = [
-      { label: "Data", x: margin },
-      { label: "Descrição", x: margin + 22 },
-      { label: "Tipo", x: margin + 110 },
-      { label: "Vínculo", x: margin + 128 },
-      { label: "Beneficiário", x: margin + 146 },
-      { label: "Categoria", x: margin + 200 },
-      { label: "Valor (R$)", x: margin + 252 },
+      { label: "Data", x: PDF_MARGIN },
+      { label: "Descrição", x: PDF_MARGIN + 22 },
+      { label: "Tipo", x: PDF_MARGIN + 108 },
+      { label: "Vínc.", x: PDF_MARGIN + 124 },
+      { label: "Beneficiário", x: PDF_MARGIN + 140 },
+      { label: "Categoria", x: PDF_MARGIN + 190 },
+      { label: "Valor (R$)", x: W - PDF_MARGIN, align: "right" as const },
     ];
 
-    doc.setFillColor(240, 244, 248);
-    doc.rect(margin, y, contentW, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.setTextColor(30, 30, 30);
-    cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
-    y += 7;
+    const drawPageChrome = () => {
+      pdfDrawHeader(doc, "Diagnóstico de Categorias", subtitulo, W);
+      let yy = PDF_HEADER_H + 6;
+      yy = pdfDrawTableHeader(doc, yy, cols, contentW);
+      return yy;
+    };
+
+    pdfDrawHeader(doc, "Diagnóstico de Categorias", subtitulo, W);
+    let y = PDF_HEADER_H + 6;
+
+    // KPIs
+    const kpiW = (contentW - 12) / 4;
+    const kpis = [
+      { label: "TRANSAÇÕES", val: String(diagnostico.rows.length), color: BRAND },
+      { label: "RECEITAS", val: fmt(diagnostico.totalReceita), color: GREEN },
+      { label: "DESPESAS", val: fmt(diagnostico.totalDespesa), color: RED },
+      {
+        label: "SEM CATEGORIA",
+        val: String(diagnostico.semCategoria.length),
+        color: diagnostico.semCategoria.length > 0 ? ([234, 88, 12] as const) : GREEN,
+      },
+    ];
+    kpis.forEach((k, i) => {
+      const kx = PDF_MARGIN + i * (kpiW + 4);
+      doc.setDrawColor(230, 230, 230);
+      doc.setFillColor(250, 251, 253);
+      doc.roundedRect(kx, y, kpiW, 16, 1.5, 1.5, "FD");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      doc.text(k.label, kx + 3, y + 5.5);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(k.color[0], k.color[1], k.color[2]);
+      doc.text(k.val, kx + 3, y + 12.5);
+    });
+    y += 22;
+
+    y = pdfDrawTableHeader(doc, y, cols, contentW);
+
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6);
+    doc.setFontSize(7.5);
 
+    let zebra = false;
     for (const r of diagnostico.rows) {
-      if (y > 195) {
-        doc.addPage();
-        y = 12;
-        doc.setFillColor(240, 244, 248);
-        doc.rect(margin, y, contentW, 6, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(6.5);
-        doc.setTextColor(30, 30, 30);
-        cols.forEach((c) => doc.text(c.label, c.x + 1, y + 4));
-        y += 7;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-      }
-
+      y = pdfEnsureSpace(doc, y, 6, H, drawPageChrome);
       const semCat = !r.cod_categoria;
+
       if (semCat) {
-        doc.setFillColor(255, 251, 235);
-        doc.rect(margin, y - 1, contentW, 4.5, "F");
+        doc.setFillColor(255, 248, 225);
+        doc.rect(PDF_MARGIN, y, contentW, 5, "F");
+      } else if (zebra) {
+        doc.setFillColor(252, 252, 253);
+        doc.rect(PDF_MARGIN, y, contentW, 5, "F");
       }
+      zebra = !zebra;
 
       doc.setTextColor(80, 80, 80);
-      doc.text(r.data || "", cols[0].x + 1, y + 3);
-      doc.text((r.descricao_banco || "").substring(0, 55), cols[1].x + 1, y + 3);
+      doc.text(r.data || "", cols[0].x + 2, y + 3.5);
+      doc.text((r.descricao_banco || "").substring(0, 50), cols[1].x + 2, y + 3.5);
 
       const isReceita = r.tipo === "RECEITA";
-      doc.setTextColor(isReceita ? 10 : 180, isReceita ? 92 : 30, isReceita ? 46 : 30);
-      doc.text(r.tipo, cols[2].x + 1, y + 3);
+      const corTipo = isReceita ? GREEN : RED;
+      doc.setTextColor(corTipo[0], corTipo[1], corTipo[2]);
+      doc.text(r.tipo, cols[2].x + 2, y + 3.5);
 
       doc.setTextColor(80, 80, 80);
-      doc.text(r.vinculo, cols[3].x + 1, y + 3);
-      doc.text((r.beneficiario || "—").substring(0, 35), cols[4].x + 1, y + 3);
-      doc.text(
-        semCat ? "SEM CATEGORIA" : `${r.cod_categoria} — ${(r.nome_categoria || "").substring(0, 30)}`,
-        cols[5].x + 1, y + 3
-      );
+      doc.text(r.vinculo || "—", cols[3].x + 2, y + 3.5);
+      doc.text((r.beneficiario || "—").substring(0, 30), cols[4].x + 2, y + 3.5);
+
+      if (semCat) {
+        doc.setTextColor(180, 83, 9);
+        doc.setFont("helvetica", "bold");
+        doc.text("SEM CATEGORIA", cols[5].x + 2, y + 3.5);
+        doc.setFont("helvetica", "normal");
+      } else {
+        doc.setTextColor(80, 80, 80);
+        doc.text(
+          `${r.cod_categoria} — ${(r.nome_categoria || "").substring(0, 28)}`,
+          cols[5].x + 2,
+          y + 3.5
+        );
+      }
 
       const val = Number(r.valor || 0);
-      doc.setTextColor(val >= 0 ? 10 : 180, val >= 0 ? 92 : 30, val >= 0 ? 46 : 30);
-      doc.text(fmt(val), cols[6].x + 1, y + 3);
+      const corVal = val >= 0 ? GREEN : RED;
+      doc.setTextColor(corVal[0], corVal[1], corVal[2]);
+      doc.text(fmt(val), W - PDF_MARGIN - 2, y + 3.5, { align: "right" });
 
-      y += 4.5;
+      y += 5;
     }
 
+    pdfDrawFooter(doc, W, H);
     doc.save(`Diagnostico_Categorias_${mesInicio}_${mesFim}.pdf`);
   }
 
