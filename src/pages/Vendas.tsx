@@ -1335,8 +1335,8 @@ export default function Vendas() {
           )
         })()}
 
-        {/* ─── Gráfico: Vendas à Receber ──────────────────── */}
-        {aReceberRanking.length > 0 && (() => {
+        {/* ─── Gráfico: Vendas à Receber (OCULTO temporariamente) ─── */}
+        {false && aReceberRanking.length > 0 && (() => {
           const totalPendente = aReceberRanking.reduce((s, c) => s + c.total, 0)
           const totalVencido = aReceberRanking.reduce((s, c) => s + c.vencido, 0)
           return (
