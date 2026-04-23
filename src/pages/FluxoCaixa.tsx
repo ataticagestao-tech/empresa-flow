@@ -389,9 +389,9 @@ export default function FluxoCaixa() {
 
   function exportarRelatorioPDF() {
     if (relatorio.entradas.length === 0 && relatorio.saidas.length === 0) return;
-    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-    const W = 297;
-    const H = 210;
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const W = 210;
+    const H = 297;
     const contentW = W - PDF_MARGIN * 2;
     const saldo = relatorio.totalEntradas - relatorio.totalSaidas;
 
@@ -399,7 +399,7 @@ export default function FluxoCaixa() {
 
     const cols = [
       { label: "Categoria / Descrição", x: PDF_MARGIN },
-      { label: "Data", x: PDF_MARGIN + 150 },
+      { label: "Data", x: PDF_MARGIN + 105 },
       { label: "Valor (R$)", x: W - PDF_MARGIN, align: "right" as const },
     ];
 
@@ -486,7 +486,7 @@ export default function FluxoCaixa() {
           zebra = !zebra;
           doc.setTextColor(60, 60, 60);
           doc.text(
-            (l.descricao || "—").substring(0, 85),
+            (l.descricao || "—").substring(0, 55),
             PDF_MARGIN + 6,
             y + 3.7
           );
@@ -509,22 +509,32 @@ export default function FluxoCaixa() {
     renderSection(relatorio.entradas, "ENTRADAS", GREEN);
     renderSection(relatorio.saidas, "SAÍDAS", RED);
 
-    // Totais finais
-    y = pdfEnsureSpace(doc, y, 20, H, drawPageChrome);
+    // Totais finais (empilhados para caber no retrato)
+    y = pdfEnsureSpace(doc, y, 30, H, drawPageChrome);
     y += 2;
     doc.setDrawColor(BRAND[0], BRAND[1], BRAND[2]);
     doc.setLineWidth(0.5);
     doc.line(PDF_MARGIN, y, W - PDF_MARGIN, y);
-    y += 6;
+    y += 7;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Total Entradas", PDF_MARGIN, y);
     doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
-    doc.text(`Total Entradas: ${fmt(relatorio.totalEntradas)}`, PDF_MARGIN, y);
+    doc.text(fmt(relatorio.totalEntradas), W - PDF_MARGIN, y, { align: "right" });
+    y += 6;
+
+    doc.setTextColor(80, 80, 80);
+    doc.text("Total Saídas", PDF_MARGIN, y);
     doc.setTextColor(RED[0], RED[1], RED[2]);
-    doc.text(`Total Saídas: ${fmt(relatorio.totalSaidas)}`, PDF_MARGIN + 95, y);
+    doc.text(fmt(relatorio.totalSaidas), W - PDF_MARGIN, y, { align: "right" });
+    y += 6;
+
+    doc.setFontSize(11);
     doc.setTextColor(BRAND[0], BRAND[1], BRAND[2]);
-    doc.text(`Saldo: ${fmt(saldo)}`, W - PDF_MARGIN, y, { align: "right" });
+    doc.text("Saldo", PDF_MARGIN, y);
+    doc.text(fmt(saldo), W - PDF_MARGIN, y, { align: "right" });
 
     pdfDrawFooter(doc, W, H);
     doc.save(`Relatorio_Fluxo_${mesInicio}_${mesFim}.pdf`);
@@ -635,20 +645,18 @@ export default function FluxoCaixa() {
 
   function exportarDiagnosticoPDF() {
     if (diagnostico.rows.length === 0) return;
-    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-    const W = 297;
-    const H = 210;
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const W = 210;
+    const H = 297;
     const contentW = W - PDF_MARGIN * 2;
 
     const subtitulo = `Transações conciliadas  ·  Período: ${periodo}`;
 
     const cols = [
       { label: "Data", x: PDF_MARGIN },
-      { label: "Descrição", x: PDF_MARGIN + 22 },
-      { label: "Tipo", x: PDF_MARGIN + 108 },
-      { label: "Vínc.", x: PDF_MARGIN + 124 },
-      { label: "Beneficiário", x: PDF_MARGIN + 140 },
-      { label: "Categoria", x: PDF_MARGIN + 190 },
+      { label: "Descrição", x: PDF_MARGIN + 17 },
+      { label: "Benef.", x: PDF_MARGIN + 68 },
+      { label: "Categoria", x: PDF_MARGIN + 102 },
       { label: "Valor (R$)", x: W - PDF_MARGIN, align: "right" as const },
     ];
 
@@ -662,38 +670,38 @@ export default function FluxoCaixa() {
     pdfDrawHeader(doc, "Diagnóstico de Categorias", subtitulo, W);
     let y = PDF_HEADER_H + 6;
 
-    // KPIs
-    const kpiW = (contentW - 12) / 4;
+    // KPIs (2x2 para caber no retrato)
+    const kpiW = (contentW - 6) / 2;
     const kpis = [
       { label: "TRANSAÇÕES", val: String(diagnostico.rows.length), color: BRAND },
+      { label: "SEM CATEGORIA", val: String(diagnostico.semCategoria.length),
+        color: diagnostico.semCategoria.length > 0 ? ([234, 88, 12] as const) : GREEN },
       { label: "RECEITAS", val: fmt(diagnostico.totalReceita), color: GREEN },
       { label: "DESPESAS", val: fmt(diagnostico.totalDespesa), color: RED },
-      {
-        label: "SEM CATEGORIA",
-        val: String(diagnostico.semCategoria.length),
-        color: diagnostico.semCategoria.length > 0 ? ([234, 88, 12] as const) : GREEN,
-      },
     ];
     kpis.forEach((k, i) => {
-      const kx = PDF_MARGIN + i * (kpiW + 4);
+      const row = Math.floor(i / 2);
+      const col = i % 2;
+      const kx = PDF_MARGIN + col * (kpiW + 6);
+      const ky = y + row * 16;
       doc.setDrawColor(230, 230, 230);
       doc.setFillColor(250, 251, 253);
-      doc.roundedRect(kx, y, kpiW, 16, 1.5, 1.5, "FD");
+      doc.roundedRect(kx, ky, kpiW, 14, 1.5, 1.5, "FD");
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      doc.text(k.label, kx + 3, y + 5.5);
+      doc.text(k.label, kx + 3, ky + 5);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.setTextColor(k.color[0], k.color[1], k.color[2]);
-      doc.text(k.val, kx + 3, y + 12.5);
+      doc.text(k.val, kx + 3, ky + 11);
     });
-    y += 22;
+    y += 36;
 
     y = pdfDrawTableHeader(doc, y, cols, contentW);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
 
     let zebra = false;
     for (const r of diagnostico.rows) {
@@ -711,27 +719,19 @@ export default function FluxoCaixa() {
 
       doc.setTextColor(80, 80, 80);
       doc.text(r.data || "", cols[0].x + 2, y + 3.5);
-      doc.text((r.descricao_banco || "").substring(0, 50), cols[1].x + 2, y + 3.5);
-
-      const isReceita = r.tipo === "RECEITA";
-      const corTipo = isReceita ? GREEN : RED;
-      doc.setTextColor(corTipo[0], corTipo[1], corTipo[2]);
-      doc.text(r.tipo, cols[2].x + 2, y + 3.5);
-
-      doc.setTextColor(80, 80, 80);
-      doc.text(r.vinculo || "—", cols[3].x + 2, y + 3.5);
-      doc.text((r.beneficiario || "—").substring(0, 30), cols[4].x + 2, y + 3.5);
+      doc.text((r.descricao_banco || "").substring(0, 30), cols[1].x + 2, y + 3.5);
+      doc.text((r.beneficiario || "—").substring(0, 20), cols[2].x + 2, y + 3.5);
 
       if (semCat) {
         doc.setTextColor(180, 83, 9);
         doc.setFont("helvetica", "bold");
-        doc.text("SEM CATEGORIA", cols[5].x + 2, y + 3.5);
+        doc.text("SEM CATEGORIA", cols[3].x + 2, y + 3.5);
         doc.setFont("helvetica", "normal");
       } else {
         doc.setTextColor(80, 80, 80);
         doc.text(
-          `${r.cod_categoria} — ${(r.nome_categoria || "").substring(0, 28)}`,
-          cols[5].x + 2,
+          `${r.cod_categoria} ${(r.nome_categoria || "").substring(0, 16)}`,
+          cols[3].x + 2,
           y + 3.5
         );
       }
