@@ -174,7 +174,7 @@ export default function Conciliacao() {
                 const chunk = ids.slice(i, i + chunkSize);
                 const { data: chunkData, error } = await (activeClient as any)
                     .from("bank_transactions")
-                    .select("id, date, amount, description, memo, status, reconciled_payable_id, reconciled_receivable_id")
+                    .select("id, date, amount, description, memo, status, reconciled_payable_id, reconciled_receivable_id, category_id")
                     .in("id", chunk)
                     .order("date", { ascending: true });
                 if (error) throw new Error(JSON.stringify(error));
@@ -215,7 +215,7 @@ export default function Conciliacao() {
                     ...t,
                     linked_table: t.reconciled_payable_id ? "accounts_payable" : t.reconciled_receivable_id ? "accounts_receivable" : null,
                     linked_id: t.reconciled_payable_id || t.reconciled_receivable_id || null,
-                    category_id: linked?.category_id || null,
+                    category_id: linked?.category_id || t.category_id || null,
                 };
             });
         },
@@ -227,37 +227,48 @@ export default function Conciliacao() {
     const updateLinkedCategory = async (linkedTable: string | null, linkedId: string | null, newCategoryId: string, bankTxId?: string) => {
         console.log("[updateLinkedCategory] params:", { linkedTable, linkedId, newCategoryId, bankTxId });
 
-        if (!linkedId) {
-            toast({ title: "Erro", description: "Transação sem vínculo — não é possível atualizar categoria.", variant: "destructive" });
-            return;
-        }
-
-        // Determinar tabela e tentar update
-        const isPayable = linkedTable === "accounts_payable";
-        const tables = isPayable
-            ? ["contas_pagar", "accounts_payable"]
-            : ["contas_receber", "accounts_receivable"];
-
         let updated = false;
-        for (const table of tables) {
-            const field = table.startsWith("accounts_") ? "account_id" : "conta_contabil_id";
+
+        // Fallback: sem CR/CP vinculado (ex: transferências Pix) — grava direto em bank_transactions
+        if (!linkedId) {
+            if (!bankTxId) {
+                toast({ title: "Erro", description: "Transação sem identificador — não é possível atualizar categoria.", variant: "destructive" });
+                return;
+            }
             const { error, data } = await (activeClient as any)
-                .from(table)
-                .update({ [field]: newCategoryId })
-                .eq("id", linkedId)
+                .from("bank_transactions")
+                .update({ category_id: newCategoryId })
+                .eq("id", bankTxId)
                 .select("id");
+            console.log(`[updateLinkedCategory] bank_transactions.category_id = ${newCategoryId} where id=${bankTxId}:`, { error, data });
+            updated = !error && !!data && data.length > 0;
+        } else {
+            // Determinar tabela e tentar update
+            const isPayable = linkedTable === "accounts_payable";
+            const tables = isPayable
+                ? ["contas_pagar", "accounts_payable"]
+                : ["contas_receber", "accounts_receivable"];
 
-            console.log(`[updateLinkedCategory] ${table}.${field} = ${newCategoryId} where id=${linkedId}:`, { error, data });
+            for (const table of tables) {
+                const field = table.startsWith("accounts_") ? "account_id" : "conta_contabil_id";
+                const { error, data } = await (activeClient as any)
+                    .from(table)
+                    .update({ [field]: newCategoryId })
+                    .eq("id", linkedId)
+                    .select("id");
 
-            if (!error && data && data.length > 0) {
-                updated = true;
-                // Atualizar movimentação vinculada
-                const txField = isPayable ? "conta_pagar_id" : "conta_receber_id";
-                await (activeClient as any)
-                    .from("movimentacoes")
-                    .update({ conta_contabil_id: newCategoryId })
-                    .eq(txField, linkedId);
-                break;
+                console.log(`[updateLinkedCategory] ${table}.${field} = ${newCategoryId} where id=${linkedId}:`, { error, data });
+
+                if (!error && data && data.length > 0) {
+                    updated = true;
+                    // Atualizar movimentação vinculada
+                    const txField = isPayable ? "conta_pagar_id" : "conta_receber_id";
+                    await (activeClient as any)
+                        .from("movimentacoes")
+                        .update({ conta_contabil_id: newCategoryId })
+                        .eq(txField, linkedId);
+                    break;
+                }
             }
         }
 
@@ -1316,7 +1327,7 @@ export default function Conciliacao() {
                                                                                         {/* Ações à ESQUERDA */}
                                                                                         <TableCell className="py-2">
                                                                                             <div className="flex items-center gap-0.5">
-                                                                                                {isReconciled && tx.linked_id && (
+                                                                                                {isReconciled && (
                                                                                                     <>
                                                                                                         <Button
                                                                                                             variant="ghost"
@@ -1384,9 +1395,7 @@ export default function Conciliacao() {
                                                                                                             }`}
                                                                                                             title={`${s.reason} (score: ${s.score})`}
                                                                                                             onClick={() => {
-                                                                                                                if (tx.linked_table && tx.linked_id) {
-                                                                                                                    updateLinkedCategory(tx.linked_table, tx.linked_id, s.account.id);
-                                                                                                                }
+                                                                                                                updateLinkedCategory(tx.linked_table, tx.linked_id, s.account.id, tx.id);
                                                                                                             }}
                                                                                                         >
                                                                                                             {s.account.code} {s.account.name}
@@ -1416,9 +1425,7 @@ export default function Conciliacao() {
                                                                                                                         key={cat.id}
                                                                                                                         value={`${cat.code} ${cat.name}`}
                                                                                                                         onSelect={() => {
-                                                                                                                            if (tx.linked_table && tx.linked_id) {
-                                                                                                                                updateLinkedCategory(tx.linked_table, tx.linked_id, cat.id);
-                                                                                                                            }
+                                                                                                                            updateLinkedCategory(tx.linked_table, tx.linked_id, cat.id, tx.id);
                                                                                                                         }}
                                                                                                                         className="text-xs cursor-pointer"
                                                                                                                     >
