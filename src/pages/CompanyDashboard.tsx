@@ -852,9 +852,9 @@ export default function CompanyDashboard() {
                 {/* ── 3 KPI Cards (mockup v1) ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Faturamento</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Faturamento</div>
                             {receitaPeriodoAnterior > 0 && (
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                     {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
@@ -868,9 +868,9 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 2. Despesas */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Despesas</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Despesas</div>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#FEE2E2", color: "#E53E3E", flexShrink: 0 }}>
                                 ▼ {receitaPeriodo > 0 ? `${((despesaLiq / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
                             </span>
@@ -882,9 +882,9 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 3. Resultado Líquido */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Resultado Líquido</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Resultado Líquido</div>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: resultadoPeriodo >= 0 ? "#ECFDF3" : "#FEE2E2", color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                 {resultadoPeriodo >= 0 ? "▲" : "▼"} {receitaPeriodo > 0 ? `${Math.abs((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
                             </span>
