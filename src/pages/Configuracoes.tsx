@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,8 +21,12 @@ import {
     AlertTriangle, Trash2, History, Settings, Shield, Plus,
     Pencil, Search, Plug, CheckCircle2, XCircle, Clock,
     Download, Eye, EyeOff, ChevronDown, ChevronUp,
+    Moon, FileText, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+    useOvernightConfig, useOvernightLogs, useGerarOvernightPdf, base64ToBlob,
+} from "@/hooks/useOvernight";
 import { useToast } from "@/components/ui/use-toast";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -94,6 +99,7 @@ export default function Configuracoes() {
                 <Tabs defaultValue="geral" className="w-full">
                     <TabsList className="flex w-full max-w-2xl mb-6 overflow-x-auto">
                         <TabsTrigger value="geral">Geral</TabsTrigger>
+                        <TabsTrigger value="overnight">Overnight</TabsTrigger>
                         <TabsTrigger value="perfis">Perfis de Acesso</TabsTrigger>
                         <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
                         <TabsTrigger value="integracoes">Integrações</TabsTrigger>
@@ -140,6 +146,11 @@ export default function Configuracoes() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* ─── Overnight ─── */}
+                    <TabsContent value="overnight">
+                        <OvernightPanel />
                     </TabsContent>
 
                     {/* ─── Perfis de Acesso ─── */}
@@ -772,5 +783,212 @@ function IntegracoesPanel() {
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+// ═════════════════════════════════════════════════════════════
+// Overnight Financeiro
+// ═════════════════════════════════════════════════════════════
+function OvernightPanel() {
+    const { data: config, isLoading, salvar } = useOvernightConfig();
+    const { data: logs } = useOvernightLogs(10);
+    const gerar = useGerarOvernightPdf();
+
+    const [frase, setFrase] = useState("");
+    const [dirty, setDirty] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!dirty) setFrase(config?.frase_noite ?? "");
+    }, [config?.frase_noite, dirty]);
+
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
+
+    const handleFraseChange = (v: string) => {
+        setFrase(v.slice(0, 200));
+        setDirty(true);
+    };
+
+    const handleSalvar = async () => {
+        try {
+            await salvar.mutateAsync({ frase_noite: frase, ativa: config?.ativa ?? true });
+            setDirty(false);
+            toast.success("Frase da noite salva.");
+        } catch (err: any) {
+            toast.error(err.message ?? "Falha ao salvar");
+        }
+    };
+
+    const handleGerarEVisualizar = async () => {
+        try {
+            const r = await gerar.mutateAsync();
+            if (!r.pdfBase64) throw new Error("Resposta sem PDF");
+            const blob = base64ToBlob(r.pdfBase64);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            const url = URL.createObjectURL(blob);
+            setPreviewUrl(url);
+            toast.success(`PDF gerado (${Math.round((r.tamanho_bytes ?? 0) / 1024)} KB)`);
+        } catch (err: any) {
+            toast.error(err.message ?? "Falha ao gerar PDF");
+        }
+    };
+
+    const handleBaixar = async () => {
+        try {
+            const r = await gerar.mutateAsync();
+            if (!r.pdfBase64) throw new Error("Resposta sem PDF");
+            const blob = base64ToBlob(r.pdfBase64);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `overnight-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("Download iniciado.");
+        } catch (err: any) {
+            toast.error(err.message ?? "Falha ao baixar PDF");
+        }
+    };
+
+    const ultimoSucesso = logs?.find((l) => l.status === "sucesso");
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Moon className="h-5 w-5" />
+                        Overnight Financeiro
+                    </CardTitle>
+                    <CardDescription>
+                        Relatório diário em PDF gerado às 18h com saldos, contas a pagar/receber e resultado do mês.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label className="text-[12px] font-semibold">Frase da noite</Label>
+                        <p className="text-[11px] text-muted-foreground">
+                            Texto livre exibido no topo do PDF. Se vazio, usa "Bom fechamento de dia. Até amanhã!".
+                        </p>
+                        <Textarea
+                            value={frase}
+                            onChange={(e) => handleFraseChange(e.target.value)}
+                            placeholder="Ex.: Ótimo dia! Amanhã temos cobrança importante às 10h."
+                            rows={3}
+                            maxLength={200}
+                            disabled={isLoading}
+                            className="resize-none text-[12.5px]"
+                        />
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-muted-foreground">{frase.length} / 200 caracteres</span>
+                            <Button
+                                size="sm"
+                                onClick={handleSalvar}
+                                disabled={!dirty || salvar.isPending || isLoading}
+                                className="bg-green-600 hover:bg-green-700"
+                            >
+                                {salvar.isPending ? "Salvando..." : "Salvar Frase"}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="border-t pt-4 space-y-3">
+                        <Label className="text-[12px] font-semibold">Gerar PDF agora</Label>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={handleGerarEVisualizar}
+                                disabled={gerar.isPending}
+                                variant="outline"
+                                size="sm"
+                            >
+                                {gerar.isPending
+                                    ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                    : <Eye className="h-3.5 w-3.5 mr-1" />}
+                                Gerar e Visualizar
+                            </Button>
+                            <Button
+                                onClick={handleBaixar}
+                                disabled={gerar.isPending}
+                                variant="outline"
+                                size="sm"
+                            >
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Baixar PDF
+                            </Button>
+                        </div>
+
+                        {previewUrl && (
+                            <div className="border rounded-lg overflow-hidden bg-muted/30" style={{ height: 600 }}>
+                                <iframe src={previewUrl} className="w-full h-full" title="Preview Overnight" />
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-[14px]">
+                        <FileText className="h-4 w-4" />
+                        Histórico de gerações
+                    </CardTitle>
+                    <CardDescription>
+                        {ultimoSucesso
+                            ? `Última geração com sucesso: ${format(new Date(ultimoSucesso.gerado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
+                            : "Nenhuma geração registrada ainda."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="text-[11px] w-[160px]">Data/Hora</TableHead>
+                                <TableHead className="text-[11px] w-[90px]">Origem</TableHead>
+                                <TableHead className="text-[11px] w-[90px]">Status</TableHead>
+                                <TableHead className="text-[11px] w-[100px] text-right">Tamanho</TableHead>
+                                <TableHead className="text-[11px]">Erro</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {!logs?.length ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-20 text-center text-muted-foreground text-[11px]">
+                                        Nenhum registro.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                logs.map((l) => (
+                                    <TableRow key={l.id}>
+                                        <TableCell className="text-[11.5px] text-muted-foreground whitespace-nowrap">
+                                            {format(new Date(l.gerado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="text-[10px] capitalize">{l.origem}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {l.status === "sucesso" ? (
+                                                <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Sucesso</Badge>
+                                            ) : (
+                                                <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-100">Erro</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right text-[11px] text-muted-foreground">
+                                            {l.tamanho_bytes ? `${Math.round(l.tamanho_bytes / 1024)} KB` : "—"}
+                                        </TableCell>
+                                        <TableCell className="text-[11px] text-red-500 truncate max-w-[240px]" title={l.erro_descricao ?? ""}>
+                                            {l.erro_descricao ?? "—"}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
