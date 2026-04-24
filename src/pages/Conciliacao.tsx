@@ -703,33 +703,46 @@ export default function Conciliacao() {
         const entryDescription = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
         const amount = Math.abs(selectedBankTx.amount);
 
-        // Detectar CR/CP ja existente em 'aberto' com mesmo valor em janela de +-7 dias
-        // — evita duplicata quando equipe ja lancou manualmente antes do OFX chegar.
+        // Detectar CR/CP em aberto na janela +-7 dias cujo valor individual OU soma
+        // corresponda ao extrato — evita duplicata (match exato) e 1→N (soma multipla).
         const bankTxDate = new Date(selectedBankTx.date);
         const from = new Date(bankTxDate.getTime() - 7 * 86400000).toISOString().slice(0, 10);
         const to = new Date(bankTxDate.getTime() + 7 * 86400000).toISOString().slice(0, 10);
-        const { data: candidates } = await (activeClient as any)
+        const { data: candidatesRaw } = await (activeClient as any)
             .from(table)
             .select(`id, valor, data_vencimento, ${nameCol}`)
             .eq("company_id", selectedCompany.id)
-            .eq("valor", amount)
+            .lte("valor", amount)  // valor menor ou igual ao extrato
             .eq("status", "aberto")
             .is("deleted_at", null)
             .gte("data_vencimento", from)
             .lte("data_vencimento", to)
-            .limit(3);
+            .order("valor", { ascending: false })
+            .limit(20);
 
-        if (candidates && candidates.length > 0) {
-            const lista = candidates.map((c: any) =>
-                `• R$ ${Number(c.valor).toFixed(2)} — ${c[nameCol] || "(sem nome)"} (venc. ${c.data_vencimento})`
-            ).join("\n");
+        const candidates = (candidatesRaw || []) as any[];
+        const exatos = candidates.filter(c => Number(c.valor) === amount);
+        const somaTotal = candidates.reduce((s, c) => s + Number(c.valor), 0);
+        const somaBate = candidates.length >= 2 && Math.abs(somaTotal - amount) < 0.01;
+
+        if (exatos.length > 0 || somaBate) {
             const tipoLabel = isExpense ? "Conta a Pagar" : "Conta a Receber";
-            const confirmed = window.confirm(
-                `⚠️ Já existe(m) ${tipoLabel} em aberto com mesmo valor/data próximos:\n\n${lista}\n\n` +
-                `Isso pode ser o mesmo lançamento que a equipe já cadastrou manualmente.\n\n` +
-                `OK = criar NOVO mesmo assim (risco de duplicata).\n` +
-                `Cancelar = voltar e usar "Conciliar com existente".`
-            );
+            let msg = `⚠️ Pode haver duplicata!\n\n`;
+            if (exatos.length > 0) {
+                const lista = exatos.slice(0, 3).map((c: any) =>
+                    `• R$ ${Number(c.valor).toFixed(2)} — ${c[nameCol] || "(sem nome)"} (venc. ${c.data_vencimento})`
+                ).join("\n");
+                msg += `${tipoLabel} em aberto com MESMO valor:\n${lista}\n\n`;
+            }
+            if (somaBate) {
+                const lista = candidates.slice(0, 5).map((c: any) =>
+                    `• R$ ${Number(c.valor).toFixed(2)} — ${c[nameCol] || "(sem nome)"}`
+                ).join("\n");
+                msg += `Ou a SOMA de ${candidates.length} lançamentos em aberto bate R$ ${amount.toFixed(2)}:\n${lista}\n\n`;
+            }
+            msg += `OK = criar NOVO mesmo assim (risco de duplicata).\n`;
+            msg += `Cancelar = voltar e usar "Conciliar com existente" (1:N no bt).`;
+            const confirmed = window.confirm(msg);
             if (!confirmed) return;
         }
 
