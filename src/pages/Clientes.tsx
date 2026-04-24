@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, Bell, ShoppingCart,
     Receipt, DollarSign, Stethoscope, FileText, StickyNote,
-    CreditCard, Package, Users,
+    CreditCard, Package, Users, FileDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientSheet } from "@/components/clients/ClientSheet";
@@ -12,7 +12,9 @@ import { TabContracts } from "@/modules/clients/presentation/partials/TabContrac
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
 import { ContratosKpiCard } from "@/modules/clients/presentation/components/ContratosKpiCard";
 import { MergeDuplicatesDialog } from "@/modules/clients/presentation/components/MergeDuplicatesDialog";
+import { useClientContratos } from "@/modules/clients/presentation/hooks/useClientContratos";
 import { hasContratosByCompany } from "@/config/features";
+import { gerarFichaClientePDF, downloadFichaPDF } from "@/lib/ficha-cliente/gerar-pdf";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -75,6 +77,10 @@ const diasAtraso = (data: string | null): string => {
     if (diff === 1) return "1 dia em atraso";
     return `${diff} dias em atraso`;
 };
+
+/* ─── Cartão = pago (cliente já quitou; operadora é quem repassa) ─── */
+const isCartaoQuitado = (formaRecebimento: string | null | undefined): boolean =>
+    formaRecebimento === "cartao_credito" || formaRecebimento === "cartao_debito";
 
 /* ─── Badge de status ──────────────────────────────────────── */
 
@@ -152,10 +158,14 @@ export default function Clientes() {
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailTab, setDetailTab] = useState<DetailTab>("historico");
     const [mergeOpen, setMergeOpen] = useState(false);
+    const [pdfLoading, setPdfLoading] = useState(false);
     const { toast } = useToast();
     const confirm = useConfirm();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+
+    // Contratos do cliente selecionado — usado no PDF e também pré-carrega a aba Contratos.
+    const { contratos: clientContratos } = useClientContratos(selectedClient?.cpf_cnpj);
 
     const normalizeSearch = (value: unknown) =>
         String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -258,10 +268,13 @@ export default function Clientes() {
             found.totalReceber += valor;
             found.countReceber++;
             found.receivables.push(r);
-            if (r.status === "aberto" || r.status === "parcial") {
+            // Cartão (crédito/débito): cliente já quitou — a operadora é quem repassa,
+            // então não conta como "em aberto" nem "vencido" na visão do cliente.
+            const cartao = isCartaoQuitado(r.forma_recebimento);
+            if (!cartao && (r.status === "aberto" || r.status === "parcial")) {
                 found.totalReceberAberto += valor - Number(r.valor_pago || 0);
             }
-            if ((r.status === "aberto" || r.status === "vencido") && r.data_vencimento < today) {
+            if (!cartao && (r.status === "aberto" || r.status === "vencido") && r.data_vencimento < today) {
                 found.totalReceberVencido += valor - Number(r.valor_pago || 0);
             }
         });
@@ -373,26 +386,38 @@ export default function Clientes() {
             bank_account_name: bankByCr[cr.id] || null,
         }));
 
+        // Cartão (crédito/débito): o cliente já pagou no ato. O recebível que resta
+        // é da operadora do cartão, não do paciente — portanto não entra em "a receber"
+        // nem "vencido" na ficha dele, e conta como pago e no prazo para pontualidade.
         const aReceber = listaEnriquecida
-            .filter(cr => !["pago", "cancelado"].includes(cr.status))
+            .filter(cr => !["pago", "cancelado"].includes(cr.status) && !isCartaoQuitado(cr.forma_recebimento))
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
 
         const vencido = lista
             .filter(cr =>
-                cr.status === "vencido" ||
-                (!["pago", "cancelado"].includes(cr.status) &&
-                    cr.data_vencimento != null &&
-                    new Date(cr.data_vencimento) < new Date())
+                !isCartaoQuitado(cr.forma_recebimento) && (
+                    cr.status === "vencido" ||
+                    (!["pago", "cancelado"].includes(cr.status) &&
+                        cr.data_vencimento != null &&
+                        new Date(cr.data_vencimento) < new Date())
+                )
             )
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
 
-        const pagos = listaEnriquecida.filter(cr => cr.status === "pago");
-        const totalPago = pagos.reduce((acc, cr) => acc + Number(cr.valor_pago ?? 0), 0);
+        const pagos = listaEnriquecida.filter(cr =>
+            cr.status === "pago" || (isCartaoQuitado(cr.forma_recebimento) && cr.status !== "cancelado")
+        );
+        const totalPago = pagos.reduce((acc, cr) =>
+            acc + (cr.status === "pago" ? Number(cr.valor_pago ?? 0) : Number(cr.valor ?? 0)),
+            0
+        );
 
         const pagosNoPrazo = pagos.filter(cr =>
-            cr.data_pagamento != null &&
-            cr.data_vencimento != null &&
-            new Date(cr.data_pagamento) <= new Date(cr.data_vencimento)
+            isCartaoQuitado(cr.forma_recebimento) || (
+                cr.data_pagamento != null &&
+                cr.data_vencimento != null &&
+                new Date(cr.data_pagamento) <= new Date(cr.data_vencimento)
+            )
         ).length;
 
         const totalComprado = listaEnriquecida.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0);
@@ -639,12 +664,16 @@ export default function Clientes() {
     const crSubtext = (cr: any) => {
         const today = new Date();
         const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
+        const cartaoPago = isCartaoQuitado(cr.forma_recebimento) && cr.status !== "cancelado";
 
         const parts: string[] = [];
 
         // Data (vencimento/pagamento com contexto)
         if (cr.status === "pago" && cr.data_pagamento) {
             parts.push(`Pago ${formatData(cr.data_pagamento)}`);
+        } else if (cartaoPago) {
+            // Cartão: cliente já quitou no ato; mostra a data como referência de cobrança da operadora
+            parts.push(`Pago no cartão · vence ${formatData(cr.data_vencimento)}`);
         } else if (cr.status === "vencido" || (venc && venc < today && cr.status !== "pago" && cr.status !== "cancelado")) {
             parts.push(`Venceu ${formatData(cr.data_vencimento)} · ${diasAtraso(cr.data_vencimento)}`);
         } else if (cr.status === "parcial") {
@@ -670,10 +699,85 @@ export default function Clientes() {
     const getCRDisplayStatus = (cr: any) => {
         const today = new Date();
         const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
+        if (cr.status === "cancelado") return "cancelado";
         if (cr.status === "pago") return "pago";
-        if (cr.status === "vencido" || (venc && venc < today && cr.status !== "cancelado")) return "vencido";
+        if (isCartaoQuitado(cr.forma_recebimento)) return "pago";
+        if (cr.status === "vencido" || (venc && venc < today)) return "vencido";
         if (cr.status === "parcial") return "em_andamento";
         return "aberto";
+    };
+
+    /* ─── Exportar ficha do cliente em PDF ──────────────────── */
+
+    const handleExportPDF = async () => {
+        if (!selectedClient || !detailFinancial) return;
+        setPdfLoading(true);
+        try {
+            const contratosAtivos = (clientContratos || []).filter((c: any) => c.status === "confirmado");
+            const negociacoes = (clientContratos || []).filter((c: any) => c.status === "orcamento");
+
+            const mapContrato = (c: any) => ({
+                descricao: c.descricao,
+                procedimento: c.procedimento,
+                consultora: c.consultora,
+                valor_total: c.valor_total,
+                total_pago: c.total_pago,
+                saldo: c.saldo,
+                data_venda: c.data_venda,
+                previsao_cirurgia: c.previsao_cirurgia,
+                forma_pagamento: c.forma_pagamento,
+                status: c.status,
+                parcelas: (c.crs || []).map((p: any) => ({
+                    numero: p.numero,
+                    valor: p.valor,
+                    valor_pago: p.valor_pago,
+                    data_vencimento: p.data_vencimento,
+                    data_pagamento: p.data_pagamento,
+                    status: p.status,
+                    tipo: p.tipo,
+                })),
+            });
+
+            const historico = (detailFinancial.crs || []).map((cr: any) => ({
+                descricao: crDescription(cr),
+                data_vencimento: cr.data_vencimento,
+                data_pagamento: cr.data_pagamento,
+                valor: Number(cr.valor ?? 0),
+                valor_pago: Number(cr.valor_pago ?? 0),
+                status: cr.status,
+                forma_recebimento: cr.forma_recebimento,
+                categoria: cr.categoria?.name ?? null,
+            }));
+
+            const blob = await gerarFichaClientePDF({
+                empresa_nome: selectedCompany?.razao_social || selectedCompany?.nome_fantasia || "Empresa",
+                empresa_cnpj: selectedCompany?.cnpj || undefined,
+                paciente_nome: toTitleCase(selectedClient.razao_social || ""),
+                paciente_cpf_cnpj: selectedClient.cpf_cnpj ? formatDoc(selectedClient.cpf_cnpj) : null,
+                paciente_email: selectedClient.email || null,
+                paciente_telefone: selectedClient.celular || selectedClient.telefone
+                    ? maskPhone(selectedClient.celular || selectedClient.telefone)
+                    : null,
+                total_comprado: detailFinancial.totalComprado,
+                em_aberto: detailFinancial.aReceber,
+                ultima_compra: detailFinancial.ultimaCompra,
+                contratos_ativos: contratosAtivos.map(mapContrato),
+                negociacoes: negociacoes.map(mapContrato),
+                historico,
+            });
+
+            downloadFichaPDF(blob, selectedClient.razao_social || "cliente");
+            toast({ title: "Ficha exportada", description: "PDF gerado com sucesso." });
+        } catch (err: any) {
+            console.error("[handleExportPDF]", err);
+            toast({
+                title: "Erro ao gerar PDF",
+                description: err?.message || "Erro desconhecido",
+                variant: "destructive",
+            });
+        } finally {
+            setPdfLoading(false);
+        }
     };
 
     /* ─── Render ────────────────────────────────────────────── */
@@ -845,6 +949,17 @@ export default function Clientes() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleExportPDF}
+                                            disabled={pdfLoading || detailLoading || !detailFinancial}
+                                            className="text-[12px] border-[#ddd]"
+                                            title="Exportar ficha completa em PDF"
+                                        >
+                                            <FileDown className="h-3 w-3 mr-1.5" />
+                                            {pdfLoading ? "Gerando..." : "Exportar PDF"}
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
