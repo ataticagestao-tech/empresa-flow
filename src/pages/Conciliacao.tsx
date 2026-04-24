@@ -86,6 +86,9 @@ export default function Conciliacao() {
     const [ruleConflict, setRuleConflict] = useState<RuleConflict | null>(null);
     const [expandedAiRow, setExpandedAiRow] = useState<string | null>(null);
     const [inlineConciling, setInlineConciling] = useState<string | null>(null);
+    // Multi-select dentro do modal Conciliar (para 1 bt → N CR/CP que somam igual)
+    const [selectedSysTxsForMatch, setSelectedSysTxsForMatch] = useState<{ id: string; type: 'payable' | 'receivable' }[]>([]);
+    const [isMatchingMultiple, setIsMatchingMultiple] = useState(false);
 
     const { activeClient, user } = useAuth();
     const { selectedCompany } = useCompany();
@@ -1876,7 +1879,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
                 }}>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
@@ -1963,23 +1966,39 @@ export default function Conciliacao() {
                                                 <div className="space-y-1">
                                                     {filteredSystemTransactions?.map((st) => {
                                                         const jaConciliado = st.status === 'conciliado';
+                                                        const stKey = `${st.type}-${st.id}`;
+                                                        const isChecked = selectedSysTxsForMatch.some(s => s.id === st.id && s.type === st.type);
                                                         return (
-                                                            <div key={`${st.type}-${st.id}`}
-                                                                className={`flex items-center justify-between p-3 rounded-md border transition-all ${
+                                                            <div key={stKey}
+                                                                className={`flex items-center gap-2 p-3 rounded-md border transition-all ${
                                                                     jaConciliado
-                                                                        ? 'opacity-50 border-transparent hover:opacity-80 hover:bg-[#F6F2EB] cursor-pointer'
-                                                                        : 'hover:bg-[#F6F2EB] cursor-pointer border-transparent hover:border-[#EAECF0]'
+                                                                        ? 'opacity-50 border-transparent cursor-not-allowed'
+                                                                        : isChecked
+                                                                            ? 'bg-emerald-50 border-emerald-300 cursor-pointer'
+                                                                            : 'hover:bg-[#F6F2EB] cursor-pointer border-transparent hover:border-[#EAECF0]'
                                                                 }`}
                                                                 onClick={() => {
-                                                                    handleMatch(selectedBankTx, st);
-                                                                    setSelectedBankTx(null);
+                                                                    if (jaConciliado) return;
+                                                                    setSelectedSysTxsForMatch(prev => {
+                                                                        const exists = prev.some(s => s.id === st.id && s.type === st.type);
+                                                                        if (exists) return prev.filter(s => !(s.id === st.id && s.type === st.type));
+                                                                        return [...prev, { id: st.id, type: st.type }];
+                                                                    });
                                                                 }}>
-                                                                <div>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    disabled={jaConciliado}
+                                                                    onChange={() => { /* handled no onClick da linha */ }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="h-4 w-4 cursor-pointer accent-emerald-600"
+                                                                />
+                                                                <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2">
                                                                         <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
                                                                             {st.type === 'payable' ? 'Pagar' : 'Receber'}
                                                                         </Badge>
-                                                                        <span className="font-medium text-muted-foreground">{st.description}</span>
+                                                                        <span className="font-medium text-muted-foreground truncate">{st.description}</span>
                                                                         {jaConciliado && (
                                                                             <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground">
                                                                                 já conciliado
@@ -1991,12 +2010,80 @@ export default function Conciliacao() {
                                                                         {st.status !== 'conciliado' && ` • ${st.status}`}
                                                                     </p>
                                                                 </div>
-                                                                <span className="font-bold text-foreground">{formatBRL(st.amount)}</span>
+                                                                <span className="font-bold text-foreground whitespace-nowrap">{formatBRL(st.amount)}</span>
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
                                             </ScrollArea>
+
+                                            {/* Rodape: progresso e botao de conciliar multiplos */}
+                                            {selectedBankTx && (() => {
+                                                const btAmount = Math.abs(Number(selectedBankTx.amount || 0));
+                                                const selecionados = filteredSystemTransactions.filter(st =>
+                                                    selectedSysTxsForMatch.some(s => s.id === st.id && s.type === st.type)
+                                                );
+                                                const somaSelecionada = selecionados.reduce((s, st) => s + Number(st.amount || 0), 0);
+                                                const pct = btAmount > 0 ? Math.min(100, (somaSelecionada / btAmount) * 100) : 0;
+                                                const bate = btAmount > 0 && Math.abs(somaSelecionada - btAmount) < 0.01;
+                                                const excedeu = somaSelecionada > btAmount + 0.01;
+                                                const corBarra = bate ? '#059669' : excedeu ? '#E53E3E' : '#F59E0B';
+
+                                                const handleConciliarMultiplos = async () => {
+                                                    if (!selectedBankTx || selecionados.length === 0 || !bate) return;
+                                                    setIsMatchingMultiple(true);
+                                                    try {
+                                                        for (const st of selecionados) {
+                                                            await matchTransaction.mutateAsync({
+                                                                bankTx: selectedBankTx,
+                                                                sysTx: st,
+                                                                overrides: { amount: Number(st.amount), date: selectedBankTx.date },
+                                                            });
+                                                        }
+                                                        toast({ title: "Conciliado", description: `${selecionados.length} lançamento(s) vinculado(s)` });
+                                                        setSelectedBankTx(null);
+                                                        setSelectedSysTxsForMatch([]);
+                                                    } catch (e: any) {
+                                                        toast({ title: "Erro", description: e?.message || "Falha na conciliação múltipla", variant: "destructive" });
+                                                    } finally {
+                                                        setIsMatchingMultiple(false);
+                                                    }
+                                                };
+
+                                                if (selectedSysTxsForMatch.length === 0) return null;
+                                                return (
+                                                    <div className="mt-3 p-3 bg-[#F6F2EB] border border-[#EAECF0] rounded-md space-y-2">
+                                                        <div className="flex items-center justify-between text-xs">
+                                                            <span className="font-semibold text-muted-foreground">
+                                                                {selecionados.length} selecionado{selecionados.length !== 1 ? 's' : ''}
+                                                            </span>
+                                                            <span className="font-semibold" style={{ color: corBarra }}>
+                                                                {formatBRL(somaSelecionada)} / {formatBRL(btAmount)} ({pct.toFixed(0)}%)
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full h-2 bg-white rounded overflow-hidden">
+                                                            <div className="h-2 transition-all" style={{ width: `${Math.min(100, pct)}%`, backgroundColor: corBarra }} />
+                                                        </div>
+                                                        {excedeu && (
+                                                            <p className="text-[11px] text-red-600">Soma excede o valor do extrato — remova algum item.</p>
+                                                        )}
+                                                        <div className="flex gap-2 justify-end pt-1">
+                                                            <Button variant="outline" size="sm" onClick={() => setSelectedSysTxsForMatch([])}>
+                                                                Limpar seleção
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                disabled={!bate || isMatchingMultiple}
+                                                                onClick={handleConciliarMultiplos}
+                                                            >
+                                                                {isMatchingMultiple ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+                                                                Conciliar {selecionados.length} lançamento{selecionados.length !== 1 ? 's' : ''}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                         <Separator />
                                         <Button variant="outline"
