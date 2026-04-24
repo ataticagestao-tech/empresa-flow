@@ -745,8 +745,7 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                                             size="sm"
                                             variant="ghost"
                                             onClick={() => removeCondicao(idx)}
-                                            disabled={condicoes.length === 1}
-                                            className="text-[#E53E3E] hover:bg-[#FEE2E2] h-9 w-9 p-0 disabled:opacity-30"
+                                            className="text-[#E53E3E] hover:bg-[#FEE2E2] h-9 w-9 p-0"
                                             aria-label="Remover condição"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
