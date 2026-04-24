@@ -66,14 +66,14 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar + Header — warm graphite #2A2724 */
-    --sidebar-background: 27 7% 15%;          /* #2A2724 */
+    /* Sidebar + Header — navy #0A1E4E */
+    --sidebar-background: 222 77% 17%;        /* #0A1E4E */
     --sidebar-foreground: 30 14% 92%;         /* #EEEBE6 off-white quente */
     --sidebar-primary: 145 75% 52%;           /* emerald vivid (active) */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 27 8% 20%;              /* #38342F hover */
+    --sidebar-accent: 222 55% 25%;            /* hover — navy mais claro */
     --sidebar-accent-foreground: 30 14% 96%;  /* #F5F2ED */
-    --sidebar-border: 27 7% 24%;              /* #42403B divisor */
+    --sidebar-border: 222 40% 30%;            /* divisor — navy médio */
     --sidebar-ring: 145 75% 52%;
     --sidebar-muted: 30 8% 60%;               /* #9F9A91 labels */
   }
