@@ -386,24 +386,46 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 .eq('id', sysTx.id);
             if (updateError) throw updateError;
 
-            // Criar movimentação na tabela movimentacoes (receita ou despesa)
-            const { error: movError } = await (activeClient as any)
+            // Verifica se ja existe mov vinculada ao CR/CP (caso usuario tenha dado baixa
+            // manualmente antes de conciliar). Se existir, faz UPDATE com dados do extrato
+            // em vez de criar duplicata. Senao, cria mov nova.
+            const fkColumn = sysTx.type === 'payable' ? 'conta_pagar_id' : 'conta_receber_id';
+            const { data: existingMovs } = await (activeClient as any)
                 .from('movimentacoes')
-                .insert({
-                    company_id: companyId,
-                    conta_bancaria_id: bankTx.bank_account_id,
-                    conta_contabil_id: accountId,
-                    conta_receber_id: sysTx.type === 'receivable' ? sysTx.id : null,
-                    conta_pagar_id: sysTx.type === 'payable' ? sysTx.id : null,
-                    tipo: sysTx.type === 'payable' ? 'debito' : 'credito',
-                    valor: amount,
-                    data: date,
-                    descricao: sysTx.type === 'payable'
-                        ? `Pagamento: ${sysTx.description}`
-                        : `Recebimento: ${sysTx.description}`,
-                    origem: sysTx.type === 'payable' ? 'conta_pagar' : 'conta_receber',
-                });
-            if (movError) throw movError;
+                .select('id')
+                .eq(fkColumn, sysTx.id)
+                .limit(1);
+
+            const movPayload = {
+                company_id: companyId,
+                conta_bancaria_id: bankTx.bank_account_id,
+                conta_contabil_id: accountId,
+                conta_receber_id: sysTx.type === 'receivable' ? sysTx.id : null,
+                conta_pagar_id: sysTx.type === 'payable' ? sysTx.id : null,
+                tipo: sysTx.type === 'payable' ? 'debito' : 'credito',
+                valor: amount,
+                data: date,
+                descricao: sysTx.type === 'payable'
+                    ? `Pagamento: ${sysTx.description}`
+                    : `Recebimento: ${sysTx.description}`,
+                origem: sysTx.type === 'payable' ? 'conta_pagar' : 'conta_receber',
+                status_conciliacao: 'conciliado',
+            };
+
+            if (existingMovs && existingMovs.length > 0) {
+                // Mov ja existe (lancamento manual) — atualiza com dados do extrato
+                const { error: movUpdateError } = await (activeClient as any)
+                    .from('movimentacoes')
+                    .update(movPayload)
+                    .eq('id', existingMovs[0].id);
+                if (movUpdateError) throw movUpdateError;
+            } else {
+                // Nao existe mov — cria nova
+                const { error: movError } = await (activeClient as any)
+                    .from('movimentacoes')
+                    .insert(movPayload);
+                if (movError) throw movError;
+            }
 
             // Criar match na tabela de conciliação
             const { error: matchError } = await (activeClient as any)
