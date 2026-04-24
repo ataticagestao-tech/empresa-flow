@@ -703,6 +703,36 @@ export default function Conciliacao() {
         const entryDescription = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
         const amount = Math.abs(selectedBankTx.amount);
 
+        // Detectar CR/CP ja existente em 'aberto' com mesmo valor em janela de +-7 dias
+        // — evita duplicata quando equipe ja lancou manualmente antes do OFX chegar.
+        const bankTxDate = new Date(selectedBankTx.date);
+        const from = new Date(bankTxDate.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+        const to = new Date(bankTxDate.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+        const { data: candidates } = await (activeClient as any)
+            .from(table)
+            .select(`id, valor, data_vencimento, ${nameCol}`)
+            .eq("company_id", selectedCompany.id)
+            .eq("valor", amount)
+            .eq("status", "aberto")
+            .is("deleted_at", null)
+            .gte("data_vencimento", from)
+            .lte("data_vencimento", to)
+            .limit(3);
+
+        if (candidates && candidates.length > 0) {
+            const lista = candidates.map((c: any) =>
+                `• R$ ${Number(c.valor).toFixed(2)} — ${c[nameCol] || "(sem nome)"} (venc. ${c.data_vencimento})`
+            ).join("\n");
+            const tipoLabel = isExpense ? "Conta a Pagar" : "Conta a Receber";
+            const confirmed = window.confirm(
+                `⚠️ Já existe(m) ${tipoLabel} em aberto com mesmo valor/data próximos:\n\n${lista}\n\n` +
+                `Isso pode ser o mesmo lançamento que a equipe já cadastrou manualmente.\n\n` +
+                `OK = criar NOVO mesmo assim (risco de duplicata).\n` +
+                `Cancelar = voltar e usar "Conciliar com existente".`
+            );
+            if (!confirmed) return;
+        }
+
         setIsCreating(true);
         try {
             const payload: Record<string, any> = {
