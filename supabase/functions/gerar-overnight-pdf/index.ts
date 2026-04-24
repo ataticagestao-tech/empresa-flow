@@ -375,35 +375,35 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
     desenharFrase(ctx, d.frase_noite);
     ctx.y -= 8;
 
-    ensureSpace(ctx, 110);
+    ensureSpace(ctx, 100);
     desenharTituloBloco(ctx, "1. SALDO FINANCEIRO");
     desenharTabelaSaldos(ctx, d.saldos, d.total_saldo);
-    ctx.y -= 14;
+    ctx.y -= 10;
 
-    ensureSpace(ctx, 110);
+    ensureSpace(ctx, 100);
     desenharTituloBloco(ctx, "2. VENDAS DO DIA");
     desenharTabelaVendas(ctx, d);
-    ctx.y -= 14;
+    ctx.y -= 10;
 
-    ensureSpace(ctx, 110);
+    ensureSpace(ctx, 100);
     desenharTituloBloco(ctx, "3. CONTAS A PAGAR");
     desenharTabelaTitulos(ctx, d.contas_pagar, d.cp_total, d.cp_extras, "a pagar", "outros vencimentos");
-    ctx.y -= 14;
+    ctx.y -= 10;
 
-    ensureSpace(ctx, 110);
+    ensureSpace(ctx, 100);
     desenharTituloBloco(ctx, "4. CONTAS A RECEBER");
     desenharTabelaTitulos(ctx, d.contas_receber, d.cr_total, d.cr_extras, "a receber", "outros recebimentos");
-    ctx.y -= 18;
+    ctx.y -= 12;
 
-    ensureSpace(ctx, 100);
+    ensureSpace(ctx, 75);
     desenharTituloBloco(ctx, "( = ) CONSOLIDADO DO DIA");
     desenharConsolidadoBoxes(ctx, d.consolidado_dia, "hoje");
-    ctx.y -= 18;
+    ctx.y -= 10;
 
-    ensureSpace(ctx, 100);
+    ensureSpace(ctx, 75);
     desenharTituloBloco(ctx, "( = ) CONSOLIDADO DO MÊS");
     desenharConsolidadoBoxes(ctx, d.consolidado_mes, "mês corrente");
-    ctx.y -= 22;
+    ctx.y -= 14;
 
     desenharAssinatura(ctx);
 
@@ -775,9 +775,11 @@ function desenharLinhaTotal(
     ctx.y -= h + 2;
 }
 
-function desenharConsolidadoBoxes(ctx: RenderCtx, c: Consolidado, sufLegenda: string) {
-    const boxH = 68;
-    const gap = 10;
+function desenharConsolidadoBoxes(ctx: RenderCtx, c: Consolidado, _sufLegenda: string) {
+    // Versão compacta — o rótulo da seção ("CONSOLIDADO DO DIA"/"DO MÊS") já
+    // informa o período, então cada caixa só precisa de título + valor.
+    const boxH = 40;
+    const gap = 8;
     const boxW = (CONTENT_WIDTH - gap * 2) / 3;
     const topY = ctx.y;
     const boxBottomY = topY - boxH;
@@ -792,6 +794,9 @@ function desenharConsolidadoBoxes(ctx: RenderCtx, c: Consolidado, sufLegenda: st
         },
     ];
 
+    const titSize = 7;
+    const valSize = 11;
+
     for (let i = 0; i < 3; i++) {
         const x = MARGIN_LEFT + i * (boxW + gap);
         const b = caixas[i];
@@ -802,29 +807,21 @@ function desenharConsolidadoBoxes(ctx: RenderCtx, c: Consolidado, sufLegenda: st
             borderWidth: 0.6,
         });
         ctx.page.drawText(b.titulo, {
-            x: x + boxW / 2 - ctx.fontBold.widthOfTextAtSize(b.titulo, 8) / 2,
-            y: topY - 14,
-            size: 8,
+            x: x + boxW / 2 - ctx.fontBold.widthOfTextAtSize(b.titulo, titSize) / 2,
+            y: topY - 12,
+            size: titSize,
             font: ctx.fontBold,
             color: COLOR_MUTED,
         });
-        const sub = `até agora (${sufLegenda})`;
-        ctx.page.drawText(sub, {
-            x: x + boxW / 2 - ctx.font.widthOfTextAtSize(sub, 7) / 2,
-            y: topY - 24,
-            size: 7,
-            font: ctx.font,
-            color: COLOR_MUTED,
-        });
         ctx.page.drawText(b.valor, {
-            x: x + boxW / 2 - ctx.fontBold.widthOfTextAtSize(b.valor, 14) / 2,
-            y: topY - 48,
-            size: 14,
+            x: x + boxW / 2 - ctx.fontBold.widthOfTextAtSize(b.valor, valSize) / 2,
+            y: topY - 30,
+            size: valSize,
             font: ctx.fontBold,
             color: b.cor,
         });
     }
-    ctx.y = boxBottomY - 8;
+    ctx.y = boxBottomY - 6;
 }
 
 function desenharAssinatura(ctx: RenderCtx) {
