@@ -8,7 +8,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { PDFDocument, PDFImage, StandardFonts, rgb, PDFFont, PDFPage } from "npm:pdf-lib@1.17.1";
 
-const HERO_IMAGE_URL = "https://ataticagestao.com/overnight-hero.jpg";
+const HERO_IMAGE_URL = "https://ataticagestao.com/overnight-hero.png";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -36,7 +36,8 @@ const COLOR_RED = rgb(0.784, 0.157, 0.192);
 const COLOR_AMBER = rgb(0.816, 0.471, 0.086);
 const COLOR_GREEN = rgb(0.094, 0.549, 0.361);
 
-const HERO_HEIGHT = 110;
+// HERO_HEIGHT bate com a proporção nativa da arte overnight.png (1135×341 → 595×179)
+const HERO_HEIGHT = 179;
 
 interface OvernightRequest {
     empresa_id: string;
@@ -369,15 +370,15 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
     const page = doc.addPage(A4);
     const ctx: RenderCtx = { doc, page, font, fontBold, fontItalic, y: A4[1] };
 
-    // Busca foto do banner — falha silenciosa mantém o PDF funcional
+    // Busca a arte do banner (PNG full-bleed) — falha silenciosa mantém o PDF funcional
     let heroImg: PDFImage | null = null;
     try {
         const res = await fetch(HERO_IMAGE_URL);
         if (res.ok) {
             const bytes = new Uint8Array(await res.arrayBuffer());
-            heroImg = await doc.embedJpg(bytes);
+            heroImg = await doc.embedPng(bytes);
         }
-    } catch (_) { /* segue sem foto */ }
+    } catch (_) { /* segue sem arte */ }
 
     desenharHero(ctx, heroImg);
     ctx.y = A4[1] - HERO_HEIGHT - 18;
@@ -424,7 +425,18 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
 // ── Hero / info / frase ────────────────────────────────────
 
 function desenharHero(ctx: RenderCtx, heroImg: PDFImage | null) {
-    // Faixa azul-marinho cheia no topo (sangria)
+    if (heroImg) {
+        // A arte já contém navy, logo, 'OVERNIGHT', subtítulo e foto — só pintamos ela full-bleed.
+        ctx.page.drawImage(heroImg, {
+            x: 0,
+            y: A4[1] - HERO_HEIGHT,
+            width: A4[0],
+            height: HERO_HEIGHT,
+        });
+        return;
+    }
+
+    // Fallback caso a arte não carregue: faixa navy simples com texto renderizado.
     ctx.page.drawRectangle({
         x: 0,
         y: A4[1] - HERO_HEIGHT,
@@ -432,52 +444,20 @@ function desenharHero(ctx: RenderCtx, heroImg: PDFImage | null) {
         height: HERO_HEIGHT,
         color: COLOR_HERO_BG,
     });
-
     ctx.page.drawText("OVERNIGHT", {
         x: MARGIN_LEFT,
-        y: A4[1] - 55,
+        y: A4[1] - 80,
         size: 40,
         font: ctx.fontBold,
         color: COLOR_WHITE,
     });
-
     ctx.page.drawText("SUA ATUALIZAÇÃO FINANCEIRA EM TEMPO", {
         x: MARGIN_LEFT,
-        y: A4[1] - 78,
+        y: A4[1] - 105,
         size: 9,
         font: ctx.fontBold,
         color: COLOR_HERO_ACCENT,
     });
-
-    if (heroImg) {
-        const photoSize = 92;
-        const photoX = A4[0] - MARGIN_RIGHT - photoSize;
-        const photoY = A4[1] - HERO_HEIGHT + (HERO_HEIGHT - photoSize) / 2;
-        // Moldura clara atrás da foto dá contraste com a faixa navy
-        ctx.page.drawRectangle({
-            x: photoX - 3,
-            y: photoY - 3,
-            width: photoSize + 6,
-            height: photoSize + 6,
-            color: COLOR_HERO_ACCENT,
-        });
-        ctx.page.drawImage(heroImg, {
-            x: photoX,
-            y: photoY,
-            width: photoSize,
-            height: photoSize,
-        });
-    } else {
-        // Fallback discreto quando a foto não carrega
-        const accentX = A4[0] - MARGIN_RIGHT - 60;
-        ctx.page.drawRectangle({
-            x: accentX,
-            y: A4[1] - 80,
-            width: 60,
-            height: 2,
-            color: COLOR_HERO_ACCENT,
-        });
-    }
 }
 
 function desenharInfoEmpresa(ctx: RenderCtx, d: OvernightDados) {
