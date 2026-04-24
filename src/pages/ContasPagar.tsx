@@ -301,21 +301,22 @@ export default function ContasPagar() {
     return { totalPagar, totalCount, venceHoje, hojeCount, prox7, prox7Count }
   }, [contas])
 
-  // ─── Agenda 30 dias (heatmap estilo GitHub) ─────────────────────
-  const agenda30 = useMemo(() => {
+  // ─── Agenda do mês corrente (heatmap estilo GitHub) ──────────────
+  const agendaMes = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const days: { date: Date; dateStr: string; value: number; count: number }[] = []
-    const byDay: Record<string, { value: number; count: number }> = {}
+    const inicioMes = startOfMonth(today)
+    const fimMes = endOfMonth(today)
+    fimMes.setHours(0, 0, 0, 0)
 
+    const inicioIso = format(inicioMes, 'yyyy-MM-dd')
+    const fimIso = format(fimMes, 'yyyy-MM-dd')
+
+    const byDay: Record<string, { value: number; count: number }> = {}
     for (const cp of contas) {
       if (cp.status === 'pago' || cp.status === 'cancelado') continue
       const key = cp.data_vencimento
-      const venc = parseISO(key)
-      venc.setHours(0, 0, 0, 0)
-      if (isBefore(venc, today)) continue
-      const horizonte = addDays(today, 29)
-      if (isAfter(venc, horizonte)) continue
+      if (key < inicioIso || key > fimIso) continue
       const pendente = Number(cp.valor || 0) - Number(cp.valor_pago || 0)
       if (pendente <= 0) continue
       if (!byDay[key]) byDay[key] = { value: 0, count: 0 }
@@ -323,8 +324,10 @@ export default function ContasPagar() {
       byDay[key].count += 1
     }
 
-    for (let i = 0; i < 30; i++) {
-      const d = addDays(today, i)
+    const days: { date: Date; dateStr: string; value: number; count: number }[] = []
+    const totalDias = fimMes.getDate()
+    for (let i = 0; i < totalDias; i++) {
+      const d = addDays(inicioMes, i)
       const dateStr = format(d, 'yyyy-MM-dd')
       const b = byDay[dateStr]
       days.push({ date: d, dateStr, value: b?.value || 0, count: b?.count || 0 })
@@ -346,36 +349,27 @@ export default function ContasPagar() {
       }
     })
 
-    const monthLabels: { weekIndex: number; label: string }[] = []
-    let lastMonth = -1
-    weeks.forEach((week, i) => {
-      const firstDay = week.find((x): x is typeof days[number] => x !== null)
-      if (!firstDay) return
-      const m = firstDay.date.getMonth()
-      if (m !== lastMonth) {
-        monthLabels.push({
-          weekIndex: i,
-          label: format(firstDay.date, 'MMM').replace(/^./, c => c.toUpperCase()),
-        })
-        lastMonth = m
-      }
-    })
+    // Um único rótulo de mês (o mês corrente) — mantido como array pra compatibilizar com render existente
+    const monthLabels: { weekIndex: number; label: string }[] = [{
+      weekIndex: 0,
+      label: format(inicioMes, 'MMM').replace(/^./, c => c.toUpperCase()),
+    }]
 
-    return { days, weeks, max, total, diasComSaida, monthLabels }
+    const mesRotulo = format(inicioMes, 'MMMM/yyyy').replace(/^./, c => c.toUpperCase())
+
+    return { days, weeks, max, total, diasComSaida, monthLabels, mesRotulo }
   }, [contas])
 
-  // Lista de contas a vencer para o painel lateral da agenda
+  // Lista de contas a vencer no mês corrente (para o painel lateral)
   const agendaDiaLista = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const horizonte = addDays(today, 29)
+    const inicioIso = format(startOfMonth(today), 'yyyy-MM-dd')
+    const fimIso = format(endOfMonth(today), 'yyyy-MM-dd')
     const result: (ContaPagar & { _pendente: number })[] = []
     for (const cp of contas) {
       if (cp.status === 'pago' || cp.status === 'cancelado') continue
-      const venc = parseISO(cp.data_vencimento)
-      venc.setHours(0, 0, 0, 0)
-      if (isBefore(venc, today)) continue
-      if (isAfter(venc, horizonte)) continue
+      if (cp.data_vencimento < inicioIso || cp.data_vencimento > fimIso) continue
       const pendente = Number(cp.valor || 0) - Number(cp.valor_pago || 0)
       if (pendente <= 0) continue
       if (selectedAgendaDate && cp.data_vencimento !== selectedAgendaDate) continue
@@ -954,13 +948,13 @@ export default function ContasPagar() {
           ))}
         </div>
 
-        {/* ── Agenda 30d (esquerda) + Contas do dia (direita) ── */}
+        {/* ── Agenda do mês (esquerda) + Contas do dia (direita) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Agenda heatmap */}
           <CollapsibleCard
             storageKey="cp-agenda-pagamentos"
             title="Agenda de Pagamentos"
-            subtitle={`Próximos 30 dias · ${agenda30.diasComSaida} dia${agenda30.diasComSaida !== 1 ? 's' : ''} com saída · clique em um dia`}
+            subtitle={`${agendaMes.mesRotulo} · ${agendaMes.diasComSaida} dia${agendaMes.diasComSaida !== 1 ? 's' : ''} com saída · clique em um dia`}
             rightSlot={
               <div className="flex items-center gap-1.5 text-[10.5px] text-[#98A2B3]">
                 <span>Menos</span>
@@ -983,18 +977,18 @@ export default function ContasPagar() {
                 <div className="flex flex-col flex-1 min-w-0">
                   {/* Month labels row */}
                   <div className="flex gap-1.5 mb-1" style={{ height: 14 }}>
-                    {agenda30.weeks.map((_, wi) => {
-                      const monthAtCol = agenda30.monthLabels.find(m => m.weekIndex === wi)
+                    {agendaMes.weeks.map((_, wi) => {
+                      const monthAtCol = agendaMes.monthLabels.find(m => m.weekIndex === wi)
                       return (
-                        <div key={wi} className="flex-1" style={{ fontSize: 11, fontWeight: 600, color: '#667085', marginLeft: wi > 0 && agenda30.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
+                        <div key={wi} className="flex-1" style={{ fontSize: 11, fontWeight: 600, color: '#667085', marginLeft: wi > 0 && agendaMes.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
                           {monthAtCol?.label || ''}
                         </div>
                       )
                     })}
                   </div>
                   <div className="flex gap-1.5">
-                    {agenda30.weeks.map((week, wi) => (
-                      <div key={wi} className="flex flex-col gap-1.5 flex-1 min-w-0" style={{ marginLeft: wi > 0 && agenda30.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
+                    {agendaMes.weeks.map((week, wi) => (
+                      <div key={wi} className="flex flex-col gap-1.5 flex-1 min-w-0" style={{ marginLeft: wi > 0 && agendaMes.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
                         {week.map((day, di) => day ? (
                           <button
                             key={di}
@@ -1004,13 +998,13 @@ export default function ContasPagar() {
                             className="transition-transform hover:scale-110"
                             style={{
                               width: '100%', aspectRatio: '1 / 1', maxWidth: 40, minHeight: 32, height: 32, borderRadius: 6,
-                              background: agendaColor(day.value, agenda30.max),
+                              background: agendaColor(day.value, agendaMes.max),
                               border: selectedAgendaDate === day.dateStr
                                 ? '2px solid #1D2939'
                                 : day.value === 0 ? '1px solid #EAECF0' : 'none',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 11, fontWeight: 700,
-                              color: day.value === 0 ? '#98A2B3' : (day.value / (agenda30.max || 1)) >= 0.5 ? '#fff' : '#7F1D1D',
+                              color: day.value === 0 ? '#98A2B3' : (day.value / (agendaMes.max || 1)) >= 0.5 ? '#fff' : '#7F1D1D',
                               cursor: 'pointer',
                             }}
                           >
@@ -1024,10 +1018,10 @@ export default function ContasPagar() {
                   </div>
                 </div>
               </div>
-              {/* Rodapé com total 30d */}
+              {/* Rodapé com total do mês */}
               <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#EAECF0]">
-                <span className="text-[11.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Total previsto (30d)</span>
-                <span className="text-[16px] font-extrabold text-[#E53E3E] tracking-[-0.01em] tabular-nums">{formatBRL(agenda30.total)}</span>
+                <span className="text-[11.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Total previsto no mês</span>
+                <span className="text-[16px] font-extrabold text-[#E53E3E] tracking-[-0.01em] tabular-nums">{formatBRL(agendaMes.total)}</span>
               </div>
           </CollapsibleCard>
 
