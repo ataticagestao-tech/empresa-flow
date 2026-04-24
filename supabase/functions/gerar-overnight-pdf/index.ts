@@ -16,21 +16,25 @@ const corsHeaders = {
 // ── Layout ABNT (NBR 14724) em pontos PostScript ────────────
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN_TOP = 85;      // 30mm
+const MARGIN_BOTTOM = 56.7; // 20mm
 const MARGIN_LEFT = 85;     // 30mm
 const MARGIN_RIGHT = 56.7;  // 20mm
 const CONTENT_WIDTH = A4[0] - MARGIN_LEFT - MARGIN_RIGHT;
 
 // ── Paleta ─────────────────────────────────────────────────
-const COLOR_HEADER_BG = rgb(0.059, 0.059, 0.118);   // #0F0F1E
-const COLOR_HEADER_ACCENT = rgb(0.647, 0.705, 0.969); // #A5B4FC
+const COLOR_HERO_BG = rgb(0.039, 0.118, 0.306);     // navy #0A1E4E
+const COLOR_HERO_ACCENT = rgb(0.647, 0.705, 0.969); // #A5B4FC
 const COLOR_WHITE = rgb(1, 1, 1);
 const COLOR_BODY = rgb(0.114, 0.161, 0.224);        // #1D2939
 const COLOR_MUTED = rgb(0.408, 0.471, 0.553);       // #68748D
 const COLOR_BORDER = rgb(0.89, 0.91, 0.94);
 const COLOR_BG_SOFT = rgb(0.969, 0.973, 0.980);
+const COLOR_BLUE_LINK = rgb(0.149, 0.388, 0.922);   // #2663EB
 const COLOR_RED = rgb(0.784, 0.157, 0.192);
 const COLOR_AMBER = rgb(0.816, 0.471, 0.086);
 const COLOR_GREEN = rgb(0.094, 0.549, 0.361);
+
+const HERO_HEIGHT = 110;
 
 interface OvernightRequest {
     empresa_id: string;
@@ -61,14 +65,11 @@ serve(async (req: Request) => {
         return jsonError("empresa_id obrigatório", 400);
     }
 
-    // Cliente que respeita RLS do chamador (user JWT ou service_role)
     const authHeader = req.headers.get("Authorization") ?? "";
     const userClient = createClient(supabaseUrl, serviceRoleKey, {
         global: { headers: { Authorization: authHeader } },
         auth: { persistSession: false },
     });
-
-    // Cliente service_role puro — usado apenas para gravar overnight_logs
     const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false },
     });
@@ -98,14 +99,12 @@ serve(async (req: Request) => {
         );
     } catch (err) {
         const msg = err instanceof Error ? err.message : "Erro desconhecido";
-
         await serviceClient.from("overnight_logs").insert({
             company_id: body.empresa_id,
             status: "erro",
             erro_descricao: msg.slice(0, 500),
             origem,
         });
-
         return jsonError(msg, 500);
     }
 });
@@ -121,32 +120,17 @@ function jsonError(msg: string, status: number) {
 // DATA LAYER
 // ============================================================
 
-interface EmpresaInfo {
-    id: string;
-    nome: string;
-}
-
-interface SaldoConta {
-    nome: string;
-    banco: string;
-    tipo: string;
-    saldo_atual: number;
-    variacao_hoje: number;
-}
-
+interface EmpresaInfo { id: string; nome: string; }
+interface SaldoConta { nome: string; banco: string; saldo_atual: number; variacao_hoje: number; }
+interface VendaItem { cliente: string; parcelas: number; forma_pagamento: string; valor: number; }
 interface TituloItem {
     descricao: string;
-    vencimento: string; // ISO date
+    vencimento: string;
     valor: number;
     status_label: string;
     status_color: "red" | "amber" | "green";
 }
-
-interface Consolidado {
-    faturamento: number;
-    despesas: number;
-    resultado: number;
-}
+interface Consolidado { faturamento: number; despesas: number; resultado: number; }
 
 interface OvernightDados {
     empresa: EmpresaInfo;
@@ -154,17 +138,21 @@ interface OvernightDados {
     hoje_brt: Date;
     saldos: SaldoConta[];
     total_saldo: number;
+    vendas_dia: VendaItem[];
+    vendas_total: number;
+    vendas_extras: number;
+    vendas_count: number;
     contas_pagar: TituloItem[];
     cp_total: number;
     cp_extras: number;
     contas_receber: TituloItem[];
     cr_total: number;
     cr_extras: number;
-    consolidado: Consolidado;
+    consolidado_dia: Consolidado;
+    consolidado_mes: Consolidado;
 }
 
 function hojeBRT(): Date {
-    // Data "agora" no fuso America/Sao_Paulo, retornada como Date em UTC meia-noite daquela data
     const iso = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
     return new Date(`${iso}T00:00:00Z`);
 }
@@ -198,7 +186,7 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         nome: empresaRow.razao_social || empresaRow.nome_fantasia || "Empresa",
     };
 
-    // Frase da noite
+    // Frase
     const { data: configRow } = await client
         .from("overnight_config")
         .select("frase_noite")
@@ -206,14 +194,14 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         .maybeSingle();
     const frase_noite = configRow?.frase_noite?.trim() || "Bom fechamento de dia. Até amanhã!";
 
-    // Saldos por conta (usa view existente)
+    // Saldos
     const { data: saldosRaw, error: saldosErr } = await client
         .from("v_saldo_contas_bancarias")
-        .select("conta_bancaria_id, nome, banco, tipo, saldo_atual")
+        .select("conta_bancaria_id, nome, banco, saldo_atual")
         .eq("company_id", companyId);
     if (saldosErr) throw new Error(`v_saldo_contas_bancarias: ${saldosErr.message}`);
 
-    // Variação de hoje: soma movimentações de hoje por conta (exclui transferências)
+    // Movs do dia (exclui transferências) — reutilizado para variação e consolidado_dia
     const { data: movsHoje, error: movsHojeErr } = await client
         .from("movimentacoes")
         .select("conta_bancaria_id, tipo, valor")
@@ -223,24 +211,48 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
     if (movsHojeErr) throw new Error(`movimentacoes (hoje): ${movsHojeErr.message}`);
 
     const variacaoPorConta = new Map<string, number>();
+    let faturamento_dia = 0, despesas_dia = 0;
     for (const m of movsHoje ?? []) {
-        const delta = m.tipo === "credito" ? Number(m.valor) : -Number(m.valor);
+        const v = Number(m.valor) || 0;
+        const delta = m.tipo === "credito" ? v : -v;
         variacaoPorConta.set(m.conta_bancaria_id, (variacaoPorConta.get(m.conta_bancaria_id) ?? 0) + delta);
+        if (m.tipo === "credito") faturamento_dia += v;
+        else if (m.tipo === "debito") despesas_dia += v;
     }
 
     const saldos: SaldoConta[] = (saldosRaw ?? []).map((s: any) => ({
         nome: s.nome ?? "",
         banco: s.banco ?? "",
-        tipo: s.tipo ?? "",
         saldo_atual: Number(s.saldo_atual) || 0,
         variacao_hoje: variacaoPorConta.get(s.conta_bancaria_id) ?? 0,
     }));
     const total_saldo = saldos.reduce((acc, s) => acc + s.saldo_atual, 0);
 
-    // Contas a pagar (abertas, vencendo até amanhã) — ordenadas por vencimento ASC
+    // Vendas do dia
+    const { data: vendasRaw, error: vendasErr } = await client
+        .from("vendas")
+        .select("cliente_nome, valor_liquido, parcelas, forma_pagamento, created_at")
+        .eq("company_id", companyId)
+        .eq("data_venda", hojeIso)
+        .eq("status", "confirmado")
+        .order("created_at", { ascending: false });
+    if (vendasErr) throw new Error(`vendas: ${vendasErr.message}`);
+
+    const vendasTodas: VendaItem[] = (vendasRaw ?? []).map((v: any) => ({
+        cliente: v.cliente_nome || "—",
+        parcelas: Number(v.parcelas) || 1,
+        forma_pagamento: v.forma_pagamento || "—",
+        valor: Number(v.valor_liquido) || 0,
+    }));
+    const vendas_total = vendasTodas.reduce((a, v) => a + v.valor, 0);
+    const vendas_dia = vendasTodas.slice(0, 5);
+    const vendas_extras = Math.max(0, vendasTodas.length - 5);
+    const vendas_count = vendasTodas.length;
+
+    // Contas a pagar
     const { data: cpRaw, error: cpErr } = await client
         .from("contas_pagar")
-        .select("credor_nome, observacoes, valor, data_vencimento, status")
+        .select("credor_nome, observacoes, valor, data_vencimento")
         .eq("company_id", companyId)
         .eq("status", "aberto")
         .lte("data_vencimento", amanhaIso)
@@ -261,14 +273,14 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
             status_color: color,
         };
     });
-    const cp_total = cpTodos.reduce((acc, t) => acc + t.valor, 0);
+    const cp_total = cpTodos.reduce((a, t) => a + t.valor, 0);
     const contas_pagar = cpTodos.slice(0, 5);
     const cp_extras = Math.max(0, cpTodos.length - 5);
 
-    // Contas a receber (abertas, vencendo até hoje)
+    // Contas a receber
     const { data: crRaw, error: crErr } = await client
         .from("contas_receber")
-        .select("pagador_nome, observacoes, valor, data_vencimento, status")
+        .select("pagador_nome, observacoes, valor, data_vencimento")
         .eq("company_id", companyId)
         .eq("status", "aberto")
         .lte("data_vencimento", hojeIso)
@@ -287,11 +299,11 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
             status_color: color,
         };
     });
-    const cr_total = crTodos.reduce((acc, t) => acc + t.valor, 0);
+    const cr_total = crTodos.reduce((a, t) => a + t.valor, 0);
     const contas_receber = crTodos.slice(0, 5);
     const cr_extras = Math.max(0, crTodos.length - 5);
 
-    // Consolidado do mês corrente (até hoje, exclui transferências)
+    // Consolidado do mês (até hoje, exclui transferências)
     const { data: movsMes, error: movsMesErr } = await client
         .from("movimentacoes")
         .select("tipo, valor")
@@ -301,31 +313,31 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         .neq("origem", "transferencia");
     if (movsMesErr) throw new Error(`movimentacoes (mês): ${movsMesErr.message}`);
 
-    let faturamento = 0, despesas = 0;
+    let fat_mes = 0, desp_mes = 0;
     for (const m of movsMes ?? []) {
         const v = Number(m.valor) || 0;
-        if (m.tipo === "credito") faturamento += v;
-        else if (m.tipo === "debito") despesas += v;
+        if (m.tipo === "credito") fat_mes += v;
+        else if (m.tipo === "debito") desp_mes += v;
     }
-    const consolidado: Consolidado = {
-        faturamento,
-        despesas,
-        resultado: faturamento - despesas,
-    };
 
     return {
         empresa,
         frase_noite,
         hoje_brt: hoje,
-        saldos,
-        total_saldo,
-        contas_pagar,
-        cp_total,
-        cp_extras,
-        contas_receber,
-        cr_total,
-        cr_extras,
-        consolidado,
+        saldos, total_saldo,
+        vendas_dia, vendas_total, vendas_extras, vendas_count,
+        contas_pagar, cp_total, cp_extras,
+        contas_receber, cr_total, cr_extras,
+        consolidado_dia: {
+            faturamento: faturamento_dia,
+            despesas: despesas_dia,
+            resultado: faturamento_dia - despesas_dia,
+        },
+        consolidado_mes: {
+            faturamento: fat_mes,
+            despesas: desp_mes,
+            resultado: fat_mes - desp_mes,
+        },
     };
 }
 
@@ -355,144 +367,244 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
     const page = doc.addPage(A4);
     const ctx: RenderCtx = { doc, page, font, fontBold, fontItalic, y: A4[1] };
 
-    desenharHeader(ctx, d);
-    ctx.y = A4[1] - MARGIN_TOP;
+    // Hero (apenas na página 1)
+    desenharHero(ctx);
+    ctx.y = A4[1] - HERO_HEIGHT - 18;
 
+    desenharInfoEmpresa(ctx, d);
     desenharFrase(ctx, d.frase_noite);
-    ctx.y -= 6;
+    ctx.y -= 8;
 
-    desenharTituloBloco(ctx, "1. Saldo Financeiro Bancário");
+    ensureSpace(ctx, 110);
+    desenharTituloBloco(ctx, "1. SALDO FINANCEIRO");
     desenharTabelaSaldos(ctx, d.saldos, d.total_saldo);
     ctx.y -= 14;
 
-    desenharTituloBloco(ctx, "2. Contas a Pagar");
+    ensureSpace(ctx, 110);
+    desenharTituloBloco(ctx, "2. VENDAS DO DIA");
+    desenharTabelaVendas(ctx, d);
+    ctx.y -= 14;
+
+    ensureSpace(ctx, 110);
+    desenharTituloBloco(ctx, "3. CONTAS A PAGAR");
     desenharTabelaTitulos(ctx, d.contas_pagar, d.cp_total, d.cp_extras, "a pagar", "outros vencimentos");
     ctx.y -= 14;
 
-    desenharTituloBloco(ctx, "3. Contas a Receber");
+    ensureSpace(ctx, 110);
+    desenharTituloBloco(ctx, "4. CONTAS A RECEBER");
     desenharTabelaTitulos(ctx, d.contas_receber, d.cr_total, d.cr_extras, "a receber", "outros recebimentos");
     ctx.y -= 18;
 
-    desenharConsolidado(ctx, d.consolidado);
+    ensureSpace(ctx, 100);
+    desenharTituloBloco(ctx, "( = ) CONSOLIDADO DO DIA");
+    desenharConsolidadoBoxes(ctx, d.consolidado_dia, "hoje");
+    ctx.y -= 18;
+
+    ensureSpace(ctx, 100);
+    desenharTituloBloco(ctx, "( = ) CONSOLIDADO DO MÊS");
+    desenharConsolidadoBoxes(ctx, d.consolidado_mes, "mês corrente");
+    ctx.y -= 22;
+
+    desenharAssinatura(ctx);
 
     return await doc.save();
 }
 
-function desenharHeader(ctx: RenderCtx, d: OvernightDados) {
-    const headerHeight = 70;
-    // Faixa escura que sangra nas bordas horizontais
+// ── Hero / info / frase ────────────────────────────────────
+
+function desenharHero(ctx: RenderCtx) {
+    // Faixa azul-marinho cheia no topo (sangria)
     ctx.page.drawRectangle({
         x: 0,
-        y: A4[1] - headerHeight,
+        y: A4[1] - HERO_HEIGHT,
         width: A4[0],
-        height: headerHeight,
-        color: COLOR_HEADER_BG,
+        height: HERO_HEIGHT,
+        color: COLOR_HERO_BG,
     });
 
-    const tituloY = A4[1] - 30;
-    const tituloLinha = "Overnight Financeiro";
-    const empresaLinha = `  |  ${d.empresa.nome.toUpperCase()}`;
+    const titulo = "OVERNIGHT";
+    const subt = "SUA ATUALIZAÇÃO FINANCEIRA EM TEMPO";
+    const titSize = 40;
+    const subSize = 9;
 
-    ctx.page.drawText(tituloLinha, {
+    const tituloW = ctx.fontBold.widthOfTextAtSize(titulo, titSize);
+    const subW = ctx.fontBold.widthOfTextAtSize(subt, subSize);
+
+    ctx.page.drawText(titulo, {
         x: MARGIN_LEFT,
-        y: tituloY,
-        size: 16,
+        y: A4[1] - 55,
+        size: titSize,
         font: ctx.fontBold,
         color: COLOR_WHITE,
     });
-    const tituloLargura = ctx.fontBold.widthOfTextAtSize(tituloLinha, 16);
-    ctx.page.drawText(empresaLinha, {
-        x: MARGIN_LEFT + tituloLargura,
-        y: tituloY,
-        size: 12,
-        font: ctx.font,
-        color: COLOR_HEADER_ACCENT,
-    });
 
-    const dataStr = formatarDataExtensa(d.hoje_brt);
-    const geradoEm = formatarAgoraBRT();
-    const subLinha = `${dataStr}  ·  Gerado às ${geradoEm}`;
-    ctx.page.drawText(subLinha, {
+    ctx.page.drawText(subt, {
         x: MARGIN_LEFT,
-        y: A4[1] - 52,
-        size: 9,
-        font: ctx.font,
-        color: COLOR_HEADER_ACCENT,
+        y: A4[1] - 78,
+        size: subSize,
+        font: ctx.fontBold,
+        color: COLOR_HERO_ACCENT,
     });
-}
 
-function desenharFrase(ctx: RenderCtx, frase: string) {
-    const boxHeight = 38;
-    const boxY = ctx.y - boxHeight;
+    // Linha de acento fina no canto direito (substituto discreto da arte/foto)
+    const accentX = A4[0] - MARGIN_RIGHT - 60;
     ctx.page.drawRectangle({
-        x: MARGIN_LEFT,
-        y: boxY,
-        width: CONTENT_WIDTH,
-        height: boxHeight,
-        color: COLOR_BG_SOFT,
-        borderColor: COLOR_BORDER,
-        borderWidth: 0.5,
+        x: accentX,
+        y: A4[1] - 80,
+        width: 60,
+        height: 2,
+        color: COLOR_HERO_ACCENT,
     });
 
-    const linhas = wrapText(frase, ctx.fontItalic, 10, CONTENT_WIDTH - 20, 2);
-    const lineHeight = 13;
-    const totalAltura = linhas.length * lineHeight;
-    let textY = boxY + (boxHeight + totalAltura) / 2 - lineHeight + 2;
-    for (const linha of linhas) {
-        ctx.page.drawText(linha, {
-            x: MARGIN_LEFT + 10,
-            y: textY,
-            size: 10,
-            font: ctx.fontItalic,
-            color: COLOR_BODY,
-        });
-        textY -= lineHeight;
-    }
-    ctx.y = boxY - 10;
+    // Silenciar aviso de variáveis não usadas na compilação
+    void tituloW; void subW;
 }
 
-function desenharTituloBloco(ctx: RenderCtx, titulo: string) {
-    ctx.page.drawText(titulo, {
+function desenharInfoEmpresa(ctx: RenderCtx, d: OvernightDados) {
+    const nome = d.empresa.nome;
+    const data = formatarDataExtensa(d.hoje_brt);
+    const gerado = `Gerado às ${formatarAgoraBRT()}`;
+
+    ctx.page.drawText(nome, {
         x: MARGIN_LEFT,
-        y: ctx.y,
+        y: ctx.y - 10,
         size: 11,
         font: ctx.fontBold,
         color: COLOR_BODY,
     });
-    ctx.page.drawLine({
-        start: { x: MARGIN_LEFT, y: ctx.y - 3 },
-        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - 3 },
-        thickness: 0.6,
-        color: COLOR_BORDER,
+    const nomeW = ctx.fontBold.widthOfTextAtSize(nome, 11);
+
+    const sep = "  |  ";
+    ctx.page.drawText(sep, {
+        x: MARGIN_LEFT + nomeW,
+        y: ctx.y - 10,
+        size: 11,
+        font: ctx.font,
+        color: COLOR_MUTED,
     });
-    ctx.y -= 14;
+
+    ctx.page.drawText(data, {
+        x: MARGIN_LEFT + nomeW + ctx.font.widthOfTextAtSize(sep, 11),
+        y: ctx.y - 10,
+        size: 11,
+        font: ctx.font,
+        color: COLOR_BODY,
+    });
+
+    // Hora gerada alinhada à direita
+    const geradoW = ctx.font.widthOfTextAtSize(gerado, 9);
+    ctx.page.drawText(gerado, {
+        x: MARGIN_LEFT + CONTENT_WIDTH - geradoW,
+        y: ctx.y - 10,
+        size: 9,
+        font: ctx.font,
+        color: COLOR_MUTED,
+    });
+
+    ctx.y -= 22;
 }
 
-function desenharTabelaSaldos(ctx: RenderCtx, saldos: SaldoConta[], total: number) {
-    // Colunas: Conta | Banco | Saldo Atual | Variação Hoje
-    const cols = [
-        { x: MARGIN_LEFT,                       w: 140, align: "left" as const },
-        { x: MARGIN_LEFT + 140,                 w: 110, align: "left" as const },
-        { x: MARGIN_LEFT + 250,                 w: 100, align: "right" as const },
-        { x: MARGIN_LEFT + 350,                 w: CONTENT_WIDTH - 350, align: "right" as const },
-    ];
-    const headers = ["Conta", "Banco", "Saldo Atual", "Variação Hoje"];
+function desenharFrase(ctx: RenderCtx, frase: string) {
+    const linhas = wrapText(frase, ctx.fontItalic, 11, CONTENT_WIDTH, 2);
+    const lineHeight = 14;
+    for (const linha of linhas) {
+        ctx.page.drawText(linha, {
+            x: MARGIN_LEFT,
+            y: ctx.y - 11,
+            size: 11,
+            font: ctx.fontItalic,
+            color: COLOR_BLUE_LINK,
+        });
+        ctx.y -= lineHeight;
+    }
+}
 
-    desenharHeaderTabela(ctx, cols, headers);
+// ── Títulos de bloco ───────────────────────────────────────
+
+function desenharTituloBloco(ctx: RenderCtx, titulo: string) {
+    ctx.page.drawText(titulo, {
+        x: MARGIN_LEFT,
+        y: ctx.y - 12,
+        size: 12,
+        font: ctx.fontBold,
+        color: COLOR_BODY,
+    });
+    ctx.page.drawLine({
+        start: { x: MARGIN_LEFT, y: ctx.y - 16 },
+        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - 16 },
+        thickness: 0.8,
+        color: COLOR_BODY,
+    });
+    ctx.y -= 22;
+}
+
+// ── Tabelas ────────────────────────────────────────────────
+
+function desenharTabelaSaldos(ctx: RenderCtx, saldos: SaldoConta[], total: number) {
+    const cols = [
+        { x: MARGIN_LEFT,                       w: 150, align: "left" as const },
+        { x: MARGIN_LEFT + 150,                 w: 130, align: "left" as const },
+        { x: MARGIN_LEFT + 280,                 w: 90,  align: "right" as const },
+        { x: MARGIN_LEFT + 370,                 w: CONTENT_WIDTH - 370, align: "right" as const },
+    ];
+    desenharHeaderTabela(ctx, cols, ["Conta", "Banco", "Saldo Atual", "Variação Hoje"]);
 
     const rowHeight = 14;
     if (saldos.length === 0) {
         desenharLinhaVazia(ctx, "Nenhuma conta bancária cadastrada");
     } else {
         for (const s of saldos) {
-            const variacaoStr = formatarVariacao(s.variacao_hoje);
-            const linha = [s.nome || "—", s.banco || "—", formatarMoeda(s.saldo_atual), variacaoStr];
+            const linha = [
+                truncar(s.nome || "—", ctx.font, 9, cols[0].w - 6),
+                truncar(s.banco || "—", ctx.font, 9, cols[1].w - 6),
+                formatarMoeda(s.saldo_atual),
+                formatarVariacao(s.variacao_hoje),
+            ];
             desenharLinhaTabela(ctx, cols, linha, rowHeight, 9, ctx.font);
         }
     }
-
-    // Linha total
     desenharLinhaTotal(ctx, "Total Consolidado", formatarMoeda(total), cols);
+}
+
+function desenharTabelaVendas(ctx: RenderCtx, d: OvernightDados) {
+    const cols = [
+        { x: MARGIN_LEFT,                       w: 200, align: "left" as const },
+        { x: MARGIN_LEFT + 200,                 w: 60,  align: "right" as const },
+        { x: MARGIN_LEFT + 260,                 w: 110, align: "left" as const },
+        { x: MARGIN_LEFT + 370,                 w: CONTENT_WIDTH - 370, align: "right" as const },
+    ];
+    desenharHeaderTabela(ctx, cols, ["Cliente", "Parcelas", "Forma Pagamento", "Valor"]);
+
+    const rowHeight = 14;
+    if (d.vendas_dia.length === 0) {
+        desenharLinhaVazia(ctx, "Nenhuma venda confirmada hoje");
+    } else {
+        for (const v of d.vendas_dia) {
+            const linha = [
+                truncar(v.cliente, ctx.font, 9, cols[0].w - 6),
+                String(v.parcelas) + "x",
+                truncar(v.forma_pagamento, ctx.font, 9, cols[2].w - 6),
+                formatarMoeda(v.valor),
+            ];
+            desenharLinhaTabela(ctx, cols, linha, rowHeight, 9, ctx.font);
+        }
+    }
+    const labelTotal = d.vendas_count > 0
+        ? `Total (${d.vendas_count} ${d.vendas_count === 1 ? "venda" : "vendas"})`
+        : "Total";
+    desenharLinhaTotal(ctx, labelTotal, formatarMoeda(d.vendas_total), cols);
+
+    if (d.vendas_extras > 0) {
+        ctx.y -= 4;
+        ctx.page.drawText(`+ ${d.vendas_extras} outras vendas`, {
+            x: MARGIN_LEFT,
+            y: ctx.y - 8,
+            size: 8,
+            font: ctx.fontItalic,
+            color: COLOR_MUTED,
+        });
+        ctx.y -= 10;
+    }
 }
 
 function desenharTabelaTitulos(
@@ -503,15 +615,13 @@ function desenharTabelaTitulos(
     labelTotal: string,
     labelExtras: string,
 ) {
-    // Colunas: Descrição | Vencimento | Valor | Status
     const cols = [
         { x: MARGIN_LEFT,                       w: 200, align: "left" as const },
         { x: MARGIN_LEFT + 200,                 w: 80,  align: "left" as const },
-        { x: MARGIN_LEFT + 280,                 w: 80,  align: "right" as const },
-        { x: MARGIN_LEFT + 360,                 w: CONTENT_WIDTH - 360, align: "right" as const },
+        { x: MARGIN_LEFT + 280,                 w: 85,  align: "right" as const },
+        { x: MARGIN_LEFT + 365,                 w: CONTENT_WIDTH - 365, align: "right" as const },
     ];
-    const headers = ["Descrição", "Vencimento", "Valor", "Status"];
-    desenharHeaderTabela(ctx, cols, headers);
+    desenharHeaderTabela(ctx, cols, ["Descrição", "Vencimento", "Valor", "Status"]);
 
     const rowHeight = 14;
     if (itens.length === 0) {
@@ -540,16 +650,13 @@ function desenharTabelaTitulos(
             });
         }
     }
-
-    // Total
     desenharLinhaTotal(ctx, `Total ${labelTotal}`, formatarMoeda(total), cols);
 
-    // Extras
     if (extras > 0) {
         ctx.y -= 4;
         ctx.page.drawText(`+ ${extras} ${labelExtras}`, {
             x: MARGIN_LEFT,
-            y: ctx.y,
+            y: ctx.y - 8,
             size: 8,
             font: ctx.fontItalic,
             color: COLOR_MUTED,
@@ -558,9 +665,7 @@ function desenharTabelaTitulos(
     }
 }
 
-// Convenção de posicionamento: ctx.y é o TOPO da próxima linha livre.
-// Texto é desenhado sempre ABAIXO de ctx.y (y = ctx.y - N).
-// Retângulo de fundo de linha preenche de (ctx.y - h) até ctx.y.
+// Convenção: ctx.y é o TOPO da próxima linha livre.
 
 function desenharHeaderTabela(
     ctx: RenderCtx,
@@ -670,9 +775,7 @@ function desenharLinhaTotal(
     ctx.y -= h + 2;
 }
 
-function desenharConsolidado(ctx: RenderCtx, c: Consolidado) {
-    desenharTituloBloco(ctx, "4. Consolidado Financeiro");
-
+function desenharConsolidadoBoxes(ctx: RenderCtx, c: Consolidado, sufLegenda: string) {
     const boxH = 68;
     const gap = 10;
     const boxW = (CONTENT_WIDTH - gap * 2) / 3;
@@ -680,16 +783,10 @@ function desenharConsolidado(ctx: RenderCtx, c: Consolidado) {
     const boxBottomY = topY - boxH;
 
     const caixas = [
+        { titulo: "FATURAMENTO", valor: formatarMoeda(c.faturamento), cor: COLOR_BODY },
+        { titulo: "DESPESAS", valor: formatarMoeda(c.despesas), cor: COLOR_BODY },
         {
-            titulo: "FATURAMENTO", sub: "até agora (mês corrente)",
-            valor: formatarMoeda(c.faturamento), cor: COLOR_BODY,
-        },
-        {
-            titulo: "DESPESAS", sub: "até agora (mês corrente)",
-            valor: formatarMoeda(c.despesas), cor: COLOR_BODY,
-        },
-        {
-            titulo: "RESULTADO", sub: "até agora (mês corrente)",
+            titulo: "RESULTADO",
             valor: `${c.resultado >= 0 ? "+ " : "- "}${formatarMoeda(Math.abs(c.resultado))}`,
             cor: c.resultado >= 0 ? COLOR_GREEN : COLOR_RED,
         },
@@ -711,8 +808,9 @@ function desenharConsolidado(ctx: RenderCtx, c: Consolidado) {
             font: ctx.fontBold,
             color: COLOR_MUTED,
         });
-        ctx.page.drawText(b.sub, {
-            x: x + boxW / 2 - ctx.font.widthOfTextAtSize(b.sub, 7) / 2,
+        const sub = `até agora (${sufLegenda})`;
+        ctx.page.drawText(sub, {
+            x: x + boxW / 2 - ctx.font.widthOfTextAtSize(sub, 7) / 2,
             y: topY - 24,
             size: 7,
             font: ctx.font,
@@ -729,8 +827,49 @@ function desenharConsolidado(ctx: RenderCtx, c: Consolidado) {
     ctx.y = boxBottomY - 8;
 }
 
+function desenharAssinatura(ctx: RenderCtx) {
+    ensureSpace(ctx, 60);
+
+    // Linha fina separadora
+    ctx.page.drawLine({
+        start: { x: MARGIN_LEFT, y: ctx.y - 4 },
+        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - 4 },
+        thickness: 0.4,
+        color: COLOR_BORDER,
+    });
+
+    const linha1 = "Atenciosamente,";
+    const linha2 = "Tática Gestão Financeira Ltda";
+
+    const cx = MARGIN_LEFT + CONTENT_WIDTH / 2;
+    ctx.page.drawText(linha1, {
+        x: cx - ctx.fontItalic.widthOfTextAtSize(linha1, 10) / 2,
+        y: ctx.y - 24,
+        size: 10,
+        font: ctx.fontItalic,
+        color: COLOR_MUTED,
+    });
+    ctx.page.drawText(linha2, {
+        x: cx - ctx.fontItalic.widthOfTextAtSize(linha2, 10) / 2,
+        y: ctx.y - 38,
+        size: 10,
+        font: ctx.fontItalic,
+        color: COLOR_MUTED,
+    });
+}
+
+// ── Quebra de página ───────────────────────────────────────
+
+function ensureSpace(ctx: RenderCtx, needed: number) {
+    if (ctx.y - needed < MARGIN_BOTTOM) {
+        const novaPagina = ctx.doc.addPage(A4);
+        ctx.page = novaPagina;
+        ctx.y = A4[1] - MARGIN_TOP;
+    }
+}
+
 // ============================================================
-// HELPERS DE FORMATAÇÃO E TEXTO
+// HELPERS
 // ============================================================
 
 function formatarMoeda(v: number): string {
@@ -787,7 +926,6 @@ function wrapText(txt: string, fnt: PDFFont, size: number, maxW: number, maxLine
             if (atual) linhas.push(atual);
             atual = p;
             if (linhas.length === maxLines - 1) {
-                // última linha permitida: trunca se ainda exceder
                 while (atual.length > 1 && fnt.widthOfTextAtSize(atual + "…", size) > maxW) {
                     atual = atual.slice(0, -1);
                 }
