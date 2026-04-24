@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -75,13 +75,24 @@ export default function Auth() {
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
-  const isRecoveryFlow = useMemo(() => {
+  const [isRecoveryFlow, setIsRecoveryFlow] = useState(() => {
     const hash = window.location.hash || "";
     const search = window.location.search || "";
-    return hash.includes("type=recovery") || search.includes("type=recovery");
-  }, []);
+    const pathname = window.location.pathname || "";
+    return hash.includes("type=recovery")
+      || search.includes("type=recovery")
+      || pathname.startsWith("/reset-password")
+      || (pathname.startsWith("/auth") && hash.includes("access_token"));
+  });
 
-  useEffect(() => { if (user && !loading) navigate(redirectTo); }, [user, loading, navigate, redirectTo]);
+  useEffect(() => {
+    const { data: { subscription } } = activeClient.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setIsRecoveryFlow(true);
+    });
+    return () => subscription.unsubscribe();
+  }, [activeClient]);
+
+  useEffect(() => { if (user && !loading && !isRecoveryFlow) navigate(redirectTo); }, [user, loading, navigate, redirectTo, isRecoveryFlow]);
 
   const validateField = useCallback((field: string, value: string) => {
     let err = "";
@@ -104,7 +115,7 @@ export default function Auth() {
   }, []);
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center bg-background"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /><span className="text-sm text-muted-foreground">Carregando...</span></div></div>);
-  if (user) return <Navigate to={redirectTo} replace />;
+  if (user && !isRecoveryFlow) return <Navigate to={redirectTo} replace />;
 
   const handleForgotPassword = async () => {
     if (!loginEmail) { toast.error("Informe seu email."); return; }

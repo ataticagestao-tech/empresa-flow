@@ -162,6 +162,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<Auth />} />
                 <Route element={<RequireAuth />}>
                   <Route path="/conta-bloqueada" element={<ContaBloqueada />} />
                   <Route element={<RequireActiveAccount />}>
