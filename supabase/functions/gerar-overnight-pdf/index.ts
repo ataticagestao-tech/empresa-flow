@@ -124,7 +124,6 @@ function jsonError(msg: string, status: number) {
 // ============================================================
 
 interface EmpresaInfo { id: string; nome: string; }
-interface SaldoConta { nome: string; banco: string; saldo_atual: number; variacao_hoje: number; }
 interface VendaItem { cliente: string; parcelas: number; forma_pagamento: string; valor: number; }
 interface TituloItem {
     descricao: string;
@@ -139,8 +138,6 @@ interface OvernightDados {
     empresa: EmpresaInfo;
     frase_noite: string;
     hoje_brt: Date;
-    saldos: SaldoConta[];
-    total_saldo: number;
     vendas_dia: VendaItem[];
     vendas_total: number;
     vendas_extras: number;
@@ -197,39 +194,21 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         .maybeSingle();
     const frase_noite = configRow?.frase_noite?.trim() || "Bom fechamento de dia. Até amanhã!";
 
-    // Saldos
-    const { data: saldosRaw, error: saldosErr } = await client
-        .from("v_saldo_contas_bancarias")
-        .select("conta_bancaria_id, nome, banco, saldo_atual")
-        .eq("company_id", companyId);
-    if (saldosErr) throw new Error(`v_saldo_contas_bancarias: ${saldosErr.message}`);
-
-    // Movs do dia (exclui transferências) — reutilizado para variação e consolidado_dia
+    // Movs do dia (exclui transferências) — base do consolidado_dia
     const { data: movsHoje, error: movsHojeErr } = await client
         .from("movimentacoes")
-        .select("conta_bancaria_id, tipo, valor")
+        .select("tipo, valor")
         .eq("company_id", companyId)
         .eq("data", hojeIso)
         .neq("origem", "transferencia");
     if (movsHojeErr) throw new Error(`movimentacoes (hoje): ${movsHojeErr.message}`);
 
-    const variacaoPorConta = new Map<string, number>();
     let faturamento_dia = 0, despesas_dia = 0;
     for (const m of movsHoje ?? []) {
         const v = Number(m.valor) || 0;
-        const delta = m.tipo === "credito" ? v : -v;
-        variacaoPorConta.set(m.conta_bancaria_id, (variacaoPorConta.get(m.conta_bancaria_id) ?? 0) + delta);
         if (m.tipo === "credito") faturamento_dia += v;
         else if (m.tipo === "debito") despesas_dia += v;
     }
-
-    const saldos: SaldoConta[] = (saldosRaw ?? []).map((s: any) => ({
-        nome: s.nome ?? "",
-        banco: s.banco ?? "",
-        saldo_atual: Number(s.saldo_atual) || 0,
-        variacao_hoje: variacaoPorConta.get(s.conta_bancaria_id) ?? 0,
-    }));
-    const total_saldo = saldos.reduce((acc, s) => acc + s.saldo_atual, 0);
 
     // Vendas do dia
     const { data: vendasRaw, error: vendasErr } = await client
@@ -327,7 +306,6 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         empresa,
         frase_noite,
         hoje_brt: hoje,
-        saldos, total_saldo,
         vendas_dia, vendas_total, vendas_extras, vendas_count,
         contas_pagar, cp_total, cp_extras,
         contas_receber, cr_total, cr_extras,
@@ -385,27 +363,7 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
 
     desenharInfoEmpresa(ctx, d);
     desenharFrase(ctx, d.frase_noite);
-    ctx.y -= 8;
-
-    ensureSpace(ctx, 100);
-    desenharTituloBloco(ctx, "1. SALDO FINANCEIRO");
-    desenharTabelaSaldos(ctx, d.saldos, d.total_saldo);
     ctx.y -= 10;
-
-    ensureSpace(ctx, 100);
-    desenharTituloBloco(ctx, "2. VENDAS DO DIA");
-    desenharTabelaVendas(ctx, d);
-    ctx.y -= 10;
-
-    ensureSpace(ctx, 100);
-    desenharTituloBloco(ctx, "3. CONTAS A PAGAR");
-    desenharTabelaTitulos(ctx, d.contas_pagar, d.cp_total, d.cp_extras, "a pagar", "outros vencimentos");
-    ctx.y -= 10;
-
-    ensureSpace(ctx, 100);
-    desenharTituloBloco(ctx, "4. CONTAS A RECEBER");
-    desenharTabelaTitulos(ctx, d.contas_receber, d.cr_total, d.cr_extras, "a receber", "outros recebimentos");
-    ctx.y -= 12;
 
     ensureSpace(ctx, 75);
     desenharTituloBloco(ctx, "( = ) CONSOLIDADO DO DIA");
@@ -415,6 +373,21 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
     ensureSpace(ctx, 75);
     desenharTituloBloco(ctx, "( = ) CONSOLIDADO DO MÊS");
     desenharConsolidadoBoxes(ctx, d.consolidado_mes, "mês corrente");
+    ctx.y -= 14;
+
+    ensureSpace(ctx, 100);
+    desenharTituloBloco(ctx, "1. VENDAS DO DIA");
+    desenharTabelaVendas(ctx, d);
+    ctx.y -= 10;
+
+    ensureSpace(ctx, 100);
+    desenharTituloBloco(ctx, "2. CONTAS A PAGAR");
+    desenharTabelaTitulos(ctx, d.contas_pagar, d.cp_total, d.cp_extras, "a pagar", "outros vencimentos");
+    ctx.y -= 10;
+
+    ensureSpace(ctx, 100);
+    desenharTituloBloco(ctx, "3. CONTAS A RECEBER");
+    desenharTabelaTitulos(ctx, d.contas_receber, d.cr_total, d.cr_extras, "a receber", "outros recebimentos");
     ctx.y -= 14;
 
     desenharAssinatura(ctx);
@@ -539,32 +512,6 @@ function desenharTituloBloco(ctx: RenderCtx, titulo: string) {
 }
 
 // ── Tabelas ────────────────────────────────────────────────
-
-function desenharTabelaSaldos(ctx: RenderCtx, saldos: SaldoConta[], total: number) {
-    const cols = [
-        { x: MARGIN_LEFT,                       w: 150, align: "left" as const },
-        { x: MARGIN_LEFT + 150,                 w: 130, align: "left" as const },
-        { x: MARGIN_LEFT + 280,                 w: 90,  align: "right" as const },
-        { x: MARGIN_LEFT + 370,                 w: CONTENT_WIDTH - 370, align: "right" as const },
-    ];
-    desenharHeaderTabela(ctx, cols, ["Conta", "Banco", "Saldo Atual", "Variação Hoje"]);
-
-    const rowHeight = 14;
-    if (saldos.length === 0) {
-        desenharLinhaVazia(ctx, "Nenhuma conta bancária cadastrada");
-    } else {
-        for (const s of saldos) {
-            const linha = [
-                truncar(s.nome || "—", ctx.font, 9, cols[0].w - 6),
-                truncar(s.banco || "—", ctx.font, 9, cols[1].w - 6),
-                formatarMoeda(s.saldo_atual),
-                formatarVariacao(s.variacao_hoje),
-            ];
-            desenharLinhaTabela(ctx, cols, linha, rowHeight, 9, ctx.font);
-        }
-    }
-    desenharLinhaTotal(ctx, "Total Consolidado", formatarMoeda(total), cols);
-}
 
 function desenharTabelaVendas(ctx: RenderCtx, d: OvernightDados) {
     const cols = [
@@ -875,12 +822,6 @@ function formatarMoeda(v: number): string {
         currency: "BRL",
         minimumFractionDigits: 2,
     }).format(v);
-}
-
-function formatarVariacao(v: number): string {
-    if (v === 0) return "—";
-    const sinal = v > 0 ? "↑" : "↓";
-    return `${sinal} ${formatarMoeda(Math.abs(v))}`;
 }
 
 function formatarDataBr(iso: string): string {
