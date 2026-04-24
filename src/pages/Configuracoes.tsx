@@ -823,8 +823,15 @@ function OvernightPanel() {
         }
     };
 
+    const salvarSeNecessario = async () => {
+        if (!dirty) return;
+        await salvar.mutateAsync({ frase_noite: frase, ativa: config?.ativa ?? true });
+        setDirty(false);
+    };
+
     const handleGerarEVisualizar = async () => {
         try {
+            await salvarSeNecessario();
             const r = await gerar.mutateAsync();
             if (!r.pdfBase64) throw new Error("Resposta sem PDF");
             const blob = base64ToBlob(r.pdfBase64);
@@ -839,6 +846,7 @@ function OvernightPanel() {
 
     const handleBaixar = async () => {
         try {
+            await salvarSeNecessario();
             const r = await gerar.mutateAsync();
             if (!r.pdfBase64) throw new Error("Resposta sem PDF");
             const blob = base64ToBlob(r.pdfBase64);

@@ -518,7 +518,7 @@ function desenharTabelaTitulos(
         desenharLinhaVazia(ctx, `Nenhum título ${labelTotal}`);
     } else {
         for (const t of itens) {
-            // Desenha descrição/vencimento/valor normais
+            const topY = ctx.y;
             const linhaTexto = [
                 truncar(t.descricao, ctx.font, 9, cols[0].w - 6),
                 formatarDataBr(t.vencimento),
@@ -527,14 +527,13 @@ function desenharTabelaTitulos(
             ];
             desenharLinhaTabela(ctx, cols, linhaTexto, rowHeight, 9, ctx.font);
 
-            // Redesenha a célula de Status colorida (sobrescrevendo a última, vazia)
             const statusCor = t.status_color === "red" ? COLOR_RED :
                               t.status_color === "amber" ? COLOR_AMBER : COLOR_GREEN;
             const statusX = cols[3].x + cols[3].w -
                 ctx.fontBold.widthOfTextAtSize(t.status_label, 8) - 2;
             ctx.page.drawText(t.status_label, {
                 x: statusX,
-                y: ctx.y + 4,
+                y: topY - 10,
                 size: 8,
                 font: ctx.fontBold,
                 color: statusCor,
@@ -559,6 +558,10 @@ function desenharTabelaTitulos(
     }
 }
 
+// Convenção de posicionamento: ctx.y é o TOPO da próxima linha livre.
+// Texto é desenhado sempre ABAIXO de ctx.y (y = ctx.y - N).
+// Retângulo de fundo de linha preenche de (ctx.y - h) até ctx.y.
+
 function desenharHeaderTabela(
     ctx: RenderCtx,
     cols: { x: number; w: number; align: "left" | "right" }[],
@@ -567,7 +570,7 @@ function desenharHeaderTabela(
     const h = 16;
     ctx.page.drawRectangle({
         x: MARGIN_LEFT,
-        y: ctx.y - h + 4,
+        y: ctx.y - h,
         width: CONTENT_WIDTH,
         height: h,
         color: COLOR_BG_SOFT,
@@ -581,7 +584,7 @@ function desenharHeaderTabela(
             : c.x + 2;
         ctx.page.drawText(label, {
             x: textX,
-            y: ctx.y - 6,
+            y: ctx.y - 11,
             size,
             font: ctx.fontBold,
             color: COLOR_MUTED,
@@ -607,15 +610,15 @@ function desenharLinhaTabela(
             : c.x + 2;
         ctx.page.drawText(v, {
             x: textX,
-            y: ctx.y + 4,
+            y: ctx.y - 10,
             size: fontSize,
             font: fnt,
             color: COLOR_BODY,
         });
     }
     ctx.page.drawLine({
-        start: { x: MARGIN_LEFT, y: ctx.y - 1 },
-        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - 1 },
+        start: { x: MARGIN_LEFT, y: ctx.y - rowHeight },
+        end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: ctx.y - rowHeight },
         thickness: 0.3,
         color: COLOR_BORDER,
     });
@@ -625,7 +628,7 @@ function desenharLinhaTabela(
 function desenharLinhaVazia(ctx: RenderCtx, msg: string) {
     ctx.page.drawText(msg, {
         x: MARGIN_LEFT + 2,
-        y: ctx.y + 2,
+        y: ctx.y - 12,
         size: 9,
         font: ctx.fontItalic,
         color: COLOR_MUTED,
@@ -642,14 +645,14 @@ function desenharLinhaTotal(
     const h = 16;
     ctx.page.drawRectangle({
         x: MARGIN_LEFT,
-        y: ctx.y - h + 4,
+        y: ctx.y - h,
         width: CONTENT_WIDTH,
         height: h,
         color: COLOR_BG_SOFT,
     });
     ctx.page.drawText(label, {
         x: MARGIN_LEFT + 2,
-        y: ctx.y - 6,
+        y: ctx.y - 11,
         size: 9,
         font: ctx.fontBold,
         color: COLOR_BODY,
@@ -659,7 +662,7 @@ function desenharLinhaTotal(
     const last = cols[cols.length - 1];
     ctx.page.drawText(valor, {
         x: last.x + last.w - vWidth - 2,
-        y: ctx.y - 6,
+        y: ctx.y - 11,
         size: vSize,
         font: ctx.fontBold,
         color: COLOR_BODY,
