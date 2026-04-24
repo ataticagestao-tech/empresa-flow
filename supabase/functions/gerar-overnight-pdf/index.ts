@@ -6,7 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "npm:pdf-lib@1.17.1";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -16,7 +16,6 @@ const corsHeaders = {
 // ── Layout ABNT (NBR 14724) em pontos PostScript ────────────
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN_TOP = 85;      // 30mm
-const MARGIN_BOTTOM = 56.7; // 20mm
 const MARGIN_LEFT = 85;     // 30mm
 const MARGIN_RIGHT = 56.7;  // 20mm
 const CONTENT_WIDTH = A4[0] - MARGIN_LEFT - MARGIN_RIGHT;
