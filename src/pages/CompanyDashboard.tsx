@@ -849,8 +849,8 @@ export default function CompanyDashboard() {
                     </div>
                 )}
 
-                {/* ── 4 KPI Cards (mockup v1) ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
+                {/* ── 3 KPI Cards (mockup v1) ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -867,21 +867,7 @@ export default function CompanyDashboard() {
                         </div>
                     </div>
 
-                    {/* 2. Custos Diretos */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Custos Diretos</div>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: C.border, color: C.text2, flexShrink: 0 }}>
-                                {receitaPeriodo > 0 ? `${((custoPeriodo / receitaPeriodo) * 100).toFixed(2)}%` : "—"}
-                            </span>
-                        </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: "#7F1D1D", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(custoPeriodo)}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {receitaPeriodo > 0 ? `${((custoPeriodo / receitaPeriodo) * 100).toFixed(2)}% do faturamento` : "—"}
-                        </div>
-                    </div>
-
-                    {/* 3. Despesas */}
+                    {/* 2. Despesas */}
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Despesas</div>
@@ -895,7 +881,7 @@ export default function CompanyDashboard() {
                         </div>
                     </div>
 
-                    {/* 4. Resultado Líquido */}
+                    {/* 3. Resultado Líquido */}
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Resultado Líquido</div>
