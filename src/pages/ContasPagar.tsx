@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import JsBarcode from 'jsbarcode'
+import { linhaDigitavelToBarcode } from '@/utils/boleto-barcode'
 import { format, addDays, addMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
 import {
   DollarSign, CalendarClock, CalendarDays, CheckCircle2, Plus, X,
@@ -204,6 +206,10 @@ export default function ContasPagar() {
     desconto: 0,
     observacao: '',
   })
+
+  // Codigo de barras gerado a partir da linha digitavel
+  const [barcodeGerado, setBarcodeGerado] = useState<string | null>(null)
+  const barcodeSvgRef = useRef<SVGSVGElement>(null)
 
   // New CP form
   const [newForm, setNewForm] = useState({
@@ -494,8 +500,36 @@ export default function ContasPagar() {
       desconto: 0,
       observacao: cp.codigo_barras || '',
     })
+    setBarcodeGerado(null)
     setShowPayModal(true)
   }
+
+  const handleGerarBarcode = () => {
+    const result = linhaDigitavelToBarcode(payForm.observacao || '')
+    if (!result.ok) {
+      toast.error(result.error)
+      setBarcodeGerado(null)
+      return
+    }
+    setBarcodeGerado(result.barcode)
+  }
+
+  useEffect(() => {
+    if (!barcodeGerado || !barcodeSvgRef.current) return
+    try {
+      JsBarcode(barcodeSvgRef.current, barcodeGerado, {
+        format: 'ITF',
+        width: 1.4,
+        height: 60,
+        displayValue: true,
+        fontSize: 11,
+        margin: 4,
+      })
+    } catch (err) {
+      toast.error('Erro ao gerar codigo de barras')
+      setBarcodeGerado(null)
+    }
+  }, [barcodeGerado])
 
   const handlePay = async () => {
     if (!payingCp || !payForm.contaBancariaId) return
@@ -1689,14 +1723,30 @@ export default function ContasPagar() {
 
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Codigo de Barras</label>
-                  <input
-                    type="text"
-                    value={payForm.observacao}
-                    onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
-                    placeholder="Linha digitavel do boleto"
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={payForm.observacao}
+                      onChange={(e) => { setPayForm({ ...payForm, observacao: e.target.value }); setBarcodeGerado(null) }}
+                      placeholder="Linha digitavel do boleto"
+                      className="flex-1 px-3 text-[13px] rounded-[8px] focus:outline-none"
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGerarBarcode}
+                      disabled={!payForm.observacao}
+                      className="px-3 text-[12px] font-semibold rounded-[8px] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    >
+                      Gerar
+                    </button>
+                  </div>
+                  {barcodeGerado && (
+                    <div className="mt-3 p-3 rounded-[8px] flex justify-center" style={{ backgroundColor: '#fff', border: '1px solid rgba(26,46,74,0.10)' }}>
+                      <svg ref={barcodeSvgRef} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
