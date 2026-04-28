@@ -28,6 +28,7 @@ interface ContaPagar {
   company_id: string
   credor_nome: string
   credor_cpf_cnpj: string | null
+  descricao: string | null
   valor: number
   valor_pago: number
   data_vencimento: string
@@ -524,13 +525,13 @@ export default function ContasPagar() {
     }
     const svgString = new XMLSerializer().serializeToString(tempSvg)
     const linhaLabel = linha.replace(/\s+/g, ' ').trim()
-    const credor = payingCp?.credor_nome || ''
+    const titulo = payingCp?.descricao || payingCp?.credor_nome || ''
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Codigo de Barras${credor ? ' - ' + credor : ''}</title>
+<title>Codigo de Barras${titulo ? ' - ' + titulo : ''}</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; }
@@ -545,7 +546,7 @@ export default function ContasPagar() {
 </style>
 </head>
 <body>
-  ${credor ? `<h1>${credor}</h1>` : ''}
+  ${titulo ? `<h1>${titulo}</h1>` : ''}
   <div class="meta">${linhaLabel}</div>
   <div class="barcode">${svgString}</div>
   <div class="actions">
@@ -673,7 +674,7 @@ export default function ContasPagar() {
   const openEditModal = (cp: ContaPagar) => {
     setNewForm({
       credorNome: cp.credor_nome || '',
-      descricao: cp.credor_nome || '',
+      descricao: cp.descricao || cp.credor_nome || '',
       credorTipo: 'fornecedor',
       credorId: '',
       valor: cp.valor || 0,
@@ -791,6 +792,7 @@ export default function ContasPagar() {
     const base: Record<string, any> = {
       company_id: selectedCompany.id,
       credor_nome: credorNome,
+      descricao: newForm.descricao || null,
       valor: newForm.valor,
       status: 'aberto',
       conta_contabil_id: newForm.contaContabilId || null,
