@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import JsBarcode from 'jsbarcode'
 import { linhaDigitavelToBarcode } from '@/utils/boleto-barcode'
 import { format, addDays, addMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
@@ -207,9 +207,6 @@ export default function ContasPagar() {
     observacao: '',
   })
 
-  // Codigo de barras gerado a partir da linha digitavel
-  const [barcodeGerado, setBarcodeGerado] = useState<string | null>(null)
-  const barcodeSvgRef = useRef<SVGSVGElement>(null)
 
   // New CP form
   const [newForm, setNewForm] = useState({
@@ -500,36 +497,73 @@ export default function ContasPagar() {
       desconto: 0,
       observacao: cp.codigo_barras || '',
     })
-    setBarcodeGerado(null)
     setShowPayModal(true)
   }
 
   const handleGerarBarcode = () => {
-    const result = linhaDigitavelToBarcode(payForm.observacao || '')
+    const linha = payForm.observacao || ''
+    const result = linhaDigitavelToBarcode(linha)
     if (!result.ok) {
       toast.error(result.error)
-      setBarcodeGerado(null)
       return
     }
-    setBarcodeGerado(result.barcode)
-  }
 
-  useEffect(() => {
-    if (!barcodeGerado || !barcodeSvgRef.current) return
+    const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     try {
-      JsBarcode(barcodeSvgRef.current, barcodeGerado, {
+      JsBarcode(tempSvg, result.barcode, {
         format: 'ITF',
-        width: 1.4,
-        height: 60,
+        width: 3,
+        height: 180,
         displayValue: true,
-        fontSize: 11,
-        margin: 4,
+        fontSize: 22,
+        margin: 10,
       })
     } catch (err) {
       toast.error('Erro ao gerar codigo de barras')
-      setBarcodeGerado(null)
+      return
     }
-  }, [barcodeGerado])
+    const svgString = new XMLSerializer().serializeToString(tempSvg)
+    const linhaLabel = linha.replace(/\s+/g, ' ').trim()
+    const credor = payingCp?.credor_nome || ''
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Codigo de Barras${credor ? ' - ' + credor : ''}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; }
+  h1 { font-size: 18px; color: #059669; margin: 0 0 4px 0; font-weight: 700; }
+  .meta { font-size: 13px; color: #667085; margin-bottom: 28px; word-break: break-all; max-width: 90vw; text-align: center; }
+  .barcode { width: 95vw; max-width: 1400px; }
+  .barcode svg { width: 100%; height: auto; }
+  .actions { margin-top: 24px; display: flex; gap: 12px; }
+  button { background: #059669; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  button.secondary { background: transparent; color: #667085; border: 1px solid rgba(26,46,74,0.18); }
+  @media print { .actions { display: none; } body { padding: 0; } }
+</style>
+</head>
+<body>
+  ${credor ? `<h1>${credor}</h1>` : ''}
+  <div class="meta">${linhaLabel}</div>
+  <div class="barcode">${svgString}</div>
+  <div class="actions">
+    <button onclick="window.print()">Imprimir</button>
+    <button class="secondary" onclick="window.close()">Fechar</button>
+  </div>
+</body>
+</html>`
+
+    const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Habilite popups para gerar o codigo')
+      return
+    }
+    win.document.open()
+    win.document.write(html)
+    win.document.close()
+  }
 
   const handlePay = async () => {
     if (!payingCp || !payForm.contaBancariaId) return
@@ -1727,7 +1761,7 @@ export default function ContasPagar() {
                     <input
                       type="text"
                       value={payForm.observacao}
-                      onChange={(e) => { setPayForm({ ...payForm, observacao: e.target.value }); setBarcodeGerado(null) }}
+                      onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
                       placeholder="Linha digitavel do boleto"
                       className="flex-1 px-3 text-[13px] rounded-[8px] focus:outline-none"
                       style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
@@ -1742,11 +1776,6 @@ export default function ContasPagar() {
                       Gerar
                     </button>
                   </div>
-                  {barcodeGerado && (
-                    <div className="mt-3 p-3 rounded-[8px] flex justify-center" style={{ backgroundColor: '#fff', border: '1px solid rgba(26,46,74,0.10)' }}>
-                      <svg ref={barcodeSvgRef} />
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
