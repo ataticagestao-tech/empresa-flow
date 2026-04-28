@@ -430,6 +430,7 @@ export default function ContasPagar() {
       const term = searchTerm.toLowerCase()
       list = list.filter(
         (cp) =>
+          cp.descricao?.toLowerCase().includes(term) ||
           cp.credor_nome?.toLowerCase().includes(term) ||
           cp.credor_cpf_cnpj?.toLowerCase().includes(term) ||
           String(cp.valor).includes(term)
@@ -1172,7 +1173,7 @@ export default function ContasPagar() {
                     {agendaDiaLista.map(cp => (
                       <tr key={cp.id} style={{ borderTop: '1px solid #F2F4F7' }}>
                         <td className="py-2 px-3 text-[#1D2939]">
-                          <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cp.credor_nome}</div>
+                          <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cp.descricao || cp.credor_nome}</div>
                           {!selectedAgendaDate && (
                             <div className="text-[10.5px] text-[#98A2B3]">
                               {format(parseISO(cp.data_vencimento), 'dd/MM')}
@@ -1253,7 +1254,7 @@ export default function ContasPagar() {
                 <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                 <input
                   type="text"
-                  placeholder="Buscar credor, valor..."
+                  placeholder="Buscar descricao, credor, valor..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className="w-full pl-7 pr-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black placeholder-[#98A2B3] focus:outline-none focus:border-black"
@@ -1427,7 +1428,7 @@ export default function ContasPagar() {
                                 style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                               />
                             </th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Credor</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descricao</th>
                             <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
                             <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
                             <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
@@ -1485,7 +1486,10 @@ export default function ContasPagar() {
                                       )
                                     })()}
                                     <div>
-                                      <div className="font-semibold" style={{ color: '#059669' }}>{cp.credor_nome}</div>
+                                      <div className="font-semibold" style={{ color: '#059669' }}>{cp.descricao || cp.credor_nome}</div>
+                                      {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
+                                        <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_nome}</div>
+                                      )}
                                       {cp.credor_cpf_cnpj && (
                                         <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
                                       )}
