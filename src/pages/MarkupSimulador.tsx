@@ -171,7 +171,7 @@ export default function MarkupSimulador() {
                             <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Margem por Produto</p>
                             <ResponsiveContainer width="100%" height={280}>
                                 <BarChart data={chartData} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#FFFFFF" />
                                     <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
                                     <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
                                     <Tooltip formatter={(v: number) => `${v}%`} />

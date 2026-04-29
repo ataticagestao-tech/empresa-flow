@@ -44,7 +44,7 @@ export function CNPJUpload({ onDataExtracted }: CNPJUploadProps) {
     };
 
     return (
-        <div className="mb-6 p-4 border-2 border-dashed border-[#EAECF0] rounded-lg bg-[#F6F2EB] flex items-center justify-between">
+        <div className="mb-6 p-4 border-2 border-dashed border-[#EAECF0] rounded-lg bg-white flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                     <FileText className="h-5 w-5" />

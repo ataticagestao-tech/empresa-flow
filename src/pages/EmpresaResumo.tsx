@@ -606,7 +606,7 @@ export default function EmpresaResumo() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="relative w-12 h-12 rounded-md bg-[#F6F2EB] flex items-center justify-center text-black text-xl font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
+              className="relative w-12 h-12 rounded-md bg-white flex items-center justify-center text-black text-xl font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
               title="Alterar logo"
             >
               {company.logo_url ? (
@@ -644,7 +644,7 @@ export default function EmpresaResumo() {
               {editing ? (
                 <>
                   <button onClick={() => setEditing(false)} disabled={saving}
-                    className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors">
+                    className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
                     <X size={14} /> Cancelar
                   </button>
                   <button onClick={handleSave} disabled={saving}
@@ -655,12 +655,12 @@ export default function EmpresaResumo() {
               ) : (
                 <>
                   <button onClick={exportarFichaPDF}
-                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors"
+                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
                     title="Exportar ficha cadastral em PDF (ABNT)">
                     <FileDown size={14} /> PDF
                   </button>
                   <button onClick={() => setEditing(true)}
-                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors">
+                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
                     <Pencil size={14} /> Editar
                   </button>
                   <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
@@ -682,7 +682,7 @@ export default function EmpresaResumo() {
               { label: "Plano de Contas", value: stats?.chartAccounts ?? "—", url: "/plano-contas" },
             ].map(s => (
               <button key={s.label} onClick={() => navigate(s.url)}
-                className="px-6 py-3 text-left hover:bg-[#F6F2EB] transition-colors">
+                className="px-6 py-3 text-left hover:bg-gray-50 transition-colors">
                 <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-0.5">{s.label}</div>
                 <div className="text-lg font-semibold text-black tabular-nums">{s.value}</div>
               </button>
@@ -757,7 +757,7 @@ export default function EmpresaResumo() {
                   ))}
                 </div>
               ) : company.regime_tributario ? (
-                <span className="text-[15px] font-semibold text-black px-4 py-2 rounded-md border border-[#EAECF0] bg-[#F6F2EB] inline-block">
+                <span className="text-[15px] font-semibold text-black px-4 py-2 rounded-md border border-[#EAECF0] bg-white inline-block">
                   {regimeLabels[company.regime_tributario] || company.regime_tributario}
                 </span>
               ) : (
@@ -794,7 +794,7 @@ export default function EmpresaResumo() {
                 <div className="space-y-1">
                   {qsa.map((socio, i) => (
                     <div key={i} className="flex items-center gap-3 py-3 border-b border-[#F1F3F5] last:border-b-0">
-                      <div className="w-9 h-9 rounded-full bg-[#F6F2EB] border border-[#EAECF0] flex items-center justify-center text-black text-[13px] font-semibold shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-white border border-[#EAECF0] flex items-center justify-center text-black text-[13px] font-semibold shrink-0">
                         {(socio.nome_socio || "?")[0]}
                       </div>
                       <div className="flex-1 min-w-0">

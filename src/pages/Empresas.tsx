@@ -288,7 +288,7 @@ export default function Empresas() {
                   {/* Option 2: Sem CNPJ */}
                   <button
                     onClick={() => { set("cnpj", ""); setStep(1); }}
-                    className="w-full border border-[#ccc] rounded-lg p-4 flex items-center gap-3 hover:bg-[#F6F2EB] transition-colors text-left"
+                    className="w-full border border-[#ccc] rounded-lg p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
                   >
                     <div className="w-7 h-7 rounded-full bg-[#555] flex items-center justify-center">
                       <span className="text-white text-xs font-bold">2</span>

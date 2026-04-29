@@ -47,7 +47,7 @@ const MESES = [
 const diaClasse = (tipo: DiaMes["tipo"]) => {
   if (tipo === "util") return "bg-[#ECFDF3] text-[#039855] border border-[#039855]";
   if (tipo === "feriado") return "bg-[#FEE2E2] text-[#E53E3E] border border-[#E53E3E]";
-  return "bg-[#F6F2EB] text-[#aaa]";
+  return "bg-white text-[#aaa]";
 };
 
 export default function AbaBeneficios({ companyId, employeeId, employeeNome, salarioBase, usuarioId }: Props) {
@@ -192,7 +192,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         </div>
         <div className="flex gap-4 mt-3 text-[12px]">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#ECFDF3] border border-[#039855]" /> Útil</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#F6F2EB]" /> FDS</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-white" /> FDS</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#FEE2E2] border border-[#E53E3E]" /> Feriado</span>
         </div>
         {regime === "manual" && (
@@ -364,7 +364,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
                     <td className="py-2 px-2 text-right text-[#E53E3E]">{formatBRL(Number(h.total_desconto_func))}</td>
                     <td className="py-2 px-2 text-center">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEE2E2] text-[#E53E3E]" : "bg-[#F6F2EB] text-[#555]"
+                        h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEE2E2] text-[#E53E3E]" : "bg-white text-[#555]"
                       }`}>{h.status}</span>
                     </td>
                   </tr>

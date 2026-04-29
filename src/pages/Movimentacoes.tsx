@@ -968,7 +968,7 @@ export default function Movimentacoes() {
                     return (
                       <div
                         key={row.id}
-                        className="flex items-center gap-3 px-4 py-3 border-b border-[#eee] hover:bg-[#F6F2EB] transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 border-b border-[#eee] hover:bg-gray-50 transition-colors"
                       >
                         {/* Icon */}
                         <TypeIcon tipo={row.tipo} />
@@ -1226,7 +1226,7 @@ export default function Movimentacoes() {
                 <button
                   type="button"
                   onClick={() => !modalSaving && setModalOpen(false)}
-                  className="px-4 py-2 rounded border border-[#ccc] text-sm text-[#555] hover:bg-[#F6F2EB] transition-colors"
+                  className="px-4 py-2 rounded border border-[#ccc] text-sm text-[#555] hover:bg-gray-50 transition-colors"
                   disabled={modalSaving}
                 >
                   Cancelar

@@ -561,11 +561,11 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
 
             return (
                 <div key={account.id} className={`transition-all ml-${level * 6}`}>
-                    <div className="flex items-center gap-2 py-2 px-3 hover:bg-[#F6F2EB] rounded-lg group">
+                    <div className="flex items-center gap-2 py-2 px-3 hover:bg-gray-50 rounded-lg group">
                         {hasChildren ? (
                             <button
                                 onClick={() => toggleExpand(account.id)}
-                                className="p-1 hover:bg-[#F6F2EB] rounded"
+                                className="p-1 hover:bg-gray-50 rounded"
                             >
                                 {isExpanded ? (
                                     <ChevronDown className="w-4 h-4" />
@@ -745,7 +745,7 @@ export function ChartOfAccountsManager({ companyId }: ChartOfAccountsManagerProp
                                 {attachments.map(attachment => (
                                     <div
                                         key={attachment.id}
-                                        className="flex items-center gap-2 p-3 border rounded-lg hover:bg-[#F6F2EB]"
+                                        className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50"
                                     >
                                         <FileText className="w-4 h-4 text-muted-foreground" />
                                         <div className="flex-1 min-w-0">

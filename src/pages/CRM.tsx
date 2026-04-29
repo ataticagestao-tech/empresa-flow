@@ -118,7 +118,7 @@ export default function CRM() {
                             const totalValue = stageOpps.reduce((acc, curr) => acc + (curr.value || 0), 0);
 
                             return (
-                                <div key={stage.id} className="flex flex-col w-80 bg-[#F6F2EB] rounded-xl border border-[#EAECF0] shadow-sm max-h-full">
+                                <div key={stage.id} className="flex flex-col w-80 bg-white rounded-xl border border-[#EAECF0] shadow-sm max-h-full">
                                     {/* Column Header */}
                                     <div className="p-3 border-b border-[#EAECF0] rounded-t-xl sticky top-0 z-10">
                                         <div className="flex justify-between items-center mb-1">
@@ -126,7 +126,7 @@ export default function CRM() {
                                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color || '#cbd5e1' }} />
                                                 {stage.name}
                                             </h3>
-                                            <span className="text-xs text-muted-foreground font-mono bg-[#F6F2EB] px-1.5 py-0.5 rounded">{stageOpps.length}</span>
+                                            <span className="text-xs text-muted-foreground font-mono bg-white px-1.5 py-0.5 rounded">{stageOpps.length}</span>
                                         </div>
                                         <div className="text-lg font-bold text-foreground">
                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue)}
@@ -170,7 +170,7 @@ export default function CRM() {
                                                     </CardContent>
 
                                                     {/* Quick Actions (Move Next) */}
-                                                    <CardFooter className="p-0 border-t bg-[#F6F2EB] hidden group-hover:flex">
+                                                    <CardFooter className="p-0 border-t bg-white hidden group-hover:flex">
                                                         {/* Logic to find next stage */}
                                                         {(() => {
                                                             const currentIdx = stages.findIndex(s => s.id === stage.id);

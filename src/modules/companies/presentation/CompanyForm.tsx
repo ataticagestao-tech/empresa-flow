@@ -31,7 +31,7 @@ export function CompanyForm({ companyId, onSuccess, onCancel }: CompanyFormProps
             <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col h-full overflow-hidden bg-white">
                 <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
                     <Tabs defaultValue="fiscal" className="w-full">
-                        <TabsList className="w-full justify-start overflow-x-auto h-12 bg-[#F6F2EB] p-1 mb-6 rounded-xl shrink-0">
+                        <TabsList className="w-full justify-start overflow-x-auto h-12 bg-white p-1 mb-6 rounded-xl shrink-0">
                             <TabsTrigger value="fiscal" className="data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:shadow-sm rounded-lg px-4 py-2 gap-2 whitespace-nowrap">
                                 <Building2 className="w-4 h-4" /> Dados Fiscais
                             </TabsTrigger>
@@ -85,7 +85,7 @@ export function CompanyForm({ companyId, onSuccess, onCancel }: CompanyFormProps
                 </div>
 
                 {/* Footer Fixo */}
-                <div className="border-t border-[#F6F2EB] p-4 flex items-center justify-end gap-3 bg-[#F6F2EB]/50 shrink-0">
+                <div className="border-t border-gray-200 p-4 flex items-center justify-end gap-3 bg-white/50 shrink-0">
                     {onCancel && (
                         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
                             Cancelar

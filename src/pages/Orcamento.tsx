@@ -153,7 +153,7 @@ export default function Orcamento() {
                         <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Orçado vs Realizado</p>
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#FFFFFF" />
                                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip formatter={(v: number) => fmt(v)} />

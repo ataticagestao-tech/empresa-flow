@@ -82,7 +82,7 @@ export default function BankAccountsPage() {
                 {isLoading && <p>Carregando contas...</p>}
 
                 {!isLoading && accounts.length === 0 && (
-                    <div className="col-span-full text-center py-12 bg-[#F6F2EB] rounded-lg border border-dashed">
+                    <div className="col-span-full text-center py-12 bg-white rounded-lg border border-dashed">
                         <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                         <h3 className="text-lg font-medium text-foreground">Nenhuma conta cadastrada</h3>
                         <p className="text-muted-foreground">Cadastre uma conta bancária para começar a conciliação.</p>

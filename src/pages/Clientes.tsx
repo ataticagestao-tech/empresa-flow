@@ -88,7 +88,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     const estilos: Record<string, string> = {
         inadimplente: "text-[#E53E3E] border-[#E53E3E] bg-[#FEE2E2]",
         ativo:        "text-[#039855] border-[#039855] bg-[#ECFDF3]",
-        inativo:      "text-[#666] border-[#aaa] bg-[#F6F2EB]",
+        inativo:      "text-[#666] border-[#aaa] bg-white",
     };
     const labels: Record<string, string> = {
         inadimplente: "Inadimplente",
@@ -111,7 +111,7 @@ const CRStatusBadge = ({ status }: { status: string }) => {
         parcial:       "text-[#EA580C] border-[#EA580C] bg-[#FFF0EB]",
         aberto:        "text-[#059669] border-[#059669] bg-[#ECFDF4]",
         em_andamento:  "text-[#059669] border-[#059669] bg-[#ECFDF4]",
-        cancelado:     "text-[#555] border-[#aaa] bg-[#F6F2EB]",
+        cancelado:     "text-[#555] border-[#aaa] bg-white",
     };
     const labels: Record<string, string> = {
         pago: "Pago", vencido: "Vencido", parcial: "Parcial",
@@ -865,7 +865,7 @@ export default function Clientes() {
                                         key={client.id}
                                         onClick={() => handleSelectClient(client)}
                                         className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
-                                            isSelected ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-[#F6F2EB]"
+                                            isSelected ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-gray-50"
                                         }`}
                                     >
                                         {/* Avatar */}

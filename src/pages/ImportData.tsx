@@ -139,7 +139,7 @@ export default function ImportData() {
                             </Button>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs font-mono bg-[#F6F2EB] p-4 rounded-b-md">
+                    <CardContent className="text-xs font-mono bg-white p-4 rounded-b-md">
                         {permissionCheck?.status === 'done' ? (
                             <div className="space-y-2">
                                 <div className="grid grid-cols-2 gap-4">

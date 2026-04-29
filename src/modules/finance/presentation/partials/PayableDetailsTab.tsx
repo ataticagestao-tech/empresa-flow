@@ -129,7 +129,7 @@ export function PayableDetailsTab({ form, handleFileUpload, isUploading }: Payab
                 )}
             />
 
-            <div className="flex items-center gap-2 mt-4 p-4 border border-dashed rounded-lg bg-[#F6F2EB]">
+            <div className="flex items-center gap-2 mt-4 p-4 border border-dashed rounded-lg bg-white">
                 <Input
                     type="file"
                     className="hidden"

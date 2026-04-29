@@ -87,7 +87,7 @@ function tipoBadgeColors(tipo: string) {
     case 'email': return { text: '#059669', bg: '#ECFDF4', border: '#059669' }
     case 'whatsapp': return { text: '#039855', bg: '#ECFDF3', border: '#039855' }
     case 'sms': return { text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
-    default: return { text: '#555', bg: '#F6F2EB', border: '#ccc' }
+    default: return { text: '#555', bg: '#FFFFFF', border: '#ccc' }
   }
 }
 
@@ -102,7 +102,7 @@ function statusBadge(status: string) {
     case 'pago':
       return { label: 'Pago', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     default:
-      return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
+      return { label: status, text: '#555', bg: '#FFFFFF', border: '#ccc' }
   }
 }
 
@@ -115,7 +115,7 @@ function logStatusBadge(status: string) {
     case 'pendente':
       return { label: 'Pendente', text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     default:
-      return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
+      return { label: status, text: '#555', bg: '#FFFFFF', border: '#ccc' }
   }
 }
 
@@ -537,7 +537,7 @@ export default function ReguaCobranca() {
                   return (
                     <div
                       key={nomeKey}
-                      className="flex items-center justify-between border border-[#e5e5e5] rounded-lg px-4 py-3 hover:bg-[#F6F2EB] transition-colors"
+                      className="flex items-center justify-between border border-[#e5e5e5] rounded-lg px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full ${isAtivo ? 'bg-[#039855]' : 'bg-[#ccc]'}`} />
@@ -617,7 +617,7 @@ export default function ReguaCobranca() {
                   {filteredCrs.map(cr => {
                     const badge = statusBadge(cr.realStatus)
                     return (
-                      <tr key={cr.id} className="border-b border-[#EAECF0] hover:bg-[#F6F2EB]">
+                      <tr key={cr.id} className="border-b border-[#EAECF0] hover:bg-gray-50">
                         <td className="px-4 py-2.5">
                           <p className="text-[13px] font-medium text-[#1D2939]">{cr.pagador_nome}</p>
                           {cr.pagador_cpf_cnpj && (
@@ -714,7 +714,7 @@ export default function ReguaCobranca() {
                     const tipoBadge = tipoBadgeColors(log.tipo_acao)
                     const stBadge = logStatusBadge(log.status)
                     return (
-                      <tr key={log.id} className="border-b border-[#EAECF0] hover:bg-[#F6F2EB]">
+                      <tr key={log.id} className="border-b border-[#EAECF0] hover:bg-gray-50">
                         <td className="px-4 py-2.5 text-[12px] text-[#555]">
                           {log.enviado_em ? format(parseISO(log.enviado_em), 'dd/MM/yy HH:mm') : '-'}
                         </td>
@@ -815,7 +815,7 @@ export default function ReguaCobranca() {
                               }}
                             />
 
-                            <div className="border border-[#e5e5e5] rounded-lg p-3 bg-[#F6F2EB]">
+                            <div className="border border-[#e5e5e5] rounded-lg p-3 bg-white">
                               {/* Header row: type selector + days + remove */}
                               <div className="flex items-start gap-3 mb-3">
                                 {/* Tipo acao cards */}
@@ -884,7 +884,7 @@ export default function ReguaCobranca() {
                 <div className="flex items-center gap-3 pt-2 border-t border-[#e5e5e5]">
                   <button
                     onClick={() => setModalOpen(false)}
-                    className="flex-1 px-4 py-2 border border-[#ccc] rounded-lg text-[12px] font-semibold text-[#555] hover:bg-[#F6F2EB] transition-colors"
+                    className="flex-1 px-4 py-2 border border-[#ccc] rounded-lg text-[12px] font-semibold text-[#555] hover:bg-gray-50 transition-colors"
                   >
                     Cancelar
                   </button>

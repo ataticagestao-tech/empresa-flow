@@ -1073,7 +1073,7 @@ export default function Conciliacao() {
                 </div>
 
                 {!selectedAccountId ? (
-                    <div className="flex flex-col items-center justify-center p-16 bg-[#F6F2EB] rounded-xl border border-dashed border-[#EAECF0] text-center">
+                    <div className="flex flex-col items-center justify-center p-16 bg-white rounded-xl border border-dashed border-[#EAECF0] text-center">
                         <div className="bg-white p-4 rounded-full mb-4 shadow-sm">
                             <ArrowLeft className="h-8 w-8 text-muted-foreground" />
                         </div>
@@ -1190,7 +1190,7 @@ export default function Conciliacao() {
                                                 const kws = (rule.palavras_chave || []).join(", ");
                                                 const confiancaScore = rule.confianca === "Alta" ? 95 : rule.confianca === "Média" ? 70 : 50;
                                                 return (
-                                                <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#EAECF0] bg-[#F6F2EB] hover:bg-white transition-colors">
+                                                <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#EAECF0] bg-white hover:bg-white transition-colors">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <Badge variant="outline" className={`text-[10px] ${rule.acao === "auto-conciliar" ? "border-emerald-200 text-emerald-600 bg-emerald-50" : "border-amber-200 text-amber-600 bg-amber-50"}`}>
@@ -1225,7 +1225,7 @@ export default function Conciliacao() {
                                     <CardTitle className="flex items-center gap-2 text-base">
                                         <FileText className="h-5 w-5 text-primary" />
                                         Histórico de Importações
-                                        <Badge variant="secondary" className="text-muted-foreground bg-[#F6F2EB] ml-2">
+                                        <Badge variant="secondary" className="text-muted-foreground bg-white ml-2">
                                             {importHistory?.length || 0}
                                         </Badge>
                                     </CardTitle>
@@ -1247,7 +1247,7 @@ export default function Conciliacao() {
                                                 return (
                                                 <div key={imp.key} className="rounded-lg border border-[#EAECF0] overflow-hidden">
                                                     <div
-                                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-[#F6F2EB] cursor-pointer hover:bg-[#F6F2EB] transition-colors"
+                                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
                                                         onClick={() => {
                                                             if (isExpanded) {
                                                                 setExpandedBatchKey(null);
@@ -1595,7 +1595,7 @@ export default function Conciliacao() {
                                     <div>
                                         <CardTitle className="flex items-center gap-2">
                                             Transações do Extrato (Pendentes)
-                                            <Badge variant="secondary" className="text-muted-foreground bg-[#F6F2EB]">
+                                            <Badge variant="secondary" className="text-muted-foreground bg-white">
                                                 {filteredBankTransactions.length} itens
                                             </Badge>
                                         </CardTitle>
@@ -1663,7 +1663,7 @@ export default function Conciliacao() {
                                 ) : (
                                     <Table>
                                         <TableHeader>
-                                            <TableRow className="bg-[#F6F2EB]">
+                                            <TableRow className="bg-white">
                                                 <TableHead className="w-10">
                                                     <Checkbox
                                                         checked={paginatedTransactions.length > 0 && paginatedTransactions.every(bt => selectedIds.has(bt.id))}
@@ -1696,7 +1696,7 @@ export default function Conciliacao() {
                                                 const score = suggestion?.score || 0;
 
                                                 return (
-                                                    <TableRow key={bt.id} className="group hover:bg-[#F6F2EB] transition-colors">
+                                                    <TableRow key={bt.id} className="group hover:bg-gray-50 transition-colors">
                                                         <TableCell>
                                                             <Checkbox
                                                                 checked={selectedIds.has(bt.id)}
@@ -1881,7 +1881,7 @@ export default function Conciliacao() {
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
                     if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
                 }}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto sm:w-full">
                         <DialogHeader>
                             <DialogTitle>Conciliar Manualmente</DialogTitle>
                             <DialogDescription>Selecione um lançamento existente ou crie um novo.</DialogDescription>
@@ -1980,7 +1980,7 @@ export default function Conciliacao() {
                                                                         ? 'opacity-50 border-transparent cursor-not-allowed'
                                                                         : isChecked
                                                                             ? 'bg-emerald-50 border-emerald-300 cursor-pointer'
-                                                                            : 'hover:bg-[#F6F2EB] cursor-pointer border-transparent hover:border-[#EAECF0]'
+                                                                            : 'hover:bg-gray-50 cursor-pointer border-transparent hover:border-[#EAECF0]'
                                                                 }`}
                                                                 onClick={() => {
                                                                     if (jaConciliado) return;
@@ -2057,7 +2057,7 @@ export default function Conciliacao() {
 
                                                 if (selectedSysTxsForMatch.length === 0) return null;
                                                 return (
-                                                    <div className="mt-3 p-3 bg-[#F6F2EB] border border-[#EAECF0] rounded-md space-y-2">
+                                                    <div className="mt-3 p-3 bg-white border border-[#EAECF0] rounded-md space-y-2">
                                                         <div className="flex items-center justify-between text-xs">
                                                             <span className="font-semibold text-muted-foreground">
                                                                 {selecionados.length} selecionado{selecionados.length !== 1 ? 's' : ''}

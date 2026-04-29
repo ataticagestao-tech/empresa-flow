@@ -204,7 +204,7 @@ export default function CentrosCusto() {
                     <div className="flex items-center gap-2">
                       {isPadrao
                         ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">Padrão Tática</span>
-                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Personalizado</span>}
+                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-white text-[#555]">Personalizado</span>}
                       {!c.ativo && <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]">Inativo</span>}
                     </div>
                   </div>

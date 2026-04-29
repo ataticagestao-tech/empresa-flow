@@ -159,7 +159,7 @@ export default function Cenarios() {
                     <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Comparativo de Cenários</p>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#F6F2EB" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#FFFFFF" />
                             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                             <Tooltip formatter={(v: number) => fmt(v)} />

@@ -44,7 +44,7 @@ function getBadge(c: Conta) {
   if (c.account_type === "expense" && c.dre_group === "custos") return { label: "Custo", cls: "border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]" };
   if (c.account_type === "expense" && c.dre_group === "despesas_operacionais") return { label: "Despesa", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
   if (c.account_type === "expense") return { label: "Despesa", cls: "border-[#059669] bg-[#ECFDF4] text-[#059669]" };
-  return { label: "Outros", cls: "border-[#ccc] bg-[#F6F2EB] text-[#555]" };
+  return { label: "Outros", cls: "border-[#ccc] bg-white text-[#555]" };
 }
 
 export default function PlanoContas() {
@@ -579,7 +579,7 @@ export default function PlanoContas() {
           <button onClick={expandAll} className="text-[11px] font-semibold text-black px-2 py-1.5 hover:underline">Expandir</button>
           <button onClick={collapseAll} className="text-[11px] font-semibold text-[#667085] px-2 py-1.5 hover:underline">Recolher</button>
           <button onClick={() => setShowModeloPopup(true)}
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded bg-white text-black border border-[#D0D5DD] hover:bg-[#F6F2EB] transition-colors">
+            className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded bg-white text-black border border-[#D0D5DD] hover:bg-gray-50 transition-colors">
             <BookOpen size={13} /> Modelo Padrão
           </button>
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); }}
@@ -621,8 +621,8 @@ export default function PlanoContas() {
                 return (
                   <div key={grupo.code}>
                     {/* Grupo header */}
-                    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#eee] cursor-pointer hover:bg-[#F6F2EB]"
-                      style={{ backgroundColor: grupoInfo?.bg || "#F6F2EB" }}>
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#eee] cursor-pointer hover:bg-gray-50"
+                      style={{ backgroundColor: grupoInfo?.bg || "#FFFFFF" }}>
                       <button onClick={() => toggleModelo(grupo.code)} className="text-xs text-[#555]">
                         {modeloExpandidos.has(grupo.code) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </button>
@@ -644,7 +644,7 @@ export default function PlanoContas() {
                     {modeloExpandidos.has(grupo.code) && grupo.filhos.map(sub => (
                       <div key={sub.code}>
                         {/* Subgrupo */}
-                        <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-[#EAECF0] cursor-pointer hover:bg-[#F6F2EB]"
+                        <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-[#EAECF0] cursor-pointer hover:bg-gray-50"
                           onClick={() => toggleModelo(sub.code)}>
                           <span className="text-xs text-[#999]">
                             {modeloExpandidos.has(sub.code) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -665,7 +665,7 @@ export default function PlanoContas() {
 
                         {modeloExpandidos.has(sub.code) && sub.filhos.map(analitica => (
                           <div key={analitica.code}
-                            className="flex items-center gap-2 pl-14 pr-4 py-1.5 border-b border-[#f8f8f8] hover:bg-[#F6F2EB]">
+                            className="flex items-center gap-2 pl-14 pr-4 py-1.5 border-b border-[#f8f8f8] hover:bg-gray-50">
                             <span className="text-xs text-[#999] font-mono w-12">{analitica.code}</span>
                             <span className="text-sm text-[#1D2939] flex-1">{analitica.name}</span>
                             <span className="text-[10px] text-[#999]">{analitica.account_nature === "debit" ? "D" : "C"}</span>
@@ -760,7 +760,7 @@ export default function PlanoContas() {
               <div key={grupo.id}>
                 {/* Nível 1 — Grupo */}
                 <div onClick={() => toggle(grupo.code)}
-                  className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-[#F6F2EB] border-b border-[#D0D5DD]">
+                  className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-gray-50 border-b border-[#D0D5DD]">
                   <span className="text-[10px] text-black w-4">{expandidos.has(grupo.code) ? "▼" : "▶"}</span>
                   <span className="text-[12.5px] font-bold text-black w-20 font-mono">{grupo.code}</span>
                   <span className="text-[13px] font-bold text-black flex-1 min-w-0 uppercase tracking-wide truncate">{grupo.name}</span>
@@ -784,7 +784,7 @@ export default function PlanoContas() {
                   <div key={sub.id}>
                     {/* Nível 2 — Subgrupo */}
                     <div onClick={() => toggle(sub.code)}
-                      className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-[#F6F2EB] border-b border-[#EAECF0]">
+                      className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-gray-50 border-b border-[#EAECF0]">
                       <span className="text-[10px] text-[#667085] w-4 pl-4">{expandidos.has(sub.code) ? "▼" : "▶"}</span>
                       <span className="text-[12.5px] text-black w-20 font-mono pl-4">{sub.code}</span>
                       <span className="text-[13px] font-semibold text-black flex-1 min-w-0 pl-4 truncate">{sub.name}</span>
@@ -798,7 +798,7 @@ export default function PlanoContas() {
                       const badge = getBadge(analitica);
                       return (
                         <div key={analitica.id}>
-                          <div className="bg-white px-3 py-1 flex items-center gap-6 border-b border-[#F1F3F5] hover:bg-[#F6F2EB]">
+                          <div className="bg-white px-3 py-1 flex items-center gap-6 border-b border-[#F1F3F5] hover:bg-gray-50">
                             <span className="w-4" />
                             <span className="text-[12px] text-[#667085] w-20 font-mono pl-8">{analitica.code}</span>
                             <span className="text-[13px] text-black flex-1 min-w-0 pl-8 truncate">{analitica.name}</span>

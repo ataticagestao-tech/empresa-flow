@@ -90,7 +90,7 @@ export function ClientForm({ onSuccess, initialData }: ClientFormProps) {
                 </Tabs>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-[#e0e0e0]">
-                    <Button type="button" variant="outline" onClick={() => onSuccess()} className="border-[#ccc] text-[#555] hover:bg-[#F6F2EB]">
+                    <Button type="button" variant="outline" onClick={() => onSuccess()} className="border-[#ccc] text-[#555] hover:bg-gray-50">
                         Cancelar
                     </Button>
                     <Button type="submit" className="bg-[#059669] hover:bg-[#0f1f33] text-white min-w-[150px]">

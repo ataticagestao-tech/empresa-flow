@@ -88,7 +88,7 @@ function KpiCard({
             <span
               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
               style={{
-                backgroundColor: delta > 0 ? "#ECFDF3" : delta < 0 ? "#FEE2E2" : "#F6F2EB",
+                backgroundColor: delta > 0 ? "#ECFDF3" : delta < 0 ? "#FEE2E2" : "#FFFFFF",
                 color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
               }}
             >

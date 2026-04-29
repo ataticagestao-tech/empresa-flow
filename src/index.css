@@ -4,18 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - gestap system v3 (Verde + Navy)
-   Fundo: creme #F6F2EB | Surface: #FFFFFF
+/* Design System - gestap system v3 (Verde + Cinza Escuro)
+   Fundo: branco #FFFFFF | Surface: #FFFFFF
    Brand: #059669 (emerald-600) · vivid #0BE041 (logo)
-   Navy: #0F2544 (sidebar/header) · #1E3A8A (mid)
+   Sidebar/Header: #1F2937 (gray-800)
    Preto: #0F172A (foreground) · Cinzas neutros (#E5E7EB, #9CA3AF)
    Semânticas: success #039855 · warning #EA580C · error #E53E3E
 */
 
 @layer base {
   :root {
-    /* Backgrounds — creme */
-    --background: 40 44% 94%;        /* #F6F2EB */
+    /* Backgrounds — branco */
+    --background: 0 0% 100%;         /* #FFFFFF */
     --foreground: 222 47% 11%;       /* #0F172A preto neutro */
 
     --card: 0 0% 100%;
@@ -66,14 +66,14 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar + Header — preto */
-    --sidebar-background: 0 0% 0%;            /* #000000 */
+    /* Sidebar + Header — cinza escuro (#1F2937 gray-800) */
+    --sidebar-background: 217 33% 18%;        /* #1F2937 */
     --sidebar-foreground: 30 14% 92%;         /* #EEEBE6 off-white quente */
     --sidebar-primary: 145 75% 52%;           /* emerald vivid (active) */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;               /* #1F1F1F hover */
+    --sidebar-accent: 217 33% 25%;            /* #2B3849 hover (mais claro) */
     --sidebar-accent-foreground: 30 14% 96%;  /* #F5F2ED */
-    --sidebar-border: 0 0% 20%;               /* #333333 divisor */
+    --sidebar-border: 217 33% 30%;            /* #364453 divisor */
     --sidebar-ring: 145 75% 52%;
     --sidebar-muted: 30 8% 60%;               /* #9F9A91 labels */
   }

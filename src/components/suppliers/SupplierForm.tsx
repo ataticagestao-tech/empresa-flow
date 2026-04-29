@@ -354,9 +354,9 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Cabeçalho do Formulário */}
-                <div className="flex gap-6 items-start bg-[#F6F2EB] p-4 rounded-lg border border-[#F6F2EB]">
+                <div className="flex gap-6 items-start bg-white p-4 rounded-lg border border-gray-200">
                     <div className="flex flex-col items-center gap-2">
-                        <div className="w-20 h-20 bg-[#F6F2EB] rounded-full flex items-center justify-center border-4 border-white shadow-sm overflow-hidden">
+                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center border-4 border-white shadow-sm overflow-hidden">
                             <User className="w-10 h-10 text-muted-foreground" />
                         </div>
                         <button type="button" className="text-xs text-blue-600 font-semibold hover:underline">Alterar</button>
@@ -1020,7 +1020,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                         type="button"
                         variant="ghost"
                         onClick={onSuccess}
-                        className="text-muted-foreground hover:bg-[#F6F2EB]"
+                        className="text-muted-foreground hover:bg-gray-50"
                     >
                         Cancelar
                     </Button>
