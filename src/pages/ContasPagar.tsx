@@ -929,7 +929,7 @@ export default function ContasPagar() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Contas a Pagar">
-      <div className="max-w-[1400px] mx-auto space-y-6 p-6" style={{ backgroundColor: '#FFFFFF', minHeight: '100%' }}>
+      <div className="max-w-[1400px] mx-auto space-y-6 p-6" style={{ backgroundColor: '#F6F2EB', minHeight: '100%' }}>
 
         <PendenciasBanner variant="full" filter="debito" />
         {/* KPIs */}

@@ -264,7 +264,7 @@ export default function TabelaPrecos() {
                                 <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden", maxHeight: 400, overflowY: "auto" }}>
                                     <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
                                         <thead>
-                                            <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0 }}>
+                                            <tr style={{ background: "#F6F2EB", borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0 }}>
                                                 <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, color: T.text3, fontWeight: 600 }}>PRODUTO</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "right", fontSize: 11, color: T.text3, fontWeight: 600, width: 120 }}>PREÇO PADRÃO</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "right", fontSize: 11, color: T.text3, fontWeight: 600, width: 140 }}>PREÇO TABELA</th>

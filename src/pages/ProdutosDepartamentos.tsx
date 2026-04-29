@@ -192,14 +192,14 @@ export default function ProdutosDepartamentos() {
         active ? (
             <span className={`${badgeBase} text-[#039855] border-[#039855] bg-[#ECFDF3]`}>Ativo</span>
         ) : (
-            <span className={`${badgeBase} text-[#555] border-[#aaa] bg-white`}>Inativo</span>
+            <span className={`${badgeBase} text-[#555] border-[#aaa] bg-[#F6F2EB]`}>Inativo</span>
         );
 
     const TipoBadge = ({ tipo }: { tipo: string | null }) =>
         tipo === "servico" ? (
             <span className={`${badgeBase} text-[#059669] border-[#059669] bg-[#ECFDF4]`}>Serviço</span>
         ) : (
-            <span className={`${badgeBase} text-[#555] border-[#ccc] bg-white`}>Produto</span>
+            <span className={`${badgeBase} text-[#555] border-[#ccc] bg-[#F6F2EB]`}>Produto</span>
         );
 
     /* ── Thead style ── */
@@ -251,7 +251,7 @@ export default function ProdutosDepartamentos() {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setIsCopyModalOpen(true)}
-                                    className="text-[11px] font-semibold bg-white border border-[#D0D5DD] text-black px-3 py-1.5 rounded hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                                    className="text-[11px] font-semibold bg-white border border-[#D0D5DD] text-black px-3 py-1.5 rounded hover:bg-[#F6F2EB] transition-colors flex items-center gap-1.5"
                                 >
                                     <Copy className="h-3 w-3" /> Copiar de outra loja
                                 </button>
@@ -313,7 +313,7 @@ export default function ProdutosDepartamentos() {
                                             const custo = Number(p.cost_price || 0);
                                             const liquido = preco - custo;
                                             return (
-                                                <TableRow key={p.id} className="border-b border-[#eee] hover:bg-gray-50">
+                                                <TableRow key={p.id} className="border-b border-[#eee] hover:bg-[#F6F2EB]">
                                                     <TableCell className="font-mono text-[11px] font-bold text-[#059669]">
                                                         {p.code || "-"}
                                                     </TableCell>
@@ -434,7 +434,7 @@ export default function ProdutosDepartamentos() {
                                         </TableRow>
                                     ) : (
                                         filteredDepartments?.map((d) => (
-                                            <TableRow key={d.id} className="border-b border-[#eee] hover:bg-gray-50">
+                                            <TableRow key={d.id} className="border-b border-[#eee] hover:bg-[#F6F2EB]">
                                                 <TableCell className="text-[13px] font-semibold text-[#1D2939]">
                                                     {d.name}
                                                 </TableCell>

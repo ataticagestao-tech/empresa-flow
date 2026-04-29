@@ -24,7 +24,7 @@ export function ReceivableForm({ onSuccess, initialData, onCancel }: ReceivableF
         <Form {...form}>
             <form onSubmit={save} className="space-y-4">
                 <Tabs defaultValue="main" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-white/50">
+                    <TabsList className="grid w-full grid-cols-2 bg-[#F6F2EB]/50">
                         <TabsTrigger value="main">Principal</TabsTrigger>
                         <TabsTrigger value="details">Detalhes (Em Breve)</TabsTrigger>
                     </TabsList>

@@ -95,7 +95,7 @@ function statusBadge(status: string) {
     case 'pago':
       return { label: 'Pago', text: '#039855', bg: '#ECFDF3', border: '#039855' }
     default:
-      return { label: status, text: '#555', bg: '#FFFFFF', border: '#ccc' }
+      return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
 }
 
@@ -832,7 +832,7 @@ export default function ContasReceber() {
                     return (
                       <tr
                         key={cr.id}
-                        className={`border-b border-[#EAECF0] hover:bg-gray-50 transition-colors ${selectedIds.has(cr.id) ? 'bg-[#ECFDF4]' : ''}`}
+                        className={`border-b border-[#EAECF0] hover:bg-[#F6F2EB] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#ECFDF4]' : ''}`}
                       >
                         {/* Checkbox */}
                         <td className="px-3 py-2 w-10 align-middle">
@@ -854,7 +854,7 @@ export default function ContasReceber() {
                         </td>
                         {/* Tipo */}
                         <td className="px-4 py-2 align-middle">
-                          <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-white border border-[#ddd] rounded">
+                          <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-[#F6F2EB] border border-[#ddd] rounded">
                             {deriveTipo(cr)}
                           </span>
                         </td>
@@ -917,7 +917,7 @@ export default function ContasReceber() {
                                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ccc] rounded-lg shadow-lg z-50">
                                   <button
                                     onClick={() => { setRenegociarModal(cr); setDropdownOpen(null) }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-gray-50 transition-colors first:rounded-t-lg"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors first:rounded-t-lg"
                                   >
                                     Renegociar
                                   </button>
@@ -943,7 +943,7 @@ export default function ContasReceber() {
                                       setDropdownOpen(null)
                                       alert('Funcionalidade de cobranca manual sera implementada em breve.')
                                     }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-gray-50 transition-colors"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors"
                                   >
                                     Enviar cobranca manual
                                   </button>
@@ -1170,7 +1170,7 @@ function ModalQuitarLote({
                 type="button"
                 onClick={() => setUsarDataVencimento(false)}
                 disabled={submitting}
-                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${!usarDataVencimento ? 'bg-[#039855] text-white border-[#039855]' : 'bg-white text-[#555] border-[#ccc] hover:bg-gray-50'}`}
+                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${!usarDataVencimento ? 'bg-[#039855] text-white border-[#039855]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#F6F2EB]'}`}
               >
                 Data fixa
               </button>
@@ -1178,7 +1178,7 @@ function ModalQuitarLote({
                 type="button"
                 onClick={() => setUsarDataVencimento(true)}
                 disabled={submitting}
-                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${usarDataVencimento ? 'bg-[#039855] text-white border-[#039855]' : 'bg-white text-[#555] border-[#ccc] hover:bg-gray-50'}`}
+                className={`flex-1 px-3 py-2 text-[12px] font-semibold rounded-md border transition-colors ${usarDataVencimento ? 'bg-[#039855] text-white border-[#039855]' : 'bg-white text-[#555] border-[#ccc] hover:bg-[#F6F2EB]'}`}
               >
                 Na data de vencimento
               </button>
@@ -1242,11 +1242,11 @@ function ModalQuitarLote({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#eee] px-6 py-4 flex justify-end gap-3 bg-white">
+        <div className="border-t border-[#eee] px-6 py-4 flex justify-end gap-3 bg-[#F6F2EB]">
           <button
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
@@ -1349,7 +1349,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 const inputCls =
-  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#1D2939] bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669] disabled:bg-white disabled:text-[#999]'
+  'w-full px-3 py-2 border border-[#ccc] rounded-md text-[13px] text-[#1D2939] bg-white focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669] disabled:bg-[#F6F2EB] disabled:text-[#999]'
 
 /* ================================================================
    MODAL: QUITAR CR
@@ -1531,7 +1531,7 @@ function ModalQuitarCR({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
           >
             Cancelar
           </button>
@@ -1723,7 +1723,7 @@ function ModalNovoCR({
                 className={`px-3 py-2.5 rounded-lg border text-[12px] font-semibold text-center transition-colors ${
                   tipo === t.value
                     ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]'
-                    : 'border-[#ccc] bg-white text-[#555] hover:bg-gray-50'
+                    : 'border-[#ccc] bg-white text-[#555] hover:bg-[#F6F2EB]'
                 }`}
               >
                 <span className="block text-[16px] mb-0.5">{t.icon}</span>
@@ -1944,7 +1944,7 @@ function ModalNovoCR({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
           >
             Cancelar
           </button>
@@ -2012,7 +2012,7 @@ function ModalRenegociar({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
           >
             Cancelar
           </button>

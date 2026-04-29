@@ -54,7 +54,7 @@ export function CollapsibleCard({
             onClick={() => setCollapsed(v => !v)}
             title={collapsed ? 'Expandir' : 'Minimizar'}
             aria-label={collapsed ? 'Expandir' : 'Minimizar'}
-            className="w-7 h-7 flex items-center justify-center rounded border border-[#D0D5DD] text-[#667085] hover:text-black hover:bg-gray-50 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[#D0D5DD] text-[#667085] hover:text-black hover:bg-[#F6F2EB] transition-colors"
           >
             {collapsed ? <Plus size={14} /> : <Minus size={14} />}
           </button>

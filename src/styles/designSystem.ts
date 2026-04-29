@@ -49,7 +49,7 @@ export const colors = {
 
   // Fundos
   surface: "#FFFFFF",
-  canvas: "#FFFFFF", // creme (fundo das páginas)
+  canvas: "#F6F2EB", // creme (fundo das páginas)
   panelSoft: "#F9FAFB", // cards internos / stats
   panelHover: "#F3F4F6",
 

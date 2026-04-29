@@ -1216,7 +1216,7 @@ export default function CompanyDashboard() {
                                     const iconBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : C.goldBg;
                                     const iconColor = isLate ? "#991B1B" : isWarn ? "#92400E" : "#059669";
                                     const initials = (p.credor_nome || "??").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
-                                    const badgeBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : "#FFFFFF";
+                                    const badgeBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : "#F6F2EB";
                                     const badgeBorder = isLate ? "#FECDCA" : isWarn ? "#FEDF89" : C.border;
                                     const badgeColor = isLate ? "#B42318" : isWarn ? "#B54708" : C.text2;
                                     const badgeDot = isLate ? "#E53E3E" : isWarn ? "#EA580C" : C.textMuted;

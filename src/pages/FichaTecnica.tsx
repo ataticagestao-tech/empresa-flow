@@ -270,7 +270,7 @@ export default function FichaTecnica() {
                                 <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
                                     <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
                                         <thead>
-                                            <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${T.border}` }}>
+                                            <tr style={{ background: "#F6F2EB", borderBottom: `1px solid ${T.border}` }}>
                                                 <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, color: T.text3, fontWeight: 600 }}>INSUMO</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "center", fontSize: 11, color: T.text3, fontWeight: 600, width: 70 }}>QTD</th>
                                                 <th style={{ padding: "8px 12px", textAlign: "center", fontSize: 11, color: T.text3, fontWeight: 600, width: 70 }}>UN</th>
@@ -295,7 +295,7 @@ export default function FichaTecnica() {
                                                 </tr>
                                             ))}
                                             {/* Add row */}
-                                            <tr style={{ borderBottom: `1px solid ${T.border}`, background: "#FFFFFF" }}>
+                                            <tr style={{ borderBottom: `1px solid ${T.border}`, background: "#F6F2EB" }}>
                                                 <td style={{ padding: "4px 8px" }}>
                                                     <Input value={newInsumo} onChange={e => setNewInsumo(e.target.value)}
                                                         placeholder="Nome do insumo" className="h-7 text-sm" />

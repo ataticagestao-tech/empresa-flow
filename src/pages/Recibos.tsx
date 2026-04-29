@@ -461,7 +461,7 @@ export default function Recibos() {
                 </div>
 
                 {/* Preview body */}
-                <div className="flex-1 overflow-y-auto bg-white p-4">
+                <div className="flex-1 overflow-y-auto bg-[#F6F2EB] p-4">
                   <div className="max-w-[700px] mx-auto shadow-sm border border-[#E5E7EB] rounded bg-white">
                     <PreviewRecibo recibo={selecionado} empresa={empresa} />
                   </div>

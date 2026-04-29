@@ -34,7 +34,7 @@ const formaLabel = (v: string | null | undefined) =>
 const statusLabel: Record<string, { label: string; className: string }> = {
     confirmado: { label: "Ativo", className: "bg-[#ECFDF3] text-[#039855] border-[#039855]" },
     orcamento: { label: "Orçamento", className: "bg-[#FFF0EB] text-[#EA580C] border-[#EA580C]" },
-    cancelado: { label: "Cancelado", className: "bg-white text-[#555] border-[#aaa]" },
+    cancelado: { label: "Cancelado", className: "bg-[#F6F2EB] text-[#555] border-[#aaa]" },
 };
 
 interface TabContractsProps {

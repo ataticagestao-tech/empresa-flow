@@ -72,11 +72,11 @@ function statusBadge(status: string) {
     case 'pausado':
       return { label: 'Pausado', text: '#EA580C', bg: '#FFF0EB', border: '#EA580C' }
     case 'inativo':
-      return { label: 'Inativo', text: '#555', bg: '#FFFFFF', border: '#ccc' }
+      return { label: 'Inativo', text: '#555', bg: '#F6F2EB', border: '#ccc' }
     case 'encerrado':
       return { label: 'Encerrado', text: '#E53E3E', bg: '#FEE2E2', border: '#E53E3E' }
     default:
-      return { label: status, text: '#555', bg: '#FFFFFF', border: '#ccc' }
+      return { label: status, text: '#555', bg: '#F6F2EB', border: '#ccc' }
   }
 }
 
@@ -429,7 +429,7 @@ export default function ContratosRecorrentes() {
           <KPICard title="Contratos ativos" value={String(kpis.ativos)} color="#039855" bgColor="#ECFDF3" />
           <KPICard title="Receita mensal recorrente" value={formatBRL(kpis.receitaMensal)} color="#059669" bgColor="#ECFDF4" />
           <KPICard title="Vencendo esta semana" value={String(kpis.vencendoSemana)} color="#EA580C" bgColor="#FFF0EB" />
-          <KPICard title="Inativos / Pausados" value={String(kpis.inativosPausados)} color="#555" bgColor="#FFFFFF" />
+          <KPICard title="Inativos / Pausados" value={String(kpis.inativosPausados)} color="#555" bgColor="#F6F2EB" />
         </div>
 
         {/* FILTERS */}
@@ -534,7 +534,7 @@ export default function ContratosRecorrentes() {
                         <td className="px-4 py-3 text-right font-medium text-[#1D2939]">{formatBRL(c.valor)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full border"
-                            style={{ color: '#555', background: '#FFFFFF', borderColor: '#ccc' }}>
+                            style={{ color: '#555', background: '#F6F2EB', borderColor: '#ccc' }}>
                             {periodicidadeBadge(c.periodicidade)}
                           </span>
                         </td>
@@ -563,28 +563,28 @@ export default function ContratosRecorrentes() {
                             <div className="absolute right-4 top-10 z-50 bg-white border border-[#ccc] rounded-lg shadow-lg py-1 min-w-[180px]">
                               <button
                                 onClick={() => togglePausar(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
                                 {c.status === 'ativo' ? <Pause size={14} className="text-[#EA580C]" /> : <Play size={14} className="text-[#039855]" />}
                                 {c.status === 'ativo' ? 'Pausar' : 'Reativar'}
                               </button>
                               <button
                                 onClick={() => { setEditingContrato(c); setShowModal(true); setOpenDropdown(null) }}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
                                 <Pencil size={14} className="text-[#555]" />
                                 Editar
                               </button>
                               <button
                                 onClick={() => encerrarContrato(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
                                 <AlertTriangle size={14} className="text-[#EA580C]" />
                                 Encerrar contrato
                               </button>
                               <button
                                 onClick={() => gerarCRAgora(c)}
-                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                                className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#F6F2EB] flex items-center gap-2 transition-colors"
                               >
                                 <RefreshCw size={14} className="text-[#059669]" />
                                 Gerar CR agora
@@ -899,7 +899,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2.5 text-[13px] font-semibold text-[#555] border border-[#ccc] rounded-lg hover:bg-[#F6F2EB] transition-colors"
             >
               Cancelar
             </button>

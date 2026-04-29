@@ -38,7 +38,7 @@ export function InvoiceItems({ form }: InvoiceItemsProps) {
 
             <div className="border rounded-md overflow-hidden bg-white shadow-sm">
                 <Table>
-                    <TableHeader className="bg-white">
+                    <TableHeader className="bg-[#F6F2EB]">
                         <TableRow>
                             <TableHead className="w-[40%]">Descrição</TableHead>
                             <TableHead className="w-[15%] text-right">Qtd</TableHead>

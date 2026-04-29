@@ -25,7 +25,7 @@ export default function ContaBloqueada() {
     : null;
 
   return (
-    <div className="min-h-screen bg-white p-4 sm:p-8 flex items-center justify-center">
+    <div className="min-h-screen bg-[#F6F2EB] p-4 sm:p-8 flex items-center justify-center">
       <Card className="w-full max-w-2xl shadow-xl border-[#EAECF0]">
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-2">

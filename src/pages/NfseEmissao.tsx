@@ -986,7 +986,7 @@ export default function NfseEmissao() {
                 </div>
 
                 {/* ── Summary card ── */}
-                <div className="rounded-xl p-4 border border-gray-100" style={{ backgroundColor: '#FFFFFF' }}>
+                <div className="rounded-xl p-4 border border-gray-100" style={{ backgroundColor: '#F6F2EB' }}>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Resumo</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
@@ -1232,7 +1232,7 @@ export default function NfseEmissao() {
                 </div>
 
                 {/* Valores */}
-                <div className="rounded-xl p-4 border border-gray-100" style={{ backgroundColor: '#FFFFFF' }}>
+                <div className="rounded-xl p-4 border border-gray-100" style={{ backgroundColor: '#F6F2EB' }}>
                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Valores</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">

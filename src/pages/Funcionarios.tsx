@@ -322,7 +322,7 @@ export default function Funcionarios() {
              filtered.map(emp => (
               <div key={emp.id} onClick={() => startEdit(emp)}
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
-                  selectedId === emp.id ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-gray-50"
+                  selectedId === emp.id ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-[#F6F2EB]"
                 }`}>
                 <div className="w-9 h-9 rounded-full bg-[#0BE041] flex items-center justify-center text-[#064E3B] text-xs font-bold shrink-0">{initials(getName(emp))}</div>
                 <div className="flex-1 min-w-0">
@@ -455,7 +455,7 @@ export default function Funcionarios() {
                   <div className="space-y-4">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead className="bg-white">
+                        <thead className="bg-[#F6F2EB]">
                           <tr><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Vigência</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Salário Base</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Variação</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Motivo</th></tr>
                         </thead>
                         <tbody>
@@ -482,7 +482,7 @@ export default function Funcionarios() {
                           <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">{mes}</span></div>
                           <div className="p-3 bg-white text-center">
                             <p className="text-lg font-bold text-[#1D2939]">R$ 0,00</p>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-white text-[#555]">Sem lançamento</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Sem lançamento</span>
                           </div>
                         </div>
                       ))}
@@ -506,7 +506,7 @@ export default function Funcionarios() {
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
                           <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">INSS — Detalhamento por faixa</span></div>
                           <table className="w-full text-xs">
-                            <thead className="bg-white"><tr><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[9px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
+                            <thead className="bg-[#F6F2EB]"><tr><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[9px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
                             <tbody>
                               {INSS_2025.map((f, i) => {
                                 if (calcSalario <= f.min) return null;

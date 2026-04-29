@@ -1114,7 +1114,7 @@ export default function Vendas() {
       pago: 'text-[#039855] bg-[#ECFDF3] border border-[#039855]',
       aberto: 'text-[#059669] bg-[#ECFDF4] border border-[#059669]',
       parcial: 'text-[#EA580C] bg-[#FFF0EB] border border-[#EA580C]',
-      avista: 'text-[#555] bg-white border border-[#ccc]',
+      avista: 'text-[#555] bg-[#F6F2EB] border border-[#ccc]',
     }
     const labels: Record<string, string> = {
       pago: 'Pago', aberto: 'CR \u2014 aberto', parcial: 'CR \u2014 parcial', avista: 'À vista',
@@ -1128,7 +1128,7 @@ export default function Vendas() {
 
   function TipoBadge({ tipo }: { tipo: string }) {
     return (
-      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold text-[#555] bg-white border border-[#ccc]">
+      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold text-[#555] bg-[#F6F2EB] border border-[#ccc]">
         {LABEL_TIPO[tipo] || tipo}
       </span>
     )
@@ -1244,7 +1244,7 @@ export default function Vendas() {
           {/* Ações */}
           <button
             onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null) }}
-            className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] transition-colors"
           >
             <Upload size={11} /> Importar
           </button>
@@ -1464,7 +1464,7 @@ export default function Vendas() {
                 </thead>
                 <tbody>
                   {vendasFiltradas.map(v => (
-                    <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-gray-50 transition-colors text-[12px] whitespace-nowrap">
+                    <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px] whitespace-nowrap">
                       <td className="px-2 py-1 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
                       <td className="px-2 py-1 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
                       <td className="px-2 py-1 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
@@ -1648,7 +1648,7 @@ export default function Vendas() {
                 <div className="border border-[#ccc] rounded-md overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-white text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                      <tr className="bg-[#F6F2EB] text-[10px] font-bold text-[#555] uppercase tracking-wider">
                         <th className="text-left px-3 py-2">Descrição</th>
                         <th className="text-center px-3 py-2 w-20">Qtd</th>
                         <th className="text-center px-3 py-2 w-28">Valor unit.</th>
@@ -1663,7 +1663,7 @@ export default function Vendas() {
                             <button
                               type="button"
                               onClick={() => abrirModalProduto(idx)}
-                              className="w-full flex items-center gap-2 px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-left hover:border-[#059669] hover:bg-gray-50 transition-colors"
+                              className="w-full flex items-center gap-2 px-2 py-1 text-sm border border-[#ccc] rounded bg-white text-left hover:border-[#059669] hover:bg-[#F6F2EB] transition-colors"
                             >
                               <Package size={13} className="text-[#999] shrink-0" />
                               <span className={it.descricao ? 'text-[#1D2939]' : 'text-[#999]'}>
@@ -1863,7 +1863,7 @@ export default function Vendas() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { setModalAberto(false); setEditandoVenda(null) }}
-                    className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                   >
                     Cancelar
                   </button>
@@ -1927,7 +1927,7 @@ export default function Vendas() {
               <div className="flex justify-end gap-2 pt-2 border-t border-[#ccc]">
                 <button
                   onClick={() => setModalNovoCliente(false)}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                 >
                   Cancelar
                 </button>
@@ -1995,7 +1995,7 @@ export default function Vendas() {
                   <div className="border border-[#ccc] rounded-md overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-white text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                        <tr className="bg-[#F6F2EB] text-[10px] font-bold text-[#555] uppercase tracking-wider">
                           <th className="text-left px-3 py-2">Descrição</th>
                           <th className="text-center px-3 py-2 w-16">Qtd</th>
                           <th className="text-right px-3 py-2 w-24">Unit.</th>
@@ -2023,7 +2023,7 @@ export default function Vendas() {
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Contas a Receber</span>
                   <div className="space-y-1.5">
                     {modalDetalhes.contas_receber.map((cr, idx) => (
-                      <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-white">
+                      <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-[#F6F2EB]">
                         <span className="text-[#555]">
                           {modalDetalhes.contas_receber!.length > 1 ? `Parcela ${idx + 1}` : 'CR'} &mdash; venc. {formatData(cr.data_vencimento)}
                         </span>
@@ -2046,7 +2046,7 @@ export default function Vendas() {
               <div className="pt-2 border-t border-[#ccc] flex justify-end gap-2">
                 <button
                   onClick={() => setModalDetalhes(null)}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                 >
                   Fechar
                 </button>
@@ -2081,7 +2081,7 @@ export default function Vendas() {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmDelete(null)}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
                 >
                   Cancelar
                 </button>
@@ -2122,7 +2122,7 @@ export default function Vendas() {
                 <button
                   onClick={() => setConfirmDeleteMes(false)}
                   disabled={deletandoMes}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] disabled:opacity-50 transition-colors"
                 >
                   Cancelar
                 </button>
@@ -2184,7 +2184,7 @@ export default function Vendas() {
                 </div>
               ) : (
                 <table className="w-full text-sm">
-                  <thead className="bg-white sticky top-0">
+                  <thead className="bg-[#F6F2EB] sticky top-0">
                     <tr>
                       <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Nome</th>
                       <th className="text-right px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Preço</th>
@@ -2215,10 +2215,10 @@ export default function Vendas() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-[#eee] px-5 py-3 flex justify-end bg-white rounded-b-lg">
+            <div className="border-t border-[#eee] px-5 py-3 flex justify-end bg-[#F6F2EB] rounded-b-lg">
               <button
                 onClick={() => setModalProdutoIdx(null)}
-                className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors"
               >
                 Cancelar
               </button>
@@ -2252,7 +2252,7 @@ export default function Vendas() {
                   </p>
 
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                    <div className="bg-white px-4 py-2">
+                    <div className="bg-[#F6F2EB] px-4 py-2">
                       <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas obrigatórias</h4>
                     </div>
                     <div className="p-4">
@@ -2285,7 +2285,7 @@ export default function Vendas() {
                   </div>
 
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                    <div className="bg-white px-4 py-2">
+                    <div className="bg-[#F6F2EB] px-4 py-2">
                       <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas opcionais</h4>
                     </div>
                     <div className="p-4">
@@ -2422,7 +2422,7 @@ export default function Vendas() {
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
                     <div className="overflow-x-auto max-h-[40vh]">
                       <table className="w-full text-sm">
-                        <thead className="bg-white sticky top-0">
+                        <thead className="bg-[#F6F2EB] sticky top-0">
                           <tr>
                             <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Linha</th>
                             <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Cliente</th>
@@ -2439,7 +2439,7 @@ export default function Vendas() {
                           {importRows.map((row, idx) => {
                             const hasError = row.erros.length > 0
                             return (
-                              <tr key={idx} className={hasError ? 'bg-[#FEE2E2]' : 'hover:bg-gray-50'}>
+                              <tr key={idx} className={hasError ? 'bg-[#FEE2E2]' : 'hover:bg-[#F6F2EB]'}>
                                 <td className="px-3 py-2 text-[#999] text-xs">{row.linha}</td>
                                 <td className="px-3 py-2 font-medium text-[#1D2939]">
                                   {row.cliente_nome || '-'}
@@ -2499,7 +2499,7 @@ export default function Vendas() {
             )}
 
             {/* Footer */}
-            <div className="border-t border-[#eee] px-5 py-3 flex items-center justify-between bg-white rounded-b-lg">
+            <div className="border-t border-[#eee] px-5 py-3 flex items-center justify-between bg-[#F6F2EB] rounded-b-lg">
               <button
                 onClick={baixarModeloPlanilha}
                 className="flex items-center gap-2 text-xs font-semibold text-[#555] hover:text-[#059669] transition-colors"
@@ -2510,7 +2510,7 @@ export default function Vendas() {
                 <button
                   onClick={fecharModalImport}
                   disabled={importando}
-                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-[#555] border border-[#ccc] rounded-md hover:bg-[#F6F2EB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {importResult ? 'Fechar' : 'Cancelar'}
                 </button>
