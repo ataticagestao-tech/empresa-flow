@@ -193,6 +193,7 @@ export default function ContasPagar() {
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [editingCpId, setEditingCpId] = useState<string | null>(null)
+  const [editingCpStatus, setEditingCpStatus] = useState<string | null>(null)
   const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isReadingBoleto, setIsReadingBoleto] = useState(false)
@@ -668,7 +669,7 @@ export default function ContasPagar() {
 
   const openNewModal = () => {
     setNewForm(resetNewForm())
-    setEditingCpId(null)
+    setEditingCpId(null); setEditingCpStatus(null)
     setShowNewModal(true)
   }
 
@@ -689,6 +690,7 @@ export default function ContasPagar() {
       fileUrl: cp.file_url || '',
     })
     setEditingCpId(cp.id)
+    setEditingCpStatus(cp.status)
     setDropdownOpen(null)
     setShowNewModal(true)
   }
@@ -819,7 +821,7 @@ export default function ContasPagar() {
         alert('Erro ao editar: ' + error.message)
       } else {
         setShowNewModal(false)
-        setEditingCpId(null)
+        setEditingCpId(null); setEditingCpStatus(null)
         await loadData()
       }
     } else {
@@ -1969,7 +1971,7 @@ export default function ContasPagar() {
 
         {/* ─── Modal: Nova / Editar CP ──────────────────────────────── */}
         {showNewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { setShowNewModal(false); setEditingCpId(null) }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => { setShowNewModal(false); setEditingCpId(null); setEditingCpStatus(null) }}>
             <div className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
@@ -1980,11 +1982,19 @@ export default function ContasPagar() {
                     {editingCpId ? 'Alterar dados da conta' : 'Cadastrar nova despesa'}
                   </p>
                 </div>
-                <button onClick={() => { setShowNewModal(false); setEditingCpId(null) }} className="text-white/50 hover:text-white transition">
+                <button onClick={() => { setShowNewModal(false); setEditingCpId(null); setEditingCpStatus(null) }} className="text-white/50 hover:text-white transition">
                   <X size={18} />
                 </button>
               </div>
               <div className="p-5 space-y-4">
+                {(editingCpStatus === 'pago' || editingCpStatus === 'conciliado') && (
+                  <div className="rounded-[8px] p-3 flex items-start gap-2" style={{ backgroundColor: 'rgba(252, 211, 77, 0.15)', border: '1px solid rgba(180, 83, 9, 0.30)' }}>
+                    <AlertTriangle size={16} style={{ color: '#B45309', flexShrink: 0, marginTop: 1 }} />
+                    <div style={{ fontSize: 12, color: '#92400E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', lineHeight: 1.5 }}>
+                      <strong>Registro {editingCpStatus}.</strong> Apenas descricao, competencia, plano de contas, centro de custo e observacoes podem ser editados. Para alterar valor, vencimento ou credor, e necessario estornar.
+                    </div>
+                  </div>
+                )}
                 {/* Descrição */}
                 <div>
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descricao *</label>
@@ -2023,8 +2033,9 @@ export default function ContasPagar() {
                       <button
                         key={tipo.key}
                         type="button"
+                        disabled={editingCpStatus === 'pago' || editingCpStatus === 'conciliado'}
                         onClick={() => setNewForm({ ...newForm, credorTipo: tipo.key, credorId: '', credorNome: '' })}
-                        className="text-xs font-medium px-3 py-1.5 rounded-full transition"
+                        className="text-xs font-medium px-3 py-1.5 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
                         style={
                           newForm.credorTipo === tipo.key
                             ? { backgroundColor: '#059669', color: '#ffffff' }
@@ -2038,6 +2049,7 @@ export default function ContasPagar() {
                   {/* Lista de nomes */}
                   <select
                     value={newForm.credorId}
+                    disabled={editingCpStatus === 'pago' || editingCpStatus === 'conciliado'}
                     onChange={(e) => {
                       const id = e.target.value
                       let nome = ''
@@ -2051,7 +2063,7 @@ export default function ContasPagar() {
                       }
                       setNewForm({ ...newForm, credorId: id, credorNome: nome })
                     }}
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
+                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">
@@ -2079,9 +2091,10 @@ export default function ContasPagar() {
                       type="number"
                       step="0.01"
                       value={newForm.valor || ''}
+                      disabled={editingCpStatus === 'pago' || editingCpStatus === 'conciliado'}
                       onChange={(e) => setNewForm({ ...newForm, valor: parseFloat(e.target.value) || 0 })}
                       placeholder="0,00"
-                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
+                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                       style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
@@ -2090,8 +2103,9 @@ export default function ContasPagar() {
                     <input
                       type="date"
                       value={newForm.dataVencimento}
+                      disabled={editingCpStatus === 'pago' || editingCpStatus === 'conciliado'}
                       onChange={(e) => setNewForm({ ...newForm, dataVencimento: e.target.value })}
-                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
+                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                       style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
@@ -2222,20 +2236,32 @@ export default function ContasPagar() {
                   </div>
                 )}
 
-                {/* Código de Barras */}
-                <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Codigo de Barras</label>
-                  <input
-                    type="text"
-                    value={newForm.codigoBarras}
-                    onChange={(e) => setNewForm({ ...newForm, codigoBarras: e.target.value })}
-                    placeholder="Linha digitavel do boleto"
-                    className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
-                    style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  />
-                </div>
+                {/* Código de Barras (oculto em registros pagos/conciliados) */}
+                {editingCpStatus !== 'pago' && editingCpStatus !== 'conciliado' && (
+                  <div>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Codigo de Barras</label>
+                    <input
+                      type="text"
+                      value={newForm.codigoBarras}
+                      onChange={(e) => setNewForm({ ...newForm, codigoBarras: e.target.value })}
+                      placeholder="Linha digitavel do boleto"
+                      className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
+                      style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                    />
+                  </div>
+                )}
 
-                {/* Anexar arquivo + Leitura automática */}
+                {/* Anexar arquivo + Leitura automática (oculto em pagos/conciliados; mostra apenas link se ja existe) */}
+                {(editingCpStatus === 'pago' || editingCpStatus === 'conciliado') ? (
+                  newForm.fileUrl ? (
+                    <div className="rounded-[8px] p-3 flex items-center gap-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
+                      <Paperclip size={14} style={{ color: '#667085' }} />
+                      <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[12px] hover:underline flex-1 truncate" style={{ color: '#059669' }}>
+                        Arquivo anexado — clique para visualizar
+                      </a>
+                    </div>
+                  ) : null
+                ) : (
                 <div className="rounded-[8px] p-4 space-y-3" style={{ border: '1px dashed rgba(26,46,74,0.18)' }}>
                   <input
                     type="file"
@@ -2328,11 +2354,12 @@ export default function ContasPagar() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Botões */}
                 <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
                   <button
-                    onClick={() => { setShowNewModal(false); setEditingCpId(null) }}
+                    onClick={() => { setShowNewModal(false); setEditingCpId(null); setEditingCpStatus(null) }}
                     className="px-4 py-2 rounded-[8px] text-[13px] font-medium transition"
                     style={{ color: '#667085', border: '1px solid rgba(26,46,74,0.18)' }}
                   >
