@@ -534,6 +534,50 @@ export default function EmpresaResumo() {
 
   return (
     <AppLayout title={company.razao_social || "Empresa"}>
+      <div className="max-w-3xl mx-auto px-4 py-6">
+
+        {/* Toolbar acima do papel — ações fora do "documento" */}
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <button onClick={() => navigate("/empresas")}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#667085] hover:text-black transition-colors">
+            ← Voltar para empresas
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate(`/dashboard/${id}`)}
+              className="flex items-center gap-1.5 bg-[#1D2939] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#111827] transition-colors">
+              <BarChart3 size={14} /> Dashboard
+            </button>
+            {editing ? (
+              <>
+                <button onClick={() => setEditing(false)} disabled={saving}
+                  className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                  <X size={14} /> Cancelar
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  className="flex items-center gap-1.5 bg-[#039855] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#027A48] transition-colors">
+                  <Check size={14} /> {saving ? "Salvando..." : "Salvar"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={exportarFichaPDF}
+                  className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                  title="Exportar ficha cadastral em PDF (ABNT)">
+                  <FileDown size={14} /> PDF
+                </button>
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                  <Pencil size={14} /> Editar
+                </button>
+                <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
+                  className="flex items-center gap-1.5 bg-white text-[#E53E3E] border border-[#FECDCA] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#FEE2E2] transition-colors"
+                  title="Excluir empresa">
+                  <Trash2 size={14} /> Excluir
+                </button>
+              </>
+            )}
+          </div>
+        </div>
 
         {deleteOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -596,80 +640,46 @@ export default function EmpresaResumo() {
           </div>
         )}
 
-        {/* Ficha única — sem blocos separados, sem cabeçalho azul */}
-        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden">
+        {/* Ficha — papel/documento */}
+        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,.06),0_8px_24px_-12px_rgba(16,24,40,.12)]">
 
-          {/* Header sóbrio: logo + nome + stats inline */}
-          <div className="px-6 py-4 flex items-center gap-4 border-b border-[#EAECF0]">
+          {/* Letterhead: logo prominente centralizado + razão social */}
+          <div className="px-10 pt-12 pb-8 flex flex-col items-center text-center gap-5 border-b border-[#EAECF0]">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="relative w-12 h-12 rounded-md bg-white flex items-center justify-center text-black text-xl font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
+              className="relative w-28 h-28 rounded-md bg-[#FAFAFA] flex items-center justify-center text-[#98A2B3] text-3xl font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
               title="Alterar logo"
             >
               {company.logo_url ? (
                 <img src={company.logo_url} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                (company.razao_social || "E")[0]
+                <span className="text-[40px] font-light text-[#98A2B3]">{(company.razao_social || "E")[0]}</span>
               )}
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 {uploading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <Camera size={18} className="text-white" />
+                  <div className="flex flex-col items-center gap-1 text-white">
+                    <Camera size={20} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider">Alterar logo</span>
+                  </div>
                 )}
               </div>
             </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-[22px] font-semibold text-black truncate tracking-tight">{company.razao_social}</h1>
-              <div className="flex items-center gap-3 mt-1 text-sm text-[#667085]">
-                {company.nome_fantasia && <span className="truncate">{company.nome_fantasia}</span>}
-                {company.cnpj && <span>·</span>}
-                {company.cnpj && <span>{maskCNPJ(company.cnpj)}</span>}
-                <span>·</span>
+            <div className="max-w-full">
+              <h1 className="text-[26px] font-bold text-black tracking-tight leading-tight">{company.razao_social}</h1>
+              <div className="flex items-center justify-center flex-wrap gap-x-2.5 gap-y-1 mt-2 text-[13px] text-[#667085]">
+                {company.nome_fantasia && <span>{company.nome_fantasia}</span>}
+                {company.nome_fantasia && company.cnpj && <span className="text-[#D0D5DD]">·</span>}
+                {company.cnpj && <span className="tabular-nums">{maskCNPJ(company.cnpj)}</span>}
+                <span className="text-[#D0D5DD]">·</span>
                 <span className={company.is_active ? "text-[#039855] font-semibold" : "text-[#98A2B3] font-semibold"}>
                   {company.is_active ? "Ativa" : "Inativa"}
                 </span>
               </div>
-            </div>
-
-            {/* Actions inline no header */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => navigate(`/dashboard/${id}`)}
-                className="flex items-center gap-1.5 bg-[#1D2939] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#111827] transition-colors">
-                <BarChart3 size={14} /> Dashboard
-              </button>
-              {editing ? (
-                <>
-                  <button onClick={() => setEditing(false)} disabled={saving}
-                    className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-                    <X size={14} /> Cancelar
-                  </button>
-                  <button onClick={handleSave} disabled={saving}
-                    className="flex items-center gap-1.5 bg-[#039855] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#027A48] transition-colors">
-                    <Check size={14} /> {saving ? "Salvando..." : "Salvar"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button onClick={exportarFichaPDF}
-                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
-                    title="Exportar ficha cadastral em PDF (ABNT)">
-                    <FileDown size={14} /> PDF
-                  </button>
-                  <button onClick={() => setEditing(true)}
-                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-                    <Pencil size={14} /> Editar
-                  </button>
-                  <button onClick={() => { setDeleteConfirmText(""); setDeleteOpen(true); }}
-                    className="flex items-center gap-1.5 bg-white text-[#E53E3E] border border-[#FECDCA] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#FEE2E2] transition-colors"
-                    title="Excluir empresa">
-                    <Trash2 size={14} /> Excluir
-                  </button>
-                </>
-              )}
             </div>
           </div>
 
@@ -813,6 +823,7 @@ export default function EmpresaResumo() {
             </Section>
           </div>
         </div>
+      </div>
     </AppLayout>
   );
 }
