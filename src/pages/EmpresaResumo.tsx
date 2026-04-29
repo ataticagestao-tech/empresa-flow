@@ -3,9 +3,12 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera, Check, X, Trash2 } from "lucide-react";
+import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera, Check, X, Trash2, FileDown } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -205,6 +208,303 @@ export default function EmpresaResumo() {
 
   const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
+  // ─── Exportar ficha cadastral em PDF (ABNT NBR 14724) ─────────────
+  const exportarFichaPDF = () => {
+    if (!company) {
+      toast.error("Empresa nao carregada");
+      return;
+    }
+
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const W = 210;
+    const H = 297;
+    const MT = 30;
+    const MB = 20;
+    const ML = 30;
+    const MR = 20;
+    const contentW = W - ML - MR;
+    const FONT = "times";
+    const LH12 = 7;     // entrelinha 1,5 para corpo 12pt
+    const LH10 = 5.8;   // entrelinha 1,0 para legendas/quadros
+    const INDENT = 12.5;
+
+    let pageNum = 1;
+    const desenharNumeroPagina = () => {
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(String(pageNum), W - MR, MT - 10, { align: "right" });
+    };
+    const novaPagina = () => {
+      doc.addPage();
+      pageNum += 1;
+      desenharNumeroPagina();
+      return MT;
+    };
+    const garantirEspaco = (y: number, necessario: number) => {
+      if (y + necessario > H - MB) return novaPagina();
+      return y;
+    };
+    const escreverParagrafo = (
+      texto: string,
+      y: number,
+      opts?: { recuo?: boolean; bold?: boolean; size?: number }
+    ) => {
+      const size = opts?.size ?? 12;
+      const lh = size === 10 ? LH10 : LH12;
+      doc.setFont(FONT, opts?.bold ? "bold" : "normal");
+      doc.setFontSize(size);
+      doc.setTextColor(0, 0, 0);
+      const recuoX = opts?.recuo ? INDENT : 0;
+      const linhas = doc.splitTextToSize(texto, contentW - recuoX) as string[];
+      const primeira = linhas[0];
+      const resto = linhas.slice(1);
+      y = garantirEspaco(y, lh);
+      doc.text(primeira, ML + recuoX, y);
+      y += lh;
+      for (const ln of resto) {
+        y = garantirEspaco(y, lh);
+        doc.text(ln, ML, y);
+        y += lh;
+      }
+      return y;
+    };
+
+    const fmtData = (iso: string | null | undefined) => {
+      if (!iso) return null;
+      try {
+        return format(new Date(iso + "T12:00:00"), "dd/MM/yyyy");
+      } catch {
+        return null;
+      }
+    };
+    const ouTraco = (v: string | null | undefined) => (v && String(v).trim() ? String(v).trim() : "—");
+
+    const dataEmissaoExt = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    const cidadeSede = company.endereco_cidade || "";
+    const ufSede = company.endereco_estado || "";
+    const localData = `${cidadeSede ? cidadeSede + (ufSede ? "/" + ufSede : "") + ", " : ""}${dataEmissaoExt}.`;
+
+    desenharNumeroPagina();
+    let y = MT;
+
+    // Titulo
+    doc.setFont(FONT, "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text("FICHA CADASTRAL DA EMPRESA", W / 2, y, { align: "center" });
+    y += LH12;
+    if (company.razao_social) {
+      doc.setFont(FONT, "bold");
+      doc.text(String(company.razao_social).toUpperCase(), W / 2, y, { align: "center" });
+      y += LH12;
+    }
+    if (company.cnpj) {
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(10);
+      doc.text(`CNPJ: ${maskCNPJ(company.cnpj)}`, W / 2, y, { align: "center" });
+      y += LH10;
+    }
+    y += LH12;
+
+    // 1 INTRODUCAO
+    y = escreverParagrafo("1 INTRODUCAO", y, { bold: true });
+    y += 2;
+    const intro =
+      `O presente documento consolida as informacoes cadastrais da pessoa juridica ` +
+      `${ouTraco(company.razao_social)}` +
+      (company.cnpj ? `, inscrita no CNPJ sob o n. ${maskCNPJ(company.cnpj)}` : "") +
+      `, conforme registros mantidos no sistema de gestao empresarial. ` +
+      `O documento abrange a identificacao da entidade, dados de localizacao e contato, ` +
+      `regime tributario, responsavel legal e o quadro societario obtido junto a Receita Federal do Brasil.`;
+    y = escreverParagrafo(intro, y, { recuo: true });
+    y += LH12;
+
+    // Helper para secao com pares rotulo: valor (justificado em coluna unica, estilo documento)
+    const secao = (titulo: string, pares: Array<[string, string | null | undefined]>, yIn: number) => {
+      let yy = escreverParagrafo(titulo, yIn, { bold: true });
+      yy += 2;
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(12);
+      for (const [rot, val] of pares) {
+        const linha = `${rot}: ${ouTraco(val)}.`;
+        const lns = doc.splitTextToSize(linha, contentW - INDENT) as string[];
+        // Primeira linha com recuo, demais sem
+        yy = garantirEspaco(yy, LH12);
+        doc.text(lns[0], ML + INDENT, yy);
+        yy += LH12;
+        for (const ln of lns.slice(1)) {
+          yy = garantirEspaco(yy, LH12);
+          doc.text(ln, ML, yy);
+          yy += LH12;
+        }
+      }
+      return yy + 2;
+    };
+
+    // 2 IDENTIFICACAO
+    y = secao(
+      "2 IDENTIFICACAO",
+      [
+        ["Razao social", company.razao_social],
+        ["Nome fantasia", company.nome_fantasia],
+        ["CNPJ", company.cnpj ? maskCNPJ(company.cnpj) : null],
+        ["Data de abertura", fmtData(company.data_abertura)],
+        ["Inscricao municipal", company.inscricao_municipal],
+        ["Inscricao estadual", company.inscricao_estadual],
+        ["Situacao", company.is_active ? "Ativa" : "Inativa"],
+      ],
+      y
+    );
+
+    // 3 ENDERECO E CONTATO
+    const enderecoFmt = [
+      [company.endereco_logradouro, company.endereco_numero].filter(Boolean).join(", "),
+      company.endereco_bairro,
+    ]
+      .filter(Boolean)
+      .join(" — ");
+    const cidadeUfFmt = [company.endereco_cidade, company.endereco_estado].filter(Boolean).join(" / ");
+    y = secao(
+      "3 ENDERECO E CONTATO",
+      [
+        ["Logradouro", enderecoFmt || null],
+        ["Cidade / UF", cidadeUfFmt || null],
+        ["CEP", company.endereco_cep],
+        ["E-mail", company.email],
+        ["Telefone", company.telefone],
+      ],
+      y
+    );
+
+    // 4 REGIME TRIBUTARIO
+    y = secao(
+      "4 REGIME TRIBUTARIO",
+      [
+        [
+          "Regime adotado",
+          company.regime_tributario ? (regimeLabels[company.regime_tributario] || company.regime_tributario) : null,
+        ],
+      ],
+      y
+    );
+
+    // 5 RESPONSAVEL LEGAL
+    y = secao(
+      "5 RESPONSAVEL LEGAL",
+      [
+        ["Nome", company.responsavel_nome],
+        ["CPF", company.responsavel_cpf],
+        ["E-mail", company.responsavel_email],
+        ["Telefone", company.responsavel_telefone],
+      ],
+      y
+    );
+
+    // 6 QUADRO SOCIETARIO
+    y = escreverParagrafo("6 QUADRO SOCIETARIO", y, { bold: true });
+    y += 2;
+    if (qsa && qsa.length > 0) {
+      // Legenda do quadro (ABNT §5.6)
+      y = garantirEspaco(y, LH10 * 2);
+      doc.setFont(FONT, "bold");
+      doc.setFontSize(10);
+      doc.text("Quadro 1 — Composicao do quadro societario (fonte: Receita Federal)", ML, y);
+      y += LH10;
+
+      const cols = [
+        { label: "N.", w: 10, align: "left" as const },
+        { label: "Nome do socio", w: 90, align: "left" as const },
+        { label: "Qualificacao", w: 0, align: "left" as const },
+        { label: "Desde", w: 28, align: "left" as const },
+      ];
+      const usados = cols.reduce((s, c) => s + c.w, 0);
+      cols[2].w = contentW - usados;
+
+      const desenharCabecalhoTabela = (yy: number) => {
+        yy = garantirEspaco(yy, LH10 + 2);
+        doc.setFont(FONT, "bold");
+        doc.setFontSize(10);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.line(ML, yy - 0.5, ML + contentW, yy - 0.5);
+        let xx = ML;
+        for (const c of cols) {
+          doc.text(c.label, xx + 1, yy + 4);
+          xx += c.w;
+        }
+        yy += 5.5;
+        doc.line(ML, yy - 0.5, ML + contentW, yy - 0.5);
+        return yy;
+      };
+
+      y = desenharCabecalhoTabela(y);
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(10);
+
+      qsa.forEach((s, i) => {
+        const nomeLines = doc.splitTextToSize(s.nome_socio || "—", cols[1].w - 2) as string[];
+        const qualLines = doc.splitTextToSize(s.qualificacao_socio || "—", cols[2].w - 2) as string[];
+        const altura = Math.max(LH10, Math.max(nomeLines.length, qualLines.length) * LH10);
+        y = garantirEspaco(y, altura + 1);
+        if (y === MT) y = desenharCabecalhoTabela(y);
+
+        let xx = ML;
+        doc.text(String(i + 1), xx + 1, y + 4);
+        xx += cols[0].w;
+        nomeLines.forEach((ln, k) => doc.text(ln, xx + 1, y + 4 + k * LH10));
+        xx += cols[1].w;
+        qualLines.forEach((ln, k) => doc.text(ln, xx + 1, y + 4 + k * LH10));
+        xx += cols[2].w;
+        const desde = s.data_entrada_sociedade ? fmtData(s.data_entrada_sociedade) || "—" : "—";
+        doc.text(desde, xx + 1, y + 4);
+
+        y += altura;
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.1);
+        doc.line(ML, y, ML + contentW, y);
+      });
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, ML + contentW, y);
+      y += LH10;
+
+      y = garantirEspaco(y, LH10);
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(10);
+      doc.text(
+        `Fonte: BrasilAPI/Receita Federal (consulta em ${format(new Date(), "dd/MM/yyyy HH:mm")}).`,
+        ML,
+        y
+      );
+      y += LH12;
+    } else {
+      y = escreverParagrafo(
+        "Nao foram localizados socios cadastrados na base da Receita Federal para o CNPJ informado.",
+        y,
+        { recuo: true }
+      );
+      y += LH12;
+    }
+
+    // Local e data
+    y = garantirEspaco(y, LH12 * 2);
+    doc.setFont(FONT, "normal");
+    doc.setFontSize(12);
+    doc.text(localData, W - MR, y, { align: "right" });
+
+    const slug = String(company.razao_social || "empresa")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+    const nome = `ficha-cadastral-${slug}-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+    doc.save(nome);
+  };
+
   const enderecoFull = company
     ? [company.endereco_logradouro, company.endereco_numero, company.endereco_bairro]
         .filter(Boolean)
@@ -354,6 +654,11 @@ export default function EmpresaResumo() {
                 </>
               ) : (
                 <>
+                  <button onClick={exportarFichaPDF}
+                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors"
+                    title="Exportar ficha cadastral em PDF (ABNT)">
+                    <FileDown size={14} /> PDF
+                  </button>
                   <button onClick={() => setEditing(true)}
                     className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#F6F2EB] transition-colors">
                     <Pencil size={14} /> Editar
