@@ -1890,18 +1890,23 @@ export default function Conciliacao() {
                         {selectedBankTx && (
                             <div className="space-y-4">
                                 {/* Info da transação bancária */}
-                                <div className="bg-[#F6F2EB] p-4 rounded-lg flex justify-between items-center border border-[#F6F2EB]">
-                                    <div>
-                                        <p className="font-semibold text-foreground">{selectedBankTx.description}</p>
-                                        <p className="text-sm text-muted-foreground">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
+                                <div className={`p-4 rounded-lg flex items-center gap-4 border ${selectedBankTx.amount < 0 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Badge variant="outline" className={selectedBankTx.amount < 0 ? 'bg-red-100 text-red-700 border-red-300 text-[10px]' : 'bg-emerald-100 text-emerald-700 border-emerald-300 text-[10px]'}>
+                                                {selectedBankTx.amount < 0 ? '↓ Saída' : '↑ Entrada'}
+                                            </Badge>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {selectedBankTx.amount < 0 ? '→ Conta a Pagar' : '→ Conta a Receber'}
+                                            </span>
+                                        </div>
+                                        <p className="font-semibold text-foreground truncate" title={selectedBankTx.description}>{selectedBankTx.description}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#E53E3E]' : 'text-emerald-600'}`}>
-                                            {formatBRL(selectedBankTx.amount)}
+                                    <div className="text-right flex-shrink-0">
+                                        <span className={`text-2xl font-bold whitespace-nowrap ${selectedBankTx.amount < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                            {formatBRL(Math.abs(selectedBankTx.amount))}
                                         </span>
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                            {selectedBankTx.amount < 0 ? "Saída → Conta a Pagar" : "Entrada → Conta a Receber"}
-                                        </p>
                                     </div>
                                 </div>
 
@@ -1995,22 +2000,22 @@ export default function Conciliacao() {
                                                                 />
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2">
-                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
+                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1 flex-shrink-0">
                                                                             {st.type === 'payable' ? 'Pagar' : 'Receber'}
                                                                         </Badge>
-                                                                        <span className="font-medium text-muted-foreground truncate">{st.description}</span>
+                                                                        <span className="font-medium text-foreground truncate">{st.description}</span>
                                                                         {jaConciliado && (
-                                                                            <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground">
+                                                                            <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground flex-shrink-0">
                                                                                 já conciliado
                                                                             </Badge>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1">
+                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1 truncate">
                                                                         {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
                                                                         {st.status !== 'conciliado' && ` • ${st.status}`}
                                                                     </p>
                                                                 </div>
-                                                                <span className="font-bold text-foreground whitespace-nowrap">{formatBRL(st.amount)}</span>
+                                                                <span className={`font-bold whitespace-nowrap flex-shrink-0 ${st.type === 'payable' ? 'text-red-600' : 'text-emerald-600'}`}>{formatBRL(st.amount)}</span>
                                                             </div>
                                                         );
                                                     })}
