@@ -300,7 +300,10 @@ export default function ContasReceber() {
     let recebidoMes = 0
     let countRecebido = 0
 
-    for (const cr of dateFilteredItems) {
+    // KPIs sao snapshot do estado atual (todos os titulos da empresa),
+    // independentes do filtro de data — caso contrario, filtrar uma janela
+    // sem vencimentos zera a tela inteira mesmo com saldo aberto em outras datas.
+    for (const cr of enrichedItems) {
       const saldo = cr.valor - (cr.valor_pago || 0)
       const st = cr._status
 
@@ -328,7 +331,7 @@ export default function ContasReceber() {
       totalVencido, countVencido,
       recebidoMes, countRecebido,
     }
-  }, [dateFilteredItems])
+  }, [enrichedItems])
 
   // ─── Agenda heatmap (estilo GitHub) ─────────────────────
   // Janela dinamica: usa [dateFrom, dateTo] do filtro quando setado, senao default ±15 dias.
