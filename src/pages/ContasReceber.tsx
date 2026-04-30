@@ -223,8 +223,28 @@ export default function ContasReceber() {
   const filtered = useMemo(() => {
     let list = enrichedItems
     if (search) {
-      const s = search.toLowerCase()
-      list = list.filter(cr => cr.pagador_nome.toLowerCase().includes(s))
+      const s = search.toLowerCase().trim()
+      list = list.filter(cr => {
+        const saldo = cr.valor - (cr.valor_pago || 0)
+        const categoria = cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '') : ''
+        const statusLabel = statusBadge(cr._status).label
+        const haystack = [
+          cr.pagador_nome,
+          cr.pagador_cpf_cnpj || '',
+          categoria,
+          cr.data_vencimento,
+          formatData(cr.data_vencimento),
+          formatBRL(cr.valor),
+          formatBRL(cr.valor_pago || 0),
+          formatBRL(saldo),
+          String(cr.valor),
+          String(cr.valor_pago || 0),
+          String(saldo),
+          statusLabel,
+          cr._status,
+        ].join(' ').toLowerCase()
+        return haystack.includes(s)
+      })
     }
     if (statusFilter !== 'todos') {
       list = list.filter(cr => cr._status === statusFilter)
@@ -232,7 +252,7 @@ export default function ContasReceber() {
     if (dateFrom) list = list.filter(cr => cr.data_vencimento >= dateFrom)
     if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
     return list
-  }, [enrichedItems, search, statusFilter, dateFrom, dateTo])
+  }, [enrichedItems, search, statusFilter, dateFrom, dateTo, categoryMap])
 
   useEffect(() => { setPage(0) }, [search, statusFilter, dateFrom, dateTo])
 
