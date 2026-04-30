@@ -186,7 +186,7 @@ export default function ContasReceber() {
     if (!companyId) return
     const [banksRes, accountsRes, centrosRes, clientesRes, prodRes] = await Promise.all([
       db.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
-      db.from('chart_of_accounts').select('id, code, name').eq('company_id', companyId),
+      db.from('chart_of_accounts').select('id, code, name').eq('company_id', companyId).eq('account_type', 'revenue').order('code'),
       db.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       db.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
       db.from('products').select('id, description, code').eq('company_id', companyId).eq('is_active', true).order('description'),
@@ -1600,6 +1600,28 @@ function ModalNovoCR({
   const [numParcelas, setNumParcelas] = useState('2')
   const [contaContabilId, setContaContabilId] = useState(editing?.conta_contabil_id || '')
   const [centroCustoId, setCentroCustoId] = useState(editing?.centro_custo_id || '')
+
+  // Combobox: conta contabil
+  const initialContaLabel = (() => {
+    const id = editing?.conta_contabil_id
+    if (!id) return ''
+    const c = chartAccounts.find(x => x.id === id)
+    return c ? `${c.code} - ${c.name}` : ''
+  })()
+  const [contaContabilSearch, setContaContabilSearch] = useState(initialContaLabel)
+  const [contaContabilOpen, setContaContabilOpen] = useState(false)
+  const contaContabilRef = useRef<HTMLDivElement>(null)
+
+  // Combobox: centro de custo
+  const initialCentroLabel = (() => {
+    const id = editing?.centro_custo_id
+    if (!id) return ''
+    const c = centrosCusto.find(x => x.id === id)
+    return c ? `${c.codigo} - ${c.descricao}` : ''
+  })()
+  const [centroCustoSearch, setCentroCustoSearch] = useState(initialCentroLabel)
+  const [centroCustoOpen, setCentroCustoOpen] = useState(false)
+  const centroCustoRef = useRef<HTMLDivElement>(null)
   const [descricao, setDescricao] = useState(editing?.observacoes || '')
   const [saving, setSaving] = useState(false)
 
@@ -1660,10 +1682,41 @@ function ModalNovoCR({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) setClienteDropdownOpen(false)
+      if (contaContabilRef.current && !contaContabilRef.current.contains(e.target as Node)) setContaContabilOpen(false)
+      if (centroCustoRef.current && !centroCustoRef.current.contains(e.target as Node)) setCentroCustoOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  // Sync labels quando os lookups carregarem (chartAccounts/centrosCusto chegam async)
+  useEffect(() => {
+    if (!contaContabilId) return
+    const c = chartAccounts.find(x => x.id === contaContabilId)
+    if (c) setContaContabilSearch(`${c.code} - ${c.name}`)
+  }, [chartAccounts, contaContabilId])
+
+  useEffect(() => {
+    if (!centroCustoId) return
+    const c = centrosCusto.find(x => x.id === centroCustoId)
+    if (c) setCentroCustoSearch(`${c.codigo} - ${c.descricao}`)
+  }, [centrosCusto, centroCustoId])
+
+  const chartAccountsFiltrados = useMemo(() => {
+    const t = contaContabilSearch.trim().toLowerCase()
+    if (!t) return chartAccounts.slice(0, 50)
+    return chartAccounts.filter(c =>
+      c.code.toLowerCase().includes(t) || c.name.toLowerCase().includes(t)
+    ).slice(0, 50)
+  }, [chartAccounts, contaContabilSearch])
+
+  const centrosCustoFiltrados = useMemo(() => {
+    const t = centroCustoSearch.trim().toLowerCase()
+    if (!t) return centrosCusto.slice(0, 50)
+    return centrosCusto.filter(c =>
+      c.codigo.toLowerCase().includes(t) || c.descricao.toLowerCase().includes(t)
+    ).slice(0, 50)
+  }, [centrosCusto, centroCustoSearch])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -1969,31 +2022,105 @@ function ModalNovoCR({
 
         {/* Conta contabil / Centro de custo */}
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <FieldLabel>Conta contabil</FieldLabel>
-            <select
-              value={contaContabilId}
-              onChange={e => setContaContabilId(e.target.value)}
+          <div ref={contaContabilRef} className="relative">
+            <FieldLabel>Conta contabil (receita)</FieldLabel>
+            <input
+              type="text"
+              value={contaContabilSearch}
+              onChange={e => {
+                setContaContabilSearch(e.target.value)
+                setContaContabilOpen(true)
+                if (!e.target.value.trim()) setContaContabilId('')
+              }}
+              onFocus={() => setContaContabilOpen(true)}
               className={inputCls}
-            >
-              <option value="">Nenhuma</option>
-              {chartAccounts.map(c => (
-                <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-              ))}
-            </select>
+              placeholder="Buscar por codigo ou nome..."
+              autoComplete="off"
+            />
+            {contaContabilOpen && (
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContaContabilId('')
+                    setContaContabilSearch('')
+                    setContaContabilOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-[13px] text-[#999] hover:bg-[#F6F2EB] border-b border-[#eee]"
+                >
+                  Nenhuma
+                </button>
+                {chartAccountsFiltrados.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setContaContabilId(c.id)
+                      setContaContabilSearch(`${c.code} - ${c.name}`)
+                      setContaContabilOpen(false)
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-[#ECFDF4] border-b border-[#eee] last:border-0"
+                  >
+                    <div className="text-[13px] text-[#1D2939]">
+                      <span className="font-semibold">{c.code}</span> - {c.name}
+                    </div>
+                  </button>
+                ))}
+                {chartAccountsFiltrados.length === 0 && (
+                  <div className="px-3 py-2 text-[12px] text-[#999]">Nenhuma conta de receita encontrada</div>
+                )}
+              </div>
+            )}
           </div>
-          <div>
+          <div ref={centroCustoRef} className="relative">
             <FieldLabel>Centro de custo</FieldLabel>
-            <select
-              value={centroCustoId}
-              onChange={e => setCentroCustoId(e.target.value)}
+            <input
+              type="text"
+              value={centroCustoSearch}
+              onChange={e => {
+                setCentroCustoSearch(e.target.value)
+                setCentroCustoOpen(true)
+                if (!e.target.value.trim()) setCentroCustoId('')
+              }}
+              onFocus={() => setCentroCustoOpen(true)}
               className={inputCls}
-            >
-              <option value="">Nenhum</option>
-              {centrosCusto.map(c => (
-                <option key={c.id} value={c.id}>{c.codigo} - {c.descricao}</option>
-              ))}
-            </select>
+              placeholder="Buscar por codigo ou nome..."
+              autoComplete="off"
+            />
+            {centroCustoOpen && (
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCentroCustoId('')
+                    setCentroCustoSearch('')
+                    setCentroCustoOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-[13px] text-[#999] hover:bg-[#F6F2EB] border-b border-[#eee]"
+                >
+                  Nenhum
+                </button>
+                {centrosCustoFiltrados.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setCentroCustoId(c.id)
+                      setCentroCustoSearch(`${c.codigo} - ${c.descricao}`)
+                      setCentroCustoOpen(false)
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-[#ECFDF4] border-b border-[#eee] last:border-0"
+                  >
+                    <div className="text-[13px] text-[#1D2939]">
+                      <span className="font-semibold">{c.codigo}</span> - {c.descricao}
+                    </div>
+                  </button>
+                ))}
+                {centrosCustoFiltrados.length === 0 && (
+                  <div className="px-3 py-2 text-[12px] text-[#999]">Nenhum centro encontrado</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
