@@ -2117,18 +2117,18 @@ export default function Conciliacao() {
                                                                     className="h-4 w-4 cursor-pointer accent-emerald-600"
                                                                 />
                                                                 <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1">
+                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1 flex-shrink-0">
                                                                             {st.type === 'payable' ? 'Pagar' : 'Receber'}
                                                                         </Badge>
-                                                                        <span className="font-medium text-muted-foreground truncate">{st.description}</span>
+                                                                        <span className="font-medium text-muted-foreground truncate min-w-0 flex-1" title={st.description}>{st.description}</span>
                                                                         {jaConciliado && (
-                                                                            <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground">
+                                                                            <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground flex-shrink-0">
                                                                                 já conciliado
                                                                             </Badge>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1">
+                                                                    <p className="text-xs text-muted-foreground pl-1 mt-1 truncate" title={`${st.entity_name} • Venc: ${format(parseISO(st.date), 'dd/MM/yyyy')}`}>
                                                                         {st.entity_name} • Venc: {format(parseISO(st.date), 'dd/MM/yyyy')}
                                                                         {st.status !== 'conciliado' && ` • ${st.status}`}
                                                                     </p>
