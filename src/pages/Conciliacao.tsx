@@ -90,6 +90,17 @@ export default function Conciliacao() {
     const [selectedSysTxsForMatch, setSelectedSysTxsForMatch] = useState<{ id: string; type: 'payable' | 'receivable' }[]>([]);
     const [isMatchingMultiple, setIsMatchingMultiple] = useState(false);
 
+    // Modal "Lançar como venda" — cria venda + CR pago + mov + match a partir de uma entrada
+    const [lancarVendaBt, setLancarVendaBt] = useState<BankTransaction | null>(null);
+    const [lancarVendaForm, setLancarVendaForm] = useState({
+        cliente_nome: "",
+        cliente_cpf_cnpj: "",
+        tipo: "servico",
+        forma_pagamento: "pix",
+        conta_contabil_id: "",
+    });
+    const [isLancandoVenda, setIsLancandoVenda] = useState(false);
+
     const { activeClient, user } = useAuth();
     const { selectedCompany } = useCompany();
     const { toast } = useToast();
@@ -668,6 +679,109 @@ export default function Conciliacao() {
             toast({ title: "Erro", description: err.message, variant: "destructive" });
         } finally {
             setInlineConciling(null);
+        }
+    };
+
+    // Abrir modal "Lançar como venda" pré-preenchido com dados do extrato
+    const handleAbrirLancarVenda = (bt: BankTransaction) => {
+        setLancarVendaBt(bt);
+        setLancarVendaForm({
+            cliente_nome: bt.description || "",
+            cliente_cpf_cnpj: "",
+            tipo: "servico",
+            forma_pagamento: "pix",
+            conta_contabil_id: "",
+        });
+    };
+
+    // Submeter o modal: cria venda + item + CR pago + concilia o extrato
+    const handleSalvarLancamentoVenda = async () => {
+        if (!lancarVendaBt || !selectedCompany?.id || isLancandoVenda) return;
+        if (!lancarVendaForm.cliente_nome.trim()) {
+            toast({ title: "Cliente obrigatório", description: "Informe o nome do cliente.", variant: "destructive" });
+            return;
+        }
+        if (!lancarVendaForm.conta_contabil_id) {
+            toast({ title: "Conta contábil obrigatória", description: "Selecione a conta de receita para alimentar DRE/Painel.", variant: "destructive" });
+            return;
+        }
+
+        setIsLancandoVenda(true);
+        try {
+            const bt = lancarVendaBt;
+            const valor = Math.abs(Number(bt.amount || 0));
+            const cpfCnpj = lancarVendaForm.cliente_cpf_cnpj.replace(/\D/g, "") || null;
+
+            // 1. Criar venda
+            const { data: vendaData, error: vendaErr } = await (activeClient as any)
+                .from("vendas")
+                .insert({
+                    company_id: selectedCompany.id,
+                    cliente_nome: lancarVendaForm.cliente_nome.trim(),
+                    cliente_cpf_cnpj: cpfCnpj,
+                    tipo: lancarVendaForm.tipo,
+                    valor_total: valor,
+                    data_venda: bt.date,
+                    forma_pagamento: lancarVendaForm.forma_pagamento,
+                    status: "confirmado",
+                })
+                .select("id")
+                .single();
+            if (vendaErr) throw vendaErr;
+
+            // 2. Criar item único (descrição = descrição do extrato)
+            const { error: itemErr } = await (activeClient as any)
+                .from("vendas_itens")
+                .insert({
+                    venda_id: vendaData.id,
+                    descricao: bt.description || "Lançamento via conciliação",
+                    quantidade: 1,
+                    valor_unitario: valor,
+                });
+            if (itemErr) throw itemErr;
+
+            // 3. Criar conta_receber já paga, vinculada à venda e ao extrato
+            const { data: crData, error: crErr } = await (activeClient as any)
+                .from("contas_receber")
+                .insert({
+                    company_id: selectedCompany.id,
+                    pagador_nome: lancarVendaForm.cliente_nome.trim(),
+                    pagador_cpf_cnpj: cpfCnpj,
+                    valor,
+                    valor_pago: valor,
+                    data_vencimento: bt.date,
+                    data_pagamento: bt.date,
+                    status: "pago",
+                    forma_recebimento: lancarVendaForm.forma_pagamento,
+                    conta_contabil_id: lancarVendaForm.conta_contabil_id,
+                    venda_id: vendaData.id,
+                    created_via_bank_tx_id: bt.id,
+                })
+                .select("id, pagador_nome, valor, data_vencimento, status")
+                .single();
+            if (crErr) throw crErr;
+
+            // 4. Conciliar via mutation existente — ela cria movimentação + match + atualiza bank_tx
+            const sysTx: SystemTransaction = {
+                id: crData.id,
+                type: "receivable",
+                description: crData.pagador_nome || "",
+                amount: Number(crData.valor || 0),
+                date: crData.data_vencimento,
+                status: crData.status,
+                entity_name: "Lançamento via conciliação",
+                original_table_id: crData.id,
+            };
+            await matchTransaction.mutateAsync({ bankTx: bt, sysTx });
+
+            toast({ title: "Venda lançada", description: `${lancarVendaForm.cliente_nome.trim()} • ${formatBRL(valor)}` });
+            setLancarVendaBt(null);
+            queryClient.invalidateQueries({ queryKey: ["bp_contabil"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
+        } catch (err: any) {
+            toast({ title: "Erro", description: err.message || "Falha ao lançar venda", variant: "destructive" });
+        } finally {
+            setIsLancandoVenda(false);
         }
     };
 
@@ -1827,6 +1941,15 @@ export default function Conciliacao() {
                                                                     }}>
                                                                         Buscar
                                                                     </Button>
+                                                                    {bt.amount > 0 && (
+                                                                        <Button variant="outline" size="sm"
+                                                                            className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
+                                                                            title="Lançar como venda"
+                                                                            onClick={() => handleAbrirLancarVenda(bt)}>
+                                                                            <DollarSign className="h-3 w-3 mr-1" />
+                                                                            Lançar venda
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
                                                                 {/* Botão X sempre visível */}
                                                                 <Button variant="outline" size="sm"
@@ -2305,6 +2428,114 @@ export default function Conciliacao() {
                                         <p className="font-medium text-sm">Atualizar para a nova</p>
                                         <p className="text-xs text-blue-600">{ruleConflict.newAccountName}</p>
                                     </div>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Lançar como Venda — cria venda + CR pago + mov + concilia o extrato */}
+            <Dialog open={!!lancarVendaBt} onOpenChange={(open) => { if (!open && !isLancandoVenda) setLancarVendaBt(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <DollarSign className="h-5 w-5 text-emerald-600" />
+                            Lançar como venda
+                        </DialogTitle>
+                        <DialogDescription>
+                            Cria a venda no Relatório de Vendas e concilia o extrato automaticamente.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {lancarVendaBt && (
+                        <div className="space-y-4">
+                            {/* Resumo do extrato */}
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex justify-between items-center">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Extrato</p>
+                                    <p className="font-medium text-foreground text-sm truncate max-w-[220px]">{lancarVendaBt.description}</p>
+                                    <p className="text-xs text-muted-foreground">{format(parseISO(lancarVendaBt.date), 'PPP', { locale: ptBR })}</p>
+                                </div>
+                                <span className="text-lg font-bold text-emerald-700">{formatBRL(lancarVendaBt.amount)}</span>
+                            </div>
+
+                            {/* Cliente */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">Cliente *</Label>
+                                <Input
+                                    value={lancarVendaForm.cliente_nome}
+                                    onChange={(e) => setLancarVendaForm(f => ({ ...f, cliente_nome: e.target.value }))}
+                                    placeholder="Nome do cliente"
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* CPF/CNPJ */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">CPF / CNPJ</Label>
+                                <Input
+                                    value={lancarVendaForm.cliente_cpf_cnpj}
+                                    onChange={(e) => setLancarVendaForm(f => ({ ...f, cliente_cpf_cnpj: e.target.value }))}
+                                    placeholder="Opcional"
+                                />
+                            </div>
+
+                            {/* Tipo + Forma de pagamento (lado a lado) */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Tipo *</Label>
+                                    <Select value={lancarVendaForm.tipo} onValueChange={(v) => setLancarVendaForm(f => ({ ...f, tipo: v }))}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="servico">Serviço</SelectItem>
+                                            <SelectItem value="produto">Produto</SelectItem>
+                                            <SelectItem value="pacote">Pacote</SelectItem>
+                                            <SelectItem value="contrato">Contrato</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">Forma *</Label>
+                                    <Select value={lancarVendaForm.forma_pagamento} onValueChange={(v) => setLancarVendaForm(f => ({ ...f, forma_pagamento: v }))}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pix">PIX</SelectItem>
+                                            <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                            <SelectItem value="cartao_debito">Débito</SelectItem>
+                                            <SelectItem value="cartao_credito">Crédito</SelectItem>
+                                            <SelectItem value="boleto">Boleto</SelectItem>
+                                            <SelectItem value="transferencia">Transferência</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {/* Conta contábil de receita */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">Conta contábil (receita) *</Label>
+                                <Select value={lancarVendaForm.conta_contabil_id} onValueChange={(v) => setLancarVendaForm(f => ({ ...f, conta_contabil_id: v }))}>
+                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {(chartCategories || [])
+                                            .filter((c: any) => c.type === "receita")
+                                            .map((c: any) => (
+                                                <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="outline" className="flex-1" disabled={isLancandoVenda}
+                                    onClick={() => setLancarVendaBt(null)}>
+                                    Cancelar
+                                </Button>
+                                <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    disabled={isLancandoVenda || !lancarVendaForm.cliente_nome.trim() || !lancarVendaForm.conta_contabil_id}
+                                    onClick={handleSalvarLancamentoVenda}>
+                                    {isLancandoVenda ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                                    Lançar venda
                                 </Button>
                             </div>
                         </div>
