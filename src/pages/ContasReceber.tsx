@@ -836,9 +836,10 @@ export default function ContasReceber() {
                       <tr
                         key={cr.id}
                         className={`border-b border-[#EAECF0] hover:bg-[#F6F2EB] transition-colors ${selectedIds.has(cr.id) ? 'bg-[#ECFDF4]' : ''}`}
+                        style={{ height: 44 }}
                       >
                         {/* Checkbox */}
-                        <td className="px-3 py-2 w-10 align-middle">
+                        <td className="px-3 py-1.5 w-10 align-middle whitespace-nowrap">
                           {isSelectable && (
                             <input
                               type="checkbox"
@@ -849,61 +850,63 @@ export default function ContasReceber() {
                           )}
                         </td>
                         {/* Pagador */}
-                        <td className="px-4 py-2 align-middle">
-                          <div className="font-semibold text-[#1D2939]">{cr.pagador_nome}</div>
+                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
+                          <div className="font-semibold text-[12px] text-[#1D2939] truncate" style={{ maxWidth: 200 }} title={cr.pagador_nome}>{cr.pagador_nome}</div>
                           {cr.pagador_cpf_cnpj && (
-                            <div className="text-[11px] text-[#999] mt-0.5">{cr.pagador_cpf_cnpj}</div>
+                            <div className="text-[10px] text-[#999] leading-tight">{cr.pagador_cpf_cnpj}</div>
                           )}
                         </td>
                         {/* Tipo */}
-                        <td className="px-4 py-2 align-middle">
-                          <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-[#555] bg-[#F6F2EB] border border-[#ddd] rounded">
+                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
+                          <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-[#555] bg-[#F6F2EB] border border-[#ddd] rounded">
                             {deriveTipo(cr)}
                           </span>
                         </td>
                         {/* Categoria */}
-                        <td className="px-4 py-3 text-[13px] text-[#555]">
-                          {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
+                        <td className="px-3 py-1.5 text-[11.5px] text-[#555] align-middle">
+                          <div className="truncate" style={{ maxWidth: 200 }} title={cr.conta_contabil_id ? categoryMap[cr.conta_contabil_id] : ''}>
+                            {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
+                          </div>
                         </td>
                         {/* Vencimento */}
-                        <td className="px-4 py-2 align-middle">
+                        <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px]">
                           <span className={isVencido ? 'text-[#E53E3E] font-semibold' : 'text-[#1D2939]'}>
                             {formatData(cr.data_vencimento)}
                           </span>
                           {isVencido && diasAtraso > 0 && (
-                            <div className="text-[10px] text-[#E53E3E] mt-0.5">
+                            <div className="text-[10px] text-[#E53E3E] leading-tight">
                               {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
                             </div>
                           )}
                         </td>
                         {/* Valor */}
-                        <td className="px-4 py-3 font-medium text-[#1D2939]">
+                        <td className="px-3 py-1.5 font-medium text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums">
                           {formatBRL(cr.valor)}
                         </td>
                         {/* Pago */}
-                        <td className="px-4 py-3 text-[#039855] font-medium">
+                        <td className="px-3 py-1.5 text-[12px] text-[#039855] font-medium align-middle whitespace-nowrap tabular-nums">
                           {formatBRL(cr.valor_pago || 0)}
                         </td>
                         {/* Saldo */}
-                        <td className="px-4 py-3 font-semibold text-[#1D2939]">
+                        <td className="px-3 py-1.5 font-semibold text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums">
                           {formatBRL(saldo)}
                         </td>
                         {/* Status */}
-                        <td className="px-4 py-2 align-middle">
+                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
                           <span
-                            className="inline-block px-2.5 py-1 text-[11px] font-semibold rounded border"
+                            className="inline-block px-2 py-0.5 text-[10.5px] font-semibold rounded border"
                             style={{ color: st.text, backgroundColor: st.bg, borderColor: st.border }}
                           >
                             {st.label}
                           </span>
                         </td>
                         {/* Acoes */}
-                        <td className="px-4 py-2 align-middle">
-                          <div className="flex items-center gap-2">
+                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
                             {cr._status !== 'pago' && cr._status !== 'cancelado' && (
                               <button
                                 onClick={() => setQuitarModal(cr)}
-                                className="px-3 py-1.5 text-[11px] font-semibold text-white bg-[#039855] rounded hover:bg-[#084d25] transition-colors"
+                                className="px-2.5 py-1 text-[10.5px] font-semibold text-white bg-[#039855] rounded hover:bg-[#084d25] transition-colors"
                               >
                                 Quitar
                               </button>
@@ -912,9 +915,9 @@ export default function ContasReceber() {
                             <div className="relative">
                               <button
                                 onClick={e => { e.stopPropagation(); setDropdownOpen(dropdownOpen === cr.id ? null : cr.id) }}
-                                className="p-1.5 rounded hover:bg-[#EAECF0] transition-colors"
+                                className="p-1 rounded hover:bg-[#EAECF0] transition-colors"
                               >
-                                <MoreHorizontal size={16} className="text-[#555]" />
+                                <MoreHorizontal size={14} className="text-[#555]" />
                               </button>
                               {dropdownOpen === cr.id && (
                                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ccc] rounded-lg shadow-lg z-50">
