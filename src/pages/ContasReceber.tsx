@@ -925,10 +925,27 @@ export default function ContasReceber() {
                                   <button
                                     onClick={async () => {
                                       setDropdownOpen(null)
-                                      if (!confirm(`Excluir este titulo de ${formatBRL(cr.valor)}? Esta acao nao pode ser desfeita.`)) return
-                                      const { error } = await db.from('contas_receber').delete().eq('id', cr.id)
-                                      if (error) { alert('Erro ao excluir: ' + error.message); return }
-                                      fetchItems()
+                                      const ok = await confirm({
+                                        title: `Excluir este titulo de ${formatBRL(cr.valor)}?`,
+                                        description: 'Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.',
+                                        confirmLabel: 'Sim, excluir',
+                                        variant: 'destructive',
+                                      })
+                                      if (!ok) return
+                                      try {
+                                        // Soft delete (trigger bloqueia DELETE direto)
+                                        const { error } = await db.from('contas_receber').update({ deleted_at: new Date().toISOString() }).eq('id', cr.id)
+                                        if (error) throw error
+                                        // Limpar dependencias (movimentacoes nao tem soft delete)
+                                        await db.from('movimentacoes').delete().eq('conta_receber_id', cr.id)
+                                        await db.from('bank_reconciliation_matches').update({ receivable_id: null }).eq('receivable_id', cr.id)
+                                        await db.from('bank_transactions').update({ reconciled_receivable_id: null }).eq('reconciled_receivable_id', cr.id)
+                                        toast.success('Titulo excluido')
+                                        fetchItems()
+                                      } catch (err: any) {
+                                        console.error('[excluirCR]', err)
+                                        toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))
+                                      }
                                     }}
                                     className="w-full px-4 py-2.5 text-left text-[13px] text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors last:rounded-b-lg"
                                   >
