@@ -220,8 +220,16 @@ export default function ContasReceber() {
 
   const enrichedItems = useMemo(() => items.map(cr => ({ ...cr, _status: computeStatus(cr) })), [items])
 
-  const filtered = useMemo(() => {
+  // Date-range filter aplicado a TUDO da pagina (KPIs, agenda, tabela).
+  const dateFilteredItems = useMemo(() => {
     let list = enrichedItems
+    if (dateFrom) list = list.filter(cr => cr.data_vencimento >= dateFrom)
+    if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
+    return list
+  }, [enrichedItems, dateFrom, dateTo])
+
+  const filtered = useMemo(() => {
+    let list = dateFilteredItems
     if (search) {
       const s = search.toLowerCase().trim()
       list = list.filter(cr => {
@@ -249,10 +257,8 @@ export default function ContasReceber() {
     if (statusFilter !== 'todos') {
       list = list.filter(cr => cr._status === statusFilter)
     }
-    if (dateFrom) list = list.filter(cr => cr.data_vencimento >= dateFrom)
-    if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
     return list
-  }, [enrichedItems, search, statusFilter, dateFrom, dateTo, categoryMap])
+  }, [dateFilteredItems, search, statusFilter, categoryMap])
 
   useEffect(() => { setPage(0) }, [search, statusFilter, dateFrom, dateTo])
 
@@ -294,7 +300,7 @@ export default function ContasReceber() {
     let recebidoMes = 0
     let countRecebido = 0
 
-    for (const cr of enrichedItems) {
+    for (const cr of dateFilteredItems) {
       const saldo = cr.valor - (cr.valor_pago || 0)
       const st = cr._status
 
@@ -322,24 +328,38 @@ export default function ContasReceber() {
       totalVencido, countVencido,
       recebidoMes, countRecebido,
     }
-  }, [enrichedItems])
+  }, [dateFilteredItems])
 
-  // ─── Agenda 30 dias (heatmap estilo GitHub) ─────────────────────
+  // ─── Agenda heatmap (estilo GitHub) ─────────────────────
+  // Janela dinamica: usa [dateFrom, dateTo] do filtro quando setado, senao default ±15 dias.
   const agenda30 = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const startDate = addDays(today, -15)
+
+    let startDate: Date
+    let endDate: Date
+    if (dateFrom || dateTo) {
+      startDate = dateFrom ? parseISO(dateFrom) : addDays(today, -15)
+      endDate = dateTo ? parseISO(dateTo) : addDays(today, 14)
+    } else {
+      startDate = addDays(today, -15)
+      endDate = addDays(today, 14)
+    }
+    startDate.setHours(0, 0, 0, 0)
+    endDate.setHours(0, 0, 0, 0)
+    if (endDate < startDate) endDate = startDate
+    const totalDays = differenceInDays(endDate, startDate) + 1
+
     const days: { date: Date; dateStr: string; value: number; count: number; isPast: boolean; hasOverdue: boolean }[] = []
     const byDay: Record<string, { value: number; count: number; hasOverdue: boolean }> = {}
 
-    for (const cr of enrichedItems) {
+    for (const cr of dateFilteredItems) {
       if (cr._status === 'pago' || cr._status === 'cancelado') continue
       const key = cr.data_vencimento
       if (!key) continue
       const venc = parseISO(key)
       venc.setHours(0, 0, 0, 0)
-      const diff = differenceInDays(venc, today)
-      if (diff < -15 || diff > 14) continue
+      if (venc < startDate || venc > endDate) continue
       const pendente = Number(cr.valor || 0) - Number(cr.valor_pago || 0)
       if (pendente <= 0) continue
       if (!byDay[key]) byDay[key] = { value: 0, count: 0, hasOverdue: false }
@@ -348,7 +368,7 @@ export default function ContasReceber() {
       if (venc < today) byDay[key].hasOverdue = true
     }
 
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const d = addDays(startDate, i)
       const dateStr = format(d, 'yyyy-MM-dd')
       const b = byDay[dateStr]
@@ -395,17 +415,27 @@ export default function ContasReceber() {
       }
     })
 
-    return { days, weeks, max, total, totalVencido, diasComEntrada, diasVencidos, monthLabels }
-  }, [enrichedItems])
+    return { days, weeks, max, total, totalVencido, diasComEntrada, diasVencidos, monthLabels, totalDays }
+  }, [dateFilteredItems, dateFrom, dateTo])
 
   // Lista de recebimentos para o painel lateral da agenda
+  // Usa a mesma janela do heatmap (dateFrom/dateTo ou default ±15 dias)
   const agendaDiaLista = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const inicio = addDays(today, -15)
-    const fim = addDays(today, 14)
-    const result: (typeof enrichedItems[number] & { _pendente: number })[] = []
-    for (const cr of enrichedItems) {
+    let inicio: Date
+    let fim: Date
+    if (dateFrom || dateTo) {
+      inicio = dateFrom ? parseISO(dateFrom) : addDays(today, -15)
+      fim = dateTo ? parseISO(dateTo) : addDays(today, 14)
+    } else {
+      inicio = addDays(today, -15)
+      fim = addDays(today, 14)
+    }
+    inicio.setHours(0, 0, 0, 0)
+    fim.setHours(0, 0, 0, 0)
+    const result: (typeof dateFilteredItems[number] & { _pendente: number })[] = []
+    for (const cr of dateFilteredItems) {
       if (cr._status === 'pago' || cr._status === 'cancelado') continue
       if (!cr.data_vencimento) continue
       const venc = parseISO(cr.data_vencimento)
@@ -418,7 +448,7 @@ export default function ContasReceber() {
     }
     result.sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento) || b._pendente - a._pendente)
     return result
-  }, [enrichedItems, selectedAgendaDate])
+  }, [dateFilteredItems, selectedAgendaDate, dateFrom, dateTo])
 
   const agendaDiaTotal = useMemo(
     () => agendaDiaLista.reduce((s, cr) => s + cr._pendente, 0),
@@ -510,7 +540,7 @@ export default function ContasReceber() {
               <div>
                 <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">Agenda de Recebimentos</div>
                 <div className="text-[12px] text-[#98A2B3] mt-1">
-                  Pr&oacute;ximos 30 dias &middot; {agenda30.diasComEntrada} dia{agenda30.diasComEntrada !== 1 ? 's' : ''} com entrada
+                  {(dateFrom || dateTo) ? 'Período filtrado' : 'Próximos 30 dias'} &middot; {agenda30.totalDays} dia{agenda30.totalDays !== 1 ? 's' : ''} &middot; {agenda30.diasComEntrada} com entrada
                   {agenda30.diasVencidos > 0 && (
                     <span className="text-[#C2410C] font-semibold"> &middot; {agenda30.diasVencidos} em atraso</span>
                   )}
@@ -586,7 +616,7 @@ export default function ContasReceber() {
               {/* Rodapé com totais */}
               <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#EAECF0]">
                 <div className="flex flex-col">
-                  <span className="text-[10.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Total previsto (30d)</span>
+                  <span className="text-[10.5px] text-[#98A2B3] font-semibold uppercase tracking-wide">Total previsto ({agenda30.totalDays}d)</span>
                   <span className="text-[16px] font-extrabold text-[#039855] tracking-[-0.01em] tabular-nums">{formatBRL(agenda30.total)}</span>
                 </div>
                 {agenda30.totalVencido > 0 && (
@@ -607,6 +637,8 @@ export default function ContasReceber() {
                 <div className="text-[12px] text-[#98A2B3] mt-1">
                   {selectedAgendaDate
                     ? `Vencimento em ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}`
+                    : (dateFrom || dateTo)
+                    ? `Todas \u00b7 per\u00edodo filtrado (${agenda30.totalDays}d)`
                     : 'Todas \u00b7 janela de 30 dias'}
                 </div>
               </div>
