@@ -95,27 +95,32 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         queryFn: async () => {
             if (!companyId) return [];
 
-            // Buscar Contas a Pagar e Receber em paralelo (só pendentes, com limite)
+            // Buscar Contas a Pagar e Receber em paralelo
+            // Inclui status 'pago': vendas a vista (PIX/TED/Dinheiro/Cartao) criam CR ja
+            // como 'pago' direto em Vendas.tsx, e precisam aparecer como candidatos quando
+            // o extrato bancario chegar. Os ja vinculados a bank_tx sao marcados 'conciliado'
+            // via reconciledCRIds/reconciledCPIds e ficam desabilitados na UI.
             const [payResult, recResult, reconciledResult] = await Promise.all([
                 (activeClient as any)
                     .from('contas_pagar')
-                    .select('id, credor_nome, valor, data_vencimento, status, conta_contabil_id')
+                    .select('id, credor_nome, valor, data_vencimento, data_pagamento, status, conta_contabil_id')
                     .eq('company_id', companyId)
-                    .eq('status', 'aberto')
-                    .limit(1000),
+                    .in('status', ['aberto', 'parcial', 'vencido', 'pago'])
+                    .order('data_vencimento', { ascending: false })
+                    .limit(2000),
                 (activeClient as any)
                     .from('contas_receber')
-                    .select('id, pagador_nome, valor, data_vencimento, status, conta_contabil_id')
+                    .select('id, pagador_nome, valor, data_vencimento, data_pagamento, status, conta_contabil_id')
                     .eq('company_id', companyId)
-                    .in('status', ['aberto', 'parcial', 'vencido'])
-                    .limit(1000),
+                    .in('status', ['aberto', 'parcial', 'vencido', 'pago'])
+                    .order('data_vencimento', { ascending: false })
+                    .limit(2000),
                 (activeClient as any)
                     .from('bank_transactions')
-                    .select('reconciled_receivable_id')
+                    .select('reconciled_receivable_id, reconciled_payable_id')
                     .eq('company_id', companyId)
                     .eq('status', 'reconciled')
-                    .not('reconciled_receivable_id', 'is', null)
-                    .limit(2000),
+                    .limit(5000),
             ]);
 
             if (payResult.error) throw payResult.error;
@@ -125,20 +130,31 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const receivables = recResult.data;
 
             const reconciledCRIds = new Set(
-                (reconciledResult.data || []).map((r: any) => r.reconciled_receivable_id)
+                (reconciledResult.data || [])
+                    .map((r: any) => r.reconciled_receivable_id)
+                    .filter(Boolean)
+            );
+            const reconciledCPIds = new Set(
+                (reconciledResult.data || [])
+                    .map((r: any) => r.reconciled_payable_id)
+                    .filter(Boolean)
             );
 
             // Normalizar
             const normalized: SystemTransaction[] = [];
 
             payables?.forEach((p: any) => {
+                const jaConciliado = reconciledCPIds.has(p.id);
+                // Para pagos (saidas a vista), data_pagamento e o que casa com o extrato bancario;
+                // para abertos/vencidos/parciais, data_vencimento e a referencia.
+                const referenceDate = p.status === 'pago' && p.data_pagamento ? p.data_pagamento : p.data_vencimento;
                 normalized.push({
                     id: p.id,
                     type: 'payable',
                     description: p.credor_nome || '',
                     amount: Number(p.valor || 0),
-                    date: p.data_vencimento,
-                    status: p.status,
+                    date: referenceDate,
+                    status: jaConciliado ? 'conciliado' : p.status,
                     entity_name: p.credor_nome || 'Fornecedor avulso',
                     original_table_id: p.id,
                     conta_contabil_id: p.conta_contabil_id || null,
@@ -148,12 +164,16 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             // Adicionar todos os CRs — marcar os já conciliados
             receivables?.forEach((r: any) => {
                 const jaConciliado = reconciledCRIds.has(r.id);
+                // Vendas a vista (PIX/TED/Dinheiro) criam CR ja como 'pago' com data_pagamento
+                // = data da venda. Esse e o campo que casa com o extrato bancario;
+                // data_vencimento pode ser futura e nao representa o evento financeiro real.
+                const referenceDate = r.status === 'pago' && r.data_pagamento ? r.data_pagamento : r.data_vencimento;
                 normalized.push({
                     id: r.id,
                     type: 'receivable',
                     description: r.pagador_nome || '',
                     amount: Number(r.valor || 0),
-                    date: r.data_vencimento,
+                    date: referenceDate,
                     status: jaConciliado ? 'conciliado' : r.status,
                     entity_name: r.pagador_nome || 'Cliente avulso',
                     original_table_id: r.id,
