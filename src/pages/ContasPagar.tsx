@@ -20,6 +20,7 @@ import { PendenciasBanner } from '@/modules/finance/presentation/components/Pend
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -1015,6 +1016,14 @@ export default function ContasPagar() {
           ))}
         </div>
 
+        {/* ── Filtro de periodo (padrao do sistema) ── */}
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onApply={(f, t) => { setDateFrom(f); setDateTo(t); setDatePreset('personalizado') }}
+          helperText="Filtrar por intervalo de vencimento."
+        />
+
         {/* ── Agenda do mês (esquerda) + Contas do dia (direita) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Agenda heatmap */}
@@ -1306,14 +1315,6 @@ export default function ContasPagar() {
                   Limpar
                 </button>
               )}
-              {/* Expandir */}
-              <button
-                onClick={() => setFiltersExpanded(v => !v)}
-                className="flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#667085] hover:text-black"
-              >
-                {filtersExpanded ? 'Recolher' : 'Mais filtros'}
-                {filtersExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              </button>
               <div className="flex-1" />
               {datePreset !== 'personalizado' && datePreset !== 'todos' && dateFrom && dateTo && (
                 <span className="text-[10.5px] text-[#98A2B3] whitespace-nowrap">
@@ -1327,33 +1328,6 @@ export default function ContasPagar() {
                 <Plus size={11} /> Nova conta
               </button>
             </div>
-
-            {/* Painel expandido: período personalizado */}
-            {filtersExpanded && (
-              <div className="flex flex-wrap items-end gap-2 mb-4 p-3 border border-[#EAECF0] rounded-lg bg-[#FAFBFC]">
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wide mb-1">De</label>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={e => { setDateFrom(e.target.value); setDatePreset('personalizado') }}
-                    className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wide mb-1">At&eacute;</label>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={e => { setDateTo(e.target.value); setDatePreset('personalizado') }}
-                    className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
-                  />
-                </div>
-                <p className="text-[10.5px] text-[#98A2B3] ml-1 mb-1">
-                  Ajuste as datas para um per&iacute;odo personalizado.
-                </p>
-              </div>
-            )}
 
             {/* Loading */}
             {loading && <TableSkeleton rows={8} cols={6} />}
