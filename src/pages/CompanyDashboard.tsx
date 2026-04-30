@@ -1029,8 +1029,21 @@ export default function CompanyDashboard() {
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Tooltip
-                                                            contentStyle={tooltipStyle}
-                                                            formatter={(v: number, _n: string, entry: any) => [`${fmt(v)} · ${(entry.payload.percent ?? 0).toFixed(1)}%`, entry.payload.name]}
+                                                            wrapperStyle={{ outline: "none", zIndex: 50 }}
+                                                            content={({ active, payload }: any) => {
+                                                                if (!active || !payload?.length) return null;
+                                                                const d = payload[0].payload;
+                                                                return (
+                                                                    <div style={{ background: "#1D2939", color: "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 6px 20px rgba(0,0,0,.18)", fontSize: 12, lineHeight: 1.35, maxWidth: 220 }}>
+                                                                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                                                            <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+                                                                            <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                                                                        </div>
+                                                                        <div style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(d.value)}</div>
+                                                                        <div style={{ color: "#D0D5DD", fontSize: 11, fontVariantNumeric: "tabular-nums", marginTop: 1 }}>{(d.percent ?? 0).toFixed(1)}% do faturamento</div>
+                                                                    </div>
+                                                                );
+                                                            }}
                                                         />
                                                         <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={36} outerRadius={62} paddingAngle={2} stroke="#FFFFFF" strokeWidth={2}>
                                                             {data.map((d, i) => (<Cell key={i} fill={d.color} />))}
