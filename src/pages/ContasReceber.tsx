@@ -720,7 +720,7 @@ export default function ContasReceber() {
               <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
               <input
                 type="text"
-                placeholder="Buscar pagador..."
+                placeholder="Buscar por pagador, plano de contas, vencimento, valor, status..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full pl-7 pr-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black placeholder-[#98A2B3] focus:outline-none focus:border-black"
