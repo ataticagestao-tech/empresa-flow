@@ -1283,32 +1283,32 @@ export default function Vendas() {
                 </div>
               }
             >
-              <ResponsiveContainer width="100%" height={Math.max(200, produtosRanking.length * 22)}>
-                <BarChart data={produtosRanking} layout="vertical" margin={{ top: 4, right: 90, left: 0, bottom: 4 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={produtosRanking} margin={{ top: 24, right: 16, left: 0, bottom: 48 }}>
                   <defs>
-                    <linearGradient id="prodVendaGrad" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#039855" stopOpacity={0.7} />
-                      <stop offset="100%" stopColor="#039855" stopOpacity={1} />
+                    <linearGradient id="prodVendaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#039855" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#039855" stopOpacity={0.7} />
                     </linearGradient>
                   </defs>
-                  <XAxis type="number" hide domain={[0, 'dataMax']} />
-                  <YAxis
+                  <XAxis
                     type="category"
                     dataKey="descricao"
+                    interval={0}
                     tick={(props: any) => {
-                      const { y, payload } = props
+                      const { x, y, payload } = props
                       const txt = String(payload.value || '')
-                      const shown = txt.length > 16 ? txt.slice(0, 16) + '…' : txt
+                      const shown = txt.length > 14 ? txt.slice(0, 14) + '…' : txt
                       return (
-                        <text x={0} y={y} dy={4} textAnchor="start" fontSize={11} fontWeight={500} fill="#1D2939">
+                        <text x={x} y={y + 10} textAnchor="end" transform={`rotate(-30, ${x}, ${y + 10})`} fontSize={11} fontWeight={500} fill="#1D2939">
                           {shown}
                         </text>
                       )
                     }}
                     axisLine={{ stroke: '#039855', strokeWidth: 2 }}
                     tickLine={false}
-                    width={120}
                   />
+                  <YAxis type="number" hide domain={[0, 'dataMax']} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
                     itemStyle={{ color: '#fff' }}
@@ -1319,10 +1319,10 @@ export default function Vendas() {
                     ]}
                     cursor={{ fill: 'rgba(3, 152, 85, 0.08)' }}
                   />
-                  <Bar dataKey="total" fill="url(#prodVendaGrad)" radius={[0, 3, 3, 0]} barSize={9}>
+                  <Bar dataKey="total" fill="url(#prodVendaGrad)" radius={[3, 3, 0, 0]} maxBarSize={48}>
                     <LabelList
                       dataKey="total"
-                      position="right"
+                      position="top"
                       fontSize={10}
                       fill="#1D2939"
                       fontWeight={600}

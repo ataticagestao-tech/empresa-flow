@@ -997,36 +997,59 @@ export default function CompanyDashboard() {
                                     </div>
                                 )}
                             </div>
-                            {/* Faturamento e média por semana */}
+                            {/* Distribuição de produtos e serviços (pizza) */}
                             <div style={{ background: "#F9FAFB", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                                 <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}` }}>
-                                    <div style={{ fontSize: 15, color: C.text1, fontWeight: 700, letterSpacing: "-0.01em" }}>FATURAMENTO POR SEMANA</div>
+                                    <div style={{ fontSize: 15, color: C.text1, fontWeight: 700, letterSpacing: "-0.01em" }}>DISTRIBUIÇÃO</div>
+                                    <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
                                 </div>
-                                <div style={{ flex: 1, overflowY: "auto" }}>
-                                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                        <thead style={{ position: "sticky", top: 0, background: "#F9FAFB", zIndex: 1 }}>
-                                            <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                <th style={{ textAlign: "left", padding: "6px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Semana</th>
-                                                <th style={{ textAlign: "right", padding: "6px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Faturamento</th>
-                                                <th style={{ textAlign: "right", padding: "6px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Média Diária</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {heatmap.weeklyAverages.map((w, idx) => (
-                                                <tr key={w.label} style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                    <td style={{ padding: "7px 10px", color: C.text1, fontWeight: 500 }}>{w.label}</td>
-                                                    <td style={{ padding: "7px 10px", textAlign: "right", color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmtInt(w.total)}</td>
-                                                    <td style={{ padding: "7px 10px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{fmtInt(w.avg)}</td>
-                                                </tr>
-                                            ))}
-                                            <tr style={{ background: "#F3F4F6" }}>
-                                                <td style={{ padding: "8px 10px", color: C.text1, fontWeight: 700, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.3 }}>Total</td>
-                                                <td style={{ padding: "8px 10px", textAlign: "right", color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtInt(heatmap.total)}</td>
-                                                <td style={{ padding: "8px 10px", textAlign: "right", color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtInt(heatmap.days.length > 0 ? heatmap.total / heatmap.days.length : 0)}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                {(() => {
+                                    const items = monthlySales?.productBreakdown ?? [];
+                                    if (items.length === 0) {
+                                        return (
+                                            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px 14px", color: C.textMuted, fontSize: 12, textAlign: "center" }}>
+                                                Sem produtos para exibir
+                                            </div>
+                                        );
+                                    }
+                                    const palette = ["#039855", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#F59E0B", "#9CA3AF"];
+                                    const TOP = 5;
+                                    const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
+                                    const top = sorted.slice(0, TOP);
+                                    const rest = sorted.slice(TOP);
+                                    const restTotal = rest.reduce((s, p) => s + p.faturamento, 0);
+                                    const restPct = rest.reduce((s, p) => s + p.percentual, 0);
+                                    const data = [
+                                        ...top.map((p, i) => ({ name: p.descricao, value: p.faturamento, percent: p.percentual, color: palette[i % palette.length], semProduto: p.semProduto })),
+                                        ...(restTotal > 0 ? [{ name: `Outros (${rest.length})`, value: restTotal, percent: restPct, color: palette[palette.length - 1], semProduto: false }] : []),
+                                    ];
+                                    return (
+                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "8px 10px 10px", minHeight: 0 }}>
+                                            <div style={{ flex: 1, minHeight: 140 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Tooltip
+                                                            contentStyle={tooltipStyle}
+                                                            formatter={(v: number, _n: string, entry: any) => [`${fmt(v)} · ${(entry.payload.percent ?? 0).toFixed(1)}%`, entry.payload.name]}
+                                                        />
+                                                        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={36} outerRadius={62} paddingAngle={2} stroke="#FFFFFF" strokeWidth={2}>
+                                                            {data.map((d, i) => (<Cell key={i} fill={d.color} />))}
+                                                        </Pie>
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, maxHeight: 110, overflowY: "auto" }}>
+                                                {data.map((d, i) => (
+                                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                                                        <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+                                                        <span style={{ flex: 1, color: C.text1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: d.semProduto ? "italic" : "normal" }}>{d.name}</span>
+                                                        <span style={{ color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{d.percent.toFixed(1)}%</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
