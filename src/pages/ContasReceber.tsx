@@ -212,7 +212,7 @@ export default function ContasReceber() {
   // ── Derived data ──
   const categoryMap = useMemo(() => {
     const m: Record<string, string> = {}
-    chartAccounts.forEach(a => { m[a.id] = a.name })
+    chartAccounts.forEach(a => { m[a.id] = a.code ? `${a.code} - ${a.name}` : a.name })
     return m
   }, [chartAccounts])
 
@@ -639,7 +639,7 @@ export default function ContasReceber() {
                   <thead className="bg-[#F9FAFB] sticky top-0">
                     <tr>
                       <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Nome</th>
-                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Categoria</th>
+                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Plano de contas</th>
                       <th className="py-2 px-3 text-right font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Valor</th>
                     </tr>
                   </thead>
@@ -658,7 +658,9 @@ export default function ContasReceber() {
                             )}
                           </td>
                           <td className="py-2 px-3 text-[#555]">
-                            {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
+                            <div className="truncate" style={{ maxWidth: 220 }} title={cr.conta_contabil_id ? categoryMap[cr.conta_contabil_id] : ''}>
+                              {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
+                            </div>
                           </td>
                           <td className={`py-2 px-3 text-right font-semibold tabular-nums ${isVencido ? 'text-[#C2410C]' : 'text-[#1D2939]'}`}>
                             {formatBRL(cr._pendente)}
@@ -810,7 +812,7 @@ export default function ContasReceber() {
                         className="w-4 h-4 rounded border-[#ccc] text-[#059669] focus:ring-[#059669] cursor-pointer"
                       />
                     </th>
-                    {['Pagador', 'Tipo', 'Categoria', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
+                    {['Pagador', 'Tipo', 'Plano de contas', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
                       <th
                         key={h}
                         className="px-4 py-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"

@@ -1124,7 +1124,8 @@ export default function ContasPagar() {
                       : '*Contas a vencer - Pr\u00f3ximos 30 dias*'
                     const linhas = agendaDiaLista.map(cp => {
                       const data = selectedAgendaDate ? '' : `${format(parseISO(cp.data_vencimento), 'dd/MM')} \u2014 `
-                      return `\u2022 ${data}${cp.credor_nome} \u2014 ${inferCategoria(cp)} \u2014 ${formatBRL(cp._pendente)}`
+                      const plano = cp.conta_contabil_id ? (contaContabilMap[cp.conta_contabil_id] || '\u2014') : '\u2014'
+                      return `\u2022 ${data}${cp.credor_nome} \u2014 ${plano} \u2014 ${formatBRL(cp._pendente)}`
                     }).join('\n')
                     const total = `*Total a pagar: ${formatBRL(agendaDiaTotal)}*`
                     const texto = `${titulo}\n\n${linhas}\n\n${total}`
@@ -1161,7 +1162,7 @@ export default function ContasPagar() {
                   <thead className="bg-[#F9FAFB] sticky top-0">
                     <tr>
                       <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Nome</th>
-                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Categoria</th>
+                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Plano de contas</th>
                       <th className="py-2 px-3 text-right font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Valor</th>
                     </tr>
                   </thead>
@@ -1176,7 +1177,11 @@ export default function ContasPagar() {
                             </div>
                           )}
                         </td>
-                        <td className="py-2 px-3 text-[#555]">{inferCategoria(cp)}</td>
+                        <td className="py-2 px-3 text-[#555]">
+                          <div className="truncate" style={{ maxWidth: 220 }} title={cp.conta_contabil_id ? contaContabilMap[cp.conta_contabil_id] : ''}>
+                            {cp.conta_contabil_id ? (contaContabilMap[cp.conta_contabil_id] || '—') : '—'}
+                          </div>
+                        </td>
                         <td className="py-2 px-3 text-right font-semibold text-[#1D2939] tabular-nums">
                           {formatBRL(cp._pendente)}
                         </td>
