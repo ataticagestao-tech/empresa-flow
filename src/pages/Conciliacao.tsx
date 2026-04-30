@@ -2004,64 +2004,66 @@ export default function Conciliacao() {
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
                     if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
                 }}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="grid-cols-1 w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
                         <DialogHeader>
                             <DialogTitle>Conciliar Manualmente</DialogTitle>
                             <DialogDescription>Selecione um lançamento existente ou crie um novo.</DialogDescription>
                         </DialogHeader>
 
                         {selectedBankTx && (
-                            <div className="space-y-4">
+                            <div className="space-y-4 min-w-0">
                                 {/* Info da transação bancária */}
-                                <div className="bg-[#F6F2EB] p-4 rounded-lg flex justify-between items-center border border-[#F6F2EB]">
-                                    <div>
-                                        <p className="font-semibold text-foreground">{selectedBankTx.description}</p>
-                                        <p className="text-sm text-muted-foreground">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
+                                <div className="bg-[#F6F2EB] p-3 rounded-lg flex justify-between items-start gap-3 border border-[#F6F2EB] min-w-0">
+                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                        <p className="font-semibold text-foreground text-xs leading-snug truncate" title={selectedBankTx.description}>
+                                            {selectedBankTx.description}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1 truncate">{format(parseISO(selectedBankTx.date), 'PPP', { locale: ptBR })}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <span className={`text-xl font-bold ${selectedBankTx.amount < 0 ? 'text-[#E53E3E]' : 'text-emerald-600'}`}>
+                                    <div className="text-right flex-shrink-0">
+                                        <span className={`text-lg font-bold whitespace-nowrap ${selectedBankTx.amount < 0 ? 'text-[#E53E3E]' : 'text-emerald-600'}`}>
                                             {formatBRL(selectedBankTx.amount)}
                                         </span>
-                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                        <p className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">
                                             {selectedBankTx.amount < 0 ? "Saída → Conta a Pagar" : "Entrada → Conta a Receber"}
                                         </p>
                                     </div>
                                 </div>
 
                                 {/* Aviso de memorização */}
-                                <div className="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 p-2 rounded-md border border-purple-100">
-                                    <Brain className="h-4 w-4 flex-shrink-0" />
-                                    <span>O sistema irá <strong>memorizar</strong> este padrão para sugerir automaticamente na próxima vez.</span>
+                                <div className="flex items-start gap-2 text-xs text-purple-600 bg-purple-50 p-2 rounded-md border border-purple-100">
+                                    <Brain className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                    <span className="min-w-0">O sistema irá <strong>memorizar</strong> este padrão para sugerir automaticamente na próxima vez.</span>
                                 </div>
 
                                 {!showCreateForm ? (
                                     <>
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 min-w-0">
                                             {/* Filtros de data + busca */}
-                                            <div className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end">
-                                                <div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end min-w-0">
+                                                <div className="min-w-0">
                                                     <Label className="text-[10px] font-semibold text-muted-foreground uppercase">De</Label>
                                                     <Input type="date" value={filterDateFrom}
                                                         onChange={(e) => setFilterDateFrom(e.target.value)}
-                                                        className="text-xs h-9" />
+                                                        className="text-xs h-9 w-full min-w-0" />
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0">
                                                     <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Até</Label>
                                                     <Input type="date" value={filterDateTo}
                                                         onChange={(e) => setFilterDateTo(e.target.value)}
-                                                        className="text-xs h-9" />
+                                                        className="text-xs h-9 w-full min-w-0" />
                                                 </div>
-                                                <div>
+                                                <div className="col-span-2 sm:col-span-1 min-w-0">
                                                     <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Buscar</Label>
                                                     <div className="relative">
                                                         <Search className="absolute left-3 top-2 h-4 w-4 text-muted-foreground" />
-                                                        <Input placeholder="Nome, descrição ou valor..." className="pl-9 h-9 text-xs"
+                                                        <Input placeholder="Nome, descrição ou valor..." className="pl-9 h-9 text-xs w-full"
                                                             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                                     </div>
                                                 </div>
                                                 <Button
                                                     size="sm"
-                                                    className="h-9"
+                                                    className="h-9 col-span-2 sm:col-span-1"
                                                     onClick={() => {
                                                         // Limpar filtros para forçar refresh visual
                                                         if (!filterDateFrom && !filterDateTo && !searchTerm) {
