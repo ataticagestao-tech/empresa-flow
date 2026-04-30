@@ -813,7 +813,7 @@ export default function ContasReceber() {
                         className="w-4 h-4 rounded border-[#ccc] text-[#059669] focus:ring-[#059669] cursor-pointer"
                       />
                     </th>
-                    {['Pagador', 'Tipo', 'Plano de contas', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
+                    {['Pagador', 'Plano de contas', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
                       <th
                         key={h}
                         className="px-4 py-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"
@@ -855,12 +855,6 @@ export default function ContasReceber() {
                           {cr.pagador_cpf_cnpj && (
                             <div className="text-[10px] text-[#999] leading-tight">{cr.pagador_cpf_cnpj}</div>
                           )}
-                        </td>
-                        {/* Tipo */}
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
-                          <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-[#555] bg-[#F6F2EB] border border-[#ddd] rounded">
-                            {deriveTipo(cr)}
-                          </span>
                         </td>
                         {/* Categoria */}
                         <td className="px-3 py-1.5 text-[11.5px] text-[#555] align-middle">
