@@ -14,7 +14,7 @@ import {
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy,
+  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -141,6 +141,7 @@ export default function ContasReceber() {
   // ── Modals ──
   const [quitarModal, setQuitarModal] = useState<CR | null>(null)
   const [novoModal, setNovoModal] = useState(false)
+  const [editarModal, setEditarModal] = useState<CR | null>(null)
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
 
@@ -918,8 +919,14 @@ export default function ContasReceber() {
                               {dropdownOpen === cr.id && (
                                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ccc] rounded-lg shadow-lg z-50">
                                   <button
+                                    onClick={() => { setEditarModal(cr); setDropdownOpen(null) }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors first:rounded-t-lg flex items-center gap-2"
+                                  >
+                                    <Pencil size={13} /> Editar
+                                  </button>
+                                  <button
                                     onClick={() => { setRenegociarModal(cr); setDropdownOpen(null) }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors first:rounded-t-lg"
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors"
                                   >
                                     Renegociar
                                   </button>
@@ -1010,6 +1017,25 @@ export default function ContasReceber() {
           onClose={() => setNovoModal(false)}
           onConfirm={async () => {
             setNovoModal(false)
+            fetchItems()
+          }}
+          onClienteAdded={(c: Cliente) => setClientes(prev => [...prev, c])}
+        />
+      )}
+
+      {/* ── Modal: Editar CR ── */}
+      {editarModal && (
+        <ModalNovoCR
+          companyId={companyId!}
+          chartAccounts={chartAccounts}
+          centrosCusto={centrosCusto}
+          clientes={clientes}
+          products={products}
+          submitting={submitting}
+          editing={editarModal}
+          onClose={() => setEditarModal(null)}
+          onConfirm={async () => {
+            setEditarModal(null)
             fetchItems()
           }}
           onClienteAdded={(c: Cliente) => setClientes(prev => [...prev, c])}
@@ -1562,6 +1588,7 @@ function ModalNovoCR({
   clientes,
   products,
   submitting: parentSubmitting,
+  editing,
   onClose,
   onConfirm,
   onClienteAdded,
@@ -1572,24 +1599,29 @@ function ModalNovoCR({
   clientes: Cliente[]
   products: Product[]
   submitting: boolean
+  editing?: CR | null
   onClose: () => void
   onConfirm: () => void
   onClienteAdded: (c: Cliente) => void
 }) {
+  const isEditing = !!editing
+  const isPaid = editing?.status === 'pago' || editing?.status === 'conciliado'
+  const lockFinancial = isEditing && isPaid
+
   const [tipo, setTipo] = useState('unica')
-  const [pagadorNome, setPagadorNome] = useState('')
-  const [pagadorCpfCnpj, setPagadorCpfCnpj] = useState('')
-  const [pagadorEmail, setPagadorEmail] = useState('')
-  const [valor, setValor] = useState('')
-  const [vencimento, setVencimento] = useState('')
+  const [pagadorNome, setPagadorNome] = useState(editing?.pagador_nome || '')
+  const [pagadorCpfCnpj, setPagadorCpfCnpj] = useState(editing?.pagador_cpf_cnpj || '')
+  const [pagadorEmail, setPagadorEmail] = useState(editing?.pagador_email || '')
+  const [valor, setValor] = useState(editing ? String(editing.valor) : '')
+  const [vencimento, setVencimento] = useState(editing?.data_vencimento || '')
   const [numParcelas, setNumParcelas] = useState('2')
-  const [contaContabilId, setContaContabilId] = useState('')
-  const [centroCustoId, setCentroCustoId] = useState('')
-  const [descricao, setDescricao] = useState('')
+  const [contaContabilId, setContaContabilId] = useState(editing?.conta_contabil_id || '')
+  const [centroCustoId, setCentroCustoId] = useState(editing?.centro_custo_id || '')
+  const [descricao, setDescricao] = useState(editing?.observacoes || '')
   const [saving, setSaving] = useState(false)
 
   // Client search
-  const [clienteSearch, setClienteSearch] = useState('')
+  const [clienteSearch, setClienteSearch] = useState(editing?.pagador_nome || '')
   const [clienteDropdownOpen, setClienteDropdownOpen] = useState(false)
   const [showNovoCliente, setShowNovoCliente] = useState(false)
   const [novoNome, setNovoNome] = useState('')
@@ -1660,6 +1692,47 @@ function ModalNovoCR({
     setSaving(true)
 
     try {
+      if (isEditing && editing) {
+        // Edicao: UPDATE em registro existente
+        const novoContaContabilId = contaContabilId || null
+        const novoCentroCustoId = centroCustoId || null
+        const categoriaMudou = novoContaContabilId !== (editing.conta_contabil_id || null)
+        const centroMudou = novoCentroCustoId !== (editing.centro_custo_id || null)
+
+        const payload: Record<string, any> = {
+          conta_contabil_id: novoContaContabilId,
+          centro_custo_id: novoCentroCustoId,
+        }
+        if (!lockFinancial) {
+          payload.pagador_nome = pagadorNome.trim()
+          payload.pagador_cpf_cnpj = pagadorCpfCnpj.trim() || null
+          payload.pagador_email = pagadorEmail.trim() || null
+          payload.valor = v
+          payload.data_vencimento = vencimento
+          payload.observacoes = descricao || null
+        }
+        const { error } = await db.from('contas_receber').update(payload).eq('id', editing.id)
+        if (error) throw error
+
+        // Propagar para movimentacoes vinculadas (Fluxo de Caixa / fn_relatorio_fluxo)
+        if (categoriaMudou || centroMudou) {
+          const movPayload: Record<string, any> = {}
+          if (categoriaMudou) movPayload.conta_contabil_id = novoContaContabilId
+          if (centroMudou) movPayload.centro_custo_id = novoCentroCustoId
+          const { error: movErr } = await db
+            .from('movimentacoes')
+            .update(movPayload)
+            .eq('conta_receber_id', editing.id)
+          if (movErr) {
+            console.error('[editarCR] erro propagando para movimentacoes:', movErr)
+            alert('Titulo atualizado, mas houve erro propagando categoria para movimentacoes: ' + movErr.message)
+          }
+        }
+
+        onConfirm()
+        return
+      }
+
       if (tipo === 'parcelado') {
         const n = parseInt(numParcelas) || 2
         const valorParcela = Math.round((v / n) * 100) / 100
@@ -1710,30 +1783,42 @@ function ModalNovoCR({
 
   return (
     <ModalOverlay onClose={onClose}>
-      <ModalHeader title="Novo titulo a receber" onClose={onClose} />
+      <ModalHeader title={isEditing ? 'Editar titulo a receber' : 'Novo titulo a receber'} onClose={onClose} />
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
 
-        {/* Tipo - cards */}
-        <div>
-          <FieldLabel>Tipo de titulo</FieldLabel>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
-            {TIPO_TITULO_OPTIONS.map(t => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setTipo(t.value)}
-                className={`px-3 py-2.5 rounded-lg border text-[12px] font-semibold text-center transition-colors ${
-                  tipo === t.value
-                    ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]'
-                    : 'border-[#ccc] bg-white text-[#555] hover:bg-[#F6F2EB]'
-                }`}
-              >
-                <span className="block text-[16px] mb-0.5">{t.icon}</span>
-                {t.label}
-              </button>
-            ))}
+        {lockFinancial && (
+          <div className="rounded-lg border border-[#FCD34D] bg-[#FEF3C7] px-3 py-2 text-[12px] text-[#92400E] flex items-start gap-2">
+            <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <div className="font-semibold">Titulo ja {editing?.status === 'conciliado' ? 'conciliado' : 'pago'}</div>
+              <div>Apenas o plano de contas e o centro de custo podem ser alterados. A nova categoria sera propagada para o Fluxo de Caixa. Para mudar valores, use estorno.</div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Tipo - cards (apenas em criacao) */}
+        {!isEditing && (
+          <div>
+            <FieldLabel>Tipo de titulo</FieldLabel>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
+              {TIPO_TITULO_OPTIONS.map(t => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setTipo(t.value)}
+                  className={`px-3 py-2.5 rounded-lg border text-[12px] font-semibold text-center transition-colors ${
+                    tipo === t.value
+                      ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]'
+                      : 'border-[#ccc] bg-white text-[#555] hover:bg-[#F6F2EB]'
+                  }`}
+                >
+                  <span className="block text-[16px] mb-0.5">{t.icon}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Pagador — searchable client dropdown */}
         <div className="space-y-3">
@@ -1743,15 +1828,16 @@ function ModalNovoCR({
               type="text"
               value={clienteSearch}
               onChange={e => { setClienteSearch(e.target.value); setClienteDropdownOpen(true) }}
-              onFocus={() => setClienteDropdownOpen(true)}
+              onFocus={() => { if (!lockFinancial) setClienteDropdownOpen(true) }}
               className={inputCls}
               placeholder="Buscar cliente por nome ou CPF/CNPJ..."
               autoComplete="off"
+              disabled={lockFinancial}
             />
             {/* Hidden required field to enforce selection */}
             <input type="hidden" value={pagadorNome} required />
 
-            {clienteDropdownOpen && (
+            {clienteDropdownOpen && !lockFinancial && (
               <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {clientesFiltrados.map(c => (
                   <button
@@ -1833,6 +1919,7 @@ function ModalNovoCR({
                   onChange={e => setPagadorCpfCnpj(e.target.value)}
                   className={inputCls}
                   placeholder="000.000.000-00"
+                  disabled={lockFinancial}
                 />
               </div>
               <div>
@@ -1843,6 +1930,7 @@ function ModalNovoCR({
                   onChange={e => setPagadorEmail(e.target.value)}
                   className={inputCls}
                   placeholder="email@exemplo.com"
+                  disabled={lockFinancial}
                 />
               </div>
             </div>
@@ -1862,6 +1950,7 @@ function ModalNovoCR({
               className={inputCls}
               placeholder="0,00"
               required
+              disabled={lockFinancial}
             />
           </div>
           <div>
@@ -1872,12 +1961,13 @@ function ModalNovoCR({
               onChange={e => setVencimento(e.target.value)}
               className={inputCls}
               required
+              disabled={lockFinancial}
             />
           </div>
         </div>
 
-        {/* Parcelas (only for parcelado) */}
-        {tipo === 'parcelado' && (
+        {/* Parcelas (only for parcelado, e nao em edicao) */}
+        {tipo === 'parcelado' && !isEditing && (
           <div>
             <FieldLabel>Numero de parcelas</FieldLabel>
             <input
@@ -1924,21 +2014,32 @@ function ModalNovoCR({
           </div>
         </div>
 
-        {/* Descricao (Produto/Servico do Operacional) */}
+        {/* Descricao */}
         <div>
-          <FieldLabel>Descricao (Produto/Servico)</FieldLabel>
-          <select
-            value={descricao}
-            onChange={e => setDescricao(e.target.value)}
-            className={inputCls}
-          >
-            <option value="">Selecione um produto/servico...</option>
-            {products.map(p => (
-              <option key={p.id} value={p.description}>
-                {p.code ? `${p.code} - ` : ''}{p.description}
-              </option>
-            ))}
-          </select>
+          <FieldLabel>{isEditing ? 'Descricao / Observacoes' : 'Descricao (Produto/Servico)'}</FieldLabel>
+          {isEditing ? (
+            <input
+              type="text"
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+              className={inputCls}
+              placeholder="Descricao do titulo"
+              disabled={lockFinancial}
+            />
+          ) : (
+            <select
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Selecione um produto/servico...</option>
+              {products.map(p => (
+                <option key={p.id} value={p.description}>
+                  {p.code ? `${p.code} - ` : ''}{p.description}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Actions */}
@@ -1956,7 +2057,11 @@ function ModalNovoCR({
             className="px-5 py-2 text-[13px] font-semibold text-white bg-[#059669] rounded-lg hover:bg-[#1D2939] transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
-            {tipo === 'parcelado' ? `Criar ${parseInt(numParcelas) || 2} parcelas` : 'Criar titulo'}
+            {isEditing
+              ? 'Salvar alteracoes'
+              : tipo === 'parcelado'
+                ? `Criar ${parseInt(numParcelas) || 2} parcelas`
+                : 'Criar titulo'}
           </button>
         </div>
       </form>
