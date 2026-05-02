@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { TablePagination } from '@/components/ui/table-pagination'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { DateRangeFilter } from '@/components/ui/date-range-filter'
+import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -988,15 +989,18 @@ export default function ContasReceber() {
                                       })
                                       if (!ok) return
                                       try {
-                                        // Soft delete (trigger bloqueia DELETE direto)
-                                        const { error } = await db.from('contas_receber').update({ deleted_at: new Date().toISOString() }).eq('id', cr.id)
-                                        if (error) throw error
-                                        // Limpar dependencias (movimentacoes nao tem soft delete)
-                                        await db.from('movimentacoes').delete().eq('conta_receber_id', cr.id)
-                                        await db.from('bank_reconciliation_matches').update({ receivable_id: null }).eq('receivable_id', cr.id)
-                                        await db.from('bank_transactions').update({ reconciled_receivable_id: null }).eq('reconciled_receivable_id', cr.id)
-                                        toast.success('Titulo excluido')
-                                        fetchItems()
+                                        await softDeleteWithUndo({
+                                          client: db,
+                                          table: 'contas_receber',
+                                          id: cr.id,
+                                          successLabel: 'Titulo excluido',
+                                          onChange: fetchItems,
+                                          cleanup: async () => {
+                                            await db.from('movimentacoes').delete().eq('conta_receber_id', cr.id)
+                                            await db.from('bank_reconciliation_matches').update({ receivable_id: null }).eq('receivable_id', cr.id)
+                                            await db.from('bank_transactions').update({ reconciled_receivable_id: null }).eq('reconciled_receivable_id', cr.id)
+                                          },
+                                        })
                                       } catch (err: any) {
                                         console.error('[excluirCR]', err)
                                         toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))

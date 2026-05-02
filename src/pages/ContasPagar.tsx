@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
+import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface ContaPagar {
@@ -1595,15 +1596,18 @@ export default function ContasPagar() {
                                               if (!ok) return
                                               try {
                                                 const ac = activeClient as any
-                                                // Soft delete (trigger bloqueia DELETE direto)
-                                                const { error } = await ac.from('contas_pagar').update({ deleted_at: new Date().toISOString() }).eq('id', cp.id)
-                                                if (error) throw error
-                                                // Limpar dependências
-                                                await ac.from('movimentacoes').delete().eq('conta_pagar_id', cp.id)
-                                                await ac.from('bank_reconciliation_matches').update({ payable_id: null }).eq('payable_id', cp.id)
-                                                await ac.from('bank_transactions').update({ reconciled_payable_id: null }).eq('reconciled_payable_id', cp.id)
-                                                toast.success('Lancamento excluido')
-                                                await loadData()
+                                                await softDeleteWithUndo({
+                                                  client: ac,
+                                                  table: 'contas_pagar',
+                                                  id: cp.id,
+                                                  successLabel: 'Lancamento excluido',
+                                                  onChange: () => { void loadData() },
+                                                  cleanup: async () => {
+                                                    await ac.from('movimentacoes').delete().eq('conta_pagar_id', cp.id)
+                                                    await ac.from('bank_reconciliation_matches').update({ payable_id: null }).eq('payable_id', cp.id)
+                                                    await ac.from('bank_transactions').update({ reconciled_payable_id: null }).eq('reconciled_payable_id', cp.id)
+                                                  },
+                                                })
                                               } catch (err: any) {
                                                 console.error('[excluirCP]', err)
                                                 toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))

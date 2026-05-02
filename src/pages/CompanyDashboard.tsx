@@ -7,7 +7,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList,
-    PieChart, Pie,
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar } from "lucide-react";
 import {
@@ -279,6 +278,22 @@ export default function CompanyDashboard() {
         enabled: !!cId,
     });
 
+    const { data: despesaPeriodoAnterior = 0 } = useQuery({
+        queryKey: ["dash_despesa_prev", cId, prevMonthStart, transferAccountIds],
+        queryFn: async () => {
+            const { data } = await db.from("contas_pagar")
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId).eq("status", "pago")
+                .is("deleted_at", null)
+                .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEnd)
+                .limit(5000);
+            return (data || [])
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+        },
+        enabled: !!cId,
+    });
+
     // ─── Payables / Receivables filtrados pelo período principal ─
     const payables7d = useMemo(() =>
         payablesFiltered
@@ -346,6 +361,13 @@ export default function CompanyDashboard() {
     // ─── Trends vs período anterior ────────────────────────
     const trendFat = receitaPeriodoAnterior > 0
         ? ((receitaPeriodo - receitaPeriodoAnterior) / receitaPeriodoAnterior) * 100
+        : 0;
+    const trendDesp = despesaPeriodoAnterior > 0
+        ? ((despesaPeriodo - despesaPeriodoAnterior) / despesaPeriodoAnterior) * 100
+        : 0;
+    const resultadoPeriodoAnterior = receitaPeriodoAnterior - despesaPeriodoAnterior;
+    const trendResultado = resultadoPeriodoAnterior !== 0
+        ? ((resultadoPeriodo - resultadoPeriodoAnterior) / Math.abs(resultadoPeriodoAnterior)) * 100
         : 0;
 
     // ─── Alert banner ───────────────────────────────────────
@@ -856,7 +878,7 @@ export default function CompanyDashboard() {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Faturamento</div>
                             {receitaPeriodoAnterior > 0 && (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                <span title={`vs ${prevMonthLabel}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                     {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
                                 </span>
                             )}
@@ -871,13 +893,15 @@ export default function CompanyDashboard() {
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Despesas</div>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#FEE2E2", color: "#E53E3E", flexShrink: 0 }}>
-                                ▼ {receitaPeriodo > 0 ? `${((despesaLiq / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
-                            </span>
+                            {despesaPeriodoAnterior > 0 && (
+                                <span title={`vs ${prevMonthLabel}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendDesp <= 0 ? "#ECFDF3" : "#FEE2E2", color: trendDesp <= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                    {trendDesp <= 0 ? "▼" : "▲"} {Math.abs(trendDesp).toFixed(1)}%
+                                </span>
+                            )}
                         </div>
                         <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: "#7F1D1D", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(despesaLiq)}</div>
                         <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {receitaPeriodo > 0 ? `${((despesaLiq / receitaPeriodo) * 100).toFixed(1)}% do faturamento` : "—"}
+                            {despesaPeriodoAnterior > 0 ? `${fmt(despesaPeriodoAnterior)} mês anterior` : (receitaPeriodo > 0 ? `${((despesaLiq / receitaPeriodo) * 100).toFixed(1)}% do faturamento` : "—")}
                         </div>
                     </div>
 
@@ -885,13 +909,19 @@ export default function CompanyDashboard() {
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Resultado Líquido</div>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: resultadoPeriodo >= 0 ? "#ECFDF3" : "#FEE2E2", color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
-                                {resultadoPeriodo >= 0 ? "▲" : "▼"} {receitaPeriodo > 0 ? `${Math.abs((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
-                            </span>
+                            {resultadoPeriodoAnterior !== 0 ? (
+                                <span title={`vs ${prevMonthLabel}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendResultado >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendResultado >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                    {trendResultado >= 0 ? "▲" : "▼"} {Math.abs(trendResultado).toFixed(1)}%
+                                </span>
+                            ) : (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: resultadoPeriodo >= 0 ? "#ECFDF3" : "#FEE2E2", color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                    {resultadoPeriodo >= 0 ? "▲" : "▼"} {receitaPeriodo > 0 ? `${Math.abs((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
+                                </span>
+                            )}
                         </div>
                         <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(resultadoPeriodo)}</div>
                         <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
+                            {resultadoPeriodoAnterior !== 0 ? `${fmt(resultadoPeriodoAnterior)} mês anterior` : (receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—")}
                         </div>
                     </div>
                 </div>
@@ -1023,43 +1053,23 @@ export default function CompanyDashboard() {
                                         ...top.map((p, i) => ({ name: p.descricao, value: p.faturamento, percent: p.percentual, color: palette[i % palette.length], semProduto: p.semProduto })),
                                         ...(restTotal > 0 ? [{ name: `Outros (${rest.length})`, value: restTotal, percent: restPct, color: palette[palette.length - 1], semProduto: false }] : []),
                                     ];
+                                    const maxValue = Math.max(...data.map(d => d.value));
                                     return (
-                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "8px 10px 10px", minHeight: 0 }}>
-                                            <div style={{ flex: 1, minHeight: 140 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Tooltip
-                                                            wrapperStyle={{ outline: "none", zIndex: 50 }}
-                                                            content={({ active, payload }: any) => {
-                                                                if (!active || !payload?.length) return null;
-                                                                const d = payload[0].payload;
-                                                                return (
-                                                                    <div style={{ background: "#1D2939", color: "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 6px 20px rgba(0,0,0,.18)", fontSize: 12, lineHeight: 1.35, maxWidth: 220 }}>
-                                                                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                                                                            <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-                                                                            <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                                                                        </div>
-                                                                        <div style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(d.value)}</div>
-                                                                        <div style={{ color: "#D0D5DD", fontSize: 11, fontVariantNumeric: "tabular-nums", marginTop: 1 }}>{(d.percent ?? 0).toFixed(1)}% do faturamento</div>
-                                                                    </div>
-                                                                );
-                                                            }}
-                                                        />
-                                                        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={36} outerRadius={62} paddingAngle={2} stroke="#FFFFFF" strokeWidth={2}>
-                                                            {data.map((d, i) => (<Cell key={i} fill={d.color} />))}
-                                                        </Pie>
-                                                    </PieChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, maxHeight: 110, overflowY: "auto" }}>
-                                                {data.map((d, i) => (
-                                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                                                        <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-                                                        <span style={{ flex: 1, color: C.text1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: d.semProduto ? "italic" : "normal" }}>{d.name}</span>
-                                                        <span style={{ color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{d.percent.toFixed(1)}%</span>
+                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "10px 14px 12px", minHeight: 0, gap: 8, maxHeight: 260, overflowY: "auto" }}>
+                                            {data.map((d, i) => {
+                                                const pct = maxValue > 0 ? (d.value / maxValue) * 100 : 0;
+                                                return (
+                                                    <div key={i} title={`${d.name} · ${fmt(d.value)} · ${d.percent.toFixed(1)}%`}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 11 }}>
+                                                            <span style={{ color: C.text1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: d.semProduto ? "italic" : "normal", minWidth: 0 }}>{d.name}</span>
+                                                            <span style={{ color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{d.percent.toFixed(1)}%</span>
+                                                        </div>
+                                                        <div style={{ marginTop: 3, height: 6, background: "#F1F5F9", borderRadius: 3, overflow: "hidden" }}>
+                                                            <div style={{ width: `${pct}%`, height: "100%", background: d.color, borderRadius: 3 }} />
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                );
+                                            })}
                                         </div>
                                     );
                                 })()}
@@ -1315,52 +1325,7 @@ export default function CompanyDashboard() {
                         const palette = ["#059669", "#1E3A8A", "#0F172A", "#10B981", "#6B7280", "#EA580C"];
                         const totalGeral = gastosCategorias.reduce((s: number, r: any) => s + r.total, 0);
                         return (
-                            <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 32, alignItems: "center" }}>
-                                <div style={{ position: "relative", width: "100%", height: 320 }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                                            <Pie
-                                                data={gastosCategorias}
-                                                dataKey="total"
-                                                nameKey="name"
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={65}
-                                                outerRadius={120}
-                                                paddingAngle={2}
-                                                stroke="#FFFFFF"
-                                                strokeWidth={2}
-                                                label={(props: any) => {
-                                                    const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
-                                                    if (percent < 0.06) return null;
-                                                    const r = innerRadius + (outerRadius - innerRadius) * 0.55;
-                                                    const x = cx + r * Math.cos(-midAngle * Math.PI / 180);
-                                                    const y = cy + r * Math.sin(-midAngle * Math.PI / 180);
-                                                    return (
-                                                        <text x={x} y={y} fill="#FFFFFF" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700}>
-                                                            {(percent * 100).toFixed(0)}%
-                                                        </text>
-                                                    );
-                                                }}
-                                                labelLine={false}
-                                            >
-                                                {gastosCategorias.map((_: any, idx: number) => (
-                                                    <Cell key={idx} fill={palette[idx % palette.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#fff" }} labelStyle={{ color: "#fff", fontWeight: 600 }} formatter={(v: number) => [fmtFull(v), "Gasto"]} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    {/* Texto central do donut */}
-                                    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                                        <div style={{ fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.8 }}>Total gasto</div>
-                                        <div style={{ fontSize: 18, fontWeight: 800, color: "#7F1D1D", letterSpacing: "-0.02em", marginTop: 2 }}>
-                                            {fmt(totalGeral)}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{gastosCategorias.length} categorias</div>
-                                    </div>
-                                </div>
-
+                            <div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                                     {gastosCategorias.map((c: any, idx: number) => {
                                         const pct = totalGeral > 0 ? (c.total / totalGeral) * 100 : 0;
