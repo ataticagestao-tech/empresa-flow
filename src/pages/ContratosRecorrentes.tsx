@@ -6,6 +6,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays, addMonths, addDays } from 'date-fns'
 import {
   Plus, Search, Pencil, Trash2, CalendarDays, RefreshCw,
@@ -121,6 +122,7 @@ function calcularPrimeiroVencimento(dataInicio: string, diaVencimento: number): 
 export default function ContratosRecorrentes() {
   const { selectedCompany } = useCompany()
   const { activeClient } = useAuth()
+  const confirm = useConfirm()
 
   // -- Data --
   const [contratos, setContratos] = useState<Contrato[]>([])
@@ -303,7 +305,13 @@ export default function ContratosRecorrentes() {
   }
 
   async function encerrarContrato(contrato: Contrato) {
-    if (!confirm(`Encerrar contrato de ${contrato.cliente_nome}?`)) return
+    const ok = await confirm({
+      title: `Encerrar contrato de ${contrato.cliente_nome}?`,
+      description: "O contrato será marcado como encerrado e não gerará novas cobranças.",
+      confirmLabel: "Sim, encerrar",
+      variant: "default",
+    })
+    if (!ok) return
     const { error } = await activeClient
       .from('contratos_recorrentes')
       .update({ status: 'encerrado' })
@@ -315,7 +323,13 @@ export default function ContratosRecorrentes() {
   }
 
   async function excluirContrato(contrato: Contrato) {
-    if (!confirm(`Excluir contrato de ${contrato.cliente_nome}? Esta acao nao pode ser desfeita.`)) return
+    const ok = await confirm({
+      title: `Excluir contrato de ${contrato.cliente_nome}?`,
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    })
+    if (!ok) return
     const { error } = await activeClient
       .from('contratos_recorrentes')
       .delete()

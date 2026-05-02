@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import { BANKS } from "@/lib/banks";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface BankAccount {
   id: string; company_id: string; name: string; banco: string;
@@ -66,6 +67,7 @@ export default function ContasBancarias() {
   const { activeClient } = useAuth();
   const { selectedCompany } = useCompany();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -174,7 +176,13 @@ export default function ContasBancarias() {
   };
 
   const handleDelete = async (acc: BankAccount) => {
-    if (!confirm(`Excluir conta "${acc.name}"?\n\nSe houver movimentações vinculadas, a conta será marcada como inativa (soft delete).`)) return;
+    const ok = await confirm({
+      title: `Excluir conta "${acc.name}"?`,
+      description: "Se houver movimentações vinculadas, a conta será marcada como inativa (soft delete).",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       // 1. Tentar DELETE físico (só funciona se não houver FKs)
       const { error: delError } = await (activeClient as any)
@@ -297,7 +305,12 @@ export default function ContasBancarias() {
   };
 
   const handleDeleteTaxa = async (taxaId: string) => {
-    if (!confirm("Excluir esta configuracao de taxa?")) return;
+    const ok = await confirm({
+      title: "Excluir esta configuração de taxa?",
+      confirmLabel: "Sim, excluir",
+      variant: "destructive",
+    });
+    if (!ok) return;
     try {
       const { error } = await (activeClient as any)
         .from("configuracao_taxas_pagamento").delete().eq("id", taxaId);

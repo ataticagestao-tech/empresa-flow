@@ -6,7 +6,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 
 import { ClientFormValues } from "../../domain/schemas/client.schema";
-import { maskPhone } from "@/utils/masks";
+import { maskPhone, autoCorrectUrl } from "@/utils/masks";
 
 interface TabContactProps {
     form: UseFormReturn<ClientFormValues>;
@@ -100,7 +100,12 @@ export function TabContact({ form }: TabContactProps) {
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Website</FormLabel>
                             <FormControl>
-                                <Input className="h-9 border-[#EAECF0]" placeholder="www.seusite.com.br" {...field} />
+                                <Input
+                                    className="h-9 border-[#EAECF0]"
+                                    placeholder="www.seusite.com.br"
+                                    {...field}
+                                    onBlur={(e) => { field.onBlur(); field.onChange(autoCorrectUrl(e.target.value)); }}
+                                />
                             </FormControl>
                         </FormItem>
                     )}

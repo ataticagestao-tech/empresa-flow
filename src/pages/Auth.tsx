@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { z } from "zod";
 const logoTatica = "/favicon.svg";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Check } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Email invalido").max(255),
@@ -57,6 +57,26 @@ function PasswordInput({ id, value, onChange, onBlur, placeholder, autoComplete,
 function FieldError({ error }: { error?: string }) {
   if (!error) return null;
   return <p className="text-[12px] text-destructive mt-1">{error}</p>;
+}
+
+function PasswordChecklist({ value }: { value: string }) {
+  if (!value) return null;
+  const rules = [
+    { label: "Mínimo 6 caracteres", ok: value.length >= 6 },
+    { label: "Letra maiúscula", ok: /[A-Z]/.test(value) },
+    { label: "Número", ok: /\d/.test(value) },
+    { label: "Caractere especial", ok: /[^A-Za-z0-9]/.test(value) },
+  ];
+  return (
+    <ul className="mt-1.5 space-y-0.5">
+      {rules.map((r) => (
+        <li key={r.label} className="flex items-center gap-1.5 text-[11px]">
+          <Check className={`h-3 w-3 ${r.ok ? "text-emerald-600" : "text-muted-foreground/40"}`} strokeWidth={3} />
+          <span className={r.ok ? "text-emerald-700" : "text-muted-foreground"}>{r.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export default function Auth() {
@@ -176,6 +196,7 @@ export default function Auth() {
               <div className="space-y-2">
                 <Label htmlFor="rp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Nova senha</Label>
                 <PasswordInput id="rp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} onBlur={() => validateField("password", resetPassword)} className={ic} error={errors.password} />
+                <PasswordChecklist value={resetPassword} />
               </div>
               <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]" disabled={isLoading}>{isLoading ? "Atualizando..." : "Atualizar senha"}</Button>
             </form>
@@ -214,6 +235,7 @@ export default function Auth() {
                   <div className="space-y-2">
                     <Label htmlFor="sp" className="text-muted-foreground text-[12px] font-medium uppercase tracking-wide">Senha</Label>
                     <PasswordInput id="sp" autoComplete="new-password" placeholder="Min. 6 caracteres" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} onBlur={() => validateField("password", signupPassword)} className={ic} error={errors.password} />
+                    <PasswordChecklist value={signupPassword} />
                   </div>
                   <Button type="submit" className="w-full h-11 rounded-lg font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98] mt-2" disabled={isLoading}>{isLoading ? "Criando conta..." : "Criar conta"}</Button>
                 </form>
