@@ -1133,7 +1133,15 @@ export default function ContasReceber() {
                         </td>
                         {/* Pagador */}
                         <td className="px-3 py-1.5 align-middle whitespace-nowrap">
-                          <div className="font-semibold text-[12px] text-[#1D2939] truncate" style={{ maxWidth: 200 }} title={cr.pagador_nome}>{cr.pagador_nome}</div>
+                          <button
+                            type="button"
+                            onClick={() => setEditarModal(cr)}
+                            title={`Abrir titulo de ${cr.pagador_nome}`}
+                            className="font-semibold text-[12px] text-[#1D2939] truncate text-left hover:text-[#059669] hover:underline transition-colors cursor-pointer focus:outline-none focus:text-[#059669]"
+                            style={{ maxWidth: 200, display: 'block' }}
+                          >
+                            {cr.pagador_nome}
+                          </button>
                           {cr.pagador_cpf_cnpj && (
                             <div className="text-[10px] text-[#999] leading-tight">{cr.pagador_cpf_cnpj}</div>
                           )}
