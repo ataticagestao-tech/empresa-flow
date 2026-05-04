@@ -223,10 +223,16 @@ export default function ContasReceber() {
   const enrichedItems = useMemo(() => items.map(cr => ({ ...cr, _status: computeStatus(cr) })), [items])
 
   // Date-range filter aplicado a TUDO da pagina (KPIs, agenda, tabela).
+  // CRs pagos filtram pela data_pagamento (quando o dinheiro entrou) — assim
+  // ao filtrar "hoje" voce ve tudo que recebeu hoje + tudo que vence hoje.
+  // CRs em aberto/vencidos continuam filtrando por data_vencimento.
+  const refDateFor = (cr: any): string =>
+    cr._status === 'pago' && cr.data_pagamento ? cr.data_pagamento : cr.data_vencimento
+
   const dateFilteredItems = useMemo(() => {
     let list = enrichedItems
-    if (dateFrom) list = list.filter(cr => cr.data_vencimento >= dateFrom)
-    if (dateTo) list = list.filter(cr => cr.data_vencimento <= dateTo)
+    if (dateFrom) list = list.filter(cr => refDateFor(cr) >= dateFrom)
+    if (dateTo) list = list.filter(cr => refDateFor(cr) <= dateTo)
     return list
   }, [enrichedItems, dateFrom, dateTo])
 
@@ -244,6 +250,8 @@ export default function ContasReceber() {
           categoria,
           cr.data_vencimento,
           formatData(cr.data_vencimento),
+          cr.data_pagamento || '',
+          cr.data_pagamento ? formatData(cr.data_pagamento) : '',
           formatBRL(cr.valor),
           formatBRL(cr.valor_pago || 0),
           formatBRL(saldo),
@@ -1180,15 +1188,28 @@ export default function ContasReceber() {
                             {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
                           </div>
                         </td>
-                        {/* Vencimento */}
+                        {/* Vencimento (ou Pago em, se ja pago) */}
                         <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px]">
-                          <span className={isVencido ? 'text-[#E53E3E] font-semibold' : 'text-[#1D2939]'}>
-                            {formatData(cr.data_vencimento)}
-                          </span>
-                          {isVencido && diasAtraso > 0 && (
-                            <div className="text-[10px] text-[#E53E3E] leading-tight">
-                              {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
-                            </div>
+                          {cr._status === 'pago' && cr.data_pagamento ? (
+                            <>
+                              <span className="text-[#039855] font-semibold">
+                                {formatData(cr.data_pagamento)}
+                              </span>
+                              <div className="text-[10px] text-[#999] leading-tight">
+                                venc. {formatData(cr.data_vencimento)}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <span className={isVencido ? 'text-[#E53E3E] font-semibold' : 'text-[#1D2939]'}>
+                                {formatData(cr.data_vencimento)}
+                              </span>
+                              {isVencido && diasAtraso > 0 && (
+                                <div className="text-[10px] text-[#E53E3E] leading-tight">
+                                  {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
+                                </div>
+                              )}
+                            </>
                           )}
                         </td>
                         {/* Valor */}
