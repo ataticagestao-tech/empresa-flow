@@ -190,18 +190,22 @@ export default function CompanyDashboard() {
         [payablesRaw, transferAccountIds]
     );
 
-    // ─── Receita do período (fonte: tabela vendas) ─────────
+    // ─── Receita do período (regime de caixa: CRs pagos no período) ─
+    // Conta o que efetivamente entrou no caixa (data_pagamento dentro do
+    // intervalo), nao o que foi vendido no periodo. Exclui transferencias
+    // entre contas (categoria de transferencia nao e receita).
     const { data: receitaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd],
+        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, transferAccountIds],
         queryFn: async () => {
-            const { data } = await db.from("vendas")
-                .select("valor_total")
-                .eq("company_id", cId)
-                .in("status", ["confirmado"])
-                .gte("data_venda", periodStart)
-                .lte("data_venda", periodEnd)
-                .limit(5000);
-            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_total || 0), 0);
+            const { data } = await db.from("contas_receber")
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId).eq("status", "pago")
+                .is("deleted_at", null)
+                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
+                .limit(10000);
+            return (data || [])
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
     });
@@ -264,16 +268,17 @@ export default function CompanyDashboard() {
     const prevMonthLabel = format(subMonths(today, 1), "MMMM", { locale: ptBR });
 
     const { data: receitaPeriodoAnterior = 0 } = useQuery({
-        queryKey: ["dash_receita_prev", cId, prevMonthStart],
+        queryKey: ["dash_receita_prev", cId, prevMonthStart, transferAccountIds],
         queryFn: async () => {
-            const { data } = await db.from("vendas")
-                .select("valor_total")
-                .eq("company_id", cId)
-                .in("status", ["confirmado"])
-                .gte("data_venda", prevMonthStart)
-                .lte("data_venda", prevMonthEnd)
-                .limit(5000);
-            return (data || []).reduce((s: number, r: any) => s + Number(r.valor_total || 0), 0);
+            const { data } = await db.from("contas_receber")
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId).eq("status", "pago")
+                .is("deleted_at", null)
+                .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEnd)
+                .limit(10000);
+            return (data || [])
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
     });
@@ -380,7 +385,7 @@ export default function CompanyDashboard() {
     const chartGranularity: "day" | "week" | "month" = periodDays <= 45 ? "day" : periodDays <= 180 ? "week" : "month";
 
     const { data: chartRevExp } = useQuery({
-        queryKey: ["dash_rev_exp", cId, periodStart, periodEnd, chartGranularity],
+        queryKey: ["dash_rev_exp", cId, periodStart, periodEnd, chartGranularity, transferAccountIds],
         queryFn: async () => {
             const buckets: { start: Date; end: Date; label: string }[] = [];
             const ps = new Date(periodStart + "T00:00:00");
@@ -421,12 +426,12 @@ export default function CompanyDashboard() {
                 const me = format(b.end, "yyyy-MM-dd");
 
                 const [{ data: rec }, { data: desp }] = await Promise.all([
-                    db.from("vendas")
-                        .select("valor_total")
-                        .eq("company_id", cId)
-                        .in("status", ["confirmado"])
-                        .gte("data_venda", ms).lte("data_venda", me)
-                        .limit(5000),
+                    db.from("contas_receber")
+                        .select("valor_pago, conta_contabil_id")
+                        .eq("company_id", cId).eq("status", "pago")
+                        .is("deleted_at", null)
+                        .gte("data_pagamento", ms).lte("data_pagamento", me)
+                        .limit(10000),
                     db.from("contas_pagar")
                         .select("valor_pago, conta_contabil_id")
                         .eq("company_id", cId).eq("status", "pago")
@@ -436,7 +441,8 @@ export default function CompanyDashboard() {
                 ]);
 
                 const receita = (rec || [])
-                    .reduce((s: number, r: any) => s + Number(r.valor_total || 0), 0);
+                    .filter((r: any) => !isTransfer(r))
+                    .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
                 const despesa = (desp || [])
                     .filter((r: any) => !isTransfer(r))
                     .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
