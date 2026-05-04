@@ -17,7 +17,7 @@ import {
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download,
+  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -473,6 +473,34 @@ export default function ContasReceber() {
     if (r < 0.5) return '#86EFAC'
     if (r < 0.75) return '#22C55E'
     return '#15803D'
+  }
+
+  // ─── Excluir titulo (soft-delete + cascata) ──────────────────────
+  const excluirCR = async (cr: CR) => {
+    const ok = await confirm({
+      title: `Excluir este titulo de ${formatBRL(cr.valor)}?`,
+      description: 'Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.',
+      confirmLabel: 'Sim, excluir',
+      variant: 'destructive',
+    })
+    if (!ok) return
+    try {
+      await softDeleteWithUndo({
+        client: db,
+        table: 'contas_receber',
+        id: cr.id,
+        successLabel: 'Titulo excluido',
+        onChange: fetchItems,
+        cleanup: async () => {
+          await db.from('movimentacoes').delete().eq('conta_receber_id', cr.id)
+          await db.from('bank_reconciliation_matches').update({ receivable_id: null }).eq('receivable_id', cr.id)
+          await db.from('bank_transactions').update({ reconciled_receivable_id: null }).eq('reconciled_receivable_id', cr.id)
+        },
+      })
+    } catch (err: any) {
+      console.error('[excluirCR]', err)
+      toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))
+    }
   }
 
   // ─── PDF: Relatório Mensal de Contas a Receber Previstas ─────────
@@ -1195,6 +1223,14 @@ export default function ContasReceber() {
                                 Quitar
                               </button>
                             )}
+                            {/* Excluir direto */}
+                            <button
+                              onClick={() => excluirCR(cr)}
+                              title="Excluir titulo"
+                              className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                             {/* Dropdown */}
                             <div className="relative">
                               <button
@@ -1244,33 +1280,7 @@ export default function ContasReceber() {
                                     Enviar cobranca manual
                                   </button>
                                   <button
-                                    onClick={async () => {
-                                      setDropdownOpen(null)
-                                      const ok = await confirm({
-                                        title: `Excluir este titulo de ${formatBRL(cr.valor)}?`,
-                                        description: 'Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.',
-                                        confirmLabel: 'Sim, excluir',
-                                        variant: 'destructive',
-                                      })
-                                      if (!ok) return
-                                      try {
-                                        await softDeleteWithUndo({
-                                          client: db,
-                                          table: 'contas_receber',
-                                          id: cr.id,
-                                          successLabel: 'Titulo excluido',
-                                          onChange: fetchItems,
-                                          cleanup: async () => {
-                                            await db.from('movimentacoes').delete().eq('conta_receber_id', cr.id)
-                                            await db.from('bank_reconciliation_matches').update({ receivable_id: null }).eq('receivable_id', cr.id)
-                                            await db.from('bank_transactions').update({ reconciled_receivable_id: null }).eq('reconciled_receivable_id', cr.id)
-                                          },
-                                        })
-                                      } catch (err: any) {
-                                        console.error('[excluirCR]', err)
-                                        toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))
-                                      }
-                                    }}
+                                    onClick={() => { setDropdownOpen(null); excluirCR(cr) }}
                                     className="w-full px-4 py-2.5 text-left text-[13px] text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors last:rounded-b-lg"
                                   >
                                     Excluir titulo
