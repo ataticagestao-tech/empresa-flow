@@ -573,38 +573,74 @@ export default function CompanyDashboard() {
         enabled: !!cId && saldoCaixa !== undefined,
     });
 
-    // ─── Faturamento diário (heatmap do período selecionado) ───────────
+    // ─── Faturamento diário (heatmap + produtos), regime de caixa ──────
+    // Pega CRs pagos no periodo, descobre a venda de cada um e distribui
+    // o valor_pago entre os vendas_itens (proporcional ao share de cada item
+    // no valor_total da venda). Para vendas tipo=contrato sem itens, usa
+    // o campo `procedimento` como nome do produto.
     const { data: monthlySales } = useQuery({
-        queryKey: ["dash_monthly_sales", cId, periodStart, periodEnd],
+        queryKey: ["dash_monthly_sales", cId, periodStart, periodEnd, transferAccountIds],
         queryFn: async () => {
-            const { data } = await db.from("vendas")
-                .select("id, valor_total, data_venda, vendas_itens(descricao, quantidade, valor_total)")
-                .eq("company_id", cId)
-                .in("status", ["confirmado"])
-                .gte("data_venda", periodStart).lte("data_venda", periodEnd)
+            // 1. CRs pagos no periodo (excluindo transferencias)
+            const { data: crs } = await db.from("contas_receber")
+                .select("id, valor_pago, data_pagamento, venda_id, conta_contabil_id, observacoes")
+                .eq("company_id", cId).eq("status", "pago")
+                .is("deleted_at", null)
+                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
                 .limit(10000);
+            const crsValid = (crs || []).filter((r: any) => !isTransfer(r));
+
+            // 2. Vendas vinculadas (com itens + procedimento pra contratos)
+            const vendaIds = Array.from(new Set(crsValid.map((r: any) => r.venda_id).filter(Boolean)));
+            const vendasMap: Record<string, any> = {};
+            if (vendaIds.length > 0) {
+                const { data: vendas } = await db.from("vendas")
+                    .select("id, valor_total, procedimento, tipo, vendas_itens(descricao, quantidade, valor_total)")
+                    .in("id", vendaIds);
+                (vendas || []).forEach((v: any) => { vendasMap[v.id] = v; });
+            }
 
             const byDay: Record<string, number> = {};
             let totalVendas = 0;
             let totalProdutos = 0;
             let totalFaturamento = 0;
             const productMap: Record<string, { descricao: string; quantidade: number; faturamento: number; vendas: Set<string> }> = {};
+            const vendasUnicas = new Set<string>();
 
-            (data || []).forEach((r: any) => {
-                const d = r.data_venda;
-                byDay[d] = (byDay[d] || 0) + Number(r.valor_total || 0);
-                totalVendas += 1;
-                totalFaturamento += Number(r.valor_total || 0);
-                const itens = Array.isArray(r.vendas_itens) ? r.vendas_itens : [];
-                itens.forEach((it: any) => {
-                    const desc = (it.descricao || "Sem descrição").trim();
-                    totalProdutos += Number(it.quantidade || 0);
+            crsValid.forEach((cr: any) => {
+                const valor = Number(cr.valor_pago || 0);
+                if (valor <= 0 || !cr.data_pagamento) return;
+                byDay[cr.data_pagamento] = (byDay[cr.data_pagamento] || 0) + valor;
+                totalFaturamento += valor;
+
+                const venda = cr.venda_id ? vendasMap[cr.venda_id] : null;
+                if (venda) vendasUnicas.add(venda.id);
+
+                const itens = venda && Array.isArray(venda.vendas_itens) ? venda.vendas_itens : [];
+                const totalItensVenda = itens.reduce((s: number, it: any) => s + Number(it.valor_total || 0), 0);
+
+                if (itens.length > 0 && totalItensVenda > 0) {
+                    // Distribui o valor_pago entre os itens proporcional ao share de cada item
+                    itens.forEach((it: any) => {
+                        const desc = (it.descricao || "Sem descrição").trim();
+                        const share = Number(it.valor_total || 0) / totalItensVenda;
+                        const fatLine = valor * share;
+                        const qtdLine = Number(it.quantidade || 0) * share;
+                        if (!productMap[desc]) productMap[desc] = { descricao: desc, quantidade: 0, faturamento: 0, vendas: new Set() };
+                        productMap[desc].faturamento += fatLine;
+                        productMap[desc].quantidade += qtdLine;
+                        productMap[desc].vendas.add(venda.id);
+                        totalProdutos += qtdLine;
+                    });
+                } else if (venda && venda.procedimento) {
+                    // Venda tipo=contrato sem itens — usa procedimento como produto
+                    const desc = String(venda.procedimento).trim();
                     if (!productMap[desc]) productMap[desc] = { descricao: desc, quantidade: 0, faturamento: 0, vendas: new Set() };
-                    productMap[desc].quantidade += Number(it.quantidade || 0);
-                    productMap[desc].faturamento += Number(it.valor_total || 0);
-                    productMap[desc].vendas.add(r.id);
-                });
+                    productMap[desc].faturamento += valor;
+                    productMap[desc].vendas.add(venda.id);
+                }
             });
+            totalVendas = vendasUnicas.size;
 
             const totalItensFaturamento = Object.values(productMap).reduce((s, p) => s + p.faturamento, 0);
             const denominator = totalFaturamento > 0 ? totalFaturamento : totalItensFaturamento;
