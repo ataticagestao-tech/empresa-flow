@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import jsPDF from 'jspdf'
 import JsBarcode from 'jsbarcode'
 import { linhaDigitavelToBarcode } from '@/utils/boleto-barcode'
 import { format, addDays, addMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
@@ -955,6 +956,236 @@ export default function ContasPagar() {
     return 'Outros'
   }
 
+  // ─── PDF: Relatório Mensal de Contas Previstas ───────────────────
+  const exportarPrevistasPDF = () => {
+    const previstas = filteredContas.filter(
+      (cp) => cp.status !== 'pago' && cp.status !== 'cancelado'
+    )
+    if (previstas.length === 0) {
+      toast.error('Nenhuma conta prevista no período selecionado')
+      return
+    }
+
+    const empresa = (selectedCompany as any)?.nome_fantasia || (selectedCompany as any)?.razao_social || ''
+    const periodo =
+      dateFrom && dateTo
+        ? `${format(parseISO(dateFrom), 'dd/MM/yyyy')} a ${format(parseISO(dateTo), 'dd/MM/yyyy')}`
+        : 'Todas as datas'
+
+    const W = 210
+    const H = 297
+    const MARGIN = 15
+    const HEADER_H = 28
+    const FOOTER_H = 14
+    const contentW = W - MARGIN * 2
+    const BRAND = [26, 46, 74] as const
+    const RED = [180, 30, 30] as const
+    const ORANGE = [234, 88, 12] as const
+    const MUTED = [110, 110, 110] as const
+
+    const fmt = (v: number) =>
+      v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+
+    // Agrupa por urgência
+    const grupos: { key: UrgencyGroup; label: string; cor: readonly [number, number, number]; items: ContaPagar[] }[] = [
+      { key: 'vencidos', label: 'VENCIDOS', cor: RED, items: [] },
+      { key: 'hoje', label: 'VENCE HOJE', cor: RED, items: [] },
+      { key: 'proximos7', label: 'PRÓXIMOS 7 DIAS', cor: ORANGE, items: [] },
+      { key: 'proximos30', label: 'PRÓXIMOS 30 DIAS', cor: BRAND, items: [] },
+    ]
+    for (const cp of previstas) {
+      const g = classifyUrgency(cp)
+      const bucket = grupos.find((x) => x.key === g)
+      if (bucket) bucket.items.push(cp)
+    }
+    grupos.forEach((g) =>
+      g.items.sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento))
+    )
+
+    const totalGeral = previstas.reduce((s, cp) => s + saldo(cp), 0)
+    const totalVencidos = grupos[0].items.reduce((s, cp) => s + saldo(cp), 0)
+    const totalHoje = grupos[1].items.reduce((s, cp) => s + saldo(cp), 0)
+    const total7 = grupos[2].items.reduce((s, cp) => s + saldo(cp), 0)
+
+    // Layout colunas (mm)
+    const cols = {
+      venc: { x: MARGIN + 2, w: 18, label: 'Vencimento' },
+      credor: { x: MARGIN + 22, w: 60, label: 'Credor' },
+      plano: { x: MARGIN + 84, w: 50, label: 'Plano de Contas' },
+      centro: { x: MARGIN + 136, w: 22, label: 'Centro' },
+      valor: { x: W - MARGIN - 2, w: 22, label: 'Valor (R$)' },
+    }
+
+    const drawHeader = () => {
+      doc.setFillColor(BRAND[0], BRAND[1], BRAND[2])
+      doc.rect(0, 0, W, 4, 'F')
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+      doc.text(empresa.toUpperCase(), MARGIN, 11)
+      doc.text(`Emitido em ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, W - MARGIN, 11, { align: 'right' })
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(BRAND[0], BRAND[1], BRAND[2])
+      doc.text('Relatório de Contas a Pagar Previstas', MARGIN, 19)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(80, 80, 80)
+      doc.text(`Período: ${periodo}  ·  ${previstas.length} título(s)`, MARGIN, 24.5)
+
+      doc.setDrawColor(220, 220, 220)
+      doc.setLineWidth(0.3)
+      doc.line(MARGIN, HEADER_H, W - MARGIN, HEADER_H)
+    }
+
+    const drawTableHead = (y: number) => {
+      doc.setFillColor(242, 245, 249)
+      doc.rect(MARGIN, y, contentW, 8, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8.5)
+      doc.setTextColor(40, 40, 40)
+      doc.text(cols.venc.label, cols.venc.x, y + 5.3)
+      doc.text(cols.credor.label, cols.credor.x, y + 5.3)
+      doc.text(cols.plano.label, cols.plano.x, y + 5.3)
+      doc.text(cols.centro.label, cols.centro.x, y + 5.3)
+      doc.text(cols.valor.label, cols.valor.x, y + 5.3, { align: 'right' })
+      return y + 9
+    }
+
+    const drawFooter = () => {
+      const total = doc.getNumberOfPages()
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p)
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(MARGIN, H - FOOTER_H + 2, W - MARGIN, H - FOOTER_H + 2)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+        doc.text('Tatica Gestão — Relatório gerado automaticamente', MARGIN, H - 6)
+        doc.text(`Página ${p} de ${total}`, W - MARGIN, H - 6, { align: 'right' })
+      }
+    }
+
+    const drawPageChrome = () => {
+      drawHeader()
+      return drawTableHead(HEADER_H + 6)
+    }
+
+    const ensureSpace = (y: number, needed: number): number => {
+      if (y + needed > H - FOOTER_H) {
+        doc.addPage()
+        return drawPageChrome()
+      }
+      return y
+    }
+
+    // Página 1: header + KPIs + tabela
+    drawHeader()
+    let y = HEADER_H + 6
+
+    // KPIs
+    const kpiW = (contentW - 9) / 4
+    const kpis = [
+      { label: 'TOTAL PREVISTO', val: fmt(totalGeral), color: BRAND },
+      { label: 'VENCIDOS', val: fmt(totalVencidos), color: RED },
+      { label: 'VENCE HOJE', val: fmt(totalHoje), color: RED },
+      { label: 'PRÓX. 7 DIAS', val: fmt(total7), color: ORANGE },
+    ]
+    kpis.forEach((k, i) => {
+      const kx = MARGIN + i * (kpiW + 3)
+      doc.setDrawColor(230, 230, 230)
+      doc.setFillColor(250, 251, 253)
+      doc.roundedRect(kx, y, kpiW, 16, 1.5, 1.5, 'FD')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+      doc.text(k.label, kx + 3, y + 5.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(k.color[0], k.color[1], k.color[2])
+      doc.text(k.val, kx + 3, y + 12.5)
+    })
+    y += 22
+
+    y = drawTableHead(y)
+
+    // Truncate helper baseado em largura (mm) com chars aproximados
+    const truncate = (s: string, max: number) =>
+      !s ? '—' : s.length > max ? s.slice(0, max - 1) + '…' : s
+
+    // Renderiza cada grupo
+    for (const g of grupos) {
+      if (g.items.length === 0) continue
+      const subtotal = g.items.reduce((s, cp) => s + saldo(cp), 0)
+
+      y = ensureSpace(y, 10)
+      doc.setFillColor(g.cor[0], g.cor[1], g.cor[2])
+      doc.rect(MARGIN, y, contentW, 6.5, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(255, 255, 255)
+      doc.text(`${g.label}  (${g.items.length})`, MARGIN + 3, y + 4.5)
+      doc.text(fmt(subtotal), W - MARGIN - 2, y + 4.5, { align: 'right' })
+      y += 8
+
+      let zebra = false
+      for (const cp of g.items) {
+        y = ensureSpace(y, 6)
+        if (zebra) {
+          doc.setFillColor(252, 252, 253)
+          doc.rect(MARGIN, y, contentW, 5.4, 'F')
+        }
+        zebra = !zebra
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(60, 60, 60)
+        doc.text(format(parseISO(cp.data_vencimento), 'dd/MM/yyyy'), cols.venc.x, y + 3.8)
+        doc.text(truncate(cp.credor_nome || '—', 32), cols.credor.x, y + 3.8)
+
+        const plano = cp.conta_contabil_id ? contaContabilMap[cp.conta_contabil_id] || '—' : '—'
+        doc.text(truncate(plano, 28), cols.plano.x, y + 3.8)
+
+        const centro = cp.centro_custo_id ? centroCustoMap[cp.centro_custo_id] || '—' : '—'
+        doc.text(truncate(centro, 12), cols.centro.x, y + 3.8)
+
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(g.cor[0], g.cor[1], g.cor[2])
+        doc.text(fmt(saldo(cp)), cols.valor.x, y + 3.8, { align: 'right' })
+        y += 5.4
+      }
+      y += 2
+    }
+
+    // Total geral
+    y = ensureSpace(y, 18)
+    y += 2
+    doc.setDrawColor(BRAND[0], BRAND[1], BRAND[2])
+    doc.setLineWidth(0.5)
+    doc.line(MARGIN, y, W - MARGIN, y)
+    y += 7
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(BRAND[0], BRAND[1], BRAND[2])
+    doc.text('Total Previsto', MARGIN, y)
+    doc.text(fmt(totalGeral), W - MARGIN, y, { align: 'right' })
+
+    drawFooter()
+
+    const fileName =
+      dateFrom && dateTo
+        ? `Contas_Previstas_${dateFrom}_${dateTo}.pdf`
+        : `Contas_Previstas_${format(new Date(), 'yyyy-MM-dd')}.pdf`
+    doc.save(fileName)
+    toast.success('Relatório exportado em PDF')
+  }
+
   // ─── KPI Card ─────────────────────────────────────────────────────
   const KPICard = ({
     label,
@@ -1221,10 +1452,11 @@ export default function ContasPagar() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {/* export */}}
+                onClick={exportarPrevistasPDF}
+                title="Exportar contas previstas em PDF"
                 className="flex items-center gap-1.5 text-[11px] font-semibold text-white/90 hover:text-white border border-white/30 px-3 py-1 rounded-md hover:bg-white/10 transition"
               >
-                <Download size={12} /> Exportar
+                <Download size={12} /> Exportar PDF
               </button>
             </div>
           </div>
