@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import jsPDF from 'jspdf'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -16,7 +17,7 @@ import {
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil,
+  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -474,6 +475,254 @@ export default function ContasReceber() {
     return '#15803D'
   }
 
+  // ─── PDF: Relatório Mensal de Contas a Receber Previstas ─────────
+  const centroCustoMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    centrosCusto.forEach(c => { m[c.id] = `${c.codigo} - ${c.descricao}` })
+    return m
+  }, [centrosCusto])
+
+  const exportarPrevistasPDF = () => {
+    const previstas = filtered.filter(
+      cr => cr._status !== 'pago' && cr._status !== 'cancelado'
+    )
+    if (previstas.length === 0) {
+      toast.error('Nenhuma conta prevista no período selecionado')
+      return
+    }
+
+    const empresa = (selectedCompany as any)?.nome_fantasia || (selectedCompany as any)?.razao_social || ''
+    const periodo =
+      dateFrom && dateTo
+        ? `${format(parseISO(dateFrom), 'dd/MM/yyyy')} a ${format(parseISO(dateTo), 'dd/MM/yyyy')}`
+        : 'Todas as datas'
+
+    const W = 210
+    const H = 297
+    const MARGIN = 15
+    const HEADER_H = 28
+    const FOOTER_H = 14
+    const contentW = W - MARGIN * 2
+    const BRAND = [26, 46, 74] as const
+    const GREEN = [10, 92, 46] as const
+    const RED = [180, 30, 30] as const
+    const ORANGE = [234, 88, 12] as const
+    const MUTED = [110, 110, 110] as const
+
+    const fmt = (v: number) =>
+      v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    const saldoCR = (cr: typeof previstas[number]) =>
+      Number(cr.valor || 0) - Number(cr.valor_pago || 0)
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+
+    // Classifica por urgência (mesma lógica de Contas a Pagar, adaptada para CR).
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayIso = format(today, 'yyyy-MM-dd')
+    const seteIso = format(addDays(today, 7), 'yyyy-MM-dd')
+
+    type Bucket = 'vencidos' | 'hoje' | 'proximos7' | 'proximos30'
+    const classify = (cr: typeof previstas[number]): Bucket => {
+      const v = cr.data_vencimento
+      if (v < todayIso) return 'vencidos'
+      if (v === todayIso) return 'hoje'
+      if (v <= seteIso) return 'proximos7'
+      return 'proximos30'
+    }
+
+    const grupos: { key: Bucket; label: string; cor: readonly [number, number, number]; items: typeof previstas }[] = [
+      { key: 'vencidos', label: 'VENCIDOS', cor: RED, items: [] as any },
+      { key: 'hoje', label: 'VENCE HOJE', cor: RED, items: [] as any },
+      { key: 'proximos7', label: 'PRÓXIMOS 7 DIAS', cor: ORANGE, items: [] as any },
+      { key: 'proximos30', label: 'A RECEBER (DEMAIS)', cor: GREEN, items: [] as any },
+    ]
+    for (const cr of previstas) {
+      const g = classify(cr)
+      const bucket = grupos.find(x => x.key === g)
+      if (bucket) (bucket.items as any).push(cr)
+    }
+    grupos.forEach(g =>
+      g.items.sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento))
+    )
+
+    const totalGeral = previstas.reduce((s, cr) => s + saldoCR(cr), 0)
+    const totalVencidos = grupos[0].items.reduce((s, cr) => s + saldoCR(cr), 0)
+    const totalHoje = grupos[1].items.reduce((s, cr) => s + saldoCR(cr), 0)
+    const total7 = grupos[2].items.reduce((s, cr) => s + saldoCR(cr), 0)
+
+    const cols = {
+      venc: { x: MARGIN + 2, label: 'Vencimento' },
+      pagador: { x: MARGIN + 22, label: 'Pagador' },
+      plano: { x: MARGIN + 84, label: 'Plano de Contas' },
+      centro: { x: MARGIN + 136, label: 'Centro' },
+      valor: { x: W - MARGIN - 2, label: 'Valor (R$)' },
+    }
+
+    const drawHeader = () => {
+      doc.setFillColor(BRAND[0], BRAND[1], BRAND[2])
+      doc.rect(0, 0, W, 4, 'F')
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+      doc.text(empresa.toUpperCase(), MARGIN, 11)
+      doc.text(`Emitido em ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, W - MARGIN, 11, { align: 'right' })
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(BRAND[0], BRAND[1], BRAND[2])
+      doc.text('Relatório de Contas a Receber Previstas', MARGIN, 19)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(80, 80, 80)
+      doc.text(`Período: ${periodo}  ·  ${previstas.length} título(s)`, MARGIN, 24.5)
+
+      doc.setDrawColor(220, 220, 220)
+      doc.setLineWidth(0.3)
+      doc.line(MARGIN, HEADER_H, W - MARGIN, HEADER_H)
+    }
+
+    const drawTableHead = (y: number) => {
+      doc.setFillColor(242, 245, 249)
+      doc.rect(MARGIN, y, contentW, 8, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8.5)
+      doc.setTextColor(40, 40, 40)
+      doc.text(cols.venc.label, cols.venc.x, y + 5.3)
+      doc.text(cols.pagador.label, cols.pagador.x, y + 5.3)
+      doc.text(cols.plano.label, cols.plano.x, y + 5.3)
+      doc.text(cols.centro.label, cols.centro.x, y + 5.3)
+      doc.text(cols.valor.label, cols.valor.x, y + 5.3, { align: 'right' })
+      return y + 9
+    }
+
+    const drawFooter = () => {
+      const total = doc.getNumberOfPages()
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p)
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(MARGIN, H - FOOTER_H + 2, W - MARGIN, H - FOOTER_H + 2)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+        doc.text('Tatica Gestão — Relatório gerado automaticamente', MARGIN, H - 6)
+        doc.text(`Página ${p} de ${total}`, W - MARGIN, H - 6, { align: 'right' })
+      }
+    }
+
+    const drawPageChrome = () => {
+      drawHeader()
+      return drawTableHead(HEADER_H + 6)
+    }
+
+    const ensureSpace = (y: number, needed: number): number => {
+      if (y + needed > H - FOOTER_H) {
+        doc.addPage()
+        return drawPageChrome()
+      }
+      return y
+    }
+
+    drawHeader()
+    let y = HEADER_H + 6
+
+    // KPIs
+    const kpiW = (contentW - 9) / 4
+    const kpiCards = [
+      { label: 'TOTAL A RECEBER', val: fmt(totalGeral), color: GREEN },
+      { label: 'VENCIDOS', val: fmt(totalVencidos), color: RED },
+      { label: 'VENCE HOJE', val: fmt(totalHoje), color: RED },
+      { label: 'PRÓX. 7 DIAS', val: fmt(total7), color: ORANGE },
+    ]
+    kpiCards.forEach((k, i) => {
+      const kx = MARGIN + i * (kpiW + 3)
+      doc.setDrawColor(230, 230, 230)
+      doc.setFillColor(250, 251, 253)
+      doc.roundedRect(kx, y, kpiW, 16, 1.5, 1.5, 'FD')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+      doc.text(k.label, kx + 3, y + 5.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(k.color[0], k.color[1], k.color[2])
+      doc.text(k.val, kx + 3, y + 12.5)
+    })
+    y += 22
+
+    y = drawTableHead(y)
+
+    const truncate = (s: string, max: number) =>
+      !s ? '—' : s.length > max ? s.slice(0, max - 1) + '…' : s
+
+    for (const g of grupos) {
+      if (g.items.length === 0) continue
+      const subtotal = g.items.reduce((s, cr) => s + saldoCR(cr), 0)
+
+      y = ensureSpace(y, 10)
+      doc.setFillColor(g.cor[0], g.cor[1], g.cor[2])
+      doc.rect(MARGIN, y, contentW, 6.5, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(255, 255, 255)
+      doc.text(`${g.label}  (${g.items.length})`, MARGIN + 3, y + 4.5)
+      doc.text(fmt(subtotal), W - MARGIN - 2, y + 4.5, { align: 'right' })
+      y += 8
+
+      let zebra = false
+      for (const cr of g.items) {
+        y = ensureSpace(y, 6)
+        if (zebra) {
+          doc.setFillColor(252, 252, 253)
+          doc.rect(MARGIN, y, contentW, 5.4, 'F')
+        }
+        zebra = !zebra
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(60, 60, 60)
+        doc.text(format(parseISO(cr.data_vencimento), 'dd/MM/yyyy'), cols.venc.x, y + 3.8)
+        doc.text(truncate(cr.pagador_nome || '—', 32), cols.pagador.x, y + 3.8)
+
+        const plano = cr.conta_contabil_id ? categoryMap[cr.conta_contabil_id] || '—' : '—'
+        doc.text(truncate(plano, 28), cols.plano.x, y + 3.8)
+
+        const centro = cr.centro_custo_id ? centroCustoMap[cr.centro_custo_id] || '—' : '—'
+        doc.text(truncate(centro, 12), cols.centro.x, y + 3.8)
+
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(g.cor[0], g.cor[1], g.cor[2])
+        doc.text(fmt(saldoCR(cr)), cols.valor.x, y + 3.8, { align: 'right' })
+        y += 5.4
+      }
+      y += 2
+    }
+
+    y = ensureSpace(y, 18)
+    y += 2
+    doc.setDrawColor(BRAND[0], BRAND[1], BRAND[2])
+    doc.setLineWidth(0.5)
+    doc.line(MARGIN, y, W - MARGIN, y)
+    y += 7
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(BRAND[0], BRAND[1], BRAND[2])
+    doc.text('Total a Receber', MARGIN, y)
+    doc.text(fmt(totalGeral), W - MARGIN, y, { align: 'right' })
+
+    drawFooter()
+
+    const fileName =
+      dateFrom && dateTo
+        ? `Contas_Receber_Previstas_${dateFrom}_${dateTo}.pdf`
+        : `Contas_Receber_Previstas_${format(new Date(), 'yyyy-MM-dd')}.pdf`
+    doc.save(fileName)
+    toast.success('Relatório exportado em PDF')
+  }
+
   /* ================================================================
      RENDER
      ================================================================ */
@@ -797,7 +1046,7 @@ export default function ContasReceber() {
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">
               T&iacute;tulos ({filtered.length})
             </h3>
-            {someSelected && (
+            {someSelected ? (
               <div className="flex items-center gap-3">
                 <span className="text-[11px] text-white/70">
                   {selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}
@@ -816,6 +1065,14 @@ export default function ContasReceber() {
                   <X size={14} />
                 </button>
               </div>
+            ) : (
+              <button
+                onClick={exportarPrevistasPDF}
+                title="Exportar contas previstas em PDF"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-white/90 hover:text-white border border-white/30 px-3 py-1 rounded-md hover:bg-white/10 transition"
+              >
+                <Download size={12} /> Exportar PDF
+              </button>
             )}
           </div>
           <div className="bg-white overflow-x-auto">
