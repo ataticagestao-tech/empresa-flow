@@ -1285,7 +1285,7 @@ export default function Vendas() {
               }
             >
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={produtosRanking} margin={{ top: 24, right: 16, left: 0, bottom: 120 }}>
+                <BarChart data={produtosRanking} margin={{ top: 24, right: 16, left: 0, bottom: 60 }}>
                   <defs>
                     <linearGradient id="prodVendaGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#039855" stopOpacity={1} />
@@ -1301,13 +1301,14 @@ export default function Vendas() {
                       const txt = String(payload.value || '')
                       const item = produtosRanking.find(p => p.descricao === txt)
                       const qtd = item ? item.quantidade : 0
-                      const shown = txt.length > 28 ? txt.slice(0, 28) + '…' : txt
+                      const maxChars = produtosRanking.length <= 4 ? 24 : 14
+                      const shown = txt.length > maxChars ? txt.slice(0, maxChars) + '…' : txt
                       return (
-                        <g transform={`translate(${x},${y + 8}) rotate(-90)`}>
-                          <text textAnchor="end" dominantBaseline="middle" fontSize={13} fontWeight={600} fill="#1D2939">
+                        <g transform={`translate(${x},${y + 14})`}>
+                          <text textAnchor="middle" fontSize={13} fontWeight={600} fill="#1D2939">
                             {shown}
                           </text>
-                          <text x={-4} y={14} textAnchor="end" dominantBaseline="middle" fontSize={12} fontWeight={700} fill="#039855">
+                          <text y={18} textAnchor="middle" fontSize={12} fontWeight={700} fill="#039855">
                             {qtd} un
                           </text>
                         </g>
@@ -1315,7 +1316,7 @@ export default function Vendas() {
                     }}
                     axisLine={{ stroke: '#039855', strokeWidth: 2 }}
                     tickLine={false}
-                    height={120}
+                    height={60}
                   />
                   <YAxis type="number" hide domain={[0, 'dataMax']} />
                   <Tooltip
