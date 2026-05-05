@@ -29,19 +29,11 @@ export default function DREContabil() {
   const db = activeClient as any;
 
   const hoje = new Date();
-  const [mesInicio, setMesInicio] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM"));
-  const [mesFim, setMesFim] = useState(format(hoje, "yyyy-MM"));
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(hoje), "yyyy-MM-dd"));
 
-  const mesesOpcoes = useMemo(() => {
-    const opts: string[] = [];
-    for (let i = 0; i < 24; i++) {
-      opts.push(format(subMonths(hoje, i), "yyyy-MM"));
-    }
-    return opts;
-  }, []);
-
-  const dataInicio = `${mesInicio}-01`;
-  const dataFim = format(endOfMonth(new Date(`${mesFim}-01`)), "yyyy-MM-dd");
+  const dataInicio = dateFrom;
+  const dataFim = dateTo;
 
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["dre_contabil", selectedCompany?.id, dataInicio, dataFim],
@@ -99,7 +91,7 @@ export default function DREContabil() {
     const wsData: any[][] = [
       ["DRE — Demonstrativo de Resultado do Exercício"],
       [`Empresa: ${selectedCompany?.nome_fantasia || selectedCompany?.razao_social || ""}`],
-      [`Período: ${mesInicio} a ${mesFim}`],
+      [`Período: ${dateFrom} a ${dateTo}`],
       [],
       ["Código", "Descrição", "Valor (R$)"],
     ];
@@ -116,7 +108,7 @@ export default function DREContabil() {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws["!cols"] = [{ wch: 14 }, { wch: 50 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, "DRE");
-    XLSX.writeFile(wb, `DRE_Contabil_${mesInicio}_${mesFim}.xlsx`);
+    XLSX.writeFile(wb, `DRE_Contabil_${dateFrom}_${dateTo}.xlsx`);
   }
 
   return (
@@ -134,27 +126,6 @@ export default function DREContabil() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={mesInicio} onValueChange={setMesInicio}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {mesesOpcoes.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground">a</span>
-            <Select value={mesFim} onValueChange={setMesFim}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {mesesOpcoes.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button variant="outline" size="sm" onClick={exportarExcel}>
               <Download className="h-3.5 w-3.5 mr-1" /> Excel
             </Button>

@@ -4,6 +4,7 @@ import { PendenciasBanner } from "@/modules/finance/presentation/components/Pend
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -36,8 +37,11 @@ export default function DRE() {
   const db = activeClient as any;
 
   const hoje = new Date();
-  const [mesInicio, setMesInicio] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM"));
-  const [mesFim, setMesFim] = useState(format(hoje, "yyyy-MM"));
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(hoje), "yyyy-MM-dd"));
+  // Derivados para comparacao de competencia (yyyy-MM)
+  const mesInicio = dateFrom.slice(0, 7);
+  const mesFim = dateTo.slice(0, 7);
   const [centroCustoId, setCentroCustoId] = useState<string>("todos");
 
   // Buscar centros de custo
@@ -67,12 +71,12 @@ export default function DRE() {
   // DRE por regime de caixa: agrega contas_receber + contas_pagar pagos
   // pelo data_pagamento (não depende de movimentacoes ou de conciliacao).
   const { data: linhas = [], isLoading } = useQuery({
-    queryKey: ["dre_caixa", selectedCompany?.id, mesInicio, mesFim, centroCustoId],
+    queryKey: ["dre_caixa", selectedCompany?.id, dateFrom, dateTo, centroCustoId],
     queryFn: async () => {
       if (!selectedCompany?.id) return [];
 
-      const dataInicio = `${mesInicio}-01`;
-      const dataFim = format(endOfMonth(parseISO(`${mesFim}-01`)), "yyyy-MM-dd");
+      const dataInicio = dateFrom;
+      const dataFim = dateTo;
 
       // Paginar CR pagos (pode ter centenas/milhares por empresa)
       const pageSize = 1000;
@@ -269,7 +273,7 @@ export default function DRE() {
     const wsData: any[][] = [
       ["DRE — Demonstrativo de Resultados"],
       [`Empresa: ${selectedCompany?.nome_fantasia || selectedCompany?.razao_social || ""}`],
-      [`Período: ${mesInicio} a ${mesFim}`],
+      [`Período: ${dateFrom} a ${dateTo}`],
       [],
       ["Código", "Descrição", "Realizado", "Orçado", "Variação", "Var %"],
     ];
@@ -301,7 +305,7 @@ export default function DRE() {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws["!cols"] = [{ wch: 12 }, { wch: 35 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, "DRE");
-    XLSX.writeFile(wb, `DRE_${mesInicio}_${mesFim}.xlsx`);
+    XLSX.writeFile(wb, `DRE_${dateFrom}_${dateTo}.xlsx`);
   }
 
   // Grupo expansível
@@ -319,27 +323,6 @@ export default function DRE() {
             <p className="text-[12.5px] text-muted-foreground mt-0.5">Orçado vs Realizado por conta contábil</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={mesInicio} onValueChange={setMesInicio}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {mesesOpcoes.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground">a</span>
-            <Select value={mesFim} onValueChange={setMesFim}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {mesesOpcoes.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={centroCustoId} onValueChange={setCentroCustoId}>
               <SelectTrigger className="w-[180px] h-8 text-xs">
                 <SelectValue placeholder="Centro de Custo" />
@@ -356,6 +339,14 @@ export default function DRE() {
             </Button>
           </div>
         </div>
+
+        {/* ── Filtro de periodo (padrao do sistema) ── */}
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          helperText="Filtrar DRE por intervalo de data de pagamento."
+        />
 
         {/* KPIs resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

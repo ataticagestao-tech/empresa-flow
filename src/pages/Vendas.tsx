@@ -8,6 +8,7 @@ import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
+import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -145,7 +146,8 @@ export default function Vendas() {
 
   // ─── Filter state ────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('')
-  const [mesAtual, setMesAtual] = useState(() => format(new Date(), 'yyyy-MM'))
+  const [dateFrom, setDateFrom] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [dateTo, setDateTo] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroForma, setFiltroForma] = useState('')
 
@@ -209,10 +211,8 @@ export default function Vendas() {
   // ─── Computed ────────────────────────────────────────────────
   const companyId = selectedCompany?.id
 
-  const mesDate = useMemo(() => {
-    const [y, m] = mesAtual.split('-').map(Number)
-    return new Date(y, m - 1, 1)
-  }, [mesAtual])
+  // mesDate kept for backward compat (agenda label, etc)
+  const mesDate = useMemo(() => parseISO(dateFrom), [dateFrom])
 
   const subtotalItens = useMemo(
     () => formItens.reduce((s, it) => s + it.quantidade * it.valor_unitario, 0),
@@ -339,8 +339,8 @@ export default function Vendas() {
     setLoading(true)
     setError(null)
     try {
-      const inicio = format(startOfMonth(mesDate), 'yyyy-MM-dd')
-      const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
+      const inicio = dateFrom
+      const fim = dateTo
 
       const pageSize = 1000
       const vendasBase: Venda[] = []
@@ -421,7 +421,7 @@ export default function Vendas() {
     } finally {
       setLoading(false)
     }
-  }, [companyId, mesDate])
+  }, [companyId, dateFrom, dateTo])
 
   const fetchAuxData = useCallback(async () => {
     if (!companyId || !activeClient) return
@@ -1062,8 +1062,8 @@ export default function Vendas() {
     if (!companyId) return
     setDeletandoMes(true)
     try {
-      const inicio = format(startOfMonth(mesDate), 'yyyy-MM-dd')
-      const fim = format(endOfMonth(mesDate), 'yyyy-MM-dd')
+      const inicio = dateFrom
+      const fim = dateTo
 
       const { data: vendasMes, error: errSel } = await ac
         .from('vendas')
@@ -1193,6 +1193,14 @@ export default function Vendas() {
           ))}
         </div>
 
+        {/* ── Filtro de periodo (padrao do sistema) ── */}
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          helperText="Filtrar vendas por intervalo de data."
+        />
+
         {/* ─── Filtros (compactos, uma linha) ─────────────────── */}
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Search */}
@@ -1206,13 +1214,6 @@ export default function Vendas() {
               className="w-full pl-7 pr-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black placeholder-[#98A2B3] focus:outline-none focus:border-black"
             />
           </div>
-          {/* Month */}
-          <input
-            type="month"
-            value={mesAtual}
-            onChange={e => setMesAtual(e.target.value)}
-            className="px-2 h-7 text-[11.5px] border border-[#D0D5DD] rounded bg-white text-black focus:outline-none focus:border-black"
-          />
           {/* Tipo */}
           <select
             value={filtroTipo}
@@ -2109,9 +2110,9 @@ export default function Vendas() {
                   <AlertCircle size={18} className="text-[#E53E3E]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[#1D2939]">Excluir todas as vendas do mês</h3>
+                  <h3 className="font-semibold text-[#1D2939]">Excluir todas as vendas do periodo</h3>
                   <p className="text-sm text-[#555]">
-                    {format(mesDate, 'MM/yyyy')} &mdash; {vendas.length} venda{vendas.length !== 1 ? 's' : ''}
+                    {format(parseISO(dateFrom), 'dd/MM/yyyy')} a {format(parseISO(dateTo), 'dd/MM/yyyy')} &mdash; {vendas.length} venda{vendas.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>

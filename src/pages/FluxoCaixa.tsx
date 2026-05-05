@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,19 +76,11 @@ export default function FluxoCaixa() {
   };
 
   const hoje = new Date();
-  const [mesInicio, setMesInicio] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM"));
-  const [mesFim, setMesFim] = useState(format(hoje, "yyyy-MM"));
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(subMonths(hoje, 2)), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(hoje), "yyyy-MM-dd"));
 
-  const mesesOpcoes = useMemo(() => {
-    const opts: string[] = [];
-    for (let i = 0; i < 24; i++) {
-      opts.push(format(subMonths(hoje, i), "yyyy-MM"));
-    }
-    return opts;
-  }, []);
-
-  const dataInicio = `${mesInicio}-01`;
-  const dataFim = format(endOfMonth(new Date(`${mesFim}-15`)), "yyyy-MM-dd");
+  const dataInicio = dateFrom;
+  const dataFim = dateTo;
 
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["dfc_contabil", selectedCompany?.id, dataInicio, dataFim, isUsingSecondary],
@@ -150,7 +143,7 @@ export default function FluxoCaixa() {
     const wsData: any[][] = [
       ["DFC — Demonstração dos Fluxos de Caixa"],
       [`Empresa: ${selectedCompany?.nome_fantasia || selectedCompany?.razao_social || ""}`],
-      [`Período: ${mesInicio} a ${mesFim}`],
+      [`Período: ${dateFrom} a ${dateTo}`],
       [],
       ["Código", "Descrição", "Atividade", "Valor (R$)"],
     ];
@@ -161,7 +154,7 @@ export default function FluxoCaixa() {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws["!cols"] = [{ wch: 14 }, { wch: 50 }, { wch: 16 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, "DFC");
-    XLSX.writeFile(wb, `DFC_${mesInicio}_${mesFim}.xlsx`);
+    XLSX.writeFile(wb, `DFC_${dateFrom}_${dateTo}.xlsx`);
   }
 
   // ── Relatório por Categoria ──
@@ -263,7 +256,7 @@ export default function FluxoCaixa() {
     const wsData: any[][] = [
       ["Relatório de Fluxo de Caixa — Entradas e Saídas por Categoria"],
       [`Empresa: ${selectedCompany?.nome_fantasia || selectedCompany?.razao_social || ""}`],
-      [`Período: ${mesInicio} a ${mesFim}`],
+      [`Período: ${dateFrom} a ${dateTo}`],
       [],
       ["Tipo", "Categoria", "Data", "Descrição", "Valor (R$)"],
     ];
@@ -287,12 +280,12 @@ export default function FluxoCaixa() {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws["!cols"] = [{ wch: 10 }, { wch: 35 }, { wch: 12 }, { wch: 40 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, "Relatório");
-    XLSX.writeFile(wb, `Relatorio_Fluxo_${mesInicio}_${mesFim}.xlsx`);
+    XLSX.writeFile(wb, `Relatorio_Fluxo_${dateFrom}_${dateTo}.xlsx`);
   }
 
   // ── PDF helpers ──
   const empresa = selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "";
-  const periodo = `${mesInicio} a ${mesFim}`;
+  const periodo = `${dateFrom} a ${dateTo}`;
 
   // Margens generosas e "apresentáveis" para impressão profissional
   const PDF_MARGIN = 18; // mm — lateral e conteúdo
@@ -537,7 +530,7 @@ export default function FluxoCaixa() {
     doc.text(fmt(saldo), W - PDF_MARGIN, y, { align: "right" });
 
     pdfDrawFooter(doc, W, H);
-    doc.save(`Relatorio_Fluxo_${mesInicio}_${mesFim}.pdf`);
+    doc.save(`Relatorio_Fluxo_${dateFrom}_${dateTo}.pdf`);
   }
 
   function exportarDFCpdf() {
@@ -640,7 +633,7 @@ export default function FluxoCaixa() {
     }
 
     pdfDrawFooter(doc, W, H);
-    doc.save(`DFC_${mesInicio}_${mesFim}.pdf`);
+    doc.save(`DFC_${dateFrom}_${dateTo}.pdf`);
   }
 
   function exportarDiagnosticoPDF() {
@@ -745,7 +738,7 @@ export default function FluxoCaixa() {
     }
 
     pdfDrawFooter(doc, W, H);
-    doc.save(`Diagnostico_Categorias_${mesInicio}_${mesFim}.pdf`);
+    doc.save(`Diagnostico_Categorias_${dateFrom}_${dateTo}.pdf`);
   }
 
   return (
@@ -764,27 +757,6 @@ export default function FluxoCaixa() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Select value={mesInicio} onValueChange={setMesInicio}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {mesesOpcoes.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground">a</span>
-            <Select value={mesFim} onValueChange={setMesFim}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {mesesOpcoes.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Link to="/demonstrativos/mapeamento">
               <Button variant="outline" size="sm">
                 <Settings2 className="h-3.5 w-3.5 mr-1" /> Mapeamento
@@ -792,6 +764,14 @@ export default function FluxoCaixa() {
             </Link>
           </div>
         </div>
+
+        {/* ── Filtro de periodo (padrao do sistema) ── */}
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          helperText="Filtrar fluxo de caixa por intervalo de data."
+        />
 
         <Tabs defaultValue="relatorio" className="w-full">
           <TabsList>
