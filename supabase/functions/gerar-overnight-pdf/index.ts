@@ -524,9 +524,9 @@ function desenharResumoBoxes(ctx: RenderCtx, d: OvernightDados) {
     const bottomY = topY - boxH;
 
     const itens = [
-        { titulo: "SALDO CONSOLIDADO",        valor: formatarMoeda(d.saldo_consolidado),   cor: COLOR_HERO_BG },
-        { titulo: "RESULTADO DO DIA",         valor: signedMoeda(d.consolidado_dia.resultado), cor: corResultado(d.consolidado_dia.resultado) },
-        { titulo: "RESULTADO ACUMULADO DO MÊS", valor: signedMoeda(d.consolidado_mes.resultado), cor: corResultado(d.consolidado_mes.resultado) },
+        { titulo: "FATURAMENTO CONSOLIDADO (+)", valor: formatarMoeda(d.consolidado_mes.entradas), cor: COLOR_GREEN },
+        { titulo: "DESPESAS E CUSTOS (-)",       valor: formatarMoeda(d.consolidado_mes.saidas),   cor: COLOR_RED },
+        { titulo: "RESULTADO DO MÊS (=)",        valor: signedMoeda(d.consolidado_mes.resultado),  cor: corResultado(d.consolidado_mes.resultado) },
     ];
 
     for (let i = 0; i < 3; i++) {
@@ -562,12 +562,17 @@ function desenharTabelaVendas(ctx: RenderCtx, d: OvernightDados) {
     ];
     desenharHeaderTabela(ctx, cols, ["FORMA DE RECEBIMENTO", "QTD. TRANSAÇÕES", "VALOR (R$)"]);
 
-    for (const v of d.vendas_por_forma) {
-        desenharLinhaTabela(ctx, cols, [
-            v.forma_label,
-            String(v.qtd),
-            formatarMoeda(v.valor),
-        ], 18, 9, ctx.font);
+    const formasComVenda = d.vendas_por_forma.filter(v => v.qtd > 0);
+    if (formasComVenda.length === 0) {
+        desenharLinhaVazia(ctx, "Nenhuma venda confirmada hoje");
+    } else {
+        for (const v of formasComVenda) {
+            desenharLinhaTabela(ctx, cols, [
+                v.forma_label,
+                String(v.qtd),
+                formatarMoeda(v.valor),
+            ], 18, 9, ctx.font);
+        }
     }
 
     desenharLinhaTotal(
