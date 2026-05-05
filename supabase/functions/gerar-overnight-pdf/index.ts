@@ -336,9 +336,9 @@ interface RenderCtx {
 
 async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
     const doc = await PDFDocument.create();
-    doc.setTitle(`Overnight Financeiro — ${d.empresa.nome}`);
-    doc.setProducer("Tática Gestão Empresarial");
-    doc.setCreator("Tática Overnight");
+    doc.setTitle(sanitizeWinAnsi(`Overnight Financeiro — ${d.empresa.nome}`));
+    doc.setProducer("Tatica Gestao Empresarial");
+    doc.setCreator("Tatica Overnight");
 
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -632,7 +632,7 @@ function desenharTabelaConsolidado(ctx: RenderCtx, d: OvernightDados) {
     ], 18, 9, ctx.font, COLOR_GREEN);
 
     desenharLinhaTabela(ctx, cols, [
-        "(−) Total de Saídas",
+        "(-) Total de Saídas",
         formatarMoeda(d.consolidado_dia.saidas),
         formatarMoeda(d.consolidado_mes.saidas),
     ], 18, 9, ctx.font, COLOR_RED);
@@ -867,7 +867,7 @@ function corResultado(v: number): ReturnType<typeof rgb> {
 }
 
 function signedMoeda(v: number): string {
-    const sign = v > 0 ? "+ " : v < 0 ? "− " : "";
+    const sign = v > 0 ? "+ " : v < 0 ? "- " : "";
     return `${sign}${formatarMoeda(Math.abs(v))}`;
 }
 
@@ -891,12 +891,40 @@ function formatarDataExtensa(d: Date): string {
 }
 
 function truncar(s: string, fnt: PDFFont, size: number, maxW: number): string {
-    if (fnt.widthOfTextAtSize(s, size) <= maxW) return s;
-    let out = s;
+    const safe = sanitizeWinAnsi(s);
+    if (fnt.widthOfTextAtSize(safe, size) <= maxW) return safe;
+    let out = safe;
     while (out.length > 1 && fnt.widthOfTextAtSize(out + "…", size) > maxW) {
         out = out.slice(0, -1);
     }
     return out + "…";
+}
+
+// Helvetica padrão usa codificação WinAnsi — caracteres fora dela
+// (setas, símbolos matemáticos, emoji, asiáticos) lançam erro ao desenhar.
+// Esta função troca por equivalentes ASCII ou "?" como fallback.
+const TRANSLIT: Record<string, string> = {
+    "−": "-", "–": "-", "—": "-",      // travessões e sinal de menos
+    "→": "->", "←": "<-", "↑": "^", "↓": "v",
+    "≤": "<=", "≥": ">=", "≠": "!=", "≈": "~",
+    "•": "-", "·": "-",
+    "“": '"', "”": '"', "‘": "'", "’": "'",
+    " ": " ",                       // NBSP -> espaço comum
+};
+
+function sanitizeWinAnsi(s: string | null | undefined): string {
+    if (!s) return "";
+    let out = "";
+    for (const ch of s) {
+        if (TRANSLIT[ch] !== undefined) { out += TRANSLIT[ch]; continue; }
+        const code = ch.charCodeAt(0);
+        // ASCII imprimível + Latin-1 (acentos pt-BR) + €,…,",–,— já mapeados pelo WinAnsi
+        if (code >= 0x20 && code <= 0x7E) { out += ch; continue; }
+        if (code >= 0xA0 && code <= 0xFF) { out += ch; continue; }
+        if ("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".includes(ch)) { out += ch; continue; }
+        out += "?"; // qualquer outra coisa vira "?"
+    }
+    return out;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

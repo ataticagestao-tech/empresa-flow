@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-    useOvernightConfig, useOvernightLogs, useGerarOvernightPdf, base64ToBlob,
+    useOvernightConfig, useGerarOvernightPdf, base64ToBlob,
 } from "@/hooks/useOvernight";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -791,7 +791,6 @@ function IntegracoesPanel() {
 // ═════════════════════════════════════════════════════════════
 function OvernightPanel() {
     const { data: config, isLoading, salvar } = useOvernightConfig();
-    const { data: logs } = useOvernightLogs(10);
     const gerar = useGerarOvernightPdf();
 
     const [frase, setFrase] = useState("");
@@ -861,8 +860,6 @@ function OvernightPanel() {
             toast.error(err.message ?? "Falha ao baixar PDF");
         }
     };
-
-    const ultimoSucesso = logs?.find((l) => l.status === "sucesso");
 
     return (
         <div className="space-y-6">
@@ -935,66 +932,6 @@ function OvernightPanel() {
                             </div>
                         )}
                     </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-[14px]">
-                        <FileText className="h-4 w-4" />
-                        Histórico de gerações
-                    </CardTitle>
-                    <CardDescription>
-                        {ultimoSucesso
-                            ? `Última geração com sucesso: ${format(new Date(ultimoSucesso.gerado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
-                            : "Nenhuma geração registrada ainda."}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-[11px] w-[160px]">Data/Hora</TableHead>
-                                <TableHead className="text-[11px] w-[90px]">Origem</TableHead>
-                                <TableHead className="text-[11px] w-[90px]">Status</TableHead>
-                                <TableHead className="text-[11px] w-[100px] text-right">Tamanho</TableHead>
-                                <TableHead className="text-[11px]">Erro</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {!logs?.length ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-20 text-center text-muted-foreground text-[11px]">
-                                        Nenhum registro.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                logs.map((l) => (
-                                    <TableRow key={l.id}>
-                                        <TableCell className="text-[11.5px] text-muted-foreground whitespace-nowrap">
-                                            {format(new Date(l.gerado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="text-[10px] capitalize">{l.origem}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {l.status === "sucesso" ? (
-                                                <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Sucesso</Badge>
-                                            ) : (
-                                                <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-100">Erro</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right text-[11px] text-muted-foreground">
-                                            {l.tamanho_bytes ? `${Math.round(l.tamanho_bytes / 1024)} KB` : "—"}
-                                        </TableCell>
-                                        <TableCell className="text-[11px] text-red-500 truncate max-w-[240px]" title={l.erro_descricao ?? ""}>
-                                            {l.erro_descricao ?? "—"}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
                 </CardContent>
             </Card>
         </div>
