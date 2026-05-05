@@ -190,22 +190,20 @@ export default function CompanyDashboard() {
         [payablesRaw, transferAccountIds]
     );
 
-    // ─── Receita do período (regime de caixa: CRs pagos no período) ─
-    // Conta o que efetivamente entrou no caixa (data_pagamento dentro do
-    // intervalo), nao o que foi vendido no periodo. Exclui transferencias
-    // entre contas (categoria de transferencia nao e receita).
+    // ─── Faturamento do período (regime de competência: vendas) ────
+    // Soma vendas confirmadas com data_venda no intervalo. Faturamento
+    // reflete o que foi vendido (regime competencia), nao o que entrou
+    // em caixa.
     const { data: receitaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, transferAccountIds],
+        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd],
         queryFn: async () => {
-            const { data } = await db.from("contas_receber")
-                .select("valor_pago, conta_contabil_id")
-                .eq("company_id", cId).eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
+            const { data } = await db.from("vendas")
+                .select("valor_liquido")
+                .eq("company_id", cId).eq("status", "confirmado")
+                .gte("data_venda", periodStart).lte("data_venda", periodEnd)
                 .limit(10000);
             return (data || [])
-                .filter((r: any) => !isTransfer(r))
-                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
         },
         enabled: !!cId,
     });
@@ -268,17 +266,15 @@ export default function CompanyDashboard() {
     const prevMonthLabel = format(subMonths(today, 1), "MMMM", { locale: ptBR });
 
     const { data: receitaPeriodoAnterior = 0 } = useQuery({
-        queryKey: ["dash_receita_prev", cId, prevMonthStart, transferAccountIds],
+        queryKey: ["dash_receita_prev", cId, prevMonthStart],
         queryFn: async () => {
-            const { data } = await db.from("contas_receber")
-                .select("valor_pago, conta_contabil_id")
-                .eq("company_id", cId).eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEnd)
+            const { data } = await db.from("vendas")
+                .select("valor_liquido")
+                .eq("company_id", cId).eq("status", "confirmado")
+                .gte("data_venda", prevMonthStart).lte("data_venda", prevMonthEnd)
                 .limit(10000);
             return (data || [])
-                .filter((r: any) => !isTransfer(r))
-                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
         },
         enabled: !!cId,
     });
@@ -426,11 +422,10 @@ export default function CompanyDashboard() {
                 const me = format(b.end, "yyyy-MM-dd");
 
                 const [{ data: rec }, { data: desp }] = await Promise.all([
-                    db.from("contas_receber")
-                        .select("valor_pago, conta_contabil_id")
-                        .eq("company_id", cId).eq("status", "pago")
-                        .is("deleted_at", null)
-                        .gte("data_pagamento", ms).lte("data_pagamento", me)
+                    db.from("vendas")
+                        .select("valor_liquido")
+                        .eq("company_id", cId).eq("status", "confirmado")
+                        .gte("data_venda", ms).lte("data_venda", me)
                         .limit(10000),
                     db.from("contas_pagar")
                         .select("valor_pago, conta_contabil_id")
@@ -441,8 +436,7 @@ export default function CompanyDashboard() {
                 ]);
 
                 const receita = (rec || [])
-                    .filter((r: any) => !isTransfer(r))
-                    .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+                    .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
                 const despesa = (desp || [])
                     .filter((r: any) => !isTransfer(r))
                     .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
@@ -573,74 +567,57 @@ export default function CompanyDashboard() {
         enabled: !!cId && saldoCaixa !== undefined,
     });
 
-    // ─── Faturamento diário (heatmap + produtos), regime de caixa ──────
-    // Pega CRs pagos no periodo, descobre a venda de cada um e distribui
-    // o valor_pago entre os vendas_itens (proporcional ao share de cada item
-    // no valor_total da venda). Para vendas tipo=contrato sem itens, usa
-    // o campo `procedimento` como nome do produto.
+    // ─── Faturamento diário (heatmap + produtos), regime competência ───
+    // Soma as vendas confirmadas com data_venda no periodo. Para cada venda,
+    // o valor_liquido entra no byDay[data_venda] e e distribuido entre os
+    // vendas_itens (proporcional ao share). Vendas tipo=contrato sem itens
+    // usam `procedimento` como nome do produto.
     const { data: monthlySales } = useQuery({
-        queryKey: ["dash_monthly_sales", cId, periodStart, periodEnd, transferAccountIds],
+        queryKey: ["dash_monthly_sales", cId, periodStart, periodEnd],
         queryFn: async () => {
-            // 1. CRs pagos no periodo (excluindo transferencias)
-            const { data: crs } = await db.from("contas_receber")
-                .select("id, valor_pago, data_pagamento, venda_id, conta_contabil_id, observacoes")
-                .eq("company_id", cId).eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
+            const { data: vendas } = await db.from("vendas")
+                .select("id, valor_total, valor_liquido, data_venda, procedimento, tipo, vendas_itens(descricao, quantidade, valor_total)")
+                .eq("company_id", cId).eq("status", "confirmado")
+                .gte("data_venda", periodStart).lte("data_venda", periodEnd)
                 .limit(10000);
-            const crsValid = (crs || []).filter((r: any) => !isTransfer(r));
-
-            // 2. Vendas vinculadas (com itens + procedimento pra contratos)
-            const vendaIds = Array.from(new Set(crsValid.map((r: any) => r.venda_id).filter(Boolean)));
-            const vendasMap: Record<string, any> = {};
-            if (vendaIds.length > 0) {
-                const { data: vendas } = await db.from("vendas")
-                    .select("id, valor_total, procedimento, tipo, vendas_itens(descricao, quantidade, valor_total)")
-                    .in("id", vendaIds);
-                (vendas || []).forEach((v: any) => { vendasMap[v.id] = v; });
-            }
 
             const byDay: Record<string, number> = {};
             let totalVendas = 0;
             let totalProdutos = 0;
             let totalFaturamento = 0;
             const productMap: Record<string, { descricao: string; quantidade: number; faturamento: number; vendas: Set<string> }> = {};
-            const vendasUnicas = new Set<string>();
 
-            crsValid.forEach((cr: any) => {
-                const valor = Number(cr.valor_pago || 0);
-                if (valor <= 0 || !cr.data_pagamento) return;
-                byDay[cr.data_pagamento] = (byDay[cr.data_pagamento] || 0) + valor;
+            (vendas || []).forEach((v: any) => {
+                const valor = Number(v.valor_liquido || 0);
+                if (valor <= 0 || !v.data_venda) return;
+                byDay[v.data_venda] = (byDay[v.data_venda] || 0) + valor;
                 totalFaturamento += valor;
+                totalVendas += 1;
 
-                const venda = cr.venda_id ? vendasMap[cr.venda_id] : null;
-                if (venda) vendasUnicas.add(venda.id);
-
-                const itens = venda && Array.isArray(venda.vendas_itens) ? venda.vendas_itens : [];
+                const itens = Array.isArray(v.vendas_itens) ? v.vendas_itens : [];
                 const totalItensVenda = itens.reduce((s: number, it: any) => s + Number(it.valor_total || 0), 0);
 
                 if (itens.length > 0 && totalItensVenda > 0) {
-                    // Distribui o valor_pago entre os itens proporcional ao share de cada item
+                    // Distribui o valor_liquido entre itens proporcional ao share
                     itens.forEach((it: any) => {
                         const desc = (it.descricao || "Sem descrição").trim();
                         const share = Number(it.valor_total || 0) / totalItensVenda;
                         const fatLine = valor * share;
-                        const qtdLine = Number(it.quantidade || 0) * share;
+                        const qtdLine = Number(it.quantidade || 0);
                         if (!productMap[desc]) productMap[desc] = { descricao: desc, quantidade: 0, faturamento: 0, vendas: new Set() };
                         productMap[desc].faturamento += fatLine;
                         productMap[desc].quantidade += qtdLine;
-                        productMap[desc].vendas.add(venda.id);
+                        productMap[desc].vendas.add(v.id);
                         totalProdutos += qtdLine;
                     });
-                } else if (venda && venda.procedimento) {
+                } else if (v.procedimento) {
                     // Venda tipo=contrato sem itens — usa procedimento como produto
-                    const desc = String(venda.procedimento).trim();
+                    const desc = String(v.procedimento).trim();
                     if (!productMap[desc]) productMap[desc] = { descricao: desc, quantidade: 0, faturamento: 0, vendas: new Set() };
                     productMap[desc].faturamento += valor;
-                    productMap[desc].vendas.add(venda.id);
+                    productMap[desc].vendas.add(v.id);
                 }
             });
-            totalVendas = vendasUnicas.size;
 
             const totalItensFaturamento = Object.values(productMap).reduce((s, p) => s + p.faturamento, 0);
             const denominator = totalFaturamento > 0 ? totalFaturamento : totalItensFaturamento;

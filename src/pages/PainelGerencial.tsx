@@ -136,7 +136,7 @@ export default function PainelGerencial() {
   type Regime = "competencia" | "caixa";
   const [regime, setRegime] = useState<Regime>(() => {
     try {
-      const saved = localStorage.getItem("pg_regime") as Regime | null;
+      const saved = localStorage.getItem("pg_regime_v2") as Regime | null;
       return saved === "caixa" || saved === "competencia" ? saved : "competencia";
     } catch {
       return "competencia";
@@ -144,7 +144,7 @@ export default function PainelGerencial() {
   });
   const changeRegime = (r: Regime) => {
     setRegime(r);
-    try { localStorage.setItem("pg_regime", r); } catch {}
+    try { localStorage.setItem("pg_regime_v2", r); } catch {}
   };
 
   const mesesOpcoes = useMemo(() => {
