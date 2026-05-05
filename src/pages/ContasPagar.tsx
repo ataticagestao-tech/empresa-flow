@@ -802,9 +802,39 @@ export default function ContasPagar() {
       file_url: newForm.fileUrl || null,
     }
 
+    const db = activeClient as any
+
+    // ─── Anti-duplicata (heuristica): mesmo credor + valor + vencimento ───
+    if (!editingCpId && newForm.recorrencia === 'sem') {
+      const dup = await db
+        .from('contas_pagar')
+        .select('id')
+        .eq('company_id', selectedCompany.id)
+        .eq('credor_nome', credorNome)
+        .eq('valor', newForm.valor)
+        .eq('data_vencimento', newForm.dataVencimento)
+        .is('deleted_at', null)
+        .neq('status', 'cancelado')
+        .limit(1)
+      if (dup.data && dup.data.length > 0) {
+        setSubmitting(false)
+        const ok = await confirm({
+          title: 'Lancamento parecido encontrado',
+          description: `Ja existe um titulo de "${credorNome}" no valor de ${formatBRL(newForm.valor)} vencendo em ${formatData(newForm.dataVencimento)}. Deseja criar mesmo assim?`,
+          confirmLabel: 'Criar mesmo assim',
+          variant: 'destructive',
+        })
+        if (!ok) return
+        setSubmitting(true)
+      }
+    }
+
+    const isCodigoBarrasDup = (err: any) =>
+      err?.code === '23505' && String(err?.message || '').includes('uq_contas_pagar_codigo_barras')
+
     if (editingCpId) {
       // Edição
-      const { error } = await (activeClient as any)
+      const { error } = await db
         .from('contas_pagar')
         .update({
           ...base,
@@ -815,7 +845,11 @@ export default function ContasPagar() {
       setSubmitting(false)
       if (error) {
         console.error('[editarCP]', error)
-        alert('Erro ao editar: ' + error.message)
+        if (isCodigoBarrasDup(error)) {
+          alert('Ja existe outra conta a pagar ativa com este codigo de barras nesta empresa.')
+        } else {
+          alert('Erro ao editar: ' + error.message)
+        }
       } else {
         setShowNewModal(false)
         setEditingCpId(null)
@@ -829,17 +863,27 @@ export default function ContasPagar() {
       } else {
         let dataAtual = newForm.dataVencimento
         for (let i = 0; i < newForm.numParcelas; i++) {
-          inserts.push({ ...base, valor_pago: 0, data_vencimento: dataAtual })
+          inserts.push({
+            ...base,
+            // codigo_barras so na primeira parcela (UNIQUE bloquearia parcelas com mesmo codigo)
+            codigo_barras: i === 0 ? base.codigo_barras : null,
+            valor_pago: 0,
+            data_vencimento: dataAtual,
+          })
           dataAtual = calcularProximoVencimento(dataAtual, newForm.recorrencia)
         }
       }
 
-      const { error } = await (activeClient as any).from('contas_pagar').insert(inserts)
+      const { error } = await db.from('contas_pagar').insert(inserts)
       setSubmitting(false)
 
       if (error) {
         console.error('[criarCP]', error)
-        alert('Erro ao criar: ' + error.message)
+        if (isCodigoBarrasDup(error)) {
+          alert('Ja existe outra conta a pagar ativa com este codigo de barras nesta empresa.')
+        } else {
+          alert('Erro ao criar: ' + error.message)
+        }
       } else {
         setShowNewModal(false)
         await loadData()
