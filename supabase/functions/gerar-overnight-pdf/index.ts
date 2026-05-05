@@ -138,6 +138,7 @@ interface OvernightDados {
     empresa: EmpresaInfo;
     hoje_brt: Date;
     saldo_consolidado: number;
+    faturamento_mes: number; // soma vendas confirmadas do mes (competencia)
     vendas_por_forma: VendaPorForma[];
     vendas_total: number;
     vendas_qtd_total: number;
@@ -232,6 +233,19 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         .eq("status", "confirmado");
     if (vendasErr) throw new Error(`vendas: ${vendasErr.message}`);
 
+    // Faturamento do mes (competencia) — soma das vendas confirmadas do mes
+    const { data: vendasMesRaw, error: vendasMesErr } = await client
+        .from("vendas")
+        .select("valor_liquido")
+        .eq("company_id", companyId)
+        .gte("data_venda", inicioMesIso)
+        .lte("data_venda", hojeIso)
+        .eq("status", "confirmado");
+    if (vendasMesErr) throw new Error(`vendas (mes): ${vendasMesErr.message}`);
+    const faturamento_mes = (vendasMesRaw ?? []).reduce(
+        (acc: number, v: any) => acc + (Number(v.valor_liquido) || 0), 0,
+    );
+
     const buckets: Record<string, { qtd: number; valor: number }> = {};
     for (const cat of ORDEM_FORMAS) buckets[cat.key] = { qtd: 0, valor: 0 };
     for (const v of vendasRaw ?? []) {
@@ -306,6 +320,7 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         empresa,
         hoje_brt: hoje,
         saldo_consolidado,
+        faturamento_mes,
         vendas_por_forma, vendas_total, vendas_qtd_total,
         contas_pagar, cp_total,
         contas_receber, cr_total,
@@ -525,10 +540,11 @@ function desenharResumoBoxes(ctx: RenderCtx, d: OvernightDados) {
     const topY = ctx.y;
     const bottomY = topY - boxH;
 
+    const resultadoMes = d.faturamento_mes - d.consolidado_mes.saidas;
     const itens = [
-        { titulo: "FATURAMENTO CONSOLIDADO (+)", valor: formatarMoeda(d.consolidado_mes.entradas), cor: COLOR_GREEN },
-        { titulo: "DESPESAS E CUSTOS (-)",       valor: formatarMoeda(d.consolidado_mes.saidas),   cor: COLOR_RED },
-        { titulo: "RESULTADO DO MÊS (=)",        valor: signedMoeda(d.consolidado_mes.resultado),  cor: corResultado(d.consolidado_mes.resultado) },
+        { titulo: "FATURAMENTO CONSOLIDADO (+)", valor: formatarMoeda(d.faturamento_mes),        cor: COLOR_GREEN },
+        { titulo: "DESPESAS E CUSTOS (-)",       valor: formatarMoeda(d.consolidado_mes.saidas), cor: COLOR_RED },
+        { titulo: "RESULTADO DO MÊS (=)",        valor: signedMoeda(resultadoMes),               cor: corResultado(resultadoMes) },
     ];
 
     for (let i = 0; i < 3; i++) {
