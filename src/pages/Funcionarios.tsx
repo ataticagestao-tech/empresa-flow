@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, toTitleCase } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
@@ -209,7 +209,7 @@ export default function Funcionarios() {
     setSaving(true);
     try {
       const salarioVal = formData.salary ? parseFloat(formData.salary.replace(/\./g, "").replace(",", ".")) : null;
-      const nameVal = titleCase(formData.name.trim());
+      const nameVal = toTitleCase(formData.name);
 
       // Build payload dynamically — only include fields with values
       const payload: Record<string, any> = {
@@ -218,7 +218,7 @@ export default function Funcionarios() {
         name: nameVal,
       };
 
-      if (formData.role) payload.role = titleCase(formData.role.trim());
+      if (formData.role) payload.role = toTitleCase(formData.role);
       if (formData.email) payload.email = formData.email.trim().toLowerCase();
       if (formData.phone) payload.phone = formData.phone.trim();
       if (formData.cpf) payload.cpf = formData.cpf.trim();

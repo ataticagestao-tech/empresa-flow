@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { FinanceService } from "../../infra/finance.services";
 import { AccountsReceivableSchema, AccountsReceivable } from "../../domain/schemas/accounts-receivable.schema";
+import { toTitleCase } from "@/lib/format";
 
 export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onSuccess?: () => void) {
     const { toast } = useToast();
@@ -46,7 +47,7 @@ export function useReceivableForm(initialData?: Partial<AccountsReceivable>, onS
             // Colunas da tabela contas_receber
             const payload: Record<string, any> = {
                 company_id: selectedCompany!.id,
-                pagador_nome: values.description || "Cliente",
+                pagador_nome: values.description ? toTitleCase(values.description) : "Cliente",
                 valor: values.amount,
                 status: values.status === "pending" ? "aberto" : values.status === "paid" ? "pago" : values.status === "cancelled" ? "cancelado" : values.status || "aberto",
                 data_vencimento: values.due_date instanceof Date ? values.due_date.toISOString().split("T")[0] : values.due_date,

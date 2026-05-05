@@ -9,6 +9,7 @@ import { AccountsPayableSchema, AccountsPayable } from "../../domain/schemas/acc
 import { FinanceService } from "../../infra/finance.services";
 import { useState } from "react";
 import { format } from "date-fns";
+import { toTitleCase } from "@/lib/format";
 
 // Corrige timezone: formata Date como "yyyy-MM-dd" local (não UTC)
 function dateToLocalString(d: Date | null | undefined): string | null {
@@ -64,14 +65,14 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             const cleanId = (v: string | undefined | null) => (!v || v === "none" || v === "") ? null : v;
 
             // Resolver nome do fornecedor se supplier_id foi selecionado
-            let credorNome = data.description || "Fornecedor";
+            let credorNome = data.description ? toTitleCase(data.description) : "Fornecedor";
             if (data.supplier_id && data.supplier_id !== "none") {
                 const { data: sup } = await activeClient
                     .from("suppliers")
                     .select("razao_social")
                     .eq("id", data.supplier_id)
                     .single();
-                if (sup?.razao_social) credorNome = sup.razao_social;
+                if (sup?.razao_social) credorNome = toTitleCase(sup.razao_social);
             }
 
             // Montar payload com colunas da tabela contas_pagar (GESTAP)

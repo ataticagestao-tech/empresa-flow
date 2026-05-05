@@ -26,6 +26,7 @@ import { maskCNPJ, maskCPF, maskPhone, maskCEP, unmask, autoCorrectUrl } from "@
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { toTitleCase } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Phone, Mail, Globe, Landmark, FileText, Settings, Search } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -211,7 +212,10 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
             const { cep, ...rest } = values;
             const supplierData = {
                 ...rest,
-                razao_social: values.razao_social,
+                razao_social: toTitleCase(values.razao_social),
+                nome_fantasia: values.nome_fantasia ? toTitleCase(values.nome_fantasia) : values.nome_fantasia,
+                contato_nome: values.contato_nome ? toTitleCase(values.contato_nome) : values.contato_nome,
+                dados_bancarios_titular_nome: values.dados_bancarios_titular_nome ? toTitleCase(values.dados_bancarios_titular_nome) : values.dados_bancarios_titular_nome,
                 company_id: selectedCompany.id,
                 endereco_cep: unmask(cep || ""),
                 cpf_cnpj: unmask(values.cpf_cnpj || ""),
