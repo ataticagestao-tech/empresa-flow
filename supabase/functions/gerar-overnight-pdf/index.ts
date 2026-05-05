@@ -254,6 +254,7 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         .eq("company_id", companyId)
         .eq("data_vencimento", hojeIso)
         .neq("status", "cancelado")
+        .is("deleted_at", null)
         .order("created_at", { ascending: true });
     if (cpErr) throw new Error(`contas_pagar: ${cpErr.message}`);
 
@@ -272,6 +273,7 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         .eq("company_id", companyId)
         .eq("data_vencimento", hojeIso)
         .neq("status", "cancelado")
+        .is("deleted_at", null)
         .order("created_at", { ascending: true });
     if (crErr) throw new Error(`contas_receber: ${crErr.message}`);
 
