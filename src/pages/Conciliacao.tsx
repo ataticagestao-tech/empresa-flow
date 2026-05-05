@@ -57,6 +57,40 @@ function ScoreBadge({ score }: { score: number }) {
     return null;
 }
 
+// ─── Detecção de transferência interna ───────────────────────────────
+// Usado pra impedir que conciliação crie CP/CR a partir de transferência
+// entre contas proprias ou entre empresas do mesmo grupo (nao sao despesa/receita).
+function normalizeForTransferCheck(text: string): string {
+    return (text || "")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toUpperCase()
+        .trim();
+}
+
+function isLikelyInternalTransfer(
+    description: string,
+    allCompanies: Array<{ razao_social?: string | null; nome_fantasia?: string | null }>,
+): boolean {
+    const desc = normalizeForTransferCheck(description);
+    if (!desc) return false;
+
+    // Padroes inequívocos de operação intra-bancária
+    if (desc.startsWith("TRANSFERENCIA TEF")) return true;
+    if (desc.startsWith("TRANSFERENCIA ENTRE CONTAS")) return true;
+
+    // Contraparte = razao_social ou nome_fantasia de alguma empresa do grupo
+    for (const c of allCompanies) {
+        const rs = normalizeForTransferCheck(c.razao_social || "");
+        const nf = normalizeForTransferCheck(c.nome_fantasia || "");
+        // Mínimo 8 chars pra evitar match em palavras curtas/genéricas
+        if (rs.length >= 8 && desc.includes(rs)) return true;
+        if (nf.length >= 8 && desc.includes(nf)) return true;
+    }
+
+    return false;
+}
+
 export default function Conciliacao() {
     const [searchParams, setSearchParams] = useSearchParams();
     const accountIdFromUrl = searchParams.get("conta") || "";
@@ -949,7 +983,29 @@ export default function Conciliacao() {
             });
         }
 
-        const effectiveToApprove = comConta;
+        // Filtrar transferências internas: nao devem virar CP/CR (sao so registro entre contas proprias/grupo).
+        // Heuristica: description comeca com "TRANSFERENCIA TEF" / "TRANSFERENCIA ENTRE CONTAS",
+        // ou contem razao_social/nome_fantasia de qualquer empresa em allCompanies.
+        const transfersInternas = comConta.filter(s =>
+            isLikelyInternalTransfer(s.bankTransaction.description || "", allCompanies || [])
+        );
+        const naoTransfers = comConta.filter(s =>
+            !isLikelyInternalTransfer(s.bankTransaction.description || "", allCompanies || [])
+        );
+
+        if (transfersInternas.length > 0) {
+            toast({
+                title: `${transfersInternas.length} transferência(s) interna(s) detectada(s)`,
+                description: "Não foram criadas como CP/CR (não são despesa/receita). Restam pendentes para você conciliar manualmente como transferência.",
+            });
+        }
+
+        if (naoTransfers.length === 0) {
+            setSelectedIds(new Set());
+            return;
+        }
+
+        const effectiveToApprove = naoTransfers;
         const total = effectiveToApprove.length;
         let totalSuccess = 0;
         let totalFailed = 0;
