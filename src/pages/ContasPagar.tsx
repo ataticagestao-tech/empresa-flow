@@ -292,6 +292,8 @@ export default function ContasPagar() {
     let prox7Count = 0
 
     for (const cp of contas) {
+      // KPIs so consideram CPs em aberto/parcial/vencido (pagas e canceladas nao entram)
+      if (cp.status === 'pago' || cp.status === 'cancelado') continue
       const s = saldo(cp)
       totalPagar += s
       totalCount++
@@ -299,7 +301,7 @@ export default function ContasPagar() {
       const venc = parseISO(cp.data_vencimento)
       venc.setHours(0, 0, 0, 0)
 
-      if (isToday(venc) && cp.status === 'aberto') { venceHoje += s; hojeCount++ }
+      if (isToday(venc) && (cp.status === 'aberto' || cp.status === 'parcial')) { venceHoje += s; hojeCount++ }
       if ((isToday(venc) || (isAfter(venc, hoje) && (isBefore(venc, seteDias) || venc.getTime() === seteDias.getTime())))) { prox7 += s; prox7Count++ }
     }
 
