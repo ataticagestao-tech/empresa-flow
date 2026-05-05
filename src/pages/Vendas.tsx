@@ -1285,7 +1285,7 @@ export default function Vendas() {
               }
             >
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={produtosRanking} margin={{ top: 24, right: 16, left: 0, bottom: 48 }}>
+                <BarChart data={produtosRanking} margin={{ top: 24, right: 16, left: 0, bottom: 64 }}>
                   <defs>
                     <linearGradient id="prodVendaGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#039855" stopOpacity={1} />
@@ -1299,15 +1299,23 @@ export default function Vendas() {
                     tick={(props: any) => {
                       const { x, y, payload } = props
                       const txt = String(payload.value || '')
-                      const shown = txt.length > 14 ? txt.slice(0, 14) + '…' : txt
+                      const item = produtosRanking.find(p => p.descricao === txt)
+                      const qtd = item ? item.quantidade : 0
+                      const shown = txt.length > 22 ? txt.slice(0, 22) + '…' : txt
                       return (
-                        <text x={x} y={y + 10} textAnchor="end" transform={`rotate(-30, ${x}, ${y + 10})`} fontSize={11} fontWeight={500} fill="#1D2939">
-                          {shown}
-                        </text>
+                        <g transform={`translate(${x},${y + 10}) rotate(-30)`}>
+                          <text textAnchor="end" fontSize={11} fontWeight={500} fill="#1D2939">
+                            {shown}
+                          </text>
+                          <text y={14} textAnchor="end" fontSize={10} fontWeight={600} fill="#039855">
+                            {qtd} un
+                          </text>
+                        </g>
                       )
                     }}
                     axisLine={{ stroke: '#039855', strokeWidth: 2 }}
                     tickLine={false}
+                    height={70}
                   />
                   <YAxis type="number" hide domain={[0, 'dataMax']} />
                   <Tooltip
