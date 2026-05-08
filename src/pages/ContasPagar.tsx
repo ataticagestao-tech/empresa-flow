@@ -950,9 +950,58 @@ export default function ContasPagar() {
 
   // ─── Actions (dropdown) ──────────────────────────────────────────
   const handleCancelar = async (cp: ContaPagar) => {
-    const ok = await confirm({ title: `Cancelar conta de ${cp.credor_nome}?`, description: "O lancamento sera marcado como cancelado.", confirmLabel: "Sim, cancelar conta", variant: "destructive" })
+    const db = activeClient as any
+    const isPago = cp.status === 'pago' || cp.status === 'parcial'
+
+    if (isPago) {
+      const ok = await confirm({
+        title: `Cancelar pagamento de ${cp.credor_nome}?`,
+        description: 'O pagamento sera revertido, a movimentacao bancaria sera removida e a conta voltara como aberta.',
+        confirmLabel: 'Sim, cancelar pagamento',
+        variant: 'destructive',
+      })
+      if (!ok) return
+
+      const { error: errMov } = await db
+        .from('movimentacoes')
+        .delete()
+        .eq('conta_pagar_id', cp.id)
+      if (errMov) {
+        console.error('[handleCancelar] erro deletando movimentacao:', errMov)
+        toast.error('Erro ao reverter movimentacao bancaria')
+        return
+      }
+
+      const { error: errCp } = await db
+        .from('contas_pagar')
+        .update({
+          status: 'aberto',
+          valor_pago: 0,
+          data_pagamento: null,
+          forma_pagamento: null,
+          conta_bancaria_id: null,
+        })
+        .eq('id', cp.id)
+      if (errCp) {
+        console.error('[handleCancelar] erro atualizando CP:', errCp)
+        toast.error('Erro ao reverter pagamento')
+        return
+      }
+
+      toast.success('Pagamento cancelado, conta voltou como aberta')
+      setDropdownOpen(null)
+      await loadData()
+      return
+    }
+
+    const ok = await confirm({
+      title: `Cancelar conta de ${cp.credor_nome}?`,
+      description: 'O lancamento sera marcado como cancelado.',
+      confirmLabel: 'Sim, cancelar conta',
+      variant: 'destructive',
+    })
     if (!ok) return
-    await (activeClient as any).from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
+    await db.from('contas_pagar').update({ status: 'cancelado' }).eq('id', cp.id)
     setDropdownOpen(null)
     await loadData()
   }
@@ -1903,7 +1952,7 @@ export default function ContasPagar() {
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
-                                            <Trash2 size={14} /> Cancelar
+                                            <Trash2 size={14} /> {(cp.status === 'pago' || cp.status === 'parcial') ? 'Cancelar pagamento' : 'Cancelar'}
                                           </button>
                                           <button
                                             onClick={() => handleDividir(cp)}
