@@ -12,7 +12,8 @@ import {
     FileOutput,
     History,
     LayoutDashboard,
-    PieChart
+    PieChart,
+    Pin
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -45,6 +46,7 @@ export default function Financeiro() {
                 { label: "Incluir", icon: Plus, href: "/contas-pagar/nova", action: true },
                 { label: "Importar Planilha", icon: FileSpreadsheet, href: "/contas-pagar/importar" },
                 { label: "Exibir todas", icon: List, href: "/contas-pagar" },
+                { label: "Contas Fixas", icon: Pin, href: "/contas-fixas", highlight: true },
                 { label: "Registrar Pagamentos", icon: Zap, href: "/contas-pagar/pagamentos", highlight: true },
             ]
         },

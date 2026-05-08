@@ -24,6 +24,7 @@ import Movimentacoes from "./pages/Movimentacoes";
 import Categorias from "./pages/Categorias";
 import ContasBancarias from "./pages/ContasBancarias";
 import ContasPagar from "./pages/ContasPagar";
+import ContasFixas from "./pages/ContasFixas";
 import ContasReceber from "./pages/ContasReceber";
 import Conciliacao from "./pages/Conciliacao";
 import Relatorios from "./pages/Relatorios";
@@ -181,6 +182,7 @@ const App = () => (
                     <Route path="/centros-custo" element={<CentrosCusto />} />
                     <Route path="/contas-bancarias" element={<ContasBancarias />} />
                     <Route path="/contas-pagar" element={<ContasPagar />} />
+                    <Route path="/contas-fixas" element={<ContasFixas />} />
                     <Route path="/contas-receber" element={<ContasReceber />} />
                     <Route path="/conciliacao" element={<Conciliacao />} />
                     <Route path="/fluxo-caixa-projetado" element={<FluxoCaixaProjetado />} />

@@ -42,6 +42,7 @@ interface ContaPagar {
   codigo_barras: string | null
   file_url: string | null
   competencia: string | null
+  is_fixed_cost: boolean
 }
 
 interface Supplier {
@@ -97,7 +98,7 @@ interface Product {
 type Recorrencia = 'sem' | 'mensal' | 'trimestral' | 'anual'
 type UrgencyGroup = 'hoje' | 'proximos7' | 'proximos30' | 'vencidos' | 'pagos'
 
-const FORMAS_PAGAMENTO = ['PIX', 'Transferencia', 'Boleto', 'Debito automatico', 'Dinheiro'] as const
+const FORMAS_PAGAMENTO = ['PIX', 'Transferencia', 'Boleto', 'Debito automatico', 'Cartao de credito', 'Dinheiro'] as const
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function classifyUrgency(cp: ContaPagar): UrgencyGroup {
@@ -230,6 +231,7 @@ export default function ContasPagar() {
     numParcelas: 3,
     codigoBarras: '',
     fileUrl: '',
+    isFixedCost: false,
   })
 
   const MONTHS = [
@@ -713,6 +715,7 @@ export default function ContasPagar() {
     numParcelas: 3,
     codigoBarras: '',
     fileUrl: '',
+    isFixedCost: false,
   })
 
   const openNewModal = () => {
@@ -736,6 +739,7 @@ export default function ContasPagar() {
       numParcelas: 3,
       codigoBarras: cp.codigo_barras || '',
       fileUrl: cp.file_url || '',
+      isFixedCost: !!cp.is_fixed_cost,
     })
     setEditingCpId(cp.id)
     setDropdownOpen(null)
@@ -849,6 +853,7 @@ export default function ContasPagar() {
       competencia: newForm.competencia || null,
       codigo_barras: newForm.codigoBarras || null,
       file_url: newForm.fileUrl || null,
+      is_fixed_cost: !!newForm.isFixedCost,
     }
 
     const db = activeClient as any
@@ -2596,6 +2601,17 @@ export default function ContasPagar() {
                     </p>
                   </div>
                 )}
+
+                {/* Despesa fixa */}
+                <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!newForm.isFixedCost}
+                    onChange={(e) => setNewForm({ ...newForm, isFixedCost: e.target.checked })}
+                    style={{ accentColor: '#059669', width: 16, height: 16 }}
+                  />
+                  <span>Despesa fixa <span style={{ color: '#667085', fontSize: 12 }}>(aluguel, internet, salarios, etc — aparece em /contas-fixas)</span></span>
+                </label>
 
                 {/* Código de Barras */}
                 <div>
