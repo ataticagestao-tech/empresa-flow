@@ -296,7 +296,7 @@ export async function reenviarEmailRecibo(
   const vars: TemplateVars = {
     favorecido: recibo.favorecido,
     valor: fmt(Number(recibo.valor)),
-    data: new Intl.DateTimeFormat("pt-BR").format(new Date(recibo.data_pagamento)),
+    data: new Intl.DateTimeFormat("pt-BR").format(new Date(recibo.data_pagamento + "T00:00:00")),
     numero: recibo.numero,
     empresa: "Tática Gestão",
     forma_pagamento: recibo.forma_pagamento ?? "",

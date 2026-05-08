@@ -64,7 +64,7 @@ interface DetailFinancial {
 
 const diasAtras = (data: string | null): string => {
     if (!data) return "";
-    const diff = Math.floor((Date.now() - new Date(data).getTime()) / 86400000);
+    const diff = Math.floor((Date.now() - new Date(data + "T00:00:00").getTime()) / 86400000);
     if (diff === 0) return "hoje";
     if (diff === 1) return "há 1 dia";
     return `há ${diff} dias`;
@@ -72,7 +72,7 @@ const diasAtras = (data: string | null): string => {
 
 const diasAtraso = (data: string | null): string => {
     if (!data) return "";
-    const diff = Math.floor((Date.now() - new Date(data).getTime()) / 86400000);
+    const diff = Math.floor((Date.now() - new Date(data + "T00:00:00").getTime()) / 86400000);
     if (diff <= 0) return "";
     if (diff === 1) return "1 dia em atraso";
     return `${diff} dias em atraso`;
@@ -399,7 +399,7 @@ export default function Clientes() {
                     cr.status === "vencido" ||
                     (!["pago", "cancelado"].includes(cr.status) &&
                         cr.data_vencimento != null &&
-                        new Date(cr.data_vencimento) < new Date())
+                        new Date(cr.data_vencimento + "T00:00:00") < new Date())
                 )
             )
             .reduce((acc, cr) => acc + (Number(cr.valor ?? 0) - Number(cr.valor_pago ?? 0)), 0);
@@ -416,7 +416,7 @@ export default function Clientes() {
             isCartaoQuitado(cr.forma_recebimento) || (
                 cr.data_pagamento != null &&
                 cr.data_vencimento != null &&
-                new Date(cr.data_pagamento) <= new Date(cr.data_vencimento)
+                new Date(cr.data_pagamento + "T00:00:00") <= new Date(cr.data_vencimento + "T00:00:00")
             )
         ).length;
 
@@ -592,13 +592,17 @@ export default function Clientes() {
 
         // Busca textual
         const needle = normalizeSearch(searchTerm);
+        const needleDigits = String(searchTerm ?? "").replace(/\D/g, "");
         if (needle) {
-            list = list.filter((client: any) =>
-                normalizeSearch(
+            list = list.filter((client: any) => {
+                const haystack = normalizeSearch(
                     [client.razao_social, client.nome_fantasia, client.cpf_cnpj, client.email,
                      client.telefone, client.celular, client.category?.name].filter(Boolean).join(" ")
-                ).includes(needle)
-            );
+                );
+                if (haystack.includes(needle)) return true;
+                if (needleDigits.length >= 3 && haystack.includes(needleDigits)) return true;
+                return false;
+            });
         }
 
         // Filtro por aba
@@ -663,7 +667,7 @@ export default function Clientes() {
 
     const crSubtext = (cr: any) => {
         const today = new Date();
-        const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
+        const venc = cr.data_vencimento ? new Date(cr.data_vencimento + "T00:00:00") : null;
         const cartaoPago = isCartaoQuitado(cr.forma_recebimento) && cr.status !== "cancelado";
 
         const parts: string[] = [];
@@ -698,7 +702,7 @@ export default function Clientes() {
 
     const getCRDisplayStatus = (cr: any) => {
         const today = new Date();
-        const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null;
+        const venc = cr.data_vencimento ? new Date(cr.data_vencimento + "T00:00:00") : null;
         if (cr.status === "cancelado") return "cancelado";
         if (cr.status === "pago") return "pago";
         if (isCartaoQuitado(cr.forma_recebimento)) return "pago";

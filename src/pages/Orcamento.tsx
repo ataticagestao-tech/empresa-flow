@@ -29,7 +29,7 @@ export default function Orcamento() {
     const [editCategory, setEditCategory] = useState<{ id: string; name: string; code: string } | null>(null);
     const [editValue, setEditValue] = useState("");
 
-    const monthStart = startOfMonth(new Date(currentMonth + "-01"));
+    const monthStart = startOfMonth(new Date(currentMonth + "-01T00:00:00"));
     const monthEnd = endOfMonth(monthStart);
 
     const { data: categories = [] } = useQuery({

@@ -6,12 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList,
+    ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList, Customized,
 } from "recharts";
-import { AlertTriangle, ArrowRight, ChevronDown, Calendar } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info } from "lucide-react";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
-    subMonths, subWeeks, subDays, addDays, format, differenceInDays,
+    subMonths, subWeeks, subDays, addDays, format, differenceInDays, differenceInCalendarDays,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -71,6 +71,7 @@ export default function CompanyDashboard() {
     const [specificMonth, setSpecificMonth] = useState(() => new Date().getMonth());
     const [specificYear, setSpecificYear] = useState(() => new Date().getFullYear());
     const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+    const [regime, setRegime] = useState<"caixa" | "competencia">("competencia");
     const periodMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -190,27 +191,52 @@ export default function CompanyDashboard() {
         [payablesRaw, transferAccountIds]
     );
 
-    // ─── Faturamento do período (regime de competência: vendas) ────
-    // Soma vendas confirmadas com data_venda no intervalo. Faturamento
-    // reflete o que foi vendido (regime competencia), nao o que entrou
-    // em caixa.
+    // ─── Receita do período (depende do regime) ────────────
+    // Competência: vendas confirmadas por data_venda (o que foi vendido).
+    // Caixa: contas_receber pagas por data_pagamento (o que entrou em caixa).
     const { data: receitaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd],
+        queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, regime, transferAccountIds],
         queryFn: async () => {
-            const { data } = await db.from("vendas")
-                .select("valor_liquido")
-                .eq("company_id", cId).eq("status", "confirmado")
-                .gte("data_venda", periodStart).lte("data_venda", periodEnd)
+            if (regime === "competencia") {
+                const { data } = await db.from("vendas")
+                    .select("valor_liquido")
+                    .eq("company_id", cId).eq("status", "confirmado")
+                    .gte("data_venda", periodStart).lte("data_venda", periodEnd)
+                    .limit(10000);
+                return (data || [])
+                    .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
+            }
+            const { data } = await db.from("contas_receber")
+                .select("valor_pago, conta_contabil_id")
+                .eq("company_id", cId).eq("status", "pago")
+                .is("deleted_at", null)
+                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
                 .limit(10000);
             return (data || [])
-                .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
+                .filter((r: any) => !isTransfer(r))
+                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
     });
 
+    // ─── Despesa do período (depende do regime) ────────────
+    // Competência: contas_pagar (aberto/parcial/vencido/pago) por data_vencimento, valor cheio.
+    // Caixa: contas_pagar pagas por data_pagamento, valor efetivamente pago.
     const { data: despesaPeriodo = 0 } = useQuery({
-        queryKey: ["dash_despesa_periodo", cId, periodStart, periodEnd, transferAccountIds],
+        queryKey: ["dash_despesa_periodo", cId, periodStart, periodEnd, regime, transferAccountIds],
         queryFn: async () => {
+            if (regime === "competencia") {
+                const { data } = await db.from("contas_pagar")
+                    .select("valor, conta_contabil_id")
+                    .eq("company_id", cId)
+                    .in("status", ["aberto", "parcial", "vencido", "pago"])
+                    .is("deleted_at", null)
+                    .gte("data_vencimento", periodStart).lte("data_vencimento", periodEnd)
+                    .limit(10000);
+                return (data || [])
+                    .filter((r: any) => !isTransfer(r))
+                    .reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+            }
             const { data } = await db.from("contas_pagar")
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId).eq("status", "pago")
@@ -224,64 +250,62 @@ export default function CompanyDashboard() {
         enabled: !!cId,
     });
 
-    // ─── IDs das contas contábeis de CUSTO (name ILIKE %custo%) ─
-    const { data: costAccountIds = [] } = useQuery({
-        queryKey: ["dash_cost_ids", cId],
-        queryFn: async () => {
-            const { data } = await db.from("chart_of_accounts")
-                .select("id, name")
-                .eq("company_id", cId)
-                .ilike("name", "%custo%");
-            return (data || []).map((a: any) => a.id);
-        },
-        enabled: !!cId,
-    });
-    const isCost = (r: any) => r.conta_contabil_id && costAccountIds.includes(r.conta_contabil_id);
+    const resultadoPeriodo = receitaPeriodo - despesaPeriodo;
+    const margemPeriodo = receitaPeriodo > 0 ? (resultadoPeriodo / receitaPeriodo) * 100 : 0;
 
-    // ─── Custos do período (contas_pagar pagas em contas "custo") ─
-    const { data: custoPeriodo = 0 } = useQuery({
-        queryKey: ["dash_custo_periodo", cId, periodStart, periodEnd, costAccountIds, transferAccountIds],
+    // ─── Previous period (comparação alinhada por dia) ──────
+    // Espelha o período atual deslocado 1 mês pra trás, capando o fim no dia
+    // de hoje quando o período atual ainda está em andamento. Ex.: período
+    // 01-31/05 com hoje=07/05 → comparação 01-07/04 vs 01-07/05.
+    const periodStartDate = new Date(periodStart + "T00:00:00");
+    const periodEndDate = new Date(periodEnd + "T00:00:00");
+    const effectivePeriodEnd = periodEndDate > today ? today : periodEndDate;
+    const prevMonthStart = format(subMonths(periodStartDate, 1), "yyyy-MM-dd");
+    // prevMonthEnd: alinhado por dia (capa no hoje quando período em andamento) — usado nos KPIs
+    const prevMonthEnd = format(subMonths(effectivePeriodEnd, 1), "yyyy-MM-dd");
+    // prevMonthEndFull: cobertura total do mês anterior (sem capar) — usado nos gráficos com agregação semanal/mensal
+    const prevMonthEndFull = format(subMonths(periodEndDate, 1), "yyyy-MM-dd");
+
+    const { data: receitaPeriodoAnterior = 0 } = useQuery({
+        queryKey: ["dash_receita_prev", cId, prevMonthStart, prevMonthEnd, regime, transferAccountIds],
         queryFn: async () => {
-            const { data } = await db.from("contas_pagar")
+            if (regime === "competencia") {
+                const { data } = await db.from("vendas")
+                    .select("valor_liquido")
+                    .eq("company_id", cId).eq("status", "confirmado")
+                    .gte("data_venda", prevMonthStart).lte("data_venda", prevMonthEnd)
+                    .limit(10000);
+                return (data || [])
+                    .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
+            }
+            const { data } = await db.from("contas_receber")
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId).eq("status", "pago")
                 .is("deleted_at", null)
-                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
-                .limit(5000);
+                .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEnd)
+                .limit(10000);
             return (data || [])
-                .filter((r: any) => !isTransfer(r) && isCost(r))
+                .filter((r: any) => !isTransfer(r))
                 .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
         },
         enabled: !!cId,
     });
 
-    // despesaPeriodo já vem do bloco acima — subtrai o custo pra separar
-    const despesaLiq = Math.max(0, despesaPeriodo - custoPeriodo);
-    const resultadoPeriodo = receitaPeriodo - despesaPeriodo;
-    const margemPeriodo = receitaPeriodo > 0 ? (resultadoPeriodo / receitaPeriodo) * 100 : 0;
-
-    // ─── Previous period receita (para comparação) ─────────
-    const prevMonthStart = format(startOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
-    const prevMonthEnd = format(endOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
-    const prevMonthLabel = format(subMonths(today, 1), "MMMM", { locale: ptBR });
-
-    const { data: receitaPeriodoAnterior = 0 } = useQuery({
-        queryKey: ["dash_receita_prev", cId, prevMonthStart],
-        queryFn: async () => {
-            const { data } = await db.from("vendas")
-                .select("valor_liquido")
-                .eq("company_id", cId).eq("status", "confirmado")
-                .gte("data_venda", prevMonthStart).lte("data_venda", prevMonthEnd)
-                .limit(10000);
-            return (data || [])
-                .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
-        },
-        enabled: !!cId,
-    });
-
     const { data: despesaPeriodoAnterior = 0 } = useQuery({
-        queryKey: ["dash_despesa_prev", cId, prevMonthStart, transferAccountIds],
+        queryKey: ["dash_despesa_prev", cId, prevMonthStart, prevMonthEnd, regime, transferAccountIds],
         queryFn: async () => {
+            if (regime === "competencia") {
+                const { data } = await db.from("contas_pagar")
+                    .select("valor, conta_contabil_id")
+                    .eq("company_id", cId)
+                    .in("status", ["aberto", "parcial", "vencido", "pago"])
+                    .is("deleted_at", null)
+                    .gte("data_vencimento", prevMonthStart).lte("data_vencimento", prevMonthEnd)
+                    .limit(10000);
+                return (data || [])
+                    .filter((r: any) => !isTransfer(r))
+                    .reduce((s: number, r: any) => s + Number(r.valor || 0), 0);
+            }
             const { data } = await db.from("contas_pagar")
                 .select("valor_pago, conta_contabil_id")
                 .eq("company_id", cId).eq("status", "pago")
@@ -323,7 +347,7 @@ export default function CompanyDashboard() {
             totalAberto += saldo;
             totalCount++;
 
-            const diasAtraso = differenceInDays(today, new Date(r.data_vencimento));
+            const diasAtraso = differenceInCalendarDays(today, new Date(r.data_vencimento + "T00:00:00"));
             if (diasAtraso > 60) {
                 buckets.acima60.total += saldo;
                 buckets.acima60.count++;
@@ -351,7 +375,7 @@ export default function CompanyDashboard() {
         receivablesInPeriod.forEach((r: any) => {
             const saldo = Number(r.valor || 0) - Number(r.valor_pago || 0);
             if (saldo <= 0) return;
-            const venc = new Date(r.data_vencimento);
+            const venc = new Date(r.data_vencimento + "T00:00:00");
             if (venc > today30) { emDia.total += saldo; emDia.count++; }
             else if (venc >= today) { aVencerBreve.total += saldo; aVencerBreve.count++; }
             else if (venc < past90) { acima90.total += saldo; acima90.count++; }
@@ -377,103 +401,44 @@ export default function CompanyDashboard() {
     if (receivablesAging.overdue.length > 0) alertItems.push(`${receivablesAging.overdue.length} titulo${receivablesAging.overdue.length > 1 ? "s" : ""} a receber com mais de 60 dias em atraso`);
 
     // ─── Faturamento por período (granularidade dinâmica) ──
-    const periodDays = differenceInDays(new Date(periodEnd + "T00:00:00"), new Date(periodStart + "T00:00:00")) + 1;
-    const chartGranularity: "day" | "week" | "month" = periodDays <= 45 ? "day" : periodDays <= 180 ? "week" : "month";
+    // Períodos curtos (≤14 dias): barras diárias. Médios: semanais. Longos: mensais.
+    // Threshold mais conservador pra evitar muitas barras finas no mês completo.
+    const periodDays = differenceInCalendarDays(new Date(periodEnd + "T00:00:00"), new Date(periodStart + "T00:00:00")) + 1;
+    const chartGranularity: "day" | "week" | "month" = periodDays <= 14 ? "day" : periodDays <= 180 ? "week" : "month";
 
-    const { data: chartRevExp } = useQuery({
-        queryKey: ["dash_rev_exp", cId, periodStart, periodEnd, chartGranularity, transferAccountIds],
-        queryFn: async () => {
-            const buckets: { start: Date; end: Date; label: string }[] = [];
-            const ps = new Date(periodStart + "T00:00:00");
-            const pe = new Date(periodEnd + "T00:00:00");
-
-            if (chartGranularity === "day") {
-                for (let i = 0; i < periodDays; i++) {
-                    const d = addDays(ps, i);
-                    buckets.push({ start: d, end: d, label: format(d, "dd") });
-                }
-            } else if (chartGranularity === "week") {
-                let d = startOfWeek(ps, { weekStartsOn: 1 });
-                while (d <= pe) {
-                    const weekEnd = endOfWeek(d, { weekStartsOn: 1 });
-                    buckets.push({
-                        start: d < ps ? ps : d,
-                        end: weekEnd > pe ? pe : weekEnd,
-                        label: format(d, "dd/MM"),
-                    });
-                    d = addDays(weekEnd, 1);
-                }
-            } else {
-                let d = startOfMonth(ps);
-                while (d <= pe) {
-                    const mEnd = endOfMonth(d);
-                    buckets.push({
-                        start: d < ps ? ps : d,
-                        end: mEnd > pe ? pe : mEnd,
-                        label: format(d, "MMM/yy", { locale: ptBR }).replace(".", ""),
-                    });
-                    d = addDays(mEnd, 1);
-                }
-            }
-
-            const rows: any[] = [];
-            for (const b of buckets) {
-                const ms = format(b.start, "yyyy-MM-dd");
-                const me = format(b.end, "yyyy-MM-dd");
-
-                const [{ data: rec }, { data: desp }] = await Promise.all([
-                    db.from("vendas")
-                        .select("valor_liquido")
-                        .eq("company_id", cId).eq("status", "confirmado")
-                        .gte("data_venda", ms).lte("data_venda", me)
-                        .limit(10000),
-                    db.from("contas_pagar")
-                        .select("valor_pago, conta_contabil_id")
-                        .eq("company_id", cId).eq("status", "pago")
-                        .is("deleted_at", null)
-                        .gte("data_pagamento", ms).lte("data_pagamento", me)
-                        .limit(5000),
-                ]);
-
-                const receita = (rec || [])
-                    .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
-                const despesa = (desp || [])
-                    .filter((r: any) => !isTransfer(r))
-                    .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
-
-                rows.push({
-                    label: b.label,
-                    Receita: receita,
-                    Despesa: despesa,
-                    Resultado: receita - despesa,
-                });
-            }
-            return rows;
-        },
-        enabled: !!cId,
-    });
-
-    // ─── Principais destinos dos gastos (categorias de CP pagas) ─
+    // ─── Principais destinos dos gastos (categorias) ────────
+    // Competência: agrupa pelo valor cheio dos CP por data_vencimento.
+    // Caixa: agrupa pelo valor pago dos CP por data_pagamento.
     const { data: gastosCategorias = [] } = useQuery({
-        queryKey: ["dash_gastos_categorias", cId, periodStart, periodEnd, transferAccountIds],
+        queryKey: ["dash_gastos_categorias", cId, periodStart, periodEnd, regime, transferAccountIds],
         queryFn: async () => {
-            const [accRes, cpRes] = await Promise.all([
-                db.from("chart_of_accounts").select("id, name").eq("company_id", cId),
-                db.from("contas_pagar")
+            const cpQuery = regime === "competencia"
+                ? db.from("contas_pagar")
+                    .select("valor, conta_contabil_id")
+                    .eq("company_id", cId)
+                    .in("status", ["aberto", "parcial", "vencido", "pago"])
+                    .is("deleted_at", null)
+                    .gte("data_vencimento", periodStart).lte("data_vencimento", periodEnd)
+                    .limit(10000)
+                : db.from("contas_pagar")
                     .select("valor_pago, conta_contabil_id")
                     .eq("company_id", cId).eq("status", "pago")
                     .is("deleted_at", null)
                     .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
-                    .limit(10000),
+                    .limit(10000);
+            const [accRes, cpRes] = await Promise.all([
+                db.from("chart_of_accounts").select("id, name").eq("company_id", cId),
+                cpQuery,
             ]);
             const accMap: Record<string, string> = {};
             (accRes.data || []).forEach((a: any) => { accMap[a.id] = a.name; });
 
+            const valorField = regime === "competencia" ? "valor" : "valor_pago";
             const byCat: Record<string, number> = {};
             (cpRes.data || []).forEach((r: any) => {
                 if (isTransfer(r)) return;
                 const name = r.conta_contabil_id ? (accMap[r.conta_contabil_id] || "Sem categoria") : "Sem categoria";
-                byCat[name] = (byCat[name] || 0) + Number(r.valor_pago || 0);
+                byCat[name] = (byCat[name] || 0) + Number(r[valorField] || 0);
             });
 
             const sorted = Object.entries(byCat)
@@ -490,34 +455,106 @@ export default function CompanyDashboard() {
     });
 
     // ─── Despesas diárias pelo período selecionado ──────────
-    const { data: chartDespDiarias } = useQuery({
-        queryKey: ["dash_desp_diarias", cId, periodStart, periodEnd, transferAccountIds, costAccountIds],
+    // Competência: por data_vencimento, valor cheio.
+    // Caixa: por data_pagamento, valor pago.
+    // Retorna mapas byDay (atual e anterior) — agregação por bucket vem em useMemo abaixo.
+    const { data: despesaDailyMaps } = useQuery({
+        queryKey: ["dash_desp_daily_maps", cId, periodStart, periodEnd, prevMonthStart, prevMonthEndFull, regime, transferAccountIds],
         queryFn: async () => {
-            const { data } = await db.from("contas_pagar")
-                .select("valor_pago, data_pagamento, conta_contabil_id")
-                .eq("company_id", cId).eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
-                .limit(10000);
+            const dateField = regime === "competencia" ? "data_vencimento" : "data_pagamento";
+            const valorField = regime === "competencia" ? "valor" : "valor_pago";
+            const buildQuery = (from: string, to: string) => {
+                let q = db.from("contas_pagar")
+                    .select(`${valorField}, ${dateField}, conta_contabil_id`)
+                    .eq("company_id", cId)
+                    .is("deleted_at", null)
+                    .gte(dateField, from).lte(dateField, to)
+                    .limit(10000);
+                q = regime === "competencia"
+                    ? q.in("status", ["aberto", "parcial", "vencido", "pago"])
+                    : q.eq("status", "pago");
+                return q;
+            };
+            const [{ data: dataAtual }, { data: dataPrev }] = await Promise.all([
+                buildQuery(periodStart, periodEnd),
+                buildQuery(prevMonthStart, prevMonthEndFull),
+            ]);
             const byDay: Record<string, number> = {};
-            (data || []).forEach((r: any) => {
+            (dataAtual || []).forEach((r: any) => {
                 if (isTransfer(r)) return;
-                const d = r.data_pagamento;
-                byDay[d] = (byDay[d] || 0) + Number(r.valor_pago || 0);
+                const d = r[dateField];
+                byDay[d] = (byDay[d] || 0) + Number(r[valorField] || 0);
             });
-            const ps = new Date(periodStart + "T00:00:00");
-            const pe = new Date(periodEnd + "T00:00:00");
-            const dayCount = differenceInDays(pe, ps) + 1;
-            const rows: any[] = [];
-            for (let i = 0; i < dayCount; i++) {
-                const d = addDays(ps, i);
-                const ds = format(d, "yyyy-MM-dd");
-                rows.push({ label: format(d, "dd"), despesa: byDay[ds] || 0 });
-            }
-            return rows;
+            const prevByDay: Record<string, number> = {};
+            (dataPrev || []).forEach((r: any) => {
+                if (isTransfer(r)) return;
+                const d = r[dateField];
+                prevByDay[d] = (prevByDay[d] || 0) + Number(r[valorField] || 0);
+            });
+            return { byDay, prevByDay };
         },
         enabled: !!cId,
     });
+
+    // Agrega Despesa por bucket (day/week/month) com base no chartGranularity.
+    const chartDespDiarias = useMemo(() => {
+        const ps = new Date(periodStart + "T00:00:00");
+        const pe = new Date(periodEnd + "T00:00:00");
+        const prevPs = new Date(prevMonthStart + "T00:00:00");
+        const byDay = (despesaDailyMaps?.byDay || {}) as Record<string, number>;
+        const prevByDayMap = (despesaDailyMaps?.prevByDay || {}) as Record<string, number>;
+        const sumRange = (map: Record<string, number>, from: Date, to: Date) => {
+            let s = 0;
+            let d = from;
+            while (d <= to) {
+                s += map[format(d, "yyyy-MM-dd")] || 0;
+                d = addDays(d, 1);
+            }
+            return s;
+        };
+        const buckets: { start: Date; end: Date; label: string }[] = [];
+
+        if (chartGranularity === "day") {
+            for (let i = 0; i < periodDays; i++) {
+                const d = addDays(ps, i);
+                buckets.push({ start: d, end: d, label: format(d, "dd") });
+            }
+        } else if (chartGranularity === "week") {
+            let d = startOfWeek(ps, { weekStartsOn: 1 });
+            while (d <= pe) {
+                const weekEnd = endOfWeek(d, { weekStartsOn: 1 });
+                buckets.push({
+                    start: d < ps ? ps : d,
+                    end: weekEnd > pe ? pe : weekEnd,
+                    label: format(d, "dd/MM"),
+                });
+                d = addDays(weekEnd, 1);
+            }
+        } else {
+            let d = startOfMonth(ps);
+            while (d <= pe) {
+                const mEnd = endOfMonth(d);
+                buckets.push({
+                    start: d < ps ? ps : d,
+                    end: mEnd > pe ? pe : mEnd,
+                    label: format(d, "MMM/yy", { locale: ptBR }).replace(".", ""),
+                });
+                d = addDays(mEnd, 1);
+            }
+        }
+
+        return buckets.map((b) => {
+            const offsetStart = differenceInCalendarDays(b.start, ps);
+            const offsetEnd = differenceInCalendarDays(b.end, ps);
+            const prevStart = addDays(prevPs, offsetStart);
+            const prevEnd = addDays(prevPs, offsetEnd);
+            return {
+                label: b.label,
+                despesa: sumRange(byDay, b.start, b.end),
+                despesaAnterior: sumRange(prevByDayMap, prevStart, prevEnd),
+            };
+        });
+    }, [despesaDailyMaps, periodStart, periodEnd, prevMonthStart, periodDays, chartGranularity]);
 
     // ─── Fluxo de Caixa pelo período selecionado ────────────
     const { data: chartCashflow } = useQuery({
@@ -567,21 +604,119 @@ export default function CompanyDashboard() {
         enabled: !!cId && saldoCaixa !== undefined,
     });
 
-    // ─── Faturamento diário (heatmap + produtos), regime competência ───
-    // Soma as vendas confirmadas com data_venda no periodo. Para cada venda,
-    // o valor_liquido entra no byDay[data_venda] e e distribuido entre os
-    // vendas_itens (proporcional ao share). Vendas tipo=contrato sem itens
-    // usam `procedimento` como nome do produto.
+    // ─── Faturamento/Recebimentos diário (heatmap + produtos) ───
+    // Competência: vendas confirmadas por data_venda, com breakdown de produtos.
+    // Caixa: contas_receber pagas por data_pagamento. Produtos vêm da venda
+    // original via 'venda_id' (rateio: cada CR distribui seu valor_pago entre
+    // os itens da venda proporcional ao share de cada item no valor_total).
     const { data: monthlySales } = useQuery({
-        queryKey: ["dash_monthly_sales", cId, periodStart, periodEnd],
+        queryKey: ["dash_monthly_sales", cId, periodStart, periodEnd, regime, transferAccountIds],
         queryFn: async () => {
+            const byDay: Record<string, number> = {};
+
+            if (regime === "caixa") {
+                const { data: cr } = await db.from("contas_receber")
+                    .select("valor_pago, data_pagamento, conta_contabil_id, venda_id")
+                    .eq("company_id", cId).eq("status", "pago")
+                    .is("deleted_at", null)
+                    .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
+                    .limit(10000);
+
+                let totalRec = 0;
+                const validCRs: { valor_pago: number; venda_id: string | null }[] = [];
+                (cr || []).forEach((r: any) => {
+                    if (isTransfer(r)) return;
+                    const v = Number(r.valor_pago || 0);
+                    if (v <= 0 || !r.data_pagamento) return;
+                    byDay[r.data_pagamento] = (byDay[r.data_pagamento] || 0) + v;
+                    totalRec += v;
+                    validCRs.push({ valor_pago: v, venda_id: r.venda_id });
+                });
+
+                // Carrega vendas originais pra montar breakdown de produtos
+                const vendaIds = Array.from(new Set(validCRs.map(r => r.venda_id).filter(Boolean) as string[]));
+                const vendasMap: Record<string, { valor_total: number; procedimento: string | null; itens: { descricao: string; valor_total: number }[] }> = {};
+                if (vendaIds.length > 0) {
+                    const { data: vendas } = await db.from("vendas")
+                        .select("id, valor_total, procedimento, vendas_itens(descricao, valor_total)")
+                        .in("id", vendaIds);
+                    (vendas || []).forEach((v: any) => {
+                        vendasMap[v.id] = {
+                            valor_total: Number(v.valor_total || 0),
+                            procedimento: v.procedimento || null,
+                            itens: Array.isArray(v.vendas_itens)
+                                ? v.vendas_itens.map((it: any) => ({ descricao: (it.descricao || "Sem descrição").trim(), valor_total: Number(it.valor_total || 0) }))
+                                : [],
+                        };
+                    });
+                }
+
+                const productMap: Record<string, { descricao: string; faturamento: number; vendas: Set<string> }> = {};
+                let semVendaTotal = 0;
+                validCRs.forEach((cr) => {
+                    if (!cr.venda_id || !vendasMap[cr.venda_id]) {
+                        semVendaTotal += cr.valor_pago;
+                        return;
+                    }
+                    const venda = vendasMap[cr.venda_id];
+                    const totalItens = venda.itens.reduce((s, it) => s + it.valor_total, 0);
+
+                    if (venda.itens.length > 0 && totalItens > 0) {
+                        // Rateia o valor_pago entre os itens proporcional ao share de cada um
+                        venda.itens.forEach((it) => {
+                            const itemShare = it.valor_total / totalItens;
+                            const fat = cr.valor_pago * itemShare;
+                            if (!productMap[it.descricao]) productMap[it.descricao] = { descricao: it.descricao, faturamento: 0, vendas: new Set() };
+                            productMap[it.descricao].faturamento += fat;
+                            productMap[it.descricao].vendas.add(cr.venda_id!);
+                        });
+                    } else if (venda.procedimento) {
+                        const desc = venda.procedimento.trim();
+                        if (!productMap[desc]) productMap[desc] = { descricao: desc, faturamento: 0, vendas: new Set() };
+                        productMap[desc].faturamento += cr.valor_pago;
+                        productMap[desc].vendas.add(cr.venda_id!);
+                    } else {
+                        semVendaTotal += cr.valor_pago;
+                    }
+                });
+
+                const productBreakdown = Object.values(productMap)
+                    .map(p => ({
+                        descricao: p.descricao,
+                        quantidade: 0,
+                        faturamento: p.faturamento,
+                        vendas: p.vendas.size,
+                        percentual: totalRec > 0 ? (p.faturamento / totalRec) * 100 : 0,
+                        semProduto: false,
+                    }))
+                    .sort((a, b) => b.faturamento - a.faturamento);
+
+                if (semVendaTotal > 0) {
+                    productBreakdown.push({
+                        descricao: "Recebimento sem venda vinculada",
+                        quantidade: 0,
+                        faturamento: semVendaTotal,
+                        vendas: 0,
+                        percentual: totalRec > 0 ? (semVendaTotal / totalRec) * 100 : 0,
+                        semProduto: true,
+                    });
+                }
+
+                return {
+                    byDay,
+                    totalVendas: vendaIds.length,
+                    totalProdutos: 0,
+                    totalFaturamento: totalRec,
+                    productBreakdown,
+                };
+            }
+
             const { data: vendas } = await db.from("vendas")
                 .select("id, valor_total, valor_liquido, data_venda, procedimento, tipo, vendas_itens(descricao, quantidade, valor_total)")
                 .eq("company_id", cId).eq("status", "confirmado")
                 .gte("data_venda", periodStart).lte("data_venda", periodEnd)
                 .limit(10000);
 
-            const byDay: Record<string, number> = {};
             let totalVendas = 0;
             let totalProdutos = 0;
             let totalFaturamento = 0;
@@ -653,6 +788,101 @@ export default function CompanyDashboard() {
     });
     const dailyRevenue = monthlySales?.byDay;
 
+    // ─── Faturamento/Recebimentos diário do mês anterior (cobertura total) ───
+    // Usa prevMonthEndFull (não capa no hoje) pra que os buckets semanais/mensais
+    // do gráfico encontrem dados completos do mês anterior.
+    const { data: prevByDay = {} } = useQuery({
+        queryKey: ["dash_prev_byday", cId, prevMonthStart, prevMonthEndFull, regime, transferAccountIds],
+        queryFn: async () => {
+            const byDay: Record<string, number> = {};
+            if (regime === "competencia") {
+                const { data } = await db.from("vendas")
+                    .select("valor_liquido, data_venda")
+                    .eq("company_id", cId).eq("status", "confirmado")
+                    .gte("data_venda", prevMonthStart).lte("data_venda", prevMonthEndFull)
+                    .limit(10000);
+                (data || []).forEach((r: any) => {
+                    const v = Number(r.valor_liquido || 0);
+                    if (v > 0 && r.data_venda) byDay[r.data_venda] = (byDay[r.data_venda] || 0) + v;
+                });
+            } else {
+                const { data } = await db.from("contas_receber")
+                    .select("valor_pago, data_pagamento, conta_contabil_id")
+                    .eq("company_id", cId).eq("status", "pago")
+                    .is("deleted_at", null)
+                    .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEndFull)
+                    .limit(10000);
+                (data || []).forEach((r: any) => {
+                    if (isTransfer(r)) return;
+                    const v = Number(r.valor_pago || 0);
+                    if (v > 0 && r.data_pagamento) byDay[r.data_pagamento] = (byDay[r.data_pagamento] || 0) + v;
+                });
+            }
+            return byDay;
+        },
+        enabled: !!cId,
+    });
+
+    // Faturamento por bucket — Receita atual e Receita do mesmo intervalo
+    // do mês anterior (alinhado por dia). Deriva de dailyRevenue + prevByDay
+    // pra evitar queries extras.
+    const chartRevExp = useMemo(() => {
+        const ps = new Date(periodStart + "T00:00:00");
+        const pe = new Date(periodEnd + "T00:00:00");
+        const prevPs = new Date(prevMonthStart + "T00:00:00");
+        const sumRange = (map: Record<string, number>, from: Date, to: Date) => {
+            let s = 0;
+            let d = from;
+            while (d <= to) {
+                s += map[format(d, "yyyy-MM-dd")] || 0;
+                d = addDays(d, 1);
+            }
+            return s;
+        };
+        const buckets: { start: Date; end: Date; label: string }[] = [];
+
+        if (chartGranularity === "day") {
+            for (let i = 0; i < periodDays; i++) {
+                const d = addDays(ps, i);
+                buckets.push({ start: d, end: d, label: format(d, "dd") });
+            }
+        } else if (chartGranularity === "week") {
+            let d = startOfWeek(ps, { weekStartsOn: 1 });
+            while (d <= pe) {
+                const weekEnd = endOfWeek(d, { weekStartsOn: 1 });
+                buckets.push({
+                    start: d < ps ? ps : d,
+                    end: weekEnd > pe ? pe : weekEnd,
+                    label: format(d, "dd/MM"),
+                });
+                d = addDays(weekEnd, 1);
+            }
+        } else {
+            let d = startOfMonth(ps);
+            while (d <= pe) {
+                const mEnd = endOfMonth(d);
+                buckets.push({
+                    start: d < ps ? ps : d,
+                    end: mEnd > pe ? pe : mEnd,
+                    label: format(d, "MMM/yy", { locale: ptBR }).replace(".", ""),
+                });
+                d = addDays(mEnd, 1);
+            }
+        }
+
+        return buckets.map((b) => {
+            const offsetStart = differenceInCalendarDays(b.start, ps);
+            const offsetEnd = differenceInCalendarDays(b.end, ps);
+            const prevStart = addDays(prevPs, offsetStart);
+            const prevEnd = addDays(prevPs, offsetEnd);
+            return {
+                label: b.label,
+                Receita: sumRange(dailyRevenue || {}, b.start, b.end),
+                ReceitaAnterior: sumRange(prevByDay as Record<string, number>, prevStart, prevEnd),
+            };
+        });
+    }, [dailyRevenue, prevByDay, periodStart, periodEnd, prevMonthStart, periodDays, chartGranularity]);
+
     const heatmap = useMemo(() => {
         const rangeStart = new Date(periodStart + "T00:00:00");
         const rangeEnd = new Date(periodEnd + "T00:00:00");
@@ -712,10 +942,10 @@ export default function CompanyDashboard() {
     const heatmapColor = (value: number, max: number) => {
         if (value === 0 || max === 0) return "#F3F4F6";
         const r = value / max;
-        if (r < 0.25) return "#BBF7D0";
-        if (r < 0.5) return "#86EFAC";
-        if (r < 0.75) return "#4ADE80";
-        return "#16A34A";
+        if (r < 0.25) return "#C2F8CE";
+        if (r < 0.5) return "#85F2A0";
+        if (r < 0.75) return "#48EB72";
+        return "#0BE041";
     };
 
     const tooltipStyle = {
@@ -725,9 +955,9 @@ export default function CompanyDashboard() {
     };
 
     const daysUntilDue = (dateStr: string) => {
-        const diff = differenceInDays(new Date(dateStr), today);
+        const diff = differenceInCalendarDays(new Date(dateStr + "T00:00:00"), today);
         if (diff === 0) return "Vence hoje";
-        if (diff < 0) return `${Math.abs(diff)} dias atras`;
+        if (diff < 0) return `${Math.abs(diff)} dia${Math.abs(diff) > 1 ? "s" : ""} atrás`;
         return `Vence em ${diff} dia${diff > 1 ? "s" : ""}`;
     };
 
@@ -756,15 +986,41 @@ export default function CompanyDashboard() {
                         <p style={{ fontSize: 13, color: C.text2, margin: 0, fontWeight: 500 }}>
                             Análise ref. {format(new Date(periodStart + "T00:00:00"), "dd 'de' MMMM", { locale: ptBR })}
                             {" "}até{" "}
-                            {format(new Date(periodEnd + "T00:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                            {format(effectivePeriodEnd, "dd 'de' MMMM, yyyy", { locale: ptBR })}
                         </p>
                         <p style={{ fontSize: 11.5, color: C.textMuted, margin: "4px 0 0" }}>
                             Atualizado as {format(today, "HH:mm")}
                         </p>
                     </div>
 
-                    {/* Period Filter (ao lado do título) */}
-                    <div ref={periodMenuRef} style={{ position: "relative", flexShrink: 0 }}>
+                    {/* Regime + Period Filter (ao lado do título) */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        {/* Regime toggle */}
+                        <div style={{ display: "inline-flex", border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, overflow: "hidden" }}>
+                            {([
+                                { key: "caixa", label: "Caixa", title: "Regime de caixa: conta o que efetivamente entrou e saiu (recebimentos e pagamentos por data de pagamento)." },
+                                { key: "competencia", label: "Competência", title: "Regime de competência: conta o que foi vendido e o que foi devido no período (vendas por data de venda; despesas por data de vencimento), independente do pagamento." },
+                            ] as { key: "caixa" | "competencia"; label: string; title: string }[]).map((r) => (
+                                <button
+                                    key={r.key}
+                                    onClick={() => setRegime(r.key)}
+                                    title={r.title}
+                                    style={{
+                                        padding: "8px 14px",
+                                        border: "none",
+                                        background: regime === r.key ? C.goldBg : "transparent",
+                                        color: regime === r.key ? "#059669" : C.text2,
+                                        fontSize: 13,
+                                        fontWeight: regime === r.key ? 600 : 500,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    {r.label}
+                                </button>
+                            ))}
+                        </div>
+
+                    <div ref={periodMenuRef} style={{ position: "relative" }}>
                         <button
                             onClick={() => setPeriodMenuOpen((o) => !o)}
                             style={{
@@ -865,6 +1121,7 @@ export default function CompanyDashboard() {
                             </div>
                         )}
                     </div>
+                    </div>
                 </div>
 
                 {/* ── Alert Banner ── */}
@@ -895,41 +1152,65 @@ export default function CompanyDashboard() {
                     {/* 1. Faturamento */}
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Faturamento</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                {regime === "competencia" ? "Faturamento" : "Recebimentos"}
+                                <span title={regime === "competencia"
+                                    ? "Vendas confirmadas no período (regime de competência). Fonte: 'vendas.valor_liquido' por 'data_venda', status='confirmado'."
+                                    : "Recebimentos efetivos no período (regime de caixa). Fonte: 'contas_receber.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."
+                                } style={{ display: "inline-flex", cursor: "help" }}>
+                                    <Info size={13} style={{ color: C.textMuted }} />
+                                </span>
+                            </div>
                             {receitaPeriodoAnterior > 0 && (
-                                <span title={`vs ${prevMonthLabel}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias (ex.: se hoje é 07/05, compara 01–07/05 com 01–07/04). Cálculo: (período atual − período anterior) ÷ período anterior × 100. Seta verde para cima indica crescimento; vermelha para baixo indica queda." style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                     {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
                                 </span>
                             )}
                         </div>
                         <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: C.gold, lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(receitaPeriodo)}</div>
                         <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {receitaPeriodoAnterior > 0 ? `${fmt(receitaPeriodoAnterior)} mês anterior` : `em ${periodLabel.toLowerCase()}`}
+                            {receitaPeriodoAnterior > 0 ? fmt(receitaPeriodoAnterior) : `em ${periodLabel.toLowerCase()}`}
                         </div>
                     </div>
 
                     {/* 2. Despesas */}
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Despesas</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                {regime === "competencia" ? "Despesas" : "Pagamentos"}
+                                <span title={regime === "competencia"
+                                    ? "Despesas do período por regime de competência: soma do valor cheio de TODAS as contas a pagar (aberto, parcial, vencido, pago) com 'data_vencimento' no período. Exclui transferências."
+                                    : "Pagamentos efetivos do período (regime de caixa): soma das contas pagas. Fonte: 'contas_pagar.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."
+                                } style={{ display: "inline-flex", cursor: "help" }}>
+                                    <Info size={13} style={{ color: C.textMuted }} />
+                                </span>
+                            </div>
                             {despesaPeriodoAnterior > 0 && (
-                                <span title={`vs ${prevMonthLabel}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendDesp <= 0 ? "#ECFDF3" : "#FEE2E2", color: trendDesp <= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias (ex.: se hoje é 07/05, compara 01–07/05 com 01–07/04). Cálculo: (período atual − período anterior) ÷ período anterior × 100. Seta verde para cima indica crescimento; vermelha para baixo indica queda." style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendDesp <= 0 ? "#ECFDF3" : "#FEE2E2", color: trendDesp <= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                     {trendDesp <= 0 ? "▼" : "▲"} {Math.abs(trendDesp).toFixed(1)}%
                                 </span>
                             )}
                         </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: "#7F1D1D", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(despesaLiq)}</div>
+                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: "#7F1D1D", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(despesaPeriodo)}</div>
                         <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {despesaPeriodoAnterior > 0 ? `${fmt(despesaPeriodoAnterior)} mês anterior` : (receitaPeriodo > 0 ? `${((despesaLiq / receitaPeriodo) * 100).toFixed(1)}% do faturamento` : "—")}
+                            {despesaPeriodoAnterior > 0 ? fmt(despesaPeriodoAnterior) : (receitaPeriodo > 0 ? `${((despesaPeriodo / receitaPeriodo) * 100).toFixed(1)}% ${regime === "competencia" ? "do faturamento" : "dos recebimentos"}` : "—")}
                         </div>
                     </div>
 
                     {/* 3. Resultado Líquido */}
                     <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap" }}>Resultado Líquido</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                {regime === "competencia" ? "Resultado Líquido" : "Resultado de Caixa"}
+                                <span title={regime === "competencia"
+                                    ? "Resultado contábil do período (DRE): Faturamento − Despesas, ambos em regime de competência. Reflete o lucro do período independente do que entrou ou saiu de caixa."
+                                    : "Resultado de caixa do período: Recebimentos − Pagamentos, ambos em regime de caixa. Reflete a variação efetiva do caixa no período."
+                                } style={{ display: "inline-flex", cursor: "help" }}>
+                                    <Info size={13} style={{ color: C.textMuted }} />
+                                </span>
+                            </div>
                             {resultadoPeriodoAnterior !== 0 ? (
-                                <span title={`vs ${prevMonthLabel}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendResultado >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendResultado >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias (ex.: se hoje é 07/05, compara 01–07/05 com 01–07/04). Cálculo: (período atual − período anterior) ÷ período anterior × 100. Seta verde para cima indica crescimento; vermelha para baixo indica queda." style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendResultado >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendResultado >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
                                     {trendResultado >= 0 ? "▲" : "▼"} {Math.abs(trendResultado).toFixed(1)}%
                                 </span>
                             ) : (
@@ -940,7 +1221,7 @@ export default function CompanyDashboard() {
                         </div>
                         <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(resultadoPeriodo)}</div>
                         <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {resultadoPeriodoAnterior !== 0 ? `${fmt(resultadoPeriodoAnterior)} mês anterior` : (receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—")}
+                            {resultadoPeriodoAnterior !== 0 ? fmt(resultadoPeriodoAnterior) : (receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—")}
                         </div>
                     </div>
                 </div>
@@ -949,7 +1230,15 @@ export default function CompanyDashboard() {
                 <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", marginBottom: 16, overflow: "hidden" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                         <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em" }}>Faturamento Diário</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                {regime === "competencia" ? "Faturamento Diário" : "Recebimentos Diários"}
+                                <span title={regime === "competencia"
+                                    ? "Vendas confirmadas distribuídas por dia (regime de competência). Cada célula soma 'vendas.valor_liquido' por 'data_venda'."
+                                    : "Recebimentos por dia (regime de caixa). Cada célula soma 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."
+                                } style={{ display: "inline-flex", cursor: "help" }}>
+                                    <Info size={13} style={{ color: C.textMuted }} />
+                                </span>
+                            </div>
                             <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{format(new Date(periodStart + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })} — {format(new Date(periodEnd + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: C.textMuted }}>
@@ -1032,7 +1321,7 @@ export default function CompanyDashboard() {
                                                     <tr key={p.descricao + idx} style={{ borderBottom: idx === monthlySales.productBreakdown.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "transparent" }}>
                                                         <td style={{ padding: "7px 12px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{p.descricao}</td>
                                                         <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
-                                                        <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{p.semProduto ? "—" : p.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td>
+                                                        <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{(p.semProduto || regime === "caixa") ? "—" : p.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td>
                                                         <td style={{ padding: "7px 8px", textAlign: "right", color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(p.faturamento)}</td>
                                                         <td style={{ padding: "7px 12px", textAlign: "right", color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{p.percentual.toFixed(1)}%</td>
                                                     </tr>
@@ -1042,7 +1331,7 @@ export default function CompanyDashboard() {
                                     </div>
                                 ) : (
                                     <div style={{ padding: "20px 14px", textAlign: "center", color: C.textMuted, fontSize: 12 }}>
-                                        Nenhum produto vendido neste mês
+                                        {regime === "competencia" ? "Nenhum produto vendido neste mês" : "Nenhum recebimento vinculado a venda no período"}
                                     </div>
                                 )}
                             </div>
@@ -1098,13 +1387,19 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* ── Mid Row: Faturamento Diário + Contas a Receber ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, marginBottom: 16, alignItems: "start" }}>
                     {/* Faturamento do período */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                             <div>
-                                <p style={{ fontSize: 15, fontWeight: 700, color: C.text1, margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                                    Faturamento {chartGranularity === "day" ? "Diário" : chartGranularity === "week" ? "Semanal" : "Mensal"}
+                                <p style={{ fontSize: 15, fontWeight: 700, color: C.text1, margin: 0, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    {regime === "competencia" ? "Faturamento" : "Recebimentos"} {chartGranularity === "day" ? (regime === "competencia" ? "Diário" : "Diários") : chartGranularity === "week" ? (regime === "competencia" ? "Semanal" : "Semanais") : (regime === "competencia" ? "Mensal" : "Mensais")}
+                                    <span title={regime === "competencia"
+                                        ? "Vendas confirmadas agrupadas por dia/semana/mês (competência). Fonte: 'vendas.valor_liquido' por 'data_venda'."
+                                        : "Recebimentos efetivos agrupados por dia/semana/mês (caixa). Fonte: 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."
+                                    } style={{ display: "inline-flex", cursor: "help" }}>
+                                        <Info size={13} style={{ color: C.textMuted }} />
+                                    </span>
                                 </p>
                                 <p style={{ fontSize: 13, color: C.textMuted, margin: "2px 0 0 0" }}>
                                     {periodLabel} · {(chartRevExp || []).length} {chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}
@@ -1118,30 +1413,92 @@ export default function CompanyDashboard() {
                             </div>
                         </div>
 
-                        <ResponsiveContainer width="100%" height={320}>
-                            <BarChart data={chartRevExp || []} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} barCategoryGap="12%">
-                                <defs>
-                                    <linearGradient id="faturGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#10B981" stopOpacity={1} />
-                                        <stop offset="100%" stopColor="#10B981" stopOpacity={0.55} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" vertical={false} />
-                                <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text2 }} axisLine={false} tickLine={false} interval={1} />
-                                <YAxis tick={{ fontSize: 10, fill: C.textMuted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [fmtFull(v), "Faturamento"]} cursor={{ fill: "rgba(16, 185, 129, 0.08)" }} />
-                                <Bar dataKey="Receita" name="Faturamento" fill="url(#faturGrad)" radius={[6, 6, 0, 0]} maxBarSize={32}>
-                                    <LabelList dataKey="Receita" position="top" fontSize={9} fill="#065F46" fontWeight={600} formatter={fmtShort} />
+                        <ResponsiveContainer width="100%" height={340}>
+                            <BarChart data={chartRevExp || []} margin={{ top: 52, right: 16, left: 8, bottom: 4 }} barCategoryGap="14%" barGap={2}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                                <XAxis
+                                    dataKey="label"
+                                    tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }}
+                                    axisLine={{ stroke: C.text2, strokeWidth: 1 }}
+                                    tickLine={{ stroke: C.text2 }}
+                                    interval={chartGranularity === "day" ? 1 : 0}
+                                    tickMargin={8}
+                                />
+                                <YAxis
+                                    tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
+                                    axisLine={{ stroke: C.text2, strokeWidth: 1 }}
+                                    tickLine={{ stroke: C.text2 }}
+                                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
+                                    width={42}
+                                />
+                                <Tooltip
+                                    contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                    itemStyle={{ color: C.text1, padding: "2px 0" }}
+                                    labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
+                                    formatter={(v: number, name: string) => [fmtFull(v), name]}
+                                    labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
+                                    cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
+                                />
+                                <Bar dataKey="ReceitaAnterior" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " mês anterior"} fill="#E5E7EB" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                    <LabelList dataKey="ReceitaAnterior" position="top" fontSize={10} fill={C.text2} fontWeight={500} formatter={fmtShort} />
                                 </Bar>
+                                <Bar dataKey="Receita" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " atual"} fill="#0BE041" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                    <LabelList dataKey="Receita" position="top" fontSize={10} fill={C.text1} fontWeight={600} formatter={fmtShort} />
+                                </Bar>
+                                <Customized component={(props: any) => {
+                                    const items = props?.formattedGraphicalItems;
+                                    if (!Array.isArray(items) || items.length < 2) return null;
+                                    const anteriorPoints = items[0]?.props?.data;
+                                    const atualPoints = items[1]?.props?.data;
+                                    if (!Array.isArray(anteriorPoints) || !Array.isArray(atualPoints)) return null;
+                                    return (
+                                        <g>
+                                            {anteriorPoints.map((pAnt: any, i: number) => {
+                                                const pAtu = atualPoints[i];
+                                                if (!pAnt || !pAtu) return null;
+                                                const atualVal = Number(pAtu.payload?.Receita || 0);
+                                                const anteriorVal = Number(pAnt.payload?.ReceitaAnterior || 0);
+                                                if (anteriorVal <= 0) return null;
+                                                const pct = ((atualVal - anteriorVal) / anteriorVal) * 100;
+                                                const isUp = pct >= 0;
+                                                const cx = (pAnt.x + pAnt.width + pAtu.x) / 2;
+                                                const top = Math.min(pAnt.y, pAtu.y) - 46;
+                                                return (
+                                                    <g key={i}>
+                                                        <rect x={cx - 24} y={top} width={48} height={16} rx={8} fill={isUp ? "#ECFDF3" : "#FEE2E2"} stroke={isUp ? "#A7F3D0" : "#FECACA"} />
+                                                        <text x={cx} y={top + 11} textAnchor="middle" fontSize={10} fontWeight={600} fill={isUp ? "#039855" : "#E53E3E"}>
+                                                            {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(0)}%
+                                                        </text>
+                                                    </g>
+                                                );
+                                            })}
+                                        </g>
+                                    );
+                                }} />
                             </BarChart>
                         </ResponsiveContainer>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 10 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 10, height: 10, background: "#E5E7EB", borderRadius: 2, border: `1px solid ${C.border}` }} />
+                                Mês anterior
+                            </span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 10, height: 10, background: "#0BE041", borderRadius: 2 }} />
+                                Atual
+                            </span>
+                        </div>
                     </div>
 
                     {/* Contas a Receber — Buckets (mockup) */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                             <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contas a Receber</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    Contas a Receber
+                                    <span title="Títulos com status 'aberto', 'parcial' ou 'vencido' cujo vencimento cai dentro do período. Saldo = valor − valor_pago. Exclui transferências entre contas. Fonte: tabela 'contas_receber'." style={{ display: "inline-flex", cursor: "help" }}>
+                                        <Info size={13} style={{ color: C.textMuted }} />
+                                    </span>
+                                </div>
                                 <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{periodLabel} · {receivablesAging.totalCount} títulos</div>
                             </div>
                             <button onClick={() => navigate("/contas-receber")} style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
@@ -1216,14 +1573,22 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* ── Bottom Row: Despesas Diárias + A Pagar ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, alignItems: "start" }}>
                     {/* Despesas Diárias do período */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding: 20, display: "flex", flexDirection: "column", minHeight: 0 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                             <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em" }}>Despesas Diárias</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    {regime === "competencia" ? "Despesas" : "Pagamentos"} {chartGranularity === "day" ? (regime === "competencia" ? "Diárias" : "Diários") : chartGranularity === "week" ? (regime === "competencia" ? "Semanais" : "Semanais") : (regime === "competencia" ? "Mensais" : "Mensais")}
+                                    <span title={regime === "competencia"
+                                        ? "Despesas agrupadas por dia/semana/mês conforme o tamanho do período (regime de competência). Valor cheio das contas a pagar (todos status abertos+pago) por 'data_vencimento'. Exclui transferências."
+                                        : "Pagamentos agrupados por dia/semana/mês conforme o tamanho do período (regime de caixa). Valor efetivamente pago das contas. Fonte: 'contas_pagar.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."
+                                    } style={{ display: "inline-flex", cursor: "help" }}>
+                                        <Info size={13} style={{ color: C.textMuted }} />
+                                    </span>
+                                </div>
                                 <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-                                    {periodLabel} · {(chartDespDiarias || []).length} dias
+                                    {periodLabel} · {(chartDespDiarias || []).length} {chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}
                                 </div>
                             </div>
                             <div style={{ textAlign: "right" }}>
@@ -1234,24 +1599,82 @@ export default function CompanyDashboard() {
                             </div>
                         </div>
 
-                        <div style={{ flex: 1, minHeight: 240 }}>
+                        <div style={{ height: 340 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartDespDiarias || []} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} barCategoryGap="12%">
-                                    <defs>
-                                        <linearGradient id="despGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#B91C1C" stopOpacity={1} />
-                                            <stop offset="100%" stopColor="#B91C1C" stopOpacity={0.55} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" vertical={false} />
-                                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.text2 }} axisLine={false} tickLine={false} interval={1} />
-                                    <YAxis tick={{ fontSize: 10, fill: C.textMuted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [fmtFull(v), "Despesa"]} cursor={{ fill: "rgba(185, 28, 28, 0.08)" }} />
-                                    <Bar dataKey="despesa" name="Despesa" fill="url(#despGrad)" radius={[6, 6, 0, 0]} maxBarSize={32}>
-                                        <LabelList dataKey="despesa" position="top" fontSize={9} fill="#7F1D1D" fontWeight={600} formatter={fmtShort} />
+                                <BarChart data={chartDespDiarias || []} margin={{ top: 52, right: 16, left: 8, bottom: 4 }} barCategoryGap="14%" barGap={2}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                                    <XAxis
+                                        dataKey="label"
+                                        tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }}
+                                        axisLine={{ stroke: C.text2, strokeWidth: 1 }}
+                                        tickLine={{ stroke: C.text2 }}
+                                        interval={chartGranularity === "day" ? 1 : 0}
+                                        tickMargin={8}
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
+                                        axisLine={{ stroke: C.text2, strokeWidth: 1 }}
+                                        tickLine={{ stroke: C.text2 }}
+                                        tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
+                                        width={42}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                        itemStyle={{ color: C.text1, padding: "2px 0" }}
+                                        labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
+                                        formatter={(v: number, name: string) => [fmtFull(v), name]}
+                                        labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
+                                        cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
+                                    />
+                                    <Bar dataKey="despesaAnterior" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " mês anterior"} fill="#E5E7EB" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                        <LabelList dataKey="despesaAnterior" position="top" fontSize={10} fill={C.text2} fontWeight={500} formatter={fmtShort} />
                                     </Bar>
+                                    <Bar dataKey="despesa" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " atual"} fill="#0BE041" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                        <LabelList dataKey="despesa" position="top" fontSize={10} fill={C.text1} fontWeight={600} formatter={fmtShort} />
+                                    </Bar>
+                                    <Customized component={(props: any) => {
+                                        const items = props?.formattedGraphicalItems;
+                                        if (!Array.isArray(items) || items.length < 2) return null;
+                                        const anteriorPoints = items[0]?.props?.data;
+                                        const atualPoints = items[1]?.props?.data;
+                                        if (!Array.isArray(anteriorPoints) || !Array.isArray(atualPoints)) return null;
+                                        return (
+                                            <g>
+                                                {anteriorPoints.map((pAnt: any, i: number) => {
+                                                    const pAtu = atualPoints[i];
+                                                    if (!pAnt || !pAtu) return null;
+                                                    const atualVal = Number(pAtu.payload?.despesa || 0);
+                                                    const anteriorVal = Number(pAnt.payload?.despesaAnterior || 0);
+                                                    if (anteriorVal <= 0) return null;
+                                                    const pct = ((atualVal - anteriorVal) / anteriorVal) * 100;
+                                                    const isUp = pct >= 0;
+                                                    // Despesa: subir é ruim (vermelho), descer é bom (verde)
+                                                    const cx = (pAnt.x + pAnt.width + pAtu.x) / 2;
+                                                    const top = Math.min(pAnt.y, pAtu.y) - 46;
+                                                    return (
+                                                        <g key={i}>
+                                                            <rect x={cx - 24} y={top} width={48} height={16} rx={8} fill={isUp ? "#FEE2E2" : "#ECFDF3"} stroke={isUp ? "#FECACA" : "#A7F3D0"} />
+                                                            <text x={cx} y={top + 11} textAnchor="middle" fontSize={10} fontWeight={600} fill={isUp ? "#E53E3E" : "#039855"}>
+                                                                {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(0)}%
+                                                            </text>
+                                                        </g>
+                                                    );
+                                                })}
+                                            </g>
+                                        );
+                                    }} />
                                 </BarChart>
                             </ResponsiveContainer>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 10 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 10, height: 10, background: "#E5E7EB", borderRadius: 2, border: `1px solid ${C.border}` }} />
+                                Mês anterior
+                            </span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 10, height: 10, background: "#0BE041", borderRadius: 2 }} />
+                                Atual
+                            </span>
                         </div>
                     </div>
 
@@ -1259,7 +1682,12 @@ export default function CompanyDashboard() {
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                             <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em" }}>A Pagar</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    A Pagar
+                                    <span title="Títulos com status 'aberto', 'parcial' ou 'vencido' cujo vencimento cai dentro do período (regime de competência). Saldo = valor − valor_pago. Exclui transferências entre contas. Fonte: tabela 'contas_pagar'." style={{ display: "inline-flex", cursor: "help" }}>
+                                        <Info size={13} style={{ color: C.textMuted }} />
+                                    </span>
+                                </div>
                                 <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{periodLabel} · {payables7d.length} título{payables7d.length !== 1 ? "s" : ""}</div>
                             </div>
                             <button onClick={() => navigate("/contas-pagar")} style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
@@ -1275,9 +1703,9 @@ export default function CompanyDashboard() {
                             ) : (
                                 payables7d.slice(0, 5).map((p: any) => {
                                     const saldo = Number(p.valor || 0) - Number(p.valor_pago || 0);
-                                    const diff = differenceInDays(new Date(p.data_vencimento), today);
-                                    const isLate = diff <= 1;
-                                    const isWarn = diff > 1 && diff <= 3;
+                                    const diff = differenceInCalendarDays(new Date(p.data_vencimento + "T00:00:00"), today);
+                                    const isLate = diff <= 0;
+                                    const isWarn = diff > 0 && diff <= 3;
                                     const iconBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : C.goldBg;
                                     const iconColor = isLate ? "#991B1B" : isWarn ? "#92400E" : "#059669";
                                     const initials = (p.credor_nome || "??").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -1323,7 +1751,15 @@ export default function CompanyDashboard() {
                 <div style={{ marginTop: 16, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding: 20 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                         <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em" }}>Principais Destinos dos Gastos</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                Principais Destinos dos Gastos
+                                <span title={regime === "competencia"
+                                    ? "Contas a pagar do período (todos os status abertos+pago) agrupadas pela categoria do plano de contas. Regime de competência: por 'data_vencimento', valor cheio. Top 8 + 'Outros'. Exclui transferências."
+                                    : "Contas pagas no período (regime de caixa) agrupadas pela categoria do plano de contas. Por 'data_pagamento', valor efetivamente pago. Top 8 + 'Outros'. Exclui transferências."
+                                } style={{ display: "inline-flex", cursor: "help" }}>
+                                    <Info size={13} style={{ color: C.textMuted }} />
+                                </span>
+                            </div>
                             <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
                                 {periodLabel} · {gastosCategorias.length} categoria{gastosCategorias.length !== 1 ? "s" : ""}
                             </div>
@@ -1373,3 +1809,4 @@ export default function CompanyDashboard() {
         </AppLayout>
     );
 }
+

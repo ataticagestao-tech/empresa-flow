@@ -243,7 +243,7 @@ export default function Relatorios() {
 
         for (const t of rows) {
             const key = t.date.slice(0, 7);
-            const label = format(new Date(`${key}-01`), "MM/yyyy");
+            const label = format(new Date(`${key}-01T00:00:00`), "MM/yyyy");
             const prev = map.get(key) ?? { key, label, entradas: 0, saidas: 0, liquido: 0, acumulado: 0 };
             if (t.type === "credit") prev.entradas += t.amount;
             if (t.type === "debit") prev.saidas -= t.amount;
@@ -512,8 +512,8 @@ export default function Relatorios() {
     const arapBucketed = useMemo(() => {
         const receivable = arap?.receivable ?? [];
         const payable = arap?.payable ?? [];
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
+        const start = new Date(dateRange.start + "T00:00:00");
+        const end = new Date(dateRange.end + "T00:00:00");
         const dayMs = 24 * 60 * 60 * 1000;
         const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / dayMs) + 1);
         const groupByMonth = totalDays > 45;
@@ -522,7 +522,7 @@ export default function Relatorios() {
 
         const upsert = (iso: string, patch: Partial<{ receber: number; pagar: number }>) => {
             const key = groupByMonth ? iso.slice(0, 7) : iso;
-            const label = groupByMonth ? format(new Date(`${key}-01`), "MM/yyyy") : format(new Date(iso), "dd/MM");
+            const label = groupByMonth ? format(new Date(`${key}-01T00:00:00`), "MM/yyyy") : format(new Date(iso + "T00:00:00"), "dd/MM");
             const prev = map.get(key) ?? { key, label, receber: 0, pagar: 0, saldo: 0 };
             const receber = prev.receber + Number(patch.receber || 0);
             const pagar = prev.pagar + Number(patch.pagar || 0);
@@ -553,8 +553,8 @@ export default function Relatorios() {
 
     const bucketed = useMemo(() => {
         const rows = transactions ?? [];
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
+        const start = new Date(dateRange.start + "T00:00:00");
+        const end = new Date(dateRange.end + "T00:00:00");
         const dayMs = 24 * 60 * 60 * 1000;
         const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / dayMs) + 1);
         const groupByMonth = totalDays > 45;
@@ -567,8 +567,8 @@ export default function Relatorios() {
         for (const t of rows) {
             const key = groupByMonth ? t.date.slice(0, 7) : t.date;
             const label = groupByMonth
-                ? format(new Date(`${key}-01`), "MM/yyyy")
-                : format(new Date(t.date), "dd/MM");
+                ? format(new Date(`${key}-01T00:00:00`), "MM/yyyy")
+                : format(new Date(t.date + "T00:00:00"), "dd/MM");
             const prev = map.get(key) ?? { key, label, receitas: 0, despesas: 0, saldo: 0, acumulado: 0 };
 
             const amount = Number(t.amount || 0);

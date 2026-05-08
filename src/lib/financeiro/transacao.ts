@@ -172,7 +172,8 @@ export async function gerarRecibo(
 
 // ─── Helpers ────────────────────────────────────────────────────
 export function calcularProximoVencimento(dataAtual: string, periodicidade: string): string {
-  const d = new Date(dataAtual)
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(dataAtual) ? dataAtual + "T00:00:00" : dataAtual
+  const d = new Date(iso)
   switch (periodicidade) {
     case 'mensal':
       d.setMonth(d.getMonth() + 1)
@@ -187,5 +188,9 @@ export function calcularProximoVencimento(dataAtual: string, periodicidade: stri
       d.setFullYear(d.getFullYear() + 1)
       break
   }
-  return d.toISOString().split('T')[0]
+  // Formata em fuso local pra evitar shift do toISOString
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }

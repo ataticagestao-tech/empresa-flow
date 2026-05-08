@@ -163,7 +163,7 @@ export default function CRM() {
                                                             {opp.expected_close_date && (
                                                                 <div className="flex items-center text-[10px] text-muted-foreground">
                                                                     <Calendar className="h-2.5 w-2.5 mr-1" />
-                                                                    {format(new Date(opp.expected_close_date), 'dd/MMM')}
+                                                                    {format(new Date(opp.expected_close_date + "T00:00:00"), 'dd/MMM')}
                                                                 </div>
                                                             )}
                                                         </div>

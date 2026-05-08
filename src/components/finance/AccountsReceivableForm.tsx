@@ -14,11 +14,18 @@ interface AccountsReceivableFormProps {
  */
 export function AccountsReceivableForm({ onSuccess, initialData }: AccountsReceivableFormProps) {
     // Adaptador simples de dados se necessário
+    // Converte string YYYY-MM-DD para Date local (evita shift de fuso UTC)
+    const toLocalDate = (s: string | Date | null | undefined): Date | undefined => {
+        if (!s) return undefined;
+        if (s instanceof Date) return s;
+        return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00") : new Date(s);
+    };
+
     const adaptedData: Partial<AccountsReceivable> | undefined = initialData ? {
         ...initialData,
         // Garante conversão de datas strings para Date objects se vierem do JSON
-        due_date: initialData.due_date ? new Date(initialData.due_date) : undefined,
-        issue_date: initialData.issue_date ? new Date(initialData.issue_date) : undefined
+        due_date: toLocalDate(initialData.due_date),
+        issue_date: toLocalDate(initialData.issue_date)
     } : undefined;
 
     return (

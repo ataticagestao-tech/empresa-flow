@@ -55,7 +55,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             let period = 0;
 
             data.forEach((r: any) => {
-                const dueDate = new Date(r.data_vencimento);
+                const dueDate = new Date(r.data_vencimento + "T00:00:00");
                 const val = Number(r.valor || 0);
                 if (dueDate < startOfDay(today)) overdue += val;
                 if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += val;
@@ -88,7 +88,7 @@ export function useFinanceDashboard(dateRange?: DashboardDateRange) {
             let period = 0;
 
             data.forEach((p: any) => {
-                const dueDate = new Date(p.data_vencimento);
+                const dueDate = new Date(p.data_vencimento + "T00:00:00");
                 const val = Number(p.valor || 0);
                 if (dueDate < startOfDay(today)) overdue += val;
                 if (dueDate >= startOfDay(today) && dueDate <= endOfDay(today)) amountToday += val;

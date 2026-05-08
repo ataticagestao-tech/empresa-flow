@@ -77,7 +77,7 @@ export function useScoreFinanceiro() {
 
       const crTotal = (crAll || []).reduce((a: number, c: any) => a + Number(c.valor || 0), 0);
       const totalInadimp = (crAll || [])
-        .filter((c: any) => (c.status === "vencido" || c.status === "parcial") && new Date(c.data_vencimento) < hoje)
+        .filter((c: any) => (c.status === "vencido" || c.status === "parcial") && new Date(c.data_vencimento + "T00:00:00") < hoje)
         .reduce((a: number, c: any) => a + Number(c.valor || 0), 0);
       const pctInadimp = crTotal > 0 ? (totalInadimp / crTotal) * 100 : 0;
       const scoreInadimp = Math.min(100, Math.max(0, (1 - pctInadimp / 20) * 100));

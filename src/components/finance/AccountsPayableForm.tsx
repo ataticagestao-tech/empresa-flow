@@ -13,13 +13,20 @@ interface AccountsPayableFormProps {
  */
 export function AccountsPayableForm({ onSuccess, initialData }: AccountsPayableFormProps) {
     // Adaptar dados iniciais se necessário (garantir tipos)
+    // Converte string YYYY-MM-DD para Date local (evita shift de fuso UTC)
+    const toLocalDate = (s: string | Date | null | undefined): Date | undefined => {
+        if (!s) return undefined;
+        if (s instanceof Date) return s;
+        return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00") : new Date(s);
+    };
+
     const normalizedData: AccountsPayable | undefined = initialData ? {
         ...initialData,
         // Garantir que datas sejam Date objects se vierem strings do DB
-        due_date: new Date(initialData.due_date),
-        issue_date: initialData.issue_date ? new Date(initialData.issue_date) : undefined,
-        register_date: initialData.register_date ? new Date(initialData.register_date) : undefined,
-        payment_date: initialData.payment_date ? new Date(initialData.payment_date) : undefined,
+        due_date: toLocalDate(initialData.due_date) as Date,
+        issue_date: toLocalDate(initialData.issue_date),
+        register_date: toLocalDate(initialData.register_date),
+        payment_date: toLocalDate(initialData.payment_date),
         // Garantir que valores monetários sejam números
         amount: Number(initialData.amount),
     } : undefined;

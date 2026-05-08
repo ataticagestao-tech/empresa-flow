@@ -42,7 +42,7 @@ export default function BalancoPatrimonial() {
     return opts;
   }, []);
 
-  const dataReferencia = format(endOfMonth(new Date(`${mesRef}-01`)), "yyyy-MM-dd");
+  const dataReferencia = format(endOfMonth(new Date(`${mesRef}-01T00:00:00`)), "yyyy-MM-dd");
 
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["bp_contabil", selectedCompany?.id, dataReferencia],

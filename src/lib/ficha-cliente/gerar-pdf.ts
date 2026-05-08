@@ -56,7 +56,8 @@ const fmt = (v: number) =>
 
 const fmtData = (iso: string | null | undefined) => {
     if (!iso) return "—";
-    const d = new Date(iso);
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso + "T00:00:00" : iso;
+    const d = new Date(parsed);
     if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 };
@@ -83,7 +84,7 @@ const statusLabel = (cr: { status: string; forma_recebimento?: string | null; da
     if (cr.forma_recebimento === "cartao_credito" || cr.forma_recebimento === "cartao_debito") return "Pago";
     if (cr.status === "parcial") return "Parcial";
     if (cr.status === "vencido") return "Vencido";
-    if (cr.data_vencimento && new Date(cr.data_vencimento) < new Date()) return "Vencido";
+    if (cr.data_vencimento && new Date(cr.data_vencimento + "T00:00:00") < new Date()) return "Vencido";
     return "Aberto";
 };
 

@@ -67,7 +67,7 @@ export function useOperationalDashboard(dateRange?: DashboardDateRange) {
             const today = startOfDay(new Date());
             const total = data.length;
             const overdue = data.filter((r: any) =>
-                r.status === 'aberto' && new Date(r.data_vencimento) < today
+                r.status === 'aberto' && new Date(r.data_vencimento + "T00:00:00") < today
             );
             return {
                 rate: total > 0 ? (overdue.length / total) * 100 : 0,

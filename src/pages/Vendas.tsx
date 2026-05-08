@@ -271,7 +271,7 @@ export default function Vendas() {
         if (!map[cliente]) map[cliente] = { cliente, total: 0, vencido: 0, titulos: 0 }
         map[cliente].total += pendente
         map[cliente].titulos += 1
-        const venc = cr.data_vencimento ? new Date(cr.data_vencimento) : null
+        const venc = cr.data_vencimento ? new Date(cr.data_vencimento + "T00:00:00") : null
         if (venc && venc < today) map[cliente].vencido += pendente
       })
     })

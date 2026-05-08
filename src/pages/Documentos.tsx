@@ -73,7 +73,9 @@ function formatBytes(bytes: number | null) {
 
 function formatDate(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("pt-BR");
+  // Se a string for date-only (YYYY-MM-DD sem hora), forca interpretacao em fuso local.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d + "T00:00:00" : d;
+  return new Date(iso).toLocaleDateString("pt-BR");
 }
 
 function getFileIcon(mime: string | null) {
@@ -280,7 +282,7 @@ export default function Documentos() {
 
   const today = new Date();
   const validadesEnriched = validades.map((v) => {
-    const exp = new Date(v.data_validade);
+    const exp = new Date(v.data_validade + "T00:00:00");
     const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const level = diff < 0 ? "vencido" : diff <= 30 ? "critico" : diff <= 60 ? "atencao" : "ok";
     return { ...v, dias_restantes: diff, nivel_alerta: level };

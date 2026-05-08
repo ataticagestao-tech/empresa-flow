@@ -113,8 +113,8 @@ export class BillingService {
             id: inv.id,
             companyId: inv.company_id,
             clientId: inv.client_id,
-            issueDate: new Date(inv.issue_date),
-            dueDate: new Date(inv.due_date),
+            issueDate: new Date(inv.issue_date + "T00:00:00"),
+            dueDate: new Date(inv.due_date + "T00:00:00"),
             status: inv.status,
             totalAmount: inv.total_amount,
             items: inv.invoice_lines.map((l: any) => ({
