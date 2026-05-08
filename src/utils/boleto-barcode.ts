@@ -1,4 +1,4 @@
-export type LinhaTipo = 'boleto' | 'arrecadacao';
+export type LinhaTipo = 'boleto' | 'arrecadacao' | 'barcode';
 
 export interface LinhaParseResult {
   ok: true;
@@ -12,7 +12,12 @@ export interface LinhaParseError {
 }
 
 export function linhaDigitavelToBarcode(input: string): LinhaParseResult | LinhaParseError {
-  const c = (input || '').replace(/\D/g, '');
+  const raw = input || '';
+  const c = raw.replace(/\D/g, '');
+
+  if (typeof console !== 'undefined' && console.debug) {
+    console.debug('[linhaDigitavelToBarcode] input chars:', raw.length, '| digits:', c.length, '| value:', c);
+  }
 
   if (c.length === 47) {
     const barcode =
@@ -37,5 +42,13 @@ export function linhaDigitavelToBarcode(input: string): LinhaParseResult | Linha
     return { ok: true, tipo: 'arrecadacao', barcode };
   }
 
-  return { ok: false, error: `Linha digitavel deve ter 47 ou 48 digitos (tem ${c.length})` };
+  if (c.length === 44) {
+    return { ok: true, tipo: 'barcode', barcode: c };
+  }
+
+  const preview = c.length > 0 ? ` ("${c.substring(0, 8)}...${c.substring(Math.max(0, c.length - 4))}")` : '';
+  return {
+    ok: false,
+    error: `Linha digitavel deve ter 47 ou 48 digitos (tem ${c.length}${preview}). Cole apenas a linha digitavel completa do boleto.`,
+  };
 }

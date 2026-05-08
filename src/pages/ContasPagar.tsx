@@ -508,9 +508,11 @@ export default function ContasPagar() {
     const linha = payForm.observacao || ''
     const result = linhaDigitavelToBarcode(linha)
     if (!result.ok) {
+      console.warn('[handleGerarBarcode] parse failed:', result.error, '| input:', JSON.stringify(linha))
       toast.error(result.error)
       return
     }
+    console.debug('[handleGerarBarcode] tipo:', result.tipo, '| barcode (44):', result.barcode)
 
     const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     try {
@@ -523,7 +525,8 @@ export default function ContasPagar() {
         margin: 10,
       })
     } catch (err) {
-      toast.error('Erro ao gerar codigo de barras')
+      console.error('[handleGerarBarcode] JsBarcode error:', err, '| barcode:', result.barcode)
+      toast.error(`Erro ao gerar codigo de barras: ${(err as Error)?.message || 'desconhecido'}`)
       return
     }
     const svgString = new XMLSerializer().serializeToString(tempSvg)
