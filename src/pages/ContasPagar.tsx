@@ -212,6 +212,7 @@ export default function ContasPagar() {
     juros: 0,
     desconto: 0,
     observacao: '',
+    credorTipo: null as 'funcionario' | 'fornecedor' | null,
   })
 
   // New CP form
@@ -498,31 +499,32 @@ export default function ContasPagar() {
   const normalizeName = (v: string | null | undefined) =>
     (v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
 
-  const findCredorPix = (cp: ContaPagar): string | null => {
+  const identifyCredor = (cp: ContaPagar): { tipo: 'funcionario' | 'fornecedor' | null; pix: string | null } => {
     const cpfDigits = onlyDigits(cp.credor_cpf_cnpj)
     const credorNome = normalizeName(cp.credor_nome)
 
     if (cpfDigits) {
-      const empCpf = employees.find(e => onlyDigits(e.cpf) === cpfDigits)
-      if (empCpf?.chave_pix_folha) return empCpf.chave_pix_folha
-      const supCpf = suppliers.find(s => onlyDigits(s.cpf_cnpj) === cpfDigits)
-      if (supCpf?.dados_bancarios_pix) return supCpf.dados_bancarios_pix
+      const emp = employees.find(e => onlyDigits(e.cpf) === cpfDigits)
+      if (emp) return { tipo: 'funcionario', pix: emp.chave_pix_folha || null }
+      const sup = suppliers.find(s => onlyDigits(s.cpf_cnpj) === cpfDigits)
+      if (sup) return { tipo: 'fornecedor', pix: sup.dados_bancarios_pix || null }
     }
 
     if (credorNome) {
-      const empName = employees.find(e =>
+      const emp = employees.find(e =>
         normalizeName(e.nome_completo) === credorNome || normalizeName(e.name) === credorNome
       )
-      if (empName?.chave_pix_folha) return empName.chave_pix_folha
-      const supName = suppliers.find(s => normalizeName(s.razao_social) === credorNome)
-      if (supName?.dados_bancarios_pix) return supName.dados_bancarios_pix
+      if (emp) return { tipo: 'funcionario', pix: emp.chave_pix_folha || null }
+      const sup = suppliers.find(s => normalizeName(s.razao_social) === credorNome)
+      if (sup) return { tipo: 'fornecedor', pix: sup.dados_bancarios_pix || null }
     }
-    return null
+    return { tipo: null, pix: null }
   }
 
   const openPayModal = (cp: ContaPagar) => {
     setPayingCp(cp)
-    const pix = findCredorPix(cp)
+    const credor = identifyCredor(cp)
+    const isFuncionario = credor.tipo === 'funcionario'
     setPayForm({
       valorPago: saldo(cp),
       dataPagamento: format(new Date(), 'yyyy-MM-dd'),
@@ -530,25 +532,10 @@ export default function ContasPagar() {
       contaBancariaId: bankAccounts[0]?.id || '',
       juros: 0,
       desconto: 0,
-      observacao: pix || cp.codigo_barras || '',
+      observacao: isFuncionario ? (credor.pix || '') : (cp.codigo_barras || ''),
+      credorTipo: credor.tipo,
     })
     setShowPayModal(true)
-  }
-
-  const handleFormaPagamentoChange = (forma: string) => {
-    if (!payingCp) {
-      setPayForm({ ...payForm, formaPagamento: forma })
-      return
-    }
-    let novoCampo = payForm.observacao
-    if (forma === 'PIX') {
-      novoCampo = findCredorPix(payingCp) || ''
-    } else if (forma === 'Boleto') {
-      novoCampo = payingCp.codigo_barras || ''
-    } else {
-      novoCampo = ''
-    }
-    setPayForm({ ...payForm, formaPagamento: forma, observacao: novoCampo })
   }
 
   const handleCopyPix = async () => {
@@ -2025,7 +2012,7 @@ export default function ContasPagar() {
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Forma pagamento *</label>
                   <select
                     value={payForm.formaPagamento}
-                    onChange={(e) => handleFormaPagamentoChange(e.target.value)}
+                    onChange={(e) => setPayForm({ ...payForm, formaPagamento: e.target.value })}
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
                     style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
@@ -2075,39 +2062,53 @@ export default function ContasPagar() {
                   </div>
                 </div>
 
-                {(() => {
-                  const isPix = payForm.formaPagamento === 'PIX'
-                  const isBoleto = payForm.formaPagamento === 'Boleto'
-                  if (!isPix && !isBoleto) return null
-                  const label = isPix ? 'Chave PIX' : 'Codigo de Barras'
-                  const placeholder = isPix
-                    ? (payingCp && findCredorPix(payingCp) ? 'Chave PIX do destinatario' : 'Cadastre a chave PIX no funcionario/fornecedor')
-                    : 'Linha digitavel do boleto'
-                  return (
-                    <div>
-                      <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{label}</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={payForm.observacao}
-                          onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
-                          placeholder={placeholder}
-                          className="flex-1 px-3 text-[13px] rounded-[8px] focus:outline-none"
-                          style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                        />
-                        <button
-                          type="button"
-                          onClick={isPix ? handleCopyPix : handleGerarBarcode}
-                          disabled={!payForm.observacao}
-                          className="px-3 text-[12px] font-semibold rounded-[8px] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                          style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
-                        >
-                          {isPix ? <><Copy size={13} /> Copiar</> : 'Gerar'}
-                        </button>
-                      </div>
+                {payForm.credorTipo === 'funcionario' ? (
+                  <div>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Chave PIX</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={payForm.observacao}
+                        onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
+                        placeholder={payForm.observacao ? 'Chave PIX do funcionario' : 'Cadastre a chave PIX no funcionario'}
+                        className="flex-1 px-3 text-[13px] rounded-[8px] focus:outline-none"
+                        style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyPix}
+                        disabled={!payForm.observacao}
+                        className="px-3 text-[12px] font-semibold rounded-[8px] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                        style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                      >
+                        <Copy size={13} /> Copiar
+                      </button>
                     </div>
-                  )
-                })()}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Codigo de Barras</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={payForm.observacao}
+                        onChange={(e) => setPayForm({ ...payForm, observacao: e.target.value })}
+                        placeholder="Linha digitavel do boleto"
+                        className="flex-1 px-3 text-[13px] rounded-[8px] focus:outline-none"
+                        style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGerarBarcode}
+                        disabled={!payForm.observacao}
+                        className="px-3 text-[12px] font-semibold rounded-[8px] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                      >
+                        Gerar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-end pt-2" style={{ borderTop: '1px solid rgba(26,46,74,0.10)', gap: 8, paddingTop: 16 }}>
                   <button
