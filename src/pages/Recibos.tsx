@@ -6,6 +6,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Search, Mail, Download, FileText, ChevronRight } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -324,15 +325,17 @@ export default function Recibos() {
   })
 
   // Actions
-  const handleReenviarEmail = (recibo: Recibo) => {
-    console.log('[Recibos] Reenviar e-mail:', recibo.id, recibo.email_destino)
+  const handleReenviarEmail = (_recibo: Recibo) => {
+    toast.error('Integração Resend não configurada.', {
+      description: 'Ative em Configurações → Integrações → Resend para reenviar e-mails.',
+    })
   }
 
   const handleDownloadPDF = (recibo: Recibo) => {
     if (recibo.pdf_url) {
       window.open(recibo.pdf_url, '_blank')
     } else {
-      console.log('[Recibos] PDF nao disponivel para recibo:', recibo.id)
+      toast.error('PDF não disponível para este recibo.')
     }
   }
 
