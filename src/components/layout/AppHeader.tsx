@@ -14,6 +14,7 @@ import {
 import { ArrowLeft, Plus, Moon, Sun, LogOut, Settings, Building2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
+import { COMMAND_PALETTE_OPEN_EVENT } from "@/components/CommandPalette";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -56,8 +57,9 @@ export function AppHeader() {
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
         <button
-          onClick={() => navigate("/empresas?nova=1")}
-          title="Adicionar nova empresa"
+          onClick={() => window.dispatchEvent(new Event(COMMAND_PALETTE_OPEN_EVENT))}
+          title="Buscar páginas e ações (Ctrl+K)"
+          aria-label="Abrir busca rápida"
           className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
         >
           <Plus className="h-4 w-4" />

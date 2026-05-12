@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   CommandDialog,
   CommandEmpty,
@@ -13,9 +14,12 @@ import { menuGroups, footerMenu, OWNER_EMAIL } from "@/config/menuConfig";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
 
+export const COMMAND_PALETTE_OPEN_EVENT = "commandpalette:open";
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isSuperAdmin } = useAdmin();
   const { user } = useAuth();
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
@@ -33,8 +37,13 @@ export function CommandPalette() {
         setOpen((o) => !o);
       }
     };
+    const onExternalOpen = () => setOpen(true);
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    window.addEventListener(COMMAND_PALETTE_OPEN_EVENT, onExternalOpen);
+    return () => {
+      document.removeEventListener("keydown", down);
+      window.removeEventListener(COMMAND_PALETTE_OPEN_EVENT, onExternalOpen);
+    };
   }, []);
 
   const handleSelect = useCallback(
@@ -58,45 +67,49 @@ export function CommandPalette() {
       <CommandInput placeholder="Buscar paginas, acoes..." />
       <CommandList>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
-        {visibleGroups.map((group) => (
-          <CommandGroup
-            key={group.id}
-            heading={group.labelKey || "Principal"}
-          >
-            {group.items
-              .filter(isItemVisible)
-              .map((item) => {
-                const muted = group.ownerOnly || item.ownerOnly;
-                return (
-                  <CommandItem
-                    key={item.url}
-                    value={`${item.isHardcoded ? item.titleKey : item.titleKey} ${item.url}`}
-                    onSelect={() => handleSelect(item.url!)}
-                    className={muted ? "text-muted-foreground opacity-60" : undefined}
-                  >
-                    <item.icon className="mr-2 h-4 w-4 opacity-60" />
-                    <span>
-                      {item.isHardcoded ? item.titleKey : item.titleKey}
-                    </span>
-                  </CommandItem>
-                );
-              })}
-          </CommandGroup>
-        ))}
+        {visibleGroups.map((group) => {
+          const groupHeading = group.labelKey
+            ? (group.isHardcodedLabel ? group.labelKey : t(group.labelKey))
+            : "Principal";
+          return (
+            <CommandGroup key={group.id} heading={groupHeading}>
+              {group.items
+                .filter(isItemVisible)
+                .map((item) => {
+                  const muted = group.ownerOnly || item.ownerOnly;
+                  const label = item.isHardcoded ? item.titleKey : t(item.titleKey);
+                  return (
+                    <CommandItem
+                      key={item.url}
+                      value={`${label} ${item.url}`}
+                      onSelect={() => handleSelect(item.url!)}
+                      className={muted ? "text-muted-foreground opacity-60" : undefined}
+                    >
+                      <item.icon className="mr-2 h-4 w-4 opacity-60" />
+                      <span>{label}</span>
+                    </CommandItem>
+                  );
+                })}
+            </CommandGroup>
+          );
+        })}
         {visibleFooter.length > 0 && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Outros">
-              {visibleFooter.map((item) => (
-                <CommandItem
-                  key={item.url}
-                  value={`${item.titleKey} ${item.url}`}
-                  onSelect={() => handleSelect(item.url!)}
-                >
-                  <item.icon className="mr-2 h-4 w-4 opacity-60" />
-                  <span>{item.titleKey}</span>
-                </CommandItem>
-              ))}
+              {visibleFooter.map((item) => {
+                const label = item.isHardcoded ? item.titleKey : t(item.titleKey);
+                return (
+                  <CommandItem
+                    key={item.url}
+                    value={`${label} ${item.url}`}
+                    onSelect={() => handleSelect(item.url!)}
+                  >
+                    <item.icon className="mr-2 h-4 w-4 opacity-60" />
+                    <span>{label}</span>
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </>
         )}
