@@ -7,6 +7,7 @@ import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Search, Mail, Download, FileText, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -392,8 +393,26 @@ export default function Recibos() {
             {/* List items */}
             <div className="flex-1 overflow-y-auto bg-white">
               {loading ? (
-                <div className="flex items-center justify-center h-40 text-xs text-[#9CA3AF]">
-                  Carregando recibos...
+                <div>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="px-4 py-3 border-b border-[#E5E7EB]">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-3 w-12" />
+                            <Skeleton className="h-3 w-14 rounded-full" />
+                          </div>
+                          <Skeleton className="h-3.5 w-40" />
+                          <Skeleton className="h-3 w-32" />
+                          <Skeleton className="h-2.5 w-16" />
+                        </div>
+                        <div className="flex flex-col items-end shrink-0 gap-1">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-3 w-3" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filtrados.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-xs text-[#9CA3AF]">

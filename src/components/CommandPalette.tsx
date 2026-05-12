@@ -13,13 +13,14 @@ import {
 import { menuGroups, footerMenu, OWNER_EMAIL } from "@/config/menuConfig";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { ShoppingCart, UserPlus, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { ShoppingCart, UserPlus, ArrowUpCircle, ArrowDownCircle, Building2 } from "lucide-react";
 
 const QUICK_ACTIONS: { label: string; url: string; icon: typeof ShoppingCart }[] = [
   { label: "Nova venda", url: "/vendas?new=true", icon: ShoppingCart },
   { label: "Novo cliente", url: "/clientes?new=true", icon: UserPlus },
   { label: "Novo título a receber", url: "/contas-receber?new=true", icon: ArrowUpCircle },
   { label: "Novo título a pagar", url: "/contas-pagar?new=true", icon: ArrowDownCircle },
+  { label: "Nova empresa", url: "/empresas?nova=1", icon: Building2 },
 ];
 
 export const COMMAND_PALETTE_OPEN_EVENT = "commandpalette:open";
