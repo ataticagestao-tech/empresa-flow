@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -25,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { menuGroups, footerMenu, OWNER_EMAIL } from "@/config/menuConfig";
 
 const logoSymbol = "/favicon.svg";
+const SIDEBAR_OPEN_GROUPS_KEY = "sidebar:open-groups";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -33,6 +35,27 @@ export function AppSidebar() {
   const { t } = useTranslation();
   const isActive = (url?: string) => (url ? location.pathname === url : false);
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase();
+
+  const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_OPEN_GROUPS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const setGroupOpen = useCallback((groupId: string, open: boolean) => {
+    setOpenOverrides((prev) => {
+      const next = { ...prev, [groupId]: open };
+      try {
+        localStorage.setItem(SIDEBAR_OPEN_GROUPS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore storage failures (private mode, quota)
+      }
+      return next;
+    });
+  }, []);
 
   const handleMenuAction = (item: { action?: "logout" | "none" }) => {
     if (item.action === "logout") {
@@ -107,9 +130,16 @@ export function AppSidebar() {
           }
 
           const groupMuted = group.ownerOnly ? " opacity-50" : "";
+          const userOverride = openOverrides[group.id];
+          const isGroupOpen = userOverride ?? hasActiveChild;
 
           return (
-            <Collapsible key={group.id} defaultOpen={hasActiveChild} className="group/collapsible">
+            <Collapsible
+              key={group.id}
+              open={isGroupOpen}
+              onOpenChange={(open) => setGroupOpen(group.id, open)}
+              className="group/collapsible"
+            >
               <SidebarGroup className="py-0">
                 <SidebarMenu>
                   <SidebarMenuItem>
