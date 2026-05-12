@@ -18,7 +18,12 @@ export const ClientSchema = z.object({
     email: z.string().nullish(),
     telefone: z.string().nullish(),
     telefone_2: z.string().nullish(),
-    celular: z.string().nullish(),
+    celular: z
+        .string()
+        .nullish()
+        .refine((v) => !!v && v.trim().length > 0, {
+            message: "Celular/WhatsApp é obrigatório",
+        }),
     fax: z.string().nullish(),
     website: z.string().nullish(),
 
