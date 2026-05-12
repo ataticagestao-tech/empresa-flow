@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import JsBarcode from 'jsbarcode'
 import { linhaDigitavelToBarcode } from '@/utils/boleto-barcode'
@@ -72,6 +73,7 @@ interface BankAccount {
   company_id: string
   name: string
   banco: string | null
+  type: string | null
 }
 
 interface ChartAccount {
@@ -132,6 +134,7 @@ export default function ContasPagar() {
   const { selectedCompany } = useCompany()
   const { activeClient } = useAuth()
   const confirm = useConfirm()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // Data
   const [contas, setContas] = useState<ContaPagar[]>([])
@@ -260,7 +263,7 @@ export default function ContasPagar() {
 
     const [cpRes, bankRes, chartRes, ccRes, prodRes, supRes, empRes, cliRes] = await Promise.all([
       db.from('contas_pagar').select('*').or(`company_id.eq.${selectedCompany.id},unidade_destino_id.eq.${selectedCompany.id}`).is('deleted_at', null).in('status', ['aberto', 'parcial', 'vencido', 'pago']).order('data_vencimento', { ascending: true }).limit(5000),
-      db.from('bank_accounts').select('id, company_id, name, banco').eq('company_id', selectedCompany.id),
+      db.from('bank_accounts').select('id, company_id, name, banco, type').eq('company_id', selectedCompany.id),
       db.from('chart_of_accounts').select('id, company_id, code, name, type').eq('company_id', selectedCompany.id).order('code'),
       db.from('centros_custo').select('id, company_id, codigo, descricao').eq('company_id', selectedCompany.id).eq('ativo', true),
       db.from('products').select('id, description, code').eq('company_id', selectedCompany.id).eq('is_active', true).order('description'),
@@ -284,6 +287,17 @@ export default function ContasPagar() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // ─── Open new title modal when ?new=true ─────────────────────────
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      openNewModal()
+      const next = new URLSearchParams(searchParams)
+      next.delete('new')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -2077,7 +2091,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Conta bancaria *</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{payForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
                   <select
                     value={payForm.contaBancariaId}
                     onChange={(e) => setPayForm({ ...payForm, contaBancariaId: e.target.value })}
@@ -2085,9 +2099,11 @@ export default function ContasPagar() {
                     style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Selecione...</option>
-                    {bankAccounts.map((ba) => (
-                      <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
-                    ))}
+                    {bankAccounts
+                      .filter((ba) => payForm.formaPagamento === 'Cartao de credito' ? ba.type === 'cartao_credito' : ba.type !== 'cartao_credito')
+                      .map((ba) => (
+                        <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
+                      ))}
                   </select>
                 </div>
 
@@ -2234,7 +2250,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Conta bancaria *</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{batchForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
                   <select
                     value={batchForm.contaBancariaId}
                     onChange={(e) => setBatchForm({ ...batchForm, contaBancariaId: e.target.value })}
@@ -2242,9 +2258,11 @@ export default function ContasPagar() {
                     style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                   >
                     <option value="">Selecione...</option>
-                    {bankAccounts.map((ba) => (
-                      <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
-                    ))}
+                    {bankAccounts
+                      .filter((ba) => batchForm.formaPagamento === 'Cartao de credito' ? ba.type === 'cartao_credito' : ba.type !== 'cartao_credito')
+                      .map((ba) => (
+                        <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
+                      ))}
                   </select>
                 </div>
 

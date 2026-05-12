@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -119,6 +120,7 @@ function computeStatus(cr: CR): string {
 export default function ContasReceber() {
   const { selectedCompany } = useCompany()
   const confirm = useConfirm()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // ── Data ──
   const [items, setItems] = useState<CR[]>([])
@@ -204,6 +206,16 @@ export default function ContasReceber() {
     fetchItems()
     fetchLookups()
   }, [companyId])
+
+  // ── Open new title modal when ?new=true ──
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setNovoModal(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('new')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   // ── Close dropdown on outside click ──
   useEffect(() => {

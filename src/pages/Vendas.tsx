@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -133,6 +133,7 @@ const LABEL_TIPO: Record<string, string> = {
 export default function Vendas() {
   const { selectedCompany } = useCompany()
   const { activeClient, isUsingSecondary, user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
@@ -462,6 +463,19 @@ export default function Vendas() {
 
   useEffect(() => { fetchVendas() }, [fetchVendas])
   useEffect(() => { fetchAuxData() }, [fetchAuxData])
+
+  // ─── Open new sale modal when ?new=true ──────────────────────
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      resetForm()
+      setEditandoVenda(null)
+      setModalAberto(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('new')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // ─── Fetch taxa config when account + payment method changes ──
   useEffect(() => {
