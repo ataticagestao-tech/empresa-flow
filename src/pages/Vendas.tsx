@@ -1617,46 +1617,44 @@ export default function Vendas() {
           />
         </div>
 
-        {/* ─── KPIs (esquerda) + Tabela (direita) ───────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
-        {/* Coluna esquerda: KPIs verticais (4 cards alinhados a altura da tabela) */}
-        <div className="flex flex-col gap-3">
+        {/* ─── KPIs (esquerda) + Tabela (direita - alinhada a A vista..A prazo) ─ */}
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] lg:grid-rows-4 gap-3">
           {[
             {
               label: 'Faturamento',
               value: formatBRL(kpis.total),
               sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
-              valueColor: '#22C55E',
-              subColor: 'rgba(255,255,255,0.65)',
+              valueColor: '#039855',
+              row: 'lg:row-start-1',
             },
             {
               label: 'Ticket Médio',
               value: formatBRL(kpis.ticket),
               sub: 'média por venda',
-              valueColor: '#FFFFFF',
-              subColor: 'rgba(255,255,255,0.6)',
+              valueColor: '#1D2939',
+              row: 'lg:row-start-2',
             },
             {
               label: 'À vista',
               value: formatBRL(kpis.aVista),
               sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              valueColor: '#22C55E',
-              subColor: 'rgba(34,197,94,0.85)',
+              valueColor: '#039855',
+              row: 'lg:row-start-3',
             },
             {
               label: 'A prazo',
               value: formatBRL(kpis.aPrazo),
               sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              valueColor: '#F59E0B',
-              subColor: 'rgba(245,158,11,0.85)',
+              valueColor: '#D97706',
+              row: 'lg:row-start-4',
             },
           ].map(k => (
             <div
               key={k.label}
-              className="rounded-xl px-5 py-4 flex flex-col gap-2 shadow-md bg-black"
+              className={`bg-white border border-[#EAECF0] rounded-xl px-5 py-4 flex flex-col justify-between gap-2 shadow-sm lg:col-start-1 ${k.row}`}
             >
               <p
-                className="font-bold text-white m-0"
+                className="font-bold text-black m-0"
                 style={{ fontSize: 20, letterSpacing: '-0.015em', lineHeight: 1.15 }}
               >
                 {k.label}
@@ -1667,11 +1665,10 @@ export default function Vendas() {
               >
                 {k.value}
               </p>
-              <p className="text-[12px] m-0 truncate" style={{ color: k.subColor }}>{k.sub}</p>
+              <p className="text-[12px] text-[#667085] m-0 truncate">{k.sub}</p>
             </div>
           ))}
-        </div>
-        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0 lg:col-start-2 lg:row-start-3 lg:row-span-2" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           <div className="bg-white overflow-x-auto">
             {loading ? (
               <div className="flex items-center justify-center py-12 text-[#555]">
@@ -2000,7 +1997,7 @@ export default function Vendas() {
               </table>
             )}
           </div>
-          {/* Paginação (até 10 linhas por página) */}
+          {/* Paginação (até 5 linhas por página) */}
           {vendasFiltradas.length > ITENS_POR_PAGINA && (
             <div className="bg-white border-t border-[#EAECF0] px-4 py-2 flex items-center justify-between text-[11.5px] text-[#667085]">
               <span>
