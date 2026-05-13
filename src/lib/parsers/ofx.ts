@@ -8,6 +8,22 @@ export interface OFXTransaction {
     memo?: string;
 }
 
+export interface OFXSummary {
+    /** Saldo final declarado pelo banco (LEDGERBAL > BALAMT) */
+    closingBalance: number | null;
+    /** Data do saldo final declarado (LEDGERBAL > DTASOF) */
+    closingDate: Date | null;
+    /** Inicio do periodo do extrato (BANKTRANLIST > DTSTART) */
+    periodStart: Date | null;
+    /** Fim do periodo do extrato (BANKTRANLIST > DTEND) */
+    periodEnd: Date | null;
+}
+
+export interface OFXParseResult {
+    transactions: OFXTransaction[];
+    summary: OFXSummary;
+}
+
 function hashString(input: string): string {
     let hash = 5381;
     for (let i = 0; i < input.length; i += 1) {
@@ -16,7 +32,22 @@ function hashString(input: string): string {
     return (hash >>> 0).toString(16);
 }
 
+function parseOfxDate(raw: string | null): Date | null {
+    if (!raw) return null;
+    const clean = raw.trim().substring(0, 8);
+    if (clean.length < 8) return null;
+    const year = parseInt(clean.substring(0, 4));
+    const month = parseInt(clean.substring(4, 6)) - 1;
+    const day = parseInt(clean.substring(6, 8));
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+    return new Date(year, month, day);
+}
+
 export async function parseOFX(file: File): Promise<OFXTransaction[]> {
+    return (await parseOFXFull(file)).transactions;
+}
+
+export async function parseOFXFull(file: File): Promise<OFXParseResult> {
     const text = await file.text();
     const transactions: OFXTransaction[] = [];
 
@@ -79,5 +110,28 @@ export async function parseOFX(file: File): Promise<OFXTransaction[]> {
         }
     }
 
-    return transactions;
+    // Extrai metadados do extrato (saldo final + periodo) para o popup de abertura
+    const getOuter = (tag: string): string | null => {
+        const regex = new RegExp(`<${tag}>([^<\\r\\n]+)`, 'i');
+        const m = regex.exec(text);
+        return m ? m[1].trim() : null;
+    };
+
+    const closingBalanceRaw = getOuter('BALAMT');
+    const closingDateRaw = getOuter('DTASOF');
+    const periodStartRaw = getOuter('DTSTART');
+    const periodEndRaw = getOuter('DTEND');
+
+    const closingBalance = closingBalanceRaw != null
+        ? parseFloat(closingBalanceRaw.replace(',', '.'))
+        : null;
+
+    const summary: OFXSummary = {
+        closingBalance: Number.isFinite(closingBalance as number) ? (closingBalance as number) : null,
+        closingDate: parseOfxDate(closingDateRaw),
+        periodStart: parseOfxDate(periodStartRaw),
+        periodEnd: parseOfxDate(periodEndRaw),
+    };
+
+    return { transactions, summary };
 }

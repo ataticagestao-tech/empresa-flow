@@ -35,6 +35,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategorySuggestion, ExternalSuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
+import { OpeningCheckDialog } from "@/modules/finance/presentation/components/OpeningCheckDialog";
+import type { OFXSummary } from "@/lib/parsers/ofx";
 import { useAiRecategorization } from "@/modules/finance/presentation/hooks/useAiRecategorization";
 import { useHistoricalCategorySuggestion } from "@/modules/finance/presentation/hooks/useHistoricalCategorySuggestion";
 
@@ -98,6 +100,7 @@ export default function Conciliacao() {
     const [selectedBankTx, setSelectedBankTx] = useState<BankTransaction | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [showImportHistory, setShowImportHistory] = useState(false);
+    const [openingCheck, setOpeningCheck] = useState<{ summary: OFXSummary; systemBalanceAtClose: number | null } | null>(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showRulesPanel, setShowRulesPanel] = useState(false);
     const [newEntry, setNewEntry] = useState({ description: "", category_id: "", unidade_destino_id: "" });
@@ -561,7 +564,13 @@ export default function Conciliacao() {
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) uploadOFX.mutate(file);
+        if (file) {
+            uploadOFX.mutateAsync(file).then(result => {
+                if (result?.summary) {
+                    setOpeningCheck({ summary: result.summary, systemBalanceAtClose: result.systemBalanceAtClose ?? null });
+                }
+            }).catch(() => { /* erro ja tratado pelo onError do mutation */ });
+        }
         if (e.target) e.target.value = "";
     };
 
@@ -2600,6 +2609,14 @@ export default function Conciliacao() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            <OpeningCheckDialog
+                open={!!openingCheck}
+                onClose={() => setOpeningCheck(null)}
+                summary={openingCheck?.summary ?? null}
+                systemBalanceAtClose={openingCheck?.systemBalanceAtClose ?? null}
+                bankAccountName={selectedAccount?.name}
+            />
         </AppLayout>
     );
 }

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "@/contexts/CompanyContext"; // Assumindo isso
-import { parseOFX } from "@/lib/parsers/ofx";
+import { parseOFXFull, type OFXSummary } from "@/lib/parsers/ofx";
 import { format } from "date-fns";
 import { BankTransaction } from "../../domain/schemas/bank-reconciliation.schema";
 import { useToast } from "@/components/ui/use-toast";
@@ -192,7 +192,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         mutationFn: async (file: File) => {
             if (!bankAccountId || !companyId) throw new Error("Dados incompletos");
 
-            const parsed = await parseOFX(file);
+            const { transactions: parsed, summary } = await parseOFXFull(file);
             if (!parsed.length) throw new Error("Arquivo vazio ou inválido");
 
             const toInsert = parsed.map(tx => {
@@ -247,7 +247,34 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 }
             }
 
-            return { parsed: parsed.length, inserted, existingBreakdown };
+            // Calcula saldo do sistema na data de fechamento do extrato (para o popup de abertura)
+            let systemBalanceAtClose: number | null = null;
+            const closingDateForBalance = summary.closingDate || summary.periodEnd;
+            if (closingDateForBalance) {
+                try {
+                    const { data: bankAcc } = await (activeClient as any)
+                        .from('bank_accounts')
+                        .select('initial_balance, data_saldo_inicial')
+                        .eq('id', bankAccountId)
+                        .maybeSingle();
+                    const initial = Number(bankAcc?.initial_balance ?? 0);
+                    const closeIso = format(closingDateForBalance, 'yyyy-MM-dd');
+                    const { data: movs } = await (activeClient as any)
+                        .from('movimentacoes')
+                        .select('valor, tipo')
+                        .eq('conta_bancaria_id', bankAccountId)
+                        .lte('data', closeIso);
+                    const movSum = (movs || []).reduce((acc: number, m: any) => {
+                        const v = Number(m.valor ?? 0);
+                        return acc + (m.tipo === 'credito' ? v : -v);
+                    }, 0);
+                    systemBalanceAtClose = initial + movSum;
+                } catch (e) {
+                    console.warn('[uploadOFX] saldo sistema calc falhou', e);
+                }
+            }
+
+            return { parsed: parsed.length, inserted, existingBreakdown, summary, systemBalanceAtClose };
         },
         onSuccess: ({ parsed, inserted, existingBreakdown }) => {
             const duplicates = parsed - inserted;
