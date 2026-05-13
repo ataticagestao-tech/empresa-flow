@@ -1701,10 +1701,10 @@ export default function Vendas() {
               Nenhum produto vendido no período
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={260}>
+            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 24, right: 12, left: 0, bottom: 36 }}
+                margin={{ top: 24, right: 12, left: 0, bottom: 60 }}
               >
                 <XAxis
                   dataKey="descricao"
@@ -1712,22 +1712,48 @@ export default function Vendas() {
                   tick={(props: any) => {
                     const { x, y, payload } = props
                     const txt = String(payload.value || '')
-                    const shown = txt.length > 10 ? txt.slice(0, 10) + '…' : txt
+                    const maxPerLine = 12
+                    // Quebra por palavras, acumulando ate maxPerLine chars
+                    const words = txt.split(/\s+/)
+                    const lines: string[] = []
+                    let cur = ''
+                    for (const w of words) {
+                      if (!cur) { cur = w }
+                      else if ((cur + ' ' + w).length <= maxPerLine) { cur = cur + ' ' + w }
+                      else { lines.push(cur); cur = w }
+                    }
+                    if (cur) lines.push(cur)
+                    // Se alguma linha for muito longa (palavra unica), forca quebra dura
+                    const out: string[] = []
+                    lines.forEach(l => {
+                      if (l.length <= maxPerLine) out.push(l)
+                      else {
+                        for (let i = 0; i < l.length; i += maxPerLine) {
+                          out.push(l.slice(i, i + maxPerLine))
+                        }
+                      }
+                    })
+                    const visible = out.slice(0, 4)
                     return (
-                      <text
-                        x={x} y={y + 12}
-                        textAnchor="middle"
-                        fontSize={10.5}
-                        fontWeight={500}
-                        fill="#1D2939"
-                      >
-                        {shown}
-                      </text>
+                      <g>
+                        {visible.map((line, i) => (
+                          <text
+                            key={i}
+                            x={x} y={y + 12 + i * 11}
+                            textAnchor="middle"
+                            fontSize={10}
+                            fontWeight={500}
+                            fill="#1D2939"
+                          >
+                            {line}
+                          </text>
+                        ))}
+                      </g>
                     )
                   }}
                   axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={36}
+                  height={60}
                 />
                 <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
