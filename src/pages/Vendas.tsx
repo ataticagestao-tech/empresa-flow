@@ -1667,19 +1667,6 @@ export default function Vendas() {
           ))}
         </div>
         <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="bg-white border-b border-[#EAECF0] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">
-              Vendas &mdash; {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
-            </h3>
-            <button
-              onClick={() => setConfirmDeleteMes(true)}
-              disabled={vendas.length === 0}
-              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#667085] hover:text-[#E53E3E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Excluir todas as vendas do mês selecionado"
-            >
-              <Trash2 size={12} /> Excluir mês
-            </button>
-          </div>
           <div className="bg-white overflow-x-auto">
             {loading ? (
               <div className="flex items-center justify-center py-12 text-[#555]">
