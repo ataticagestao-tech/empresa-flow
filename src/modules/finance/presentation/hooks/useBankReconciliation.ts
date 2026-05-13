@@ -403,35 +403,32 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
 
             if (!Number.isFinite(amount) || amount <= 0) throw new Error("Valor inválido");
 
-            // Buscar conta_contabil_id do lançamento existente (CP ou CR)
-            let accountId: string | null = null;
-            if (sysTx.type === 'payable') {
-                const { data: cp } = await (activeClient as any)
-                    .from('contas_pagar')
-                    .select('conta_contabil_id')
-                    .eq('id', sysTx.id)
-                    .single();
-                accountId = cp?.conta_contabil_id || null;
-            } else {
-                const { data: cr } = await (activeClient as any)
-                    .from('contas_receber')
-                    .select('conta_contabil_id')
-                    .eq('id', sysTx.id)
-                    .single();
-                accountId = cr?.conta_contabil_id || null;
-            }
-
-            // Atualizar o lançamento existente para status 'pago'
+            // Buscar conta_contabil_id e status do lançamento existente (CP ou CR)
             const table = sysTx.type === 'payable' ? 'contas_pagar' : 'contas_receber';
-            const { error: updateError } = await (activeClient as any)
+            const { data: existingRow } = await (activeClient as any)
                 .from(table)
-                .update({
-                    status: 'pago',
-                    valor_pago: amount,
-                    data_pagamento: date,
-                })
-                .eq('id', sysTx.id);
-            if (updateError) throw updateError;
+                .select('conta_contabil_id, status')
+                .eq('id', sysTx.id)
+                .single();
+            const accountId: string | null = existingRow?.conta_contabil_id || null;
+            const existingStatus: string | null = existingRow?.status || null;
+
+            // Atualizar para 'pago' apenas se ainda nao estiver pago.
+            // Trigger no Postgres bloqueia UPDATE em CR/CP ja pago — sem essa
+            // checagem o match falhava com "Registro com status 'pago' nao pode
+            // ser editado" para CR/CP que o usuario lancou manualmente antes
+            // do extrato chegar (cenario tipico).
+            if (existingStatus !== 'pago') {
+                const { error: updateError } = await (activeClient as any)
+                    .from(table)
+                    .update({
+                        status: 'pago',
+                        valor_pago: amount,
+                        data_pagamento: date,
+                    })
+                    .eq('id', sysTx.id);
+                if (updateError) throw updateError;
+            }
 
             // Verifica se ja existe mov vinculada ao CR/CP (caso usuario tenha dado baixa
             // manualmente antes de conciliar). Se existir, faz UPDATE com dados do extrato
