@@ -1680,9 +1680,9 @@ export default function Vendas() {
           </button>
           <button
             onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
-            className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
+            className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] active:scale-[0.98] transition-all shadow-md hover:shadow-lg"
           >
-            <Plus size={11} /> Nova Venda
+            <Plus size={17} strokeWidth={2.5} /> Nova Venda
           </button>
           <input
             ref={fileInputRef}
