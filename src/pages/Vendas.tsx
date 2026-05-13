@@ -12,8 +12,7 @@ import {
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
   QrCode, Receipt, Calendar, UserPlus, ChevronDown,
-  Upload, Download, CheckCircle2, XCircle,
-  Clock, TrendingUp
+  Upload, Download, CheckCircle2, XCircle
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
@@ -1617,72 +1616,50 @@ export default function Vendas() {
         </div>
 
         {/* ─── KPIs (esquerda) + Tabela (direita) ───────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
-        {/* Coluna esquerda: KPIs verticais */}
-        <div className="flex flex-col gap-3">
-          {/* Faturamento — tema escuro, metrica primaria */}
-          <div className="bg-[#1D2939] rounded-xl px-4 py-4 shadow-md">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[#039855]/20 flex items-center justify-center flex-shrink-0">
-                <Banknote size={16} className="text-[#10B981]" />
-              </div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#98A2B3] m-0">Faturamento</p>
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
+        {/* Coluna esquerda: KPIs verticais (4 cards alinhados a altura da tabela) */}
+        <div className="flex flex-col gap-3 self-stretch">
+          {[
+            {
+              label: 'Faturamento',
+              value: formatBRL(kpis.total),
+              sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
+              accent: '#1D2939',
+            },
+            {
+              label: 'Ticket Médio',
+              value: formatBRL(kpis.ticket),
+              sub: 'média por venda',
+              accent: '#98A2B3',
+            },
+            {
+              label: 'Recebido',
+              value: formatBRL(kpis.aVista),
+              sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
+              accent: '#039855',
+            },
+            {
+              label: 'A receber',
+              value: formatBRL(kpis.aPrazo),
+              sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
+              accent: '#D97706',
+            },
+          ].map(k => (
+            <div
+              key={k.label}
+              className="bg-white border border-[#EAECF0] rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-sm"
+              style={{ borderLeftWidth: 4, borderLeftColor: k.accent }}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#98A2B3] m-0">{k.label}</p>
+              <p
+                className="font-extrabold truncate"
+                style={{ fontSize: 28, color: k.accent, letterSpacing: '-0.025em', lineHeight: 1 }}
+              >
+                {k.value}
+              </p>
+              <p className="text-[10.5px] text-[#667085] m-0 truncate">{k.sub}</p>
             </div>
-            <p className="font-extrabold text-white truncate" style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              {formatBRL(kpis.total)}
-            </p>
-            <p className="text-[11px] text-[#98A2B3] mt-1">
-              {kpis.count} venda{kpis.count !== 1 ? 's' : ''} no período
-            </p>
-          </div>
-
-          {/* Ticket Medio — neutro */}
-          <div className="bg-white border border-[#EAECF0] rounded-xl px-4 py-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[#F2F4F7] flex items-center justify-center flex-shrink-0">
-                <TrendingUp size={16} className="text-[#475467]" />
-              </div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#475467] m-0">Ticket Médio</p>
-            </div>
-            <p className="font-extrabold text-[#1D2939] truncate" style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              {formatBRL(kpis.ticket)}
-            </p>
-            <p className="text-[11px] text-[#98A2B3] mt-1">
-              média por venda
-            </p>
-          </div>
-
-          {/* A Vista — verde (dinheiro ja em caixa) */}
-          <div className="bg-[#F0FDF4] border border-[#86EFAC] rounded-xl px-4 py-4" style={{ boxShadow: '0 1px 3px rgba(3, 152, 85, 0.08)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[#039855] flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 size={16} className="text-white" />
-              </div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#065F46] m-0">Recebido (À vista)</p>
-            </div>
-            <p className="font-extrabold text-[#047857] truncate" style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              {formatBRL(kpis.aVista)}
-            </p>
-            <p className="text-[11px] text-[#059669] font-semibold mt-1">
-              {kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do faturamento` : '—'}
-            </p>
-          </div>
-
-          {/* A Prazo — ambar (a receber, neutro nao-negativo) */}
-          <div className="bg-[#FFFBEB] border border-[#FCD34D] rounded-xl px-4 py-4" style={{ boxShadow: '0 1px 3px rgba(245, 158, 11, 0.10)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-[#F59E0B] flex items-center justify-center flex-shrink-0">
-                <Clock size={16} className="text-white" />
-              </div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#854D0E] m-0">A Receber (Prazo)</p>
-            </div>
-            <p className="font-extrabold text-[#B45309] truncate" style={{ fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              {formatBRL(kpis.aPrazo)}
-            </p>
-            <p className="text-[11px] text-[#D97706] font-semibold mt-1">
-              {kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do faturamento` : '—'}
-            </p>
-          </div>
+          ))}
         </div>
         <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           <div className="bg-white border-b border-[#EAECF0] px-4 py-2.5 flex items-center justify-between">
