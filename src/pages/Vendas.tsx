@@ -1197,22 +1197,44 @@ export default function Vendas() {
   async function deletarVenda(id: string) {
     const ac = activeClient as any
     try {
-      // contas_receber tem trigger que bloqueia DELETE direto (incluindo CRs pagos).
-      // Usa soft-delete via UPDATE deleted_at, igual deletarVendasDoMes.
+      // 1. Buscar IDs dos CRs vinculados (precisa pra apagar movimentacoes/recibos)
+      const { data: crs } = await ac
+        .from('contas_receber')
+        .select('id')
+        .eq('venda_id', id)
+      const crIds = (crs || []).map((r: any) => r.id)
+
+      // 2. Apagar movimentacoes bancarias vinculadas (estorno do recebimento)
+      //    Movimentacoes sao hard-delete (sem trigger).
+      if (crIds.length > 0) {
+        await ac.from('movimentacoes').delete().in('conta_receber_id', crIds)
+      }
+
+      // 3. Soft-delete dos CRs (UPDATE deleted_at).
+      //    O trigger bloquear_edicao_pago LIBERA esse update mesmo pra CR pago.
       const nowIso = new Date().toISOString()
-      const { error: errCR } = await ac
+      const { error: errSoft } = await ac
         .from('contas_receber')
         .update({ deleted_at: nowIso, deleted_by: user?.id || null })
         .eq('venda_id', id)
         .is('deleted_at', null)
-      if (errCR) throw errCR
+      if (errSoft) throw errSoft
 
-      // vendas_itens tem ON DELETE CASCADE, mas deletamos explicitamente
-      // pra manter compatibilidade com o fluxo antigo.
+      // 4. Hard-delete dos CRs. O trigger forcar_soft_delete agora permite
+      //    porque deleted_at NOT NULL.
+      const { error: errHard } = await ac
+        .from('contas_receber')
+        .delete()
+        .eq('venda_id', id)
+      if (errHard) throw errHard
+
+      // 5. Deletar itens (vendas_itens.venda_id ON DELETE CASCADE, mas explicito)
       await ac.from('vendas_itens').delete().eq('venda_id', id)
 
+      // 6. Deletar a venda
       const { error: err } = await ac.from('vendas').delete().eq('id', id)
       if (err) throw err
+
       setConfirmDelete(null)
       await fetchVendas()
     } catch (e: any) {
@@ -1254,6 +1276,19 @@ export default function Vendas() {
       for (let i = 0; i < ids.length; i += CHUNK) {
         const slice = ids.slice(i, i + CHUNK)
 
+        // 1. Buscar IDs dos CRs do chunk pra apagar movimentacoes
+        const { data: crs } = await ac
+          .from('contas_receber')
+          .select('id')
+          .in('venda_id', slice)
+        const crIds = (crs || []).map((r: any) => r.id)
+
+        // 2. Apagar movimentacoes vinculadas (estorno)
+        if (crIds.length > 0) {
+          await ac.from('movimentacoes').delete().in('conta_receber_id', crIds)
+        }
+
+        // 3. Soft-delete CRs (libera o trigger)
         const { error: errCR } = await ac
           .from('contas_receber')
           .update({ deleted_at: nowIso, deleted_by: user?.id || null })
@@ -1261,6 +1296,14 @@ export default function Vendas() {
           .is('deleted_at', null)
         if (errCR) throw errCR
 
+        // 4. Hard-delete CRs (agora permitido)
+        const { error: errCRHard } = await ac
+          .from('contas_receber')
+          .delete()
+          .in('venda_id', slice)
+        if (errCRHard) throw errCRHard
+
+        // 5. Hard-delete vendas (itens cascateiam)
         const { error: errVendas } = await ac.from('vendas').delete().in('id', slice)
         if (errVendas) throw errVendas
       }
