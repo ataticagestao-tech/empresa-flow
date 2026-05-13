@@ -727,10 +727,12 @@ export function useConciliationEngine(
     }, [bankTransactions, candidateIndex, rules, accountMap, rulesNormalized, chartAccounts]);
 
     // Score summary
+    // Auto e Suggested so contam matches reais com CR/CP (systemTransaction).
+    // Tudo que e ai_category fallback (sem contraparte) cai em Review.
     const scoreSummary = useMemo(() => {
-        const auto = suggestions.filter(s => s.score >= 85).length;
-        const suggested = suggestions.filter(s => s.score >= 50 && s.score < 85).length;
-        const review = suggestions.filter(s => s.score < 50).length;
+        const auto = suggestions.filter(s => s.systemTransaction && s.score >= 85).length;
+        const suggested = suggestions.filter(s => s.systemTransaction && s.score >= 50 && s.score < 85).length;
+        const review = suggestions.filter(s => !s.systemTransaction || s.score < 50).length;
         return { auto, suggested, review, total: suggestions.length };
     }, [suggestions]);
 

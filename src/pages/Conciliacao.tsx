@@ -384,7 +384,7 @@ export default function Conciliacao() {
 
         return result.filter(bt => {
             const s = suggestionMap.get(bt.id);
-            if (!s) return scoreFilter === "review";
+            if (!s || !s.systemTransaction) return scoreFilter === "review";
             if (scoreFilter === "auto") return s.score >= 85;
             if (scoreFilter === "suggested") return s.score >= 50 && s.score < 85;
             if (scoreFilter === "review") return s.score < 50;
@@ -1089,10 +1089,13 @@ export default function Conciliacao() {
     };
 
     const handleSelectHighConfidence = () => {
+        // So seleciona items com CR/CP match real (systemTransaction). Sem isso
+        // a selecao incluiria sugestoes de categoria sem contraparte, que nao
+        // podem ser aceitas via batch.
         const highConf = (bankTransactions || [])
             .filter(bt => {
                 const s = suggestionMap.get(bt.id);
-                return s && s.score >= 85;
+                return s && s.systemTransaction && s.score >= 85;
             })
             .map(bt => bt.id);
         setSelectedIds(new Set(highConf));
@@ -1916,7 +1919,11 @@ export default function Conciliacao() {
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-center">
-                                                            <ScoreBadge score={score} />
+                                                            {bestMatch ? (
+                                                                <ScoreBadge score={score} />
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground">—</span>
+                                                            )}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <div className="flex justify-end items-center gap-1">
