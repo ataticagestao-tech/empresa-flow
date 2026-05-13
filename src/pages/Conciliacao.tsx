@@ -1904,27 +1904,15 @@ export default function Conciliacao() {
                                                                         <Check className="h-3 w-3 mr-1" />
                                                                         {bestMatch.entity_name} - {bestMatch.description}
                                                                     </Badge>
-                                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                                        {suggestion?.method === "rule" && <><Sparkles className="h-3 w-3 text-purple-500" /> {suggestion.ruleName}</>}
-                                                                        {suggestion?.method !== "rule" && <>Venc: {format(parseISO(bestMatch.date), 'dd/MM')}</>}
-                                                                    </span>
-                                                                </div>
-                                                            ) : suggestion?.method === "ai_category" && suggestion?.accountId ? (
-                                                                <div className="flex flex-col gap-0.5 items-start">
-                                                                    <span className="text-xs text-muted-foreground italic">
-                                                                        Sem correspondência em CR/CP
-                                                                    </span>
                                                                     <span className="text-[10px] text-muted-foreground">
-                                                                        Use Buscar ou Lançar para vincular
+                                                                        Venc: {format(parseISO(bestMatch.date), 'dd/MM')}
                                                                     </span>
-                                                                </div>
-                                                            ) : suggestion?.method === "rule" && suggestion?.label ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <Sparkles className="h-3 w-3 text-purple-500" />
-                                                                    <span className="text-xs text-purple-600">{suggestion.label}</span>
                                                                 </div>
                                                             ) : (
-                                                                <span className="text-xs text-muted-foreground italic">Sem sugestão</span>
+                                                                <div className="flex flex-col gap-0.5 items-start">
+                                                                    <span className="text-xs text-muted-foreground italic">Sem correspondência em CR/CP</span>
+                                                                    <span className="text-[10px] text-muted-foreground">Use Buscar ou Lançar para vincular</span>
+                                                                </div>
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-center">
@@ -1939,14 +1927,8 @@ export default function Conciliacao() {
                                                                             Aceitar
                                                                         </Button>
                                                                     )}
-                                                                    {!bestMatch && suggestion?.accountId && suggestion?.method !== "ai_category" && (
-                                                                        <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                                                                            disabled={inlineConciling === bt.id}
-                                                                            onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}>
-                                                                            {inlineConciling === bt.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
-                                                                            Conciliar
-                                                                        </Button>
-                                                                    )}
+                                                                    {/* Aceite inline so para bestMatch (CR/CP). Conciliar por categoria
+                                                                        removido — user pediu para nao sugerir categoria, so CR/CP. */}
                                                                     <Button variant="outline" size="sm" className="h-7 text-xs border-[#EAECF0]"
                                                                         onClick={() => {
                                                                         setSelectedBankTx(bt);
