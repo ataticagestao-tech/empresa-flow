@@ -271,6 +271,55 @@ export default function Recibos() {
         tipo: r.tipo || null,
       }))
 
+      // Enriquece descricao vazia/duplicativa com itens da venda (via CR.venda_id)
+      const client = activeClient ?? supabase
+      const reciboToCrId: Record<string, string> = {}
+      ;((data as any[]) || []).forEach((r: any) => {
+        if (r.account_receivable_id && !(r.descricao_servico || r.descricao)) {
+          reciboToCrId[r.id] = r.account_receivable_id
+        }
+      })
+      const crIds = Array.from(new Set(Object.values(reciboToCrId)))
+      if (crIds.length > 0) {
+        const { data: crs } = await client
+          .from('contas_receber')
+          .select('id, venda_id')
+          .in('id', crIds)
+        const crToVenda: Record<string, string> = {}
+        ;(crs || []).forEach((cr: any) => { if (cr.venda_id) crToVenda[cr.id] = cr.venda_id })
+
+        const vendaIds = Array.from(new Set(Object.values(crToVenda)))
+        if (vendaIds.length > 0) {
+          const { data: itens } = await client
+            .from('vendas_itens')
+            .select('venda_id, descricao, quantidade')
+            .in('venda_id', vendaIds)
+          const itensByVenda: Record<string, { descricao: string; quantidade: number }[]> = {}
+          ;(itens || []).forEach((it: any) => {
+            if (!itensByVenda[it.venda_id]) itensByVenda[it.venda_id] = []
+            itensByVenda[it.venda_id].push({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1 })
+          })
+
+          const itensLabel = (arr: { descricao: string; quantidade: number }[]) => {
+            if (arr.length === 1) {
+              const it = arr[0]
+              return it.quantidade > 1 ? `${it.descricao} (${it.quantidade}x)` : it.descricao
+            }
+            const extra = arr.length - 1
+            return `${arr[0].descricao} · +${extra} ${extra === 1 ? 'item' : 'itens'}`
+          }
+
+          for (const m of mapped) {
+            const crId = reciboToCrId[m.id]
+            if (!crId) continue
+            const vendaId = crToVenda[crId]
+            if (!vendaId) continue
+            const arr = itensByVenda[vendaId]
+            if (arr && arr.length > 0) m.descricao = itensLabel(arr)
+          }
+        }
+      }
+
       setRecibos(mapped)
       setLoading(false)
     }
