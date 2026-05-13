@@ -7,7 +7,6 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { CollapsibleCard } from '@/components/ui/collapsible-card'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -17,18 +16,6 @@ import {
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, Legend } from 'recharts'
-
-// Cor por forma de pagamento (linhas do grafico de vendas por dia)
-const FORMA_COR: Record<string, string> = {
-  pix: '#039855',
-  dinheiro: '#1D2939',
-  cartao_credito: '#7C3AED',
-  cartao_debito: '#0EA5E9',
-  boleto: '#F59E0B',
-  parcelado: '#EA580C',
-  outros: '#98A2B3',
-}
 
 // Cast supabase for GESTAP tables not in the generated types
 const db = supabase as any
@@ -345,89 +332,6 @@ export default function Vendas() {
 
   // Reset para página 1 quando filtros/dados mudam
   useEffect(() => { setPaginaAtual(1) }, [searchTerm, filtroTipo, filtroForma, filtroCR, filtroCliente, filtroData, filtroItens, filtroValorMin, filtroValorMax, filtroProduto, filtroCodigo, dateFrom, dateTo])
-
-  // ─── Ranking produtos × faturamento (para gráfico) ─────────
-  const produtosRanking = useMemo(() => {
-    const map: Record<string, { descricao: string; total: number; quantidade: number }> = {}
-    vendasFiltradas.forEach(v => {
-      ;(v.vendas_itens || []).forEach(it => {
-        const key = (it.descricao || 'Sem descrição').trim()
-        if (!map[key]) map[key] = { descricao: key, total: 0, quantidade: 0 }
-        map[key].total += Number(it.valor_total || 0)
-        map[key].quantidade += Number(it.quantidade || 0)
-      })
-    })
-    return Object.values(map)
-      .sort((a, b) => b.total - a.total)
-  }, [vendasFiltradas])
-
-  // ─── Vendas por dia x forma de pagamento ────────────────────
-  // 'multiplo' e distribuido entre os CRs (forma_recebimento) na proporcao
-  // do valor de cada CR, igual a logica dos KPIs.
-  const vendasPorDia = useMemo(() => {
-    const formasSet = new Set<string>()
-    const porDia: Record<string, Record<string, number>> = {}
-    vendasFiltradas.forEach((v) => {
-      const dia = v.data_venda
-      if (!porDia[dia]) porDia[dia] = {}
-      const valorVenda = Number(v.valor_total || 0)
-      if (valorVenda === 0) return
-      const crs = v.contas_receber || []
-      if (v.forma_pagamento === 'multiplo' && crs.length > 0) {
-        const somaCrs = crs.reduce((s, c) => s + Number(c.valor || 0), 0)
-        if (somaCrs > 0) {
-          const scale = valorVenda / somaCrs
-          crs.forEach((cr) => {
-            const f = cr.forma_recebimento || (cr.status === 'pago' ? 'pix' : 'parcelado')
-            formasSet.add(f)
-            porDia[dia][f] = (porDia[dia][f] || 0) + Number(cr.valor || 0) * scale
-          })
-          return
-        }
-      }
-      const f = v.forma_pagamento || 'outros'
-      formasSet.add(f)
-      porDia[dia][f] = (porDia[dia][f] || 0) + valorVenda
-    })
-    const start = parseISO(dateFrom)
-    const end = parseISO(dateTo)
-    const dias: Array<Record<string, any>> = []
-    let cur = start
-    let guard = 0
-    while (cur <= end && guard < 400) {
-      const iso = format(cur, 'yyyy-MM-dd')
-      const dia = porDia[iso] || {}
-      const entry: Record<string, any> = { data: iso, label: format(cur, 'dd/MM') }
-      formasSet.forEach((f) => { entry[f] = Math.round((dia[f] || 0) * 100) / 100 })
-      dias.push(entry)
-      cur = addDays(cur, 1)
-      guard++
-    }
-    return { dias, formas: Array.from(formasSet) }
-  }, [vendasFiltradas, dateFrom, dateTo])
-
-  // ─── Ranking "à receber" por cliente ────────────────────────
-  const aReceberRanking = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const map: Record<string, { cliente: string; total: number; vencido: number; titulos: number }> = {}
-    vendasFiltradas.forEach(v => {
-      const cliente = (v.cliente_nome || 'Sem cliente').trim()
-      ;(v.contas_receber || []).forEach(cr => {
-        if (cr.status === 'pago' || cr.status === 'cancelado') return
-        const pendente = Number(cr.valor || 0) - Number(cr.valor_pago || 0)
-        if (pendente <= 0) return
-        if (!map[cliente]) map[cliente] = { cliente, total: 0, vencido: 0, titulos: 0 }
-        map[cliente].total += pendente
-        map[cliente].titulos += 1
-        const venc = cr.data_vencimento ? new Date(cr.data_vencimento + "T00:00:00") : null
-        if (venc && venc < today) map[cliente].vencido += pendente
-      })
-    })
-    return Object.values(map)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10)
-  }, [vendasFiltradas])
 
   // ─── Listas únicas pros filtros de header (com count, ordenado DESC) ────
   const clientesUnicos = useMemo(() => {
@@ -1711,175 +1615,52 @@ export default function Vendas() {
           />
         </div>
 
-        {/* ─── Gráficos lado-a-lado: Produtos × Vendas + Vendas à Receber ──────────────────── */}
-        <div className="flex gap-4 w-full flex-wrap lg:flex-nowrap">
-        {/* ─── Gráfico: Vendas por dia x Forma de pagamento ─── */}
-        {vendasPorDia.dias.length > 0 && vendasPorDia.formas.length > 0 && (() => {
-          const totalPeriodo = vendasPorDia.dias.reduce((s, d) => {
-            return s + vendasPorDia.formas.reduce((sf, f) => sf + Number(d[f] || 0), 0)
-          }, 0)
-          return (
-            <CollapsibleCard
-              className="flex-1 min-w-0"
-              storageKey="vendas-por-dia-forma"
-              title="Vendas por dia"
-              subtitle={`Por forma de pagamento — ${vendasPorDia.dias.length} dia${vendasPorDia.dias.length !== 1 ? 's' : ''}`}
-              rightSlot={
-                <div className="text-right">
-                  <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Total</div>
-                  <div className="text-[16px] font-extrabold text-[#039855] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
-                    {formatBRL(totalPeriodo)}
-                  </div>
-                </div>
-              }
+        {/* ─── KPIs (esquerda) + Tabela (direita) ───────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 items-start">
+        {/* Coluna esquerda: KPIs verticais */}
+        <div className="flex flex-col gap-2.5">
+          {[
+            {
+              label: 'Faturamento',
+              value: formatBRL(kpis.total),
+              color: '#1D2939',
+              sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
+            },
+            {
+              label: 'Ticket médio',
+              value: formatBRL(kpis.ticket),
+              color: '#1D2939',
+              sub: 'média por venda',
+            },
+            {
+              label: 'À vista',
+              value: formatBRL(kpis.aVista),
+              color: '#039855',
+              sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do total` : '—',
+            },
+            {
+              label: 'A prazo',
+              value: formatBRL(kpis.aPrazo),
+              color: '#7F1D1D',
+              sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do total` : '—',
+            },
+          ].map(kpi => (
+            <div
+              key={kpi.label}
+              className="bg-white border border-[#EAECF0] rounded-xl px-3.5 py-2.5 min-w-0"
+              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
             >
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={vendasPorDia.dias} margin={{ top: 10, right: 20, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    fontSize={10.5}
-                    stroke="#98A2B3"
-                    tickLine={false}
-                    axisLine={{ stroke: '#EAECF0' }}
-                    interval="preserveStartEnd"
-                    minTickGap={20}
-                  />
-                  <YAxis
-                    fontSize={10.5}
-                    stroke="#98A2B3"
-                    tickLine={false}
-                    axisLine={false}
-                    width={48}
-                    tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(Math.round(v))}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
-                    itemStyle={{ color: '#fff' }}
-                    labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                    formatter={(v: number, name: string) => [formatBRL(v), LABEL_FORMA[name] || name]}
-                    labelFormatter={(l: string, payload: any) => {
-                      const iso = payload?.[0]?.payload?.data
-                      if (iso) {
-                        const [a, m, d] = iso.split('-')
-                        return `${d}/${m}/${a}`
-                      }
-                      return l
-                    }}
-                  />
-                  <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                    formatter={(value: string) => LABEL_FORMA[value] || value}
-                  />
-                  {vendasPorDia.formas.map((f) => (
-                    <Line
-                      key={f}
-                      type="monotone"
-                      dataKey={f}
-                      name={f}
-                      stroke={FORMA_COR[f] || '#98A2B3'}
-                      strokeWidth={2}
-                      dot={{ r: 2.5, strokeWidth: 0 }}
-                      activeDot={{ r: 4 }}
-                      isAnimationActive={false}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </CollapsibleCard>
-          )
-        })()}
-
-        {/* ─── Gráfico: Vendas à Receber (OCULTO temporariamente) ─── */}
-        {false && aReceberRanking.length > 0 && (() => {
-          const totalPendente = aReceberRanking.reduce((s, c) => s + c.total, 0)
-          const totalVencido = aReceberRanking.reduce((s, c) => s + c.vencido, 0)
-          return (
-            <CollapsibleCard
-              className="flex-1 min-w-0"
-              storageKey="vendas-a-receber"
-              title="Vendas à Receber"
-              subtitle={`Top ${aReceberRanking.length} clientes com títulos em aberto`}
-              rightSlot={
-                <div className="text-right">
-                  <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Em aberto</div>
-                  <div className="text-[16px] font-extrabold text-[#EA580C] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
-                    {formatBRL(totalPendente)}
-                  </div>
-                  {totalVencido > 0 && (
-                    <div className="text-[10.5px] font-semibold text-[#E53E3E] mt-0.5">
-                      {formatBRL(totalVencido)} vencido
-                    </div>
-                  )}
-                </div>
-              }
-            >
-              <ResponsiveContainer width="100%" height={Math.max(200, aReceberRanking.length * 22)}>
-                <BarChart data={aReceberRanking} layout="vertical" margin={{ top: 4, right: 90, left: 0, bottom: 4 }}>
-                  <defs>
-                    <linearGradient id="aReceberGrad" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.7} />
-                      <stop offset="100%" stopColor="#EA580C" stopOpacity={1} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis type="number" hide domain={[0, 'dataMax']} />
-                  <YAxis
-                    type="category"
-                    dataKey="cliente"
-                    tick={(props: any) => {
-                      const { y, payload } = props
-                      const txt = String(payload.value || '')
-                      const shown = txt.length > 16 ? txt.slice(0, 16) + '…' : txt
-                      return (
-                        <Link to={`/clientes?cliente=${encodeURIComponent(txt)}`}>
-                          <text
-                            x={0} y={y} dy={4}
-                            textAnchor="start" fontSize={11} fontWeight={500}
-                            fill="#1D2939"
-                            style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent', transition: 'text-decoration-color .15s' }}
-                            onMouseEnter={(e) => { (e.currentTarget as SVGTextElement).style.textDecorationColor = '#059669' }}
-                            onMouseLeave={(e) => { (e.currentTarget as SVGTextElement).style.textDecorationColor = 'transparent' }}
-                          >
-                            {shown}
-                          </text>
-                        </Link>
-                      )
-                    }}
-                    axisLine={{ stroke: '#EA580C', strokeWidth: 2 }}
-                    tickLine={false}
-                    width={120}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
-                    itemStyle={{ color: '#fff' }}
-                    labelStyle={{ color: '#fff', fontWeight: 600 }}
-                    formatter={(v: number, _n: string, entry: any) => [
-                      `${formatBRL(v)} · ${entry.payload.titulos} título${entry.payload.titulos !== 1 ? 's' : ''}${entry.payload.vencido > 0 ? ` · ${formatBRL(entry.payload.vencido)} vencido` : ''}`,
-                      'Em aberto',
-                    ]}
-                    cursor={{ fill: 'rgba(217, 119, 6, 0.08)' }}
-                  />
-                  <Bar dataKey="total" fill="url(#aReceberGrad)" radius={[0, 3, 3, 0]} barSize={9}>
-                    <LabelList
-                      dataKey="total"
-                      position="right"
-                      fontSize={10}
-                      fill="#1D2939"
-                      fontWeight={600}
-                      formatter={(v: number) => formatBRL(v)}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CollapsibleCard>
-          )
-        })()}
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
+              <p
+                className="mt-1 font-extrabold truncate"
+                style={{ fontSize: 17, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
+              >
+                {kpi.value}
+              </p>
+              <p className="text-[10.5px] text-[#98A2B3] mt-0.5 truncate">{kpi.sub}</p>
+            </div>
+          ))}
         </div>
-
-        {/* ─── Tabela + KPIs laterais ───────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-4 items-start">
         <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           <div className="bg-white border-b border-[#EAECF0] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">
@@ -2251,56 +2032,6 @@ export default function Vendas() {
               </div>
             </div>
           )}
-        </div>
-        {/* ─── KPIs verticais (coluna lateral direita) ─────── */}
-        <div className="flex flex-col gap-2.5">
-          {[
-            {
-              label: 'Faturamento',
-              value: formatBRL(kpis.total),
-              color: '#1D2939',
-              sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
-            },
-            {
-              label: 'Vendas',
-              value: String(kpis.count),
-              color: '#1D2939',
-              sub: `ticket médio ${formatBRL(kpis.ticket)}`,
-            },
-            {
-              label: 'Ticket médio',
-              value: formatBRL(kpis.ticket),
-              color: '#1D2939',
-              sub: 'média por venda',
-            },
-            {
-              label: 'À vista',
-              value: formatBRL(kpis.aVista),
-              color: '#039855',
-              sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do total` : '—',
-            },
-            {
-              label: 'A prazo',
-              value: formatBRL(kpis.aPrazo),
-              color: '#7F1D1D',
-              sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do total` : '—',
-            },
-          ].map(kpi => (
-            <div
-              key={kpi.label}
-              className="bg-white border border-[#EAECF0] rounded-xl px-3.5 py-2.5 min-w-0"
-              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
-            >
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
-              <p
-                className="mt-1 font-extrabold truncate"
-                style={{ fontSize: 17, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
-              >
-                {kpi.value}
-              </p>
-              <p className="text-[10.5px] text-[#98A2B3] mt-0.5 truncate">{kpi.sub}</p>
-            </div>
-          ))}
         </div>
         </div>
       </div>
