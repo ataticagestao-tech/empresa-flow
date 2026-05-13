@@ -8,7 +8,6 @@ import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
-import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -186,6 +185,12 @@ export default function Vendas() {
   const [headerFiltroAberto, setHeaderFiltroAberto] = useState<string | null>(null)
   const [headerFiltroBusca, setHeaderFiltroBusca] = useState('')
   const headerFiltroRef = useRef<HTMLDivElement>(null)
+
+  // ─── Filtro de data (dropdown suspenso) ──────────────────────
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false)
+  const [tempDateFrom, setTempDateFrom] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [tempDateTo, setTempDateTo] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+  const dateDropdownRef = useRef<HTMLDivElement>(null)
 
   // ─── Modal state ─────────────────────────────────────────────
   const [modalAberto, setModalAberto] = useState(false)
@@ -442,9 +447,11 @@ export default function Vendas() {
   }, [modalProdutos, produtos, produtoSearchTerm])
 
   // ─── KPIs ────────────────────────────────────────────────────
-  // Para classificação à vista x a prazo, somamos pelos CRs (forma_recebimento),
-  // assim vendas com múltiplas formas de pagamento são corretamente pro-rateadas.
-  // Fallback para v.forma_pagamento quando a venda não tem CRs carregados.
+  // Invariante: aVista + aPrazo === total (sempre).
+  // Para cada venda, classificamos pelos CRs (forma_recebimento). Quando a forma
+  // não está preenchida ou não é reconhecida, usamos o status do CR como fallback
+  // (pago => à vista; demais => a prazo). Se a soma dos CRs divergir do
+  // valor_total da venda, redistribuímos proporcionalmente para que o total bata.
   const kpis = useMemo(() => {
     const total = vendas.reduce((s, v) => s + (v.valor_total || 0), 0)
     const count = vendas.length
@@ -452,17 +459,37 @@ export default function Vendas() {
     let aVista = 0
     let aPrazo = 0
     vendas.forEach((v) => {
+      const valorVenda = Number(v.valor_total || 0)
+      if (valorVenda === 0) return
       const crs = v.contas_receber || []
-      if (crs.length > 0) {
-        crs.forEach((cr) => {
-          const forma = cr.forma_recebimento || v.forma_pagamento
-          if (FORMAS_A_VISTA.includes(forma)) aVista += Number(cr.valor || 0)
-          else if (FORMAS_A_PRAZO.includes(forma)) aPrazo += Number(cr.valor || 0)
-        })
-      } else if (FORMAS_A_VISTA.includes(v.forma_pagamento)) {
-        aVista += v.valor_total || 0
-      } else if (FORMAS_A_PRAZO.includes(v.forma_pagamento)) {
-        aPrazo += v.valor_total || 0
+      if (crs.length === 0) {
+        if (FORMAS_A_VISTA.includes(v.forma_pagamento)) aVista += valorVenda
+        else aPrazo += valorVenda
+        return
+      }
+      let vista = 0
+      let prazo = 0
+      crs.forEach((cr) => {
+        const valorCr = Number(cr.valor || 0)
+        const forma = cr.forma_recebimento
+        if (forma && FORMAS_A_VISTA.includes(forma)) {
+          vista += valorCr
+        } else if (forma && FORMAS_A_PRAZO.includes(forma)) {
+          prazo += valorCr
+        } else if (cr.status === 'pago') {
+          vista += valorCr
+        } else {
+          prazo += valorCr
+        }
+      })
+      const somaCrs = vista + prazo
+      if (somaCrs > 0) {
+        const scale = valorVenda / somaCrs
+        aVista += vista * scale
+        aPrazo += prazo * scale
+      } else {
+        if (FORMAS_A_VISTA.includes(v.forma_pagamento)) aVista += valorVenda
+        else aPrazo += valorVenda
       }
     })
     return { total, count, ticket, aVista, aPrazo }
@@ -706,6 +733,9 @@ export default function Vendas() {
       if (headerFiltroRef.current && !headerFiltroRef.current.contains(e.target as Node)) {
         setHeaderFiltroAberto(null)
         setHeaderFiltroBusca('')
+      }
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node)) {
+        setDateDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -1465,6 +1495,64 @@ export default function Vendas() {
     <AppLayout title="Vendas">
       <div className="max-w-[1400px] mx-auto space-y-5">
 
+        {/* ─── Filtro de data (suspenso, canto superior à direita) ── */}
+        <div className="flex justify-end -mt-2">
+          <div className="relative" ref={dateDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!dateDropdownOpen) {
+                  setTempDateFrom(dateFrom)
+                  setTempDateTo(dateTo)
+                }
+                setDateDropdownOpen(o => !o)
+              }}
+              className="flex items-center gap-2 h-8 px-3 text-[12px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded-md hover:bg-[#F9FAFB] transition-colors shadow-sm"
+            >
+              <Calendar size={13} className="text-[#667085]" />
+              <span>{formatData(dateFrom)} — {formatData(dateTo)}</span>
+              <ChevronDown size={13} className={`text-[#667085] transition-transform ${dateDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {dateDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-lg p-3 w-[280px]">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    setDateFrom(tempDateFrom)
+                    setDateTo(tempDateTo)
+                    setDateDropdownOpen(false)
+                  }}
+                  className="space-y-2"
+                >
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#98A2B3] mb-1 block">Data Inicial</label>
+                    <input
+                      type="date"
+                      value={tempDateFrom}
+                      onChange={e => setTempDateFrom(e.target.value)}
+                      className="w-full px-2 h-8 text-[12px] border border-[#D0D5DD] rounded bg-white text-[#1D2939] focus:outline-none focus:border-[#039855]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#98A2B3] mb-1 block">Data Final</label>
+                    <input
+                      type="date"
+                      value={tempDateTo}
+                      onChange={e => setTempDateTo(e.target.value)}
+                      className="w-full px-2 h-8 text-[12px] border border-[#D0D5DD] rounded bg-white text-[#1D2939] focus:outline-none focus:border-[#039855]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full h-8 text-[12px] font-semibold text-white bg-[#039855] rounded hover:bg-[#027A47] transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Search size={12} /> Pesquisar
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ─── KPIs (mesma estética do Dashboard) ─────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -1516,14 +1604,6 @@ export default function Vendas() {
             </div>
           ))}
         </div>
-
-        {/* ── Filtro de periodo (padrao do sistema) ── */}
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
-          helperText="Filtrar vendas por intervalo de data."
-        />
 
         {/* ─── Filtros (compactos, uma linha) ─────────────────── */}
         <div className="flex flex-wrap items-center gap-1.5">
