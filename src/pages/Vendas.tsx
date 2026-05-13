@@ -1793,10 +1793,10 @@ export default function Vendas() {
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
         <div
-          className="bg-white border border-[#EAECF0] rounded-xl px-5 py-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          className="bg-white border border-[#EAECF0] rounded-xl pt-5 px-5 pb-2 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
-          <div className="flex items-baseline justify-between mb-3 flex-shrink-0">
+          <div className="flex items-baseline justify-between mb-2 flex-shrink-0">
             <h3 className="font-extrabold text-black m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
               Top 10 produtos mais vendidos
             </h3>
@@ -1812,7 +1812,7 @@ export default function Vendas() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 24, right: 12, left: 0, bottom: 60 }}
+                margin={{ top: 18, right: 12, left: 0, bottom: 38 }}
               >
                 <XAxis
                   dataKey="descricao"
@@ -1820,7 +1820,7 @@ export default function Vendas() {
                   tick={(props: any) => {
                     const { x, y, payload } = props
                     const txt = String(payload.value || '')
-                    const maxPerLine = 12
+                    const maxPerLine = 14
                     // Quebra por palavras, acumulando ate maxPerLine chars
                     const words = txt.split(/\s+/)
                     const lines: string[] = []
@@ -1841,13 +1841,17 @@ export default function Vendas() {
                         }
                       }
                     })
-                    const visible = out.slice(0, 4)
+                    // Max 2 linhas pra caber em 38px de altura do eixo
+                    const visible = out.slice(0, 2)
+                    if (out.length > 2 && visible[1]) {
+                      visible[1] = visible[1].slice(0, maxPerLine - 1) + '…'
+                    }
                     return (
                       <g>
                         {visible.map((line, i) => (
                           <text
                             key={i}
-                            x={x} y={y + 12 + i * 11}
+                            x={x} y={y + 11 + i * 11}
                             textAnchor="middle"
                             fontSize={10}
                             fontWeight={500}
@@ -1861,7 +1865,7 @@ export default function Vendas() {
                   }}
                   axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={60}
+                  height={38}
                 />
                 <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
