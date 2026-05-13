@@ -1624,45 +1624,45 @@ export default function Vendas() {
               label: 'Faturamento',
               value: formatBRL(kpis.total),
               sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
-              accent: '#1D2939',
+              bg: '#039855',
             },
             {
               label: 'Ticket Médio',
               value: formatBRL(kpis.ticket),
               sub: 'média por venda',
-              accent: '#98A2B3',
+              bg: '#475467',
             },
             {
-              label: 'Recebido',
+              label: 'À vista',
               value: formatBRL(kpis.aVista),
               sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              accent: '#039855',
+              bg: '#047857',
             },
             {
-              label: 'A receber',
+              label: 'A prazo',
               value: formatBRL(kpis.aPrazo),
               sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              accent: '#D97706',
+              bg: '#B45309',
             },
           ].map(k => (
             <div
               key={k.label}
-              className="bg-white border border-[#EAECF0] rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-sm"
-              style={{ borderLeftWidth: 4, borderLeftColor: k.accent }}
+              className="rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-md"
+              style={{ backgroundColor: k.bg }}
             >
               <p
-                className="font-bold m-0"
-                style={{ fontSize: 16, color: '#1D2939', letterSpacing: '-0.01em', lineHeight: 1.2 }}
+                className="font-bold text-white m-0"
+                style={{ fontSize: 20, letterSpacing: '-0.015em', lineHeight: 1.15 }}
               >
                 {k.label}
               </p>
               <p
-                className="font-extrabold truncate"
-                style={{ fontSize: 26, color: k.accent, letterSpacing: '-0.025em', lineHeight: 1 }}
+                className="font-extrabold text-white truncate"
+                style={{ fontSize: 26, letterSpacing: '-0.025em', lineHeight: 1 }}
               >
                 {k.value}
               </p>
-              <p className="text-[11.5px] text-[#667085] m-0 truncate">{k.sub}</p>
+              <p className="text-[12px] text-white/80 m-0 truncate">{k.sub}</p>
             </div>
           ))}
         </div>
