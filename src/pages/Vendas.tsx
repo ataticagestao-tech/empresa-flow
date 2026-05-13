@@ -17,16 +17,18 @@ import {
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Treemap } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line, Legend } from 'recharts'
 
-// Paleta neutra (slate frio + taupe quente) para o treemap de produtos.
-// Tons escolhidos para harmonizar com o fundo #F6F2EB e o texto #1D2939 do app.
-const PRODUTO_PALETA = [
-  '#1D2939', '#344054', '#475467', '#5D6B7E',
-  '#5C5345', '#6B5E4A', '#7A6E5D', '#8C7B65',
-  '#667085', '#7A8492', '#928A78', '#A89C84',
-  '#98A2B3', '#B0A99A', '#C2BAA8', '#D7CFC0',
-]
+// Cor por forma de pagamento (linhas do grafico de vendas por dia)
+const FORMA_COR: Record<string, string> = {
+  pix: '#039855',
+  dinheiro: '#1D2939',
+  cartao_credito: '#7C3AED',
+  cartao_debito: '#0EA5E9',
+  boleto: '#F59E0B',
+  parcelado: '#EA580C',
+  outros: '#98A2B3',
+}
 
 // Cast supabase for GESTAP tables not in the generated types
 const db = supabase as any
@@ -344,6 +346,51 @@ export default function Vendas() {
     return Object.values(map)
       .sort((a, b) => b.total - a.total)
   }, [vendasFiltradas])
+
+  // ─── Vendas por dia x forma de pagamento ────────────────────
+  // 'multiplo' e distribuido entre os CRs (forma_recebimento) na proporcao
+  // do valor de cada CR, igual a logica dos KPIs.
+  const vendasPorDia = useMemo(() => {
+    const formasSet = new Set<string>()
+    const porDia: Record<string, Record<string, number>> = {}
+    vendasFiltradas.forEach((v) => {
+      const dia = v.data_venda
+      if (!porDia[dia]) porDia[dia] = {}
+      const valorVenda = Number(v.valor_total || 0)
+      if (valorVenda === 0) return
+      const crs = v.contas_receber || []
+      if (v.forma_pagamento === 'multiplo' && crs.length > 0) {
+        const somaCrs = crs.reduce((s, c) => s + Number(c.valor || 0), 0)
+        if (somaCrs > 0) {
+          const scale = valorVenda / somaCrs
+          crs.forEach((cr) => {
+            const f = cr.forma_recebimento || (cr.status === 'pago' ? 'pix' : 'parcelado')
+            formasSet.add(f)
+            porDia[dia][f] = (porDia[dia][f] || 0) + Number(cr.valor || 0) * scale
+          })
+          return
+        }
+      }
+      const f = v.forma_pagamento || 'outros'
+      formasSet.add(f)
+      porDia[dia][f] = (porDia[dia][f] || 0) + valorVenda
+    })
+    const start = parseISO(dateFrom)
+    const end = parseISO(dateTo)
+    const dias: Array<Record<string, any>> = []
+    let cur = start
+    let guard = 0
+    while (cur <= end && guard < 400) {
+      const iso = format(cur, 'yyyy-MM-dd')
+      const dia = porDia[iso] || {}
+      const entry: Record<string, any> = { data: iso, label: format(cur, 'dd/MM') }
+      formasSet.forEach((f) => { entry[f] = Math.round((dia[f] || 0) * 100) / 100 })
+      dias.push(entry)
+      cur = addDays(cur, 1)
+      guard++
+    }
+    return { dias, formas: Array.from(formasSet) }
+  }, [vendasFiltradas, dateFrom, dateTo])
 
   // ─── Ranking "à receber" por cliente ────────────────────────
   const aReceberRanking = useMemo(() => {
@@ -1703,98 +1750,80 @@ export default function Vendas() {
 
         {/* ─── Gráficos lado-a-lado: Produtos × Vendas + Vendas à Receber ──────────────────── */}
         <div className="flex gap-4 w-full flex-wrap lg:flex-nowrap">
-        {/* ─── Gráfico: Produtos × Vendas ──────────────────── */}
-        {produtosRanking.length > 0 && (() => {
-          const totalGeral = produtosRanking.reduce((s, p) => s + p.total, 0)
+        {/* ─── Gráfico: Vendas por dia x Forma de pagamento ─── */}
+        {vendasPorDia.dias.length > 0 && vendasPorDia.formas.length > 0 && (() => {
+          const totalPeriodo = vendasPorDia.dias.reduce((s, d) => {
+            return s + vendasPorDia.formas.reduce((sf, f) => sf + Number(d[f] || 0), 0)
+          }, 0)
           return (
             <CollapsibleCard
               className="flex-1 min-w-0"
-              storageKey="vendas-produtos-x-vendas"
-              title="Produtos × Vendas"
-              subtitle={`${produtosRanking.length} produto${produtosRanking.length !== 1 ? 's' : ''} vendido${produtosRanking.length !== 1 ? 's' : ''} no período`}
+              storageKey="vendas-por-dia-forma"
+              title="Vendas por dia"
+              subtitle={`Por forma de pagamento — ${vendasPorDia.dias.length} dia${vendasPorDia.dias.length !== 1 ? 's' : ''}`}
               rightSlot={
                 <div className="text-right">
                   <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Total</div>
                   <div className="text-[16px] font-extrabold text-[#039855] mt-0.5" style={{ letterSpacing: '-0.02em' }}>
-                    {formatBRL(totalGeral)}
+                    {formatBRL(totalPeriodo)}
                   </div>
                 </div>
               }
             >
-              <ResponsiveContainer width="100%" height={440}>
-                <Treemap
-                  data={produtosRanking}
-                  dataKey="total"
-                  nameKey="descricao"
-                  aspectRatio={4 / 3}
-                  stroke="#fff"
-                  isAnimationActive={false}
-                  content={(props: any) => {
-                    const { x, y, width, height, index, depth, payload } = props
-                    if (depth !== 1 || !width || !height) return null
-                    const cor = PRODUTO_PALETA[(index ?? 0) % PRODUTO_PALETA.length]
-                    const item = payload || produtosRanking[index] || {}
-                    const nome = item.descricao || ''
-                    const valor = Number(item.total || 0)
-                    const qtd = Number(item.quantidade || 0)
-                    const cabe = width > 64 && height > 38
-                    const cabeValor = width > 64 && height > 56
-                    const cabeQtd = width > 84 && height > 74
-                    const maxChars = Math.max(4, Math.floor((width - 14) / 6.5))
-                    const shown = nome.length > maxChars ? nome.slice(0, maxChars - 1) + '…' : nome
-                    return (
-                      <g>
-                        <rect
-                          x={x} y={y} width={width} height={height}
-                          fill={cor}
-                          stroke="#fff"
-                          strokeWidth={2}
-                          style={{ cursor: 'default' }}
-                        />
-                        {cabe && (
-                          <text
-                            x={x + 8} y={y + 18}
-                            fill="#fff"
-                            fontSize={11.5}
-                            fontWeight={600}
-                          >
-                            {shown}
-                          </text>
-                        )}
-                        {cabeValor && (
-                          <text
-                            x={x + 8} y={y + 34}
-                            fill="rgba(255,255,255,0.85)"
-                            fontSize={10.5}
-                            fontWeight={500}
-                          >
-                            {formatBRL(valor)}
-                          </text>
-                        )}
-                        {cabeQtd && (
-                          <text
-                            x={x + 8} y={y + 50}
-                            fill="rgba(255,255,255,0.65)"
-                            fontSize={9.5}
-                          >
-                            {qtd} un
-                          </text>
-                        )}
-                      </g>
-                    )
-                  }}
-                >
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={vendasPorDia.dias} margin={{ top: 10, right: 20, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    fontSize={10.5}
+                    stroke="#98A2B3"
+                    tickLine={false}
+                    axisLine={{ stroke: '#EAECF0' }}
+                    interval="preserveStartEnd"
+                    minTickGap={20}
+                  />
+                  <YAxis
+                    fontSize={10.5}
+                    stroke="#98A2B3"
+                    tickLine={false}
+                    axisLine={false}
+                    width={48}
+                    tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(Math.round(v))}
+                  />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
                     itemStyle={{ color: '#fff' }}
-                    labelStyle={{ color: '#fff', fontWeight: 600 }}
-                    formatter={(v: number, _n: string, entry: any) => {
-                      const p = entry?.payload || {}
-                      return [`${formatBRL(p.total || v)} · ${p.quantidade || 0} un`, p.descricao || 'Produto']
+                    labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                    formatter={(v: number, name: string) => [formatBRL(v), LABEL_FORMA[name] || name]}
+                    labelFormatter={(l: string, payload: any) => {
+                      const iso = payload?.[0]?.payload?.data
+                      if (iso) {
+                        const [a, m, d] = iso.split('-')
+                        return `${d}/${m}/${a}`
+                      }
+                      return l
                     }}
-                    separator=": "
                   />
-                </Treemap>
+                  <Legend
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+                    formatter={(value: string) => LABEL_FORMA[value] || value}
+                  />
+                  {vendasPorDia.formas.map((f) => (
+                    <Line
+                      key={f}
+                      type="monotone"
+                      dataKey={f}
+                      name={f}
+                      stroke={FORMA_COR[f] || '#98A2B3'}
+                      strokeWidth={2}
+                      dot={{ r: 2.5, strokeWidth: 0 }}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                </LineChart>
               </ResponsiveContainer>
             </CollapsibleCard>
           )
