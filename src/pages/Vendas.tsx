@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 
 // Cast supabase for GESTAP tables not in the generated types
 const db = supabase as any
@@ -332,6 +333,22 @@ export default function Vendas() {
 
   // Reset para página 1 quando filtros/dados mudam
   useEffect(() => { setPaginaAtual(1) }, [searchTerm, filtroTipo, filtroForma, filtroCR, filtroCliente, filtroData, filtroItens, filtroValorMin, filtroValorMax, filtroProduto, filtroCodigo, dateFrom, dateTo])
+
+  // ─── Top 10 produtos mais vendidos (gráfico) ───────────────
+  const produtosRanking = useMemo(() => {
+    const map: Record<string, { descricao: string; total: number; quantidade: number }> = {}
+    vendasFiltradas.forEach(v => {
+      ;(v.vendas_itens || []).forEach(it => {
+        const key = (it.descricao || 'Sem descrição').trim()
+        if (!map[key]) map[key] = { descricao: key, total: 0, quantidade: 0 }
+        map[key].total += Number(it.valor_total || 0)
+        map[key].quantidade += Number(it.quantidade || 0)
+      })
+    })
+    return Object.values(map)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+  }, [vendasFiltradas])
 
   // ─── Listas únicas pros filtros de header (com count, ordenado DESC) ────
   const clientesUnicos = useMemo(() => {
@@ -1668,6 +1685,68 @@ export default function Vendas() {
               <p className="text-[12px] text-[#667085] m-0 truncate">{k.sub}</p>
             </div>
           ))}
+        {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
+        <div
+          className="bg-white border border-[#EAECF0] rounded-xl px-5 py-4 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
+        >
+          <div className="flex items-baseline justify-between mb-2">
+            <h3 className="text-[15px] font-bold text-black m-0">Top 10 produtos mais vendidos</h3>
+            <span className="text-[11px] text-[#667085]">Por faturamento</span>
+          </div>
+          {produtosRanking.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-[12px] text-[#98A2B3]">
+              Nenhum produto vendido no período
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+              <BarChart
+                data={produtosRanking}
+                layout="vertical"
+                margin={{ top: 4, right: 60, left: 0, bottom: 4 }}
+              >
+                <XAxis type="number" hide domain={[0, 'dataMax']} />
+                <YAxis
+                  type="category"
+                  dataKey="descricao"
+                  tick={(props: any) => {
+                    const { x, y, payload } = props
+                    const txt = String(payload.value || '')
+                    const shown = txt.length > 22 ? txt.slice(0, 22) + '…' : txt
+                    return (
+                      <text x={x - 4} y={y} dy={3} textAnchor="end" fontSize={11} fill="#1D2939">
+                        {shown}
+                      </text>
+                    )
+                  }}
+                  width={160}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
+                  itemStyle={{ color: '#fff' }}
+                  labelStyle={{ color: '#fff', fontWeight: 600 }}
+                  formatter={(v: number, _n: string, entry: any) => [
+                    `${formatBRL(v)} · ${entry.payload.quantidade} un`,
+                    'Faturamento',
+                  ]}
+                  cursor={{ fill: 'rgba(3, 152, 85, 0.08)' }}
+                />
+                <Bar dataKey="total" fill="#039855" radius={[0, 4, 4, 0]} barSize={14}>
+                  <LabelList
+                    dataKey="total"
+                    position="right"
+                    fontSize={10.5}
+                    fontWeight={600}
+                    fill="#1D2939"
+                    formatter={(v: number) => formatBRL(v)}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
         <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0 lg:col-start-2 lg:row-start-3 lg:row-span-2" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           <div className="bg-white overflow-x-auto">
             {loading ? (
