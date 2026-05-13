@@ -119,7 +119,7 @@ export default function Conciliacao() {
     const [filterDateTo, setFilterDateTo] = useState("");
     const [batchProgress, setBatchProgress] = useState<{ total: number; done: number; success: number; failed: number } | null>(null);
     const [currentPage, setCurrentPage] = useState(0);
-    const PAGE_SIZE = 100;
+    const PAGE_SIZE = 10;
     const [ruleConflict, setRuleConflict] = useState<RuleConflict | null>(null);
     const [expandedAiRow, setExpandedAiRow] = useState<string | null>(null);
     const [inlineConciling, setInlineConciling] = useState<string | null>(null);
