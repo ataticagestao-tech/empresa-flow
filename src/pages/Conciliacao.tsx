@@ -1862,7 +1862,6 @@ export default function Conciliacao() {
                                                 <TableHead className="w-20">Data</TableHead>
                                                 <TableHead>Descrição Banco</TableHead>
                                                 <TableHead className="w-28">Valor</TableHead>
-                                                <TableHead className="w-40">Unidade</TableHead>
                                                 <TableHead>Sugestão IA</TableHead>
                                                 <TableHead className="w-16 text-center">Score</TableHead>
                                                 <TableHead className="text-right w-32">Ações</TableHead>
@@ -1895,27 +1894,6 @@ export default function Conciliacao() {
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Select
-                                                                value={(bt as any).unidade_destino_id || ""}
-                                                                onValueChange={async (val) => {
-                                                                    const uid = val === "none" ? null : val;
-                                                                    await (activeClient as any).from("bank_transactions").update({ unidade_destino_id: uid }).eq("id", bt.id);
-                                                                    queryClient.invalidateQueries({ queryKey: ["bank_reconciliation"] });
-                                                                }}>
-                                                                <SelectTrigger className="h-7 text-xs w-36">
-                                                                    <SelectValue placeholder="Selecionar..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">Nenhuma</SelectItem>
-                                                                    {(allCompanies || []).map((c: any) => (
-                                                                        <SelectItem key={c.id} value={c.id}>
-                                                                            {c.nome_fantasia || c.razao_social}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </TableCell>
-                                                        <TableCell>
                                                             {bestMatch ? (
                                                                 <div className="flex flex-col gap-1 items-start">
                                                                     <Badge
@@ -1932,40 +1910,12 @@ export default function Conciliacao() {
                                                                     </span>
                                                                 </div>
                                                             ) : suggestion?.method === "ai_category" && suggestion?.accountId ? (
-                                                                <div className="flex flex-col gap-1 items-start">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className="bg-blue-50 text-blue-700 border-blue-200 text-xs gap-1 cursor-pointer hover:bg-blue-100"
-                                                                            onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}
-                                                                        >
-                                                                            <Bot className="h-3 w-3" />
-                                                                            {suggestion.label}
-                                                                        </Badge>
-                                                                        {suggestion.aiAlternatives && suggestion.aiAlternatives.length > 0 && (
-                                                                            <button
-                                                                                className="p-0.5 rounded hover:bg-slate-100 transition-colors"
-                                                                                onClick={() => setExpandedAiRow(expandedAiRow === bt.id ? null : bt.id)}
-                                                                            >
-                                                                                {expandedAiRow === bt.id
-                                                                                    ? <ChevronUp className="h-3.5 w-3.5 text-blue-500" />
-                                                                                    : <ChevronDown className="h-3.5 w-3.5 text-blue-500" />}
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                    {expandedAiRow === bt.id && suggestion.aiAlternatives?.map(alt => (
-                                                                        <Badge
-                                                                            key={alt.accountId}
-                                                                            variant="outline"
-                                                                            className="bg-slate-50 text-slate-600 border-slate-200 text-xs gap-1 cursor-pointer hover:bg-slate-100"
-                                                                            onClick={() => handleInlineConcile(bt, alt.accountId, alt.label)}
-                                                                        >
-                                                                            <Bot className="h-3 w-3" />
-                                                                            {alt.label}
-                                                                        </Badge>
-                                                                    ))}
-                                                                    <span className="text-[10px] text-blue-500 flex items-center gap-0.5">
-                                                                        <Brain className="h-3 w-3" /> IA sugere
+                                                                <div className="flex flex-col gap-0.5 items-start">
+                                                                    <span className="text-xs text-muted-foreground italic">
+                                                                        Sem correspondência em CR/CP
+                                                                    </span>
+                                                                    <span className="text-[10px] text-muted-foreground">
+                                                                        Use Buscar ou Lançar para vincular
                                                                     </span>
                                                                 </div>
                                                             ) : suggestion?.method === "rule" && suggestion?.label ? (
@@ -1989,7 +1939,7 @@ export default function Conciliacao() {
                                                                             Aceitar
                                                                         </Button>
                                                                     )}
-                                                                    {!bestMatch && suggestion?.accountId && (
+                                                                    {!bestMatch && suggestion?.accountId && suggestion?.method !== "ai_category" && (
                                                                         <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
                                                                             disabled={inlineConciling === bt.id}
                                                                             onClick={() => handleInlineConcile(bt, suggestion.accountId!, suggestion.label)}>

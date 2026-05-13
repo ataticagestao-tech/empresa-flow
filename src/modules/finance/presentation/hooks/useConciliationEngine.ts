@@ -613,12 +613,16 @@ function runMatchingEngine(
             accountCode: m.account.code,
             accountName: m.account.name,
             label: `${m.account.code} ${m.account.name}`,
-            score: Math.min(m.score * 10, 90),
+            score: Math.min(m.score * 10, 30),
         }));
 
+        // Cap AI category fallback em 35% (cai no bucket "Revisar").
+        // Categorizar por keyword sem contraparte de CR/CP e ruido para usuarios
+        // que ja lancam pagamentos no sistema — nao deve aparecer como
+        // "Alta Confianca" e poluir o batch.
         return {
             ...base,
-            score: Math.min(best.score * 10, 95),
+            score: Math.min(best.score * 10, 35),
             method: "ai_category",
             accountId: best.account.id,
             accountCode: best.account.code,
