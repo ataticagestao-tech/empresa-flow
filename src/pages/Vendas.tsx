@@ -17,13 +17,15 @@ import {
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Treemap } from 'recharts'
 
+// Paleta neutra (slate frio + taupe quente) para o treemap de produtos.
+// Tons escolhidos para harmonizar com o fundo #F6F2EB e o texto #1D2939 do app.
 const PRODUTO_PALETA = [
-  '#039855', '#0EA5E9', '#F59E0B', '#8B5CF6', '#EC4899',
-  '#14B8A6', '#F97316', '#6366F1', '#84CC16', '#06B6D4',
-  '#EF4444', '#EAB308', '#10B981', '#3B82F6', '#A855F7',
-  '#F43F5E', '#22C55E', '#0284C7', '#D946EF', '#FB7185',
+  '#1D2939', '#344054', '#475467', '#5D6B7E',
+  '#5C5345', '#6B5E4A', '#7A6E5D', '#8C7B65',
+  '#667085', '#7A8492', '#928A78', '#A89C84',
+  '#98A2B3', '#B0A99A', '#C2BAA8', '#D7CFC0',
 ]
 
 // Cast supabase for GESTAP tables not in the generated types
@@ -1719,60 +1721,80 @@ export default function Vendas() {
                 </div>
               }
             >
-              <ResponsiveContainer width="100%" height={Math.max(360, Math.min(620, 240 + produtosRanking.length * 14))}>
-                <BarChart data={produtosRanking} margin={{ top: 28, right: 24, left: 8, bottom: 70 }} barCategoryGap="12%">
-                  <XAxis
-                    type="category"
-                    dataKey="descricao"
-                    interval={0}
-                    tick={(props: any) => {
-                      const { x, y, payload, index } = props
-                      const txt = String(payload.value || '')
-                      const item = produtosRanking.find(p => p.descricao === txt)
-                      const qtd = item ? item.quantidade : 0
-                      const cor = PRODUTO_PALETA[(index ?? 0) % PRODUTO_PALETA.length]
-                      const maxChars = produtosRanking.length <= 4 ? 22 : produtosRanking.length <= 8 ? 14 : 10
-                      const shown = txt.length > maxChars ? txt.slice(0, maxChars) + '…' : txt
-                      return (
-                        <g transform={`translate(${x},${y + 14})`}>
-                          <text textAnchor="middle" fontSize={12} fontWeight={600} fill="#1D2939">
+              <ResponsiveContainer width="100%" height={440}>
+                <Treemap
+                  data={produtosRanking}
+                  dataKey="total"
+                  nameKey="descricao"
+                  aspectRatio={4 / 3}
+                  stroke="#fff"
+                  isAnimationActive={false}
+                  content={(props: any) => {
+                    const { x, y, width, height, index, depth, payload } = props
+                    if (depth !== 1 || !width || !height) return null
+                    const cor = PRODUTO_PALETA[(index ?? 0) % PRODUTO_PALETA.length]
+                    const item = payload || produtosRanking[index] || {}
+                    const nome = item.descricao || ''
+                    const valor = Number(item.total || 0)
+                    const qtd = Number(item.quantidade || 0)
+                    const cabe = width > 64 && height > 38
+                    const cabeValor = width > 64 && height > 56
+                    const cabeQtd = width > 84 && height > 74
+                    const maxChars = Math.max(4, Math.floor((width - 14) / 6.5))
+                    const shown = nome.length > maxChars ? nome.slice(0, maxChars - 1) + '…' : nome
+                    return (
+                      <g>
+                        <rect
+                          x={x} y={y} width={width} height={height}
+                          fill={cor}
+                          stroke="#fff"
+                          strokeWidth={2}
+                          style={{ cursor: 'default' }}
+                        />
+                        {cabe && (
+                          <text
+                            x={x + 8} y={y + 18}
+                            fill="#fff"
+                            fontSize={11.5}
+                            fontWeight={600}
+                          >
                             {shown}
                           </text>
-                          <text y={16} textAnchor="middle" fontSize={11} fontWeight={700} fill={cor}>
+                        )}
+                        {cabeValor && (
+                          <text
+                            x={x + 8} y={y + 34}
+                            fill="rgba(255,255,255,0.85)"
+                            fontSize={10.5}
+                            fontWeight={500}
+                          >
+                            {formatBRL(valor)}
+                          </text>
+                        )}
+                        {cabeQtd && (
+                          <text
+                            x={x + 8} y={y + 50}
+                            fill="rgba(255,255,255,0.65)"
+                            fontSize={9.5}
+                          >
                             {qtd} un
                           </text>
-                        </g>
-                      )
-                    }}
-                    axisLine={{ stroke: '#D0D5DD', strokeWidth: 1 }}
-                    tickLine={false}
-                    height={60}
-                  />
-                  <YAxis type="number" hide domain={[0, 'dataMax']} />
+                        )}
+                      </g>
+                    )
+                  }}
+                >
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
                     itemStyle={{ color: '#fff' }}
                     labelStyle={{ color: '#fff', fontWeight: 600 }}
-                    formatter={(v: number, _n: string, entry: any) => [
-                      `${formatBRL(v)} · ${entry.payload.quantidade} un`,
-                      'Faturamento',
-                    ]}
-                    cursor={{ fill: 'rgba(3, 152, 85, 0.06)' }}
+                    formatter={(v: number, _n: string, entry: any) => {
+                      const p = entry?.payload || {}
+                      return [`${formatBRL(p.total || v)} · ${p.quantidade || 0} un`, p.descricao || 'Produto']
+                    }}
+                    separator=": "
                   />
-                  <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                    {produtosRanking.map((_, i) => (
-                      <Cell key={i} fill={PRODUTO_PALETA[i % PRODUTO_PALETA.length]} />
-                    ))}
-                    <LabelList
-                      dataKey="total"
-                      position="top"
-                      fontSize={10.5}
-                      fill="#1D2939"
-                      fontWeight={700}
-                      formatter={(v: number) => formatBRL(v)}
-                    />
-                  </Bar>
-                </BarChart>
+                </Treemap>
               </ResponsiveContainer>
             </CollapsibleCard>
           )
