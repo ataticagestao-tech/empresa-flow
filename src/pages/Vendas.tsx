@@ -1807,7 +1807,8 @@ export default function Vendas() {
               Nenhum produto vendido no período
             </div>
           ) : (
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 relative">
+            <div className="absolute inset-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
@@ -1885,6 +1886,7 @@ export default function Vendas() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
             </div>
           )}
         </div>
