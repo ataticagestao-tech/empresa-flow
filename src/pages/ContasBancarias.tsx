@@ -21,6 +21,7 @@ const BANCOS_SORTED = [...BANKS]
 
 const tipoLabels: Record<string, string> = {
   checking: "Conta Corrente", savings: "Conta Poupança", cash: "Caixa Interno", investment: "Conta Investimento",
+  cartao_credito: "Cartão de Crédito",
 };
 
 const emptyForm = {
@@ -371,6 +372,7 @@ export default function ContasBancarias() {
                   <select value={formData.type} onChange={e => set("type", e.target.value)} className={IC}>
                     <option value="checking">Conta Corrente</option><option value="savings">Conta Poupança</option>
                     <option value="cash">Caixa Interno</option><option value="investment">Conta Investimento</option>
+                    <option value="cartao_credito">Cartão de Crédito</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
