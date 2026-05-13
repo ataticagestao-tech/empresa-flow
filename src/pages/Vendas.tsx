@@ -17,7 +17,14 @@ import {
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Cell } from 'recharts'
+
+const PRODUTO_PALETA = [
+  '#039855', '#0EA5E9', '#F59E0B', '#8B5CF6', '#EC4899',
+  '#14B8A6', '#F97316', '#6366F1', '#84CC16', '#06B6D4',
+  '#EF4444', '#EAB308', '#10B981', '#3B82F6', '#A855F7',
+  '#F43F5E', '#22C55E', '#0284C7', '#D946EF', '#FB7185',
+]
 
 // Cast supabase for GESTAP tables not in the generated types
 const db = supabase as any
@@ -334,7 +341,6 @@ export default function Vendas() {
     })
     return Object.values(map)
       .sort((a, b) => b.total - a.total)
-      .slice(0, 10)
   }, [vendasFiltradas])
 
   // ─── Ranking "à receber" por cliente ────────────────────────
@@ -1703,7 +1709,7 @@ export default function Vendas() {
               className="flex-1 min-w-0"
               storageKey="vendas-produtos-x-vendas"
               title="Produtos × Vendas"
-              subtitle={`Top ${produtosRanking.length} mais vendidos no período`}
+              subtitle={`${produtosRanking.length} produto${produtosRanking.length !== 1 ? 's' : ''} vendido${produtosRanking.length !== 1 ? 's' : ''} no período`}
               rightSlot={
                 <div className="text-right">
                   <div className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-[#98A2B3]">Total</div>
@@ -1713,37 +1719,32 @@ export default function Vendas() {
                 </div>
               }
             >
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={produtosRanking} margin={{ top: 24, right: 16, left: 0, bottom: 60 }}>
-                  <defs>
-                    <linearGradient id="prodVendaGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#039855" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#039855" stopOpacity={0.7} />
-                    </linearGradient>
-                  </defs>
+              <ResponsiveContainer width="100%" height={Math.max(360, Math.min(620, 240 + produtosRanking.length * 14))}>
+                <BarChart data={produtosRanking} margin={{ top: 28, right: 24, left: 8, bottom: 70 }} barCategoryGap="12%">
                   <XAxis
                     type="category"
                     dataKey="descricao"
                     interval={0}
                     tick={(props: any) => {
-                      const { x, y, payload } = props
+                      const { x, y, payload, index } = props
                       const txt = String(payload.value || '')
                       const item = produtosRanking.find(p => p.descricao === txt)
                       const qtd = item ? item.quantidade : 0
-                      const maxChars = produtosRanking.length <= 4 ? 24 : 14
+                      const cor = PRODUTO_PALETA[(index ?? 0) % PRODUTO_PALETA.length]
+                      const maxChars = produtosRanking.length <= 4 ? 22 : produtosRanking.length <= 8 ? 14 : 10
                       const shown = txt.length > maxChars ? txt.slice(0, maxChars) + '…' : txt
                       return (
                         <g transform={`translate(${x},${y + 14})`}>
-                          <text textAnchor="middle" fontSize={13} fontWeight={600} fill="#1D2939">
+                          <text textAnchor="middle" fontSize={12} fontWeight={600} fill="#1D2939">
                             {shown}
                           </text>
-                          <text y={18} textAnchor="middle" fontSize={12} fontWeight={700} fill="#039855">
+                          <text y={16} textAnchor="middle" fontSize={11} fontWeight={700} fill={cor}>
                             {qtd} un
                           </text>
                         </g>
                       )
                     }}
-                    axisLine={{ stroke: '#039855', strokeWidth: 2 }}
+                    axisLine={{ stroke: '#D0D5DD', strokeWidth: 1 }}
                     tickLine={false}
                     height={60}
                   />
@@ -1756,15 +1757,18 @@ export default function Vendas() {
                       `${formatBRL(v)} · ${entry.payload.quantidade} un`,
                       'Faturamento',
                     ]}
-                    cursor={{ fill: 'rgba(3, 152, 85, 0.08)' }}
+                    cursor={{ fill: 'rgba(3, 152, 85, 0.06)' }}
                   />
-                  <Bar dataKey="total" fill="url(#prodVendaGrad)" radius={[3, 3, 0, 0]} maxBarSize={48}>
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                    {produtosRanking.map((_, i) => (
+                      <Cell key={i} fill={PRODUTO_PALETA[i % PRODUTO_PALETA.length]} />
+                    ))}
                     <LabelList
                       dataKey="total"
                       position="top"
-                      fontSize={10}
+                      fontSize={10.5}
                       fill="#1D2939"
-                      fontWeight={600}
+                      fontWeight={700}
                       formatter={(v: number) => formatBRL(v)}
                     />
                   </Bar>
