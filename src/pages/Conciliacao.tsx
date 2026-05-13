@@ -829,11 +829,11 @@ export default function Conciliacao() {
     };
 
     const handleMatch = async (bt: BankTransaction, sysTx: SystemTransaction) => {
+        // Match CR/CP existente: nao tenta aprender regra de categoria
+        // (a categoria do CR/CP ja esta correta; a descricao do extrato bater com
+        // uma regra antiga vira conflito sem sentido para o usuario que esta
+        // apenas linkando lancamentos existentes — nao categorizando)
         matchTransaction.mutate({ bankTx: bt, sysTx });
-        // MEMORIZAÇÃO: aprender regra + detectar conflito
-        const suggestion = suggestionMap.get(bt.id);
-        const conflict = await learnRule.mutateAsync({ bankTx: bt, categoryId: suggestion?.accountId });
-        if (conflict) setRuleConflict(conflict);
     };
 
     const handleCreateAndReconcile = async () => {
