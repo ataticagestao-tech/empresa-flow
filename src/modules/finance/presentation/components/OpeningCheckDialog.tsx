@@ -43,6 +43,7 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
     const [showAdjustForm, setShowAdjustForm] = useState(false);
     const [contaContabilId, setContaContabilId] = useState("");
     const [creating, setCreating] = useState(false);
+    const [creatingCategory, setCreatingCategory] = useState(false);
 
     const diff = useMemo(() => {
         if (summary?.closingBalance == null || systemBalanceAtClose == null) return null;
@@ -83,6 +84,58 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
         const filtered = noTransfer.filter(a => wantedTypes.includes(a.account_type));
         return filtered.length > 0 ? filtered : noTransfer;
     }, [chartAccounts, tipoAjuste]);
+
+    const existingAjusteCategory = useMemo(() => {
+        if (!chartAccounts || !tipoAjuste) return null;
+        const wantedNature = tipoAjuste === "credito" ? "credit" : "debit";
+        return chartAccounts.find(a =>
+            /ajuste\s+de\s+saldo/i.test(a.name) && a.account_nature === wantedNature
+        ) || null;
+    }, [chartAccounts, tipoAjuste]);
+
+    const handleCreateCategory = async () => {
+        if (!selectedCompany?.id || !tipoAjuste) return;
+        setCreatingCategory(true);
+        try {
+            const isEntrada = tipoAjuste === "credito";
+            const payload = {
+                company_id: selectedCompany.id,
+                code: isEntrada ? "9.91.01" : "9.92.01",
+                name: isEntrada ? "Ajuste de Saldo (Entrada)" : "Ajuste de Saldo (Saída)",
+                level: 3,
+                account_type: isEntrada ? "revenue" : "expense",
+                account_nature: isEntrada ? "credit" : "debit",
+                is_analytical: true,
+                is_synthetic: false,
+                show_in_dre: false,
+                dre_group: null,
+                dre_order: null,
+                parent_id: null,
+                status: "active",
+                accepts_manual_entry: true,
+            };
+            const { data, error } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .insert(payload)
+                .select("id")
+                .single();
+            if (error) throw error;
+            toast({ title: "Categoria criada", description: payload.name });
+            await queryClient.invalidateQueries({ queryKey: ["chart_accounts_adjustment", selectedCompany.id] });
+            // Pre-seleciona a categoria recem-criada
+            if (data?.id) setContaContabilId(data.id);
+        } catch (e: any) {
+            const msg = e.message || String(e);
+            if (msg.includes("unique_code_per_company") || msg.includes("duplicate")) {
+                toast({ title: "Categoria ja existe", description: "Recarregue e selecione na lista" });
+                await queryClient.invalidateQueries({ queryKey: ["chart_accounts_adjustment", selectedCompany.id] });
+            } else {
+                toast({ title: "Erro ao criar categoria", description: msg, variant: "destructive" });
+            }
+        } finally {
+            setCreatingCategory(false);
+        }
+    };
 
     const resetState = () => {
         setShowAdjustForm(false);
@@ -213,12 +266,35 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
                                     className="w-full border border-[#ccc] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#059669]"
                                 >
                                     <option value="">Selecione...</option>
-                                    {filteredAccounts.map((a) => (
-                                        <option key={a.id} value={a.id}>
-                                            {a.code} - {a.name}
+                                    {existingAjusteCategory && (
+                                        <option value={existingAjusteCategory.id}>
+                                            ★ {existingAjusteCategory.code} - {existingAjusteCategory.name}
                                         </option>
-                                    ))}
+                                    )}
+                                    {filteredAccounts
+                                        .filter(a => a.id !== existingAjusteCategory?.id)
+                                        .map((a) => (
+                                            <option key={a.id} value={a.id}>
+                                                {a.code} - {a.name}
+                                            </option>
+                                        ))}
                                 </select>
+                                {!existingAjusteCategory && (
+                                    <div className="mt-2 flex items-center justify-between gap-2 rounded border border-dashed border-amber-300 bg-amber-100/50 px-2 py-1.5">
+                                        <span className="text-[10.5px] text-[#7c2d12]">
+                                            Não há categoria "Ajuste de Saldo" cadastrada para {tipoAjuste === "credito" ? "entrada" : "saída"}.
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-[10.5px] px-2"
+                                            onClick={handleCreateCategory}
+                                            disabled={creatingCategory}
+                                        >
+                                            {creatingCategory ? "Criando..." : "Criar agora"}
+                                        </Button>
+                                    </div>
+                                )}
                                 <p className="text-[10.5px] text-[#667085] mt-1">
                                     Sugere-se uma conta de "outras receitas/despesas" ou "ajuste de saldo".
                                 </p>
