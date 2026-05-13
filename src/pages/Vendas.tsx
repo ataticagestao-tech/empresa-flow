@@ -74,6 +74,7 @@ interface BankAccount {
   id: string
   name: string
   banco?: string
+  type?: string
 }
 
 interface CentroCusto {
@@ -467,7 +468,7 @@ export default function Vendas() {
 
     const ac = activeClient as any
     const [banksRes, centrosRes, clientesRes, produtosRes, receitaContaRes] = await Promise.all([
-      ac.from('bank_accounts').select('id, name, banco').eq('company_id', companyId).eq('is_active', true),
+      ac.from('bank_accounts').select('id, name, banco, type').eq('company_id', companyId).eq('is_active', true),
       ac.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
       ac.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description'),
@@ -514,6 +515,39 @@ export default function Vendas() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
+
+  // ─── Owner: só Izabel vê o select de conta destino (detalhe técnico) ──
+  const isOwner = user?.email === 'izabelvier@outlook.com'
+
+  // ─── Escolhe conta padrão por forma de pagamento ──
+  // cartao_credito/parcelado → primeiro bank_account type='cartao_credito'
+  // demais formas → primeira conta corrente (qualquer type != 'cartao_credito')
+  const pickContaPadrao = useCallback((forma: string): string => {
+    if (forma === 'cartao_credito' || forma === 'parcelado') {
+      const cartao = bankAccounts.find(b => b.type === 'cartao_credito')
+      if (cartao) return cartao.id
+    }
+    const corrente = bankAccounts.find(b => b.type !== 'cartao_credito')
+    return corrente?.id || bankAccounts[0]?.id || ''
+  }, [bankAccounts])
+
+  // ─── Auto-popular conta_bancaria_id quando bankAccounts carrega ou forma muda ──
+  const splitsFormaKey = formPagamentos.map(p => p.forma).join('|')
+  useEffect(() => {
+    if (bankAccounts.length === 0) return
+    setFormPagamentos(prev => {
+      let mudou = false
+      const next = prev.map(p => {
+        if (p.conta_bancaria_id) return p
+        const def = pickContaPadrao(p.forma)
+        if (!def) return p
+        mudou = true
+        return { ...p, conta_bancaria_id: def }
+      })
+      return mudou ? next : prev
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankAccounts, splitsFormaKey])
 
   // ─── Auto-sync: se houver apenas 1 forma de pagamento, mantém o valor
   //     igual ao total da venda conforme itens/desconto mudam.
@@ -949,8 +983,18 @@ export default function Vendas() {
     }
     if (totalVenda <= 0) { setErroModal('Valor total deve ser maior que zero.'); return }
     if (formPagamentos.length === 0) { setErroModal('Adicione ao menos uma forma de pagamento.'); return }
-    for (const p of formPagamentos) {
-      if (!p.conta_bancaria_id) { setErroModal('Selecione a conta bancária para cada forma de pagamento.'); return }
+    // Auto-fill defensivo: garante que toda forma tem conta destino (padrão se não foi escolhida)
+    const pagamentosResolvidos = formPagamentos.map(p => ({
+      ...p,
+      conta_bancaria_id: p.conta_bancaria_id || pickContaPadrao(p.forma),
+    }))
+    for (const p of pagamentosResolvidos) {
+      if (!p.conta_bancaria_id) {
+        setErroModal(isOwner
+          ? 'Selecione a conta bancária para cada forma de pagamento.'
+          : 'Nenhuma conta bancária cadastrada para esta forma. Peça ao administrador para cadastrar uma conta.')
+        return
+      }
       if (!p.valor || p.valor <= 0) { setErroModal('Cada forma de pagamento precisa ter valor maior que zero.'); return }
     }
     if (Math.abs(pendentePagamento) > 0.01) {
@@ -963,7 +1007,7 @@ export default function Vendas() {
 
     try {
       let vendaId: string
-      const formaVenda = formPagamentos.length > 1 ? 'multiplo' : formPagamentos[0].forma
+      const formaVenda = pagamentosResolvidos.length > 1 ? 'multiplo' : pagamentosResolvidos[0].forma
 
       if (editandoVenda) {
         // UPDATE existing venda
@@ -1019,7 +1063,7 @@ export default function Vendas() {
       if (itensErr) throw itensErr
 
       // 3. Gerar CRs para cada split de pagamento e quitar os à vista
-      for (const split of formPagamentos) {
+      for (const split of pagamentosResolvidos) {
         const splitBruto = Math.round(split.valor * 100) / 100
         const taxaCfg = split.taxa
         const taxaPct = taxaCfg?.taxa_percentual || 0
@@ -1855,17 +1899,17 @@ export default function Vendas() {
                     return (
                       <div key={split.uid} className="border border-[#ccc] rounded-md p-3 bg-[#FAFAFA]">
                         <div className="grid grid-cols-12 gap-2 items-end">
-                          <div className="col-span-12 sm:col-span-4">
+                          <div className={`col-span-12 ${isOwner ? 'sm:col-span-4' : 'sm:col-span-6'}`}>
                             <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Forma</label>
                             <select
                               value={split.forma}
-                              onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, forma: e.target.value, parcelas: 1, taxa: null } : p))}
+                              onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, forma: e.target.value, parcelas: 1, taxa: null, conta_bancaria_id: '' } : p))}
                               className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
                             >
                               {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                             </select>
                           </div>
-                          <div className="col-span-6 sm:col-span-3">
+                          <div className={`col-span-6 ${isOwner ? 'sm:col-span-3' : isParcl ? 'sm:col-span-4' : 'sm:col-span-5'}`}>
                             <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Valor (R$)</label>
                             <input
                               type="number"
@@ -1879,19 +1923,21 @@ export default function Vendas() {
                               className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
                             />
                           </div>
-                          <div className={`${isParcl ? 'col-span-12 sm:col-span-3' : 'col-span-6 sm:col-span-4'}`}>
-                            <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta destino</label>
-                            <select
-                              value={split.conta_bancaria_id}
-                              onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, conta_bancaria_id: e.target.value, taxa: null } : p))}
-                              className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
-                            >
-                              <option value="">Selecione...</option>
-                              {bankAccounts.map(ba => (
-                                <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
-                              ))}
-                            </select>
-                          </div>
+                          {isOwner && (
+                            <div className={`${isParcl ? 'col-span-12 sm:col-span-3' : 'col-span-6 sm:col-span-4'}`}>
+                              <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta destino</label>
+                              <select
+                                value={split.conta_bancaria_id}
+                                onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, conta_bancaria_id: e.target.value, taxa: null } : p))}
+                                className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                              >
+                                <option value="">Selecione...</option>
+                                {bankAccounts.map(ba => (
+                                  <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                           {isParcl && (
                             <div className="col-span-10 sm:col-span-1">
                               <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Parc.</label>
