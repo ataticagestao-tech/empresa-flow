@@ -1774,21 +1774,21 @@ export default function Vendas() {
           ].map(k => (
             <div
               key={k.label}
-              className={`bg-white border border-[#EAECF0] rounded-xl px-5 py-4 flex flex-col justify-between gap-2 shadow-sm lg:col-start-1 ${k.row}`}
+              className={`bg-white border border-[#EAECF0] rounded-xl px-5 py-5 flex flex-col justify-between gap-3 shadow-sm lg:col-start-1 ${k.row}`}
             >
               <p
                 className="font-bold text-black m-0"
-                style={{ fontSize: 20, letterSpacing: '-0.015em', lineHeight: 1.15 }}
+                style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}
               >
                 {k.label}
               </p>
               <p
                 className="font-extrabold truncate"
-                style={{ fontSize: 26, color: k.valueColor, letterSpacing: '-0.025em', lineHeight: 1 }}
+                style={{ fontSize: 34, color: k.valueColor, letterSpacing: '-0.03em', lineHeight: 1 }}
               >
                 {k.value}
               </p>
-              <p className="text-[12px] text-[#667085] m-0 truncate">{k.sub}</p>
+              <p className="text-[13px] text-[#667085] m-0 truncate">{k.sub}</p>
             </div>
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
