@@ -46,6 +46,7 @@ interface CR {
   observacoes: string | null
   venda_id: string | null
   contrato_recorrente_id: string | null
+  _itensVenda?: string | null
 }
 
 interface BankAccount { id: string; name: string; banco?: string }
@@ -181,7 +182,41 @@ export default function ContasReceber() {
       if (data.length < pageSize) break
       page++
     }
-    setItems((allData as CR[]) || [])
+
+    // Itens da venda vinculada (para mostrar o que foi vendido em cada titulo)
+    const vendaIds = Array.from(new Set(allData.filter((cr: any) => cr.venda_id).map((cr: any) => cr.venda_id as string)))
+    const itensLabelByVenda: Record<string, string> = {}
+    if (vendaIds.length > 0) {
+      const chunkSize = 200
+      for (let i = 0; i < vendaIds.length; i += chunkSize) {
+        const chunk = vendaIds.slice(i, i + chunkSize)
+        const { data: itens } = await db
+          .from('vendas_itens')
+          .select('venda_id, descricao, quantidade')
+          .in('venda_id', chunk)
+        const byVenda: Record<string, { descricao: string; quantidade: number }[]> = {}
+        ;(itens || []).forEach((it: any) => {
+          if (!byVenda[it.venda_id]) byVenda[it.venda_id] = []
+          byVenda[it.venda_id].push({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1 })
+        })
+        for (const vid of Object.keys(byVenda)) {
+          const arr = byVenda[vid]
+          if (arr.length === 1) {
+            const it = arr[0]
+            itensLabelByVenda[vid] = it.quantidade > 1 ? `${it.descricao} (${it.quantidade}x)` : it.descricao
+          } else {
+            const extra = arr.length - 1
+            itensLabelByVenda[vid] = `${arr[0].descricao} · +${extra} ${extra === 1 ? 'item' : 'itens'}`
+          }
+        }
+      }
+    }
+
+    const enriched: CR[] = (allData as CR[]).map(cr => ({
+      ...cr,
+      _itensVenda: cr.venda_id ? (itensLabelByVenda[cr.venda_id] || null) : null,
+    }))
+    setItems(enriched)
     setLoading(false)
   }
 
@@ -1184,13 +1219,15 @@ export default function ContasReceber() {
                           <button
                             type="button"
                             onClick={() => setEditarModal(cr)}
-                            title={`Abrir titulo de ${cr.pagador_nome}`}
+                            title={cr._itensVenda ? `${cr.pagador_nome} — ${cr._itensVenda}` : `Abrir titulo de ${cr.pagador_nome}`}
                             className="font-semibold text-[12px] text-[#1D2939] truncate text-left hover:text-[#059669] hover:underline transition-colors cursor-pointer focus:outline-none focus:text-[#059669]"
                             style={{ maxWidth: 200, display: 'block' }}
                           >
                             {cr.pagador_nome}
                           </button>
-                          {cr.pagador_cpf_cnpj && (
+                          {cr._itensVenda ? (
+                            <div className="text-[10px] text-[#555] leading-tight truncate" style={{ maxWidth: 200 }} title={cr._itensVenda}>{cr._itensVenda}</div>
+                          ) : cr.pagador_cpf_cnpj && (
                             <div className="text-[10px] text-[#999] leading-tight">{cr.pagador_cpf_cnpj}</div>
                           )}
                         </td>
