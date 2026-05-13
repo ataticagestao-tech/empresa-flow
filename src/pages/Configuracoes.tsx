@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { format } from "date-fns";
@@ -321,9 +322,13 @@ function PerfisDeAcesso() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Carregando...</TableCell>
-                                </TableRow>
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        {Array.from({ length: 5 }).map((_, c) => (
+                                            <TableCell key={c}><Skeleton className="h-4 w-full" /></TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))
                             ) : perfis?.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Nenhum perfil encontrado.</TableCell>
@@ -629,7 +634,13 @@ function LogAtividades() {
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    {Array.from({ length: 6 }).map((_, c) => (
+                                        <TableCell key={c}><Skeleton className="h-4 w-full" /></TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
                         ) : !filteredLogs?.length ? (
                             <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow>
                         ) : (

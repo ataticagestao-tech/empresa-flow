@@ -6,6 +6,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays, addMonths, addDays } from 'date-fns'
 import {
@@ -515,10 +516,7 @@ export default function ContratosRecorrentes() {
           </div>
           <div className="bg-white overflow-x-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={20} className="animate-spin text-[#059669]" />
-                <span className="ml-2 text-[13px] text-[#555]">Carregando...</span>
-              </div>
+              <div className="p-4"><TableSkeleton rows={6} cols={5} /></div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-[#555]">
                 <CalendarDays size={32} className="mb-2 opacity-40" />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ChartSkeleton, TableSkeleton } from "@/components/ui/page-skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -1149,8 +1150,9 @@ export default function Relatorios() {
                 </div>
 
                 {isLoading && (
-                    <div className="text-center py-8 text-muted-foreground">
-                        Carregando dados do relatório...
+                    <div className="space-y-6">
+                        <ChartSkeleton />
+                        <TableSkeleton rows={6} cols={5} />
                     </div>
                 )}
             </div>

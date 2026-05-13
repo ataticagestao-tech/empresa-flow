@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/ui/page-skeleton";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -481,9 +482,7 @@ export default function ExtratoReconciliado() {
         {/* Table */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
           {loadingTx ? (
-            <div className="p-8 text-center text-sm text-gray-500">
-              Carregando...
-            </div>
+            <div className="p-4"><TableSkeleton rows={8} cols={6} /></div>
           ) : rowsWithBalance.length === 0 ? (
             <div className="p-8 text-center text-sm text-gray-500">
               Nenhuma transacao encontrada

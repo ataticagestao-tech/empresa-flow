@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
@@ -523,7 +524,18 @@ export default function ReguaCobranca() {
           </div>
           <div className="p-4 bg-white">
             {loadingReguas ? (
-              <p className="text-[13px] text-[#555] text-center py-6">Carregando...</p>
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 border border-[#EAECF0] rounded">
+                    <Skeleton className="h-9 w-9 rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-2/5" />
+                      <Skeleton className="h-3 w-3/5" />
+                    </div>
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                ))}
+              </div>
             ) : reguas.length === 0 ? (
               <div className="text-center py-10">
                 <Bell size={36} className="mx-auto text-[#ccc] mb-3" />
@@ -597,7 +609,16 @@ export default function ReguaCobranca() {
           </div>
           <div className="bg-white overflow-x-auto">
             {loadingCrs ? (
-              <p className="text-[13px] text-[#555] text-center py-6">Carregando...</p>
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 py-2">
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
             ) : filteredCrs.length === 0 ? (
               <p className="text-[13px] text-[#555] text-center py-6">Nenhuma conta a receber em aberto ou vencida.</p>
             ) : (
@@ -695,7 +716,16 @@ export default function ReguaCobranca() {
           </div>
           <div className="bg-white overflow-x-auto">
             {loadingLogs ? (
-              <p className="text-[13px] text-[#555] text-center py-6">Carregando...</p>
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 py-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
             ) : logs.length === 0 ? (
               <p className="text-[13px] text-[#555] text-center py-6">Nenhum disparo registrado.</p>
             ) : (

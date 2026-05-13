@@ -9,6 +9,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Search, Pencil, Trash2, X, Copy } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductSheet } from "@/components/products/ProductSheet";
 import { toast } from "sonner";
@@ -296,11 +297,13 @@ export default function ProdutosDepartamentos() {
                                 </TableHeader>
                                 <TableBody>
                                     {productsLoading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={10} className="text-center py-8 text-[12px] text-[#555]">
-                                                Carregando...
-                                            </TableCell>
-                                        </TableRow>
+                                        Array.from({ length: 6 }).map((_, i) => (
+                                            <TableRow key={i}>
+                                                {Array.from({ length: 10 }).map((_, c) => (
+                                                    <TableCell key={c}><Skeleton className="h-4 w-full" /></TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))
                                     ) : filteredProducts?.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={10} className="text-center py-8 text-[12px] text-[#555]">
@@ -421,11 +424,13 @@ export default function ProdutosDepartamentos() {
                                 </TableHeader>
                                 <TableBody>
                                     {departmentsLoading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={3} className="text-center py-8 text-[12px] text-[#555]">
-                                                Carregando...
-                                            </TableCell>
-                                        </TableRow>
+                                        Array.from({ length: 5 }).map((_, i) => (
+                                            <TableRow key={i}>
+                                                {Array.from({ length: 3 }).map((_, c) => (
+                                                    <TableCell key={c}><Skeleton className="h-4 w-full" /></TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))
                                     ) : filteredDepartments?.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={3} className="text-center py-8 text-[12px] text-[#555]">

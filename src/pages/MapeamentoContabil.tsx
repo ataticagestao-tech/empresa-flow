@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings2, Wand2, Save, Copy, ChevronDown, ChevronRight, X, Plus, Check, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface LinhaDemonstrativo {
   id: string;
@@ -429,9 +430,14 @@ export default function MapeamentoContabil() {
           </CardHeader>
           <CardContent className="p-0">
             {loadingLinhas ? (
-              <div className="text-center py-8">
-                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
-                <p className="text-muted-foreground text-xs">Carregando...</p>
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                ))}
               </div>
             ) : linhas.length === 0 ? (
               <div className="text-center py-8">

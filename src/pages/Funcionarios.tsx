@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { formatBRL, toTitleCase } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Employee {
   id: string; company_id: string;
@@ -317,7 +318,19 @@ export default function Funcionarios() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {employeesError ? <p className="text-center py-8 text-sm text-[#E53E3E]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
-             isLoading ? <p className="text-center py-8 text-sm text-[#555]">Carregando...</p> :
+             isLoading ? (
+               <div>
+                 {Array.from({ length: 6 }).map((_, i) => (
+                   <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-[#EAECF0]">
+                     <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                     <div className="flex-1 space-y-1.5">
+                       <Skeleton className="h-3.5 w-3/5" />
+                       <Skeleton className="h-3 w-2/5" />
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             ) :
              filtered.length === 0 ? <p className="text-center py-8 text-sm text-[#555]">Nenhum funcionário</p> :
              filtered.map(emp => (
               <div key={emp.id} onClick={() => startEdit(emp)}

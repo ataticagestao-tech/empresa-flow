@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCompanies } from "@/hooks/useCompanies";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useCompany } from "@/contexts/CompanyContext";
 
 const LB = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
@@ -517,7 +518,7 @@ export default function EmpresaResumo() {
   if (isLoading) {
     return (
       <AppLayout title="Empresa">
-        <div className="flex items-center justify-center py-20 text-sm text-[#555]">Carregando...</div>
+        <PageSkeleton />
       </AppLayout>
     );
   }

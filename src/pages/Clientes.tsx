@@ -7,6 +7,7 @@ import {
     CreditCard, Package, Users, FileDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
@@ -853,7 +854,18 @@ export default function Clientes() {
                         {!selectedCompany?.id ? (
                             <p className="text-center py-8 text-sm text-[#555]">Selecione uma empresa.</p>
                         ) : isLoading ? (
-                            <p className="text-center py-8 text-sm text-[#555]">Carregando...</p>
+                            <div>
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-[#EAECF0]">
+                                        <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                                        <div className="flex-1 space-y-1.5">
+                                            <Skeleton className="h-3.5 w-3/5" />
+                                            <Skeleton className="h-3 w-2/5" />
+                                        </div>
+                                        <Skeleton className="h-4 w-16" />
+                                    </div>
+                                ))}
+                            </div>
                         ) : filteredClients.length === 0 ? (
                             <p className="text-center py-8 text-sm text-[#555]">Nenhum cliente encontrado.</p>
                         ) : (
@@ -1086,9 +1098,16 @@ export default function Clientes() {
                                 {detailTab === "historico" && (
                                     <div className="p-6">
                                         {detailLoading ? (
-                                            <div className="flex items-center justify-center py-12 text-[#999]">
-                                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#059669] border-t-transparent mr-2" />
-                                                Carregando...
+                                            <div className="space-y-2 p-2">
+                                                {Array.from({ length: 4 }).map((_, i) => (
+                                                    <div key={i} className="flex items-center justify-between gap-3 px-3 py-2.5 border border-[#EAECF0] rounded">
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <Skeleton className="h-3.5 w-2/5" />
+                                                            <Skeleton className="h-3 w-1/4" />
+                                                        </div>
+                                                        <Skeleton className="h-4 w-20" />
+                                                    </div>
+                                                ))}
                                             </div>
                                         ) : detailFinancial && detailFinancial.crs.length > 0 ? (
                                             <div className="space-y-1">
