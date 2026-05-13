@@ -57,6 +57,17 @@ interface ContaReceber {
   valor: number
   valor_pago: number | null
   data_vencimento: string
+  forma_recebimento?: string | null
+  conta_bancaria_id?: string | null
+}
+
+interface PagamentoSplit {
+  uid: string
+  forma: string
+  valor: number
+  conta_bancaria_id: string
+  parcelas: number
+  taxa: any | null
 }
 
 interface BankAccount {
@@ -120,6 +131,18 @@ const FORMAS_A_PRAZO = ['parcelado', 'boleto', 'cartao_credito']
 const LABEL_FORMA: Record<string, string> = {
   pix: 'PIX/TED', dinheiro: 'Dinheiro', cartao_credito: 'Cartão crédito',
   cartao_debito: 'Cartão débito', boleto: 'Boleto', parcelado: 'Parcelado',
+  multiplo: 'Múltiplo',
+}
+
+function novoSplit(valor = 0): PagamentoSplit {
+  return {
+    uid: typeof crypto !== 'undefined' && (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random()}`,
+    forma: 'pix',
+    valor,
+    conta_bancaria_id: '',
+    parcelas: 1,
+    taxa: null,
+  }
 }
 
 const LABEL_TIPO: Record<string, string> = {
@@ -183,13 +206,8 @@ export default function Vendas() {
   const [formItens, setFormItens] = useState<NovoItem[]>([{ descricao: '', quantidade: 1, valor_unitario: 0 }])
   const [formDescontoTipo, setFormDescontoTipo] = useState<'valor' | 'percentual'>('valor')
   const [formDesconto, setFormDesconto] = useState(0)
-  const [formPagamento, setFormPagamento] = useState<string>('pix')
-  const [formParcelas, setFormParcelas] = useState(1)
-  const [formContaBancaria, setFormContaBancaria] = useState('')
+  const [formPagamentos, setFormPagamentos] = useState<PagamentoSplit[]>([novoSplit()])
   const [formCentroCusto, setFormCentroCusto] = useState('')
-
-  // ─── Taxa preview state ──────────────────────────────────────
-  const [taxaPreview, setTaxaPreview] = useState<any>(null)
 
   // ─── Client search state ─────────────────────────────────────
   const [clienteSearch, setClienteSearch] = useState('')
@@ -230,7 +248,14 @@ export default function Vendas() {
     [subtotalItens, descontoCalculado]
   )
 
-  const isAVista = FORMAS_A_VISTA.includes(formPagamento)
+  const totalPagamentos = useMemo(
+    () => formPagamentos.reduce((s, p) => s + (Number(p.valor) || 0), 0),
+    [formPagamentos]
+  )
+  const pendentePagamento = useMemo(
+    () => Math.round((totalVenda - totalPagamentos) * 100) / 100,
+    [totalVenda, totalPagamentos]
+  )
 
   // ─── Filtered data ──────────────────────────────────────────
   const vendasFiltradas = useMemo(() => {
@@ -317,16 +342,29 @@ export default function Vendas() {
   }, [modalProdutos, produtos, produtoSearchTerm])
 
   // ─── KPIs ────────────────────────────────────────────────────
+  // Para classificação à vista x a prazo, somamos pelos CRs (forma_recebimento),
+  // assim vendas com múltiplas formas de pagamento são corretamente pro-rateadas.
+  // Fallback para v.forma_pagamento quando a venda não tem CRs carregados.
   const kpis = useMemo(() => {
     const total = vendas.reduce((s, v) => s + (v.valor_total || 0), 0)
     const count = vendas.length
     const ticket = count > 0 ? total / count : 0
-    const aVista = vendas
-      .filter((v) => FORMAS_A_VISTA.includes(v.forma_pagamento))
-      .reduce((s, v) => s + (v.valor_total || 0), 0)
-    const aPrazo = vendas
-      .filter((v) => FORMAS_A_PRAZO.includes(v.forma_pagamento))
-      .reduce((s, v) => s + (v.valor_total || 0), 0)
+    let aVista = 0
+    let aPrazo = 0
+    vendas.forEach((v) => {
+      const crs = v.contas_receber || []
+      if (crs.length > 0) {
+        crs.forEach((cr) => {
+          const forma = cr.forma_recebimento || v.forma_pagamento
+          if (FORMAS_A_VISTA.includes(forma)) aVista += Number(cr.valor || 0)
+          else if (FORMAS_A_PRAZO.includes(forma)) aPrazo += Number(cr.valor || 0)
+        })
+      } else if (FORMAS_A_VISTA.includes(v.forma_pagamento)) {
+        aVista += v.valor_total || 0
+      } else if (FORMAS_A_PRAZO.includes(v.forma_pagamento)) {
+        aPrazo += v.valor_total || 0
+      }
+    })
     return { total, count, ticket, aVista, aPrazo }
   }, [vendas])
 
@@ -381,7 +419,7 @@ export default function Vendas() {
         )
         const crsPromises = chunks.map(ids =>
           db.from('contas_receber')
-            .select('id, venda_id, status, valor, valor_pago, data_vencimento')
+            .select('id, venda_id, status, valor, valor_pago, data_vencimento, forma_recebimento, conta_bancaria_id')
             .in('venda_id', ids)
             .is('deleted_at', null)
         )
@@ -477,21 +515,52 @@ export default function Vendas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  // ─── Fetch taxa config when account + payment method changes ──
+  // ─── Auto-sync: se houver apenas 1 forma de pagamento, mantém o valor
+  //     igual ao total da venda conforme itens/desconto mudam.
   useEffect(() => {
-    if (!formContaBancaria || !formPagamento) { setTaxaPreview(null); return }
-    const meioPgto = formPagamento === 'parcelado' ? 'cartao_credito' : formPagamento
+    if (formPagamentos.length !== 1) return
+    setFormPagamentos(prev => {
+      if (prev.length !== 1) return prev
+      if (Math.abs((prev[0].valor || 0) - totalVenda) < 0.01) return prev
+      return [{ ...prev[0], valor: totalVenda }]
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalVenda, formPagamentos.length])
+
+  // ─── Fetch taxa config para cada split (forma + conta bancária) ──
+  // Dispara fetch sempre que a chave (forma|conta) de algum split muda.
+  const splitsTaxaKey = formPagamentos
+    .map(p => `${p.forma}|${p.conta_bancaria_id}`)
+    .join(';')
+  useEffect(() => {
+    let cancelled = false
     ;(async () => {
-      const { data } = await db
-        .from('configuracao_taxas_pagamento')
-        .select('*')
-        .eq('bank_account_id', formContaBancaria)
-        .eq('meio_pagamento', meioPgto)
-        .eq('ativo', true)
-        .maybeSingle()
-      setTaxaPreview(data || null)
+      const novos = await Promise.all(
+        formPagamentos.map(async (p) => {
+          if (!p.conta_bancaria_id || !p.forma) return { ...p, taxa: null }
+          const meioPgto = p.forma === 'parcelado' ? 'cartao_credito' : p.forma
+          const { data } = await db
+            .from('configuracao_taxas_pagamento')
+            .select('*')
+            .eq('bank_account_id', p.conta_bancaria_id)
+            .eq('meio_pagamento', meioPgto)
+            .eq('ativo', true)
+            .maybeSingle()
+          return { ...p, taxa: data || null }
+        })
+      )
+      if (cancelled) return
+      // Só atualiza se mudou alguma taxa, pra não loopar
+      setFormPagamentos(prev => {
+        if (prev.length !== novos.length) return prev
+        const mesma = prev.every((p, i) => p.taxa === novos[i].taxa && p.uid === novos[i].uid)
+        if (mesma) return prev
+        return prev.map((p, i) => ({ ...p, taxa: novos[i]?.taxa || null }))
+      })
     })()
-  }, [formContaBancaria, formPagamento])
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitsTaxaKey])
 
   // ─── Close dropdowns on outside click ────────────────────────
   useEffect(() => {
@@ -515,15 +584,12 @@ export default function Vendas() {
     setFormItens([{ descricao: '', quantidade: 1, valor_unitario: 0 }])
     setFormDescontoTipo('valor')
     setFormDesconto(0)
-    setFormPagamento('pix')
-    setFormParcelas(1)
-    setFormContaBancaria('')
+    setFormPagamentos([novoSplit()])
     setFormCentroCusto('')
     setErroModal(null)
-    setTaxaPreview(null)
   }
 
-  function carregarVendaParaEdicao(venda: Venda) {
+  async function carregarVendaParaEdicao(venda: Venda) {
     resetForm()
     setEditandoVenda(venda)
     setFormTipo(venda.tipo)
@@ -531,7 +597,6 @@ export default function Vendas() {
     setFormCpfCnpj(venda.cliente_cpf_cnpj || '')
     setClienteSearch(venda.cliente_nome)
     setFormDataVenda(venda.data_venda)
-    setFormPagamento(venda.forma_pagamento)
 
     if (venda.vendas_itens && venda.vendas_itens.length > 0) {
       setFormItens(venda.vendas_itens.map(it => ({
@@ -539,6 +604,43 @@ export default function Vendas() {
         quantidade: it.quantidade,
         valor_unitario: it.valor_unitario,
       })))
+    }
+
+    // Reconstrói os splits a partir dos CRs existentes da venda.
+    // Agrupamos por (forma_recebimento + conta_bancaria_id): cada grupo representa
+    // um "split" cujo valor é a soma das parcelas e cujo número de parcelas é o count.
+    try {
+      const { data: crs } = await db
+        .from('contas_receber')
+        .select('valor, forma_recebimento, conta_bancaria_id')
+        .eq('venda_id', venda.id)
+        .is('deleted_at', null)
+      const groups = new Map<string, { forma: string; conta: string; valor: number; parcelas: number }>()
+      for (const cr of (crs as any[]) || []) {
+        const forma = cr.forma_recebimento || venda.forma_pagamento || 'pix'
+        const conta = cr.conta_bancaria_id || ''
+        const key = `${forma}::${conta}`
+        const g = groups.get(key) || { forma, conta, valor: 0, parcelas: 0 }
+        g.valor += Number(cr.valor || 0)
+        g.parcelas += 1
+        groups.set(key, g)
+      }
+      if (groups.size > 0) {
+        const splits = Array.from(groups.values()).map(g => ({
+          ...novoSplit(),
+          forma: g.forma,
+          conta_bancaria_id: g.conta,
+          valor: Math.round(g.valor * 100) / 100,
+          parcelas: Math.max(1, g.parcelas),
+        }))
+        setFormPagamentos(splits)
+      } else {
+        // Sem CRs (caso raro): cria split inicial com forma da venda
+        setFormPagamentos([{ ...novoSplit(), forma: venda.forma_pagamento || 'pix', valor: venda.valor_total || 0 }])
+      }
+    } catch (e) {
+      console.error('[carregarVendaParaEdicao] erro ao reconstruir splits:', e)
+      setFormPagamentos([{ ...novoSplit(), forma: venda.forma_pagamento || 'pix', valor: venda.valor_total || 0 }])
     }
 
     // Try to find matching client
@@ -846,13 +948,22 @@ export default function Vendas() {
       return
     }
     if (totalVenda <= 0) { setErroModal('Valor total deve ser maior que zero.'); return }
-    if (!formContaBancaria) { setErroModal('Selecione a conta bancária destino.'); return }
+    if (formPagamentos.length === 0) { setErroModal('Adicione ao menos uma forma de pagamento.'); return }
+    for (const p of formPagamentos) {
+      if (!p.conta_bancaria_id) { setErroModal('Selecione a conta bancária para cada forma de pagamento.'); return }
+      if (!p.valor || p.valor <= 0) { setErroModal('Cada forma de pagamento precisa ter valor maior que zero.'); return }
+    }
+    if (Math.abs(pendentePagamento) > 0.01) {
+      setErroModal(`A soma das formas de pagamento (${formatBRL(totalPagamentos)}) precisa ser igual ao total da venda (${formatBRL(totalVenda)}).`)
+      return
+    }
 
     setSalvando(true)
     setErroModal(null)
 
     try {
       let vendaId: string
+      const formaVenda = formPagamentos.length > 1 ? 'multiplo' : formPagamentos[0].forma
 
       if (editandoVenda) {
         // UPDATE existing venda
@@ -864,7 +975,7 @@ export default function Vendas() {
             tipo: formTipo,
             valor_total: totalVenda,
             data_venda: formDataVenda,
-            forma_pagamento: formPagamento,
+            forma_pagamento: formaVenda,
           })
           .eq('id', editandoVenda.id)
 
@@ -886,7 +997,7 @@ export default function Vendas() {
             tipo: formTipo,
             valor_total: totalVenda,
             data_venda: formDataVenda,
-            forma_pagamento: formPagamento,
+            forma_pagamento: formaVenda,
             status: 'confirmado',
           })
           .select()
@@ -907,135 +1018,115 @@ export default function Vendas() {
       const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
       if (itensErr) throw itensErr
 
-      // 3. Buscar configuração de taxas para esta conta + meio de pagamento
-      const meioPgto = formPagamento === 'parcelado' ? 'cartao_credito' : formPagamento
-      let taxaConfig: any = null
-      {
-        const { data: cfgData } = await db
-          .from('configuracao_taxas_pagamento')
-          .select('*')
-          .eq('bank_account_id', formContaBancaria)
-          .eq('meio_pagamento', meioPgto)
-          .eq('ativo', true)
-          .maybeSingle()
-        taxaConfig = cfgData
-      }
+      // 3. Gerar CRs para cada split de pagamento e quitar os à vista
+      for (const split of formPagamentos) {
+        const splitBruto = Math.round(split.valor * 100) / 100
+        const taxaCfg = split.taxa
+        const taxaPct = taxaCfg?.taxa_percentual || 0
+        const valorTaxa = Math.round((splitBruto * taxaPct / 100) * 100) / 100
+        const valorLiquido = Math.round((splitBruto - valorTaxa) * 100) / 100
 
-      // 4. Calcular valores com taxa
-      const taxaPct = taxaConfig?.taxa_percentual || 0
-      const valorTaxa = Math.round((totalVenda * taxaPct / 100) * 100) / 100
-      const valorLiquido = Math.round((totalVenda - valorTaxa) * 100) / 100
+        const isParcelado = split.forma === 'parcelado' || split.forma === 'cartao_credito'
+        const numParcelas = isParcelado
+          ? Math.min(split.parcelas || 1, taxaCfg?.max_parcelas || split.parcelas || 1)
+          : 1
+        const diasRecebimento = taxaCfg?.dias_recebimento || 0
+        const temAntecipacao = taxaCfg?.antecipacao_ativa || false
+        const taxaAntecipacao = taxaCfg?.taxa_antecipacao || 0
+        const splitIsAVista = FORMAS_A_VISTA.includes(split.forma)
 
-      const isParcelado = formPagamento === 'parcelado' || formPagamento === 'cartao_credito'
-      const numParcelas = isParcelado
-        ? Math.min(formParcelas, taxaConfig?.max_parcelas || formParcelas)
-        : 1
+        let crsPayload: any[]
 
-      const diasRecebimento = taxaConfig?.dias_recebimento || 0
-      const temAntecipacao = taxaConfig?.antecipacao_ativa || false
-      const taxaAntecipacao = taxaConfig?.taxa_antecipacao || 0
+        if (temAntecipacao && isParcelado && numParcelas > 1) {
+          const prazoMedioMeses = (numParcelas + 1) / 2
+          const descontoAntecipacao = Math.round((valorLiquido * taxaAntecipacao / 100 * prazoMedioMeses) * 100) / 100
+          const valorAntecipado = Math.round((valorLiquido - descontoAntecipacao) * 100) / 100
+          const dataRecebimento = format(addDays(parseISO(formDataVenda), diasRecebimento || 1), 'yyyy-MM-dd')
 
-      // 5. Generate CRs com projeção de recebimento
-      let crsPayload: any[]
-
-      if (temAntecipacao && isParcelado && numParcelas > 1) {
-        // COM ANTECIPAÇÃO: recebe tudo de uma vez, mas com desconto extra
-        // Taxa de antecipação = taxa_antecipacao% * (prazo médio em meses)
-        const prazoMedioMeses = (numParcelas + 1) / 2  // média das parcelas
-        const descontoAntecipacao = Math.round((valorLiquido * taxaAntecipacao / 100 * prazoMedioMeses) * 100) / 100
-        const valorAntecipado = Math.round((valorLiquido - descontoAntecipacao) * 100) / 100
-
-        const dataRecebimento = format(
-          addDays(parseISO(formDataVenda), diasRecebimento || 1),
-          'yyyy-MM-dd'
-        )
-
-        crsPayload = [{
-          company_id: companyId,
-          pagador_nome: formCliente.trim(),
-          pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
-          valor: valorAntecipado,
-          valor_pago: 0,
-          data_vencimento: dataRecebimento,
-          status: 'aberto',
-          forma_recebimento: formPagamento,
-          conta_contabil_id: null,
-          centro_custo_id: formCentroCusto || null,
-          venda_id: vendaId,
-          observacoes: `Venda ${numParcelas}x antecipada | Bruto: R$${totalVenda.toFixed(2)} | Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)}) | Antecipação: ${taxaAntecipacao}% a.m. (R$${descontoAntecipacao.toFixed(2)})`,
-        }]
-      } else if (isParcelado && numParcelas > 1) {
-        // SEM ANTECIPAÇÃO: recebe parcela a parcela
-        const valorParcelaLiq = Math.round((valorLiquido / numParcelas) * 100) / 100
-
-        crsPayload = Array.from({ length: numParcelas }, (_, i) => {
-          const dataBase = addMonths(parseISO(formDataVenda), i + 1)
-          const dataRecebimento = diasRecebimento > 0
-            ? format(addDays(dataBase, diasRecebimento), 'yyyy-MM-dd')
-            : format(dataBase, 'yyyy-MM-dd')
-
-          const valor = i === numParcelas - 1
-            ? Math.round((valorLiquido - valorParcelaLiq * (numParcelas - 1)) * 100) / 100
-            : valorParcelaLiq
-
-          return {
+          crsPayload = [{
             company_id: companyId,
             pagador_nome: formCliente.trim(),
             pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
-            valor,
+            valor: valorAntecipado,
             valor_pago: 0,
             data_vencimento: dataRecebimento,
             status: 'aberto',
-            forma_recebimento: formPagamento,
+            forma_recebimento: split.forma,
+            conta_bancaria_id: split.conta_bancaria_id || null,
+            conta_contabil_id: defaultReceitaContaId,
+            centro_custo_id: formCentroCusto || null,
+            venda_id: vendaId,
+            observacoes: `Venda ${numParcelas}x antecipada | Bruto: R$${splitBruto.toFixed(2)} | Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)}) | Antecipação: ${taxaAntecipacao}% a.m. (R$${descontoAntecipacao.toFixed(2)})`,
+          }]
+        } else if (isParcelado && numParcelas > 1) {
+          const valorParcelaLiq = Math.round((valorLiquido / numParcelas) * 100) / 100
+          crsPayload = Array.from({ length: numParcelas }, (_, i) => {
+            const dataBase = addMonths(parseISO(formDataVenda), i + 1)
+            const dataRecebimento = diasRecebimento > 0
+              ? format(addDays(dataBase, diasRecebimento), 'yyyy-MM-dd')
+              : format(dataBase, 'yyyy-MM-dd')
+            const valor = i === numParcelas - 1
+              ? Math.round((valorLiquido - valorParcelaLiq * (numParcelas - 1)) * 100) / 100
+              : valorParcelaLiq
+            return {
+              company_id: companyId,
+              pagador_nome: formCliente.trim(),
+              pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+              valor,
+              valor_pago: 0,
+              data_vencimento: dataRecebimento,
+              status: 'aberto',
+              forma_recebimento: split.forma,
+              conta_bancaria_id: split.conta_bancaria_id || null,
+              conta_contabil_id: defaultReceitaContaId,
+              centro_custo_id: formCentroCusto || null,
+              venda_id: vendaId,
+              observacoes: taxaPct > 0
+                ? `Parcela ${i + 1}/${numParcelas} | Taxa operadora: ${taxaPct}%`
+                : `Parcela ${i + 1}/${numParcelas}`,
+            }
+          })
+        } else {
+          const dataRecebimento = diasRecebimento > 0
+            ? format(addDays(parseISO(formDataVenda), diasRecebimento), 'yyyy-MM-dd')
+            : formDataVenda
+          crsPayload = [{
+            company_id: companyId,
+            pagador_nome: formCliente.trim(),
+            pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+            valor: valorLiquido,
+            valor_pago: 0,
+            data_vencimento: dataRecebimento,
+            status: 'aberto',
+            forma_recebimento: split.forma,
+            conta_bancaria_id: split.conta_bancaria_id || null,
             conta_contabil_id: defaultReceitaContaId,
             centro_custo_id: formCentroCusto || null,
             venda_id: vendaId,
             observacoes: taxaPct > 0
-              ? `Parcela ${i + 1}/${numParcelas} | Taxa operadora: ${taxaPct}%`
-              : `Parcela ${i + 1}/${numParcelas}`,
+              ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
+              : null,
+          }]
+        }
+
+        const { data: crsData, error: crsErr } = await db
+          .from('contas_receber')
+          .insert(crsPayload)
+          .select()
+        if (crsErr) throw crsErr
+
+        // Quita imediatamente as parcelas à vista (pix/dinheiro/débito) ou cartão de crédito 1x
+        const deveQuitar = (splitIsAVista && !isParcelado) || (isParcelado && numParcelas === 1)
+        if (deveQuitar && crsData && crsData.length > 0) {
+          for (const cr of crsData) {
+            await quitarCR(cr.id, {
+              valorPago: cr.valor,
+              dataPagamento: formDataVenda,
+              formaRecebimento: split.forma,
+              contaBancariaId: split.conta_bancaria_id,
+            })
           }
-        })
-      } else {
-        // À VISTA (pix, dinheiro, débito, boleto sem parcela)
-        const dataRecebimento = diasRecebimento > 0
-          ? format(addDays(parseISO(formDataVenda), diasRecebimento), 'yyyy-MM-dd')
-          : formDataVenda
-
-        crsPayload = [{
-          company_id: companyId,
-          pagador_nome: formCliente.trim(),
-          pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
-          valor: valorLiquido,
-          valor_pago: 0,
-          data_vencimento: dataRecebimento,
-          status: 'aberto',
-          forma_recebimento: formPagamento,
-          conta_contabil_id: null,
-          centro_custo_id: formCentroCusto || null,
-          venda_id: vendaId,
-          observacoes: taxaPct > 0
-            ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
-            : null,
-        }]
-      }
-
-      const { data: crsData, error: crsErr } = await db
-        .from('contas_receber')
-        .insert(crsPayload)
-        .select()
-
-      if (crsErr) throw crsErr
-
-      // 6. If à vista (sem parcelas ou crédito 1x), quitar immediately
-      const deveQuitar = (isAVista && !isParcelado) || (isParcelado && numParcelas === 1)
-      if (deveQuitar && crsData && crsData.length > 0) {
-        const cr = crsData[0]
-        await quitarCR(cr.id, {
-          valorPago: cr.valor,
-          dataPagamento: formDataVenda,
-          formaRecebimento: formPagamento,
-          contaBancariaId: formContaBancaria,
-        })
+        }
       }
 
       resetForm()
@@ -1245,6 +1336,7 @@ export default function Vendas() {
           >
             <option value="">Todas as formas</option>
             {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            <option value="multiplo">Múltiplo</option>
           </select>
           {/* Limpar */}
           {(searchTerm || filtroTipo || filtroForma) && (
@@ -1737,138 +1829,164 @@ export default function Vendas() {
                 </button>
               </div>
 
-              {/* Forma de pagamento */}
+              {/* Formas de pagamento (múltiplas) */}
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Forma de pagamento</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {FORMAS_PAGAMENTO.map(f => {
-                    const Icon = f.icon
-                    const sel = formPagamento === f.value
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider">Formas de pagamento</label>
+                  <div className="text-[11px]">
+                    {Math.abs(pendentePagamento) < 0.01 && totalVenda > 0 ? (
+                      <span className="text-[#039855] font-semibold inline-flex items-center gap-1">
+                        <Check size={12} /> OK · {formatBRL(totalPagamentos)}
+                      </span>
+                    ) : pendentePagamento > 0 ? (
+                      <span className="text-[#EA580C] font-semibold">Faltam {formatBRL(pendentePagamento)}</span>
+                    ) : (
+                      <span className="text-[#E53E3E] font-semibold">Excedeu em {formatBRL(Math.abs(pendentePagamento))}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {formPagamentos.map((split, idx) => {
+                    const isParcl = split.forma === 'parcelado' || split.forma === 'cartao_credito'
+                    const txPct = split.taxa?.taxa_percentual || 0
+                    const diasRec = split.taxa?.dias_recebimento || 0
+                    const maxParcelas = Math.max(1, Math.min(split.taxa?.max_parcelas || 12, 24))
                     return (
-                      <button
-                        key={f.value}
-                        onClick={() => setFormPagamento(f.value)}
-                        className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md border text-[10px] font-semibold transition-all ${
-                          sel ? 'border-[#059669] bg-[#ECFDF4] text-[#059669]' : 'border-[#ccc] bg-white text-[#555] hover:border-[#999]'
-                        }`}
-                      >
-                        <Icon size={14} />
-                        {f.label}
-                      </button>
+                      <div key={split.uid} className="border border-[#ccc] rounded-md p-3 bg-[#FAFAFA]">
+                        <div className="grid grid-cols-12 gap-2 items-end">
+                          <div className="col-span-12 sm:col-span-4">
+                            <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Forma</label>
+                            <select
+                              value={split.forma}
+                              onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, forma: e.target.value, parcelas: 1, taxa: null } : p))}
+                              className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                            >
+                              {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                            </select>
+                          </div>
+                          <div className="col-span-6 sm:col-span-3">
+                            <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Valor (R$)</label>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={split.valor}
+                              onChange={e => {
+                                const v = parseFloat(e.target.value) || 0
+                                setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, valor: v } : p))
+                              }}
+                              className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                            />
+                          </div>
+                          <div className={`${isParcl ? 'col-span-12 sm:col-span-3' : 'col-span-6 sm:col-span-4'}`}>
+                            <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta destino</label>
+                            <select
+                              value={split.conta_bancaria_id}
+                              onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, conta_bancaria_id: e.target.value, taxa: null } : p))}
+                              className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                            >
+                              <option value="">Selecione...</option>
+                              {bankAccounts.map(ba => (
+                                <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {isParcl && (
+                            <div className="col-span-10 sm:col-span-1">
+                              <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Parc.</label>
+                              <select
+                                value={split.parcelas}
+                                onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, parcelas: parseInt(e.target.value) || 1 } : p))}
+                                className="w-full px-1 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                              >
+                                {Array.from({ length: maxParcelas }, (_, i) => i + 1).map(n => (
+                                  <option key={n} value={n}>{n}x</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <div className={`${isParcl ? 'col-span-2 sm:col-span-1' : 'col-span-12 sm:col-span-1'} flex sm:justify-center`}>
+                            {formPagamentos.length > 1 && (
+                              <button
+                                onClick={() => setFormPagamentos(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-[#E53E3E] hover:bg-[#FEE2E2] p-2 rounded transition-colors"
+                                title="Remover forma de pagamento"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Taxa info por split */}
+                        {split.taxa && (txPct > 0 || diasRec > 0 || split.taxa.antecipacao_ativa) && (
+                          <div className="mt-2 text-[10.5px] text-[#555] flex flex-wrap gap-x-3 gap-y-0.5">
+                            {txPct > 0 && <span>Taxa: <strong>{txPct}%</strong></span>}
+                            {diasRec > 0 && <span>Prazo: <strong>D+{diasRec}</strong></span>}
+                            {split.taxa.antecipacao_ativa && <span>Antecipação: <strong>{split.taxa.taxa_antecipacao}% a.m.</strong></span>}
+                            {split.taxa.max_parcelas > 1 && <span>Máx: <strong>{split.taxa.max_parcelas}x</strong></span>}
+                          </div>
+                        )}
+
+                        {/* Projeção do split */}
+                        {split.valor > 0 && (() => {
+                          const splitBruto = split.valor
+                          const vlTaxa = Math.round((splitBruto * txPct / 100) * 100) / 100
+                          const vlLiq = Math.round((splitBruto - vlTaxa) * 100) / 100
+                          const nParcelas = isParcl ? Math.min(split.parcelas, split.taxa?.max_parcelas || split.parcelas) : 1
+                          const temAntc = split.taxa?.antecipacao_ativa || false
+                          const txAntc = split.taxa?.taxa_antecipacao || 0
+                          const splitIsAVista = FORMAS_A_VISTA.includes(split.forma)
+
+                          return (
+                            <div className="mt-2 text-[11px] text-[#039855]">
+                              {txPct > 0 && (
+                                <p className="text-[10.5px] text-[#555]">
+                                  Bruto: {formatBRL(splitBruto)} − Taxa: {formatBRL(vlTaxa)} = <strong>Líquido: {formatBRL(vlLiq)}</strong>
+                                </p>
+                              )}
+                              {temAntc && isParcl && nParcelas > 1 ? (() => {
+                                const prazoMedio = (nParcelas + 1) / 2
+                                const descAntc = Math.round((vlLiq * txAntc / 100 * prazoMedio) * 100) / 100
+                                const vlAntecipado = Math.round((vlLiq - descAntc) * 100) / 100
+                                const dataRec = format(addDays(parseISO(formDataVenda), diasRec || 1), 'dd/MM/yyyy')
+                                return <p>CR antecipado {nParcelas}x: {formatBRL(vlAntecipado)} · recebimento {dataRec}</p>
+                              })() : isParcl && nParcelas > 1 ? (
+                                <p>
+                                  {nParcelas}x de aprox. {formatBRL(Math.round((vlLiq / nParcelas) * 100) / 100)} · 1ª parcela em {format(
+                                    diasRec > 0 ? addDays(addMonths(parseISO(formDataVenda), 1), diasRec) : addMonths(parseISO(formDataVenda), 1),
+                                    'dd/MM/yyyy'
+                                  )}
+                                </p>
+                              ) : (
+                                <p>
+                                  CR: {formatBRL(vlLiq)} · recebimento {
+                                    diasRec > 0
+                                      ? format(addDays(parseISO(formDataVenda), diasRec), 'dd/MM/yyyy')
+                                      : format(parseISO(formDataVenda), 'dd/MM/yyyy')
+                                  }
+                                  {splitIsAVista && !isParcl && ' (quitado automaticamente)'}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
                     )
                   })}
                 </div>
-              </div>
 
-              {/* Parcelas — cartão crédito e parcelado */}
-              {(formPagamento === 'parcelado' || formPagamento === 'cartao_credito') && (
-                <div>
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Numero de parcelas</label>
-                  <select
-                    value={formParcelas}
-                    onChange={e => setFormParcelas(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
-                  >
-                    <option value={1}>1x de {formatBRL(totalVenda)} (à vista)</option>
-                    {Array.from({ length: Math.min(taxaPreview?.max_parcelas || 12, 24) - 1 }, (_, i) => i + 2).map(n => (
-                      <option key={n} value={n}>{n}x de {formatBRL(totalVenda / n)}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Taxa info badge */}
-              {taxaPreview && (
-                <div className="bg-[#ECFDF4] border border-[#059669]/20 rounded-md px-4 py-2.5 text-xs text-[#333]">
-                  <p className="font-bold text-[10px] uppercase tracking-wider text-[#059669] mb-1">Taxas configuradas para esta conta</p>
-                  <div className="flex flex-wrap gap-4">
-                    <span>Taxa: <strong>{taxaPreview.taxa_percentual}%</strong></span>
-                    <span>Prazo: <strong>D+{taxaPreview.dias_recebimento}</strong></span>
-                    <span>Antecipacao: <strong>{taxaPreview.antecipacao_ativa ? `Sim (${taxaPreview.taxa_antecipacao}% a.m.)` : 'Nao'}</strong></span>
-                    {taxaPreview.max_parcelas > 1 && <span>Max parcelas: <strong>{taxaPreview.max_parcelas}x</strong></span>}
-                  </div>
-                </div>
-              )}
-
-              {/* Conta bancária */}
-              <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta bancária destino</label>
-                <select
-                  value={formContaBancaria}
-                  onChange={e => setFormContaBancaria(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                <button
+                  onClick={() => {
+                    const restante = Math.max(0, Math.round((totalVenda - totalPagamentos) * 100) / 100)
+                    setFormPagamentos(prev => [...prev, novoSplit(restante)])
+                  }}
+                  className="mt-2 text-[11px] font-semibold text-[#059669] hover:underline flex items-center gap-1"
                 >
-                  <option value="">Selecione...</option>
-                  {bankAccounts.map(ba => (
-                    <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
-                  ))}
-                </select>
+                  <Plus size={12} /> Adicionar forma de pagamento
+                </button>
               </div>
-
-              {/* Preview com taxas */}
-              {totalVenda > 0 && (() => {
-                const txPct = taxaPreview?.taxa_percentual || 0
-                const vlTaxa = Math.round((totalVenda * txPct / 100) * 100) / 100
-                const vlLiq = Math.round((totalVenda - vlTaxa) * 100) / 100
-                const isParcl = formPagamento === 'parcelado' || formPagamento === 'cartao_credito'
-                const nParcelas = isParcl ? Math.min(formParcelas, taxaPreview?.max_parcelas || formParcelas) : 1
-                const diasRec = taxaPreview?.dias_recebimento || 0
-                const temAntc = taxaPreview?.antecipacao_ativa || false
-                const txAntc = taxaPreview?.taxa_antecipacao || 0
-
-                return (
-                  <div className="rounded-md border border-[#039855] bg-[#ECFDF3] p-3">
-                    <div className="flex items-start gap-2">
-                      <Check size={16} className="text-[#039855] mt-0.5 flex-shrink-0" />
-                      <div className="text-[12px] text-[#039855] w-full">
-                        {txPct > 0 && (
-                          <p className="mb-1 text-[11px] text-[#555]">
-                            Bruto: {formatBRL(totalVenda)} &minus; Taxa {txPct}%: {formatBRL(vlTaxa)} = <strong>Liquido: {formatBRL(vlLiq)}</strong>
-                          </p>
-                        )}
-
-                        {temAntc && isParcl && nParcelas > 1 ? (() => {
-                          const prazoMedio = (nParcelas + 1) / 2
-                          const descAntc = Math.round((vlLiq * txAntc / 100 * prazoMedio) * 100) / 100
-                          const vlAntecipado = Math.round((vlLiq - descAntc) * 100) / 100
-                          const dataRec = format(addDays(parseISO(formDataVenda), diasRec || 1), 'dd/MM/yyyy')
-                          return (
-                            <>
-                              <p className="font-semibold mb-1">CR antecipado ({nParcelas}x em parcela unica):</p>
-                              <p>Valor: {formatBRL(vlAntecipado)} (antecipacao {txAntc}% a.m. = -{formatBRL(descAntc)})</p>
-                              <p>Recebimento: {dataRec}</p>
-                            </>
-                          )
-                        })() : isParcl && nParcelas > 1 ? (
-                          <>
-                            <p className="font-semibold mb-1">Contas a Receber &mdash; {nParcelas}x parcelas:</p>
-                            <ul className="space-y-0.5">
-                              {Array.from({ length: nParcelas }, (_, i) => {
-                                const vpLiq = Math.round((vlLiq / nParcelas) * 100) / 100
-                                const valor = i === nParcelas - 1 ? Math.round((vlLiq - vpLiq * (nParcelas - 1)) * 100) / 100 : vpLiq
-                                const dataBase = addMonths(parseISO(formDataVenda), i + 1)
-                                const venc = diasRec > 0
-                                  ? format(addDays(dataBase, diasRec), 'dd/MM/yyyy')
-                                  : format(dataBase, 'dd/MM/yyyy')
-                                return <li key={i}>Parcela {i + 1}: {formatBRL(valor)} &middot; recebimento {venc}</li>
-                              })}
-                            </ul>
-                          </>
-                        ) : (
-                          <p className="font-semibold">
-                            CR: {formatBRL(vlLiq)} &middot; recebimento {
-                              diasRec > 0
-                                ? format(addDays(parseISO(formDataVenda), diasRec), 'dd/MM/yyyy')
-                                : format(parseISO(formDataVenda), 'dd/MM/yyyy')
-                            }
-                            {isAVista && !isParcl && ' (quitado automaticamente)'}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
 
               {/* Error */}
               {erroModal && (
@@ -2046,23 +2164,29 @@ export default function Vendas() {
                 <div>
                   <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Contas a Receber</span>
                   <div className="space-y-1.5">
-                    {modalDetalhes.contas_receber.map((cr, idx) => (
-                      <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-[#F6F2EB]">
-                        <span className="text-[#555]">
-                          {modalDetalhes.contas_receber!.length > 1 ? `Parcela ${idx + 1}` : 'CR'} &mdash; venc. {formatData(cr.data_vencimento)}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium text-[#1D2939]">{formatBRL(cr.valor)}</span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                            cr.status === 'pago' ? 'text-[#039855] bg-[#ECFDF3]' :
-                            cr.status === 'parcial' ? 'text-[#EA580C] bg-[#FFF0EB]' :
-                            'text-[#059669] bg-[#ECFDF4]'
-                          }`}>
-                            {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
+                    {modalDetalhes.contas_receber.map((cr, idx) => {
+                      const forma = cr.forma_recebimento || modalDetalhes.forma_pagamento
+                      return (
+                        <div key={cr.id} className="flex items-center justify-between text-sm px-3 py-2 border border-[#eee] rounded-md bg-[#F6F2EB]">
+                          <span className="text-[#555]">
+                            {modalDetalhes.contas_receber!.length > 1 ? `Parcela ${idx + 1}` : 'CR'} &mdash; venc. {formatData(cr.data_vencimento)}
+                            {forma && (
+                              <span className="ml-2 text-[10px] text-[#667085]">· {LABEL_FORMA[forma] || forma}</span>
+                            )}
                           </span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium text-[#1D2939]">{formatBRL(cr.valor)}</span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                              cr.status === 'pago' ? 'text-[#039855] bg-[#ECFDF3]' :
+                              cr.status === 'parcial' ? 'text-[#EA580C] bg-[#FFF0EB]' :
+                              'text-[#059669] bg-[#ECFDF4]'
+                            }`}>
+                              {cr.status === 'pago' ? 'Pago' : cr.status === 'parcial' ? 'Parcial' : 'Aberto'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
