@@ -349,29 +349,47 @@ export default function Vendas() {
       .slice(0, 10)
   }, [vendasFiltradas])
 
-  // ─── Listas únicas pros filtros de header ────────────────
+  // ─── Listas únicas pros filtros de header (com count, ordenado DESC) ────
   const clientesUnicos = useMemo(() => {
-    const set = new Set<string>()
-    vendas.forEach(v => { if (v.cliente_nome) set.add(v.cliente_nome) })
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    const counts: Record<string, number> = {}
+    vendas.forEach(v => { if (v.cliente_nome) counts[v.cliente_nome] = (counts[v.cliente_nome] || 0) + 1 })
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])  // [nome, count]
   }, [vendas])
 
   const formasUnicas = useMemo(() => {
-    const set = new Set<string>()
-    vendas.forEach(v => { if (v.forma_pagamento) set.add(v.forma_pagamento) })
-    return Array.from(set).sort()
+    const counts: Record<string, number> = {}
+    vendas.forEach(v => { if (v.forma_pagamento) counts[v.forma_pagamento] = (counts[v.forma_pagamento] || 0) + 1 })
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
   }, [vendas])
 
   const datasUnicas = useMemo(() => {
-    const set = new Set<string>()
-    vendas.forEach(v => { if (v.data_venda) set.add(v.data_venda) })
-    return Array.from(set).sort().reverse()  // mais recente primeiro
+    const counts: Record<string, number> = {}
+    vendas.forEach(v => { if (v.data_venda) counts[v.data_venda] = (counts[v.data_venda] || 0) + 1 })
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])
   }, [vendas])
 
   const itensUnicos = useMemo(() => {
-    const set = new Set<number>()
-    vendas.forEach(v => set.add(v.vendas_itens?.length || 0))
-    return Array.from(set).sort((a, b) => a - b)
+    const counts: Record<number, number> = {}
+    vendas.forEach(v => {
+      const k = v.vendas_itens?.length || 0
+      counts[k] = (counts[k] || 0) + 1
+    })
+    return Object.entries(counts).map(([k, c]) => [Number(k), c] as [number, number]).sort((a, b) => b[1] - a[1])
+  }, [vendas])
+
+  // CR status agrupado
+  const crStatusUnicos = useMemo(() => {
+    const counts: Record<string, number> = { pago: 0, aberto: 0, parcial: 0, avista: 0 }
+    vendas.forEach(v => {
+      const crs = v.contas_receber || []
+      let st: string
+      if (crs.length === 0) st = 'avista'
+      else if (crs.every(c => c.status === 'pago')) st = 'pago'
+      else if (crs.some(c => c.status === 'parcial')) st = 'parcial'
+      else st = 'aberto'
+      counts[st] = (counts[st] || 0) + 1
+    })
+    return Object.entries(counts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1])
   }, [vendas])
 
   // ─── Mapa de código sequencial (V-0001, V-0002...) ─────────
@@ -1814,13 +1832,14 @@ export default function Vendas() {
                           >
                             Todas
                           </button>
-                          {datasUnicas.map(d => (
+                          {datasUnicas.map(([d, count]) => (
                             <button
                               key={d}
                               onClick={() => { setFiltroData(d); setHeaderFiltroAberto(null) }}
-                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroData === d ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                              className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroData === d ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                             >
-                              {d.slice(5, 10).split('-').reverse().join('/')}/{d.slice(2, 4)}
+                              <span className="text-left">{d.slice(5, 10).split('-').reverse().join('/')}/{d.slice(2, 4)}</span>
+                              <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
                             </button>
                           ))}
                         </div>
@@ -1855,15 +1874,16 @@ export default function Vendas() {
                               Todos
                             </button>
                             {clientesUnicos
-                              .filter(c => !headerFiltroBusca || c.toLowerCase().includes(headerFiltroBusca.toLowerCase()))
-                              .map(c => (
+                              .filter(([c]) => !headerFiltroBusca || c.toLowerCase().includes(headerFiltroBusca.toLowerCase()))
+                              .map(([c, count]) => (
                                 <button
                                   key={c}
                                   onClick={() => { setFiltroCliente(c); setHeaderFiltroAberto(null); setHeaderFiltroBusca('') }}
-                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] truncate ${filtroCliente === c ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                                  className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroCliente === c ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                                   title={c}
                                 >
-                                  {c}
+                                  <span className="truncate flex-1 text-left">{c}</span>
+                                  <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
                                 </button>
                               ))}
                           </div>
@@ -1915,13 +1935,14 @@ export default function Vendas() {
                           >
                             Todos
                           </button>
-                          {itensUnicos.map(n => (
+                          {itensUnicos.map(([n, count]) => (
                             <button
                               key={n}
                               onClick={() => { setFiltroItens(n); setHeaderFiltroAberto(null) }}
-                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroItens === n ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                              className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroItens === n ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                             >
-                              {n} {n === 1 ? 'item' : 'itens'}
+                              <span className="text-left">{n} {n === 1 ? 'item' : 'itens'}</span>
+                              <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
                             </button>
                           ))}
                         </div>
@@ -1944,13 +1965,14 @@ export default function Vendas() {
                           >
                             Todas
                           </button>
-                          {formasUnicas.map(f => (
+                          {formasUnicas.map(([f, count]) => (
                             <button
                               key={f}
                               onClick={() => { setFiltroForma(f); setHeaderFiltroAberto(null) }}
-                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroForma === f ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                              className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroForma === f ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                             >
-                              {LABEL_FORMA[f] || f}
+                              <span className="truncate text-left">{LABEL_FORMA[f] || f}</span>
+                              <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
                             </button>
                           ))}
                         </div>
@@ -2007,21 +2029,26 @@ export default function Vendas() {
                       </button>
                       {headerFiltroAberto === 'cr' && (
                         <div ref={headerFiltroRef} className="absolute right-2 top-full mt-1 w-[160px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
-                          {[
-                            { value: '', label: 'Todos' },
-                            { value: 'pago', label: 'Pago' },
-                            { value: 'aberto', label: 'Aberto' },
-                            { value: 'parcial', label: 'Parcial' },
-                            { value: 'avista', label: 'À vista' },
-                          ].map(opt => (
-                            <button
-                              key={opt.value}
-                              onClick={() => { setFiltroCR(opt.value); setHeaderFiltroAberto(null) }}
-                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroCR === opt.value ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
+                          <button
+                            onClick={() => { setFiltroCR(''); setHeaderFiltroAberto(null) }}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${!filtroCR ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                          >
+                            <span className="text-left">Todos</span>
+                            <span className="text-[10px] text-[#98A2B3] font-normal">{vendas.length}</span>
+                          </button>
+                          {crStatusUnicos.map(([st, count]) => {
+                            const label = st === 'pago' ? 'Pago' : st === 'aberto' ? 'Aberto' : st === 'parcial' ? 'Parcial' : 'À vista'
+                            return (
+                              <button
+                                key={st}
+                                onClick={() => { setFiltroCR(st); setHeaderFiltroAberto(null) }}
+                                className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroCR === st ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                              >
+                                <span className="text-left">{label}</span>
+                                <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
+                              </button>
+                            )
+                          })}
                         </div>
                       )}
                     </th>
