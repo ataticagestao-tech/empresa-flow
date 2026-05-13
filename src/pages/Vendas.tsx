@@ -1028,9 +1028,15 @@ export default function Vendas() {
         if (vendaErr) throw vendaErr
         vendaId = editandoVenda.id
 
-        // Delete old itens and CRs to re-create
+        // Soft-delete CRs antigos (trigger bloqueia hard-delete de CRs pagos).
+        // Itens podem ser deletados direto.
         const ac = activeClient as any
-        await ac.from('contas_receber').delete().eq('venda_id', vendaId)
+        const nowIso = new Date().toISOString()
+        await ac
+          .from('contas_receber')
+          .update({ deleted_at: nowIso, deleted_by: user?.id || null })
+          .eq('venda_id', vendaId)
+          .is('deleted_at', null)
         await ac.from('vendas_itens').delete().eq('venda_id', vendaId)
       } else {
         // INSERT new venda
@@ -1191,9 +1197,20 @@ export default function Vendas() {
   async function deletarVenda(id: string) {
     const ac = activeClient as any
     try {
-      // Deletar CRs vinculados, itens e a venda
-      await ac.from('contas_receber').delete().eq('venda_id', id)
+      // contas_receber tem trigger que bloqueia DELETE direto (incluindo CRs pagos).
+      // Usa soft-delete via UPDATE deleted_at, igual deletarVendasDoMes.
+      const nowIso = new Date().toISOString()
+      const { error: errCR } = await ac
+        .from('contas_receber')
+        .update({ deleted_at: nowIso, deleted_by: user?.id || null })
+        .eq('venda_id', id)
+        .is('deleted_at', null)
+      if (errCR) throw errCR
+
+      // vendas_itens tem ON DELETE CASCADE, mas deletamos explicitamente
+      // pra manter compatibilidade com o fluxo antigo.
       await ac.from('vendas_itens').delete().eq('venda_id', id)
+
       const { error: err } = await ac.from('vendas').delete().eq('id', id)
       if (err) throw err
       setConfirmDelete(null)
