@@ -1812,7 +1812,7 @@ export default function Vendas() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 18, right: 12, left: 0, bottom: 38 }}
+                margin={{ top: 18, right: 12, left: 0, bottom: 56 }}
               >
                 <XAxis
                   dataKey="descricao"
@@ -1820,6 +1820,8 @@ export default function Vendas() {
                   tick={(props: any) => {
                     const { x, y, payload } = props
                     const txt = String(payload.value || '')
+                    const item = produtosRanking.find(p => p.descricao === txt)
+                    const qtd = item ? item.quantidade : 0
                     const maxPerLine = 14
                     // Quebra por palavras, acumulando ate maxPerLine chars
                     const words = txt.split(/\s+/)
@@ -1841,11 +1843,12 @@ export default function Vendas() {
                         }
                       }
                     })
-                    // Max 2 linhas pra caber em 38px de altura do eixo
+                    // Max 2 linhas pra caber em 56px de altura do eixo (+ qtd na 3a)
                     const visible = out.slice(0, 2)
                     if (out.length > 2 && visible[1]) {
                       visible[1] = visible[1].slice(0, maxPerLine - 1) + '…'
                     }
+                    const qtdY = y + 11 + visible.length * 11 + 4
                     return (
                       <g>
                         {visible.map((line, i) => (
@@ -1860,12 +1863,21 @@ export default function Vendas() {
                             {line}
                           </text>
                         ))}
+                        <text
+                          x={x} y={qtdY}
+                          textAnchor="middle"
+                          fontSize={10}
+                          fontWeight={700}
+                          fill="#039855"
+                        >
+                          {qtd} un
+                        </text>
                       </g>
                     )
                   }}
                   axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={38}
+                  height={56}
                 />
                 <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
