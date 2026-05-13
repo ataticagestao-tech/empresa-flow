@@ -418,6 +418,62 @@ function runMatchingEngine(
     const absAmount = Math.abs(bt.amount);
 
     const candidates = bt.amount < 0 ? index.payable : index.receivable;
+    const btTime = new Date(bt.date).getTime();
+    const beneficiary = extractBeneficiary(bt.description);
+    const beneficiaryNorm = beneficiary ? normalizeText(beneficiary) : null;
+
+    // ===== CAMADA -1: PRIORIDADE CR/CP por valor + data + nome =====
+    // Antes de qualquer regra de categorizacao, tenta achar um CR/CP existente
+    // que case com este extrato. Se encontrar com alta confianca (>=85), retorna
+    // direto. Caso contrario cai pra camada de regras + busca de valor mais larga.
+    // Motivacao: regras "sugerir" estavam vencendo matches obvios de CR/CP que o
+    // usuario tinha acabado de lancar, fazendo a IA "categorizar" em vez de linkar.
+    {
+        const tightCandidates = findInRange(candidates, absAmount - 0.01, absAmount / 0.93 + 0.01);
+        let priorityResult: MatchSuggestion | null = null;
+        let priorityScore = 0;
+
+        for (const st of tightCandidates) {
+            const stAmount = Number(st.amount);
+            const diff = stAmount - absAmount;
+            const pct = stAmount > 0 ? Math.abs(diff) / stAmount : 1;
+            const exato = Math.abs(diff) < 0.01;
+            const extratoMenor = diff < -0.01;
+            const diffDays = Math.abs(new Date(st.date).getTime() - btTime) / 86400000;
+
+            let score = 0;
+            let method = "";
+            let label = `${st.entity_name} - ${st.description}`;
+
+            if (exato && diffDays === 0) { score = 95; method = "exact_amount_date"; }
+            else if (exato && diffDays <= 3) { score = 90; method = "exact_amount"; }
+            else if (extratoMenor && pct <= 0.07 && diffDays <= 1) { score = 85; method = "taxa_maquininha"; label += ` (taxa ~${(pct*100).toFixed(1)}%)`; }
+            else continue;
+
+            if (beneficiaryNorm && st.entity_name && nameMatches(beneficiaryNorm, normalizeText(st.entity_name))) {
+                score = Math.min(100, score + 15);
+                label += ` ✓ ${beneficiary}`;
+            }
+
+            if (score > priorityScore) {
+                priorityScore = score;
+                const stAccountId = (st as any).conta_contabil_id || undefined;
+                const stAccount = stAccountId ? accountMap.get(stAccountId) : null;
+                priorityResult = {
+                    ...base,
+                    systemTransaction: st,
+                    score,
+                    method,
+                    label,
+                    accountId: stAccountId,
+                    accountCode: stAccount?.code,
+                    accountName: stAccount?.name,
+                };
+            }
+        }
+
+        if (priorityResult) return priorityResult;
+    }
 
     // ===== CAMADA 0: Regras aprendidas (conciliation_rules) =====
     // Busca a MELHOR regra (keyword mais longa = mais específica)
@@ -488,16 +544,13 @@ function runMatchingEngine(
 
     // ===== BUSCA POR VALOR — usa binary search em vez de scan linear =====
     // Range: exato (±0.01) + taxa maquininha (até 7% acima do valor do extrato)
+    // Nota: btTime, beneficiary, beneficiaryNorm ja foram calculados na Camada -1
     const loAmount = absAmount - 0.01;
     const hiAmount = absAmount / 0.93 + 0.01; // absAmount é <= stAmount, taxa até 7%
     const narrowCandidates = findInRange(candidates, loAmount, hiAmount);
 
-    const btTime = new Date(bt.date).getTime();
     let bestScore = 0;
     let bestResult: MatchSuggestion | null = null;
-
-    const beneficiary = extractBeneficiary(bt.description);
-    const beneficiaryNorm = beneficiary ? normalizeText(beneficiary) : null;
 
     for (const st of narrowCandidates) {
         const stAmount = Number(st.amount);
