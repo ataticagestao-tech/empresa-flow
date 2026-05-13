@@ -1690,19 +1690,21 @@ export default function Vendas() {
           className="bg-white border border-[#EAECF0] rounded-xl px-5 py-4 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
-          <div className="flex items-baseline justify-between mb-2">
-            <h3 className="text-[15px] font-bold text-black m-0">Top 10 produtos mais vendidos</h3>
-            <span className="text-[11px] text-[#667085]">Por faturamento</span>
+          <div className="flex items-baseline justify-between mb-3">
+            <h3 className="text-[18px] font-extrabold text-black m-0" style={{ letterSpacing: '-0.015em' }}>
+              Top 10 produtos mais vendidos
+            </h3>
+            <span className="text-[11.5px] text-[#667085] font-medium">Por faturamento</span>
           </div>
           {produtosRanking.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-[12px] text-[#98A2B3]">
               Nenhum produto vendido no período
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
+            <ResponsiveContainer width="100%" height="100%" minHeight={260}>
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 24, right: 12, left: 0, bottom: 70 }}
+                margin={{ top: 24, right: 12, left: 0, bottom: 36 }}
               >
                 <XAxis
                   dataKey="descricao"
@@ -1710,23 +1712,22 @@ export default function Vendas() {
                   tick={(props: any) => {
                     const { x, y, payload } = props
                     const txt = String(payload.value || '')
-                    const shown = txt.length > 14 ? txt.slice(0, 14) + '…' : txt
+                    const shown = txt.length > 10 ? txt.slice(0, 10) + '…' : txt
                     return (
-                      <g transform={`translate(${x},${y + 8})`}>
-                        <text
-                          textAnchor="end"
-                          fontSize={10.5}
-                          fill="#1D2939"
-                          transform="rotate(-35)"
-                        >
-                          {shown}
-                        </text>
-                      </g>
+                      <text
+                        x={x} y={y + 12}
+                        textAnchor="middle"
+                        fontSize={10.5}
+                        fontWeight={500}
+                        fill="#1D2939"
+                      >
+                        {shown}
+                      </text>
                     )
                   }}
-                  axisLine={{ stroke: '#EAECF0' }}
+                  axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={70}
+                  height={36}
                 />
                 <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
