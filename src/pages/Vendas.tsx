@@ -1650,14 +1650,19 @@ export default function Vendas() {
               className="bg-white border border-[#EAECF0] rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-sm"
               style={{ borderLeftWidth: 4, borderLeftColor: k.accent }}
             >
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#98A2B3] m-0">{k.label}</p>
+              <p
+                className="font-bold m-0"
+                style={{ fontSize: 16, color: '#1D2939', letterSpacing: '-0.01em', lineHeight: 1.2 }}
+              >
+                {k.label}
+              </p>
               <p
                 className="font-extrabold truncate"
-                style={{ fontSize: 28, color: k.accent, letterSpacing: '-0.025em', lineHeight: 1 }}
+                style={{ fontSize: 26, color: k.accent, letterSpacing: '-0.025em', lineHeight: 1 }}
               >
                 {k.value}
               </p>
-              <p className="text-[10.5px] text-[#667085] m-0 truncate">{k.sub}</p>
+              <p className="text-[11.5px] text-[#667085] m-0 truncate">{k.sub}</p>
             </div>
           ))}
         </div>
