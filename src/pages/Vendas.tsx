@@ -176,7 +176,10 @@ export default function Vendas() {
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroForma, setFiltroForma] = useState('')
   const [filtroCR, setFiltroCR] = useState('')          // pago | aberto | parcial | avista
-  const [filtroCliente, setFiltroCliente] = useState('') // nome exato (set ao clicar na celula)
+  const [filtroCliente, setFiltroCliente] = useState('') // nome exato (set ao filtrar no header)
+  const [headerFiltroAberto, setHeaderFiltroAberto] = useState<string | null>(null)
+  const [headerFiltroBusca, setHeaderFiltroBusca] = useState('')
+  const headerFiltroRef = useRef<HTMLDivElement>(null)
 
   // ─── Modal state ─────────────────────────────────────────────
   const [modalAberto, setModalAberto] = useState(false)
@@ -319,6 +322,19 @@ export default function Vendas() {
       .sort((a, b) => b.total - a.total)
       .slice(0, 10)
   }, [vendasFiltradas])
+
+  // ─── Listas únicas pros filtros de header ────────────────
+  const clientesUnicos = useMemo(() => {
+    const set = new Set<string>()
+    vendas.forEach(v => { if (v.cliente_nome) set.add(v.cliente_nome) })
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [vendas])
+
+  const formasUnicas = useMemo(() => {
+    const set = new Set<string>()
+    vendas.forEach(v => { if (v.forma_pagamento) set.add(v.forma_pagamento) })
+    return Array.from(set).sort()
+  }, [vendas])
 
   // ─── Mapa de código sequencial (V-0001, V-0002...) ─────────
   const vendaCodigoMap = useMemo(() => {
@@ -616,6 +632,10 @@ export default function Vendas() {
     const handler = (e: MouseEvent) => {
       if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) {
         setClienteDropdownOpen(false)
+      }
+      if (headerFiltroRef.current && !headerFiltroRef.current.contains(e.target as Node)) {
+        setHeaderFiltroAberto(null)
+        setHeaderFiltroBusca('')
       }
     }
     document.addEventListener('mousedown', handler)
@@ -1709,12 +1729,111 @@ export default function Vendas() {
                   <tr className="bg-white text-[11.5px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
                     <th className="text-left px-2 py-2 w-20">Código</th>
                     <th className="text-center px-2 py-2 w-20">Data</th>
-                    <th className="text-left px-2 py-2">Cliente</th>
+                    <th className="text-left px-2 py-2 relative">
+                      <button
+                        onClick={() => { setHeaderFiltroAberto(headerFiltroAberto === 'cliente' ? null : 'cliente'); setHeaderFiltroBusca('') }}
+                        className={`inline-flex items-center gap-1 ${filtroCliente ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
+                      >
+                        Cliente
+                        {filtroCliente && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
+                        <ChevronDown size={11} />
+                      </button>
+                      {headerFiltroAberto === 'cliente' && (
+                        <div ref={headerFiltroRef} className="absolute left-2 top-full mt-1 w-[260px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
+                          <div className="p-2 border-b border-[#EAECF0]">
+                            <input
+                              type="text"
+                              value={headerFiltroBusca}
+                              onChange={e => setHeaderFiltroBusca(e.target.value)}
+                              placeholder="Buscar cliente..."
+                              autoFocus
+                              className="w-full px-2 py-1 text-xs border border-[#D0D5DD] rounded focus:outline-none focus:border-[#059669]"
+                            />
+                          </div>
+                          <div className="max-h-[240px] overflow-y-auto">
+                            <button
+                              onClick={() => { setFiltroCliente(''); setHeaderFiltroAberto(null); setHeaderFiltroBusca('') }}
+                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${!filtroCliente ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                            >
+                              Todos
+                            </button>
+                            {clientesUnicos
+                              .filter(c => !headerFiltroBusca || c.toLowerCase().includes(headerFiltroBusca.toLowerCase()))
+                              .map(c => (
+                                <button
+                                  key={c}
+                                  onClick={() => { setFiltroCliente(c); setHeaderFiltroAberto(null); setHeaderFiltroBusca('') }}
+                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] truncate ${filtroCliente === c ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                                  title={c}
+                                >
+                                  {c}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </th>
                     <th className="text-left px-2 py-2">Produto</th>
                     <th className="text-center px-2 py-2 w-12">Itens</th>
-                    <th className="text-center px-2 py-2 w-24">Forma pgto</th>
+                    <th className="text-center px-2 py-2 w-24 relative">
+                      <button
+                        onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'forma' ? null : 'forma')}
+                        className={`inline-flex items-center gap-1 ${filtroForma ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
+                      >
+                        Forma pgto
+                        {filtroForma && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
+                        <ChevronDown size={11} />
+                      </button>
+                      {headerFiltroAberto === 'forma' && (
+                        <div ref={headerFiltroRef} className="absolute right-2 top-full mt-1 w-[180px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
+                          <button
+                            onClick={() => { setFiltroForma(''); setHeaderFiltroAberto(null) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${!filtroForma ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                          >
+                            Todas
+                          </button>
+                          {formasUnicas.map(f => (
+                            <button
+                              key={f}
+                              onClick={() => { setFiltroForma(f); setHeaderFiltroAberto(null) }}
+                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroForma === f ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                            >
+                              {LABEL_FORMA[f] || f}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </th>
                     <th className="text-right px-2 py-2 w-24">Valor</th>
-                    <th className="text-center px-2 py-2 w-16">CR</th>
+                    <th className="text-center px-2 py-2 w-16 relative">
+                      <button
+                        onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'cr' ? null : 'cr')}
+                        className={`inline-flex items-center gap-1 ${filtroCR ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
+                      >
+                        CR
+                        {filtroCR && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
+                        <ChevronDown size={11} />
+                      </button>
+                      {headerFiltroAberto === 'cr' && (
+                        <div ref={headerFiltroRef} className="absolute right-2 top-full mt-1 w-[160px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
+                          {[
+                            { value: '', label: 'Todos' },
+                            { value: 'pago', label: 'Pago' },
+                            { value: 'aberto', label: 'Aberto' },
+                            { value: 'parcial', label: 'Parcial' },
+                            { value: 'avista', label: 'À vista' },
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => { setFiltroCR(opt.value); setHeaderFiltroAberto(null) }}
+                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroCR === opt.value ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </th>
                     <th className="text-center px-2 py-2 w-24">Ações</th>
                   </tr>
                 </thead>
@@ -1724,13 +1843,13 @@ export default function Vendas() {
                       <td className="px-2 py-1 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
                       <td className="px-2 py-1 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
                       <td className="px-2 py-1 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
-                        <button
-                          onClick={() => setFiltroCliente(prev => prev === v.cliente_nome ? '' : v.cliente_nome)}
-                          className="text-left w-full truncate hover:text-[#059669] hover:underline cursor-pointer"
-                          title={`Filtrar por ${v.cliente_nome}`}
+                        <Link
+                          to={`/clientes?cliente=${encodeURIComponent(v.cliente_cpf_cnpj || v.cliente_nome)}`}
+                          className="hover:text-[#059669] hover:underline"
+                          title={`Abrir cliente: ${v.cliente_nome}`}
                         >
                           {v.cliente_nome}
-                        </button>
+                        </Link>
                       </td>
                       <td className="px-2 py-1 text-left text-[#1D2939] truncate max-w-[130px]">
                         {v.vendas_itens && v.vendas_itens.length > 0
@@ -1741,28 +1860,9 @@ export default function Vendas() {
                           : <span className="text-[#98A2B3] italic">—</span>}
                       </td>
                       <td className="px-2 py-1 text-center text-[#667085]">{v.vendas_itens?.length || 0}</td>
-                      <td className="px-2 py-1 text-center text-[#667085]">
-                        <button
-                          onClick={() => setFiltroForma(prev => prev === v.forma_pagamento ? '' : v.forma_pagamento)}
-                          className="hover:text-[#059669] hover:underline cursor-pointer"
-                          title={`Filtrar por ${LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}`}
-                        >
-                          {LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}
-                        </button>
-                      </td>
+                      <td className="px-2 py-1 text-center text-[#667085]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
                       <td className="px-2 py-1 text-right font-semibold text-[#1D2939]">{formatBRL(v.valor_total)}</td>
-                      <td className="px-2 py-1 text-center">
-                        <button
-                          onClick={() => {
-                            const st = getCRStatus(v)
-                            setFiltroCR(prev => prev === st ? '' : st)
-                          }}
-                          className="cursor-pointer"
-                          title="Filtrar por status do CR"
-                        >
-                          <CRBadge venda={v} />
-                        </button>
-                      </td>
+                      <td className="px-2 py-1 text-center"><CRBadge venda={v} /></td>
                       <td className="px-2 py-1 text-center">
                         <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setModalDetalhes(v)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Ver detalhes">
