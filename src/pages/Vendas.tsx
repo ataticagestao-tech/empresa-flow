@@ -191,7 +191,7 @@ export default function Vendas() {
   const dateDropdownRef = useRef<HTMLDivElement>(null)
 
   // ─── Paginação da tabela ─────────────────────────────────────
-  const ITENS_POR_PAGINA = 10
+  const ITENS_POR_PAGINA = 5
   const [paginaAtual, setPaginaAtual] = useState(1)
 
   // ─── Modal state ─────────────────────────────────────────────
@@ -1620,45 +1620,40 @@ export default function Vendas() {
         {/* ─── KPIs (esquerda) + Tabela (direita) ───────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
         {/* Coluna esquerda: KPIs verticais (4 cards alinhados a altura da tabela) */}
-        <div className="flex flex-col gap-3 self-stretch">
+        <div className="flex flex-col gap-3">
           {[
             {
               label: 'Faturamento',
               value: formatBRL(kpis.total),
               sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
-              bg: '#039855',
-              valueColor: '#FFFFFF',
-              subColor: 'rgba(255,255,255,0.85)',
+              valueColor: '#22C55E',
+              subColor: 'rgba(255,255,255,0.65)',
             },
             {
               label: 'Ticket Médio',
               value: formatBRL(kpis.ticket),
               sub: 'média por venda',
-              bg: '#1D2939',
               valueColor: '#FFFFFF',
-              subColor: 'rgba(255,255,255,0.65)',
+              subColor: 'rgba(255,255,255,0.6)',
             },
             {
               label: 'À vista',
               value: formatBRL(kpis.aVista),
               sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              bg: '#1D2939',
-              valueColor: '#10B981',
-              subColor: 'rgba(16,185,129,0.85)',
+              valueColor: '#22C55E',
+              subColor: 'rgba(34,197,94,0.85)',
             },
             {
               label: 'A prazo',
               value: formatBRL(kpis.aPrazo),
               sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              bg: '#1D2939',
               valueColor: '#F59E0B',
               subColor: 'rgba(245,158,11,0.85)',
             },
           ].map(k => (
             <div
               key={k.label}
-              className="rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-md"
-              style={{ backgroundColor: k.bg }}
+              className="rounded-xl px-5 py-4 flex flex-col gap-2 shadow-md bg-black"
             >
               <p
                 className="font-bold text-white m-0"
