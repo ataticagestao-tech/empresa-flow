@@ -1786,7 +1786,7 @@ export default function Vendas() {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-white text-[11.5px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                  <tr className="bg-white text-[13px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
                     <th className="text-left px-2 py-2 w-20 relative">
                       <button
                         onClick={() => { setHeaderFiltroAberto(headerFiltroAberto === 'codigo' ? null : 'codigo') }}
@@ -1794,7 +1794,7 @@ export default function Vendas() {
                       >
                         Código
                         {filtroCodigo && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'codigo' && (
                         <div ref={headerFiltroRef} className="absolute left-2 top-full mt-1 w-[180px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal p-2">
@@ -1822,7 +1822,7 @@ export default function Vendas() {
                       >
                         Data
                         {filtroData && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'data' && (
                         <div ref={headerFiltroRef} className="absolute left-2 top-full mt-1 w-[160px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal max-h-[240px] overflow-y-auto">
@@ -1852,7 +1852,7 @@ export default function Vendas() {
                       >
                         Cliente
                         {filtroCliente && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'cliente' && (
                         <div ref={headerFiltroRef} className="absolute left-2 top-full mt-1 w-[260px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
@@ -1897,7 +1897,7 @@ export default function Vendas() {
                       >
                         Produto
                         {filtroProduto && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'produto' && (
                         <div ref={headerFiltroRef} className="absolute left-2 top-full mt-1 w-[220px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal p-2">
@@ -1925,7 +1925,7 @@ export default function Vendas() {
                       >
                         Itens
                         {filtroItens !== '' && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'itens' && (
                         <div ref={headerFiltroRef} className="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-[120px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal max-h-[240px] overflow-y-auto">
@@ -1955,7 +1955,7 @@ export default function Vendas() {
                       >
                         Forma pgto
                         {filtroForma && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'forma' && (
                         <div ref={headerFiltroRef} className="absolute right-2 top-full mt-1 w-[180px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
@@ -1985,7 +1985,7 @@ export default function Vendas() {
                       >
                         Valor
                         {(filtroValorMin !== '' || filtroValorMax !== '') && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'valor' && (
                         <div ref={headerFiltroRef} className="absolute right-2 top-full mt-1 w-[200px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal p-3">
@@ -2025,7 +2025,7 @@ export default function Vendas() {
                       >
                         CR
                         {filtroCR && <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />}
-                        <ChevronDown size={11} />
+                        <ChevronDown size={13} />
                       </button>
                       {headerFiltroAberto === 'cr' && (
                         <div ref={headerFiltroRef} className="absolute right-2 top-full mt-1 w-[160px] bg-white border border-[#D0D5DD] rounded-md shadow-lg z-30 normal-case font-normal tracking-normal">
