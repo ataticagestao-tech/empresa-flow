@@ -286,7 +286,7 @@ export default function Vendas() {
         const f = c.forma_recebimento || v.forma_pagamento
         return f === 'cartao_credito' || f === 'parcelado'
       })
-      if (todosOperadora) return 'a_receber'
+      if (todosOperadora) return 'pago'
       const anyParcial = crs.some(c => c.status === 'parcial')
       if (anyParcial) return 'parcial'
       return 'aberto'
@@ -390,7 +390,7 @@ export default function Vendas() {
 
   // CR status agrupado
   const crStatusUnicos = useMemo(() => {
-    const counts: Record<string, number> = { pago: 0, a_receber: 0, aberto: 0, parcial: 0, avista: 0 }
+    const counts: Record<string, number> = { pago: 0, aberto: 0, parcial: 0, avista: 0 }
     vendas.forEach(v => {
       const crs = v.contas_receber || []
       let st: string
@@ -402,7 +402,7 @@ export default function Vendas() {
           const f = c.forma_recebimento || v.forma_pagamento
           return f === 'cartao_credito' || f === 'parcelado'
         })
-        if (todosOperadora) st = 'a_receber'
+        if (todosOperadora) st = 'pago'
         else if (crs.some(c => c.status === 'parcial')) st = 'parcial'
         else st = 'aberto'
       }
@@ -896,7 +896,7 @@ export default function Vendas() {
       const f = c.forma_recebimento || venda.forma_pagamento
       return f === 'cartao_credito' || f === 'parcelado'
     })
-    if (todosOperadora) return 'a_receber'
+    if (todosOperadora) return 'pago'
     const anyParcial = crs.some(c => c.status === 'parcial')
     if (anyParcial) return 'parcial'
     return 'aberto'
@@ -1465,13 +1465,12 @@ export default function Vendas() {
     const st = getCRStatus(venda)
     const styles: Record<string, string> = {
       pago: 'text-[#039855] bg-[#ECFDF3] border border-[#039855]',
-      a_receber: 'text-[#0369A1] bg-[#E0F2FE] border border-[#0369A1]',
       aberto: 'text-[#B91C1C] bg-[#FEE2E2] border border-[#B91C1C]',
       parcial: 'text-[#EA580C] bg-[#FFF0EB] border border-[#EA580C]',
       avista: 'text-[#555] bg-[#F6F2EB] border border-[#ccc]',
     }
     const labels: Record<string, string> = {
-      pago: 'Pago', a_receber: 'A receber', aberto: 'Inadimplente', parcial: 'CR \u2014 parcial', avista: 'À vista',
+      pago: 'Pago', aberto: 'Inadimplente', parcial: 'CR \u2014 parcial', avista: 'À vista',
     }
     return (
       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${styles[st]}`}>
@@ -1654,7 +1653,7 @@ export default function Vendas() {
               className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#D1FAE5]"
               title="Remover filtro"
             >
-              CR: <span className="font-normal">{filtroCR === 'pago' ? 'Pago' : filtroCR === 'a_receber' ? 'A receber' : filtroCR === 'aberto' ? 'Inadimplente' : filtroCR === 'parcial' ? 'Parcial' : 'À vista'}</span>
+              CR: <span className="font-normal">{filtroCR === 'pago' ? 'Pago' : filtroCR === 'aberto' ? 'Inadimplente' : filtroCR === 'parcial' ? 'Parcial' : 'À vista'}</span>
               <X size={11} />
             </button>
           )}
@@ -2141,7 +2140,7 @@ export default function Vendas() {
                             <span className="text-[10px] text-[#98A2B3] font-normal">{vendas.length}</span>
                           </button>
                           {crStatusUnicos.map(([st, count]) => {
-                            const label = st === 'pago' ? 'Pago' : st === 'a_receber' ? 'A receber' : st === 'aberto' ? 'Inadimplente' : st === 'parcial' ? 'Parcial' : 'À vista'
+                            const label = st === 'pago' ? 'Pago' : st === 'aberto' ? 'Inadimplente' : st === 'parcial' ? 'Parcial' : 'À vista'
                             return (
                               <button
                                 key={st}
