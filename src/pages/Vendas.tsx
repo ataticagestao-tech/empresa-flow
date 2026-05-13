@@ -195,6 +195,11 @@ export default function Vendas() {
   const ITENS_POR_PAGINA = 5
   const [paginaAtual, setPaginaAtual] = useState(1)
 
+  // ─── Banner customizado por empresa (salvo em localStorage) ──
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
+
   // ─── Modal state ─────────────────────────────────────────────
   const [modalAberto, setModalAberto] = useState(false)
   const [modalDetalhes, setModalDetalhes] = useState<Venda | null>(null)
@@ -715,6 +720,49 @@ export default function Vendas() {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [splitsTaxaKey])
+
+  // ─── Carregar banner customizado da empresa (localStorage) ───
+  useEffect(() => {
+    if (!companyId) { setBannerUrl(null); return }
+    try {
+      const stored = localStorage.getItem(`vendas-banner-${companyId}`)
+      setBannerUrl(stored || null)
+    } catch {
+      setBannerUrl(null)
+    }
+  }, [companyId])
+
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !companyId) return
+    if (!file.type.startsWith('image/')) { alert('Selecione um arquivo de imagem.'); return }
+    if (file.size > 3 * 1024 * 1024) { alert('Arquivo muito grande. Máximo 3MB.'); return }
+    setBannerUploading(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      try {
+        localStorage.setItem(`vendas-banner-${companyId}`, dataUrl)
+        setBannerUrl(dataUrl)
+      } catch (err: any) {
+        alert('Erro ao salvar: ' + (err.message || 'localStorage cheio. Tente uma imagem menor.'))
+      }
+      setBannerUploading(false)
+      if (bannerInputRef.current) bannerInputRef.current.value = ''
+    }
+    reader.onerror = () => {
+      alert('Erro ao ler o arquivo.')
+      setBannerUploading(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removerBanner = () => {
+    if (!companyId) return
+    if (!confirm('Remover o banner?')) return
+    try { localStorage.removeItem(`vendas-banner-${companyId}`) } catch {}
+    setBannerUrl(null)
+  }
 
   // ─── Close dropdowns on outside click ────────────────────────
   useEffect(() => {
@@ -1485,6 +1533,64 @@ export default function Vendas() {
   return (
     <AppLayout title="Vendas">
       <div className="max-w-[1400px] mx-auto space-y-5">
+
+        {/* ─── Banner customizado (upload de imagem por empresa) ── */}
+        <div className="relative h-[140px] rounded-xl overflow-hidden border border-[#EAECF0] bg-white group">
+          {bannerUrl ? (
+            <>
+              <img
+                src={bannerUrl}
+                alt="Banner"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={bannerUploading}
+                  className="h-7 px-2.5 text-[11px] font-semibold text-[#1D2939] bg-white/95 backdrop-blur border border-[#D0D5DD] rounded hover:bg-white shadow-sm flex items-center gap-1"
+                >
+                  <Upload size={11} /> Trocar
+                </button>
+                <button
+                  type="button"
+                  onClick={removerBanner}
+                  className="h-7 w-7 text-[#E53E3E] bg-white/95 backdrop-blur border border-[#D0D5DD] rounded hover:bg-white shadow-sm flex items-center justify-center"
+                  title="Remover banner"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={bannerUploading}
+              className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#667085] hover:text-[#1D2939] hover:bg-[#F6F2EB] transition-colors"
+            >
+              {bannerUploading ? (
+                <>
+                  <Loader2 size={22} className="animate-spin" />
+                  <span className="text-[12px] font-medium">Enviando…</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={22} />
+                  <span className="text-[13px] font-semibold">Clique para enviar um banner</span>
+                  <span className="text-[11px] text-[#98A2B3]">PNG, JPG ou WebP — até 3MB</span>
+                </>
+              )}
+            </button>
+          )}
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            className="hidden"
+            onChange={handleBannerUpload}
+          />
+        </div>
 
         {/* ─── Filtro de data (suspenso, canto superior à direita) ── */}
         <div className="flex justify-end -mt-2">
