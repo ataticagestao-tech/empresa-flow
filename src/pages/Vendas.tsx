@@ -175,6 +175,8 @@ export default function Vendas() {
   const [dateTo, setDateTo] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroForma, setFiltroForma] = useState('')
+  const [filtroCR, setFiltroCR] = useState('')          // pago | aberto | parcial | avista
+  const [filtroCliente, setFiltroCliente] = useState('') // nome exato (set ao clicar na celula)
 
   // ─── Modal state ─────────────────────────────────────────────
   const [modalAberto, setModalAberto] = useState(false)
@@ -260,13 +262,24 @@ export default function Vendas() {
 
   // ─── Filtered data ──────────────────────────────────────────
   const vendasFiltradas = useMemo(() => {
+    const getCRSt = (v: Venda) => {
+      const crs = v.contas_receber || []
+      if (crs.length === 0) return 'avista'
+      const allPago = crs.every(c => c.status === 'pago')
+      if (allPago) return 'pago'
+      const anyParcial = crs.some(c => c.status === 'parcial')
+      if (anyParcial) return 'parcial'
+      return 'aberto'
+    }
     return vendas.filter((v) => {
       if (searchTerm && !v.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())) return false
       if (filtroTipo && v.tipo !== filtroTipo) return false
       if (filtroForma && v.forma_pagamento !== filtroForma) return false
+      if (filtroCliente && v.cliente_nome !== filtroCliente) return false
+      if (filtroCR && getCRSt(v) !== filtroCR) return false
       return true
     })
-  }, [vendas, searchTerm, filtroTipo, filtroForma])
+  }, [vendas, searchTerm, filtroTipo, filtroForma, filtroCR, filtroCliente])
 
   // ─── Ranking produtos × faturamento (para gráfico) ─────────
   const produtosRanking = useMemo(() => {
@@ -1444,10 +1457,31 @@ export default function Vendas() {
             {FORMAS_PAGAMENTO.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             <option value="multiplo">Múltiplo</option>
           </select>
-          {/* Limpar */}
-          {(searchTerm || filtroTipo || filtroForma) && (
+          {/* Chips de filtros ativos por clique na celula */}
+          {filtroCliente && (
             <button
-              onClick={() => { setSearchTerm(''); setFiltroTipo(''); setFiltroForma('') }}
+              onClick={() => setFiltroCliente('')}
+              className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#D1FAE5]"
+              title="Remover filtro"
+            >
+              Cliente: <span className="font-normal truncate max-w-[120px]">{filtroCliente}</span>
+              <X size={11} />
+            </button>
+          )}
+          {filtroCR && (
+            <button
+              onClick={() => setFiltroCR('')}
+              className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#D1FAE5]"
+              title="Remover filtro"
+            >
+              CR: <span className="font-normal">{filtroCR === 'pago' ? 'Pago' : filtroCR === 'aberto' ? 'Aberto' : filtroCR === 'parcial' ? 'Parcial' : 'À vista'}</span>
+              <X size={11} />
+            </button>
+          )}
+          {/* Limpar */}
+          {(searchTerm || filtroTipo || filtroForma || filtroCR || filtroCliente) && (
+            <button
+              onClick={() => { setSearchTerm(''); setFiltroTipo(''); setFiltroForma(''); setFiltroCR(''); setFiltroCliente('') }}
               className="text-[11px] font-semibold text-[#667085] hover:text-black px-1.5 h-7"
             >
               Limpar
@@ -1690,13 +1724,13 @@ export default function Vendas() {
                       <td className="px-2 py-1 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
                       <td className="px-2 py-1 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
                       <td className="px-2 py-1 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
-                        <Link
-                          to={`/clientes?cliente=${encodeURIComponent(v.cliente_cpf_cnpj || v.cliente_nome)}`}
-                          className="hover:text-[#059669] hover:underline"
-                          title={`Abrir cliente: ${v.cliente_nome}`}
+                        <button
+                          onClick={() => setFiltroCliente(prev => prev === v.cliente_nome ? '' : v.cliente_nome)}
+                          className="text-left w-full truncate hover:text-[#059669] hover:underline cursor-pointer"
+                          title={`Filtrar por ${v.cliente_nome}`}
                         >
                           {v.cliente_nome}
-                        </Link>
+                        </button>
                       </td>
                       <td className="px-2 py-1 text-left text-[#1D2939] truncate max-w-[130px]">
                         {v.vendas_itens && v.vendas_itens.length > 0
@@ -1707,9 +1741,28 @@ export default function Vendas() {
                           : <span className="text-[#98A2B3] italic">—</span>}
                       </td>
                       <td className="px-2 py-1 text-center text-[#667085]">{v.vendas_itens?.length || 0}</td>
-                      <td className="px-2 py-1 text-center text-[#667085]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
+                      <td className="px-2 py-1 text-center text-[#667085]">
+                        <button
+                          onClick={() => setFiltroForma(prev => prev === v.forma_pagamento ? '' : v.forma_pagamento)}
+                          className="hover:text-[#059669] hover:underline cursor-pointer"
+                          title={`Filtrar por ${LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}`}
+                        >
+                          {LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}
+                        </button>
+                      </td>
                       <td className="px-2 py-1 text-right font-semibold text-[#1D2939]">{formatBRL(v.valor_total)}</td>
-                      <td className="px-2 py-1 text-center"><CRBadge venda={v} /></td>
+                      <td className="px-2 py-1 text-center">
+                        <button
+                          onClick={() => {
+                            const st = getCRStatus(v)
+                            setFiltroCR(prev => prev === st ? '' : st)
+                          }}
+                          className="cursor-pointer"
+                          title="Filtrar por status do CR"
+                        >
+                          <CRBadge venda={v} />
+                        </button>
+                      </td>
                       <td className="px-2 py-1 text-center">
                         <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setModalDetalhes(v)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Ver detalhes">
