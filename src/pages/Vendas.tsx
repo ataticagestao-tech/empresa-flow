@@ -1699,30 +1699,36 @@ export default function Vendas() {
               Nenhum produto vendido no período
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+            <ResponsiveContainer width="100%" height="100%" minHeight={220}>
               <BarChart
                 data={produtosRanking}
-                layout="vertical"
-                margin={{ top: 4, right: 60, left: 0, bottom: 4 }}
+                margin={{ top: 24, right: 12, left: 0, bottom: 70 }}
               >
-                <XAxis type="number" hide domain={[0, 'dataMax']} />
-                <YAxis
-                  type="category"
+                <XAxis
                   dataKey="descricao"
+                  interval={0}
                   tick={(props: any) => {
                     const { x, y, payload } = props
                     const txt = String(payload.value || '')
-                    const shown = txt.length > 22 ? txt.slice(0, 22) + '…' : txt
+                    const shown = txt.length > 14 ? txt.slice(0, 14) + '…' : txt
                     return (
-                      <text x={x - 4} y={y} dy={3} textAnchor="end" fontSize={11} fill="#1D2939">
-                        {shown}
-                      </text>
+                      <g transform={`translate(${x},${y + 8})`}>
+                        <text
+                          textAnchor="end"
+                          fontSize={10.5}
+                          fill="#1D2939"
+                          transform="rotate(-35)"
+                        >
+                          {shown}
+                        </text>
+                      </g>
                     )
                   }}
-                  width={160}
-                  axisLine={false}
+                  axisLine={{ stroke: '#EAECF0' }}
                   tickLine={false}
+                  height={70}
                 />
+                <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
                   itemStyle={{ color: '#fff' }}
@@ -1733,11 +1739,11 @@ export default function Vendas() {
                   ]}
                   cursor={{ fill: 'rgba(3, 152, 85, 0.08)' }}
                 />
-                <Bar dataKey="total" fill="#039855" radius={[0, 4, 4, 0]} barSize={14}>
+                <Bar dataKey="total" fill="#039855" radius={[4, 4, 0, 0]} maxBarSize={42}>
                   <LabelList
                     dataKey="total"
-                    position="right"
-                    fontSize={10.5}
+                    position="top"
+                    fontSize={10}
                     fontWeight={600}
                     fill="#1D2939"
                     formatter={(v: number) => formatBRL(v)}
