@@ -1,10 +1,13 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle2, Calendar, Wallet } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useToast } from "@/components/ui/use-toast";
 import type { OFXSummary } from "@/lib/parsers/ofx";
 
 interface OpeningCheckDialogProps {
@@ -13,6 +16,15 @@ interface OpeningCheckDialogProps {
     summary: OFXSummary | null;
     systemBalanceAtClose: number | null;
     bankAccountName?: string;
+    bankAccountId?: string;
+}
+
+interface ChartAccount {
+    id: string;
+    code: string;
+    name: string;
+    account_type: string;
+    account_nature: string;
 }
 
 const fmtBRL = (v: number | null | undefined) => {
@@ -22,8 +34,15 @@ const fmtBRL = (v: number | null | undefined) => {
 
 const fmtDate = (d: Date | null) => (d ? format(d, "dd 'de' MMM 'de' yyyy", { locale: ptBR }) : "—");
 
-export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClose, bankAccountName }: OpeningCheckDialogProps) {
-    const navigate = useNavigate();
+export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClose, bankAccountName, bankAccountId }: OpeningCheckDialogProps) {
+    const { activeClient } = useAuth();
+    const { selectedCompany } = useCompany();
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    const [showAdjustForm, setShowAdjustForm] = useState(false);
+    const [contaContabilId, setContaContabilId] = useState("");
+    const [creating, setCreating] = useState(false);
 
     const diff = useMemo(() => {
         if (summary?.closingBalance == null || systemBalanceAtClose == null) return null;
@@ -33,8 +52,82 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
     const isAligned = diff != null && Math.abs(diff) < 0.01;
     const cannotCompare = summary?.closingBalance == null || systemBalanceAtClose == null;
 
+    // tipo: se sistema > extrato precisa de saida (debito); se sistema < extrato precisa de entrada (credito)
+    const tipoAjuste: "credito" | "debito" | null = diff == null || isAligned ? null : (diff > 0 ? "debito" : "credito");
+
+    // Chart of accounts filtrado pra natureza correta do ajuste
+    const { data: chartAccounts } = useQuery<ChartAccount[]>({
+        queryKey: ["chart_accounts_adjustment", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await (activeClient as any)
+                .from("chart_of_accounts")
+                .select("id, code, name, account_type, account_nature")
+                .eq("company_id", selectedCompany.id)
+                .eq("status", "active")
+                .eq("is_analytical", true)
+                .order("code");
+            if (error) return [];
+            return (data || []) as ChartAccount[];
+        },
+        enabled: open && showAdjustForm && !!selectedCompany?.id,
+    });
+
+    const filteredAccounts = useMemo(() => {
+        if (!chartAccounts) return [];
+        if (!tipoAjuste) return chartAccounts;
+        const wantedNature = tipoAjuste === "credito" ? "credit" : "debit";
+        const filtered = chartAccounts.filter(a => a.account_nature === wantedNature);
+        return filtered.length > 0 ? filtered : chartAccounts;
+    }, [chartAccounts, tipoAjuste]);
+
+    const resetState = () => {
+        setShowAdjustForm(false);
+        setContaContabilId("");
+        setCreating(false);
+    };
+
+    const handleClose = () => {
+        resetState();
+        onClose();
+    };
+
+    const handleCreateAjuste = async () => {
+        if (!bankAccountId || !selectedCompany?.id || !contaContabilId || !tipoAjuste || diff == null) return;
+        setCreating(true);
+        try {
+            const closingDate = summary?.closingDate ?? summary?.periodEnd ?? new Date();
+            const dataIso = format(closingDate, "yyyy-MM-dd");
+            const { error } = await (activeClient as any).from("movimentacoes").insert({
+                company_id: selectedCompany.id,
+                tipo: tipoAjuste,
+                descricao: "Ajuste de saldo de abertura",
+                valor: Math.abs(diff),
+                data: dataIso,
+                conta_bancaria_id: bankAccountId,
+                conta_contabil_id: contaContabilId,
+                origem: "manual",
+                observacao: `Ajuste para alinhar saldo do sistema com extrato em ${fmtDate(closingDate)}`,
+            });
+            if (error) throw error;
+
+            toast({
+                title: "Ajuste lançado",
+                description: `${fmtBRL(Math.abs(diff))} em ${tipoAjuste === "credito" ? "entrada" : "saída"}`,
+            });
+            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard_accounts_balance"] });
+            queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
+            handleClose();
+        } catch (e: any) {
+            toast({ title: "Erro ao lançar ajuste", description: e.message || String(e), variant: "destructive" });
+        } finally {
+            setCreating(false);
+        }
+    };
+
     return (
-        <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
             <DialogContent className="sm:max-w-[520px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
@@ -97,22 +190,62 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
                         </p>
                     )}
 
-                    {!isAligned && !cannotCompare && (
+                    {!isAligned && !cannotCompare && !showAdjustForm && (
                         <p className="text-[12px] text-[#667085]">
-                            Há uma diferença entre o saldo do extrato e o do sistema. Antes de conciliar, recomenda-se lançar uma <strong>movimentação de ajuste</strong> de {fmtBRL(diff != null ? -diff : null)} para alinhar os saldos. Sem isso, a conciliação parte de uma base inconsistente.
+                            Há uma diferença entre o saldo do extrato e o do sistema. Antes de conciliar, recomenda-se lançar uma <strong>movimentação de ajuste</strong> de {fmtBRL(Math.abs(diff ?? 0))} em <strong>{tipoAjuste === "credito" ? "entrada" : "saída"}</strong> para alinhar os saldos.
                         </p>
+                    )}
+
+                    {showAdjustForm && tipoAjuste && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
+                            <div className="text-[12px] text-[#1D2939]">
+                                Lançando <strong>{tipoAjuste === "credito" ? "entrada" : "saída"}</strong> de <strong>{fmtBRL(Math.abs(diff ?? 0))}</strong> em {fmtDate(summary?.closingDate ?? summary?.periodEnd ?? null)} na conta <strong>{bankAccountName}</strong>.
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#555] mb-1">
+                                    Categoria contábil <span className="text-[#E53E3E]">*</span>
+                                </label>
+                                <select
+                                    value={contaContabilId}
+                                    onChange={(e) => setContaContabilId(e.target.value)}
+                                    className="w-full border border-[#ccc] rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#059669]"
+                                >
+                                    <option value="">Selecione...</option>
+                                    {filteredAccounts.map((a) => (
+                                        <option key={a.id} value={a.id}>
+                                            {a.code} - {a.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-[10.5px] text-[#667085] mt-1">
+                                    Sugere-se uma conta de "outras receitas/despesas" ou "ajuste de saldo".
+                                </p>
+                            </div>
+                        </div>
                     )}
                 </div>
 
                 <DialogFooter className="gap-2">
-                    {!isAligned && !cannotCompare && (
-                        <Button variant="outline" onClick={() => { navigate("/movimentacoes"); onClose(); }}>
-                            Lançar ajuste em Movimentações
+                    {!isAligned && !cannotCompare && !showAdjustForm && (
+                        <Button variant="outline" onClick={() => setShowAdjustForm(true)} disabled={!bankAccountId}>
+                            Lançar ajuste agora
                         </Button>
                     )}
-                    <Button onClick={onClose}>
-                        {isAligned ? "Iniciar conciliação" : "Conciliar mesmo assim"}
-                    </Button>
+                    {showAdjustForm && (
+                        <>
+                            <Button variant="outline" onClick={() => { setShowAdjustForm(false); setContaContabilId(""); }} disabled={creating}>
+                                Cancelar ajuste
+                            </Button>
+                            <Button onClick={handleCreateAjuste} disabled={!contaContabilId || creating}>
+                                {creating ? "Lançando..." : "Confirmar e lançar"}
+                            </Button>
+                        </>
+                    )}
+                    {!showAdjustForm && (
+                        <Button onClick={handleClose}>
+                            {isAligned ? "Iniciar conciliação" : "Conciliar mesmo assim"}
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

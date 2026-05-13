@@ -2616,6 +2616,7 @@ export default function Conciliacao() {
                 summary={openingCheck?.summary ?? null}
                 systemBalanceAtClose={openingCheck?.systemBalanceAtClose ?? null}
                 bankAccountName={selectedAccount?.name}
+                bankAccountId={selectedAccountId}
             />
         </AppLayout>
     );
