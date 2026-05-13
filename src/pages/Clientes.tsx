@@ -382,9 +382,24 @@ export default function Clientes() {
             });
         }
 
+        // Itens da venda vinculada (o que o cliente comprou)
+        const vendaIds = Array.from(new Set(lista.filter(cr => cr.venda_id).map(cr => cr.venda_id as string)));
+        const itensByVenda: Record<string, { descricao: string; quantidade: number }[]> = {};
+        if (vendaIds.length > 0) {
+            const { data: itens } = await activeClient
+                .from("vendas_itens")
+                .select("venda_id, descricao, quantidade")
+                .in("venda_id", vendaIds);
+            (itens || []).forEach((it: any) => {
+                if (!itensByVenda[it.venda_id]) itensByVenda[it.venda_id] = [];
+                itensByVenda[it.venda_id].push({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1 });
+            });
+        }
+
         const listaEnriquecida = lista.map((cr: any) => ({
             ...cr,
             bank_account_name: bankByCr[cr.id] || null,
+            items: cr.venda_id ? (itensByVenda[cr.venda_id] || []) : [],
         }));
 
         // Cartão (crédito/débito): o cliente já pagou no ato. O recebível que resta
@@ -644,6 +659,15 @@ export default function Clientes() {
     /* ─── Descricao do CR para historico ────────────────────── */
 
     const crDescription = (cr: any) => {
+        // Prefere mostrar o que foi comprado (itens da venda vinculada)
+        if (cr.items && cr.items.length > 0) {
+            if (cr.items.length === 1) {
+                const it = cr.items[0];
+                return it.quantidade > 1 ? `${it.descricao} (${it.quantidade}x)` : it.descricao;
+            }
+            const extra = cr.items.length - 1;
+            return `${cr.items[0].descricao} · +${extra} ${extra === 1 ? "item" : "itens"}`;
+        }
         const obs = cr.observacoes ?? "";
         if (obs.trim()) return obs;
         if (cr.forma_recebimento) return `Pagamento — ${cr.forma_recebimento}`;
