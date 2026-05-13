@@ -1793,14 +1793,14 @@ export default function Vendas() {
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
         <div
-          className="bg-white border border-[#EAECF0] rounded-xl px-5 py-4 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          className="bg-white border border-[#EAECF0] rounded-xl px-5 py-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
-          <div className="flex items-baseline justify-between mb-3">
-            <h3 className="text-[18px] font-extrabold text-black m-0" style={{ letterSpacing: '-0.015em' }}>
+          <div className="flex items-baseline justify-between mb-3 flex-shrink-0">
+            <h3 className="font-extrabold text-black m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
               Top 10 produtos mais vendidos
             </h3>
-            <span className="text-[11.5px] text-[#667085] font-medium">Por faturamento</span>
+            <span className="text-[13px] text-[#667085] font-medium">Por faturamento</span>
           </div>
           {produtosRanking.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-[12px] text-[#98A2B3]">
@@ -1886,8 +1886,17 @@ export default function Vendas() {
             </ResponsiveContainer>
           )}
         </div>
-        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0 lg:col-start-2 lg:row-start-3 lg:row-span-2" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="bg-white overflow-x-auto">
+        <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden min-w-0 lg:col-start-2 lg:row-start-3 lg:row-span-2 flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+          {/* Cabecalho do container — titulo */}
+          <div className="px-5 py-4 border-b border-[#EAECF0] flex items-baseline justify-between flex-shrink-0">
+            <h3 className="font-extrabold text-black m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+              Vendas
+            </h3>
+            <span className="text-[13px] text-[#667085] font-medium">
+              {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="bg-white overflow-x-auto flex-1 min-h-0">
             {loading ? (
               <div className="flex items-center justify-center py-12 text-[#555]">
                 <Loader2 size={20} className="animate-spin mr-2" /> Carregando...
@@ -2215,35 +2224,39 @@ export default function Vendas() {
               </table>
             )}
           </div>
-          {/* Paginação (até 5 linhas por página) */}
-          {vendasFiltradas.length > ITENS_POR_PAGINA && (
-            <div className="bg-white border-t border-[#EAECF0] px-4 py-2 flex items-center justify-between text-[11.5px] text-[#667085]">
-              <span>
-                Mostrando <strong className="text-[#1D2939]">{(paginaAtual - 1) * ITENS_POR_PAGINA + 1}</strong>–
-                <strong className="text-[#1D2939]">{Math.min(paginaAtual * ITENS_POR_PAGINA, vendasFiltradas.length)}</strong>
-                {' '}de <strong className="text-[#1D2939]">{vendasFiltradas.length}</strong>
+          {/* Paginação — sempre visível no rodapé do container */}
+          <div className="bg-white border-t border-[#EAECF0] px-5 py-3 flex items-center justify-between text-[12.5px] text-[#667085] mt-auto flex-shrink-0">
+            <span>
+              {vendasFiltradas.length === 0 ? (
+                'Nenhum registro'
+              ) : (
+                <>
+                  Mostrando <strong className="text-[#1D2939]">{(paginaAtual - 1) * ITENS_POR_PAGINA + 1}</strong>–
+                  <strong className="text-[#1D2939]">{Math.min(paginaAtual * ITENS_POR_PAGINA, vendasFiltradas.length)}</strong>
+                  {' '}de <strong className="text-[#1D2939]">{vendasFiltradas.length}</strong>
+                </>
+              )}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                disabled={paginaAtual === 1}
+                className="h-7 px-2.5 text-[11.5px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="px-2 text-[11.5px]">
+                Página <strong className="text-[#1D2939]">{paginaAtual}</strong> de {totalPaginas}
               </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-                  disabled={paginaAtual === 1}
-                  className="h-6 px-2 text-[11px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Anterior
-                </button>
-                <span className="px-2 text-[11px]">
-                  Página <strong className="text-[#1D2939]">{paginaAtual}</strong> de {totalPaginas}
-                </span>
-                <button
-                  onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-                  disabled={paginaAtual >= totalPaginas}
-                  className="h-6 px-2 text-[11px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Próxima
-                </button>
-              </div>
+              <button
+                onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaAtual >= totalPaginas}
+                className="h-7 px-2.5 text-[11.5px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Próxima
+              </button>
             </div>
-          )}
+          </div>
         </div>
         </div>
       </div>
