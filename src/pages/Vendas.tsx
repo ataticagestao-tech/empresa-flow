@@ -203,6 +203,10 @@ export default function Vendas() {
   const [tempDateTo, setTempDateTo] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const dateDropdownRef = useRef<HTMLDivElement>(null)
 
+  // ─── Paginação da tabela ─────────────────────────────────────
+  const ITENS_POR_PAGINA = 10
+  const [paginaAtual, setPaginaAtual] = useState(1)
+
   // ─── Modal state ─────────────────────────────────────────────
   const [modalAberto, setModalAberto] = useState(false)
   const [modalDetalhes, setModalDetalhes] = useState<Venda | null>(null)
@@ -331,6 +335,16 @@ export default function Vendas() {
       return true
     })
   }, [vendas, searchTerm, filtroTipo, filtroForma, filtroCR, filtroCliente, filtroData, filtroItens, filtroValorMin, filtroValorMax, filtroProduto, filtroCodigo])
+
+  // ─── Paginação derivada ─────────────────────────────────────
+  const totalPaginas = Math.max(1, Math.ceil(vendasFiltradas.length / ITENS_POR_PAGINA))
+  const vendasPaginadas = useMemo(() => {
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA
+    return vendasFiltradas.slice(inicio, inicio + ITENS_POR_PAGINA)
+  }, [vendasFiltradas, paginaAtual])
+
+  // Reset para página 1 quando filtros/dados mudam
+  useEffect(() => { setPaginaAtual(1) }, [searchTerm, filtroTipo, filtroForma, filtroCR, filtroCliente, filtroData, filtroItens, filtroValorMin, filtroValorMax, filtroProduto, filtroCodigo, dateFrom, dateTo])
 
   // ─── Ranking produtos × faturamento (para gráfico) ─────────
   const produtosRanking = useMemo(() => {
@@ -1608,57 +1622,6 @@ export default function Vendas() {
           </div>
         </div>
 
-        {/* ─── KPIs (mesma estética do Dashboard) ─────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          {[
-            {
-              label: 'Vendas do mês',
-              value: formatBRL(kpis.total),
-              color: '#1D2939',
-              sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
-            },
-            {
-              label: 'Vendas',
-              value: String(kpis.count),
-              color: '#1D2939',
-              sub: `ticket médio ${formatBRL(kpis.ticket)}`,
-            },
-            {
-              label: 'Ticket médio',
-              value: formatBRL(kpis.ticket),
-              color: '#1D2939',
-              sub: 'média por venda',
-            },
-            {
-              label: 'À vista',
-              value: formatBRL(kpis.aVista),
-              color: '#039855',
-              sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do total` : '—',
-            },
-            {
-              label: 'A prazo',
-              value: formatBRL(kpis.aPrazo),
-              color: '#7F1D1D',
-              sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do total` : '—',
-            },
-          ].map(kpi => (
-            <div
-              key={kpi.label}
-              className="bg-white border border-[#EAECF0] rounded-xl px-4 py-3 min-w-0"
-              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
-            >
-              <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
-              <p
-                className="mt-1.5 font-extrabold truncate"
-                style={{ fontSize: 18, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
-              >
-                {kpi.value}
-              </p>
-              <p className="text-[11px] text-[#98A2B3] mt-1 truncate">{kpi.sub}</p>
-            </div>
-          ))}
-        </div>
-
         {/* ─── Filtros (compactos, uma linha) ─────────────────── */}
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Search */}
@@ -1915,8 +1878,9 @@ export default function Vendas() {
         })()}
         </div>
 
-        {/* ─── Tabela ───────────────────────────────────────── */}
-        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+        {/* ─── Tabela + KPIs laterais ───────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-4 items-start">
+        <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           <div className="bg-white border-b border-[#EAECF0] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">
               Vendas &mdash; {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
@@ -2214,7 +2178,7 @@ export default function Vendas() {
                   </tr>
                 </thead>
                 <tbody>
-                  {vendasFiltradas.map(v => (
+                  {vendasPaginadas.map(v => (
                     <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px] whitespace-nowrap">
                       <td className="px-2 py-1 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
                       <td className="px-2 py-1 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
@@ -2258,6 +2222,86 @@ export default function Vendas() {
               </table>
             )}
           </div>
+          {/* Paginação (até 10 linhas por página) */}
+          {vendasFiltradas.length > ITENS_POR_PAGINA && (
+            <div className="bg-white border-t border-[#EAECF0] px-4 py-2 flex items-center justify-between text-[11.5px] text-[#667085]">
+              <span>
+                Mostrando <strong className="text-[#1D2939]">{(paginaAtual - 1) * ITENS_POR_PAGINA + 1}</strong>–
+                <strong className="text-[#1D2939]">{Math.min(paginaAtual * ITENS_POR_PAGINA, vendasFiltradas.length)}</strong>
+                {' '}de <strong className="text-[#1D2939]">{vendasFiltradas.length}</strong>
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                  disabled={paginaAtual === 1}
+                  className="h-6 px-2 text-[11px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                <span className="px-2 text-[11px]">
+                  Página <strong className="text-[#1D2939]">{paginaAtual}</strong> de {totalPaginas}
+                </span>
+                <button
+                  onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                  disabled={paginaAtual >= totalPaginas}
+                  className="h-6 px-2 text-[11px] font-semibold text-[#1D2939] bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* ─── KPIs verticais (coluna lateral direita) ─────── */}
+        <div className="flex flex-col gap-2.5">
+          {[
+            {
+              label: 'Faturamento',
+              value: formatBRL(kpis.total),
+              color: '#1D2939',
+              sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
+            },
+            {
+              label: 'Vendas',
+              value: String(kpis.count),
+              color: '#1D2939',
+              sub: `ticket médio ${formatBRL(kpis.ticket)}`,
+            },
+            {
+              label: 'Ticket médio',
+              value: formatBRL(kpis.ticket),
+              color: '#1D2939',
+              sub: 'média por venda',
+            },
+            {
+              label: 'À vista',
+              value: formatBRL(kpis.aVista),
+              color: '#039855',
+              sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do total` : '—',
+            },
+            {
+              label: 'A prazo',
+              value: formatBRL(kpis.aPrazo),
+              color: '#7F1D1D',
+              sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do total` : '—',
+            },
+          ].map(kpi => (
+            <div
+              key={kpi.label}
+              className="bg-white border border-[#EAECF0] rounded-xl px-3.5 py-2.5 min-w-0"
+              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
+            >
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
+              <p
+                className="mt-1 font-extrabold truncate"
+                style={{ fontSize: 17, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
+              >
+                {kpi.value}
+              </p>
+              <p className="text-[10.5px] text-[#98A2B3] mt-0.5 truncate">{kpi.sub}</p>
+            </div>
+          ))}
+        </div>
         </div>
       </div>
 
