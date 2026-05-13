@@ -20,7 +20,7 @@ const QUICK_ACTIONS: { label: string; url: string; icon: typeof ShoppingCart }[]
   { label: "Novo cliente", url: "/clientes?new=true", icon: UserPlus },
   { label: "Novo título a receber", url: "/contas-receber?new=true", icon: ArrowUpCircle },
   { label: "Novo título a pagar", url: "/contas-pagar?new=true", icon: ArrowDownCircle },
-  { label: "Nova empresa", url: "/empresas?nova=1", icon: Building2 },
+  { label: "Nova empresa", url: "/empresas?new=true", icon: Building2 },
 ];
 
 export const COMMAND_PALETTE_OPEN_EVENT = "commandpalette:open";

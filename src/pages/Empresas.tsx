@@ -48,24 +48,25 @@ export default function Empresas() {
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  // Open create form if ?nova=1 is in URL
+  // Open create form if ?new=true or legacy ?nova=1 is in URL
   const [searchParams] = useSearchParams();
+  const isCreatingFromUrl = searchParams.get("new") === "true" || searchParams.get("nova") === "1";
   useEffect(() => {
-    if (searchParams.get("nova") === "1") {
+    if (isCreatingFromUrl) {
       setMode("create");
       setEditingId(null);
       setForm(emptyForm);
       setStep(0);
     }
-  }, [searchParams]);
+  }, [isCreatingFromUrl]);
 
   // Redireciona direto para resumo se tem empresa selecionada e não está criando/editando
   useEffect(() => {
-    if (searchParams.get("nova") === "1") return;
+    if (isCreatingFromUrl) return;
     if (selectedCompany?.id && mode === "list" && !editingId) {
       navigate(`/empresas/${selectedCompany.id}`, { replace: true });
     }
-  }, [selectedCompany?.id, mode, editingId, navigate, searchParams]);
+  }, [selectedCompany?.id, mode, editingId, navigate, isCreatingFromUrl]);
 
   useEffect(() => {
     if (!companies || companies.length === 0) return;
