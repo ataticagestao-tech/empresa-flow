@@ -191,9 +191,71 @@ export default function CompanyDashboard() {
         [payablesRaw, transferAccountIds]
     );
 
+    // ─── Helper: receita em REGIME DE CAIXA com regra cartão = pago ──
+    // Cartão de crédito (e parcelado) conta como receita no DIA DA VENDA,
+    // não no dia do repasse da operadora. Demais formas: pelo data_pagamento.
+    // Retorna lista de itens { valor, data, venda_id, conta_contabil_id, forma_recebimento }.
+    const fetchReceitaCaixaItens = async (start: string, end: string) => {
+        // 1. CRs pagos (não cartão de crédito) — por data_pagamento
+        const { data: pagos } = await db.from("contas_receber")
+            .select("valor_pago, data_pagamento, conta_contabil_id, venda_id, forma_recebimento")
+            .eq("company_id", cId).eq("status", "pago")
+            .is("deleted_at", null)
+            .gte("data_pagamento", start).lte("data_pagamento", end)
+            .limit(10000);
+        const pagosItens = (pagos || [])
+            .filter((r: any) => !isTransfer(r))
+            .filter((r: any) => r.forma_recebimento !== "cartao_credito" && r.forma_recebimento !== "parcelado")
+            .map((r: any) => ({
+                valor: Number(r.valor_pago || 0),
+                data: r.data_pagamento as string,
+                venda_id: r.venda_id as string | null,
+                conta_contabil_id: r.conta_contabil_id as string | null,
+                forma_recebimento: r.forma_recebimento as string | null,
+            }));
+
+        // 2. CRs cartão de crédito / parcelado — por data_venda da venda
+        //    (independente do status: aberto ou pago — cliente já pagou no ato)
+        const { data: vendasPeriodo } = await db.from("vendas")
+            .select("id, data_venda")
+            .eq("company_id", cId)
+            .gte("data_venda", start).lte("data_venda", end)
+            .limit(10000);
+        const vendaDataMap: Record<string, string> = {};
+        (vendasPeriodo || []).forEach((v: any) => { vendaDataMap[v.id] = v.data_venda });
+        const vendaIds = Object.keys(vendaDataMap);
+
+        const cartaoItens: typeof pagosItens = [];
+        if (vendaIds.length > 0) {
+            const CHUNK = 300;
+            for (let i = 0; i < vendaIds.length; i += CHUNK) {
+                const slice = vendaIds.slice(i, i + CHUNK);
+                const { data: crs } = await db.from("contas_receber")
+                    .select("valor, conta_contabil_id, venda_id, forma_recebimento")
+                    .in("venda_id", slice)
+                    .in("forma_recebimento", ["cartao_credito", "parcelado"])
+                    .is("deleted_at", null)
+                    .limit(10000);
+                (crs || []).forEach((r: any) => {
+                    if (isTransfer(r)) return;
+                    cartaoItens.push({
+                        valor: Number(r.valor || 0),
+                        data: vendaDataMap[r.venda_id],
+                        venda_id: r.venda_id,
+                        conta_contabil_id: r.conta_contabil_id,
+                        forma_recebimento: r.forma_recebimento,
+                    });
+                });
+            }
+        }
+
+        return [...pagosItens, ...cartaoItens];
+    };
+
     // ─── Receita do período (depende do regime) ────────────
     // Competência: vendas confirmadas por data_venda (o que foi vendido).
-    // Caixa: contas_receber pagas por data_pagamento (o que entrou em caixa).
+    // Caixa: contas_receber pagas por data_pagamento + cartão de crédito por data_venda
+    //        (cliente já pagou no ato, repasse da operadora é tratado em CR separadamente).
     const { data: receitaPeriodo = 0 } = useQuery({
         queryKey: ["dash_receita_periodo", cId, periodStart, periodEnd, regime, transferAccountIds],
         queryFn: async () => {
@@ -206,15 +268,8 @@ export default function CompanyDashboard() {
                 return (data || [])
                     .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
             }
-            const { data } = await db.from("contas_receber")
-                .select("valor_pago, conta_contabil_id")
-                .eq("company_id", cId).eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
-                .limit(10000);
-            return (data || [])
-                .filter((r: any) => !isTransfer(r))
-                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+            const itens = await fetchReceitaCaixaItens(periodStart, periodEnd);
+            return itens.reduce((s, r) => s + r.valor, 0);
         },
         enabled: !!cId,
     });
@@ -278,15 +333,8 @@ export default function CompanyDashboard() {
                 return (data || [])
                     .reduce((s: number, r: any) => s + Number(r.valor_liquido || 0), 0);
             }
-            const { data } = await db.from("contas_receber")
-                .select("valor_pago, conta_contabil_id")
-                .eq("company_id", cId).eq("status", "pago")
-                .is("deleted_at", null)
-                .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEnd)
-                .limit(10000);
-            return (data || [])
-                .filter((r: any) => !isTransfer(r))
-                .reduce((s: number, r: any) => s + Number(r.valor_pago || 0), 0);
+            const itens = await fetchReceitaCaixaItens(prevMonthStart, prevMonthEnd);
+            return itens.reduce((s, r) => s + r.valor, 0);
         },
         enabled: !!cId,
     });
@@ -615,20 +663,14 @@ export default function CompanyDashboard() {
             const byDay: Record<string, number> = {};
 
             if (regime === "caixa") {
-                const { data: cr } = await db.from("contas_receber")
-                    .select("valor_pago, data_pagamento, conta_contabil_id, venda_id")
-                    .eq("company_id", cId).eq("status", "pago")
-                    .is("deleted_at", null)
-                    .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
-                    .limit(10000);
+                const itensCaixa = await fetchReceitaCaixaItens(periodStart, periodEnd);
 
                 let totalRec = 0;
                 const validCRs: { valor_pago: number; venda_id: string | null }[] = [];
-                (cr || []).forEach((r: any) => {
-                    if (isTransfer(r)) return;
-                    const v = Number(r.valor_pago || 0);
-                    if (v <= 0 || !r.data_pagamento) return;
-                    byDay[r.data_pagamento] = (byDay[r.data_pagamento] || 0) + v;
+                itensCaixa.forEach((r) => {
+                    const v = Number(r.valor || 0);
+                    if (v <= 0 || !r.data) return;
+                    byDay[r.data] = (byDay[r.data] || 0) + v;
                     totalRec += v;
                     validCRs.push({ valor_pago: v, venda_id: r.venda_id });
                 });
@@ -806,16 +848,10 @@ export default function CompanyDashboard() {
                     if (v > 0 && r.data_venda) byDay[r.data_venda] = (byDay[r.data_venda] || 0) + v;
                 });
             } else {
-                const { data } = await db.from("contas_receber")
-                    .select("valor_pago, data_pagamento, conta_contabil_id")
-                    .eq("company_id", cId).eq("status", "pago")
-                    .is("deleted_at", null)
-                    .gte("data_pagamento", prevMonthStart).lte("data_pagamento", prevMonthEndFull)
-                    .limit(10000);
-                (data || []).forEach((r: any) => {
-                    if (isTransfer(r)) return;
-                    const v = Number(r.valor_pago || 0);
-                    if (v > 0 && r.data_pagamento) byDay[r.data_pagamento] = (byDay[r.data_pagamento] || 0) + v;
+                const itensCaixa = await fetchReceitaCaixaItens(prevMonthStart, prevMonthEndFull);
+                itensCaixa.forEach((r) => {
+                    const v = Number(r.valor || 0);
+                    if (v > 0 && r.data) byDay[r.data] = (byDay[r.data] || 0) + v;
                 });
             }
             return byDay;
