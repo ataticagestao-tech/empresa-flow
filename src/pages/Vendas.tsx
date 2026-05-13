@@ -516,8 +516,10 @@ export default function Vendas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  // ─── Owner: só Izabel vê o select de conta destino (detalhe técnico) ──
-  const isOwner = user?.email === 'izabelvier@outlook.com'
+  // ─── Conta destino sempre oculta no modal: detalhe tecnico do sistema
+  //     resolvido automaticamente por pickContaPadrao. Mantemos a variavel
+  //     pra possivel futuro modo avancado.
+  const isOwner = false
 
   // ─── Escolhe conta padrão por forma de pagamento ──
   // cartao_credito/parcelado → primeiro bank_account type='cartao_credito'
