@@ -75,10 +75,13 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
 
     const filteredAccounts = useMemo(() => {
         if (!chartAccounts) return [];
-        if (!tipoAjuste) return chartAccounts;
-        const wantedNature = tipoAjuste === "credito" ? "credit" : "debit";
-        const filtered = chartAccounts.filter(a => a.account_nature === wantedNature);
-        return filtered.length > 0 ? filtered : chartAccounts;
+        // Exclui contas de transferencia — transferencia entre contas e neutra,
+        // nao serve pra ajuste de saldo (regra global do projeto: nao impacta DRE)
+        const noTransfer = chartAccounts.filter(a => !/transfer/i.test(a.name));
+        if (!tipoAjuste) return noTransfer;
+        const wantedTypes = tipoAjuste === "credito" ? ["revenue"] : ["expense", "cost"];
+        const filtered = noTransfer.filter(a => wantedTypes.includes(a.account_type));
+        return filtered.length > 0 ? filtered : noTransfer;
     }, [chartAccounts, tipoAjuste]);
 
     const resetState = () => {
@@ -101,13 +104,12 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
             const { error } = await (activeClient as any).from("movimentacoes").insert({
                 company_id: selectedCompany.id,
                 tipo: tipoAjuste,
-                descricao: "Ajuste de saldo de abertura",
+                descricao: `Ajuste de saldo de abertura — ${fmtDate(closingDate)}`,
                 valor: Math.abs(diff),
                 data: dataIso,
                 conta_bancaria_id: bankAccountId,
                 conta_contabil_id: contaContabilId,
                 origem: "manual",
-                observacao: `Ajuste para alinhar saldo do sistema com extrato em ${fmtDate(closingDate)}`,
             });
             if (error) throw error;
 
