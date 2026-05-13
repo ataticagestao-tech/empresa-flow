@@ -1626,49 +1626,53 @@ export default function Vendas() {
               label: 'Faturamento',
               value: formatBRL(kpis.total),
               sub: `${kpis.count} venda${kpis.count !== 1 ? 's' : ''} no período`,
-              bg: '#ECFDF4',
-              border: '#86EFAC',
+              bg: '#039855',
+              valueColor: '#FFFFFF',
+              subColor: 'rgba(255,255,255,0.85)',
             },
             {
               label: 'Ticket Médio',
               value: formatBRL(kpis.ticket),
               sub: 'média por venda',
-              bg: '#F2F4F7',
-              border: '#D0D5DD',
+              bg: '#1D2939',
+              valueColor: '#FFFFFF',
+              subColor: 'rgba(255,255,255,0.65)',
             },
             {
               label: 'À vista',
               value: formatBRL(kpis.aVista),
               sub: kpis.total > 0 ? `${((kpis.aVista / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              bg: '#DCFCE7',
-              border: '#86EFAC',
+              bg: '#1D2939',
+              valueColor: '#10B981',
+              subColor: 'rgba(16,185,129,0.85)',
             },
             {
               label: 'A prazo',
               value: formatBRL(kpis.aPrazo),
               sub: kpis.total > 0 ? `${((kpis.aPrazo / kpis.total) * 100).toFixed(1)}% do faturamento` : '—',
-              bg: '#FEF3C7',
-              border: '#FCD34D',
+              bg: '#1D2939',
+              valueColor: '#F59E0B',
+              subColor: 'rgba(245,158,11,0.85)',
             },
           ].map(k => (
             <div
               key={k.label}
-              className="rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-sm border"
-              style={{ backgroundColor: k.bg, borderColor: k.border }}
+              className="rounded-xl px-5 py-4 flex-1 flex flex-col justify-between min-h-0 shadow-md"
+              style={{ backgroundColor: k.bg }}
             >
               <p
-                className="font-bold text-black m-0"
+                className="font-bold text-white m-0"
                 style={{ fontSize: 20, letterSpacing: '-0.015em', lineHeight: 1.15 }}
               >
                 {k.label}
               </p>
               <p
-                className="font-extrabold text-black truncate"
-                style={{ fontSize: 26, letterSpacing: '-0.025em', lineHeight: 1 }}
+                className="font-extrabold truncate"
+                style={{ fontSize: 26, color: k.valueColor, letterSpacing: '-0.025em', lineHeight: 1 }}
               >
                 {k.value}
               </p>
-              <p className="text-[12px] text-[#475467] m-0 truncate">{k.sub}</p>
+              <p className="text-[12px] m-0 truncate" style={{ color: k.subColor }}>{k.sub}</p>
             </div>
           ))}
         </div>
@@ -1688,7 +1692,7 @@ export default function Vendas() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-white text-[15px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
-                    <th className="text-left px-2 py-2 w-20 relative">
+                    <th className="text-left px-3 py-3 w-20 relative">
                       <button
                         onClick={() => { setHeaderFiltroAberto(headerFiltroAberto === 'codigo' ? null : 'codigo') }}
                         className={`inline-flex items-center gap-1 ${filtroCodigo ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1716,7 +1720,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-center px-2 py-2 w-20 relative">
+                    <th className="text-center px-3 py-3 w-20 relative">
                       <button
                         onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'data' ? null : 'data')}
                         className={`inline-flex items-center gap-1 ${filtroData ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1746,7 +1750,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-left px-2 py-2 relative">
+                    <th className="text-left px-3 py-3 relative">
                       <button
                         onClick={() => { setHeaderFiltroAberto(headerFiltroAberto === 'cliente' ? null : 'cliente'); setHeaderFiltroBusca('') }}
                         className={`inline-flex items-center gap-1 ${filtroCliente ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1791,7 +1795,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-left px-2 py-2 relative">
+                    <th className="text-left px-3 py-3 relative">
                       <button
                         onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'produto' ? null : 'produto')}
                         className={`inline-flex items-center gap-1 ${filtroProduto ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1819,7 +1823,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-center px-2 py-2 w-12 relative">
+                    <th className="text-center px-3 py-3 w-12 relative">
                       <button
                         onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'itens' ? null : 'itens')}
                         className={`inline-flex items-center gap-1 ${filtroItens !== '' ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1849,7 +1853,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-center px-2 py-2 w-24 relative">
+                    <th className="text-center px-3 py-3 w-24 relative">
                       <button
                         onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'forma' ? null : 'forma')}
                         className={`inline-flex items-center gap-1 ${filtroForma ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1879,7 +1883,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-right px-2 py-2 w-24 relative">
+                    <th className="text-right px-3 py-3 w-24 relative">
                       <button
                         onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'valor' ? null : 'valor')}
                         className={`inline-flex items-center gap-1 ${(filtroValorMin !== '' || filtroValorMax !== '') ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1919,7 +1923,7 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-center px-2 py-2 w-16 relative">
+                    <th className="text-center px-3 py-3 w-16 relative">
                       <button
                         onClick={() => setHeaderFiltroAberto(headerFiltroAberto === 'cr' ? null : 'cr')}
                         className={`inline-flex items-center gap-1 ${filtroCR ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -1953,15 +1957,15 @@ export default function Vendas() {
                         </div>
                       )}
                     </th>
-                    <th className="text-center px-2 py-2 w-24">Ações</th>
+                    <th className="text-center px-3 py-3 w-24">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {vendasPaginadas.map(v => (
                     <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px] whitespace-nowrap">
-                      <td className="px-2 py-1 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
-                      <td className="px-2 py-1 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
-                      <td className="px-2 py-1 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
+                      <td className="px-3 py-2.5 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
+                      <td className="px-3 py-2.5 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
                         <Link
                           to={`/clientes?cliente=${encodeURIComponent(v.cliente_cpf_cnpj || v.cliente_nome)}`}
                           className="hover:text-[#059669] hover:underline"
@@ -1970,7 +1974,7 @@ export default function Vendas() {
                           {v.cliente_nome}
                         </Link>
                       </td>
-                      <td className="px-2 py-1 text-left text-[#1D2939] truncate max-w-[130px]">
+                      <td className="px-3 py-2.5 text-left text-[#1D2939] truncate max-w-[130px]">
                         {v.vendas_itens && v.vendas_itens.length > 0
                           ? <>
                               {v.vendas_itens[0].descricao}
@@ -1978,11 +1982,11 @@ export default function Vendas() {
                             </>
                           : <span className="text-[#98A2B3] italic">—</span>}
                       </td>
-                      <td className="px-2 py-1 text-center text-[#667085]">{v.vendas_itens?.length || 0}</td>
-                      <td className="px-2 py-1 text-center text-[#667085]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
-                      <td className="px-2 py-1 text-right font-semibold text-[#1D2939]">{formatBRL(v.valor_total)}</td>
-                      <td className="px-2 py-1 text-center"><CRBadge venda={v} /></td>
-                      <td className="px-2 py-1 text-center">
+                      <td className="px-3 py-2.5 text-center text-[#667085]">{v.vendas_itens?.length || 0}</td>
+                      <td className="px-3 py-2.5 text-center text-[#667085]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-[#1D2939]">{formatBRL(v.valor_total)}</td>
+                      <td className="px-3 py-2.5 text-center"><CRBadge venda={v} /></td>
+                      <td className="px-3 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setModalDetalhes(v)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Ver detalhes">
                             <Eye size={12} />
