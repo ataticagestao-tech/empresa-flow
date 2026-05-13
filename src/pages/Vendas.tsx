@@ -1807,7 +1807,8 @@ export default function Vendas() {
               Nenhum produto vendido no período
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+            <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
                 margin={{ top: 24, right: 12, left: 0, bottom: 60 }}
@@ -1884,6 +1885,7 @@ export default function Vendas() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
           )}
         </div>
         <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden min-w-0 lg:col-start-2 lg:row-start-3 lg:row-span-2 flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
