@@ -104,7 +104,15 @@ export default function Conciliacao() {
     const [openingCheck, setOpeningCheck] = useState<{ summary: OFXSummary; systemBalanceAtClose: number | null } | null>(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showRulesPanel, setShowRulesPanel] = useState(false);
-    const [newEntry, setNewEntry] = useState({ description: "", category_id: "", unidade_destino_id: "" });
+    const [newEntry, setNewEntry] = useState({
+        entity_name: "",        // credor_nome (CP) ou pagador_nome (CR)
+        description: "",        // descricao (CP) ou observacoes (CR)
+        category_id: "",        // conta_contabil_id
+        centro_custo_id: "",
+        competencia: "",        // formato YYYY-MM, so CP usa
+        cpf_cnpj: "",           // CR only
+        email: "",              // CR only
+    });
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
@@ -150,7 +158,7 @@ export default function Conciliacao() {
         setSelectedIds(new Set());
     };
 
-    // Buscar todas as empresas/unidades para o dropdown "Unidade Destino"
+    // allCompanies ainda usado em isLikelyInternalTransfer para detectar transferencias
     const { data: allCompanies } = useQuery({
         queryKey: ["all_companies_units"],
         queryFn: async () => {
@@ -164,6 +172,23 @@ export default function Conciliacao() {
             return data || [];
         },
         enabled: !!activeClient,
+    });
+
+    // Centros de custo para o form de criar CR/CP via conciliacao
+    const { data: centrosCusto } = useQuery({
+        queryKey: ["centros_custo", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await (activeClient as any)
+                .from("centros_custo")
+                .select("id, codigo, descricao")
+                .eq("company_id", selectedCompany.id)
+                .eq("ativo", true)
+                .order("codigo");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
     });
 
     const { accounts } = useBankAccounts();
@@ -458,7 +483,7 @@ export default function Conciliacao() {
         (allChartAccounts || []).filter((c: any) => c.is_analytical),
     [allChartAccounts]);
 
-    const createDescription = showCreateForm ? (newEntry.description || selectedBankTx?.description || "") : "";
+    const createDescription = showCreateForm ? `${newEntry.entity_name} ${newEntry.description}`.trim() || selectedBankTx?.description || "" : "";
     const createType = selectedBankTx?.amount && selectedBankTx.amount < 0 ? "despesa" : "receita";
 
     // Synthetic (parent) groups for "criar categoria" — filtered by createType
@@ -878,7 +903,8 @@ export default function Conciliacao() {
         const isExpense = selectedBankTx.amount < 0;
         const table = isExpense ? "contas_pagar" : "contas_receber";
         const nameCol = isExpense ? "credor_nome" : "pagador_nome";
-        const entryDescription = newEntry.description || selectedBankTx.description || "Lançamento via conciliação";
+        const entityName = (newEntry.entity_name || selectedBankTx.description || "Lançamento via conciliação").trim();
+        const descricao = newEntry.description.trim();
         const amount = Math.abs(selectedBankTx.amount);
 
         // Detectar CR/CP em aberto na janela +-7 dias cujo valor individual OU soma
@@ -928,7 +954,7 @@ export default function Conciliacao() {
         try {
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
-                [nameCol]: entryDescription,
+                [nameCol]: entityName,
                 valor: amount,
                 data_vencimento: selectedBankTx.date,
                 status: "aberto",
@@ -937,8 +963,18 @@ export default function Conciliacao() {
             if (newEntry.category_id && newEntry.category_id !== "none") {
                 payload.conta_contabil_id = newEntry.category_id;
             }
-            if (newEntry.unidade_destino_id) {
-                payload.unidade_destino_id = newEntry.unidade_destino_id;
+            if (newEntry.centro_custo_id) {
+                payload.centro_custo_id = newEntry.centro_custo_id;
+            }
+            if (isExpense) {
+                // CP: descricao e coluna propria, competencia tambem
+                if (descricao) payload.descricao = descricao;
+                if (newEntry.competencia) payload.competencia = newEntry.competencia;
+            } else {
+                // CR: nao tem descricao propria, usa observacoes; +cpf_cnpj + email
+                if (descricao) payload.observacoes = descricao;
+                if (newEntry.cpf_cnpj.trim()) payload.pagador_cpf_cnpj = newEntry.cpf_cnpj.trim();
+                if (newEntry.email.trim()) payload.pagador_email = newEntry.email.trim();
             }
 
             const { data: created, error: createError } = await (activeClient as any)
@@ -957,11 +993,6 @@ export default function Conciliacao() {
                 original_table_id: created.id,
             };
 
-            // Salvar unidade destino na bank_transaction
-            if (newEntry.unidade_destino_id) {
-                await (activeClient as any).from("bank_transactions").update({ unidade_destino_id: newEntry.unidade_destino_id }).eq("id", selectedBankTx.id);
-            }
-
             matchTransaction.mutate({ bankTx: selectedBankTx, sysTx });
             // MEMORIZAÇÃO: beneficiário → categoria selecionada + detectar conflito
             const conflict = await learnRule.mutateAsync({ bankTx: selectedBankTx, categoryId: newEntry.category_id || undefined });
@@ -970,7 +1001,7 @@ export default function Conciliacao() {
             toast({ title: "Sucesso", description: `${isExpense ? "Despesa" : "Receita"} criada e conciliada!` });
             setSelectedBankTx(null);
             setShowCreateForm(false);
-            setNewEntry({ description: "", category_id: "", unidade_destino_id: "" });
+            setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" });
         } catch (err: any) {
             toast({ title: "Erro", description: err.message, variant: "destructive" });
         } finally {
@@ -2040,7 +2071,7 @@ export default function Conciliacao() {
 
                 {/* Modal de Conciliação Manual */}
                 <Dialog open={!!selectedBankTx} onOpenChange={(open) => {
-                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
+                    if (!open) { setSelectedBankTx(null); setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" }); setFilterDateFrom(""); setFilterDateTo(""); setSelectedSysTxsForMatch([]); }
                 }}>
                     <DialogContent className="grid-cols-1 w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
                         <DialogHeader>
@@ -2275,36 +2306,71 @@ export default function Conciliacao() {
                                             </div>
                                             <div className="space-y-3">
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-xs font-medium">Descrição</Label>
+                                                    <Label className="text-xs font-medium">
+                                                        {selectedBankTx.amount < 0 ? "Credor" : "Pagador"} <span className="text-red-500">*</span>
+                                                    </Label>
+                                                    <Input value={newEntry.entity_name}
+                                                        onChange={(e) => setNewEntry({ ...newEntry, entity_name: e.target.value })}
+                                                        placeholder={selectedBankTx.amount < 0 ? "Nome do fornecedor / credor" : "Nome do cliente / pagador"} />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-medium">
+                                                        {selectedBankTx.amount < 0 ? "Descrição" : "Observação"}
+                                                    </Label>
                                                     <Input value={newEntry.description}
                                                         onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
-                                                        placeholder="Descrição do lançamento" />
+                                                        placeholder={selectedBankTx.amount < 0 ? "O que foi pago (ex: Internet maio/2026)" : "Detalhes do recebimento"} />
                                                 </div>
+                                                {selectedBankTx.amount > 0 && (
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1.5">
+                                                            <Label className="text-xs font-medium">CPF/CNPJ do Pagador</Label>
+                                                            <Input value={newEntry.cpf_cnpj}
+                                                                onChange={(e) => setNewEntry({ ...newEntry, cpf_cnpj: e.target.value })}
+                                                                placeholder="Opcional" />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <Label className="text-xs font-medium">Email do Pagador</Label>
+                                                            <Input type="email" value={newEntry.email}
+                                                                onChange={(e) => setNewEntry({ ...newEntry, email: e.target.value })}
+                                                                placeholder="Opcional" />
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1.5">
                                                         <Label className="text-xs font-medium">Valor</Label>
                                                         <Input value={formatBRL(Math.abs(selectedBankTx.amount))} disabled className="bg-muted font-bold" />
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <Label className="text-xs font-medium">Data</Label>
+                                                        <Label className="text-xs font-medium">Data Vencimento</Label>
                                                         <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted" />
                                                     </div>
                                                 </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs font-medium">Unidade Destino</Label>
-                                                    <Select value={newEntry.unidade_destino_id || ""} onValueChange={(val) => setNewEntry({ ...newEntry, unidade_destino_id: val === "none" ? "" : val })}>
-                                                        <SelectTrigger className="h-9">
-                                                            <SelectValue placeholder="Selecionar unidade..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="none">Nenhuma</SelectItem>
-                                                            {(allCompanies || []).map((c: any) => (
-                                                                <SelectItem key={c.id} value={c.id}>
-                                                                    {c.nome_fantasia || c.razao_social}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {selectedBankTx.amount < 0 && (
+                                                        <div className="space-y-1.5">
+                                                            <Label className="text-xs font-medium">Competência</Label>
+                                                            <Input type="month" value={newEntry.competencia}
+                                                                onChange={(e) => setNewEntry({ ...newEntry, competencia: e.target.value })} />
+                                                        </div>
+                                                    )}
+                                                    <div className={`space-y-1.5 ${selectedBankTx.amount < 0 ? "" : "col-span-2"}`}>
+                                                        <Label className="text-xs font-medium">Centro de Custo</Label>
+                                                        <Select value={newEntry.centro_custo_id || ""} onValueChange={(val) => setNewEntry({ ...newEntry, centro_custo_id: val === "none" ? "" : val })}>
+                                                            <SelectTrigger className="h-9">
+                                                                <SelectValue placeholder="Nenhum" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">Nenhum</SelectItem>
+                                                                {(centrosCusto || []).map((cc: any) => (
+                                                                    <SelectItem key={cc.id} value={cc.id}>
+                                                                        {cc.codigo} - {cc.descricao}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <div className="flex items-center justify-between">
@@ -2406,12 +2472,12 @@ export default function Conciliacao() {
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" className="flex-1"
-                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ description: "", category_id: "", unidade_destino_id: "" }); }}>
+                                                onClick={() => { setShowCreateForm(false); setShowNewCategory(false); setSelectedParentId(""); setNewCatName(""); setNewEntry({ entity_name: "", description: "", category_id: "", centro_custo_id: "", competencia: "", cpf_cnpj: "", email: "" }); }}>
                                                 Voltar
                                             </Button>
                                             <Button className={`flex-1 text-white ${selectedBankTx.amount < 0 ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                                                 onClick={handleCreateAndReconcile}
-                                                disabled={isCreating || !newEntry.description}>
+                                                disabled={isCreating || !newEntry.entity_name.trim() || !newEntry.category_id}>
                                                 {isCreating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                                                 Criar e Conciliar
                                             </Button>
