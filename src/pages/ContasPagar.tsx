@@ -31,6 +31,7 @@ interface ContaPagar {
   id: string
   company_id: string
   credor_nome: string
+  descricao: string | null
   credor_cpf_cnpj: string | null
   valor: number
   valor_pago: number
@@ -455,6 +456,7 @@ export default function ContasPagar() {
       list = list.filter(
         (cp) =>
           cp.credor_nome?.toLowerCase().includes(term) ||
+          cp.descricao?.toLowerCase().includes(term) ||
           cp.credor_cpf_cnpj?.toLowerCase().includes(term) ||
           String(cp.valor).includes(term)
       )
@@ -591,13 +593,15 @@ export default function ContasPagar() {
     }
     const svgString = new XMLSerializer().serializeToString(tempSvg)
     const linhaLabel = linha.replace(/\s+/g, ' ').trim()
+    const titulo = payingCp?.descricao || payingCp?.credor_nome || ''
     const credor = payingCp?.credor_nome || ''
+    const credorSub = credor && credor !== titulo ? credor : ''
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Codigo de Barras${credor ? ' - ' + credor : ''}</title>
+<title>Codigo de Barras${titulo ? ' - ' + titulo : ''}</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; }
@@ -612,7 +616,8 @@ export default function ContasPagar() {
 </style>
 </head>
 <body>
-  ${credor ? `<h1>${credor}</h1>` : ''}
+  ${titulo ? `<h1>${titulo}</h1>` : ''}
+  ${credorSub ? `<div style="font-size:12px;color:#98A2B3;margin-bottom:8px;">${credorSub}</div>` : ''}
   <div class="meta">${linhaLabel}</div>
   <div class="barcode">${svgString}</div>
   <div class="actions">
@@ -741,7 +746,7 @@ export default function ContasPagar() {
   const openEditModal = (cp: ContaPagar) => {
     setNewForm({
       credorNome: cp.credor_nome || '',
-      descricao: cp.credor_nome || '',
+      descricao: cp.descricao || cp.credor_nome || '',
       credorTipo: 'fornecedor',
       credorId: '',
       valor: cp.valor || 0,
@@ -877,6 +882,7 @@ export default function ContasPagar() {
     const base: Record<string, any> = {
       company_id: selectedCompany.id,
       credor_nome: credorNome,
+      descricao: newForm.descricao || null,
       valor: newForm.valor,
       status: 'aberto',
       conta_contabil_id: newForm.contaContabilId || null,
@@ -977,7 +983,7 @@ export default function ContasPagar() {
   }
 
   const handleArquivar = async (cp: ContaPagar) => {
-    const ok = await confirm({ title: `Arquivar conta de ${cp.credor_nome}?`, description: "A conta sera movida para o arquivo e nao aparecera mais na listagem.", confirmLabel: "Sim, arquivar", variant: "default" })
+    const ok = await confirm({ title: `Arquivar conta "${cp.descricao || cp.credor_nome}"?`, description: "A conta sera movida para o arquivo e nao aparecera mais na listagem.", confirmLabel: "Sim, arquivar", variant: "default" })
     if (!ok) return
     await (activeClient as any).from('contas_pagar').update({ status: 'arquivado' }).eq('id', cp.id)
     setDropdownOpen(null)
@@ -991,7 +997,7 @@ export default function ContasPagar() {
 
     if (isPago) {
       const ok = await confirm({
-        title: `Cancelar pagamento de ${cp.credor_nome}?`,
+        title: `Cancelar pagamento de "${cp.descricao || cp.credor_nome}"?`,
         description: 'O pagamento sera revertido, a movimentacao bancaria sera removida e a conta voltara como aberta.',
         confirmLabel: 'Sim, cancelar pagamento',
         variant: 'destructive',
@@ -1031,7 +1037,7 @@ export default function ContasPagar() {
     }
 
     const ok = await confirm({
-      title: `Cancelar conta de ${cp.credor_nome}?`,
+      title: `Cancelar conta "${cp.descricao || cp.credor_nome}"?`,
       description: 'O lancamento sera marcado como cancelado.',
       confirmLabel: 'Sim, cancelar conta',
       variant: 'destructive',
@@ -1325,7 +1331,7 @@ export default function ContasPagar() {
         doc.setFontSize(8)
         doc.setTextColor(60, 60, 60)
         doc.text(format(parseISO(cp.data_vencimento), 'dd/MM/yyyy'), cols.venc.x, y + 3.8)
-        doc.text(truncate(cp.credor_nome || '—', 32), cols.credor.x, y + 3.8)
+        doc.text(truncate(cp.descricao || cp.credor_nome || '—', 32), cols.credor.x, y + 3.8)
 
         const plano = cp.conta_contabil_id ? contaContabilMap[cp.conta_contabil_id] || '—' : '—'
         doc.text(truncate(plano, 28), cols.plano.x, y + 3.8)
@@ -1544,7 +1550,7 @@ export default function ContasPagar() {
                     const linhas = agendaDiaLista.map(cp => {
                       const data = selectedAgendaDate ? '' : `${format(parseISO(cp.data_vencimento), 'dd/MM')} \u2014 `
                       const plano = cp.conta_contabil_id ? (contaContabilMap[cp.conta_contabil_id] || '\u2014') : '\u2014'
-                      return `\u2022 ${data}${cp.credor_nome} \u2014 ${plano} \u2014 ${formatBRL(cp._pendente)}`
+                      return `\u2022 ${data}${cp.descricao || cp.credor_nome} \u2014 ${plano} \u2014 ${formatBRL(cp._pendente)}`
                     }).join('\n')
                     const total = `*Total a pagar: ${formatBRL(agendaDiaTotal)}*`
                     const texto = `${titulo}\n\n${linhas}\n\n${total}`
@@ -1589,7 +1595,7 @@ export default function ContasPagar() {
                     {agendaDiaLista.map(cp => (
                       <tr key={cp.id} style={{ borderTop: '1px solid #F2F4F7' }}>
                         <td className="py-2 px-3 text-[#1D2939]">
-                          <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cp.credor_nome}</div>
+                          <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cp.descricao || cp.credor_nome}</div>
                           {!selectedAgendaDate && (
                             <div className="text-[10.5px] text-[#98A2B3]">
                               {format(parseISO(cp.data_vencimento), 'dd/MM')}
@@ -1872,7 +1878,10 @@ export default function ContasPagar() {
                                       )
                                     })()}
                                     <div>
-                                      <div className="font-semibold" style={{ color: '#059669' }}>{cp.credor_nome}</div>
+                                      <div className="font-semibold" style={{ color: '#059669' }}>{cp.descricao || cp.credor_nome}</div>
+                                      {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
+                                        <div style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
+                                      )}
                                       {cp.credor_cpf_cnpj && (
                                         <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
                                       )}
@@ -2002,7 +2011,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={async () => {
                                               setDropdownOpen(null)
-                                              const ok = await confirm({ title: `Excluir lancamento de ${cp.credor_nome}?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
+                                              const ok = await confirm({ title: `Excluir lancamento "${cp.descricao || cp.credor_nome}"?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
                                               if (!ok) return
                                               try {
                                                 const ac = activeClient as any

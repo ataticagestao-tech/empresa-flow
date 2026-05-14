@@ -79,6 +79,7 @@ export function usePayableForm(initialData?: AccountsPayable, onSuccess?: () => 
             const payload: Record<string, any> = {
                 company_id: selectedCompany.id,
                 credor_nome: credorNome,
+                descricao: data.description ? toTitleCase(data.description) : null,
                 valor: data.amount,
                 status: data.status === "pending" ? "aberto" : data.status === "paid" ? "pago" : data.status === "cancelled" ? "cancelado" : data.status || "aberto",
                 data_vencimento: dateToLocalString(data.due_date),
