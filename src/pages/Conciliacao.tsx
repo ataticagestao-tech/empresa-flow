@@ -2287,7 +2287,15 @@ export default function Conciliacao() {
                                                 // Pre-fill category from engine suggestion (learned rules)
                                                 const engineSuggestion = suggestionMap.get(selectedBankTx.id);
                                                 const prefilledCategoryId = engineSuggestion?.accountId || "";
-                                                setNewEntry({ description: selectedBankTx.description || "", category_id: prefilledCategoryId, unidade_destino_id: "" });
+                                                setNewEntry({
+                                                    entity_name: selectedBankTx.description || "",
+                                                    description: "",
+                                                    category_id: prefilledCategoryId,
+                                                    centro_custo_id: "",
+                                                    competencia: "",
+                                                    cpf_cnpj: "",
+                                                    email: "",
+                                                });
                                             }}>
                                             <Plus className="mr-2 h-4 w-4" />
                                             Criar {selectedBankTx.amount < 0 ? "Nova Despesa" : "Nova Receita"} e Conciliar
