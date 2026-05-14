@@ -5,9 +5,14 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Search, Mail, Download, FileText, ChevronRight } from 'lucide-react'
+import { Search, Mail, Download, FileText, ChevronRight, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -234,6 +239,10 @@ export default function Recibos() {
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [selecionado, setSelecionado] = useState<Recibo | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
+  const [whatsDialog, setWhatsDialog] = useState<Recibo | null>(null)
+  const [whatsPhone, setWhatsPhone] = useState('')
+  const [whatsText, setWhatsText] = useState('')
+  const [whatsSending, setWhatsSending] = useState(false)
 
   // Fetch recibos
   useEffect(() => {
@@ -389,6 +398,55 @@ export default function Recibos() {
     }
   }
 
+  // Template padrao para envio via WhatsApp do recibo
+  const buildWhatsTemplate = (r: Recibo): string => {
+    const valor = formatBRL(r.valor)
+    const data = formatData(r.data_pagamento)
+    const linhas = [
+      `Olá! Segue comprovante de pagamento:`,
+      ``,
+      `*Recibo #${r.numero}*`,
+      `Favorecido: ${r.favorecido}`,
+      `Valor: ${valor}`,
+      `Pago em: ${data}`,
+    ]
+    if (r.forma_pagamento) linhas.push(`Forma: ${r.forma_pagamento}`)
+    if (r.descricao) linhas.push(`Descrição: ${r.descricao}`)
+    if (r.pdf_url) {
+      linhas.push(``)
+      linhas.push(`PDF: ${r.pdf_url}`)
+    }
+    return linhas.join('\n')
+  }
+
+  const handleAbrirWhatsApp = (recibo: Recibo) => {
+    setWhatsDialog(recibo)
+    setWhatsPhone('')
+    setWhatsText(buildWhatsTemplate(recibo))
+  }
+
+  const handleEnviarWhatsApp = async () => {
+    if (!whatsDialog) return
+    if (!whatsPhone.trim()) {
+      toast.error('Informe o telefone do destinatário.')
+      return
+    }
+    setWhatsSending(true)
+    try {
+      const result = await sendWhatsApp({ phone: whatsPhone, text: whatsText })
+      if (result.ok) {
+        toast.success('WhatsApp enviado!', { description: `Para ${result.phone || whatsPhone}` })
+        setWhatsDialog(null)
+        setWhatsPhone('')
+        setWhatsText('')
+      } else {
+        toast.error('Falha ao enviar WhatsApp', { description: result.error })
+      }
+    } finally {
+      setWhatsSending(false)
+    }
+  }
+
   return (
     <AppLayout title="Recibos">
       <div className="flex gap-4 h-[calc(100vh-120px)]">
@@ -515,6 +573,13 @@ export default function Recibos() {
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => handleAbrirWhatsApp(selecionado)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      Enviar WhatsApp
+                    </button>
+                    <button
                       onClick={() => handleReenviarEmail(selecionado)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/20"
                     >
@@ -549,6 +614,58 @@ export default function Recibos() {
         </div>
 
       </div>
+
+      <Dialog open={!!whatsDialog} onOpenChange={(o) => { if (!o) setWhatsDialog(null) }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-emerald-600" />
+              Enviar Recibo por WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          {whatsDialog && (
+            <div className="space-y-3 py-2">
+              <div className="rounded-md bg-[#F6F2EB] p-3 text-xs">
+                <p className="font-semibold text-[#1D2939]">Recibo #{whatsDialog.numero}</p>
+                <p className="text-[#667085] mt-0.5">{whatsDialog.favorecido} — {formatBRL(whatsDialog.valor)}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  Telefone do destinatário <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={whatsPhone}
+                  onChange={(e) => setWhatsPhone(e.target.value)}
+                  placeholder="11999999999 (com DDD)"
+                  className="h-9"
+                />
+                <p className="text-[10px] text-[#999]">Aceita formatos com ou sem DDI/parênteses/traços.</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
+                <textarea
+                  value={whatsText}
+                  onChange={(e) => setWhatsText(e.target.value)}
+                  rows={8}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] font-mono"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setWhatsDialog(null)} disabled={whatsSending}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEnviarWhatsApp}
+              disabled={whatsSending || !whatsPhone.trim() || !whatsText.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {whatsSending ? 'Enviando...' : 'Enviar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   )
 }
