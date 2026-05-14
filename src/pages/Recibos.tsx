@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
+import { sendReciboEmail } from '@/lib/recibos/send-recibo-email'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -243,6 +244,11 @@ export default function Recibos() {
   const [whatsPhone, setWhatsPhone] = useState('')
   const [whatsText, setWhatsText] = useState('')
   const [whatsSending, setWhatsSending] = useState(false)
+  const [emailDialog, setEmailDialog] = useState<Recibo | null>(null)
+  const [emailTo, setEmailTo] = useState('')
+  const [emailSubject, setEmailSubject] = useState('')
+  const [emailBody, setEmailBody] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
 
   // Fetch recibos
   useEffect(() => {
@@ -384,10 +390,52 @@ export default function Recibos() {
   })
 
   // Actions
-  const handleReenviarEmail = (_recibo: Recibo) => {
-    toast.error('Integração Resend não configurada.', {
-      description: 'Ative em Configurações → Integrações → Resend para reenviar e-mails.',
-    })
+  const buildEmailTemplate = (r: Recibo): { subject: string; body: string } => {
+    return {
+      subject: `Comprovante de pagamento — Recibo #${r.numero}`,
+      body: `Olá!\n\nSegue em anexo o comprovante referente ao recibo #${r.numero} no valor de ${formatBRL(r.valor)}, pago em ${formatData(r.data_pagamento)}.${r.descricao ? `\n\nReferente a: ${r.descricao}` : ''}\n\nQualquer dúvida, estamos à disposição.`,
+    }
+  }
+
+  const handleReenviarEmail = (recibo: Recibo) => {
+    const { subject, body } = buildEmailTemplate(recibo)
+    setEmailDialog(recibo)
+    setEmailTo(recibo.email_destino || '')
+    setEmailSubject(subject)
+    setEmailBody(body)
+  }
+
+  const handleEnviarEmail = async () => {
+    if (!emailDialog) return
+    if (!emailTo.trim()) {
+      toast.error('Informe o e-mail do destinatário.')
+      return
+    }
+    if (!emailDialog.pdf_url) {
+      toast.error('Este recibo não tem PDF anexado.')
+      return
+    }
+    setEmailSending(true)
+    try {
+      const result = await sendReciboEmail({
+        destinatario: emailTo.trim(),
+        assunto: emailSubject,
+        corpo: emailBody,
+        pdfUrl: emailDialog.pdf_url,
+        nomeArquivo: `recibo-${emailDialog.numero}.pdf`,
+      })
+      if (result.ok) {
+        toast.success('E-mail enviado!', { description: `Para ${emailTo}` })
+        setEmailDialog(null)
+        setEmailTo('')
+        setEmailSubject('')
+        setEmailBody('')
+      } else {
+        toast.error('Falha ao enviar e-mail', { description: result.error })
+      }
+    } finally {
+      setEmailSending(false)
+    }
   }
 
   const handleDownloadPDF = (recibo: Recibo) => {
@@ -614,6 +662,71 @@ export default function Recibos() {
         </div>
 
       </div>
+
+      <Dialog open={!!emailDialog} onOpenChange={(o) => { if (!o) setEmailDialog(null) }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-[#1E3A8A]" />
+              Reenviar Recibo por E-mail
+            </DialogTitle>
+          </DialogHeader>
+          {emailDialog && (
+            <div className="space-y-3 py-2">
+              <div className="rounded-md bg-[#F6F2EB] p-3 text-xs">
+                <p className="font-semibold text-[#1D2939]">Recibo #{emailDialog.numero}</p>
+                <p className="text-[#667085] mt-0.5">{emailDialog.favorecido} — {formatBRL(emailDialog.valor)}</p>
+              </div>
+              {!emailDialog.pdf_url && (
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-2 text-[11px] text-amber-800">
+                  ⚠️ Este recibo não tem PDF anexado e não pode ser reenviado.
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  E-mail destinatário <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  placeholder="cliente@exemplo.com"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Assunto</Label>
+                <Input
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
+                <textarea
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669]"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEmailDialog(null)} disabled={emailSending}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEnviarEmail}
+              disabled={emailSending || !emailTo.trim() || !emailDialog?.pdf_url}
+              className="bg-[#1E3A8A] hover:bg-[#1D2939] text-white"
+            >
+              {emailSending ? 'Enviando...' : 'Enviar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!whatsDialog} onOpenChange={(o) => { if (!o) setWhatsDialog(null) }}>
         <DialogContent className="sm:max-w-[480px]">
