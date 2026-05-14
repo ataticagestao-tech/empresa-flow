@@ -19,7 +19,8 @@ import {
     Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
     Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
-    DollarSign, Clock, Bot, CreditCard, FileSpreadsheet, X
+    DollarSign, Clock, Bot, CreditCard, FileSpreadsheet, X,
+    ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, TrendingUp
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -363,6 +364,23 @@ export default function Conciliacao() {
 
         return { conciliado, aConciliar, withAiSupport, aiPercent, totalPending: suggestions.length, periodoLabel };
     }, [reconciledTx, bankTransactions, suggestions]);
+
+    // Totais do extrato atual (pendentes + ja reconciliadas — fluxo financeiro real)
+    const extratoSummary = useMemo(() => {
+        const TRANSFER_REGEX = /transfer(e|ê)ncia.*entre.*contas|mesma.*titularidade|entre.*cc|transf.*cc/i;
+        const all = [...(bankTransactions || []), ...(reconciledTx || [])];
+        let entradas = 0, saidas = 0, transferencias = 0;
+        for (const t of all) {
+            const amount = Number((t as any).amount || 0);
+            const desc = String((t as any).description || "") + " " + String((t as any).memo || "");
+            const isTransfer = TRANSFER_REGEX.test(desc);
+            if (amount > 0) entradas += amount;
+            else if (amount < 0) saidas += Math.abs(amount);
+            if (isTransfer) transferencias += Math.abs(amount);
+        }
+        const resultado = entradas - saidas;
+        return { entradas, saidas, transferencias, resultado, total: all.length };
+    }, [bankTransactions, reconciledTx]);
 
     // Build lookup: bankTxId -> suggestion
     const suggestionMap = useMemo(() => {
@@ -1692,62 +1710,52 @@ export default function Conciliacao() {
                             )}
                         </Card>
 
-                        {/* Score Summary Cards */}
-                        {scoreSummary.total > 0 && (
+                        {/* Totais do extrato em trabalho (entradas, saidas, transferencias, resultado) */}
+                        {extratoSummary.total > 0 && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <Card
-                                    className={`cursor-pointer transition-all ${scoreFilter === "auto" ? "ring-2 ring-emerald-400" : "hover:shadow-md"}`}
-                                    onClick={() => setScoreFilter(scoreFilter === "auto" ? "all" : "auto")}
-                                >
+                                <Card className="hover:shadow-md transition-all">
                                     <CardContent className="p-4 flex items-center gap-3">
                                         <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                                            <Zap className="h-5 w-5 text-emerald-600" />
+                                            <ArrowDownCircle className="h-5 w-5 text-emerald-600" />
                                         </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-emerald-600">{scoreSummary.auto}</p>
-                                            <p className="text-xs text-muted-foreground">Auto-conciliar</p>
+                                        <div className="min-w-0">
+                                            <p className="text-xl font-bold text-emerald-600 tabular-nums truncate">{formatBRL(extratoSummary.entradas)}</p>
+                                            <p className="text-xs text-muted-foreground">Entradas</p>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card
-                                    className={`cursor-pointer transition-all ${scoreFilter === "suggested" ? "ring-2 ring-amber-400" : "hover:shadow-md"}`}
-                                    onClick={() => setScoreFilter(scoreFilter === "suggested" ? "all" : "suggested")}
-                                >
+                                <Card className="hover:shadow-md transition-all">
                                     <CardContent className="p-4 flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                                            <Eye className="h-5 w-5 text-amber-600" />
+                                        <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+                                            <ArrowUpCircle className="h-5 w-5 text-red-600" />
                                         </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-amber-600">{scoreSummary.suggested}</p>
-                                            <p className="text-xs text-muted-foreground">Sugeridos</p>
+                                        <div className="min-w-0">
+                                            <p className="text-xl font-bold text-red-600 tabular-nums truncate">{formatBRL(extratoSummary.saidas)}</p>
+                                            <p className="text-xs text-muted-foreground">Saídas</p>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card
-                                    className={`cursor-pointer transition-all ${scoreFilter === "review" ? "ring-2 ring-slate-400" : "hover:shadow-md"}`}
-                                    onClick={() => setScoreFilter(scoreFilter === "review" ? "all" : "review")}
-                                >
+                                <Card className="hover:shadow-md transition-all">
                                     <CardContent className="p-4 flex items-center gap-3">
                                         <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                                            <HelpCircle className="h-5 w-5 text-slate-500" />
+                                            <ArrowLeftRight className="h-5 w-5 text-slate-600" />
                                         </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-slate-600">{scoreSummary.review}</p>
-                                            <p className="text-xs text-muted-foreground">Revisar</p>
+                                        <div className="min-w-0">
+                                            <p className="text-xl font-bold text-slate-700 tabular-nums truncate">{formatBRL(extratoSummary.transferencias)}</p>
+                                            <p className="text-xs text-muted-foreground">Transferência entre contas</p>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card
-                                    className={`cursor-pointer transition-all ${scoreFilter === "all" ? "ring-2 ring-blue-400" : "hover:shadow-md"}`}
-                                    onClick={() => setScoreFilter("all")}
-                                >
+                                <Card className="hover:shadow-md transition-all">
                                     <CardContent className="p-4 flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                                            <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${extratoSummary.resultado >= 0 ? "bg-blue-100" : "bg-orange-100"}`}>
+                                            <TrendingUp className={`h-5 w-5 ${extratoSummary.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`} />
                                         </div>
-                                        <div>
-                                            <p className="text-2xl font-bold text-blue-600">{scoreSummary.total}</p>
-                                            <p className="text-xs text-muted-foreground">Total pendentes</p>
+                                        <div className="min-w-0">
+                                            <p className={`text-xl font-bold tabular-nums truncate ${extratoSummary.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+                                                {formatBRL(extratoSummary.resultado)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">Resultado</p>
                                         </div>
                                     </CardContent>
                                 </Card>
