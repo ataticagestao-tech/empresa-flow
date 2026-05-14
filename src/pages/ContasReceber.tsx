@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
+import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
+import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
+import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -150,6 +153,9 @@ export default function ContasReceber() {
   const [editarModal, setEditarModal] = useState<CR | null>(null)
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [whatsCobrancaModal, setWhatsCobrancaModal] = useState<{ cr: CR; phone: string; text: string } | null>(null)
+  const [enviandoLote, setEnviandoLote] = useState(false)
+  const [loteEnviando, setLoteEnviando] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
 
   // ── Bulk selection ──
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -275,6 +281,114 @@ export default function ContasReceber() {
   // CRs em aberto/vencidos continuam filtrando por data_vencimento.
   const refDateFor = (cr: any): string =>
     cr._status === 'pago' && cr.data_pagamento ? cr.data_pagamento : cr.data_vencimento
+
+  // ── Cobranca via WhatsApp ──
+  async function abrirCobrancaWhatsApp(cr: CR) {
+    if (!companyId) return
+    // Tenta achar o celular do cliente pelo CPF/CNPJ ou nome
+    let phone = ''
+    try {
+      let q = db.from('clients').select('celular,telefone').eq('company_id', companyId).limit(1)
+      if (cr.pagador_cpf_cnpj) {
+        q = q.eq('cpf_cnpj', cr.pagador_cpf_cnpj)
+      } else {
+        q = q.ilike('razao_social', cr.pagador_nome)
+      }
+      const { data } = await q
+      const row = data?.[0]
+      phone = row?.celular || row?.telefone || ''
+    } catch { /* ignore */ }
+
+    // Monta template de cobranca
+    const hoje = format(new Date(), 'yyyy-MM-dd')
+    const isVencido = cr.data_vencimento < hoje && cr._status !== 'pago' && cr._status !== 'cancelado'
+    const diasAtraso = isVencido ? differenceInDays(new Date(), parseISO(cr.data_vencimento)) : 0
+    const saldo = cr.valor - (cr.valor_pago || 0)
+    const linhas = [
+      `Olá ${cr.pagador_nome}!`,
+      ``,
+      isVencido
+        ? `Identificamos um título *em atraso* há ${diasAtraso} dia${diasAtraso > 1 ? 's' : ''}:`
+        : `Lembrete de cobrança — título com vencimento próximo:`,
+      ``,
+      `*Valor:* ${formatBRL(saldo)}`,
+      `*Vencimento:* ${formatData(cr.data_vencimento)}`,
+    ]
+    if (cr.observacoes) linhas.push(`*Referente a:* ${cr.observacoes}`)
+    linhas.push(``)
+    linhas.push(`Por favor, providencie o pagamento. Qualquer dúvida, estamos à disposição.`)
+    const text = linhas.join('\n')
+
+    setWhatsCobrancaModal({ cr, phone, text })
+  }
+
+  // Envia lembrete WhatsApp em lote para os CRs selecionados
+  async function enviarLembreteLote() {
+    if (!companyId || selectedIds.size === 0) return
+    const selecionados = enrichedItems.filter(cr => selectedIds.has(cr.id))
+    if (selecionados.length === 0) return
+
+    const ok = await confirm({
+      title: `Enviar lembrete WhatsApp para ${selecionados.length} cliente${selecionados.length > 1 ? 's' : ''}?`,
+      description: 'Vamos buscar o celular cadastrado de cada cliente e enviar uma mensagem padrão de cobrança. Clientes sem celular cadastrado serão pulados.',
+      confirmLabel: 'Sim, enviar',
+    })
+    if (!ok) return
+
+    setEnviandoLote(true)
+    setLoteEnviando({ current: 0, total: selecionados.length })
+
+    // Busca celulares dos clientes em batch (1 query por CPF/CNPJ)
+    const cpfs = selecionados.map(cr => cr.pagador_cpf_cnpj).filter(Boolean) as string[]
+    let clientsByCpf: Record<string, { celular?: string; telefone?: string }> = {}
+    if (cpfs.length > 0) {
+      const { data } = await db.from('clients').select('cpf_cnpj, celular, telefone').eq('company_id', companyId).in('cpf_cnpj', cpfs)
+      ;(data || []).forEach((c: any) => { if (c.cpf_cnpj) clientsByCpf[c.cpf_cnpj] = { celular: c.celular, telefone: c.telefone } })
+    }
+
+    const hoje = format(new Date(), 'yyyy-MM-dd')
+    let enviados = 0, falhou = 0, semCelular = 0
+    for (let i = 0; i < selecionados.length; i++) {
+      const cr = selecionados[i]
+      setLoteEnviando({ current: i + 1, total: selecionados.length })
+
+      const c = cr.pagador_cpf_cnpj ? clientsByCpf[cr.pagador_cpf_cnpj] : null
+      const phone = c?.celular || c?.telefone || ''
+      if (!phone) { semCelular++; continue }
+
+      const isVencido = cr.data_vencimento < hoje && cr._status !== 'pago' && cr._status !== 'cancelado'
+      const diasAtraso = isVencido ? differenceInDays(new Date(), parseISO(cr.data_vencimento)) : 0
+      const saldo = cr.valor - (cr.valor_pago || 0)
+      const text = [
+        `Olá ${cr.pagador_nome}!`,
+        ``,
+        isVencido
+          ? `Identificamos um título em atraso há ${diasAtraso} dia${diasAtraso > 1 ? 's' : ''}:`
+          : `Lembrete de cobrança — título com vencimento próximo:`,
+        ``,
+        `*Valor:* ${formatBRL(saldo)}`,
+        `*Vencimento:* ${formatData(cr.data_vencimento)}`,
+        cr.observacoes ? `*Referente a:* ${cr.observacoes}` : null,
+        ``,
+        `Por favor, providencie o pagamento. Qualquer dúvida, estamos à disposição.`,
+      ].filter(Boolean).join('\n')
+
+      const result = await sendWhatsApp({ phone, text })
+      if (result.ok) enviados++; else falhou++
+      // pequeno delay pra nao saturar a Evolution API
+      await new Promise(r => setTimeout(r, 350))
+    }
+
+    setEnviandoLote(false)
+    setLoteEnviando({ current: 0, total: 0 })
+
+    const partes: string[] = []
+    if (enviados > 0) partes.push(`${enviados} enviados`)
+    if (falhou > 0) partes.push(`${falhou} falharam`)
+    if (semCelular > 0) partes.push(`${semCelular} sem celular`)
+    toast(enviados > 0 ? 'Lembretes enviados' : 'Nada enviado', { description: partes.join(' · ') })
+    if (enviados > 0) setSelectedIds(new Set())
+  }
 
   const dateFilteredItems = useMemo(() => {
     let list = enrichedItems
@@ -1135,6 +1249,19 @@ export default function ContasReceber() {
                   {selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}
                 </span>
                 <button
+                  onClick={enviarLembreteLote}
+                  disabled={enviandoLote}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-emerald-600 rounded hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                  title="Enviar lembrete via WhatsApp para todos os selecionados"
+                >
+                  {enviandoLote ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
+                  )}
+                  {enviandoLote ? `Enviando ${loteEnviando.current}/${loteEnviando.total}...` : 'Enviar lembrete WhatsApp'}
+                </button>
+                <button
                   onClick={() => setQuitarLoteModal(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-[#039855] bg-white rounded hover:bg-[#ECFDF3] transition-colors"
                 >
@@ -1341,13 +1468,11 @@ export default function ContasReceber() {
                                     Cancelar titulo
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      setDropdownOpen(null)
-                                      alert('Funcionalidade de cobranca manual sera implementada em breve.')
-                                    }}
-                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors"
+                                    onClick={() => { setDropdownOpen(null); abrirCobrancaWhatsApp(cr) }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center gap-2"
                                   >
-                                    Enviar cobranca manual
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm0 18.15h-.01c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.32a8.234 8.234 0 01-1.27-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 012.41 5.83c.02 4.54-3.68 8.23-8.21 8.23zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.78.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.37-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.42-.14-.01-.31-.01-.48-.01s-.43.06-.66.31c-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.66 4.23 3.73.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/></svg>
+                                    Enviar cobrança WhatsApp
                                   </button>
                                   <button
                                     onClick={() => { setDropdownOpen(null); excluirCR(cr) }}
@@ -1514,6 +1639,20 @@ export default function ContasReceber() {
           }}
         />
       )}
+
+      <SendWhatsAppDialog
+        open={!!whatsCobrancaModal}
+        onClose={() => setWhatsCobrancaModal(null)}
+        title="Enviar cobrança via WhatsApp"
+        subtitle={whatsCobrancaModal && (
+          <>
+            <p className="font-semibold text-[#1D2939]">{whatsCobrancaModal.cr.pagador_nome}</p>
+            <p className="text-[#667085] mt-0.5">{formatBRL(whatsCobrancaModal.cr.valor)} — Venc: {formatData(whatsCobrancaModal.cr.data_vencimento)}</p>
+          </>
+        )}
+        defaultPhone={whatsCobrancaModal?.phone || ''}
+        defaultText={whatsCobrancaModal?.text || ''}
+      />
     </AppLayout>
   )
 }
