@@ -19,8 +19,8 @@ import {
     Upload, Check, RefreshCw, ArrowLeft, Search, FileText,
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
     Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
-    DollarSign, Clock, Bot, CreditCard, FileSpreadsheet, X,
-    ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, TrendingUp
+    DollarSign, Bot, CreditCard, FileSpreadsheet, X,
+    ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, TrendingUp, Wallet
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -271,6 +271,23 @@ export default function Conciliacao() {
 
     const { seedDefaultRules, rulesCount: defaultRulesCount } = useDefaultConciliationRules();
 
+    // Saldo do caixa da conta — view v_saldo_contas_bancarias
+    const { data: saldoConta } = useQuery({
+        queryKey: ["saldo_conta_conciliacao", selectedAccountId],
+        queryFn: async () => {
+            if (!selectedAccountId) return null;
+            const { data, error } = await (activeClient as any)
+                .from("v_saldo_contas_bancarias")
+                .select("saldo_atual, saldo_inicial, movimentado, data_saldo_inicial")
+                .eq("conta_bancaria_id", selectedAccountId)
+                .maybeSingle();
+            if (error) return null;
+            return data as { saldo_atual: number; saldo_inicial: number; movimentado: number; data_saldo_inicial: string | null } | null;
+        },
+        enabled: !!selectedAccountId,
+        staleTime: 30 * 1000,
+    });
+
     // Faturamento conciliado vs a conciliar — buscar apenas soma e datas (não 5000 rows)
     const { data: reconciledTx } = useQuery({
         queryKey: ["reconciled_transactions", selectedAccountId],
@@ -415,32 +432,6 @@ export default function Conciliacao() {
         queryClient.invalidateQueries({ queryKey: ["historical_categorized_tx"] });
         setEditingCategoryTxId(null);
     };
-
-    const billingStats = useMemo(() => {
-        const conciliado = (reconciledTx || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
-        const aConciliar = (bankTransactions || []).reduce((acc: number, t: any) => acc + Math.abs(Number(t.amount || 0)), 0);
-        const withAiSupport = suggestions.filter(s => s.score > 0).length;
-        const aiPercent = suggestions.length > 0 ? Math.round((withAiSupport / suggestions.length) * 100) : 0;
-
-        // Período: min/max date de todas as transações (pendentes + reconciliadas)
-        const allDates: string[] = [
-            ...(bankTransactions || []).map((t: any) => t.date).filter(Boolean),
-            ...(reconciledTx || []).map((t: any) => t.date).filter(Boolean),
-        ];
-        let periodoLabel = "";
-        if (allDates.length > 0) {
-            const sorted = allDates.sort();
-            const minDate = sorted[0];
-            const maxDate = sorted[sorted.length - 1];
-            try {
-                const fmtMin = format(parseISO(minDate), "dd/MM/yyyy", { locale: ptBR });
-                const fmtMax = format(parseISO(maxDate), "dd/MM/yyyy", { locale: ptBR });
-                periodoLabel = fmtMin === fmtMax ? fmtMin : `${fmtMin} — ${fmtMax}`;
-            } catch { periodoLabel = ""; }
-        }
-
-        return { conciliado, aConciliar, withAiSupport, aiPercent, totalPending: suggestions.length, periodoLabel };
-    }, [reconciledTx, bankTransactions, suggestions]);
 
     // Totais do extrato atual (pendentes + ja reconciliadas — fluxo financeiro real)
     const extratoSummary = useMemo(() => {
@@ -1368,69 +1359,42 @@ export default function Conciliacao() {
                 ) : (
                     <div className="grid gap-6">
 
-                        {/* Faturamento Cards — sempre visíveis no topo */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="border-emerald-200 bg-emerald-50/50">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento Conciliado</p>
-                                            <p className="text-2xl font-bold text-emerald-600 mt-1">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.conciliado)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {reconciledTx?.length || 0} transações reconciliadas
-                                            </p>
-                                            {billingStats.periodoLabel && (
-                                                <p className="text-xs text-emerald-600/80 mt-1 flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" />
-                                                    Período: {billingStats.periodoLabel}
+                        {/* Saldo do caixa da conta selecionada */}
+                        {(() => {
+                            const saldoAtual = Number(saldoConta?.saldo_atual || 0);
+                            const saldoInicial = Number(saldoConta?.saldo_inicial || 0);
+                            const movimentado = Number(saldoConta?.movimentado || 0);
+                            const positivo = saldoAtual >= 0;
+                            const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+                            return (
+                                <Card className={positivo ? "border-emerald-200 bg-emerald-50/50" : "border-rose-200 bg-rose-50/50"}>
+                                    <CardContent className="p-5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    Saldo do Caixa{selectedAccount?.name ? ` — ${selectedAccount.name}` : ''}
                                                 </p>
-                                            )}
+                                                <p className={`text-2xl font-bold mt-1 ${positivo ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                    {fmt(saldoAtual)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Saldo inicial {fmt(saldoInicial)} + Movimentado {fmt(movimentado)}
+                                                </p>
+                                                {saldoConta?.data_saldo_inicial && (
+                                                    <p className="text-xs text-muted-foreground/80 mt-0.5 flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        Desde {format(parseISO(saldoConta.data_saldo_inicial), 'dd/MM/yyyy')}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${positivo ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+                                                <Wallet className={`h-6 w-6 ${positivo ? 'text-emerald-600' : 'text-rose-600'}`} />
+                                            </div>
                                         </div>
-                                        <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                            <DollarSign className="h-6 w-6 text-emerald-600" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-amber-200 bg-amber-50/50">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Faturamento a Conciliar</p>
-                                            <p className="text-2xl font-bold text-amber-600 mt-1">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(billingStats.aConciliar)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {billingStats.totalPending} transações pendentes
-                                            </p>
-                                        </div>
-                                        <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                                            <Clock className="h-6 w-6 text-amber-600" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-purple-200 bg-purple-50/50">
-                                <CardContent className="p-5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suporte IA</p>
-                                            <p className="text-2xl font-bold text-purple-600 mt-1">
-                                                {billingStats.aiPercent}%
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {billingStats.withAiSupport} de {billingStats.totalPending} com sugestão automática
-                                            </p>
-                                        </div>
-                                        <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                                            <Bot className="h-6 w-6 text-purple-600" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })()}
 
                         {/* Painel de Regras Aprendidas */}
                         {showRulesPanel && (
