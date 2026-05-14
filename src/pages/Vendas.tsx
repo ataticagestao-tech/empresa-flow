@@ -9,6 +9,7 @@ import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
+import { RegistrarPagamentoDialog } from '@/modules/clients/presentation/components/RegistrarPagamentoDialog'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -104,6 +105,16 @@ interface NovoItem {
   quantidade: number
   valor_unitario: number
   produto_id?: string
+}
+
+interface ContratoAbertoCliente {
+  id: string
+  tipo: 'contrato' | 'pacote'
+  procedimento: string | null
+  valor_total: number
+  total_pago: number
+  saldo: number
+  data_venda: string
 }
 
 /* ================================================================
@@ -245,6 +256,12 @@ export default function Vendas() {
   const [formDesconto, setFormDesconto] = useState(0)
   const [formPagamentos, setFormPagamentos] = useState<PagamentoSplit[]>([novoSplit()])
   const [formCentroCusto, setFormCentroCusto] = useState('')
+
+  // ─── Contratos/pacotes em aberto do cliente (detecção em Nova Venda) ─
+  const [contratosAbertosCliente, setContratosAbertosCliente] = useState<ContratoAbertoCliente[]>([])
+  const [carregandoContratosCliente, setCarregandoContratosCliente] = useState(false)
+  const [bannerContratoDispensado, setBannerContratoDispensado] = useState(false)
+  const [pagamentoContrato, setPagamentoContrato] = useState<{ contrato: ContratoAbertoCliente; modoQuitacao: boolean } | null>(null)
 
   // ─── Client search state ─────────────────────────────────────
   const [clienteSearch, setClienteSearch] = useState('')
@@ -397,7 +414,8 @@ export default function Vendas() {
 
   // CR status agrupado
   const crStatusUnicos = useMemo(() => {
-    const counts: Record<string, number> = { pago: 0, aberto: 0, parcial: 0, avista: 0 }
+    const counts: Record<string, number> = { pago: 0, aberto: 0, areceber: 0, parcial: 0, avista: 0 }
+    const hoje = new Date().toISOString().slice(0, 10)
     vendas.forEach(v => {
       const crs = v.contas_receber || []
       let st: string
@@ -411,7 +429,10 @@ export default function Vendas() {
         })
         if (todosOperadora) st = 'pago'
         else if (crs.some(c => c.status === 'parcial')) st = 'parcial'
-        else st = 'aberto'
+        else {
+          const algumVencido = naoPagos.some(c => c.data_vencimento && c.data_vencimento < hoje)
+          st = algumVencido ? 'aberto' : 'areceber'
+        }
       }
       counts[st] = (counts[st] || 0) + 1
     })
@@ -794,6 +815,81 @@ export default function Vendas() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // ─── Reset do banner sempre que cliente/tipo mudar ───────────
+  useEffect(() => {
+    setBannerContratoDispensado(false)
+  }, [formCpfCnpj, formClienteId, formTipo])
+
+  // ─── Detecta contratos/pacotes em aberto do cliente ──────────
+  // Roda quando o usuário escolhe tipo=contrato|pacote no modal Nova Venda
+  // e tem cliente com CPF/CNPJ. Não roda em modo edição (já é a própria venda).
+  useEffect(() => {
+    if (!modalAberto || editandoVenda) { setContratosAbertosCliente([]); return }
+    if (formTipo !== 'contrato' && formTipo !== 'pacote') { setContratosAbertosCliente([]); return }
+    const doc = (formCpfCnpj || '').replace(/\D/g, '')
+    if (!doc || !companyId) { setContratosAbertosCliente([]); return }
+
+    let cancelled = false
+    setCarregandoContratosCliente(true)
+    ;(async () => {
+      try {
+        const { data: vendasData, error: vendasErr } = await db
+          .from('vendas')
+          .select('id, tipo, procedimento, valor_total, data_venda, observacoes')
+          .eq('company_id', companyId)
+          .eq('cliente_cpf_cnpj', doc)
+          .in('tipo', ['contrato', 'pacote'])
+          .eq('status', 'confirmado')
+          .order('data_venda', { ascending: false })
+        if (vendasErr) throw vendasErr
+        if (!vendasData || vendasData.length === 0) {
+          if (!cancelled) setContratosAbertosCliente([])
+          return
+        }
+
+        const ids = vendasData.map((v: any) => v.id)
+        const { data: crsData, error: crsErr } = await db
+          .from('contas_receber')
+          .select('venda_id, valor_pago')
+          .in('venda_id', ids)
+          .is('deleted_at', null)
+        if (crsErr) throw crsErr
+
+        const pagoPorVenda = new Map<string, number>()
+        for (const cr of (crsData as any[]) || []) {
+          const cur = pagoPorVenda.get(cr.venda_id) || 0
+          pagoPorVenda.set(cr.venda_id, cur + parseFloat(cr.valor_pago || 0))
+        }
+
+        const lista: ContratoAbertoCliente[] = (vendasData as any[])
+          .map(v => {
+            const total = parseFloat(v.valor_total || 0)
+            const pago = pagoPorVenda.get(v.id) || 0
+            const saldo = Math.round((total - pago) * 100) / 100
+            return {
+              id: v.id,
+              tipo: v.tipo as 'contrato' | 'pacote',
+              procedimento: v.procedimento || v.observacoes || null,
+              valor_total: total,
+              total_pago: pago,
+              saldo,
+              data_venda: v.data_venda,
+            }
+          })
+          .filter(c => c.saldo > 0.01)
+
+        if (!cancelled) setContratosAbertosCliente(lista)
+      } catch (e) {
+        console.error('[Vendas] erro ao detectar contratos abertos:', e)
+        if (!cancelled) setContratosAbertosCliente([])
+      } finally {
+        if (!cancelled) setCarregandoContratosCliente(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [modalAberto, editandoVenda, formTipo, formCpfCnpj, companyId])
+
   // ─── Helpers ─────────────────────────────────────────────────
   function resetForm() {
     setFormTipo('servico')
@@ -808,6 +904,8 @@ export default function Vendas() {
     setFormPagamentos([novoSplit()])
     setFormCentroCusto('')
     setErroModal(null)
+    setContratosAbertosCliente([])
+    setBannerContratoDispensado(false)
   }
 
   async function carregarVendaParaEdicao(venda: Venda) {
@@ -940,9 +1038,6 @@ export default function Vendas() {
     if (crs.length === 0) return 'avista'
     const allPago = crs.every(c => c.status === 'pago')
     if (allPago) return 'pago'
-    // Verifica se TODOS os CRs nao pagos sao de cartao de credito / parcelado.
-    // Nesse caso o cliente ja pagou (passou o cartao) e a operadora e quem
-    // esta repassando — nao e inadimplencia. Status proprio "A receber".
     const naoPagos = crs.filter(c => c.status !== 'pago')
     const todosOperadora = naoPagos.length > 0 && naoPagos.every(c => {
       const f = c.forma_recebimento || venda.forma_pagamento
@@ -951,7 +1046,9 @@ export default function Vendas() {
     if (todosOperadora) return 'pago'
     const anyParcial = crs.some(c => c.status === 'parcial')
     if (anyParcial) return 'parcial'
-    return 'aberto'
+    const hoje = new Date().toISOString().slice(0, 10)
+    const algumVencido = naoPagos.some(c => c.data_vencimento && c.data_vencimento < hoje)
+    return algumVencido ? 'aberto' : 'areceber'
   }
 
   function formatDoc(doc: string | null) {
@@ -1585,11 +1682,12 @@ export default function Vendas() {
     const styles: Record<string, string> = {
       pago: 'text-[#039855] bg-[#ECFDF3] border border-[#039855]',
       aberto: 'text-[#B91C1C] bg-[#FEE2E2] border border-[#B91C1C]',
+      areceber: 'text-[#1D4ED8] bg-[#EFF6FF] border border-[#1D4ED8]',
       parcial: 'text-[#EA580C] bg-[#FFF0EB] border border-[#EA580C]',
       avista: 'text-[#555] bg-[#F6F2EB] border border-[#ccc]',
     }
     const labels: Record<string, string> = {
-      pago: 'Pago', aberto: 'Inadimplente', parcial: 'CR \u2014 parcial', avista: 'À vista',
+      pago: 'Pago', aberto: 'Inadimplente', areceber: 'A receber', parcial: 'CR — parcial', avista: 'À vista',
     }
     return (
       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${styles[st]}`}>
@@ -1779,7 +1877,7 @@ export default function Vendas() {
               className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#D1FAE5]"
               title="Remover filtro"
             >
-              CR: <span className="font-normal">{filtroCR === 'pago' ? 'Pago' : filtroCR === 'aberto' ? 'Inadimplente' : filtroCR === 'parcial' ? 'Parcial' : 'À vista'}</span>
+              CR: <span className="font-normal">{filtroCR === 'pago' ? 'Pago' : filtroCR === 'aberto' ? 'Inadimplente' : filtroCR === 'areceber' ? 'A receber' : filtroCR === 'parcial' ? 'Parcial' : 'À vista'}</span>
               <X size={11} />
             </button>
           )}
@@ -2480,6 +2578,80 @@ export default function Vendas() {
                   </div>
                 )}
               </div>
+
+              {/* Banner: cliente já tem contrato/pacote em aberto */}
+              {!bannerContratoDispensado &&
+                (formTipo === 'contrato' || formTipo === 'pacote') &&
+                formCpfCnpj &&
+                contratosAbertosCliente.length > 0 && (
+                <div className="rounded-md border-2 border-[#F59E0B] bg-[#FFFBEB] px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={16} className="text-[#D97706] mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-bold text-[#92400E]">
+                        {formCliente || 'Este cliente'} já tem {contratosAbertosCliente.length} {contratosAbertosCliente.length === 1 ? 'contrato/pacote' : 'contratos/pacotes'} em aberto
+                      </p>
+                      <p className="text-[11px] text-[#92400E]/85 mt-0.5">
+                        Em vez de criar um {formTipo} novo, registre o pagamento no existente para amortizar o saldo.
+                      </p>
+                      <div className="mt-2 space-y-1.5">
+                        {contratosAbertosCliente.map(c => (
+                          <div key={c.id} className="bg-white border border-[#FCD34D] rounded px-3 py-2">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[12px] font-semibold text-[#1D2939] flex items-center gap-2 flex-wrap">
+                                  <span className="truncate">{c.procedimento || (c.tipo === 'contrato' ? 'Contrato' : 'Pacote')}</span>
+                                  <span className="inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded bg-[#F3F4F6] text-[#555]">
+                                    {c.tipo}
+                                  </span>
+                                  <span className="text-[10px] text-[#888] font-normal">
+                                    desde {formatData(c.data_venda)}
+                                  </span>
+                                </div>
+                                <div className="text-[10.5px] text-[#555] mt-0.5 tabular-nums">
+                                  Total {formatBRL(c.valor_total)} · Pago {formatBRL(c.total_pago)} · <strong className="text-[#B45309]">Saldo {formatBRL(c.saldo)}</strong>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setPagamentoContrato({ contrato: c, modoQuitacao: false })}
+                                  className="px-2.5 py-1 text-[10.5px] font-bold bg-[#059669] text-white rounded hover:bg-[#047857] transition-colors"
+                                >
+                                  Pagar parcela
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPagamentoContrato({ contrato: c, modoQuitacao: true })}
+                                  className="px-2.5 py-1 text-[10.5px] font-bold bg-[#0F1F33] text-white rounded hover:bg-black transition-colors"
+                                >
+                                  Quitar tudo
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setBannerContratoDispensado(true)}
+                        className="mt-2 text-[11px] font-semibold text-[#92400E] underline hover:text-[#451A03]"
+                      >
+                        Criar {formTipo === 'contrato' ? 'contrato' : 'pacote'} novo mesmo assim →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {carregandoContratosCliente &&
+                (formTipo === 'contrato' || formTipo === 'pacote') &&
+                formCpfCnpj &&
+                contratosAbertosCliente.length === 0 && (
+                <div className="flex items-center gap-2 text-[11px] text-[#888] -mt-2">
+                  <Loader2 size={12} className="animate-spin" /> Verificando contratos/pacotes em aberto...
+                </div>
+              )}
 
               {/* Data */}
               <div>
@@ -3484,6 +3656,44 @@ export default function Vendas() {
         defaultTo={posVenda?.email || ''}
         defaultSubject={posVenda?.emailAssunto || ''}
         defaultBody={posVenda?.emailCorpo || ''}
+      />
+
+      {/* Dialog de pagamento/quitação de contrato existente (vindo do banner) */}
+      <RegistrarPagamentoDialog
+        contrato={pagamentoContrato ? ({
+          id: pagamentoContrato.contrato.id,
+          descricao: pagamentoContrato.contrato.procedimento || (pagamentoContrato.contrato.tipo === 'contrato' ? 'Contrato' : 'Pacote'),
+          consultora: null,
+          procedimento: pagamentoContrato.contrato.procedimento,
+          valor_total: pagamentoContrato.contrato.valor_total,
+          reserva_valor: null,
+          reserva_data: null,
+          forma_pagamento: null,
+          parcelas_qtd: 0,
+          data_venda: pagamentoContrato.contrato.data_venda,
+          data_contrato: pagamentoContrato.contrato.data_venda,
+          previsao_cirurgia: null,
+          contrato_url: null,
+          status: 'confirmado',
+          crs: [],
+          total_pago: pagamentoContrato.contrato.total_pago,
+          saldo: pagamentoContrato.contrato.saldo,
+          parcelas_pagas: 0,
+        } as any) : null}
+        clientName={formCliente}
+        clientCpfCnpj={formCpfCnpj}
+        modoQuitacao={pagamentoContrato?.modoQuitacao || false}
+        onClose={() => {
+          const wasOpen = !!pagamentoContrato
+          setPagamentoContrato(null)
+          if (wasOpen) {
+            // Fecha o modal Nova Venda e recarrega a lista de vendas
+            setModalAberto(false)
+            setEditandoVenda(null)
+            resetForm()
+            fetchVendas()
+          }
+        }}
       />
     </AppLayout>
   )

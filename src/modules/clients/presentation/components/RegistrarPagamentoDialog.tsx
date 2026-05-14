@@ -30,9 +30,16 @@ interface Props {
     clientName: string;
     clientCpfCnpj: string | null | undefined;
     onClose: () => void;
+    /**
+     * Quando true, o diálogo entra em modo "quitar tudo":
+     * - valor inicia com o saldo total e fica bloqueado
+     * - após registrar o pagamento, todas as CRs em aberto da venda
+     *   são soft-deletadas (zera as parcelas pendentes)
+     */
+    modoQuitacao?: boolean;
 }
 
-export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, onClose }: Props) {
+export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, onClose, modoQuitacao = false }: Props) {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const queryClient = useQueryClient();
@@ -49,13 +56,13 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
 
     useEffect(() => {
         if (contrato) {
-            setValor("");
+            setValor(modoQuitacao ? (contrato.saldo || 0).toFixed(2) : "");
             setData(new Date().toISOString().slice(0, 10));
             setForma("pix");
             setContaBancaria("");
             setObservacoes("");
         }
-    }, [contrato?.id]);
+    }, [contrato?.id, modoQuitacao]);
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -65,6 +72,10 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
             if (!contaBancaria) throw new Error("Selecione a conta bancária");
 
             const ac = activeClient as any;
+
+            const obsBase = modoQuitacao
+                ? `Quitação — ${contrato.procedimento || "contrato"}`
+                : `Pagamento avulso — ${contrato.procedimento || "contrato"}`;
 
             const { data: cr, error: crErr } = await ac
                 .from("contas_receber")
@@ -79,7 +90,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                     status: "pago",
                     forma_recebimento: forma,
                     venda_id: contrato.id,
-                    observacoes: observacoes.trim() || `Pagamento avulso — ${contrato.procedimento || "contrato"}`,
+                    observacoes: observacoes.trim() || obsBase,
                 })
                 .select()
                 .single();
@@ -93,19 +104,33 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                 tipo: "credito",
                 valor: v,
                 data,
-                descricao: `Pagamento avulso — ${clientName} — ${contrato.procedimento || "Contrato"}`,
+                descricao: `${modoQuitacao ? "Quitação" : "Pagamento avulso"} — ${clientName} — ${contrato.procedimento || "Contrato"}`,
                 origem: "conta_receber",
                 conta_receber_id: cr.id,
             });
 
             if (movErr) throw movErr;
 
+            // No modo Quitação, soft-delete das CRs em aberto da venda
+            // (as que ainda não foram pagas) — limpa o calendário de parcelas.
+            if (modoQuitacao) {
+                const { error: delErr } = await ac
+                    .from("contas_receber")
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq("venda_id", contrato.id)
+                    .eq("status", "aberto")
+                    .is("deleted_at", null)
+                    .neq("id", cr.id);
+                if (delErr) console.error("[RegistrarPagamento] erro ao limpar parcelas em aberto:", delErr);
+            }
+
             return cr;
         },
         onSuccess: () => {
-            toast.success("Pagamento registrado e vinculado ao contrato");
+            toast.success(modoQuitacao ? "Contrato quitado." : "Pagamento registrado e vinculado ao contrato");
             queryClient.invalidateQueries({ queryKey: ["client-contratos"] });
             queryClient.invalidateQueries({ queryKey: ["contas-receber"] });
+            queryClient.invalidateQueries({ queryKey: ["vendas"] });
             onClose();
         },
         onError: (err: any) => {
@@ -121,11 +146,16 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
             <DialogContent className="max-w-lg p-0 gap-0">
                 <div className="px-7 pt-6 pb-4 border-b border-[#eef0f3]">
                     <DialogTitle className="text-[16px] font-bold text-[#059669]">
-                        Registrar pagamento avulso
+                        {modoQuitacao ? "Quitar contrato" : "Registrar pagamento avulso"}
                     </DialogTitle>
                     <DialogDescription className="text-[11px] text-[#667085] mt-1">
                         {contrato?.procedimento && <>Contrato: <strong>{contrato.procedimento}</strong> · </>}
                         Saldo atual: <strong className="text-[#059669]">{formatBRL(contrato?.saldo || 0)}</strong>
+                        {modoQuitacao && (
+                            <span className="block mt-1 text-[#92400E]">
+                                As parcelas em aberto serão removidas após o pagamento.
+                            </span>
+                        )}
                     </DialogDescription>
                 </div>
 
@@ -141,7 +171,8 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                                 value={valor}
                                 onChange={(e) => setValor(e.target.value)}
                                 placeholder="0,00"
-                                className="h-10 bg-white tabular-nums font-semibold"
+                                disabled={modoQuitacao}
+                                className="h-10 bg-white tabular-nums font-semibold disabled:opacity-90 disabled:cursor-not-allowed"
                             />
                         </div>
                         <div>
@@ -241,7 +272,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                         {mutation.isPending
                             ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                             : <Check className="h-4 w-4 mr-1.5" />}
-                        Registrar pagamento
+                        {modoQuitacao ? "Quitar contrato" : "Registrar pagamento"}
                     </Button>
                 </div>
             </DialogContent>

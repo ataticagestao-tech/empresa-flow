@@ -51,6 +51,7 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<ContratoVenda | null>(null);
     const [pagamentoTarget, setPagamentoTarget] = useState<ContratoVenda | null>(null);
+    const [pagamentoQuitacao, setPagamentoQuitacao] = useState(false);
 
     if (!clientId) {
         return (
@@ -105,7 +106,18 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                             key={c.id}
                             contrato={c}
                             onEdit={() => setEditTarget(c)}
-                            onRegistrarPagamento={() => setPagamentoTarget(c)}
+                            onRegistrarPagamento={() => { setPagamentoQuitacao(false); setPagamentoTarget(c); }}
+                            onQuitarTudo={async () => {
+                                const ok = await confirm({
+                                    title: `Quitar este ${c.procedimento ? "contrato" : "contrato"}?`,
+                                    description: `Será registrado um pagamento de ${formatBRL(c.saldo)} (saldo total) e as parcelas em aberto serão removidas. Essa ação não pode ser desfeita.`,
+                                    confirmLabel: "Sim, quitar",
+                                });
+                                if (ok) {
+                                    setPagamentoQuitacao(true);
+                                    setPagamentoTarget(c);
+                                }
+                            }}
                             onDelete={async () => {
                                 const ok = await confirm({
                                     title: "Excluir este contrato?",
@@ -150,7 +162,8 @@ export function TabContracts({ clientId, clientName, clientCpfCnpj }: TabContrac
                 contrato={pagamentoTarget}
                 clientName={clientName || ""}
                 clientCpfCnpj={clientCpfCnpj}
-                onClose={() => setPagamentoTarget(null)}
+                modoQuitacao={pagamentoQuitacao}
+                onClose={() => { setPagamentoTarget(null); setPagamentoQuitacao(false); }}
             />
         </div>
     );
@@ -162,6 +175,7 @@ function ContratoCard({
     contrato,
     onEdit,
     onRegistrarPagamento,
+    onQuitarTudo,
     onDelete,
     onUploadPdf,
     uploading,
@@ -169,6 +183,7 @@ function ContratoCard({
     contrato: ContratoVenda;
     onEdit: () => void;
     onRegistrarPagamento: () => void;
+    onQuitarTudo: () => void;
     onDelete: () => void;
     onUploadPdf: (file: File) => void;
     uploading: boolean;
@@ -277,7 +292,7 @@ function ContratoCard({
             </div>
 
             {contrato.saldo > 0 && (
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex justify-end gap-2">
                     <Button
                         type="button"
                         size="sm"
@@ -286,6 +301,15 @@ function ContratoCard({
                         className="h-8 text-[11px] border-[#059669]/30 text-[#059669] hover:bg-[#059669] hover:text-white transition-colors"
                     >
                         <Plus className="h-3 w-3 mr-1" /> Registrar pagamento
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={onQuitarTudo}
+                        className="h-8 text-[11px] bg-[#0F1F33] hover:bg-black text-white transition-colors"
+                        title={`Quitar saldo de ${formatBRL(contrato.saldo)} e remover parcelas em aberto`}
+                    >
+                        <Check className="h-3 w-3 mr-1" /> Quitar tudo
                     </Button>
                 </div>
             )}
