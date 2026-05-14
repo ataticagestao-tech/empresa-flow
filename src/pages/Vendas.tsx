@@ -822,26 +822,39 @@ export default function Vendas() {
 
   // ─── Detecta contratos/pacotes em aberto do cliente ──────────
   // Roda quando o usuário escolhe tipo=contrato|pacote no modal Nova Venda
-  // e tem cliente com CPF/CNPJ. Não roda em modo edição (já é a própria venda).
+  // e tem cliente identificado (por CPF/CNPJ ou por nome). Não roda em
+  // modo edição (já é a própria venda).
   useEffect(() => {
     if (!modalAberto || editandoVenda) { setContratosAbertosCliente([]); return }
     if (formTipo !== 'contrato' && formTipo !== 'pacote') { setContratosAbertosCliente([]); return }
     const doc = (formCpfCnpj || '').replace(/\D/g, '')
-    if (!doc || !companyId) { setContratosAbertosCliente([]); return }
+    const nome = (formCliente || '').trim()
+    if ((!doc && nome.length < 3) || !companyId) { setContratosAbertosCliente([]); return }
 
     let cancelled = false
     setCarregandoContratosCliente(true)
     ;(async () => {
       try {
-        const { data: vendasData, error: vendasErr } = await db
+        // Match por CPF/CNPJ se disponível; caso contrário, por nome (ilike).
+        // Status: aceita qualquer um exceto 'cancelado' (contratos antigos podem
+        // ter status diferente de 'confirmado' a depender de como foram criados).
+        let q = db
           .from('vendas')
-          .select('id, tipo, procedimento, valor_total, data_venda, observacoes')
+          .select('id, cliente_nome, cliente_cpf_cnpj, tipo, procedimento, valor_total, data_venda, status, observacoes')
           .eq('company_id', companyId)
-          .eq('cliente_cpf_cnpj', doc)
           .in('tipo', ['contrato', 'pacote'])
-          .eq('status', 'confirmado')
+          .neq('status', 'cancelado')
           .order('data_venda', { ascending: false })
+
+        if (doc) {
+          q = q.eq('cliente_cpf_cnpj', doc)
+        } else {
+          q = q.ilike('cliente_nome', `%${nome}%`)
+        }
+
+        const { data: vendasData, error: vendasErr } = await q
         if (vendasErr) throw vendasErr
+        console.debug('[Vendas] detecta contratos:', { doc, nome, encontradas: vendasData?.length || 0 })
         if (!vendasData || vendasData.length === 0) {
           if (!cancelled) setContratosAbertosCliente([])
           return
@@ -878,6 +891,7 @@ export default function Vendas() {
           })
           .filter(c => c.saldo > 0.01)
 
+        console.debug('[Vendas] contratos com saldo > 0:', lista.length, lista)
         if (!cancelled) setContratosAbertosCliente(lista)
       } catch (e) {
         console.error('[Vendas] erro ao detectar contratos abertos:', e)
@@ -888,7 +902,7 @@ export default function Vendas() {
     })()
 
     return () => { cancelled = true }
-  }, [modalAberto, editandoVenda, formTipo, formCpfCnpj, companyId])
+  }, [modalAberto, editandoVenda, formTipo, formCpfCnpj, formCliente, companyId])
 
   // ─── Helpers ─────────────────────────────────────────────────
   function resetForm() {
@@ -2582,7 +2596,7 @@ export default function Vendas() {
               {/* Banner: cliente já tem contrato/pacote em aberto */}
               {!bannerContratoDispensado &&
                 (formTipo === 'contrato' || formTipo === 'pacote') &&
-                formCpfCnpj &&
+                (formCpfCnpj || (formCliente || '').trim().length >= 3) &&
                 contratosAbertosCliente.length > 0 && (
                 <div className="rounded-md border-2 border-[#F59E0B] bg-[#FFFBEB] px-4 py-3">
                   <div className="flex items-start gap-2">
@@ -2646,7 +2660,7 @@ export default function Vendas() {
 
               {carregandoContratosCliente &&
                 (formTipo === 'contrato' || formTipo === 'pacote') &&
-                formCpfCnpj &&
+                (formCpfCnpj || (formCliente || '').trim().length >= 3) &&
                 contratosAbertosCliente.length === 0 && (
                 <div className="flex items-center gap-2 text-[11px] text-[#888] -mt-2">
                   <Loader2 size={12} className="animate-spin" /> Verificando contratos/pacotes em aberto...
