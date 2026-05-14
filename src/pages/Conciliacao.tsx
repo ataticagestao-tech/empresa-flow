@@ -1712,50 +1712,76 @@ export default function Conciliacao() {
 
                         {/* Totais do extrato em trabalho (entradas, saidas, transferencias, resultado) */}
                         {extratoSummary.total > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <Card className="hover:shadow-md transition-all">
-                                    <CardContent className="p-4 flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                                            <ArrowDownCircle className="h-5 w-5 text-emerald-600" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xl font-bold text-emerald-600 tabular-nums truncate">{formatBRL(extratoSummary.entradas)}</p>
-                                            <p className="text-xs text-muted-foreground">Entradas</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                                <Card className="hover:shadow-md transition-all">
-                                    <CardContent className="p-4 flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-                                            <ArrowUpCircle className="h-5 w-5 text-red-600" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xl font-bold text-red-600 tabular-nums truncate">{formatBRL(extratoSummary.saidas)}</p>
-                                            <p className="text-xs text-muted-foreground">Saídas</p>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <Card className="border-emerald-200 bg-emerald-50/50">
+                                    <CardContent className="p-5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Entradas</p>
+                                                <p className="text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
+                                                    {formatBRL(extratoSummary.entradas)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Créditos no extrato
+                                                </p>
+                                            </div>
+                                            <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                <ArrowDownCircle className="h-6 w-6 text-emerald-600" />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="hover:shadow-md transition-all">
-                                    <CardContent className="p-4 flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                                            <ArrowLeftRight className="h-5 w-5 text-slate-600" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-xl font-bold text-slate-700 tabular-nums truncate">{formatBRL(extratoSummary.transferencias)}</p>
-                                            <p className="text-xs text-muted-foreground">Transferência entre contas</p>
+                                <Card className="border-red-200 bg-red-50/50">
+                                    <CardContent className="p-5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Saídas</p>
+                                                <p className="text-2xl font-bold text-red-600 mt-1 tabular-nums">
+                                                    {formatBRL(extratoSummary.saidas)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Débitos no extrato
+                                                </p>
+                                            </div>
+                                            <div className="h-12 w-12 rounded-xl bg-red-100 flex items-center justify-center">
+                                                <ArrowUpCircle className="h-6 w-6 text-red-600" />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="hover:shadow-md transition-all">
-                                    <CardContent className="p-4 flex items-center gap-3">
-                                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${extratoSummary.resultado >= 0 ? "bg-blue-100" : "bg-orange-100"}`}>
-                                            <TrendingUp className={`h-5 w-5 ${extratoSummary.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`} />
+                                <Card className="border-slate-200 bg-slate-50/50">
+                                    <CardContent className="p-5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Transferência entre contas</p>
+                                                <p className="text-2xl font-bold text-slate-700 mt-1 tabular-nums">
+                                                    {formatBRL(extratoSummary.transferencias)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Detectado por descrição
+                                                </p>
+                                            </div>
+                                            <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center">
+                                                <ArrowLeftRight className="h-6 w-6 text-slate-600" />
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className={`text-xl font-bold tabular-nums truncate ${extratoSummary.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`}>
-                                                {formatBRL(extratoSummary.resultado)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">Resultado</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className={extratoSummary.resultado >= 0 ? "border-blue-200 bg-blue-50/50" : "border-orange-200 bg-orange-50/50"}>
+                                    <CardContent className="p-5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resultado</p>
+                                                <p className={`text-2xl font-bold mt-1 tabular-nums ${extratoSummary.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+                                                    {formatBRL(extratoSummary.resultado)}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Entradas − Saídas
+                                                </p>
+                                            </div>
+                                            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${extratoSummary.resultado >= 0 ? "bg-blue-100" : "bg-orange-100"}`}>
+                                                <TrendingUp className={`h-6 w-6 ${extratoSummary.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`} />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
