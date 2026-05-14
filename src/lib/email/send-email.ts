@@ -59,12 +59,16 @@ export async function sendEmail({
         const { data, error } = await supabase.functions.invoke("enviar-email", { body: payload });
 
         if (error) {
-            const context: any = (error as any).context;
+            // supabase-js coloca a Response em error.context. Le body real (json/text)
+            const ctx: any = (error as any).context;
             let detail = error.message || "Falha ao enviar e-mail";
             try {
-                if (context?.body) {
-                    const parsed = typeof context.body === "string" ? JSON.parse(context.body) : context.body;
-                    detail = parsed?.erro || parsed?.error || detail;
+                if (ctx && typeof ctx.json === "function") {
+                    const parsed = await ctx.clone().json();
+                    detail = parsed?.erro || parsed?.error || JSON.stringify(parsed);
+                } else if (ctx && typeof ctx.text === "function") {
+                    const txt = await ctx.clone().text();
+                    if (txt) detail = txt;
                 }
             } catch { /* ignore */ }
             return { ok: false, error: detail };

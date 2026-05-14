@@ -30,14 +30,15 @@ export async function sendWhatsApp({ phone, text }: SendWhatsAppParams): Promise
         });
 
         if (error) {
-            // Quando a Edge Function retorna 4xx/5xx, supabase-js coloca em error.
-            // Tenta extrair a mensagem do body retornado.
-            const context: any = (error as any).context;
+            const ctx: any = (error as any).context;
             let detail = error.message || "Falha ao enviar WhatsApp";
             try {
-                if (context?.body) {
-                    const parsed = typeof context.body === "string" ? JSON.parse(context.body) : context.body;
-                    detail = parsed?.error || detail;
+                if (ctx && typeof ctx.json === "function") {
+                    const parsed = await ctx.clone().json();
+                    detail = parsed?.error || parsed?.erro || JSON.stringify(parsed);
+                } else if (ctx && typeof ctx.text === "function") {
+                    const txt = await ctx.clone().text();
+                    if (txt) detail = txt;
                 }
             } catch { /* ignore */ }
             return { ok: false, error: detail };
