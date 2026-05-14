@@ -37,6 +37,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategorySuggestion, ExternalSuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
 import { OpeningCheckDialog } from "@/modules/finance/presentation/components/OpeningCheckDialog";
+import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
+import { ClientSheet } from "@/components/clients/ClientSheet";
 import type { OFXSummary } from "@/lib/parsers/ofx";
 import { useAiRecategorization } from "@/modules/finance/presentation/hooks/useAiRecategorization";
 import { useHistoricalCategorySuggestion } from "@/modules/finance/presentation/hooks/useHistoricalCategorySuggestion";
@@ -113,6 +115,9 @@ export default function Conciliacao() {
         cpf_cnpj: "",           // CR only
         email: "",              // CR only
     });
+    const [credorTipo, setCredorTipo] = useState<"fornecedor" | "funcionario" | "cliente">("fornecedor");
+    const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false);
+    const [isClientSheetOpen, setIsClientSheetOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [scoreFilter, setScoreFilter] = useState<"all" | "auto" | "suggested" | "review">("all");
@@ -185,6 +190,53 @@ export default function Conciliacao() {
                 .eq("company_id", selectedCompany.id)
                 .eq("ativo", true)
                 .order("codigo");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    // Fornecedores, funcionarios e clientes para o picker de credor/pagador
+    const { data: suppliersList } = useQuery({
+        queryKey: ["suppliers_picker", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await (activeClient as any)
+                .from("suppliers")
+                .select("id, razao_social")
+                .eq("company_id", selectedCompany.id)
+                .order("razao_social");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    const { data: employeesList } = useQuery({
+        queryKey: ["employees_picker", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await (activeClient as any)
+                .from("employees")
+                .select("id, nome_completo, name")
+                .eq("company_id", selectedCompany.id)
+                .order("nome_completo");
+            if (error) return [];
+            return data || [];
+        },
+        enabled: !!selectedCompany?.id,
+    });
+
+    const { data: clientsList } = useQuery({
+        queryKey: ["clients_picker", selectedCompany?.id],
+        queryFn: async () => {
+            if (!selectedCompany?.id) return [];
+            const { data, error } = await (activeClient as any)
+                .from("clients")
+                .select("id, razao_social, nome_fantasia, cpf_cnpj, email")
+                .eq("company_id", selectedCompany.id)
+                .eq("is_active", true)
+                .order("razao_social");
             if (error) return [];
             return data || [];
         },
@@ -2321,15 +2373,105 @@ export default function Conciliacao() {
                                             <div className="space-y-2">
                                                 <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Identificação</h5>
                                                 <div className="space-y-3 p-3 rounded-lg border border-[#EAECF0] bg-white">
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                                                            {selectedBankTx.amount < 0 ? "Credor" : "Pagador"} <span className="text-red-500">*</span>
-                                                        </Label>
-                                                        <Input value={newEntry.entity_name}
-                                                            onChange={(e) => setNewEntry({ ...newEntry, entity_name: e.target.value })}
-                                                            placeholder={selectedBankTx.amount < 0 ? "Nome do fornecedor / credor" : "Nome do cliente / pagador"}
-                                                            className="h-9" />
-                                                    </div>
+                                                    {selectedBankTx.amount < 0 ? (
+                                                        /* CP: pill buttons + select de fornecedor/funcionario/cliente, igual ao Contas a Pagar */
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                                    Credor <span className="text-red-500">*</span>
+                                                                </Label>
+                                                                {credorTipo === "fornecedor" && (
+                                                                    <button type="button"
+                                                                        onClick={() => setIsSupplierSheetOpen(true)}
+                                                                        className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                                                                        <Plus className="h-3 w-3" /> Novo fornecedor
+                                                                    </button>
+                                                                )}
+                                                                {credorTipo === "cliente" && (
+                                                                    <button type="button"
+                                                                        onClick={() => setIsClientSheetOpen(true)}
+                                                                        className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                                                                        <Plus className="h-3 w-3" /> Novo cliente
+                                                                    </button>
+                                                                )}
+                                                                {credorTipo === "funcionario" && (
+                                                                    <a href="/funcionarios?new=true" target="_blank" rel="noreferrer"
+                                                                        className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                                                                        <Plus className="h-3 w-3" /> Novo funcionário
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-1.5">
+                                                                {(["fornecedor", "funcionario", "cliente"] as const).map(tipo => (
+                                                                    <button key={tipo} type="button"
+                                                                        onClick={() => { setCredorTipo(tipo); setNewEntry({ ...newEntry, entity_name: "" }); }}
+                                                                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full transition ${
+                                                                            credorTipo === tipo
+                                                                                ? "bg-emerald-600 text-white"
+                                                                                : "bg-white text-[#667085] border border-[#EAECF0] hover:bg-[#F6F2EB]"
+                                                                        }`}>
+                                                                        {tipo === "fornecedor" ? "Fornecedores" : tipo === "funcionario" ? "Funcionários" : "Clientes"}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <Select
+                                                                value={newEntry.entity_name}
+                                                                onValueChange={(val) => setNewEntry({ ...newEntry, entity_name: val })}>
+                                                                <SelectTrigger className="h-9">
+                                                                    <SelectValue placeholder={`Selecione ${credorTipo === "fornecedor" ? "um fornecedor" : credorTipo === "funcionario" ? "um funcionário" : "um cliente"}...`} />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {credorTipo === "fornecedor" && (suppliersList || []).map((s: any) => (
+                                                                        <SelectItem key={s.id} value={s.razao_social}>{s.razao_social}</SelectItem>
+                                                                    ))}
+                                                                    {credorTipo === "funcionario" && (employeesList || []).map((e: any) => (
+                                                                        <SelectItem key={e.id} value={e.nome_completo || e.name || ""}>
+                                                                            {e.nome_completo || e.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                    {credorTipo === "cliente" && (clientsList || []).map((c: any) => (
+                                                                        <SelectItem key={c.id} value={c.razao_social}>{c.razao_social}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    ) : (
+                                                        /* CR: select de clientes, igual ao Contas a Receber */
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                                    Pagador <span className="text-red-500">*</span>
+                                                                </Label>
+                                                                <button type="button"
+                                                                    onClick={() => setIsClientSheetOpen(true)}
+                                                                    className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                                                                    <Plus className="h-3 w-3" /> Novo cliente
+                                                                </button>
+                                                            </div>
+                                                            <Select
+                                                                value={newEntry.entity_name}
+                                                                onValueChange={(val) => {
+                                                                    const sel = (clientsList || []).find((c: any) => c.razao_social === val);
+                                                                    setNewEntry({
+                                                                        ...newEntry,
+                                                                        entity_name: val,
+                                                                        cpf_cnpj: sel?.cpf_cnpj || newEntry.cpf_cnpj,
+                                                                        email: sel?.email || newEntry.email,
+                                                                    });
+                                                                }}>
+                                                                <SelectTrigger className="h-9">
+                                                                    <SelectValue placeholder="Selecione um cliente..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(clientsList || []).map((c: any) => (
+                                                                        <SelectItem key={c.id} value={c.razao_social}>
+                                                                            {c.nome_fantasia || c.razao_social}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
                                                     <div className="space-y-1">
                                                         <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                                                             {selectedBankTx.amount < 0 ? "Descrição" : "Observação"}
@@ -2691,6 +2833,22 @@ export default function Conciliacao() {
                 systemBalanceAtClose={openingCheck?.systemBalanceAtClose ?? null}
                 bankAccountName={selectedAccount?.name}
                 bankAccountId={selectedAccountId}
+            />
+
+            <SupplierSheet
+                isOpen={isSupplierSheetOpen}
+                onClose={() => {
+                    setIsSupplierSheetOpen(false);
+                    queryClient.invalidateQueries({ queryKey: ["suppliers_picker", selectedCompany?.id] });
+                }}
+            />
+
+            <ClientSheet
+                isOpen={isClientSheetOpen}
+                onClose={() => {
+                    setIsClientSheetOpen(false);
+                    queryClient.invalidateQueries({ queryKey: ["clients_picker", selectedCompany?.id] });
+                }}
             />
         </AppLayout>
     );
