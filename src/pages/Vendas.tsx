@@ -7,6 +7,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -163,6 +164,7 @@ export default function Vendas() {
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [posVendaWhats, setPosVendaWhats] = useState<{ phone: string; text: string; cliente: string; valor: number } | null>(null)
   const [defaultReceitaContaId, setDefaultReceitaContaId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1363,10 +1365,56 @@ export default function Vendas() {
         }
       }
 
+      // Captura dados da venda para oferecer envio via WhatsApp apos fechar o modal.
+      // Skip se for edicao (so para venda nova) e se cliente nao foi identificado.
+      const vendaCriada = !editandoVenda && formCliente.trim() ? {
+        cliente_nome: formCliente.trim(),
+        cliente_cpf_cnpj: formCpfCnpj.trim() || null,
+        valor_total: totalVenda,
+        data_venda: formDataVenda,
+        forma_pagamento: formaVenda,
+        itens: formItens.map(it => ({ descricao: it.descricao, quantidade: it.quantidade })),
+      } : null
+
       resetForm()
       setEditandoVenda(null)
       setModalAberto(false)
       await fetchVendas()
+
+      if (vendaCriada) {
+        // Tenta buscar celular do cliente para pre-preencher
+        let phone = ''
+        try {
+          let q = db.from('clients').select('celular,telefone').eq('company_id', companyId).limit(1)
+          if (vendaCriada.cliente_cpf_cnpj) q = q.eq('cpf_cnpj', vendaCriada.cliente_cpf_cnpj)
+          else q = q.ilike('razao_social', vendaCriada.cliente_nome)
+          const { data } = await q
+          phone = data?.[0]?.celular || data?.[0]?.telefone || ''
+        } catch { /* ignore */ }
+
+        const itensLabel = vendaCriada.itens.length === 1
+          ? vendaCriada.itens[0].descricao
+          : `${vendaCriada.itens[0].descricao} +${vendaCriada.itens.length - 1} item${vendaCriada.itens.length > 2 ? 's' : ''}`
+        const text = [
+          `Olá ${vendaCriada.cliente_nome}!`,
+          ``,
+          `Recebemos o pagamento da sua venda:`,
+          ``,
+          `*Valor:* ${formatBRL(vendaCriada.valor_total)}`,
+          `*Data:* ${format(parseISO(vendaCriada.data_venda), 'dd/MM/yyyy')}`,
+          `*Forma:* ${vendaCriada.forma_pagamento}`,
+          `*Referente a:* ${itensLabel}`,
+          ``,
+          `Obrigado pela preferência!`,
+        ].join('\n')
+
+        setPosVendaWhats({
+          phone,
+          text,
+          cliente: vendaCriada.cliente_nome,
+          valor: vendaCriada.valor_total,
+        })
+      }
     } catch (e: any) {
       console.error('[salvarVenda]', e)
       setErroModal(e.message || 'Erro ao salvar venda.')
@@ -3337,6 +3385,20 @@ export default function Vendas() {
           </div>
         </div>
       )}
+
+      <SendWhatsAppDialog
+        open={!!posVendaWhats}
+        onClose={() => setPosVendaWhats(null)}
+        title="Enviar comprovante de venda via WhatsApp"
+        subtitle={posVendaWhats && (
+          <>
+            <p className="font-semibold text-[#1D2939]">{posVendaWhats.cliente}</p>
+            <p className="text-[#667085] mt-0.5">{formatBRL(posVendaWhats.valor)}</p>
+          </>
+        )}
+        defaultPhone={posVendaWhats?.phone || ''}
+        defaultText={posVendaWhats?.text || ''}
+      />
     </AppLayout>
   )
 }

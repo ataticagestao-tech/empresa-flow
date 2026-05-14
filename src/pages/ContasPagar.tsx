@@ -25,6 +25,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
+import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface ContaPagar {
@@ -202,6 +203,7 @@ export default function ContasPagar() {
   const [batchCategorize, setBatchCategorize] = useState<{ contaContabilId: string; centroCustoId: string }>({ contaContabilId: '', centroCustoId: '' })
   const [payingCp, setPayingCp] = useState<ContaPagar | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [whatsComprovanteModal, setWhatsComprovanteModal] = useState<{ cp: ContaPagar; phone: string; text: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [editingCpId, setEditingCpId] = useState<string | null>(null)
   const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false)
@@ -564,6 +566,53 @@ export default function ContasPagar() {
     } catch {
       toast.error('Nao foi possivel copiar')
     }
+  }
+
+  // Envia comprovante de pagamento via WhatsApp para o credor
+  async function abrirComprovanteWhatsApp(cp: ContaPagar) {
+    if (!selectedCompany?.id) return
+    // Tenta achar telefone do credor: suppliers > employees > clients (por nome)
+    let phone = ''
+    const ac = activeClient as any
+    try {
+      // Tenta suppliers por razao_social
+      const { data: sup } = await ac.from('suppliers').select('celular, telefone').eq('company_id', selectedCompany.id).ilike('razao_social', cp.credor_nome || '').limit(1)
+      if (sup?.[0]) phone = sup[0].celular || sup[0].telefone || ''
+      // Se nao achou, tenta employees
+      if (!phone) {
+        const { data: emp } = await ac.from('employees').select('celular, telefone').eq('company_id', selectedCompany.id).ilike('nome_completo', cp.credor_nome || '').limit(1)
+        if (emp?.[0]) phone = emp[0].celular || emp[0].telefone || ''
+      }
+      // Por fim, clients
+      if (!phone) {
+        const { data: cli } = await ac.from('clients').select('celular, telefone').eq('company_id', selectedCompany.id).ilike('razao_social', cp.credor_nome || '').limit(1)
+        if (cli?.[0]) phone = cli[0].celular || cli[0].telefone || ''
+      }
+    } catch { /* ignore */ }
+
+    const isPago = cp.status === 'pago' || cp.status === 'parcial'
+    const valor = formatBRL(cp.valor || 0)
+    const linhas: string[] = [
+      `Olá ${cp.credor_nome || ''}!`,
+      ``,
+    ]
+    if (isPago && cp.data_pagamento) {
+      linhas.push(`Confirmamos o pagamento realizado:`)
+      linhas.push(``)
+      linhas.push(`*Valor:* ${valor}`)
+      linhas.push(`*Data:* ${formatData(cp.data_pagamento)}`)
+      if (cp.descricao) linhas.push(`*Referente a:* ${cp.descricao}`)
+    } else {
+      linhas.push(`Informação sobre seu título:`)
+      linhas.push(``)
+      linhas.push(`*Valor:* ${valor}`)
+      linhas.push(`*Vencimento:* ${formatData(cp.data_vencimento)}`)
+      if (cp.descricao) linhas.push(`*Referente a:* ${cp.descricao}`)
+    }
+    linhas.push(``)
+    linhas.push(`Qualquer dúvida, estamos à disposição.`)
+
+    setWhatsComprovanteModal({ cp, phone, text: linhas.join('\n') })
   }
 
   const handleGerarBarcode = () => {
@@ -2009,6 +2058,16 @@ export default function ContasPagar() {
                                             <SplitSquareVertical size={14} /> Dividir lancamento
                                           </button>
                                           <button
+                                            onClick={() => { setDropdownOpen(null); abrirComprovanteWhatsApp(cp) }}
+                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(16,185,129,0.08)' }}
+                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
+                                            {(cp.status === 'pago' || cp.status === 'parcial') ? 'Enviar comprovante WhatsApp' : 'Enviar info WhatsApp'}
+                                          </button>
+                                          <button
                                             onClick={async () => {
                                               setDropdownOpen(null)
                                               const ok = await confirm({ title: `Excluir lancamento "${cp.descricao || cp.credor_nome}"?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
@@ -2799,6 +2858,22 @@ export default function ContasPagar() {
             setIsSupplierSheetOpen(false)
             loadData()
           }}
+        />
+
+        <SendWhatsAppDialog
+          open={!!whatsComprovanteModal}
+          onClose={() => setWhatsComprovanteModal(null)}
+          title={whatsComprovanteModal && (whatsComprovanteModal.cp.status === 'pago' || whatsComprovanteModal.cp.status === 'parcial')
+            ? 'Enviar comprovante via WhatsApp'
+            : 'Enviar informação via WhatsApp'}
+          subtitle={whatsComprovanteModal && (
+            <>
+              <p className="font-semibold text-[#1D2939]">{whatsComprovanteModal.cp.credor_nome}</p>
+              <p className="text-[#667085] mt-0.5">{formatBRL(whatsComprovanteModal.cp.valor)} — Venc: {formatData(whatsComprovanteModal.cp.data_vencimento)}</p>
+            </>
+          )}
+          defaultPhone={whatsComprovanteModal?.phone || ''}
+          defaultText={whatsComprovanteModal?.text || ''}
         />
       </div>
     </AppLayout>

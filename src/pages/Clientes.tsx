@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
@@ -160,6 +161,7 @@ export default function Clientes() {
     const [detailTab, setDetailTab] = useState<DetailTab>("historico");
     const [mergeOpen, setMergeOpen] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
+    const [whatsClienteOpen, setWhatsClienteOpen] = useState(false);
     const { toast } = useToast();
     const confirm = useConfirm();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -1009,6 +1011,17 @@ export default function Clientes() {
                                             <Pencil className="h-3 w-3 mr-1.5" />
                                             Editar
                                         </Button>
+                                        {(selectedClient.celular || selectedClient.telefone) && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setWhatsClienteOpen(true)}
+                                                className="text-[12px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                            >
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
+                                                WhatsApp
+                                            </Button>
+                                        )}
                                         <Button
                                             size="sm"
                                             onClick={() => navigate(`/vendas?cliente=${selectedClient.id}`)}
@@ -1339,6 +1352,22 @@ export default function Clientes() {
                     onOpenChange={setMergeOpen}
                     clients={clients ?? []}
                     onMerged={() => { refetch(); setMergeOpen(false); }}
+                />
+
+                <SendWhatsAppDialog
+                    open={whatsClienteOpen}
+                    onClose={() => setWhatsClienteOpen(false)}
+                    title="Enviar mensagem WhatsApp"
+                    subtitle={selectedClient && (
+                        <>
+                            <p className="font-semibold text-[#1D2939]">{toTitleCase(selectedClient.razao_social || "")}</p>
+                            {selectedClient.cpf_cnpj && (
+                                <p className="text-[#667085] mt-0.5">{formatDoc(selectedClient.cpf_cnpj)}</p>
+                            )}
+                        </>
+                    )}
+                    defaultPhone={selectedClient?.celular || selectedClient?.telefone || ""}
+                    defaultText={selectedClient ? `Olá ${toTitleCase(selectedClient.razao_social || "")}!\n\n` : ""}
                 />
             </div>
         </AppLayout>
