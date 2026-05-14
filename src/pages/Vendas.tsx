@@ -98,6 +98,7 @@ interface Produto {
   description: string
   price: number | null
   unidade_medida: string | null
+  conta_contabil_id: string | null
 }
 
 interface NovoItem {
@@ -105,6 +106,7 @@ interface NovoItem {
   quantidade: number
   valor_unitario: number
   produto_id?: string
+  conta_contabil_id?: string | null
 }
 
 interface ContratoAbertoCliente {
@@ -627,7 +629,7 @@ export default function Vendas() {
       ac.from('bank_accounts').select('id, name, banco, type').eq('company_id', companyId).eq('is_active', true),
       ac.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
-      ac.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description'),
+      ac.from('products').select('id, code, description, price, unidade_medida, conta_contabil_id').eq('company_id', companyId).order('description'),
       ac.from('chart_of_accounts')
         .select('id, code')
         .eq('company_id', companyId)
@@ -650,7 +652,7 @@ export default function Vendas() {
     // Fallback: se activeClient não retornou produtos, tentar com db
     let prods = (produtosRes.data as Produto[]) || []
     if (prods.length === 0) {
-      const fallback = await db.from('products').select('id, code, description, price, unidade_medida').eq('company_id', companyId).order('description')
+      const fallback = await db.from('products').select('id, code, description, price, unidade_medida, conta_contabil_id').eq('company_id', companyId).order('description')
       prods = (fallback.data as Produto[]) || []
     }
     setProdutos(prods)
@@ -932,11 +934,16 @@ export default function Vendas() {
     setFormDataVenda(venda.data_venda)
 
     if (venda.vendas_itens && venda.vendas_itens.length > 0) {
-      setFormItens(venda.vendas_itens.map(it => ({
-        descricao: it.descricao,
-        quantidade: it.quantidade,
-        valor_unitario: it.valor_unitario,
-      })))
+      setFormItens(venda.vendas_itens.map(it => {
+        const prod = produtos.find(p => p.description.trim().toLowerCase() === it.descricao.trim().toLowerCase())
+        return {
+          descricao: it.descricao,
+          quantidade: it.quantidade,
+          valor_unitario: it.valor_unitario,
+          produto_id: prod?.id,
+          conta_contabil_id: prod?.conta_contabil_id ?? null,
+        }
+      }))
     }
 
     // Reconstrói os splits a partir dos CRs existentes da venda.
@@ -1000,7 +1007,7 @@ export default function Vendas() {
 
   function selectProduto(idx: number, p: Produto) {
     setFormItens(prev => prev.map((it, i) =>
-      i === idx ? { ...it, descricao: p.description, valor_unitario: p.price || 0, produto_id: p.id } : it
+      i === idx ? { ...it, descricao: p.description, valor_unitario: p.price || 0, produto_id: p.id, conta_contabil_id: p.conta_contabil_id ?? null } : it
     ))
     setProdutoSearchTerm('')
   }
@@ -1025,6 +1032,7 @@ export default function Vendas() {
         description: p.description,
         price: p.price,
         unidade_medida: p.unidade_medida,
+        conta_contabil_id: p.conta_contabil_id ?? null,
       })) as Produto[]
       console.log('[abrirModalProduto] Produtos:', prods.length, 'company:', selectedCompany?.id, 'isSecondary:', isUsingSecondary)
       setModalProdutos(prods)
@@ -1186,6 +1194,13 @@ export default function Vendas() {
         // fica zerado para tudo que foi importado por planilha.
         const isImmediatePayment = FORMAS_A_VISTA.includes(row.forma_pagamento) && !isParcelado
 
+        // Tenta casar a descrição da planilha com um produto cadastrado para
+        // pegar a conta contábil correta; cai no default só se não encontrar.
+        const prodMatch = produtos.find(p =>
+          p.description.trim().toLowerCase() === (row.descricao || '').trim().toLowerCase()
+        )
+        const contaCR = prodMatch?.conta_contabil_id ?? defaultReceitaContaId
+
         for (let p = 0; p < numParcelas; p++) {
           const vencimento = isParcelado
             ? format(addMonths(parseISO(row.data_venda), p + 1), 'yyyy-MM-dd')
@@ -1204,7 +1219,7 @@ export default function Vendas() {
             data_pagamento: isImmediatePayment ? row.data_venda : null,
             status: isImmediatePayment ? 'pago' : 'aberto',
             forma_recebimento: row.forma_pagamento,
-            conta_contabil_id: defaultReceitaContaId,
+            conta_contabil_id: contaCR,
             centro_custo_id: importCentroCusto || null,
             venda_id: vendasData[idx].id,
           })
@@ -1316,6 +1331,37 @@ export default function Vendas() {
       let vendaId: string
       const formaVenda = pagamentosResolvidos.length > 1 ? 'multiplo' : pagamentosResolvidos[0].forma
 
+      // Conta contábil dominante: somar o subtotal de cada item por conta_contabil_id
+      // (preferindo o produto explicitamente vinculado; caindo no match por descrição
+      // quando o item não foi escolhido via modal de produtos). A conta com maior
+      // subtotal classifica todos os CRs gerados para esta venda. Sem isso, todas
+      // as parcelas herdam a primeira conta de receita analítica do plano e os
+      // títulos saem rotulados como "Consultas Médicas" mesmo quando o produto
+      // vendido foi outro (ex.: Transplante, Minoxidil).
+      const totalPorConta = new Map<string, number>()
+      for (const it of formItens) {
+        let contaId = it.conta_contabil_id ?? null
+        if (!contaId) {
+          const prod = produtos.find(p =>
+            (it.produto_id && p.id === it.produto_id) ||
+            p.description.trim().toLowerCase() === it.descricao.trim().toLowerCase()
+          )
+          contaId = prod?.conta_contabil_id ?? null
+        }
+        if (!contaId) continue
+        const subtotal = (it.quantidade || 0) * (it.valor_unitario || 0)
+        totalPorConta.set(contaId, (totalPorConta.get(contaId) || 0) + subtotal)
+      }
+      let contaContabilCR: string | null = defaultReceitaContaId
+      if (totalPorConta.size > 0) {
+        let melhorConta: string | null = null
+        let melhorValor = -1
+        for (const [conta, soma] of totalPorConta) {
+          if (soma > melhorValor) { melhorValor = soma; melhorConta = conta }
+        }
+        if (melhorConta) contaContabilCR = melhorConta
+      }
+
       if (editandoVenda) {
         // UPDATE existing venda
         const { error: vendaErr } = await db
@@ -1410,7 +1456,7 @@ export default function Vendas() {
             status: 'aberto',
             forma_recebimento: split.forma,
             conta_bancaria_id: split.conta_bancaria_id || null,
-            conta_contabil_id: defaultReceitaContaId,
+            conta_contabil_id: contaContabilCR,
             centro_custo_id: formCentroCusto || null,
             venda_id: vendaId,
             observacoes: `Venda ${numParcelas}x antecipada | Bruto: R$${splitBruto.toFixed(2)} | Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)}) | Antecipação: ${taxaAntecipacao}% a.m. (R$${descontoAntecipacao.toFixed(2)})`,
@@ -1435,7 +1481,7 @@ export default function Vendas() {
               status: 'aberto',
               forma_recebimento: split.forma,
               conta_bancaria_id: split.conta_bancaria_id || null,
-              conta_contabil_id: defaultReceitaContaId,
+              conta_contabil_id: contaContabilCR,
               centro_custo_id: formCentroCusto || null,
               venda_id: vendaId,
               observacoes: taxaPct > 0
@@ -1457,7 +1503,7 @@ export default function Vendas() {
             status: 'aberto',
             forma_recebimento: split.forma,
             conta_bancaria_id: split.conta_bancaria_id || null,
-            conta_contabil_id: defaultReceitaContaId,
+            conta_contabil_id: contaContabilCR,
             centro_custo_id: formCentroCusto || null,
             venda_id: vendaId,
             observacoes: taxaPct > 0
