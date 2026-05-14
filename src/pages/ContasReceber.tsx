@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
+import { SendEmailDialog } from '@/components/email/SendEmailDialog'
+import { sendEmail } from '@/lib/email/send-email'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -154,6 +156,7 @@ export default function ContasReceber() {
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [whatsCobrancaModal, setWhatsCobrancaModal] = useState<{ cr: CR; phone: string; text: string } | null>(null)
+  const [emailCobrancaModal, setEmailCobrancaModal] = useState<{ cr: CR; email: string; assunto: string; corpo: string } | null>(null)
   const [enviandoLote, setEnviandoLote] = useState(false)
   const [loteEnviando, setLoteEnviando] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
 
@@ -320,6 +323,44 @@ export default function ContasReceber() {
     const text = linhas.join('\n')
 
     setWhatsCobrancaModal({ cr, phone, text })
+  }
+
+  // Cobranca via e-mail (linha)
+  async function abrirCobrancaEmail(cr: CR) {
+    if (!companyId) return
+    let email = cr.pagador_email || ''
+    if (!email) {
+      try {
+        let q = db.from('clients').select('email').eq('company_id', companyId).limit(1)
+        if (cr.pagador_cpf_cnpj) q = q.eq('cpf_cnpj', cr.pagador_cpf_cnpj)
+        else q = q.ilike('razao_social', cr.pagador_nome)
+        const { data } = await q
+        email = data?.[0]?.email || ''
+      } catch { /* ignore */ }
+    }
+
+    const hoje = format(new Date(), 'yyyy-MM-dd')
+    const isVencido = cr.data_vencimento < hoje && cr._status !== 'pago' && cr._status !== 'cancelado'
+    const diasAtraso = isVencido ? differenceInDays(new Date(), parseISO(cr.data_vencimento)) : 0
+    const saldo = cr.valor - (cr.valor_pago || 0)
+    const assunto = isVencido
+      ? `Título em atraso — ${formatBRL(saldo)}`
+      : `Lembrete de cobrança — vencimento ${formatData(cr.data_vencimento)}`
+    const corpo = [
+      `Olá ${cr.pagador_nome}!`,
+      ``,
+      isVencido
+        ? `Identificamos um título em atraso há ${diasAtraso} dia${diasAtraso > 1 ? 's' : ''}:`
+        : `Lembrete de cobrança — título com vencimento próximo:`,
+      ``,
+      `Valor: ${formatBRL(saldo)}`,
+      `Vencimento: ${formatData(cr.data_vencimento)}`,
+      cr.observacoes ? `Referente a: ${cr.observacoes}` : '',
+      ``,
+      `Por favor, providencie o pagamento. Qualquer dúvida, estamos à disposição.`,
+    ].filter(Boolean).join('\n')
+
+    setEmailCobrancaModal({ cr, email, assunto, corpo })
   }
 
   // Envia lembrete WhatsApp em lote para os CRs selecionados
@@ -1475,6 +1516,13 @@ export default function ContasReceber() {
                                     Enviar cobrança WhatsApp
                                   </button>
                                   <button
+                                    onClick={() => { setDropdownOpen(null); abrirCobrancaEmail(cr) }}
+                                    className="w-full px-4 py-2.5 text-left text-[13px] text-[#1E3A8A] hover:bg-blue-50 transition-colors flex items-center gap-2"
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                                    Enviar cobrança E-mail
+                                  </button>
+                                  <button
                                     onClick={() => { setDropdownOpen(null); excluirCR(cr) }}
                                     className="w-full px-4 py-2.5 text-left text-[13px] text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors last:rounded-b-lg"
                                   >
@@ -1652,6 +1700,21 @@ export default function ContasReceber() {
         )}
         defaultPhone={whatsCobrancaModal?.phone || ''}
         defaultText={whatsCobrancaModal?.text || ''}
+      />
+
+      <SendEmailDialog
+        open={!!emailCobrancaModal}
+        onClose={() => setEmailCobrancaModal(null)}
+        title="Enviar cobrança via E-mail"
+        subtitle={emailCobrancaModal && (
+          <>
+            <p className="font-semibold text-[#1D2939]">{emailCobrancaModal.cr.pagador_nome}</p>
+            <p className="text-[#667085] mt-0.5">{formatBRL(emailCobrancaModal.cr.valor)} — Venc: {formatData(emailCobrancaModal.cr.data_vencimento)}</p>
+          </>
+        )}
+        defaultTo={emailCobrancaModal?.email || ''}
+        defaultSubject={emailCobrancaModal?.assunto || ''}
+        defaultBody={emailCobrancaModal?.corpo || ''}
       />
     </AppLayout>
   )

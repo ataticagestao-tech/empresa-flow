@@ -8,6 +8,7 @@ import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
+import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -164,7 +165,16 @@ export default function Vendas() {
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [posVendaWhats, setPosVendaWhats] = useState<{ phone: string; text: string; cliente: string; valor: number } | null>(null)
+  const [posVenda, setPosVenda] = useState<{
+    cliente: string
+    valor: number
+    phone: string
+    email: string
+    whatsText: string
+    emailAssunto: string
+    emailCorpo: string
+    step: 'choose' | 'whats' | 'email'
+  } | null>(null)
   const [defaultReceitaContaId, setDefaultReceitaContaId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1382,37 +1392,58 @@ export default function Vendas() {
       await fetchVendas()
 
       if (vendaCriada) {
-        // Tenta buscar celular do cliente para pre-preencher
+        // Busca celular + email do cliente em uma so query
         let phone = ''
+        let email = ''
         try {
-          let q = db.from('clients').select('celular,telefone').eq('company_id', companyId).limit(1)
+          let q = db.from('clients').select('celular,telefone,email').eq('company_id', companyId).limit(1)
           if (vendaCriada.cliente_cpf_cnpj) q = q.eq('cpf_cnpj', vendaCriada.cliente_cpf_cnpj)
           else q = q.ilike('razao_social', vendaCriada.cliente_nome)
           const { data } = await q
           phone = data?.[0]?.celular || data?.[0]?.telefone || ''
+          email = data?.[0]?.email || ''
         } catch { /* ignore */ }
 
         const itensLabel = vendaCriada.itens.length === 1
           ? vendaCriada.itens[0].descricao
           : `${vendaCriada.itens[0].descricao} +${vendaCriada.itens.length - 1} item${vendaCriada.itens.length > 2 ? 's' : ''}`
-        const text = [
+        const dataFmt = format(parseISO(vendaCriada.data_venda), 'dd/MM/yyyy')
+
+        const whatsText = [
           `Olá ${vendaCriada.cliente_nome}!`,
           ``,
           `Recebemos o pagamento da sua venda:`,
           ``,
           `*Valor:* ${formatBRL(vendaCriada.valor_total)}`,
-          `*Data:* ${format(parseISO(vendaCriada.data_venda), 'dd/MM/yyyy')}`,
+          `*Data:* ${dataFmt}`,
           `*Forma:* ${vendaCriada.forma_pagamento}`,
           `*Referente a:* ${itensLabel}`,
           ``,
           `Obrigado pela preferência!`,
         ].join('\n')
 
-        setPosVendaWhats({
-          phone,
-          text,
+        const emailCorpo = [
+          `Olá ${vendaCriada.cliente_nome}!`,
+          ``,
+          `Recebemos o pagamento da sua venda:`,
+          ``,
+          `Valor: ${formatBRL(vendaCriada.valor_total)}`,
+          `Data: ${dataFmt}`,
+          `Forma: ${vendaCriada.forma_pagamento}`,
+          `Referente a: ${itensLabel}`,
+          ``,
+          `Obrigado pela preferência!`,
+        ].join('\n')
+
+        setPosVenda({
           cliente: vendaCriada.cliente_nome,
           valor: vendaCriada.valor_total,
+          phone,
+          email,
+          whatsText,
+          emailAssunto: `Comprovante de venda — ${formatBRL(vendaCriada.valor_total)}`,
+          emailCorpo,
+          step: 'choose',
         })
       }
     } catch (e: any) {
@@ -3386,18 +3417,73 @@ export default function Vendas() {
         </div>
       )}
 
+      {/* Chooser pos-venda: WhatsApp / E-mail / Pular */}
+      {posVenda?.step === 'choose' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setPosVenda(null)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-[92%] p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-[#1D2939] mb-1">Compartilhar comprovante</h3>
+            <p className="text-[12.5px] text-[#667085] mb-4">
+              Venda de <strong>{formatBRL(posVenda.valor)}</strong> para <strong>{posVenda.cliente}</strong> registrada.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => setPosVenda({ ...posVenda, step: 'whats' })}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-md border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors text-left"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#059669"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-emerald-700">Enviar por WhatsApp</p>
+                  {posVenda.phone && <p className="text-[11px] text-emerald-600">{posVenda.phone}</p>}
+                </div>
+              </button>
+              <button
+                onClick={() => setPosVenda({ ...posVenda, step: 'email' })}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E3A8A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-[#1E3A8A]">Enviar por E-mail</p>
+                  {posVenda.email && <p className="text-[11px] text-blue-700">{posVenda.email}</p>}
+                </div>
+              </button>
+              <button
+                onClick={() => setPosVenda(null)}
+                className="w-full px-4 py-2 text-[12px] text-[#667085] hover:bg-[#F6F2EB] rounded-md transition-colors"
+              >
+                Pular — não enviar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <SendWhatsAppDialog
-        open={!!posVendaWhats}
-        onClose={() => setPosVendaWhats(null)}
+        open={posVenda?.step === 'whats'}
+        onClose={() => setPosVenda(null)}
         title="Enviar comprovante de venda via WhatsApp"
-        subtitle={posVendaWhats && (
+        subtitle={posVenda && (
           <>
-            <p className="font-semibold text-[#1D2939]">{posVendaWhats.cliente}</p>
-            <p className="text-[#667085] mt-0.5">{formatBRL(posVendaWhats.valor)}</p>
+            <p className="font-semibold text-[#1D2939]">{posVenda.cliente}</p>
+            <p className="text-[#667085] mt-0.5">{formatBRL(posVenda.valor)}</p>
           </>
         )}
-        defaultPhone={posVendaWhats?.phone || ''}
-        defaultText={posVendaWhats?.text || ''}
+        defaultPhone={posVenda?.phone || ''}
+        defaultText={posVenda?.whatsText || ''}
+      />
+
+      <SendEmailDialog
+        open={posVenda?.step === 'email'}
+        onClose={() => setPosVenda(null)}
+        title="Enviar comprovante de venda por E-mail"
+        subtitle={posVenda && (
+          <>
+            <p className="font-semibold text-[#1D2939]">{posVenda.cliente}</p>
+            <p className="text-[#667085] mt-0.5">{formatBRL(posVenda.valor)}</p>
+          </>
+        )}
+        defaultTo={posVenda?.email || ''}
+        defaultSubject={posVenda?.emailAssunto || ''}
+        defaultBody={posVenda?.emailCorpo || ''}
       />
     </AppLayout>
   )

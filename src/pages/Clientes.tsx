@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
+import { SendEmailDialog } from "@/components/email/SendEmailDialog";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
@@ -162,6 +163,7 @@ export default function Clientes() {
     const [mergeOpen, setMergeOpen] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [whatsClienteOpen, setWhatsClienteOpen] = useState(false);
+    const [emailClienteOpen, setEmailClienteOpen] = useState(false);
     const { toast } = useToast();
     const confirm = useConfirm();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -1022,6 +1024,17 @@ export default function Clientes() {
                                                 WhatsApp
                                             </Button>
                                         )}
+                                        {selectedClient.email && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setEmailClienteOpen(true)}
+                                                className="text-[12px] border-blue-300 text-blue-700 hover:bg-blue-50"
+                                            >
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                                                E-mail
+                                            </Button>
+                                        )}
                                         <Button
                                             size="sm"
                                             onClick={() => navigate(`/vendas?cliente=${selectedClient.id}`)}
@@ -1368,6 +1381,23 @@ export default function Clientes() {
                     )}
                     defaultPhone={selectedClient?.celular || selectedClient?.telefone || ""}
                     defaultText={selectedClient ? `Olá ${toTitleCase(selectedClient.razao_social || "")}!\n\n` : ""}
+                />
+
+                <SendEmailDialog
+                    open={emailClienteOpen}
+                    onClose={() => setEmailClienteOpen(false)}
+                    title="Enviar e-mail"
+                    subtitle={selectedClient && (
+                        <>
+                            <p className="font-semibold text-[#1D2939]">{toTitleCase(selectedClient.razao_social || "")}</p>
+                            {selectedClient.cpf_cnpj && (
+                                <p className="text-[#667085] mt-0.5">{formatDoc(selectedClient.cpf_cnpj)}</p>
+                            )}
+                        </>
+                    )}
+                    defaultTo={selectedClient?.email || ""}
+                    defaultSubject="Mensagem da Tatica Gestão"
+                    defaultBody={selectedClient ? `Olá ${toTitleCase(selectedClient.razao_social || "")}!\n\n` : ""}
                 />
             </div>
         </AppLayout>

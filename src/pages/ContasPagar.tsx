@@ -26,6 +26,7 @@ import { DateRangeFilter } from '@/components/ui/date-range-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
+import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface ContaPagar {
@@ -204,6 +205,7 @@ export default function ContasPagar() {
   const [payingCp, setPayingCp] = useState<ContaPagar | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [whatsComprovanteModal, setWhatsComprovanteModal] = useState<{ cp: ContaPagar; phone: string; text: string } | null>(null)
+  const [emailComprovanteModal, setEmailComprovanteModal] = useState<{ cp: ContaPagar; email: string; assunto: string; corpo: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [editingCpId, setEditingCpId] = useState<string | null>(null)
   const [isSupplierSheetOpen, setIsSupplierSheetOpen] = useState(false)
@@ -613,6 +615,52 @@ export default function ContasPagar() {
     linhas.push(`Qualquer dúvida, estamos à disposição.`)
 
     setWhatsComprovanteModal({ cp, phone, text: linhas.join('\n') })
+  }
+
+  // Envia comprovante por e-mail
+  async function abrirComprovanteEmail(cp: ContaPagar) {
+    if (!selectedCompany?.id) return
+    let email = ''
+    const ac = activeClient as any
+    try {
+      const { data: sup } = await ac.from('suppliers').select('email').eq('company_id', selectedCompany.id).ilike('razao_social', cp.credor_nome || '').limit(1)
+      if (sup?.[0]?.email) email = sup[0].email
+      if (!email) {
+        const { data: emp } = await ac.from('employees').select('email').eq('company_id', selectedCompany.id).ilike('nome_completo', cp.credor_nome || '').limit(1)
+        if (emp?.[0]?.email) email = emp[0].email
+      }
+      if (!email) {
+        const { data: cli } = await ac.from('clients').select('email').eq('company_id', selectedCompany.id).ilike('razao_social', cp.credor_nome || '').limit(1)
+        if (cli?.[0]?.email) email = cli[0].email
+      }
+    } catch { /* ignore */ }
+
+    const isPago = cp.status === 'pago' || cp.status === 'parcial'
+    const valor = formatBRL(cp.valor || 0)
+    const assunto = isPago
+      ? `Comprovante de pagamento — ${valor}`
+      : `Título a vencer em ${formatData(cp.data_vencimento)}`
+    const linhas: string[] = [
+      `Olá ${cp.credor_nome || ''}!`,
+      ``,
+    ]
+    if (isPago && cp.data_pagamento) {
+      linhas.push(`Confirmamos o pagamento realizado:`)
+      linhas.push(``)
+      linhas.push(`Valor: ${valor}`)
+      linhas.push(`Data: ${formatData(cp.data_pagamento)}`)
+      if (cp.descricao) linhas.push(`Referente a: ${cp.descricao}`)
+    } else {
+      linhas.push(`Informação sobre seu título:`)
+      linhas.push(``)
+      linhas.push(`Valor: ${valor}`)
+      linhas.push(`Vencimento: ${formatData(cp.data_vencimento)}`)
+      if (cp.descricao) linhas.push(`Referente a: ${cp.descricao}`)
+    }
+    linhas.push(``)
+    linhas.push(`Qualquer dúvida, estamos à disposição.`)
+
+    setEmailComprovanteModal({ cp, email, assunto, corpo: linhas.join('\n') })
   }
 
   const handleGerarBarcode = () => {
@@ -2068,6 +2116,16 @@ export default function ContasPagar() {
                                             {(cp.status === 'pago' || cp.status === 'parcial') ? 'Enviar comprovante WhatsApp' : 'Enviar info WhatsApp'}
                                           </button>
                                           <button
+                                            onClick={() => { setDropdownOpen(null); abrirComprovanteEmail(cp) }}
+                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
+                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(30,58,138,0.08)' }}
+                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                                            {(cp.status === 'pago' || cp.status === 'parcial') ? 'Enviar comprovante E-mail' : 'Enviar info E-mail'}
+                                          </button>
+                                          <button
                                             onClick={async () => {
                                               setDropdownOpen(null)
                                               const ok = await confirm({ title: `Excluir lancamento "${cp.descricao || cp.credor_nome}"?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
@@ -2874,6 +2932,23 @@ export default function ContasPagar() {
           )}
           defaultPhone={whatsComprovanteModal?.phone || ''}
           defaultText={whatsComprovanteModal?.text || ''}
+        />
+
+        <SendEmailDialog
+          open={!!emailComprovanteModal}
+          onClose={() => setEmailComprovanteModal(null)}
+          title={emailComprovanteModal && (emailComprovanteModal.cp.status === 'pago' || emailComprovanteModal.cp.status === 'parcial')
+            ? 'Enviar comprovante por E-mail'
+            : 'Enviar informação por E-mail'}
+          subtitle={emailComprovanteModal && (
+            <>
+              <p className="font-semibold text-[#1D2939]">{emailComprovanteModal.cp.credor_nome}</p>
+              <p className="text-[#667085] mt-0.5">{formatBRL(emailComprovanteModal.cp.valor)} — Venc: {formatData(emailComprovanteModal.cp.data_vencimento)}</p>
+            </>
+          )}
+          defaultTo={emailComprovanteModal?.email || ''}
+          defaultSubject={emailComprovanteModal?.assunto || ''}
+          defaultBody={emailComprovanteModal?.corpo || ''}
         />
       </div>
     </AppLayout>
