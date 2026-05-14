@@ -2303,96 +2303,123 @@ export default function Conciliacao() {
                                     </>
                                 ) : (
                                     <>
-                                        <div className="space-y-4 p-4 border border-primary/20 rounded-lg bg-primary/[0.02]">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${selectedBankTx.amount < 0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                                    <Plus className="h-4 w-4" />
+                                        <div className="space-y-4">
+                                            {/* Cabecalho colorido por tipo */}
+                                            <div className={`flex items-center gap-3 p-3 rounded-lg border ${selectedBankTx.amount < 0 ? 'bg-red-50/50 border-red-200' : 'bg-emerald-50/50 border-emerald-200'}`}>
+                                                <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${selectedBankTx.amount < 0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                    <Plus className="h-5 w-5" />
                                                 </div>
-                                                <h4 className="text-sm font-semibold">
-                                                    Criar {selectedBankTx.amount < 0 ? "Conta a Pagar" : "Conta a Receber"}
-                                                </h4>
+                                                <div className="min-w-0">
+                                                    <h4 className="text-sm font-semibold text-foreground">
+                                                        Criar {selectedBankTx.amount < 0 ? "Conta a Pagar" : "Conta a Receber"}
+                                                    </h4>
+                                                    <p className="text-[11px] text-muted-foreground">Lançamento criado e conciliado em uma ação</p>
+                                                </div>
                                             </div>
-                                            <div className="space-y-3">
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs font-medium">
-                                                        {selectedBankTx.amount < 0 ? "Credor" : "Pagador"} <span className="text-red-500">*</span>
-                                                    </Label>
-                                                    <Input value={newEntry.entity_name}
-                                                        onChange={(e) => setNewEntry({ ...newEntry, entity_name: e.target.value })}
-                                                        placeholder={selectedBankTx.amount < 0 ? "Nome do fornecedor / credor" : "Nome do cliente / pagador"} />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs font-medium">
-                                                        {selectedBankTx.amount < 0 ? "Descrição" : "Observação"}
-                                                    </Label>
-                                                    <Input value={newEntry.description}
-                                                        onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
-                                                        placeholder={selectedBankTx.amount < 0 ? "O que foi pago (ex: Internet maio/2026)" : "Detalhes do recebimento"} />
-                                                </div>
-                                                {selectedBankTx.amount > 0 && (
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div className="space-y-1.5">
-                                                            <Label className="text-xs font-medium">CPF/CNPJ do Pagador</Label>
-                                                            <Input value={newEntry.cpf_cnpj}
-                                                                onChange={(e) => setNewEntry({ ...newEntry, cpf_cnpj: e.target.value })}
-                                                                placeholder="Opcional" />
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <Label className="text-xs font-medium">Email do Pagador</Label>
-                                                            <Input type="email" value={newEntry.email}
-                                                                onChange={(e) => setNewEntry({ ...newEntry, email: e.target.value })}
-                                                                placeholder="Opcional" />
-                                                        </div>
+
+                                            {/* Secao: Identificacao */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Identificação</h5>
+                                                <div className="space-y-3 p-3 rounded-lg border border-[#EAECF0] bg-white">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                            {selectedBankTx.amount < 0 ? "Credor" : "Pagador"} <span className="text-red-500">*</span>
+                                                        </Label>
+                                                        <Input value={newEntry.entity_name}
+                                                            onChange={(e) => setNewEntry({ ...newEntry, entity_name: e.target.value })}
+                                                            placeholder={selectedBankTx.amount < 0 ? "Nome do fornecedor / credor" : "Nome do cliente / pagador"}
+                                                            className="h-9" />
                                                     </div>
-                                                )}
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-xs font-medium">Valor</Label>
-                                                        <Input value={formatBRL(Math.abs(selectedBankTx.amount))} disabled className="bg-muted font-bold" />
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                            {selectedBankTx.amount < 0 ? "Descrição" : "Observação"}
+                                                        </Label>
+                                                        <Input value={newEntry.description}
+                                                            onChange={(e) => setNewEntry({ ...newEntry, description: e.target.value })}
+                                                            placeholder={selectedBankTx.amount < 0 ? "O que foi pago (ex: Internet maio/2026)" : "Detalhes do recebimento"}
+                                                            className="h-9" />
                                                     </div>
-                                                    <div className="space-y-1.5">
-                                                        <Label className="text-xs font-medium">Data Vencimento</Label>
-                                                        <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted" />
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {selectedBankTx.amount < 0 && (
-                                                        <div className="space-y-1.5">
-                                                            <Label className="text-xs font-medium">Competência</Label>
-                                                            <Input type="month" value={newEntry.competencia}
-                                                                onChange={(e) => setNewEntry({ ...newEntry, competencia: e.target.value })} />
+                                                    {selectedBankTx.amount > 0 && (
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="space-y-1">
+                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">CPF/CNPJ</Label>
+                                                                <Input value={newEntry.cpf_cnpj}
+                                                                    onChange={(e) => setNewEntry({ ...newEntry, cpf_cnpj: e.target.value })}
+                                                                    placeholder="Opcional"
+                                                                    className="h-9" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Email</Label>
+                                                                <Input type="email" value={newEntry.email}
+                                                                    onChange={(e) => setNewEntry({ ...newEntry, email: e.target.value })}
+                                                                    placeholder="Opcional"
+                                                                    className="h-9" />
+                                                            </div>
                                                         </div>
                                                     )}
-                                                    <div className={`space-y-1.5 ${selectedBankTx.amount < 0 ? "" : "col-span-2"}`}>
-                                                        <Label className="text-xs font-medium">Centro de Custo</Label>
-                                                        <Select value={newEntry.centro_custo_id || ""} onValueChange={(val) => setNewEntry({ ...newEntry, centro_custo_id: val === "none" ? "" : val })}>
-                                                            <SelectTrigger className="h-9">
-                                                                <SelectValue placeholder="Nenhum" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="none">Nenhum</SelectItem>
-                                                                {(centrosCusto || []).map((cc: any) => (
-                                                                    <SelectItem key={cc.id} value={cc.id}>
-                                                                        {cc.codigo} - {cc.descricao}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                </div>
+                                            </div>
+
+                                            {/* Secao: Valores e Detalhes */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Valores</h5>
+                                                <div className="space-y-3 p-3 rounded-lg border border-[#EAECF0] bg-white">
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Valor</Label>
+                                                            <Input value={formatBRL(Math.abs(selectedBankTx.amount))} disabled className="bg-muted font-bold h-9" />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Data Vencimento</Label>
+                                                            <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted h-9" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {selectedBankTx.amount < 0 && (
+                                                            <div className="space-y-1">
+                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Competência</Label>
+                                                                <Input type="month" value={newEntry.competencia}
+                                                                    onChange={(e) => setNewEntry({ ...newEntry, competencia: e.target.value })}
+                                                                    className="h-9" />
+                                                            </div>
+                                                        )}
+                                                        <div className={`space-y-1 ${selectedBankTx.amount < 0 ? "" : "col-span-2"}`}>
+                                                            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Centro de Custo</Label>
+                                                            <Select value={newEntry.centro_custo_id || ""} onValueChange={(val) => setNewEntry({ ...newEntry, centro_custo_id: val === "none" ? "" : val })}>
+                                                                <SelectTrigger className="h-9">
+                                                                    <SelectValue placeholder="Nenhum" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">Nenhum</SelectItem>
+                                                                    {(centrosCusto || []).map((cc: any) => (
+                                                                        <SelectItem key={cc.id} value={cc.id}>
+                                                                            {cc.codigo} - {cc.descricao}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-1.5">
-                                                    <div className="flex items-center justify-between">
-                                                        <Label className="text-xs font-medium">Categoria (Plano de Contas)</Label>
-                                                        {!showNewCategory && (
-                                                            <button
-                                                                type="button"
-                                                                className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-                                                                onClick={() => setShowNewCategory(true)}>
-                                                                <Plus className="h-3 w-3" />
-                                                                Criar categoria
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                            </div>
+
+                                            {/* Secao: Categoria */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between px-1">
+                                                    <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                        Categoria contábil <span className="text-red-500">*</span>
+                                                    </h5>
+                                                    {!showNewCategory && (
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                                                            onClick={() => setShowNewCategory(true)}>
+                                                            <Plus className="h-3 w-3" />
+                                                            Criar nova
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-3 p-3 rounded-lg border border-[#EAECF0] bg-white">
                                                     {newEntry.category_id && (
                                                         <div className="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/50">
                                                             <span className="text-sm font-medium">
