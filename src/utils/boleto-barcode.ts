@@ -19,7 +19,28 @@ export function linhaDigitavelToBarcode(input: string): LinhaParseResult | Linha
     console.debug('[linhaDigitavelToBarcode] input chars:', raw.length, '| digits:', c.length, '| value:', c);
   }
 
+  if (c.length === 48) {
+    if (c[0] !== '8') {
+      return {
+        ok: false,
+        error: 'Linha de arrecadacao (48 digitos) deve comecar com 8. Confira a linha digitavel.',
+      };
+    }
+    const barcode =
+      c.substring(0, 11) +
+      c.substring(12, 23) +
+      c.substring(24, 35) +
+      c.substring(36, 47);
+    return { ok: true, tipo: 'arrecadacao', barcode };
+  }
+
   if (c.length === 47) {
+    if (c[0] === '8') {
+      return {
+        ok: false,
+        error: 'Linha de arrecadacao (Claro, Vivo, energia, agua, etc.) precisa de 48 digitos - faltou 1 digito. Confira a linha digitavel do boleto.',
+      };
+    }
     const barcode =
       c.substring(0, 4) +
       c.substring(32, 33) +
@@ -28,18 +49,6 @@ export function linhaDigitavelToBarcode(input: string): LinhaParseResult | Linha
       c.substring(10, 20) +
       c.substring(21, 31);
     return { ok: true, tipo: 'boleto', barcode };
-  }
-
-  if (c.length === 48) {
-    const barcode =
-      c.substring(0, 11) +
-      c.substring(12, 23) +
-      c.substring(24, 35) +
-      c.substring(36, 47);
-    if (barcode[0] !== '8') {
-      return { ok: false, error: 'Linha de arrecadacao deve comecar com 8' };
-    }
-    return { ok: true, tipo: 'arrecadacao', barcode };
   }
 
   if (c.length === 44) {

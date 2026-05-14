@@ -818,6 +818,14 @@ export default function ContasPagar() {
       if (error) throw error
       if (data?.error) throw new Error(data.error)
 
+      let avisoCodigo = ''
+      if (data?.codigo_barras) {
+        const parsed = linhaDigitavelToBarcode(data.codigo_barras)
+        if (!parsed.ok) {
+          avisoCodigo = `\n\nAtencao: o codigo de barras lido parece invalido (${parsed.error}). Confira a linha digitavel na fatura antes de salvar.`
+        }
+      }
+
       // Preencher formulário com dados extraídos
       setNewForm(prev => ({
         ...prev,
@@ -829,7 +837,7 @@ export default function ContasPagar() {
         codigoBarras: data.codigo_barras || prev.codigoBarras,
       }))
 
-      alert('Boleto lido com sucesso! Verifique os campos preenchidos.')
+      alert('Boleto lido com sucesso! Verifique os campos preenchidos.' + avisoCodigo)
     } catch (error: any) {
       console.error('[lerBoleto]', error)
       alert('Erro ao ler boleto: ' + (error.message || 'Tente novamente'))
@@ -840,6 +848,15 @@ export default function ContasPagar() {
 
   const handleCreateCP = async () => {
     if (!selectedCompany || !newForm.descricao || !newForm.valor || !newForm.dataVencimento) return
+
+    if (newForm.codigoBarras && newForm.codigoBarras.trim()) {
+      const result = linhaDigitavelToBarcode(newForm.codigoBarras)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+    }
+
     setSubmitting(true)
 
     // Resolver nome do credor baseado no tipo selecionado

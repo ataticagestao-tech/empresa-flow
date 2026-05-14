@@ -1,5 +1,6 @@
 
 import { z } from "zod";
+import { linhaDigitavelToBarcode } from "@/utils/boleto-barcode";
 
 // Schema para Contas a Pagar
 export const AccountsPayableSchema = z.object({
@@ -19,7 +20,16 @@ export const AccountsPayableSchema = z.object({
     project_id: z.string().uuid().optional().nullable(),
 
     // Pagamento
-    barcode: z.string().optional().default(""),
+    barcode: z.string().optional().default("").refine(
+        (v) => {
+            if (!v || !v.trim()) return true;
+            return linhaDigitavelToBarcode(v).ok;
+        },
+        (v) => {
+            const r = linhaDigitavelToBarcode(v || "");
+            return { message: r.ok ? "" : r.error };
+        }
+    ),
     pix_key_type: z.enum(['cpf', 'cnpj', 'telefone', 'email', 'aleatoria']).optional(),
     pix_key: z.string().optional().default(""),
     payment_method: z.string().optional(),
