@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
     Table,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
+import { DuplicatesDialog } from "@/components/suppliers/DuplicatesDialog";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +30,7 @@ export default function Fornecedores() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isDupOpen, setIsDupOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
 
     const normalizeSearch = (value: unknown) =>
@@ -129,10 +131,16 @@ export default function Fornecedores() {
 
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-bold tracking-tight">Fornecedores</h2>
-                    <Button onClick={handleNew}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Novo Fornecedor
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => setIsDupOpen(true)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Localizar duplicados
+                        </Button>
+                        <Button onClick={handleNew}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Novo Fornecedor
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>
@@ -214,6 +222,12 @@ export default function Fornecedores() {
                         setEditingSupplier(null);
                     }}
                     supplierToEdit={editingSupplier}
+                />
+
+                <DuplicatesDialog
+                    open={isDupOpen}
+                    onOpenChange={setIsDupOpen}
+                    onApplied={() => refetch()}
                 />
             </div>
         </AppLayout>

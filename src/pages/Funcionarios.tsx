@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL, toTitleCase } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
+import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDialog";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -132,6 +133,7 @@ export default function Funcionarios() {
   const [calcSalario, setCalcSalario] = useState(0);
   const [calcDependentes, setCalcDependentes] = useState(0);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [isDupOpen, setIsDupOpen] = useState(false);
 
   const { data: centrosCusto = [] } = useQuery({
     queryKey: ["centros_custo", selectedCompany?.id],
@@ -311,7 +313,10 @@ export default function Funcionarios() {
         <div className="w-1/3 min-w-[280px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Funcionários</h3>
-            <button onClick={startNew} className="text-xs font-semibold text-white/80 hover:text-white">+ Novo</button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setIsDupOpen(true)} className="text-xs font-semibold text-white/80 hover:text-white" title="Localizar duplicados">Duplicados</button>
+              <button onClick={startNew} className="text-xs font-semibold text-white/80 hover:text-white">+ Novo</button>
+            </div>
           </div>
           <div className="p-3 border-b border-[#eee]">
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className={IC} />
@@ -337,7 +342,7 @@ export default function Funcionarios() {
                 className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
                   selectedId === emp.id ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-[#F6F2EB]"
                 }`}>
-                <div className="w-9 h-9 rounded-full bg-[#0BE041] flex items-center justify-center text-[#064E3B] text-xs font-bold shrink-0">{initials(getName(emp))}</div>
+                <div className="w-9 h-9 rounded-full bg-[#059669] flex items-center justify-center text-[#064E3B] text-xs font-bold shrink-0">{initials(getName(emp))}</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#1D2939] truncate">{getName(emp)}</p>
                   <p className="text-[11px] text-[#555] truncate">{emp.role || "Sem cargo"} · {tipoContratoLabels[emp.tipo_contrato || ""] || "—"}</p>
@@ -359,7 +364,7 @@ export default function Funcionarios() {
             <div className="flex-1 flex items-center justify-center text-sm text-[#555]">Selecione um funcionário ou clique em "+ Novo"</div>
           ) : (
             <>
-              <div className="bg-[#0BE041] px-4 py-2 flex items-center gap-1">
+              <div className="bg-[#059669] px-4 py-2 flex items-center gap-1">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Histórico de Salários" },
                   { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
@@ -581,6 +586,12 @@ export default function Funcionarios() {
           )}
         </div>
       </div>
+
+      <EmployeeDuplicatesDialog
+        open={isDupOpen}
+        onOpenChange={setIsDupOpen}
+        onApplied={() => queryClient.invalidateQueries({ queryKey: ["employees"] })}
+      />
     </AppLayout>
   );
 }

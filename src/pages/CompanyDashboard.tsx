@@ -6,9 +6,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList, Customized,
+    ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList,
 } from "recharts";
-import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { SectionTitle } from "@/components/ui/section-title";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
     subMonths, subWeeks, subDays, addDays, format, differenceInDays, differenceInCalendarDays,
@@ -72,7 +73,13 @@ export default function CompanyDashboard() {
     const [specificYear, setSpecificYear] = useState(() => new Date().getFullYear());
     const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
     const [regime, setRegime] = useState<"caixa" | "competencia">("competencia");
+    const [productsPage, setProductsPage] = useState(0);
+    const [payablesPage, setPayablesPage] = useState(0);
+    const PRODUCTS_PER_PAGE = 5;
+    const PAYABLES_PER_PAGE = 5;
     const periodMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => { setProductsPage(0); setPayablesPage(0); }, [period, regime, specificMonth, specificYear, customStart, customEnd]);
 
     useEffect(() => {
         if (!periodMenuOpen) return;
@@ -454,55 +461,7 @@ export default function CompanyDashboard() {
     const periodDays = differenceInCalendarDays(new Date(periodEnd + "T00:00:00"), new Date(periodStart + "T00:00:00")) + 1;
     const chartGranularity: "day" | "week" | "month" = periodDays <= 14 ? "day" : periodDays <= 180 ? "week" : "month";
 
-    // ─── Principais destinos dos gastos (categorias) ────────
-    // Competência: agrupa pelo valor cheio dos CP por data_vencimento.
-    // Caixa: agrupa pelo valor pago dos CP por data_pagamento.
-    const { data: gastosCategorias = [] } = useQuery({
-        queryKey: ["dash_gastos_categorias", cId, periodStart, periodEnd, regime, transferAccountIds],
-        queryFn: async () => {
-            const cpQuery = regime === "competencia"
-                ? db.from("contas_pagar")
-                    .select("valor, conta_contabil_id")
-                    .eq("company_id", cId)
-                    .in("status", ["aberto", "parcial", "vencido", "pago"])
-                    .is("deleted_at", null)
-                    .gte("data_vencimento", periodStart).lte("data_vencimento", periodEnd)
-                    .limit(10000)
-                : db.from("contas_pagar")
-                    .select("valor_pago, conta_contabil_id")
-                    .eq("company_id", cId).eq("status", "pago")
-                    .is("deleted_at", null)
-                    .gte("data_pagamento", periodStart).lte("data_pagamento", periodEnd)
-                    .limit(10000);
-            const [accRes, cpRes] = await Promise.all([
-                db.from("chart_of_accounts").select("id, name").eq("company_id", cId),
-                cpQuery,
-            ]);
-            const accMap: Record<string, string> = {};
-            (accRes.data || []).forEach((a: any) => { accMap[a.id] = a.name; });
-
-            const valorField = regime === "competencia" ? "valor" : "valor_pago";
-            const byCat: Record<string, number> = {};
-            (cpRes.data || []).forEach((r: any) => {
-                if (isTransfer(r)) return;
-                const name = r.conta_contabil_id ? (accMap[r.conta_contabil_id] || "Sem categoria") : "Sem categoria";
-                byCat[name] = (byCat[name] || 0) + Number(r[valorField] || 0);
-            });
-
-            const sorted = Object.entries(byCat)
-                .map(([name, total]) => ({ name, total }))
-                .filter(r => r.total > 0)
-                .sort((a, b) => b.total - a.total);
-            const top = sorted.slice(0, 8);
-            const rest = sorted.slice(8);
-            const outros = rest.reduce((s, r) => s + r.total, 0);
-            if (outros > 0) top.push({ name: "Outros", total: outros });
-            return top;
-        },
-        enabled: !!cId,
-    });
-
-    // ─── Despesas diárias pelo período selecionado ──────────
+// ─── Despesas diárias pelo período selecionado ──────────
     // Competência: por data_vencimento, valor cheio.
     // Caixa: por data_pagamento, valor pago.
     // Retorna mapas byDay (atual e anterior) — agregação por bucket vem em useMemo abaixo.
@@ -978,10 +937,10 @@ export default function CompanyDashboard() {
     const heatmapColor = (value: number, max: number) => {
         if (value === 0 || max === 0) return "#F3F4F6";
         const r = value / max;
-        if (r < 0.25) return "#C2F8CE";
-        if (r < 0.5) return "#85F2A0";
-        if (r < 0.75) return "#48EB72";
-        return "#0BE041";
+        if (r < 0.25) return "#D1FAE5";
+        if (r < 0.5) return "#6EE7B7";
+        if (r < 0.75) return "#34D399";
+        return "#059669";
     };
 
     const tooltipStyle = {
@@ -1003,30 +962,32 @@ export default function CompanyDashboard() {
         <AppLayout title="Dashboard">
             <div style={{ width: "100%", fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
                     <div>
                         <button
                             onClick={() => navigate("/dashboard")}
                             style={{
-                                display: "flex", alignItems: "center", gap: 10,
-                                padding: 0, marginBottom: 4,
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: 0, marginBottom: 6,
                                 border: "none", background: "transparent",
-                                fontSize: 28, fontWeight: 500, color: C.text1,
-                                letterSpacing: "-0.02em", lineHeight: 1.1,
+                                fontSize: 30, fontWeight: 700, color: C.text1,
+                                letterSpacing: "-0.025em", lineHeight: 1.1,
                                 cursor: "pointer",
                             }}
                             title="Trocar empresa"
                         >
                             {companyName}
+                            <ChevronDown size={20} style={{ color: C.textMuted, marginTop: 4 }} strokeWidth={2} />
                         </button>
-                        <p style={{ fontSize: 13, color: C.text2, margin: 0, fontWeight: 500 }}>
-                            Análise ref. {format(new Date(periodStart + "T00:00:00"), "dd 'de' MMMM", { locale: ptBR })}
-                            {" "}até{" "}
-                            {format(effectivePeriodEnd, "dd 'de' MMMM, yyyy", { locale: ptBR })}
-                        </p>
-                        <p style={{ fontSize: 11.5, color: C.textMuted, margin: "4px 0 0" }}>
-                            Atualizado as {format(today, "HH:mm")}
-                        </p>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 12.5, color: C.textMuted, fontWeight: 500 }}>
+                            <span>
+                                {format(new Date(periodStart + "T00:00:00"), "dd 'de' MMM", { locale: ptBR })}
+                                {" — "}
+                                {format(effectivePeriodEnd, "dd 'de' MMM, yyyy", { locale: ptBR })}
+                            </span>
+                            <span style={{ width: 3, height: 3, borderRadius: "50%", background: C.textMuted, opacity: 0.5 }} />
+                            <span>Atualizado às {format(today, "HH:mm")}</span>
+                        </div>
                     </div>
 
                     {/* Regime + Period Filter (ao lado do título) */}
@@ -1165,17 +1126,17 @@ export default function CompanyDashboard() {
                     <div style={{
                         display: "flex", alignItems: "center", justifyContent: "space-between",
                         padding: "12px 18px", borderRadius: 10,
-                        border: `1.5px solid ${C.redBg}`, background: C.redSoft,
+                        border: `1px solid #FECACA`, background: C.redSoft,
                         marginBottom: 20,
                     }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.redBg, flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, color: C.red, fontWeight: 500 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <AlertTriangle size={16} style={{ color: C.red, flexShrink: 0 }} strokeWidth={2.25} />
+                            <span style={{ fontSize: 13, color: "#991B1B", fontWeight: 500 }}>
                                 {alertItems.join("  ·  ")}
                             </span>
                         </div>
                         <button onClick={() => navigate("/contas-pagar")} style={{
-                            fontSize: 13, fontWeight: 600, color: C.text1, background: "none", border: "none",
+                            fontSize: 13, fontWeight: 600, color: "#991B1B", background: "none", border: "none",
                             cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
                         }}>
                             Ver pendentes <ArrowRight size={14} />
@@ -1186,106 +1147,136 @@ export default function CompanyDashboard() {
                 {/* ── 3 KPI Cards (mockup v1) ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <TrendingUp size={16} strokeWidth={2.25} />
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Faturamento" : "Recebimentos"}
                                 <span title={regime === "competencia"
                                     ? "Vendas confirmadas no período (regime de competência). Fonte: 'vendas.valor_liquido' por 'data_venda', status='confirmado'."
                                     : "Recebimentos efetivos no período (regime de caixa). Fonte: 'contas_receber.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."
                                 } style={{ display: "inline-flex", cursor: "help" }}>
-                                    <Info size={13} style={{ color: C.textMuted }} />
+                                    <Info size={12} style={{ color: C.textMuted }} />
                                 </span>
                             </div>
-                            {receitaPeriodoAnterior > 0 && (
-                                <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias (ex.: se hoje é 07/05, compara 01–07/05 com 01–07/04). Cálculo: (período atual − período anterior) ÷ período anterior × 100. Seta verde para cima indica crescimento; vermelha para baixo indica queda." style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendFat >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
-                                    {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
-                                </span>
-                            )}
                         </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: C.gold, lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(receitaPeriodo)}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {receitaPeriodoAnterior > 0 ? fmt(receitaPeriodoAnterior) : `em ${periodLabel.toLowerCase()}`}
+                        <div style={{ fontSize: "clamp(24px, 2.1vw, 30px)", fontWeight: 700, color: C.text1, lineHeight: 1.1, letterSpacing: "-0.025em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(receitaPeriodo)}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                            {receitaPeriodoAnterior > 0 ? (
+                                <>
+                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendFat >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                        {trendFat >= 0 ? "▲" : "▼"} {Math.abs(trendFat).toFixed(1)}%
+                                    </span>
+                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs. {fmt(receitaPeriodoAnterior)} mês ant.</span>
+                                </>
+                            ) : (
+                                <span>em {periodLabel.toLowerCase()}</span>
+                            )}
                         </div>
                     </div>
 
                     {/* 2. Despesas */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <TrendingDown size={16} strokeWidth={2.25} />
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Despesas" : "Pagamentos"}
                                 <span title={regime === "competencia"
                                     ? "Despesas do período por regime de competência: soma do valor cheio de TODAS as contas a pagar (aberto, parcial, vencido, pago) com 'data_vencimento' no período. Exclui transferências."
                                     : "Pagamentos efetivos do período (regime de caixa): soma das contas pagas. Fonte: 'contas_pagar.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."
                                 } style={{ display: "inline-flex", cursor: "help" }}>
-                                    <Info size={13} style={{ color: C.textMuted }} />
+                                    <Info size={12} style={{ color: C.textMuted }} />
                                 </span>
                             </div>
-                            {despesaPeriodoAnterior > 0 && (
-                                <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias (ex.: se hoje é 07/05, compara 01–07/05 com 01–07/04). Cálculo: (período atual − período anterior) ÷ período anterior × 100. Seta verde para cima indica crescimento; vermelha para baixo indica queda." style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendDesp <= 0 ? "#ECFDF3" : "#FEE2E2", color: trendDesp <= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
-                                    {trendDesp <= 0 ? "▼" : "▲"} {Math.abs(trendDesp).toFixed(1)}%
-                                </span>
-                            )}
                         </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: "#7F1D1D", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(despesaPeriodo)}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {despesaPeriodoAnterior > 0 ? fmt(despesaPeriodoAnterior) : (receitaPeriodo > 0 ? `${((despesaPeriodo / receitaPeriodo) * 100).toFixed(1)}% ${regime === "competencia" ? "do faturamento" : "dos recebimentos"}` : "—")}
+                        <div style={{ fontSize: "clamp(24px, 2.1vw, 30px)", fontWeight: 700, color: C.text1, lineHeight: 1.1, letterSpacing: "-0.025em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(despesaPeriodo)}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                            {despesaPeriodoAnterior > 0 ? (
+                                <>
+                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendDesp <= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                        {trendDesp <= 0 ? "▼" : "▲"} {Math.abs(trendDesp).toFixed(1)}%
+                                    </span>
+                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs. {fmt(despesaPeriodoAnterior)} mês ant.</span>
+                                </>
+                            ) : (
+                                <span>{receitaPeriodo > 0 ? `${((despesaPeriodo / receitaPeriodo) * 100).toFixed(1)}% ${regime === "competencia" ? "do faturamento" : "dos recebimentos"}` : "—"}</span>
+                            )}
                         </div>
                     </div>
 
                     {/* 3. Resultado Líquido */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: "14px 18px", border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#ECFDF5" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#059669" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <Wallet size={16} strokeWidth={2.25} />
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text2, textTransform: "uppercase", letterSpacing: 0.6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Resultado Líquido" : "Resultado de Caixa"}
                                 <span title={regime === "competencia"
                                     ? "Resultado contábil do período (DRE): Faturamento − Despesas, ambos em regime de competência. Reflete o lucro do período independente do que entrou ou saiu de caixa."
                                     : "Resultado de caixa do período: Recebimentos − Pagamentos, ambos em regime de caixa. Reflete a variação efetiva do caixa no período."
                                 } style={{ display: "inline-flex", cursor: "help" }}>
-                                    <Info size={13} style={{ color: C.textMuted }} />
+                                    <Info size={12} style={{ color: C.textMuted }} />
                                 </span>
                             </div>
-                            {resultadoPeriodoAnterior !== 0 ? (
-                                <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias (ex.: se hoje é 07/05, compara 01–07/05 com 01–07/04). Cálculo: (período atual − período anterior) ÷ período anterior × 100. Seta verde para cima indica crescimento; vermelha para baixo indica queda." style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: trendResultado >= 0 ? "#ECFDF3" : "#FEE2E2", color: trendResultado >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
-                                    {trendResultado >= 0 ? "▲" : "▼"} {Math.abs(trendResultado).toFixed(1)}%
-                                </span>
-                            ) : (
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: resultadoPeriodo >= 0 ? "#ECFDF3" : "#FEE2E2", color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
-                                    {resultadoPeriodo >= 0 ? "▲" : "▼"} {receitaPeriodo > 0 ? `${Math.abs((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}
-                                </span>
-                            )}
                         </div>
-                        <div style={{ fontSize: "clamp(18px, 1.8vw, 26px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1.1, marginBottom: 5, letterSpacing: "-0.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(resultadoPeriodo)}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>
-                            {resultadoPeriodoAnterior !== 0 ? fmt(resultadoPeriodoAnterior) : (receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—")}
+                        <div style={{ fontSize: "clamp(24px, 2.1vw, 30px)", fontWeight: 700, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1.1, letterSpacing: "-0.025em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(resultadoPeriodo)}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
+                            {resultadoPeriodoAnterior !== 0 ? (
+                                <>
+                                    <span title="Variação percentual em relação ao mês passado, comparando o mesmo intervalo de dias. Cálculo: (período atual − período anterior) ÷ período anterior × 100." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: trendResultado >= 0 ? "#039855" : "#E53E3E", flexShrink: 0 }}>
+                                        {trendResultado >= 0 ? "▲" : "▼"} {Math.abs(trendResultado).toFixed(1)}%
+                                    </span>
+                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs. {fmt(resultadoPeriodoAnterior)} mês ant.</span>
+                                </>
+                            ) : (
+                                <span>{receitaPeriodo > 0 ? `Margem ${((resultadoPeriodo / receitaPeriodo) * 100).toFixed(1)}%` : "—"}</span>
+                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* ── Heatmap: Faturamento Diário do Mês ── */}
                 <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", marginBottom: 16, overflow: "hidden" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
-                        <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                {regime === "competencia" ? "Faturamento Diário" : "Recebimentos Diários"}
-                                <span title={regime === "competencia"
-                                    ? "Vendas confirmadas distribuídas por dia (regime de competência). Cada célula soma 'vendas.valor_liquido' por 'data_venda'."
-                                    : "Recebimentos por dia (regime de caixa). Cada célula soma 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."
-                                } style={{ display: "inline-flex", cursor: "help" }}>
-                                    <Info size={13} style={{ color: C.textMuted }} />
-                                </span>
-                            </div>
-                            <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{format(new Date(periodStart + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })} — {format(new Date(periodEnd + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</div>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: C.textMuted }}>
-                            <span>Menos</span>
-                            {["#F3F4F6", "#BBF7D0", "#86EFAC", "#4ADE80", "#16A34A"].map((c, i) => (
-                                <span key={i} style={{ width: 14, height: 14, background: c, borderRadius: 3, border: c === "#F3F4F6" ? `1px solid ${C.border}` : "none" }} />
-                            ))}
-                            <span>Mais</span>
-                        </div>
+                    <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                        <SectionTitle
+                            title={regime === "competencia" ? "Faturamento Diário" : "Recebimentos Diários"}
+                            subtitle={`${format(new Date(periodStart + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })} — ${format(new Date(periodEnd + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`}
+                            info={regime === "competencia"
+                                ? "Vendas confirmadas distribuídas por dia (regime de competência). Cada célula soma 'vendas.valor_liquido' por 'data_venda'."
+                                : "Recebimentos por dia (regime de caixa). Cada célula soma 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."}
+                            action={
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: C.textMuted }}>
+                                    <span>Menos</span>
+                                    {["#F3F4F6", "#D1FAE5", "#6EE7B7", "#34D399", "#059669"].map((c, i) => (
+                                        <span key={i} style={{ width: 14, height: 14, background: c, borderRadius: 3, border: c === "#F3F4F6" ? `1px solid ${C.border}` : "none" }} />
+                                    ))}
+                                    <span>Mais</span>
+                                </div>
+                            }
+                        />
                     </div>
-                    <div style={{ display: "flex", gap: 32, padding: "20px 20px 24px 20px", alignItems: "flex-start" }}>
+                    {/* Mini-stats strip */}
+                    {heatmap.total > 0 && (
+                        <div style={{ display: "flex", gap: 0, padding: "0 20px", borderBottom: `1px solid ${C.border}`, background: "#FAFBFC" }}>
+                            {[
+                                { label: "Total", value: fmt(heatmap.total) },
+                                { label: "Média diária", value: fmt(heatmap.avg) },
+                                { label: "Melhor dia", value: heatmap.bestDay && heatmap.bestDay.value > 0 ? `${format(heatmap.bestDay.date, "dd/MM")} · ${fmt(heatmap.bestDay.value)}` : "—" },
+                                { label: "Dias com vendas", value: `${heatmap.daysWithSales} / ${heatmap.days.length}` },
+                            ].map((s, i, arr) => (
+                                <div key={s.label} style={{ flex: 1, padding: "14px 20px", borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                                    <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500, marginBottom: 3 }}>{s.label}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text1, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div style={{ display: "flex", gap: 32, padding: 20, alignItems: "flex-start" }}>
                         {/* Heatmap grid */}
                         <div style={{ display: "flex", gap: 8 }}>
                             {/* Day-of-week labels */}
@@ -1337,36 +1328,66 @@ export default function CompanyDashboard() {
                         <div style={{ flex: 1, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignSelf: "stretch" }}>
                             {/* Produtos vendidos - ranking */}
                             <div style={{ background: "#F9FAFB", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}` }}>
-                                    <div style={{ fontSize: 15, color: C.text1, fontWeight: 700, letterSpacing: "-0.01em" }}>PRODUTOS E SERVIÇOS <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>· {monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</span></div>
+                                <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
+                                    <div style={{ fontSize: 13, color: C.text1, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Produtos e serviços <span style={{ color: C.textMuted, fontWeight: 500 }}>· {monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</span></div>
                                 </div>
-                                {monthlySales?.productBreakdown && monthlySales.productBreakdown.length > 0 ? (
-                                    <div style={{ flex: 1, overflowY: "auto" }}>
-                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                            <thead style={{ position: "sticky", top: 0, background: "#F9FAFB", zIndex: 1 }}>
-                                                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                    <th style={{ textAlign: "left", padding: "6px 12px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Produto</th>
-                                                    <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Vend.</th>
-                                                    <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Qtd</th>
-                                                    <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>Fatur.</th>
-                                                    <th style={{ textAlign: "right", padding: "6px 12px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.3 }}>%</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {monthlySales.productBreakdown.map((p, idx) => (
-                                                    <tr key={p.descricao + idx} style={{ borderBottom: idx === monthlySales.productBreakdown.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "transparent" }}>
-                                                        <td style={{ padding: "7px 12px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{p.descricao}</td>
-                                                        <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
-                                                        <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums" }}>{(p.semProduto || regime === "caixa") ? "—" : p.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td>
-                                                        <td style={{ padding: "7px 8px", textAlign: "right", color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(p.faturamento)}</td>
-                                                        <td style={{ padding: "7px 12px", textAlign: "right", color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{p.percentual.toFixed(1)}%</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <div style={{ padding: "20px 14px", textAlign: "center", color: C.textMuted, fontSize: 12 }}>
+                                {monthlySales?.productBreakdown && monthlySales.productBreakdown.length > 0 ? (() => {
+                                    const totalItems = monthlySales.productBreakdown.length;
+                                    const totalPages = Math.max(1, Math.ceil(totalItems / PRODUCTS_PER_PAGE));
+                                    const page = Math.min(productsPage, totalPages - 1);
+                                    const startIdx = page * PRODUCTS_PER_PAGE;
+                                    const pageItems = monthlySales.productBreakdown.slice(startIdx, startIdx + PRODUCTS_PER_PAGE);
+                                    return (
+                                        <>
+                                            <div style={{ flex: 1, overflowY: "auto" }}>
+                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                                    <thead style={{ position: "sticky", top: 0, background: "#F9FAFB", zIndex: 1 }}>
+                                                        <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                                                            <th style={{ textAlign: "left", padding: "8px 16px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Produto</th>
+                                                            <th style={{ textAlign: "right", padding: "8px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Vendas</th>
+                                                            <th style={{ textAlign: "right", padding: "8px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Faturamento</th>
+                                                            <th style={{ textAlign: "right", padding: "8px 16px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>%</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {pageItems.map((p, idx) => (
+                                                            <tr key={p.descricao + (startIdx + idx)} style={{ borderBottom: idx === pageItems.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "transparent" }}>
+                                                                <td style={{ padding: "10px 16px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }} title={p.descricao}>{p.descricao}</td>
+                                                                <td style={{ padding: "10px 10px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
+                                                                <td style={{ padding: "10px 10px", textAlign: "right", color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(p.faturamento)}</td>
+                                                                <td style={{ padding: "10px 16px", textAlign: "right", color: C.textMuted, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{p.percentual.toFixed(1)}%</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {totalPages > 1 && (
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderTop: `1px solid ${C.border}`, background: "#F9FAFB" }}>
+                                                    <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 500 }}>
+                                                        Página {page + 1} de {totalPages} · {startIdx + 1}–{Math.min(startIdx + PRODUCTS_PER_PAGE, totalItems)} de {totalItems}
+                                                    </span>
+                                                    <div style={{ display: "flex", gap: 6 }}>
+                                                        <button
+                                                            onClick={() => setProductsPage((p) => Math.max(0, p - 1))}
+                                                            disabled={page === 0}
+                                                            style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.border}`, borderRadius: 4, background: page === 0 ? "#F3F4F6" : "white", color: page === 0 ? C.textMuted : C.text1, cursor: page === 0 ? "not-allowed" : "pointer" }}
+                                                        >
+                                                            Anterior
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setProductsPage((p) => Math.min(totalPages - 1, p + 1))}
+                                                            disabled={page >= totalPages - 1}
+                                                            style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.border}`, borderRadius: 4, background: page >= totalPages - 1 ? "#F3F4F6" : "white", color: page >= totalPages - 1 ? C.textMuted : C.text1, cursor: page >= totalPages - 1 ? "not-allowed" : "pointer" }}
+                                                        >
+                                                            Próxima
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })() : (
+                                    <div style={{ padding: "28px 14px", textAlign: "center", color: C.textMuted, fontSize: 13 }}>
                                         {regime === "competencia" ? "Nenhum produto vendido neste mês" : "Nenhum recebimento vinculado a venda no período"}
                                     </div>
                                 )}
@@ -1374,7 +1395,7 @@ export default function CompanyDashboard() {
                             {/* Distribuição de produtos e serviços (pizza) */}
                             <div style={{ background: "#F9FAFB", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                                 <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}` }}>
-                                    <div style={{ fontSize: 15, color: C.text1, fontWeight: 700, letterSpacing: "-0.01em" }}>DISTRIBUIÇÃO</div>
+                                    <div style={{ fontSize: 13, color: C.text1, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Distribuição</div>
                                     <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
                                 </div>
                                 {(() => {
@@ -1386,7 +1407,7 @@ export default function CompanyDashboard() {
                                             </div>
                                         );
                                     }
-                                    const palette = ["#039855", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#F59E0B", "#9CA3AF"];
+                                    const palette = ["#039855", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#EA580C", "#9CA3AF"];
                                     const TOP = 5;
                                     const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
                                     const top = sorted.slice(0, TOP);
@@ -1426,27 +1447,22 @@ export default function CompanyDashboard() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, marginBottom: 16, alignItems: "start" }}>
                     {/* Faturamento do período */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                            <div>
-                                <p style={{ fontSize: 15, fontWeight: 700, color: C.text1, margin: 0, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                    {regime === "competencia" ? "Faturamento" : "Recebimentos"} {chartGranularity === "day" ? (regime === "competencia" ? "Diário" : "Diários") : chartGranularity === "week" ? (regime === "competencia" ? "Semanal" : "Semanais") : (regime === "competencia" ? "Mensal" : "Mensais")}
-                                    <span title={regime === "competencia"
-                                        ? "Vendas confirmadas agrupadas por dia/semana/mês (competência). Fonte: 'vendas.valor_liquido' por 'data_venda'."
-                                        : "Recebimentos efetivos agrupados por dia/semana/mês (caixa). Fonte: 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."
-                                    } style={{ display: "inline-flex", cursor: "help" }}>
-                                        <Info size={13} style={{ color: C.textMuted }} />
-                                    </span>
-                                </p>
-                                <p style={{ fontSize: 13, color: C.textMuted, margin: "2px 0 0 0" }}>
-                                    {periodLabel} · {(chartRevExp || []).length} {chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}
-                                </p>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                                <div style={{ fontSize: 11.5, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}>Total no período</div>
-                                <div style={{ fontSize: 20, fontWeight: 800, color: "#039855", letterSpacing: "-0.015em", marginTop: 2 }}>
-                                    {fmt((chartRevExp || []).reduce((s: number, r: any) => s + (r.Receita || 0), 0))}
-                                </div>
-                            </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <SectionTitle
+                                title={`${regime === "competencia" ? "Faturamento" : "Recebimentos"} ${chartGranularity === "day" ? (regime === "competencia" ? "Diário" : "Diários") : chartGranularity === "week" ? (regime === "competencia" ? "Semanal" : "Semanais") : (regime === "competencia" ? "Mensal" : "Mensais")}`}
+                                subtitle={`${periodLabel} · ${(chartRevExp || []).length} ${chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}`}
+                                info={regime === "competencia"
+                                    ? "Vendas confirmadas agrupadas por dia/semana/mês (competência). Fonte: 'vendas.valor_liquido' por 'data_venda'."
+                                    : "Recebimentos efetivos agrupados por dia/semana/mês (caixa). Fonte: 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."}
+                                action={
+                                    <div style={{ textAlign: "right" }}>
+                                        <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500 }}>Total no período</div>
+                                        <div style={{ fontSize: 20, fontWeight: 700, color: "#039855", letterSpacing: "-0.015em", marginTop: 2 }}>
+                                            {fmt((chartRevExp || []).reduce((s: number, r: any) => s + (r.Receita || 0), 0))}
+                                        </div>
+                                    </div>
+                                }
+                            />
                         </div>
 
                         <ResponsiveContainer width="100%" height={340}>
@@ -1475,42 +1491,12 @@ export default function CompanyDashboard() {
                                     labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
                                     cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
                                 />
-                                <Bar dataKey="ReceitaAnterior" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " mês anterior"} fill="#E5E7EB" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                <Bar dataKey="ReceitaAnterior" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " mês anterior"} fill="#E5E7EB" radius={[4, 4, 0, 0]} maxBarSize={40}>
                                     <LabelList dataKey="ReceitaAnterior" position="top" fontSize={10} fill={C.text2} fontWeight={500} formatter={fmtShort} />
                                 </Bar>
-                                <Bar dataKey="Receita" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " atual"} fill="#0BE041" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                <Bar dataKey="Receita" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " atual"} fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={40}>
                                     <LabelList dataKey="Receita" position="top" fontSize={10} fill={C.text1} fontWeight={600} formatter={fmtShort} />
                                 </Bar>
-                                <Customized component={(props: any) => {
-                                    const items = props?.formattedGraphicalItems;
-                                    if (!Array.isArray(items) || items.length < 2) return null;
-                                    const anteriorPoints = items[0]?.props?.data;
-                                    const atualPoints = items[1]?.props?.data;
-                                    if (!Array.isArray(anteriorPoints) || !Array.isArray(atualPoints)) return null;
-                                    return (
-                                        <g>
-                                            {anteriorPoints.map((pAnt: any, i: number) => {
-                                                const pAtu = atualPoints[i];
-                                                if (!pAnt || !pAtu) return null;
-                                                const atualVal = Number(pAtu.payload?.Receita || 0);
-                                                const anteriorVal = Number(pAnt.payload?.ReceitaAnterior || 0);
-                                                if (anteriorVal <= 0) return null;
-                                                const pct = ((atualVal - anteriorVal) / anteriorVal) * 100;
-                                                const isUp = pct >= 0;
-                                                const cx = (pAnt.x + pAnt.width + pAtu.x) / 2;
-                                                const top = Math.min(pAnt.y, pAtu.y) - 46;
-                                                return (
-                                                    <g key={i}>
-                                                        <rect x={cx - 24} y={top} width={48} height={16} rx={8} fill={isUp ? "#ECFDF3" : "#FEE2E2"} stroke={isUp ? "#A7F3D0" : "#FECACA"} />
-                                                        <text x={cx} y={top + 11} textAnchor="middle" fontSize={10} fontWeight={600} fill={isUp ? "#039855" : "#E53E3E"}>
-                                                            {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(0)}%
-                                                        </text>
-                                                    </g>
-                                                );
-                                            })}
-                                        </g>
-                                    );
-                                }} />
                             </BarChart>
                         </ResponsiveContainer>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 10 }}>
@@ -1519,7 +1505,7 @@ export default function CompanyDashboard() {
                                 Mês anterior
                             </span>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 10, height: 10, background: "#0BE041", borderRadius: 2 }} />
+                                <span style={{ width: 10, height: 10, background: "#059669", borderRadius: 2 }} />
                                 Atual
                             </span>
                         </div>
@@ -1527,19 +1513,17 @@ export default function CompanyDashboard() {
 
                     {/* Contas a Receber — Buckets (mockup) */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
-                            <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                    Contas a Receber
-                                    <span title="Títulos com status 'aberto', 'parcial' ou 'vencido' cujo vencimento cai dentro do período. Saldo = valor − valor_pago. Exclui transferências entre contas. Fonte: tabela 'contas_receber'." style={{ display: "inline-flex", cursor: "help" }}>
-                                        <Info size={13} style={{ color: C.textMuted }} />
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{periodLabel} · {receivablesAging.totalCount} títulos</div>
-                            </div>
-                            <button onClick={() => navigate("/contas-receber")} style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                Ver todos <ArrowRight size={13} />
-                            </button>
+                        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                            <SectionTitle
+                                title="Contas a Receber"
+                                subtitle={`${periodLabel} · ${receivablesAging.totalCount} títulos`}
+                                info="Títulos com status 'aberto', 'parcial' ou 'vencido' cujo vencimento cai dentro do período. Saldo = valor − valor_pago. Exclui transferências entre contas. Fonte: tabela 'contas_receber'."
+                                action={
+                                    <button onClick={() => navigate("/contas-receber")} style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                        Ver todos <ArrowRight size={13} />
+                                    </button>
+                                }
+                            />
                         </div>
 
                         <div style={{ flex: 1 }}>
@@ -1594,7 +1578,7 @@ export default function CompanyDashboard() {
                             <div>
                                 <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500 }}>Total em aberto</div>
                                 <div style={{ marginTop: 2 }}>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: "#ECFDF3", color: "#027A48", border: "1.5px solid #A9EFC5" }}>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: "#ECFDF4", color: "#027A48", border: "1.5px solid #A9EFC5" }}>
                                         <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#039855" }} />
                                         {crBuckets.acima90.count === 0 ? "Carteira saudável" : "Atenção necessária"}
                                     </span>
@@ -1612,27 +1596,22 @@ export default function CompanyDashboard() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, alignItems: "start" }}>
                     {/* Despesas Diárias do período */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding: 20, display: "flex", flexDirection: "column", minHeight: 0 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                            <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                    {regime === "competencia" ? "Despesas" : "Pagamentos"} {chartGranularity === "day" ? (regime === "competencia" ? "Diárias" : "Diários") : chartGranularity === "week" ? (regime === "competencia" ? "Semanais" : "Semanais") : (regime === "competencia" ? "Mensais" : "Mensais")}
-                                    <span title={regime === "competencia"
-                                        ? "Despesas agrupadas por dia/semana/mês conforme o tamanho do período (regime de competência). Valor cheio das contas a pagar (todos status abertos+pago) por 'data_vencimento'. Exclui transferências."
-                                        : "Pagamentos agrupados por dia/semana/mês conforme o tamanho do período (regime de caixa). Valor efetivamente pago das contas. Fonte: 'contas_pagar.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."
-                                    } style={{ display: "inline-flex", cursor: "help" }}>
-                                        <Info size={13} style={{ color: C.textMuted }} />
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-                                    {periodLabel} · {(chartDespDiarias || []).length} {chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}
-                                </div>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                                <div style={{ fontSize: 11.5, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}>Total no período</div>
-                                <div style={{ fontSize: 20, fontWeight: 800, color: "#7F1D1D", letterSpacing: "-0.015em", marginTop: 2 }}>
-                                    {fmt((chartDespDiarias || []).reduce((s: number, r: any) => s + (r.despesa || 0), 0))}
-                                </div>
-                            </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <SectionTitle
+                                title={`${regime === "competencia" ? "Despesas" : "Pagamentos"} ${chartGranularity === "day" ? (regime === "competencia" ? "Diárias" : "Diários") : chartGranularity === "week" ? "Semanais" : "Mensais"}`}
+                                subtitle={`${periodLabel} · ${(chartDespDiarias || []).length} ${chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}`}
+                                info={regime === "competencia"
+                                    ? "Despesas agrupadas por dia/semana/mês conforme o tamanho do período (regime de competência). Valor cheio das contas a pagar (todos status abertos+pago) por 'data_vencimento'. Exclui transferências."
+                                    : "Pagamentos agrupados por dia/semana/mês conforme o tamanho do período (regime de caixa). Valor efetivamente pago das contas. Fonte: 'contas_pagar.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."}
+                                action={
+                                    <div style={{ textAlign: "right" }}>
+                                        <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500 }}>Total no período</div>
+                                        <div style={{ fontSize: 20, fontWeight: 700, color: "#7F1D1D", letterSpacing: "-0.015em", marginTop: 2 }}>
+                                            {fmt((chartDespDiarias || []).reduce((s: number, r: any) => s + (r.despesa || 0), 0))}
+                                        </div>
+                                    </div>
+                                }
+                            />
                         </div>
 
                         <div style={{ height: 340 }}>
@@ -1662,43 +1641,12 @@ export default function CompanyDashboard() {
                                         labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
                                         cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
                                     />
-                                    <Bar dataKey="despesaAnterior" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " mês anterior"} fill="#E5E7EB" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                    <Bar dataKey="despesaAnterior" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " mês anterior"} fill="#E5E7EB" radius={[4, 4, 0, 0]} maxBarSize={40}>
                                         <LabelList dataKey="despesaAnterior" position="top" fontSize={10} fill={C.text2} fontWeight={500} formatter={fmtShort} />
                                     </Bar>
-                                    <Bar dataKey="despesa" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " atual"} fill="#0BE041" radius={[2, 2, 0, 0]} maxBarSize={40}>
+                                    <Bar dataKey="despesa" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " atual"} fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={40}>
                                         <LabelList dataKey="despesa" position="top" fontSize={10} fill={C.text1} fontWeight={600} formatter={fmtShort} />
                                     </Bar>
-                                    <Customized component={(props: any) => {
-                                        const items = props?.formattedGraphicalItems;
-                                        if (!Array.isArray(items) || items.length < 2) return null;
-                                        const anteriorPoints = items[0]?.props?.data;
-                                        const atualPoints = items[1]?.props?.data;
-                                        if (!Array.isArray(anteriorPoints) || !Array.isArray(atualPoints)) return null;
-                                        return (
-                                            <g>
-                                                {anteriorPoints.map((pAnt: any, i: number) => {
-                                                    const pAtu = atualPoints[i];
-                                                    if (!pAnt || !pAtu) return null;
-                                                    const atualVal = Number(pAtu.payload?.despesa || 0);
-                                                    const anteriorVal = Number(pAnt.payload?.despesaAnterior || 0);
-                                                    if (anteriorVal <= 0) return null;
-                                                    const pct = ((atualVal - anteriorVal) / anteriorVal) * 100;
-                                                    const isUp = pct >= 0;
-                                                    // Despesa: subir é ruim (vermelho), descer é bom (verde)
-                                                    const cx = (pAnt.x + pAnt.width + pAtu.x) / 2;
-                                                    const top = Math.min(pAnt.y, pAtu.y) - 46;
-                                                    return (
-                                                        <g key={i}>
-                                                            <rect x={cx - 24} y={top} width={48} height={16} rx={8} fill={isUp ? "#FEE2E2" : "#ECFDF3"} stroke={isUp ? "#FECACA" : "#A7F3D0"} />
-                                                            <text x={cx} y={top + 11} textAnchor="middle" fontSize={10} fontWeight={600} fill={isUp ? "#E53E3E" : "#039855"}>
-                                                                {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(0)}%
-                                                            </text>
-                                                        </g>
-                                                    );
-                                                })}
-                                            </g>
-                                        );
-                                    }} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -1708,7 +1656,7 @@ export default function CompanyDashboard() {
                                 Mês anterior
                             </span>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 10, height: 10, background: "#0BE041", borderRadius: 2 }} />
+                                <span style={{ width: 10, height: 10, background: "#059669", borderRadius: 2 }} />
                                 Atual
                             </span>
                         </div>
@@ -1716,63 +1664,84 @@ export default function CompanyDashboard() {
 
                     {/* A Pagar — Próximos 7 Dias (mockup list) */}
                     <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
-                            <div>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                    A Pagar
-                                    <span title="Títulos com status 'aberto', 'parcial' ou 'vencido' cujo vencimento cai dentro do período (regime de competência). Saldo = valor − valor_pago. Exclui transferências entre contas. Fonte: tabela 'contas_pagar'." style={{ display: "inline-flex", cursor: "help" }}>
-                                        <Info size={13} style={{ color: C.textMuted }} />
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{periodLabel} · {payables7d.length} título{payables7d.length !== 1 ? "s" : ""}</div>
-                            </div>
-                            <button onClick={() => navigate("/contas-pagar")} style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                                Ver todos <ArrowRight size={13} />
-                            </button>
+                        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
+                            <SectionTitle
+                                title="A Pagar"
+                                subtitle={`${periodLabel} · ${payables7d.length} título${payables7d.length !== 1 ? "s" : ""}`}
+                                info="Títulos com status 'aberto', 'parcial' ou 'vencido' cujo vencimento cai dentro do período (regime de competência). Saldo = valor − valor_pago. Exclui transferências entre contas. Fonte: tabela 'contas_pagar'."
+                                action={
+                                    <button onClick={() => navigate("/contas-pagar")} style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                                        Ver todos <ArrowRight size={13} />
+                                    </button>
+                                }
+                            />
                         </div>
 
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
                             {payables7d.length === 0 ? (
                                 <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "32px 20px" }}>
                                     Nenhuma conta a pagar nos próximos 7 dias.
                                 </p>
-                            ) : (
-                                payables7d.slice(0, 5).map((p: any) => {
-                                    const saldo = Number(p.valor || 0) - Number(p.valor_pago || 0);
-                                    const diff = differenceInCalendarDays(new Date(p.data_vencimento + "T00:00:00"), today);
-                                    const isLate = diff <= 0;
-                                    const isWarn = diff > 0 && diff <= 3;
-                                    const iconBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : C.goldBg;
-                                    const iconColor = isLate ? "#991B1B" : isWarn ? "#92400E" : "#059669";
-                                    const initials = (p.credor_nome || "??").split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
-                                    const badgeBg = isLate ? "#FEE2E2" : isWarn ? "#FFF0EB" : "#F6F2EB";
-                                    const badgeBorder = isLate ? "#FECDCA" : isWarn ? "#FEDF89" : C.border;
-                                    const badgeColor = isLate ? "#B42318" : isWarn ? "#B54708" : C.text2;
-                                    const badgeDot = isLate ? "#E53E3E" : isWarn ? "#EA580C" : C.textMuted;
-                                    const badgeLabel = isLate ? "Urgente" : isWarn ? "Em breve" : "Normal";
+                            ) : (() => {
+                                const totalPagesPay = Math.max(1, Math.ceil(payables7d.length / PAYABLES_PER_PAGE));
+                                const pagePay = Math.min(payablesPage, totalPagesPay - 1);
+                                const startPay = pagePay * PAYABLES_PER_PAGE;
+                                const pagePayItems = payables7d.slice(startPay, startPay + PAYABLES_PER_PAGE);
+                                return (
+                                    <>
+                                        <div style={{ flex: 1 }}>
+                                            {pagePayItems.map((p: any) => {
+                                                const saldo = Number(p.valor || 0) - Number(p.valor_pago || 0);
+                                                const diff = differenceInCalendarDays(new Date(p.data_vencimento + "T00:00:00"), today);
+                                                const isLate = diff <= 0;
+                                                const isWarn = diff > 0 && diff <= 3;
+                                                const dueColor = isLate ? "#E53E3E" : isWarn ? "#B45309" : "#039855";
 
-                                    return (
-                                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
-                                            <div style={{ width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700, background: iconBg, color: iconColor, flexShrink: 0 }}>
-                                                {initials}
-                                            </div>
-                                            <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div style={{ fontSize: 13, fontWeight: 600, color: C.text1, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.credor_nome}</div>
-                                                <div style={{ fontSize: 12, color: C.textMuted, marginTop: 1 }}>{daysUntilDue(p.data_vencimento)}</div>
-                                            </div>
-                                            <div style={{ textAlign: "right" }}>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: isLate ? "#E53E3E" : C.text1 }}>{fmt(saldo)}</div>
-                                                <div style={{ marginTop: 4 }}>
-                                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: badgeBg, color: badgeColor, border: `1.5px solid ${badgeBorder}` }}>
-                                                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: badgeDot }} />
-                                                        {badgeLabel}
-                                                    </span>
+                                                return (
+                                                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
+                                                        <div style={{ width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "#F3F4F6", color: "#6B7280", flexShrink: 0 }}>
+                                                            <Building2 size={18} strokeWidth={1.75} />
+                                                        </div>
+                                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text1, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.credor_nome}</div>
+                                                            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: dueColor, marginTop: 1, fontWeight: 500 }}>
+                                                                <CalendarClock size={11.5} />
+                                                                {daysUntilDue(p.data_vencimento)}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ textAlign: "right" }}>
+                                                            <div style={{ fontSize: 13, fontWeight: 700, color: isLate ? "#E53E3E" : C.text1 }}>{fmt(saldo)}</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        {totalPagesPay > 1 && (
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 20px", borderTop: `1px solid ${C.border}`, background: "#F9FAFB" }}>
+                                                <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 500 }}>
+                                                    Página {pagePay + 1} de {totalPagesPay} · {startPay + 1}–{Math.min(startPay + PAYABLES_PER_PAGE, payables7d.length)} de {payables7d.length}
+                                                </span>
+                                                <div style={{ display: "flex", gap: 6 }}>
+                                                    <button
+                                                        onClick={() => setPayablesPage((p) => Math.max(0, p - 1))}
+                                                        disabled={pagePay === 0}
+                                                        style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.border}`, borderRadius: 4, background: pagePay === 0 ? "#F3F4F6" : "white", color: pagePay === 0 ? C.textMuted : C.text1, cursor: pagePay === 0 ? "not-allowed" : "pointer" }}
+                                                    >
+                                                        Anterior
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPayablesPage((p) => Math.min(totalPagesPay - 1, p + 1))}
+                                                        disabled={pagePay >= totalPagesPay - 1}
+                                                        style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", border: `1px solid ${C.border}`, borderRadius: 4, background: pagePay >= totalPagesPay - 1 ? "#F3F4F6" : "white", color: pagePay >= totalPagesPay - 1 ? C.textMuted : C.text1, cursor: pagePay >= totalPagesPay - 1 ? "not-allowed" : "pointer" }}
+                                                    >
+                                                        Próxima
+                                                    </button>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })
-                            )}
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         {/* Footer total */}
@@ -1783,64 +1752,6 @@ export default function CompanyDashboard() {
                     </div>
                 </div>
 
-                {/* ── Pizza: Principais Destinos dos Gastos ── */}
-                <div style={{ marginTop: 16, background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding: 20 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                        <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                Principais Destinos dos Gastos
-                                <span title={regime === "competencia"
-                                    ? "Contas a pagar do período (todos os status abertos+pago) agrupadas pela categoria do plano de contas. Regime de competência: por 'data_vencimento', valor cheio. Top 8 + 'Outros'. Exclui transferências."
-                                    : "Contas pagas no período (regime de caixa) agrupadas pela categoria do plano de contas. Por 'data_pagamento', valor efetivamente pago. Top 8 + 'Outros'. Exclui transferências."
-                                } style={{ display: "inline-flex", cursor: "help" }}>
-                                    <Info size={13} style={{ color: C.textMuted }} />
-                                </span>
-                            </div>
-                            <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-                                {periodLabel} · {gastosCategorias.length} categoria{gastosCategorias.length !== 1 ? "s" : ""}
-                            </div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 11.5, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}>Total</div>
-                            <div style={{ fontSize: 20, fontWeight: 800, color: "#7F1D1D", letterSpacing: "-0.015em", marginTop: 2 }}>
-                                {fmt(gastosCategorias.reduce((s: number, r: any) => s + r.total, 0))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {gastosCategorias.length === 0 ? (
-                        <p style={{ fontSize: 13, color: C.textMuted, textAlign: "center", padding: "60px 0" }}>
-                            Nenhum gasto categorizado no período.
-                        </p>
-                    ) : (() => {
-                        const palette = ["#059669", "#1E3A8A", "#0F172A", "#10B981", "#6B7280", "#EA580C"];
-                        const totalGeral = gastosCategorias.reduce((s: number, r: any) => s + r.total, 0);
-                        return (
-                            <div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                    {gastosCategorias.map((c: any, idx: number) => {
-                                        const pct = totalGeral > 0 ? (c.total / totalGeral) * 100 : 0;
-                                        return (
-                                            <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                                <span style={{ width: 12, height: 12, borderRadius: 3, background: palette[idx % palette.length], flexShrink: 0 }} />
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.text1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</span>
-                                                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text1, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmt(c.total)}</span>
-                                                    </div>
-                                                    <div style={{ marginTop: 3, height: 5, background: "#F1F5F9", borderRadius: 3, overflow: "hidden", position: "relative" }}>
-                                                        <div style={{ width: `${pct}%`, height: "100%", background: palette[idx % palette.length], borderRadius: 3 }} />
-                                                    </div>
-                                                    <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 3 }}>{pct.toFixed(1)}% do total</div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </div>
             </div>
         </AppLayout>
     );
