@@ -1915,7 +1915,7 @@ export default function ContasPagar() {
 
               return (
                 <div key={group} className="mb-6">
-                  {/* Group header */}
+                  {/* Group header — neutro, sem cor de alerta (só Hoje na linha continua sinalizando) */}
                   <button
                     onClick={() => {
                       setCollapsedGroups((prev) => {
@@ -1926,18 +1926,13 @@ export default function ContasPagar() {
                       })
                     }}
                     className="w-full flex items-center justify-between px-3 py-2.5 mb-2 transition hover:opacity-80 rounded-[6px]"
-                    style={{ borderBottom: `2px solid ${config.borderColor}`, backgroundColor: config.bgColor }}
+                    style={{ borderBottom: '1px solid rgba(26,46,74,0.10)', backgroundColor: 'rgba(26,46,74,0.03)' }}
                   >
-                    <div className="flex items-center gap-2">
-                      {(group === 'hoje' || group === 'vencidos') && (
-                        <AlertTriangle size={14} style={{ color: config.textColor }} />
-                      )}
-                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: '12px', color: config.textColor, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>
-                        {config.label} — {todayStr}
-                      </span>
-                    </div>
-                    <span className="font-bold" style={{ fontSize: '12px', color: config.textColor, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>
-                      {formatBRL(groupTotal)} · {items.length} titulo{items.length !== 1 ? 's' : ''}
+                    <span className="font-bold uppercase tracking-wider" style={{ fontSize: '12px', color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>
+                      {config.label}
+                    </span>
+                    <span className="font-bold" style={{ fontSize: '12px', color: '#1D2939', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatBRL(groupTotal)} · {allItems.length} titulo{allItems.length !== 1 ? 's' : ''}
                     </span>
                   </button>
 
