@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
 import { CommandPalette } from "@/components/CommandPalette";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { AgenteBanner } from "@/components/AgenteBanner";
 import { menuGroups } from "@/config/menuConfig";
 import { Home, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -86,6 +87,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         </main>
       </SidebarInset>
       <CommandPalette />
+      <AgenteBanner />
     </SidebarProvider>
   );
 }
