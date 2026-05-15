@@ -1960,11 +1960,11 @@ export default function ContasPagar() {
                                 style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                               />
                             </th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Credor</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
                             <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descrição</th>
                             <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Centro de custo</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
+                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria contábil</th>
                             <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Status</th>
                             <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Acoes</th>
                           </tr>
@@ -1973,8 +1973,8 @@ export default function ContasPagar() {
                           {items.map((cp) => {
                             const isHoje = isToday(parseISO(cp.data_vencimento))
                             const categoria = inferCategoria(cp)
-                            const ccLabel = cp.centro_custo_id
-                              ? (centrosCusto.find(c => c.id === cp.centro_custo_id)?.descricao || '\u2014')
+                            const contaContabilLabel = cp.conta_contabil_id
+                              ? (contaContabilMap[cp.conta_contabil_id] || '\u2014')
                               : '\u2014'
                             return (
                               <tr
@@ -1996,6 +1996,15 @@ export default function ContasPagar() {
                                     style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                                   />
                                 </td>
+                                {/* Vencimento */}
+                                <td className="py-3 px-3" style={{ fontSize: 13 }}>
+                                  {isHoje ? (
+                                    <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
+                                  ) : (
+                                    <span style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
+                                  )}
+                                </td>
+                                {/* Descri\u00e7\u00e3o (credor abaixo, menor) */}
                                 <td className="py-3 px-3" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
                                   <div className="flex items-center gap-2.5">
                                     {(() => {
@@ -2028,18 +2037,7 @@ export default function ContasPagar() {
                                     </div>
                                   </div>
                                 </td>
-                                <td className="py-3 px-3">
-                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#667085', border: '1px solid rgba(26,46,74,0.08)' }}>
-                                    {categoria}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3" style={{ fontSize: 13 }}>
-                                  {isHoje ? (
-                                    <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
-                                  ) : (
-                                    <span style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
-                                  )}
-                                </td>
+                                {/* Valor */}
                                 <td className="py-3 px-3 text-right">
                                   <div className="font-semibold" style={{ color: '#059669', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
                                     {formatBRL(saldo(cp))}
@@ -2050,8 +2048,15 @@ export default function ContasPagar() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="py-3 px-3" style={{ fontSize: 13, color: '#667085', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
-                                  {ccLabel}
+                                {/* Categoria (badge) */}
+                                <td className="py-3 px-3">
+                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#667085', border: '1px solid rgba(26,46,74,0.08)' }}>
+                                    {categoria}
+                                  </span>
+                                </td>
+                                {/* Categoria cont\u00e1bil (plano de contas) */}
+                                <td className="py-3 px-3" style={{ fontSize: 13, color: '#667085', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
+                                  <div className="truncate">{contaContabilLabel}</div>
                                 </td>
                                 <td className="py-3 px-3">
                                   {(() => {
