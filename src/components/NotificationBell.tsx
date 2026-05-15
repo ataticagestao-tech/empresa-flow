@@ -195,30 +195,27 @@ export function NotificationBell() {
             </div>
 
             {totalPaginas > 1 && (
-              <>
-                <DropdownMenuSeparator />
-                <div className="flex items-center justify-between px-3 py-2 bg-[#F9FAFB]">
-                  <button
-                    onClick={(e) => { e.preventDefault(); setPagina((p) => Math.max(0, p - 1)); }}
-                    disabled={paginaAtual === 0}
-                    className="h-6 w-6 flex items-center justify-center rounded text-[#667085] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
-                    aria-label="Página anterior"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="text-[10px] text-[#667085] font-medium">
-                    {paginaAtual + 1} de {totalPaginas}
-                  </span>
-                  <button
-                    onClick={(e) => { e.preventDefault(); setPagina((p) => Math.min(totalPaginas - 1, p + 1)); }}
-                    disabled={paginaAtual >= totalPaginas - 1}
-                    className="h-6 w-6 flex items-center justify-center rounded text-[#667085] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
-                    aria-label="Próxima página"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </>
+              <div className="flex items-center justify-end gap-1 px-2 py-1 border-t border-[#F2F4F7]">
+                <button
+                  onClick={(e) => { e.preventDefault(); setPagina((p) => Math.max(0, p - 1)); }}
+                  disabled={paginaAtual === 0}
+                  className="h-4 w-4 flex items-center justify-center rounded text-[#98A2B3] hover:text-[#475467] disabled:opacity-25 disabled:cursor-not-allowed"
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <span className="text-[10px] text-[#98A2B3] tabular-nums">
+                  {paginaAtual + 1}/{totalPaginas}
+                </span>
+                <button
+                  onClick={(e) => { e.preventDefault(); setPagina((p) => Math.min(totalPaginas - 1, p + 1)); }}
+                  disabled={paginaAtual >= totalPaginas - 1}
+                  className="h-4 w-4 flex items-center justify-center rounded text-[#98A2B3] hover:text-[#475467] disabled:opacity-25 disabled:cursor-not-allowed"
+                  aria-label="Próxima página"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
             )}
           </>
         )}
