@@ -1901,8 +1901,9 @@ export default function ContasPagar() {
               />
             )}
 
-            {/* Grouped table */}
-            {!loading && visibleGroups.map((group) => {
+            {/* Grouped tables — 2 colunas: A Pagar (esq) | Pagos (dir) */}
+            {!loading && (() => {
+              const renderGroup = (group: UrgencyGroup) => {
               const allItems = groupedContas[group]
               const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE))
               const currentPage = Math.min(pagePerGroup[group] ?? 0, totalPages - 1)
@@ -1942,7 +1943,7 @@ export default function ContasPagar() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr style={{ backgroundColor: 'rgba(26,46,74,0.03)' }}>
-                            <th className="py-2.5 px-3 text-left w-8">
+                            <th className="py-1.5 px-2.5 text-left w-8">
                               <input
                                 type="checkbox"
                                 checked={items.every((cp) => selectedIds.has(cp.id))}
@@ -1961,13 +1962,13 @@ export default function ContasPagar() {
                                 style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                               />
                             </th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descrição</th>
-                            <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria contábil</th>
-                            <th className="py-2.5 px-3 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Status</th>
-                            <th className="py-2.5 px-3 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Acoes</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descrição</th>
+                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria contábil</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Status</th>
+                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Acoes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1988,7 +1989,7 @@ export default function ContasPagar() {
                                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.02)' }}
                                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                               >
-                                <td className="py-1.5 px-3">
+                                <td className="py-1 px-2.5">
                                   <input
                                     type="checkbox"
                                     checked={selectedIds.has(cp.id)}
@@ -1998,7 +1999,7 @@ export default function ContasPagar() {
                                   />
                                 </td>
                                 {/* Vencimento */}
-                                <td className="py-1.5 px-3" style={{ fontSize: 13 }}>
+                                <td className="py-1 px-2.5" style={{ fontSize: 13 }}>
                                   {isHoje ? (
                                     <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
                                   ) : (
@@ -2006,7 +2007,7 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 {/* Descri\u00e7\u00e3o (credor abaixo, menor) */}
-                                <td className="py-1.5 px-3" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                                <td className="py-1 px-2.5" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
                                   <div className="font-semibold" style={{ color: '#1D2939' }}>{cp.descricao || cp.credor_nome}</div>
                                   {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
                                     <div style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
@@ -2016,7 +2017,7 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 {/* Valor */}
-                                <td className="py-1.5 px-3 text-right">
+                                <td className="py-1 px-2.5 text-right">
                                   <div className="font-semibold" style={{ color: '#1D2939', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
                                     {formatBRL(saldo(cp))}
                                   </div>
@@ -2027,16 +2028,16 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 {/* Categoria (badge) */}
-                                <td className="py-1.5 px-3">
+                                <td className="py-1 px-2.5">
                                   <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#1D2939', border: '1px solid rgba(26,46,74,0.08)' }}>
                                     {categoria}
                                   </span>
                                 </td>
                                 {/* Categoria cont\u00e1bil (plano de contas) */}
-                                <td className="py-1.5 px-3" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
+                                <td className="py-1 px-2.5" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
                                   <div className="truncate">{contaContabilLabel}</div>
                                 </td>
-                                <td className="py-1.5 px-3">
+                                <td className="py-1 px-2.5">
                                   {(() => {
                                     const statusConf: Record<string, { dot: string; text: string; bg: string; label: string }> = {
                                       aberto: { dot: '#EA580C', text: '#EA580C', bg: '#FFF0EB', label: 'Em aberto' },
@@ -2056,7 +2057,7 @@ export default function ContasPagar() {
                                     )
                                   })()}
                                 </td>
-                                <td className="py-1.5 px-3 text-right">
+                                <td className="py-1 px-2.5 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     <button
                                       onClick={() => openPayModal(cp)}
@@ -2227,7 +2228,27 @@ export default function ContasPagar() {
                   )}
                 </div>
               )
-            })}
+              }
+              const aPagar = visibleGroups.filter(g => g !== 'pagos')
+              const pagos = visibleGroups.filter(g => g === 'pagos')
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: pagos.length > 0 ? '1fr 1fr' : '1fr', gap: 20, alignItems: 'start' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1D2939', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(26,46,74,0.08)' }}>A Pagar</div>
+                    {aPagar.map(g => renderGroup(g))}
+                    {aPagar.length === 0 && (
+                      <div style={{ fontSize: 13, color: '#98A2B3', textAlign: 'center', padding: '24px 12px' }}>Nenhum lançamento em aberto</div>
+                    )}
+                  </div>
+                  {pagos.length > 0 && (
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1D2939', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(26,46,74,0.08)' }}>Pagos</div>
+                      {pagos.map(g => renderGroup(g))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         </div>
 
