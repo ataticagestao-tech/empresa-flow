@@ -295,12 +295,13 @@ export default function ContasPagar() {
 
   // Collapsed groups
   const [collapsedGroups, setCollapsedGroups] = useState<Set<UrgencyGroup>>(new Set())
-  const [pagePerGroup, setPagePerGroup] = useState<Record<string, number>>({})
+  const [globalPage, setGlobalPage] = useState(0)
   const [agendaPage, setAgendaPage] = useState(0)
   const PAGE_SIZE = 10
 
   // Reset paginacao da agenda quando filtros mudam
   useEffect(() => { setAgendaPage(0) }, [selectedAgendaDate])
+  useEffect(() => { setGlobalPage(0) }, [searchTerm, statusFilter, sectorFilter, dateFrom, dateTo])
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -1936,13 +1937,27 @@ export default function ContasPagar() {
               />
             )}
 
-            {/* Grouped tables */}
-            {!loading && visibleGroups.map((group) => {
-              const allItems = groupedContas[group]
-              const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE))
-              const currentPage = Math.min(pagePerGroup[group] ?? 0, totalPages - 1)
-              const startIdx = currentPage * PAGE_SIZE
-              const items = allItems.slice(startIdx, startIdx + PAGE_SIZE)
+            {/* Grouped tables — paginacao GLOBAL (10 titulos por pagina no total) */}
+            {!loading && (() => {
+              const totalItems = visibleGroups.reduce((sum, g) => sum + groupedContas[g].length, 0)
+              const totalPagesGlobal = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
+              const currentGlobalPage = Math.min(globalPage, totalPagesGlobal - 1)
+              const pageStart = currentGlobalPage * PAGE_SIZE
+              const pageEnd = pageStart + PAGE_SIZE
+              let runningOffset = 0
+              return (
+                <>
+                  {visibleGroups.map((group) => {
+                    const allItems = groupedContas[group]
+                    const groupStart = runningOffset
+                    const groupEnd = runningOffset + allItems.length
+                    runningOffset = groupEnd
+                    // Slice deste grupo que cabe na pagina global atual
+                    const sliceFrom = Math.max(0, pageStart - groupStart)
+                    const sliceTo = Math.min(allItems.length, pageEnd - groupStart)
+                    const items = sliceFrom < sliceTo ? allItems.slice(sliceFrom, sliceTo) : []
+                    // Se o grupo nao tem item nesta pagina, nao renderiza
+                    if (items.length === 0) return null
               const config = urgencyConfig[group]
               const groupTotal = allItems.reduce((acc, cp) => acc + saldo(cp), 0)
               const isCollapsed = collapsedGroups.has(group)
@@ -2235,34 +2250,37 @@ export default function ContasPagar() {
                           })}
                         </tbody>
                       </table>
-                      {totalPages > 1 && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderTop: '1px solid rgba(26,46,74,0.06)', backgroundColor: 'rgba(26,46,74,0.02)' }}>
-                          <span style={{ fontSize: 11, color: '#667085', fontWeight: 500 }}>
-                            Página {currentPage + 1} de {totalPages} · {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, allItems.length)} de {allItems.length}
-                          </span>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              onClick={() => setPagePerGroup((s) => ({ ...s, [group]: Math.max(0, currentPage - 1) }))}
-                              disabled={currentPage === 0}
-                              style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', border: '1px solid rgba(26,46,74,0.18)', borderRadius: 4, backgroundColor: currentPage === 0 ? '#F3F4F6' : '#ffffff', color: currentPage === 0 ? '#98A2B3' : '#1D2939', cursor: currentPage === 0 ? 'not-allowed' : 'pointer' }}
-                            >
-                              Anterior
-                            </button>
-                            <button
-                              onClick={() => setPagePerGroup((s) => ({ ...s, [group]: Math.min(totalPages - 1, currentPage + 1) }))}
-                              disabled={currentPage >= totalPages - 1}
-                              style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', border: '1px solid rgba(26,46,74,0.18)', borderRadius: 4, backgroundColor: currentPage >= totalPages - 1 ? '#F3F4F6' : '#ffffff', color: currentPage >= totalPages - 1 ? '#98A2B3' : '#1D2939', cursor: currentPage >= totalPages - 1 ? 'not-allowed' : 'pointer' }}
-                            >
-                              Próxima
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
               )
-            })}
+                  })}
+                  {totalPagesGlobal > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid rgba(26,46,74,0.10)', backgroundColor: 'rgba(26,46,74,0.03)', borderRadius: 6, marginTop: 8 }}>
+                      <span style={{ fontSize: 12, color: '#667085', fontWeight: 500 }}>
+                        Página {currentGlobalPage + 1} de {totalPagesGlobal} · {pageStart + 1}–{Math.min(pageEnd, totalItems)} de {totalItems} títulos
+                      </span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={() => setGlobalPage(p => Math.max(0, p - 1))}
+                          disabled={currentGlobalPage === 0}
+                          style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', border: '1px solid rgba(26,46,74,0.18)', borderRadius: 4, backgroundColor: currentGlobalPage === 0 ? '#F3F4F6' : '#ffffff', color: currentGlobalPage === 0 ? '#98A2B3' : '#1D2939', cursor: currentGlobalPage === 0 ? 'not-allowed' : 'pointer' }}
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          onClick={() => setGlobalPage(p => Math.min(totalPagesGlobal - 1, p + 1))}
+                          disabled={currentGlobalPage >= totalPagesGlobal - 1}
+                          style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', border: '1px solid rgba(26,46,74,0.18)', borderRadius: 4, backgroundColor: currentGlobalPage >= totalPagesGlobal - 1 ? '#F3F4F6' : '#ffffff', color: currentGlobalPage >= totalPagesGlobal - 1 ? '#98A2B3' : '#1D2939', cursor: currentGlobalPage >= totalPagesGlobal - 1 ? 'not-allowed' : 'pointer' }}
+                        >
+                          Próxima
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
 
