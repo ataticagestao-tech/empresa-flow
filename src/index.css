@@ -359,6 +359,17 @@
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 
+/* Remove setinhas (spinner) dos input[type=number] em todo o sistema */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* ============================================================
    RESPONSIVE — Mobile-first adjustments
    ============================================================ */
