@@ -37,6 +37,7 @@ export default function EmpresaResumo() {
   const db = activeClient as any;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [searchingLogo, setSearchingLogo] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -63,16 +64,28 @@ export default function EmpresaResumo() {
 
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
       const path = `${id}/logo.${ext}`;
-
-      await db.storage.from("company-logos").remove([path]);
 
       const { error: uploadError } = await db.storage
         .from("company-logos")
-        .upload(path, file, { upsert: true });
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type || "image/png",
+          cacheControl: "3600",
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        const msg = String(uploadError.message || "").toLowerCase();
+        if (msg.includes("bucket") && msg.includes("not found")) {
+          throw new Error("Bucket 'company-logos' não existe no Supabase. Rode a migration de logos.");
+        }
+        if (msg.includes("row-level security") || msg.includes("policy") || msg.includes("permission")) {
+          throw new Error("Sem permissão para enviar logo (RLS). Verifique policies do bucket company-logos.");
+        }
+        throw uploadError;
+      }
 
       const { data: urlData } = db.storage
         .from("company-logos")
@@ -95,6 +108,94 @@ export default function EmpresaResumo() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const extractDomain = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const cleaned = raw.trim().toLowerCase();
+    if (!cleaned) return null;
+    if (cleaned.includes("@")) {
+      const dom = cleaned.split("@")[1]?.split(/[/?#]/)[0];
+      const generic = new Set([
+        "gmail.com", "googlemail.com", "hotmail.com", "outlook.com", "live.com", "msn.com",
+        "yahoo.com", "yahoo.com.br", "icloud.com", "me.com", "aol.com",
+        "uol.com.br", "bol.com.br", "terra.com.br", "ig.com.br", "globo.com",
+        "protonmail.com", "proton.me", "zoho.com",
+      ]);
+      if (!dom || generic.has(dom)) return null;
+      return dom;
+    }
+    return cleaned
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split(/[/?#]/)[0]
+      .trim() || null;
+  };
+
+  const handleSearchLogo = async () => {
+    if (!id || !company) return;
+    const domain = extractDomain(company.site) || extractDomain(company.email);
+    if (!domain) {
+      toast.error("Cadastre o site ou email da empresa primeiro.");
+      return;
+    }
+
+    setSearchingLogo(true);
+    try {
+      const sources = [
+        `https://logo.clearbit.com/${domain}`,
+        `https://www.google.com/s2/favicons?domain=${domain}&sz=256`,
+      ];
+
+      let blob: Blob | null = null;
+      let sourceUsed = "";
+      for (const url of sources) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const b = await res.blob();
+          if (b.size < 500) continue;
+          if (!b.type.startsWith("image/")) continue;
+          blob = b;
+          sourceUsed = url.includes("clearbit") ? "Clearbit" : "Google";
+          break;
+        } catch {
+          continue;
+        }
+      }
+
+      if (!blob) {
+        toast.error(`Nenhuma logo encontrada para ${domain}.`);
+        return;
+      }
+
+      const ext = (blob.type.split("/")[1] || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const path = `${id}/logo.${ext}`;
+      const file = new File([blob], `logo.${ext}`, { type: blob.type });
+
+      const { error: uploadError } = await db.storage
+        .from("company-logos")
+        .upload(path, file, { upsert: true, contentType: blob.type, cacheControl: "3600" });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = db.storage.from("company-logos").getPublicUrl(path);
+      const logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await db
+        .from("companies")
+        .update({ logo_url: logoUrl })
+        .eq("id", id);
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ["empresa_resumo", id] });
+      toast.success(`Logo encontrada via ${sourceUsed}.`);
+    } catch (err: any) {
+      console.error("Search logo error:", err);
+      toast.error("Erro ao buscar logo: " + (err.message || "Tente novamente."));
+    } finally {
+      setSearchingLogo(false);
     }
   };
 
@@ -669,6 +770,14 @@ export default function EmpresaResumo() {
                   </div>
                 )}
               </div>
+            </button>
+            <button
+              type="button"
+              onClick={handleSearchLogo}
+              disabled={searchingLogo || uploading}
+              className="text-[11px] font-semibold uppercase tracking-wider text-[#667085] hover:text-black underline-offset-4 hover:underline disabled:opacity-50 disabled:cursor-not-allowed -mt-2"
+            >
+              {searchingLogo ? "Buscando..." : "Buscar logo automaticamente"}
             </button>
             <div className="max-w-full">
               <h1 className="text-[26px] font-bold text-black tracking-tight leading-tight">{company.razao_social}</h1>
