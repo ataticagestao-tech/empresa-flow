@@ -38,6 +38,7 @@ import Recibos from "./pages/Recibos";
 import NotFound from "./pages/NotFound";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import WhatsappAutorizados from "./pages/WhatsappAutorizados";
+import LogAtividades from "./pages/LogAtividades";
 import ContaBloqueada from "./pages/ContaBloqueada";
 import PlanoContas from "./pages/PlanoContas";
 import Funcionarios from "./pages/Funcionarios";
@@ -234,6 +235,7 @@ const App = () => (
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
                       <Route path="/admin/whatsapp-autorizados" element={<WhatsappAutorizados />} />
+                      <Route path="/admin/log-atividades" element={<LogAtividades />} />
                     </Route>
                   </Route>
                 </Route>
