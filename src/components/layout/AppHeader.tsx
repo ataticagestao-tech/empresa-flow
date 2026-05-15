@@ -15,6 +15,7 @@ import { ArrowLeft, Plus, Moon, Sun, LogOut, Settings, Building2 } from "lucide-
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { COMMAND_PALETTE_OPEN_EVENT } from "@/components/CommandPalette";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -64,6 +65,7 @@ export function AppHeader() {
         >
           <Plus className="h-4 w-4" />
         </button>
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -77,7 +79,7 @@ export function AppHeader() {
                   {user?.email ? getInitials(user.email) : "US"}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#0BE041] border-2 border-sidebar" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#059669] border-2 border-sidebar" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
