@@ -27,12 +27,16 @@ function normalizarFone(raw: string): string {
   let d = raw.replace(/\D/g, "");
   if (d.startsWith("0")) d = d.slice(1);
   if (!d.startsWith("55") && (d.length === 10 || d.length === 11)) d = "55" + d;
+  // Remove o 9 do celular brasileiro: 13 dígitos com 9 na 5ª posição → 12 dígitos.
+  // O WhatsApp Web BR envia mensagens sem esse 9, então normalizamos pra esse formato.
+  if (d.length === 13 && d[4] === "9") {
+    d = d.slice(0, 4) + d.slice(5);
+  }
   return d;
 }
 
 function formatarFone(raw: string): string {
   if (!raw || raw.length < 12) return raw;
-  // 5535999905768 → +55 35 99990-5768
   const ddi = raw.slice(0, 2);
   const ddd = raw.slice(2, 4);
   const rest = raw.slice(4);
@@ -92,7 +96,10 @@ export default function WhatsappAutorizados() {
   };
 
   const enviarCodigo = async (acessoId: string) => {
-    if (!session?.access_token) return;
+    if (!session?.access_token) {
+      toast.error("Sessão expirou. Recarrega a página e tenta de novo.");
+      return false;
+    }
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agente-enviar-codigo`, {
         method: "POST",
@@ -104,12 +111,17 @@ export default function WhatsappAutorizados() {
       });
       const data = await resp.json();
       if (resp.ok && data.ok) {
-        toast.success(data.mensagem || "Código enviado");
+        toast.success(data.mensagem || "Código enviado pelo WhatsApp");
+        return true;
       } else {
-        toast.error(data.error || "Erro ao enviar código");
+        toast.error(`Erro envio: ${data.error || resp.statusText} (HTTP ${resp.status})`);
+        console.error("[whatsapp-autorizados] enviar-codigo falhou:", { status: resp.status, data });
+        return false;
       }
     } catch (err: any) {
-      toast.error("Erro: " + err?.message);
+      toast.error("Erro de rede: " + err?.message);
+      console.error("[whatsapp-autorizados] exceção:", err);
+      return false;
     }
   };
 
@@ -142,12 +154,12 @@ export default function WhatsappAutorizados() {
       return toast.error("Erro: " + error.message);
     }
 
+    toast.success("Cadastrado! Enviando código pelo WhatsApp...");
     // Envia código via edge function
     if (data?.id) {
       await enviarCodigo(data.id);
     }
 
-    toast.success("Cadastrado! Código enviado pelo WhatsApp.");
     setSalvando(false);
     limparForm();
     setDialogOpen(false);
