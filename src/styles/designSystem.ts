@@ -14,22 +14,22 @@
 export const colors = {
   // Brand — Verde logo (#059669 emerald)
   primary: "#059669",
-  primaryHover: "#047857",
+  primaryHover: "#039855",
   primarySoft: "#ECFDF4",
   primaryBorder: "#A7F3D0",
-  primaryVivid: "#0BE041", // verde logo para destaques
+  primaryVivid: "#059669", // verde logo para destaques
 
   // Navy — azul marinho (secundário institucional)
   navy: "#0F2544",
   navyMid: "#1E3A8A",
   navyHover: "#1E40AF",
-  navySoft: "#EFF6FF",
+  navySoft: "#ECFDF4",
   navyBorder: "#C7D7F1",
 
   // Sucesso (faturamento, ativo)
   success: "#039855",
   successBright: "#10B981",
-  successSoft: "#ECFDF3",
+  successSoft: "#ECFDF4",
 
   // Erro (vencido, inadimplente, excluir)
   danger: "#E53E3E",
@@ -37,7 +37,7 @@ export const colors = {
 
   // Atenção (em aberto, pendente)
   warning: "#EA580C",
-  warningBright: "#F59E0B",
+  warningBright: "#EA580C",
   warningSoft: "#FFF0EB",
   warningBorder: "#FEDF89",
 
@@ -82,7 +82,7 @@ export const chartColors = {
   negative: "#E53E3E", // vermelho (despesa, queda)
   negativeSoft: "#FEE2E2",
   neutral: "#1E3A8A", // navy (baseline, projeção)
-  neutralSoft: "#EFF6FF",
+  neutralSoft: "#ECFDF4",
   warning: "#EA580C",
   warningSoft: "#FFF0EB",
 
@@ -154,7 +154,7 @@ export const header = {
 /* ─── Botões ──────────────────────────────────────────────────── */
 export const button = {
   /** Botão primário (verde) */
-  primary: "bg-[#059669] hover:bg-[#047857] text-white",
+  primary: "bg-[#059669] hover:bg-[#039855] text-white",
   /** Botão secundário (branco com borda) */
   secondary: "bg-white border border-[#E5E7EB] hover:bg-[#F9FAFB] text-[#0F172A]",
   /** Botão de destruir */
@@ -171,7 +171,7 @@ export const statusBadge = {
   aberto: "text-[#EA580C] border-[#EA580C] bg-[#FFF0EB]",
   pago: "text-[#039855] border-[#039855] bg-[#ECFDF3]",
   vencido: "text-[#E53E3E] border-[#E53E3E] bg-[#FEE2E2]",
-  projecao: "text-[#1E3A8A] border-[#1E3A8A] bg-[#EFF6FF]",
+  projecao: "text-[#1E3A8A] border-[#1E3A8A] bg-[#ECFDF4]",
 } as const;
 
 /* ─── Layout helpers ──────────────────────────────────────────── */

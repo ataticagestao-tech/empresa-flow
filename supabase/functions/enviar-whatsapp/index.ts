@@ -12,7 +12,15 @@ const corsHeaders = {
 
 interface WhatsAppRequest {
     phone: string;
-    text: string;
+    text?: string;
+    /** PDF/imagem em base64 para anexar (opcional). Quando presente, envia como mídia. */
+    mediaBase64?: string;
+    /** Nome do arquivo exibido no WhatsApp (ex.: overnight-2026-05-14.pdf) */
+    fileName?: string;
+    /** MIME type da mídia (default: application/pdf) */
+    mimeType?: string;
+    /** Legenda da mídia. Se omitido, usa `text`. */
+    caption?: string;
 }
 
 /** Normaliza telefone para o formato exigido pela Evolution API:
@@ -57,11 +65,18 @@ serve(async (req: Request) => {
             );
         }
 
-        const { phone, text } = (await req.json()) as WhatsAppRequest;
+        const { phone, text, mediaBase64, fileName, mimeType, caption } =
+            (await req.json()) as WhatsAppRequest;
 
-        if (!phone || !text) {
+        if (!phone) {
             return new Response(
-                JSON.stringify({ error: "Campos obrigatorios: phone, text" }),
+                JSON.stringify({ error: "Campo obrigatorio: phone" }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+        if (!text && !mediaBase64) {
+            return new Response(
+                JSON.stringify({ error: "Forneca 'text' ou 'mediaBase64'" }),
                 { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
         }
@@ -74,14 +89,29 @@ serve(async (req: Request) => {
             );
         }
 
-        const evolutionUrl = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${EVOLUTION_INSTANCE}`;
+        const isMedia = !!mediaBase64;
+        const evolutionUrl = isMedia
+            ? `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendMedia/${EVOLUTION_INSTANCE}`
+            : `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${EVOLUTION_INSTANCE}`;
+
+        const payload: Record<string, unknown> = isMedia
+            ? {
+                number: normalized,
+                mediatype: "document",
+                mimetype: mimeType ?? "application/pdf",
+                media: mediaBase64,
+                fileName: fileName ?? "documento.pdf",
+                caption: caption ?? text ?? "",
+            }
+            : { number: normalized, text };
+
         const resp = await fetch(evolutionUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 apikey: EVOLUTION_API_KEY,
             },
-            body: JSON.stringify({ number: normalized, text }),
+            body: JSON.stringify(payload),
         });
 
         const bodyText = await resp.text();

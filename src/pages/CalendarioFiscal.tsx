@@ -50,10 +50,10 @@ interface Certificado {
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   pendente: { label: 'Pendente', color: '#EA580C', bg: '#FFF0EB', icon: Clock },
-  entregue: { label: 'Entregue', color: '#059669', bg: '#ECFDF3', icon: Check },
+  entregue: { label: 'Entregue', color: '#039855', bg: '#ECFDF3', icon: Check },
   atrasado: { label: 'Atrasado', color: '#E53E3E', bg: '#FEE2E2', icon: AlertTriangle },
-  pago: { label: 'Pago', color: '#059669', bg: '#ECFDF3', icon: Check },
-  apurado: { label: 'Apurado', color: '#059669', bg: '#ECFDF3', icon: Check },
+  pago: { label: 'Pago', color: '#039855', bg: '#ECFDF3', icon: Check },
+  apurado: { label: 'Apurado', color: '#059669', bg: '#ECFDF4', icon: Check },
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ export default function CalendarioFiscal() {
     if (diff <= 0) return { label: 'Expirado', color: '#E53E3E', bg: '#FEE2E2', dias: diff }
     if (diff <= 30) return { label: 'Vencendo', color: '#EA580C', bg: '#FFF0EB', dias: diff }
     if (diff <= 60) return { label: 'Atencao', color: '#EA580C', bg: '#FFF0EB', dias: diff }
-    return { label: 'Valido', color: '#059669', bg: '#ECFDF3', dias: diff }
+    return { label: 'Valido', color: '#059669', bg: '#ECFDF4', dias: diff }
   }, [certificado])
 
   const DIAS_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom']

@@ -22,11 +22,12 @@ import {
     AlertTriangle, Trash2, History, Settings, Shield, Plus,
     Pencil, Search, Plug, CheckCircle2, XCircle, Clock,
     Download, Eye, EyeOff, ChevronDown, ChevronUp,
-    Moon, FileText, Loader2,
+    Moon, FileText, Loader2, Send, MessageCircle, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
     useOvernightConfig, useGerarOvernightPdf, base64ToBlob,
+    useEnviarOvernightWhatsApp,
 } from "@/hooks/useOvernight";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -803,14 +804,31 @@ function IntegracoesPanel() {
 function OvernightPanel() {
     const { data: config, isLoading, salvar } = useOvernightConfig();
     const gerar = useGerarOvernightPdf();
+    const enviarTeste = useEnviarOvernightWhatsApp();
 
     const [frase, setFrase] = useState("");
     const [dirty, setDirty] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+    // ── WhatsApp ──────────────────────────────────────────
+    const [whatsAtivo, setWhatsAtivo] = useState(false);
+    const [destinos, setDestinos] = useState<string[]>([]);
+    const [novoFone, setNovoFone] = useState("");
+    const [horario, setHorario] = useState("18:00");
+    const [mensagem, setMensagem] = useState("");
+    const [whatsDirty, setWhatsDirty] = useState(false);
+
     useEffect(() => {
         if (!dirty) setFrase(config?.frase_noite ?? "");
     }, [config?.frase_noite, dirty]);
+
+    useEffect(() => {
+        if (whatsDirty) return;
+        setWhatsAtivo(!!config?.whatsapp_ativo);
+        setDestinos(config?.whatsapp_destinos ?? []);
+        setHorario((config?.horario_envio ?? "18:00:00").slice(0, 5));
+        setMensagem(config?.whatsapp_mensagem ?? "");
+    }, [config, whatsDirty]);
 
     useEffect(() => {
         return () => {
@@ -869,6 +887,82 @@ function OvernightPanel() {
             toast.success("Download iniciado.");
         } catch (err: any) {
             toast.error(err.message ?? "Falha ao baixar PDF");
+        }
+    };
+
+    // ── WhatsApp ──────────────────────────────────────────
+    const formatFone = (raw: string): string => {
+        const digits = raw.replace(/\D/g, "").slice(0, 13);
+        if (digits.length === 0) return "";
+        if (digits.length <= 2) return `(${digits}`;
+        if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    };
+
+    const adicionarFone = () => {
+        const digits = novoFone.replace(/\D/g, "");
+        if (digits.length < 10 || digits.length > 13) {
+            toast.error("Telefone inválido. Inclua DDD + número.");
+            return;
+        }
+        if (destinos.some(d => d.replace(/\D/g, "") === digits)) {
+            toast.error("Esse número já está na lista.");
+            return;
+        }
+        setDestinos([...destinos, digits]);
+        setNovoFone("");
+        setWhatsDirty(true);
+    };
+
+    const removerFone = (idx: number) => {
+        setDestinos(destinos.filter((_, i) => i !== idx));
+        setWhatsDirty(true);
+    };
+
+    const handleSalvarWhats = async () => {
+        if (whatsAtivo && destinos.length === 0) {
+            toast.error("Adicione ao menos um número antes de ativar.");
+            return;
+        }
+        try {
+            await salvar.mutateAsync({
+                whatsapp_ativo: whatsAtivo,
+                whatsapp_destinos: destinos,
+                horario_envio: horario,
+                whatsapp_mensagem: mensagem,
+            });
+            setWhatsDirty(false);
+            toast.success("Envio por WhatsApp configurado.");
+        } catch (err: any) {
+            toast.error(err.message ?? "Falha ao salvar");
+        }
+    };
+
+    const handleEnviarTeste = async () => {
+        if (destinos.length === 0) {
+            toast.error("Adicione ao menos um número antes de testar.");
+            return;
+        }
+        if (whatsDirty) {
+            await handleSalvarWhats();
+        }
+        try {
+            const r = await enviarTeste.mutateAsync();
+            const res = r.resultados?.[0];
+            if (!res) {
+                toast.error("Sem resposta do servidor.");
+                return;
+            }
+            if (res.status === "sucesso") {
+                toast.success(`Enviado para ${res.destinos_ok?.length ?? 0} número(s).`);
+            } else if (res.status === "parcial") {
+                toast.warning(`Parcial: ${res.destinos_ok?.length ?? 0} ok, ${res.destinos_erro?.length ?? 0} falha(s).`);
+            } else {
+                const erro = res.destinos_erro?.[0]?.erro || res.motivo || "Falha no envio";
+                toast.error(erro);
+            }
+        } catch (err: any) {
+            toast.error(err.message ?? "Falha ao enviar teste");
         }
     };
 
@@ -942,6 +1036,143 @@ function OvernightPanel() {
                                 <iframe src={previewUrl} className="w-full h-full" title="Preview Overnight" />
                             </div>
                         )}
+                    </div>
+
+                    {/* ─── Envio automático por WhatsApp ─── */}
+                    <div className="border-t pt-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="text-[12px] font-semibold flex items-center gap-2">
+                                    <MessageCircle className="h-4 w-4 text-green-600" />
+                                    Envio automático por WhatsApp
+                                </Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Envia o PDF do Overnight todo dia no horário definido, via Evolution API.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={whatsAtivo}
+                                onCheckedChange={(v) => { setWhatsAtivo(v); setWhatsDirty(true); }}
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <Label className="text-[11px] text-muted-foreground">Horário de envio</Label>
+                                <Input
+                                    type="time"
+                                    value={horario}
+                                    onChange={(e) => { setHorario(e.target.value); setWhatsDirty(true); }}
+                                    disabled={!whatsAtivo}
+                                    className="h-9 mt-1"
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1">Fuso: America/São_Paulo</p>
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <Label className="text-[11px] text-muted-foreground">Adicionar número</Label>
+                                <div className="flex gap-2 mt-1">
+                                    <Input
+                                        placeholder="(11) 99999-9999"
+                                        value={formatFone(novoFone)}
+                                        onChange={(e) => setNovoFone(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionarFone(); } }}
+                                        disabled={!whatsAtivo}
+                                        className="h-9"
+                                        maxLength={16}
+                                    />
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={adicionarFone}
+                                        disabled={!whatsAtivo || !novoFone}
+                                    >
+                                        <Plus className="h-4 w-4 mr-1" /> Adicionar
+                                    </Button>
+                                </div>
+                                {destinos.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                        {destinos.map((d, i) => (
+                                            <span
+                                                key={`${d}-${i}`}
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-green-50 text-green-800 border border-green-200 rounded"
+                                            >
+                                                {formatFone(d)}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removerFone(i)}
+                                                    className="hover:bg-green-100 rounded-full p-0.5"
+                                                    aria-label="Remover"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label className="text-[11px] text-muted-foreground">Legenda da mensagem (opcional)</Label>
+                            <Textarea
+                                value={mensagem}
+                                onChange={(e) => { setMensagem(e.target.value.slice(0, 500)); setWhatsDirty(true); }}
+                                placeholder="Ex.: Segue o Overnight financeiro de hoje."
+                                rows={2}
+                                disabled={!whatsAtivo}
+                                className="resize-none text-[12.5px] mt-1"
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-1">{mensagem.length} / 500</p>
+                        </div>
+
+                        {config?.whatsapp_ultimo_envio_em && (
+                            <div className="text-[11px] flex items-center gap-2 px-3 py-2 rounded bg-muted/40 border">
+                                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-muted-foreground">Último envio:</span>
+                                <span className="font-medium">
+                                    {format(new Date(config.whatsapp_ultimo_envio_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                </span>
+                                {config.whatsapp_ultimo_envio_status === "sucesso" && (
+                                    <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">Sucesso</Badge>
+                                )}
+                                {config.whatsapp_ultimo_envio_status === "parcial" && (
+                                    <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">Parcial</Badge>
+                                )}
+                                {config.whatsapp_ultimo_envio_status === "erro" && (
+                                    <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50">Erro</Badge>
+                                )}
+                                {config.whatsapp_ultimo_envio_erro && (
+                                    <span className="text-red-600 text-[10px] truncate" title={config.whatsapp_ultimo_envio_erro}>
+                                        {config.whatsapp_ultimo_envio_erro}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                onClick={handleSalvarWhats}
+                                disabled={!whatsDirty || salvar.isPending}
+                                className="bg-green-600 hover:bg-green-700"
+                            >
+                                {salvar.isPending ? "Salvando..." : "Salvar configuração"}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleEnviarTeste}
+                                disabled={enviarTeste.isPending || destinos.length === 0}
+                            >
+                                {enviarTeste.isPending
+                                    ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                    : <Send className="h-3.5 w-3.5 mr-1" />}
+                                Enviar agora (teste)
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

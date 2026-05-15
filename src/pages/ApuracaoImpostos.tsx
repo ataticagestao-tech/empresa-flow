@@ -63,9 +63,9 @@ const REGIME_LABELS: Record<string, string> = {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  apurado: { label: 'Apurado', color: '#059669', bg: '#ECFDF3' },
+  apurado: { label: 'Apurado', color: '#059669', bg: '#ECFDF4' },
   pendente: { label: 'Pendente', color: '#EA580C', bg: '#FFF0EB' },
-  pago: { label: 'Pago', color: '#059669', bg: '#ECFDF3' },
+  pago: { label: 'Pago', color: '#039855', bg: '#ECFDF3' },
   retificado: { label: 'Retificado', color: '#667085', bg: '#F3F4F6' },
 }
 

@@ -39,7 +39,7 @@ interface Encargo {
 
 const STATUS_GUIA: Record<string, { label: string; color: string; bg: string }> = {
   pendente: { label: 'Pendente', color: '#EA580C', bg: '#FFF0EB' },
-  recolhido: { label: 'Recolhido', color: '#059669', bg: '#ECFDF3' },
+  recolhido: { label: 'Recolhido', color: '#059669', bg: '#ECFDF4' },
   atrasado: { label: 'Atrasado', color: '#E53E3E', bg: '#FEE2E2' },
 }
 

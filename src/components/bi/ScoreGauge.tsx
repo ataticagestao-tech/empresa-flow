@@ -20,7 +20,7 @@ function getScoreColor(v: number) {
 }
 
 function getScoreBg(v: number) {
-  if (v >= 70) return "#ECFDF3";
+  if (v >= 70) return "#ECFDF4";
   if (v >= 40) return "#fff8e1";
   return "#FEE2E2";
 }

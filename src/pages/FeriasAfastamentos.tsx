@@ -55,7 +55,7 @@ const TIPO_LABELS: Record<string, { label: string; color: string; icon: any }> =
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   programado: { label: 'Programado', color: '#059669', bg: '#BFDBFE' },
   em_curso: { label: 'Em curso', color: '#EA580C', bg: '#FFF0EB' },
-  concluido: { label: 'Concluido', color: '#059669', bg: '#ECFDF3' },
+  concluido: { label: 'Concluido', color: '#059669', bg: '#ECFDF4' },
   cancelado: { label: 'Cancelado', color: '#E53E3E', bg: '#FEE2E2' },
 }
 

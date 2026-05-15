@@ -2236,7 +2236,7 @@ export default function Conciliacao() {
                                                 const pct = btAmount > 0 ? Math.min(100, (somaSelecionada / btAmount) * 100) : 0;
                                                 const bate = btAmount > 0 && Math.abs(somaSelecionada - btAmount) < 0.01;
                                                 const excedeu = somaSelecionada > btAmount + 0.01;
-                                                const corBarra = bate ? '#059669' : excedeu ? '#E53E3E' : '#F59E0B';
+                                                const corBarra = bate ? '#059669' : excedeu ? '#E53E3E' : '#EA580C';
 
                                                 const handleConciliarMultiplos = async () => {
                                                     if (!selectedBankTx || selecionados.length === 0 || !bate) return;

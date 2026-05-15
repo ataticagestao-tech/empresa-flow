@@ -25,7 +25,7 @@ interface ScenarioConfig {
 
 const defaultScenarios: ScenarioConfig[] = [
     { name: "Pessimista", revenueVar: -20, expenseVar: 10, newClients: 0, extraTicket: 0, color: "#E53E3E", borderColor: "#E53E3E", bgColor: "#FEE2E2" },
-    { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#1E3A8A", borderColor: "#1E3A8A", bgColor: "#EFF6FF" },
+    { name: "Realista", revenueVar: 0, expenseVar: 0, newClients: 2, extraTicket: 0, color: "#1E3A8A", borderColor: "#1E3A8A", bgColor: "#ECFDF4" },
     { name: "Otimista", revenueVar: 20, expenseVar: -10, newClients: 5, extraTicket: 500, color: "#059669", borderColor: "#059669", bgColor: "#ECFDF4" },
 ];
 

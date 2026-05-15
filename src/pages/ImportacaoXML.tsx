@@ -37,7 +37,7 @@ interface ImportacaoXML {
 
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  processado: { label: 'Processado', color: '#059669', bg: '#ECFDF3' },
+  processado: { label: 'Processado', color: '#059669', bg: '#ECFDF4' },
   erro: { label: 'Erro', color: '#E53E3E', bg: '#FEE2E2' },
   duplicado: { label: 'Duplicado', color: '#EA580C', bg: '#FFF0EB' },
   pendente: { label: 'Pendente', color: '#667085', bg: '#F3F4F6' },

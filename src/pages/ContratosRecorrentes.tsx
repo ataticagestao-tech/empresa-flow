@@ -410,7 +410,7 @@ export default function ContratosRecorrentes() {
           <div
             className="fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg border text-[13px] font-medium shadow-lg flex items-center gap-2"
             style={{
-              background: toast.type === 'success' ? '#ECFDF3' : '#FEE2E2',
+              background: toast.type === 'success' ? '#ECFDF4' : '#FEE2E2',
               borderColor: toast.type === 'success' ? '#039855' : '#E53E3E',
               color: toast.type === 'success' ? '#039855' : '#E53E3E',
             }}

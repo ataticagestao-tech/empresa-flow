@@ -329,7 +329,7 @@ export default function AdmissoesDemissoes() {
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                           style={{
                             color: r.tipo === 'admissao' ? '#059669' : '#E53E3E',
-                            backgroundColor: r.tipo === 'admissao' ? '#ECFDF3' : '#FEE2E2',
+                            backgroundColor: r.tipo === 'admissao' ? '#ECFDF4' : '#FEE2E2',
                           }}
                         >
                           {r.tipo === 'admissao' ? <UserPlus size={12} /> : <UserMinus size={12} />}

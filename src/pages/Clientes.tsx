@@ -131,7 +131,7 @@ const CRStatusBadge = ({ status }: { status: string }) => {
 
 const HistoryIcon = ({ status }: { status: string }) => {
     if (status === "pago") return (
-        <div className="w-9 h-9 rounded-full bg-[#ECFDF3] flex items-center justify-center flex-shrink-0">
+        <div className="w-9 h-9 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
             <DollarSign className="h-4 w-4 text-[#039855]" />
         </div>
     );
@@ -868,7 +868,7 @@ export default function Clientes() {
                                 onClick={() => setFilterTab(tab.key)}
                                 className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${
                                     filterTab === tab.key
-                                        ? "bg-[#0BE041] text-[#064E3B]"
+                                        ? "bg-[#059669] text-[#064E3B]"
                                         : "bg-[#EAECF0] text-[#555] hover:bg-[#e0e0e0]"
                                 }`}
                             >
@@ -916,7 +916,7 @@ export default function Clientes() {
                                         <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                                             status === "inadimplente" ? "bg-[#E53E3E] text-white"
                                             : status === "inativo" ? "bg-[#999] text-white"
-                                            : "bg-[#0BE041] text-[#064E3B]"
+                                            : "bg-[#059669] text-[#064E3B]"
                                         }`}>
                                             {getIniciais(client.razao_social)}
                                         </div>
@@ -970,7 +970,7 @@ export default function Clientes() {
                                         <div className={`w-12 h-12 rounded-full text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
                                             getClientStatus(selectedClient) === "inadimplente" ? "bg-[#E53E3E] text-white"
                                             : getClientStatus(selectedClient) === "inativo" ? "bg-[#999] text-white"
-                                            : "bg-[#0BE041] text-[#064E3B]"
+                                            : "bg-[#059669] text-[#064E3B]"
                                         }`}>
                                             {getIniciais(selectedClient.razao_social)}
                                         </div>

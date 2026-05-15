@@ -15,6 +15,8 @@ interface BoletoData {
   fornecedor: string | null;
   descricao: string | null;
   competencia: string | null;
+  pagador_nome: string | null;
+  pagador_cpf_cnpj: string | null;
 }
 
 serve(async (req: Request) => {
@@ -128,17 +130,21 @@ Retorne APENAS um JSON válido, sem markdown, sem explicações, apenas o JSON:
   "valor": 150.00,
   "vencimento": "2026-03-30",
   "codigo_barras": "23793.38128 60000.000003 00000.000400 1 84260000015000",
-  "fornecedor": "Nome da empresa/pessoa beneficiária",
+  "fornecedor": "Nome da empresa/pessoa beneficiária (CEDENTE)",
   "descricao": "Descrição curta do que é o boleto (ex: Aluguel março, Mensalidade internet)",
-  "competencia": "03/2026"
+  "competencia": "03/2026",
+  "pagador_nome": "Razão social do PAGADOR/SACADO (quem deve pagar)",
+  "pagador_cpf_cnpj": "CPF ou CNPJ do PAGADOR/SACADO (só dígitos ou com pontuação)"
 }
 
 Regras:
 - valor: número decimal (ex: 150.00). Se não encontrar, null.
 - vencimento: formato YYYY-MM-DD. Se não encontrar, null.
 - codigo_barras: linha digitável completa (47-48 dígitos com pontos/espaços). Se não encontrar, null.
-- fornecedor: nome do cedente/beneficiário. Se não encontrar, null.
+- fornecedor: nome do CEDENTE/beneficiário (quem RECEBE). Se não encontrar, null.
 - descricao: breve descrição inferida do documento. Se não conseguir inferir, null.
 - competencia: mês/ano de referência no formato MM/YYYY. Se não encontrar, inferir do vencimento. Se não conseguir, null.
+- pagador_nome: razão social/nome do PAGADOR (também chamado SACADO). É a empresa/pessoa que está DEVENDO. Se não encontrar, null.
+- pagador_cpf_cnpj: CPF ou CNPJ do PAGADOR. Se não encontrar, null.
 
 Retorne APENAS o JSON.`;

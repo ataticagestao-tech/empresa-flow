@@ -64,7 +64,7 @@ export function TabContact({ form }: TabContactProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-1">
-                                <Phone className="w-3 h-3" /> Celular / WhatsApp <span className="text-red-500">*</span>
+                                <Phone className="w-3 h-3" /> Celular / WhatsApp
                             </FormLabel>
                             <FormControl>
                                 <Input
