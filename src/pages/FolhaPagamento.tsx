@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { format, addMonths } from 'date-fns'
 import {
   DollarSign, Users, Calculator, Loader2, Plus, X,
@@ -73,7 +74,7 @@ interface FaixaIRRF {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   rascunho: { label: 'Rascunho', color: '#667085', bg: '#F3F4F6' },
   fechada: { label: 'Fechada', color: '#EA580C', bg: '#FFF0EB' },
-  paga: { label: 'Paga', color: '#059669', bg: '#ECFDF3' },
+  paga: { label: 'Paga', color: '#059669', bg: '#ECFDF4' },
   retificada: { label: 'Retificada', color: '#E53E3E', bg: '#FEE2E2' },
 }
 
@@ -165,6 +166,20 @@ export default function FolhaPagamentoPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedFolha, setSelectedFolha] = useState<FolhaPagamento | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = () => { setDropdownOpen(null); setDropdownCoords(null) }
+    window.addEventListener('click', handler)
+    window.addEventListener('scroll', handler, true)
+    window.addEventListener('resize', handler)
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('scroll', handler, true)
+      window.removeEventListener('resize', handler)
+    }
+  }, [dropdownOpen])
   const [submitting, setSubmitting] = useState(false)
 
   // Calc form
@@ -535,13 +550,23 @@ export default function FolhaPagamentoPage() {
                               <FileText size={14} />
                             </button>
                             <button
-                              onClick={() => setDropdownOpen(dropdownOpen === f.id ? null : f.id)}
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (dropdownOpen === f.id) {
+                                  setDropdownOpen(null)
+                                  setDropdownCoords(null)
+                                } else {
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                  setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                  setDropdownOpen(f.id)
+                                }
+                              }}
                               className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
                             >
                               <MoreHorizontal size={14} />
                             </button>
-                            {dropdownOpen === f.id && (
-                              <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                            {dropdownOpen === f.id && dropdownCoords && createPortal(
+                              <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
                                 {f.status === 'rascunho' && (
                                   <button
                                     onClick={async () => {
@@ -566,7 +591,8 @@ export default function FolhaPagamentoPage() {
                                     <Download size={14} /> Holerite
                                   </a>
                                 )}
-                              </div>
+                              </div>,
+                              document.body
                             )}
                           </div>
                         </td>
@@ -757,7 +783,6 @@ export default function FolhaPagamentoPage() {
         </div>
       )}
 
-      {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
     </AppLayout>
   )
 }

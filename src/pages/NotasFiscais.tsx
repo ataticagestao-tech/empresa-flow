@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { format, startOfMonth, endOfMonth, addMonths, parseISO } from 'date-fns'
 import {
   FileText, Plus, Search, Loader2, X, Download,
@@ -70,7 +71,7 @@ interface Empresa {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   rascunho: { label: 'Rascunho', color: '#667085', bg: '#F3F4F6' },
   enviando: { label: 'Enviando', color: '#EA580C', bg: '#FFF0EB' },
-  autorizada: { label: 'Autorizada', color: '#059669', bg: '#ECFDF3' },
+  autorizada: { label: 'Autorizada', color: '#039855', bg: '#ECFDF3' },
   cancelada: { label: 'Cancelada', color: '#E53E3E', bg: '#FEE2E2' },
   denegada: { label: 'Denegada', color: '#E53E3E', bg: '#FEE2E2' },
   rejeitada: { label: 'Rejeitada', color: '#E53E3E', bg: '#FEE2E2' },
@@ -123,6 +124,7 @@ export default function NotasFiscais() {
   const [motivoCancelamento, setMotivoCancelamento] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
 
   // Emissao form
   const emptyItem: ItemNFSe = { descricao: '', cnae: '', quantidade: 1, valor_unitario: 0, aliquota_iss: null }
@@ -165,6 +167,20 @@ export default function NotasFiscais() {
   }, [selectedCompany, activeClient, mesAno])
 
   useEffect(() => { loadData() }, [loadData])
+
+  // Close dropdown on outside click / scroll / resize
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = () => { setDropdownOpen(null); setDropdownCoords(null) }
+    window.addEventListener('click', handler)
+    window.addEventListener('scroll', handler, true)
+    window.addEventListener('resize', handler)
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('scroll', handler, true)
+      window.removeEventListener('resize', handler)
+    }
+  }, [dropdownOpen])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -544,13 +560,23 @@ export default function NotasFiscais() {
                               </a>
                             )}
                             <button
-                              onClick={() => setDropdownOpen(dropdownOpen === nf.id ? null : nf.id)}
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (dropdownOpen === nf.id) {
+                                  setDropdownOpen(null)
+                                  setDropdownCoords(null)
+                                } else {
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                  setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                  setDropdownOpen(nf.id)
+                                }
+                              }}
                               className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
                             >
                               <MoreHorizontal size={14} />
                             </button>
-                            {dropdownOpen === nf.id && (
-                              <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                            {dropdownOpen === nf.id && dropdownCoords && createPortal(
+                              <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
                                 {nf.status === 'autorizada' && (
                                   <>
                                     <button
@@ -589,7 +615,8 @@ export default function NotasFiscais() {
                                     <Trash2 size={14} /> Excluir rascunho
                                   </button>
                                 )}
-                              </div>
+                              </div>,
+                              document.body
                             )}
                           </div>
                         </td>
@@ -862,10 +889,6 @@ export default function NotasFiscais() {
         </div>
       )}
 
-      {/* Click-outside handler for dropdowns */}
-      {dropdownOpen && (
-        <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
-      )}
     </AppLayout>
   )
 }

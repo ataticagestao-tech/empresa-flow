@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
@@ -25,7 +26,6 @@ import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
   MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download, Trash2,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
 // Cast for GESTAP tables not in generated types
 const db = supabase as any
@@ -155,6 +155,7 @@ export default function ContasReceber() {
   const [editarModal, setEditarModal] = useState<CR | null>(null)
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
   const [whatsCobrancaModal, setWhatsCobrancaModal] = useState<{ cr: CR; phone: string; text: string } | null>(null)
   const [emailCobrancaModal, setEmailCobrancaModal] = useState<{ cr: CR; email: string; assunto: string; corpo: string } | null>(null)
   const [enviandoLote, setEnviandoLote] = useState(false)
@@ -261,12 +262,18 @@ export default function ContasReceber() {
     }
   }, [searchParams, setSearchParams])
 
-  // ── Close dropdown on outside click ──
+  // ── Close dropdown on outside click / scroll / resize ──
   useEffect(() => {
     if (!dropdownOpen) return
-    const handler = () => setDropdownOpen(null)
+    const handler = () => { setDropdownOpen(null); setDropdownCoords(null) }
     window.addEventListener('click', handler)
-    return () => window.removeEventListener('click', handler)
+    window.addEventListener('scroll', handler, true)
+    window.addEventListener('resize', handler)
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('scroll', handler, true)
+      window.removeEventListener('resize', handler)
+    }
   }, [dropdownOpen])
 
   // ── Derived data ──
@@ -1472,13 +1479,23 @@ export default function ContasReceber() {
                             {/* Dropdown */}
                             <div className="relative">
                               <button
-                                onClick={e => { e.stopPropagation(); setDropdownOpen(dropdownOpen === cr.id ? null : cr.id) }}
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (dropdownOpen === cr.id) {
+                                    setDropdownOpen(null)
+                                    setDropdownCoords(null)
+                                  } else {
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                    setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                    setDropdownOpen(cr.id)
+                                  }
+                                }}
                                 className="p-1 rounded hover:bg-[#EAECF0] transition-colors"
                               >
                                 <MoreHorizontal size={14} className="text-[#555]" />
                               </button>
-                              {dropdownOpen === cr.id && (
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#ccc] rounded-lg shadow-lg z-50">
+                              {dropdownOpen === cr.id && dropdownCoords && createPortal(
+                                <div className="fixed w-48 bg-white border border-[#ccc] rounded-lg shadow-lg" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
                                   <button
                                     onClick={() => { setEditarModal(cr); setDropdownOpen(null) }}
                                     className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors first:rounded-t-lg flex items-center gap-2"
@@ -1528,7 +1545,8 @@ export default function ContasReceber() {
                                   >
                                     Excluir titulo
                                   </button>
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </div>
                           </div>
@@ -1756,7 +1774,7 @@ function ModalQuitarLote({
         </div>
 
         {/* Summary */}
-        <div className="px-6 py-4 bg-[#ECFDF3] border-b border-[#c3e6d1]">
+        <div className="px-6 py-4 bg-[#ECFDF4] border-b border-[#c3e6d1]">
           <div className="flex justify-between text-sm">
             <span className="text-[#039855] font-semibold">{selectedCrs.length} titulo{selectedCrs.length !== 1 ? 's' : ''} selecionado{selectedCrs.length !== 1 ? 's' : ''}</span>
             <span className="text-[#039855] font-bold">{formatBRL(totalSaldo)}</span>
@@ -2429,7 +2447,7 @@ function ModalNovoCR({
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
 
         {lockFinancial && (
-          <div className="rounded-lg border border-[#FCD34D] bg-[#FEF3C7] px-3 py-2 text-[12px] text-[#92400E] flex items-start gap-2">
+          <div className="rounded-lg border border-[#FCD34D] bg-[#FFF0EB] px-3 py-2 text-[12px] text-[#92400E] flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
             <div>
               <div className="font-semibold">Titulo ja {editing?.status === 'conciliado' ? 'conciliado' : 'pago'}</div>

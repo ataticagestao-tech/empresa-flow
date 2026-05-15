@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { format, endOfMonth, parseISO } from 'date-fns'
 import {
   FileText, Plus, Search, Loader2, X, Download,
@@ -88,7 +89,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   rascunho:          { label: 'Rascunho',        color: '#667085', bg: '#F3F4F6' },
   enviando:          { label: 'Enviando',         color: '#EA580C', bg: '#FFF0EB', icon: 'spin' },
   processando:       { label: 'Processando',      color: '#EA580C', bg: '#FFF0EB', icon: 'spin' },
-  autorizada:        { label: 'Autorizada',       color: '#059669', bg: '#ECFDF3', icon: 'check' },
+  autorizada:        { label: 'Autorizada',       color: '#039855', bg: '#ECFDF3', icon: 'check' },
   erro_autorizacao:  { label: 'Erro',             color: '#E53E3E', bg: '#FEE2E2', icon: 'alert' },
   cancelada:         { label: 'Cancelada',        color: '#4B5563', bg: '#EAECF0', icon: 'ban' },
 }
@@ -152,6 +153,20 @@ export default function NfseEmissao() {
 
   // Dropdown
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = () => { setDropdownOpen(null); setDropdownCoords(null) }
+    window.addEventListener('click', handler)
+    window.addEventListener('scroll', handler, true)
+    window.addEventListener('resize', handler)
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('scroll', handler, true)
+      window.removeEventListener('resize', handler)
+    }
+  }, [dropdownOpen])
 
   // ─── Data Loading ─────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -660,14 +675,24 @@ export default function NfseEmissao() {
                             </a>
                           )}
                           <button
-                            onClick={() => setDropdownOpen(dropdownOpen === em.id ? null : em.id)}
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (dropdownOpen === em.id) {
+                                setDropdownOpen(null)
+                                setDropdownCoords(null)
+                              } else {
+                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                setDropdownOpen(em.id)
+                              }
+                            }}
                             className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
                           >
                             <MoreHorizontal size={14} />
                           </button>
 
-                          {dropdownOpen === em.id && (
-                            <div className="absolute right-0 top-8 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]">
+                          {dropdownOpen === em.id && dropdownCoords && createPortal(
+                            <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
                               <button
                                 onClick={() => openDetail(em)}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-left"
@@ -732,7 +757,8 @@ export default function NfseEmissao() {
                                   <RefreshCw size={14} /> Reenviar
                                 </button>
                               )}
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       </td>
@@ -743,11 +769,6 @@ export default function NfseEmissao() {
             </div>
           )}
         </div>
-
-        {/* Close dropdown on outside click */}
-        {dropdownOpen && (
-          <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />
-        )}
 
         {/* ════════════════════════════════════════════════════════════════
             MODAL: Nova NFSe

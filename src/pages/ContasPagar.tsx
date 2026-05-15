@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import JsBarcode from 'jsbarcode'
@@ -204,6 +205,7 @@ export default function ContasPagar() {
   const [batchCategorize, setBatchCategorize] = useState<{ contaContabilId: string; centroCustoId: string }>({ contaContabilId: '', centroCustoId: '' })
   const [payingCp, setPayingCp] = useState<ContaPagar | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
   const [whatsComprovanteModal, setWhatsComprovanteModal] = useState<{ cp: ContaPagar; phone: string; text: string } | null>(null)
   const [emailComprovanteModal, setEmailComprovanteModal] = useState<{ cp: ContaPagar; email: string; assunto: string; corpo: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -422,7 +424,7 @@ export default function ContasPagar() {
     const r = value / max
     if (r < 0.25) return '#FECACA'
     if (r < 0.5) return '#FCA5A5'
-    if (r < 0.75) return '#EF4444'
+    if (r < 0.75) return '#E53E3E'
     return '#B91C1C'
   }
 
@@ -1183,12 +1185,18 @@ export default function ContasPagar() {
     await loadData()
   }
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click / scroll / resize
   useEffect(() => {
     if (!dropdownOpen) return
-    const handler = () => setDropdownOpen(null)
+    const handler = () => { setDropdownOpen(null); setDropdownCoords(null) }
     window.addEventListener('click', handler)
-    return () => window.removeEventListener('click', handler)
+    window.addEventListener('scroll', handler, true)
+    window.addEventListener('resize', handler)
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('scroll', handler, true)
+      window.removeEventListener('resize', handler)
+    }
   }, [dropdownOpen])
 
   // ─── Lookup helpers ───────────────────────────────────────────────
@@ -1547,7 +1555,7 @@ export default function ContasPagar() {
             rightSlot={
               <div className="flex items-center gap-1.5 text-[10.5px] text-[#98A2B3]">
                 <span>Menos</span>
-                {['#F3F4F6', '#FECACA', '#FCA5A5', '#EF4444', '#B91C1C'].map((c) => (
+                {['#F3F4F6', '#FECACA', '#FCA5A5', '#E53E3E', '#B91C1C'].map((c) => (
                   <span key={c} style={{ width: 12, height: 12, background: c, borderRadius: 3, border: c === '#F3F4F6' ? '1px solid #EAECF0' : 'none' }} />
                 ))}
                 <span>Mais</span>
@@ -2045,7 +2053,14 @@ export default function ContasPagar() {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          setDropdownOpen(dropdownOpen === cp.id ? null : cp.id)
+                                          if (dropdownOpen === cp.id) {
+                                            setDropdownOpen(null)
+                                            setDropdownCoords(null)
+                                          } else {
+                                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                            setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                            setDropdownOpen(cp.id)
+                                          }
                                         }}
                                         className="p-1.5 rounded-[6px] transition"
                                         style={{ color: '#667085' }}
@@ -2054,10 +2069,10 @@ export default function ContasPagar() {
                                       >
                                         <MoreHorizontal size={16} />
                                       </button>
-                                      {dropdownOpen === cp.id && (
+                                      {dropdownOpen === cp.id && dropdownCoords && createPortal(
                                         <div
-                                          className="absolute right-0 top-full mt-1 py-1 z-40 min-w-[180px]"
-                                          style={{ backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}
+                                          className="fixed py-1 min-w-[180px]"
+                                          style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100, backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <button
@@ -2156,7 +2171,8 @@ export default function ContasPagar() {
                                           >
                                             <Trash2 size={14} /> Excluir lancamento
                                           </button>
-                                        </div>
+                                        </div>,
+                                        document.body
                                       )}
                                     </div>
                                   </div>
