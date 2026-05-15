@@ -139,7 +139,7 @@ export default function ContasReceber() {
 
   // ── Pagination ──
   const [page, setPage] = useState(0)
-  const PAGE_SIZE = 30
+  const PAGE_SIZE = 10
 
   // ── Filters ──
   const [search, setSearch] = useState('')
