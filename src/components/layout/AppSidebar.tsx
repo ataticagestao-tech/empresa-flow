@@ -87,10 +87,10 @@ export function AppSidebar() {
             className="h-9 w-9 object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
           />
           <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-            <span className="text-[12px] font-semibold text-sidebar-foreground tracking-tight leading-tight truncate">
+            <span className="text-[14px] font-semibold text-sidebar-foreground tracking-tight leading-tight truncate">
               Gestap System.
             </span>
-            <span className="text-[9px] font-medium text-sidebar-foreground/50 uppercase tracking-[0.08em] leading-tight mt-0.5">
+            <span className="text-[10px] font-medium text-sidebar-foreground/50 uppercase tracking-[0.08em] leading-tight mt-0.5">
               Gestão Empresarial
             </span>
           </div>
@@ -117,7 +117,7 @@ export function AppSidebar() {
                           <SidebarMenuButton asChild isActive={isActive(item.url)}>
                             <Link to={item.url!} className={`rounded-lg transition-colors duration-150${muted}`}>
                               <item.icon className="h-4 w-4 text-sidebar-foreground/80" />
-                              <span className="text-[12.5px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
+                              <span className="text-[14px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -149,7 +149,7 @@ export function AppSidebar() {
                         data-state-group={hasActiveChild ? "active" : undefined}
                       >
                         {group.icon && <group.icon className="h-4 w-4 text-sidebar-foreground/80" />}
-                        <span className="text-[12.5px] font-medium">{groupLabel}</span>
+                        <span className="text-[14px] font-medium">{groupLabel}</span>
                         <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-sidebar-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -164,7 +164,7 @@ export function AppSidebar() {
                                   asChild
                                   isActive={isActive(item.url)}
                                   size="sm"
-                                  className={`text-[10.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
+                                  className={`text-[12.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
                                 >
                                   <Link to={item.url} className="transition-colors duration-150">
                                     <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
@@ -175,7 +175,7 @@ export function AppSidebar() {
                                   asChild
                                   isActive={isActive(item.url)}
                                   size="sm"
-                                  className={`text-[10.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
+                                  className={`text-[12.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
                                 >
                                   <button type="button" onClick={() => handleMenuAction(item)} className="w-full text-left">
                                     <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
@@ -205,7 +205,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={isActive(item.url)}>
                   <Link to={item.url} className="rounded-lg transition-colors duration-150">
                     <item.icon className="h-4 w-4 text-sidebar-foreground/80" />
-                    <span className="text-[12.5px]">{t(item.titleKey)}</span>
+                    <span className="text-[14px]">{t(item.titleKey)}</span>
                   </Link>
                 </SidebarMenuButton>
               ) : (
@@ -216,7 +216,7 @@ export function AppSidebar() {
                   className={`rounded-lg transition-colors duration-150 ${item.action === "logout" ? "text-[#E53E3E] hover:text-[#E53E3E] hover:bg-[#FEE2E2]" : ""}`}
                 >
                   <item.icon className={`h-[17px] w-[17px] ${item.action === "logout" ? "" : "text-white"}`} />
-                  <span className="text-[12.5px]">{t(item.titleKey)}</span>
+                  <span className="text-[14px]">{t(item.titleKey)}</span>
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>
