@@ -37,7 +37,6 @@ export default function EmpresaResumo() {
   const db = activeClient as any;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [searchingLogo, setSearchingLogo] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -111,99 +110,16 @@ export default function EmpresaResumo() {
     }
   };
 
-  const extractDomain = (raw: string | null | undefined): string | null => {
-    if (!raw) return null;
-    const cleaned = raw.trim().toLowerCase();
-    if (!cleaned) return null;
-    if (cleaned.includes("@")) {
-      const dom = cleaned.split("@")[1]?.split(/[/?#]/)[0];
-      const generic = new Set([
-        "gmail.com", "googlemail.com", "hotmail.com", "outlook.com", "live.com", "msn.com",
-        "yahoo.com", "yahoo.com.br", "icloud.com", "me.com", "aol.com",
-        "uol.com.br", "bol.com.br", "terra.com.br", "ig.com.br", "globo.com",
-        "protonmail.com", "proton.me", "zoho.com",
-      ]);
-      if (!dom || generic.has(dom)) return null;
-      return dom;
+  const handleSearchLogo = () => {
+    if (!company) return;
+    const nome = (company.nome_fantasia || company.razao_social || "").trim();
+    if (!nome) {
+      toast.error("Cadastre o nome da empresa primeiro.");
+      return;
     }
-    return cleaned
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .split(/[/?#]/)[0]
-      .trim() || null;
-  };
-
-  const handleSearchLogo = async () => {
-    if (!id || !company) return;
-    let domain = extractDomain(company.site) || extractDomain(company.email);
-    if (!domain) {
-      const input = window.prompt(
-        "Digite o domínio do site da empresa para buscar a logo:\n(ex: hairofbrasil.com.br)"
-      );
-      if (!input) return;
-      domain = extractDomain(input);
-      if (!domain) {
-        toast.error("Domínio inválido.");
-        return;
-      }
-    }
-
-    setSearchingLogo(true);
-    try {
-      const sources = [
-        `https://logo.clearbit.com/${domain}`,
-        `https://www.google.com/s2/favicons?domain=${domain}&sz=256`,
-      ];
-
-      let blob: Blob | null = null;
-      let sourceUsed = "";
-      for (const url of sources) {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) continue;
-          const b = await res.blob();
-          if (b.size < 500) continue;
-          if (!b.type.startsWith("image/")) continue;
-          blob = b;
-          sourceUsed = url.includes("clearbit") ? "Clearbit" : "Google";
-          break;
-        } catch {
-          continue;
-        }
-      }
-
-      if (!blob) {
-        toast.error(`Nenhuma logo encontrada para ${domain}.`);
-        return;
-      }
-
-      const ext = (blob.type.split("/")[1] || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const path = `${id}/logo.${ext}`;
-      const file = new File([blob], `logo.${ext}`, { type: blob.type });
-
-      const { error: uploadError } = await db.storage
-        .from("company-logos")
-        .upload(path, file, { upsert: true, contentType: blob.type, cacheControl: "3600" });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = db.storage.from("company-logos").getPublicUrl(path);
-      const logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-      const { error: updateError } = await db
-        .from("companies")
-        .update({ logo_url: logoUrl })
-        .eq("id", id);
-      if (updateError) throw updateError;
-
-      queryClient.invalidateQueries({ queryKey: ["empresa_resumo", id] });
-      toast.success(`Logo encontrada via ${sourceUsed}.`);
-    } catch (err: any) {
-      console.error("Search logo error:", err);
-      toast.error("Erro ao buscar logo: " + (err.message || "Tente novamente."));
-    } finally {
-      setSearchingLogo(false);
-    }
+    const query = encodeURIComponent(`logo ${nome}`);
+    window.open(`https://www.google.com/search?q=${query}&tbm=isch`, "_blank", "noopener,noreferrer");
+    toast.info("Encontre a logo, baixe a imagem e clique em 'Alterar logo' para enviar.");
   };
 
   const { data: company, isLoading } = useQuery({
@@ -781,10 +697,10 @@ export default function EmpresaResumo() {
             <button
               type="button"
               onClick={handleSearchLogo}
-              disabled={searchingLogo || uploading}
+              disabled={uploading}
               className="text-[11px] font-semibold uppercase tracking-wider text-[#667085] hover:text-black underline-offset-4 hover:underline disabled:opacity-50 disabled:cursor-not-allowed -mt-2"
             >
-              {searchingLogo ? "Buscando..." : "Buscar logo automaticamente"}
+              Buscar no Google Imagens
             </button>
             <div className="max-w-full">
               <h1 className="text-[26px] font-bold text-black tracking-tight leading-tight">{company.razao_social}</h1>
