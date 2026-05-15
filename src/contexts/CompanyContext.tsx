@@ -27,11 +27,34 @@ export interface CompanyContextType {
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
+const SELECTED_COMPANY_STORAGE_KEY = "tatica:selected-company";
+
+function loadStoredCompany(): Company | null {
+  try {
+    const raw = localStorage.getItem(SELECTED_COMPANY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && parsed.id) return parsed as Company;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user, activeClient } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(() => loadStoredCompany());
   const [loading, setLoading] = useState(true);
+
+  // Persiste selectedCompany em localStorage sempre que mudar (independente da origem
+  // do set: CompanySelector, fetchCompanies default, delete company, etc).
+  useEffect(() => {
+    try {
+      if (selectedCompany) localStorage.setItem(SELECTED_COMPANY_STORAGE_KEY, JSON.stringify(selectedCompany));
+      else localStorage.removeItem(SELECTED_COMPANY_STORAGE_KEY);
+    } catch { /* ignore */ }
+  }, [selectedCompany]);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
