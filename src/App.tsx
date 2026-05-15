@@ -37,6 +37,7 @@ import ProdutosDepartamentos from "./pages/ProdutosDepartamentos";
 import Recibos from "./pages/Recibos";
 import NotFound from "./pages/NotFound";
 import AdminUsuarios from "./pages/AdminUsuarios";
+import WhatsappAutorizados from "./pages/WhatsappAutorizados";
 import ContaBloqueada from "./pages/ContaBloqueada";
 import PlanoContas from "./pages/PlanoContas";
 import Funcionarios from "./pages/Funcionarios";
@@ -232,6 +233,7 @@ const App = () => (
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+                      <Route path="/admin/whatsapp-autorizados" element={<WhatsappAutorizados />} />
                     </Route>
                   </Route>
                 </Route>

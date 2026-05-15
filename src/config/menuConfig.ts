@@ -202,6 +202,7 @@ export const menuGroups: MenuGroup[] = [
     ownerOnly: true,
     items: [
       { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },
+      { titleKey: 'WhatsApp Autorizados', icon: Shield, url: '/admin/whatsapp-autorizados', isHardcoded: true, adminOnly: true },
     ]
   },
 ];
