@@ -135,10 +135,17 @@ export default function EmpresaResumo() {
 
   const handleSearchLogo = async () => {
     if (!id || !company) return;
-    const domain = extractDomain(company.site) || extractDomain(company.email);
+    let domain = extractDomain(company.site) || extractDomain(company.email);
     if (!domain) {
-      toast.error("Cadastre o site ou email da empresa primeiro.");
-      return;
+      const input = window.prompt(
+        "Digite o domínio do site da empresa para buscar a logo:\n(ex: hairofbrasil.com.br)"
+      );
+      if (!input) return;
+      domain = extractDomain(input);
+      if (!domain) {
+        toast.error("Domínio inválido.");
+        return;
+      }
     }
 
     setSearchingLogo(true);
