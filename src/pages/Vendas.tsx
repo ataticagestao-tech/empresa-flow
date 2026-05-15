@@ -2030,7 +2030,7 @@ export default function Vendas() {
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
         <div
-          className="bg-white border border-[#EAECF0] rounded-xl pt-5 px-5 pb-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          className="bg-white border border-[#EAECF0] rounded-xl pt-5 px-5 pb-3 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
           <div className="flex items-baseline justify-between mb-2 flex-shrink-0">
@@ -2049,7 +2049,7 @@ export default function Vendas() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 14, right: 12, left: 0, bottom: 42 }}
+                margin={{ top: 14, right: 12, left: 0, bottom: 36 }}
               >
                 <XAxis
                   dataKey="descricao"
@@ -2080,7 +2080,7 @@ export default function Vendas() {
                         }
                       }
                     })
-                    // Max 2 linhas pra caber em 42px de altura do eixo (+ qtd na 3a)
+                    // Max 2 linhas pra caber em 36px de altura do eixo (+ qtd na 3a)
                     const visible = out.slice(0, 2)
                     if (out.length > 2 && visible[1]) {
                       visible[1] = visible[1].slice(0, maxPerLine - 1) + '…'
@@ -2114,7 +2114,7 @@ export default function Vendas() {
                   }}
                   axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={42}
+                  height={36}
                 />
                 <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
