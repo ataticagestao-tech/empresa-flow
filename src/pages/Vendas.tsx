@@ -70,6 +70,8 @@ interface PagamentoSplit {
   conta_bancaria_id: string
   parcelas: number
   taxa: any | null
+  // Só usado quando forma === 'pendente'. Default +30 dias da data da venda.
+  vencimento_pendente?: string | null
 }
 
 interface BankAccount {
@@ -138,15 +140,17 @@ const FORMAS_PAGAMENTO = [
   { value: 'cartao_debito', label: 'Cartão débito', icon: CreditCard },
   { value: 'boleto', label: 'Boleto', icon: Receipt },
   { value: 'parcelado', label: 'Parcelado', icon: Calendar },
+  { value: 'pendente', label: 'Em aberto (a definir)', icon: AlertCircle },
 ] as const
 
 const FORMAS_A_VISTA = ['pix', 'dinheiro', 'cartao_debito']
 const FORMAS_A_PRAZO = ['parcelado', 'boleto', 'cartao_credito']
+// 'pendente' = saldo a pagar no futuro, forma ainda indefinida (típico de contrato com entrada parcial)
 
 const LABEL_FORMA: Record<string, string> = {
   pix: 'PIX/TED', dinheiro: 'Dinheiro', cartao_credito: 'Cartão crédito',
   cartao_debito: 'Cartão débito', boleto: 'Boleto', parcelado: 'Parcelado',
-  multiplo: 'Múltiplo',
+  pendente: 'Em aberto', multiplo: 'Múltiplo',
 }
 
 function novoSplit(valor = 0): PagamentoSplit {
@@ -752,6 +756,8 @@ export default function Vendas() {
   // cartao_credito/parcelado → primeiro bank_account type='cartao_credito'
   // demais formas → primeira conta corrente (qualquer type != 'cartao_credito')
   const pickContaPadrao = useCallback((forma: string): string => {
+    // 'pendente' = saldo em aberto, sem destino bancário definido ainda.
+    if (forma === 'pendente') return ''
     if (forma === 'cartao_credito' || forma === 'parcelado') {
       const cartao = bankAccounts.find(b => b.type === 'cartao_credito')
       if (cartao) return cartao.id
@@ -1034,10 +1040,10 @@ export default function Vendas() {
     try {
       const { data: crs } = await db
         .from('contas_receber')
-        .select('valor, forma_recebimento, conta_bancaria_id')
+        .select('valor, forma_recebimento, conta_bancaria_id, data_vencimento')
         .eq('venda_id', venda.id)
         .is('deleted_at', null)
-      const groups = new Map<string, { forma: string; conta: string; valor: number; parcelas: number }>()
+      const groups = new Map<string, { forma: string; conta: string; valor: number; parcelas: number; vencimento?: string }>()
       for (const cr of (crs as any[]) || []) {
         const forma = cr.forma_recebimento || venda.forma_pagamento || 'pix'
         const conta = cr.conta_bancaria_id || ''
@@ -1045,6 +1051,8 @@ export default function Vendas() {
         const g = groups.get(key) || { forma, conta, valor: 0, parcelas: 0 }
         g.valor += Number(cr.valor || 0)
         g.parcelas += 1
+        // Preserva o vencimento original quando for split 'pendente' (single CR).
+        if (forma === 'pendente' && cr.data_vencimento) g.vencimento = cr.data_vencimento
         groups.set(key, g)
       }
       if (groups.size > 0) {
@@ -1054,6 +1062,7 @@ export default function Vendas() {
           conta_bancaria_id: g.conta,
           valor: Math.round(g.valor * 100) / 100,
           parcelas: Math.max(1, g.parcelas),
+          vencimento_pendente: g.vencimento || null,
         }))
         setFormPagamentos(splits)
       } else {
@@ -1387,23 +1396,29 @@ export default function Vendas() {
     }
     if (totalVenda <= 0) { setErroModal('Valor total deve ser maior que zero.'); return }
     if (formPagamentos.length === 0) { setErroModal('Adicione ao menos uma forma de pagamento.'); return }
+    // Saldo faltante vira automaticamente um split 'pendente' (CR aberta).
+    // Excedente continua bloqueando — significa que a usuária errou um valor.
+    let pagamentosBase = formPagamentos
+    if (pendentePagamento > 0.01) {
+      pagamentosBase = [...formPagamentos, { ...novoSplit(Math.round(pendentePagamento * 100) / 100), forma: 'pendente' }]
+    } else if (pendentePagamento < -0.01) {
+      setErroModal(`A soma das formas de pagamento (${formatBRL(totalPagamentos)}) excede o total da venda (${formatBRL(totalVenda)}) em ${formatBRL(Math.abs(pendentePagamento))}.`)
+      return
+    }
     // Auto-fill defensivo: garante que toda forma tem conta destino (padrão se não foi escolhida)
-    const pagamentosResolvidos = formPagamentos.map(p => ({
+    const pagamentosResolvidos = pagamentosBase.map(p => ({
       ...p,
       conta_bancaria_id: p.conta_bancaria_id || pickContaPadrao(p.forma),
     }))
     for (const p of pagamentosResolvidos) {
-      if (!p.conta_bancaria_id) {
+      // 'pendente' = saldo em aberto sem destino bancário definido — não exige conta.
+      if (!p.conta_bancaria_id && p.forma !== 'pendente') {
         setErroModal(isOwner
           ? 'Selecione a conta bancária para cada forma de pagamento.'
           : 'Nenhuma conta bancária cadastrada para esta forma. Peça ao administrador para cadastrar uma conta.')
         return
       }
       if (!p.valor || p.valor <= 0) { setErroModal('Cada forma de pagamento precisa ter valor maior que zero.'); return }
-    }
-    if (Math.abs(pendentePagamento) > 0.01) {
-      setErroModal(`A soma das formas de pagamento (${formatBRL(totalPagamentos)}) precisa ser igual ao total da venda (${formatBRL(totalVenda)}).`)
-      return
     }
 
     setSalvando(true)
@@ -1572,9 +1587,14 @@ export default function Vendas() {
             }
           })
         } else {
-          const dataRecebimento = diasRecebimento > 0
-            ? format(addDays(parseISO(formDataVenda), diasRecebimento), 'yyyy-MM-dd')
-            : formDataVenda
+          // Para 'pendente' (saldo a definir): vencimento = data escolhida pela
+          // usuária ou +30 dias por padrão. Demais formas (boleto, etc.) seguem
+          // o diasRecebimento da config de taxa.
+          const dataRecebimento = split.forma === 'pendente'
+            ? (split.vencimento_pendente || format(addDays(parseISO(formDataVenda), 30), 'yyyy-MM-dd'))
+            : diasRecebimento > 0
+              ? format(addDays(parseISO(formDataVenda), diasRecebimento), 'yyyy-MM-dd')
+              : formDataVenda
           crsPayload = [{
             company_id: companyId,
             pagador_nome: toTitleCase(formCliente.trim()),
@@ -1588,9 +1608,11 @@ export default function Vendas() {
             conta_contabil_id: contaContabilCR,
             centro_custo_id: formCentroCusto || null,
             venda_id: vendaId,
-            observacoes: taxaPct > 0
-              ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
-              : null,
+            observacoes: split.forma === 'pendente'
+              ? 'Saldo em aberto — forma a definir'
+              : taxaPct > 0
+                ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
+                : null,
           }]
         }
 
@@ -2891,17 +2913,17 @@ export default function Vendas() {
                         type="button"
                         onClick={() => {
                           const restante = Math.round(pendentePagamento * 100) / 100
-                          // Default cartao_credito 2x: mantém CRs em aberto (1x auto-quita).
-                          // Usuária ajusta nº de parcelas ou troca pra boleto/parcelado conforme o caso.
+                          // Default 'pendente' = saldo em aberto sem forma definida ainda.
+                          // CR fica aberta com vencimento +30 dias; usuária troca pra cartão/boleto/etc. se já souber.
                           setFormPagamentos(prev => [
                             ...prev,
-                            { ...novoSplit(restante), forma: 'cartao_credito', parcelas: 2 },
+                            { ...novoSplit(restante), forma: 'pendente' },
                           ])
                         }}
-                        title="Adicionar forma para o saldo a pagar no futuro (cartão crédito 2x — fica em aberto)"
+                        title="Lançar saldo como em aberto (sem definir forma agora). Vencimento padrão: +30 dias da data da venda."
                         className="text-[#EA580C] font-semibold hover:underline"
                       >
-                        Faltam {formatBRL(pendentePagamento)} — saldo a futuro ↓
+                        Faltam {formatBRL(pendentePagamento)} — deixar em aberto ↓
                       </button>
                     ) : (
                       <span className="text-[#E53E3E] font-semibold">Excedeu em {formatBRL(Math.abs(pendentePagamento))}</span>
@@ -2912,6 +2934,7 @@ export default function Vendas() {
                 <div className="space-y-2">
                   {formPagamentos.map((split, idx) => {
                     const isParcl = split.forma === 'parcelado' || split.forma === 'cartao_credito'
+                    const isPendente = split.forma === 'pendente'
                     const txPct = split.taxa?.taxa_percentual || 0
                     const diasRec = split.taxa?.dias_recebimento || 0
                     const maxParcelas = Math.max(1, Math.min(split.taxa?.max_parcelas || 12, 24))
@@ -2942,7 +2965,7 @@ export default function Vendas() {
                               className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
                             />
                           </div>
-                          {isOwner && (
+                          {isOwner && !isPendente && (
                             <div className={`${isParcl ? 'col-span-12 sm:col-span-3' : 'col-span-6 sm:col-span-4'}`}>
                               <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta destino</label>
                               <select
@@ -2955,6 +2978,17 @@ export default function Vendas() {
                                   <option key={ba.id} value={ba.id}>{ba.name}{ba.banco ? ` (${ba.banco})` : ''}</option>
                                 ))}
                               </select>
+                            </div>
+                          )}
+                          {isPendente && (
+                            <div className="col-span-12 sm:col-span-5">
+                              <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Vencimento</label>
+                              <input
+                                type="date"
+                                value={split.vencimento_pendente || format(addDays(parseISO(formDataVenda), 30), 'yyyy-MM-dd')}
+                                onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, vencimento_pendente: e.target.value } : p))}
+                                className="w-full px-2 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
+                              />
                             </div>
                           )}
                           {isParcl && (
@@ -3023,6 +3057,13 @@ export default function Vendas() {
                                     diasRec > 0 ? addDays(addMonths(parseISO(formDataVenda), 1), diasRec) : addMonths(parseISO(formDataVenda), 1),
                                     'dd/MM/yyyy'
                                   )}
+                                </p>
+                              ) : isPendente ? (
+                                <p className="text-[#EA580C]">
+                                  CR em aberto: {formatBRL(vlLiq)} · vencimento {format(
+                                    parseISO(split.vencimento_pendente || format(addDays(parseISO(formDataVenda), 30), 'yyyy-MM-dd')),
+                                    'dd/MM/yyyy'
+                                  )} (saldo a definir)
                                 </p>
                               ) : (
                                 <p>
