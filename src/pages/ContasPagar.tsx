@@ -296,11 +296,8 @@ export default function ContasPagar() {
   // Collapsed groups
   const [collapsedGroups, setCollapsedGroups] = useState<Set<UrgencyGroup>>(new Set())
   const [globalPage, setGlobalPage] = useState(0)
-  const [agendaPage, setAgendaPage] = useState(0)
   const PAGE_SIZE = 10
 
-  // Reset paginacao da agenda quando filtros mudam
-  useEffect(() => { setAgendaPage(0) }, [selectedAgendaDate])
   useEffect(() => { setGlobalPage(0) }, [searchTerm, statusFilter, sectorFilter, dateFrom, dateTo])
 
   // ─── Data Loading ───────────────────────────────────────────────
@@ -1717,11 +1714,17 @@ export default function ContasPagar() {
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAECF0]">
               <div>
-                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">Contas a vencer</div>
+                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">
+                  {selectedAgendaDate && selectedAgendaDate === format(new Date(), 'yyyy-MM-dd')
+                    ? 'Contas a pagar hoje'
+                    : selectedAgendaDate
+                      ? 'Contas a pagar'
+                      : 'Contas a vencer'}
+                </div>
                 <div className="text-[12px] text-[#98A2B3] mt-1">
                   {selectedAgendaDate
-                    ? `Vencimento em ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}`
-                    : 'Todas · próximos 30 dias'}
+                    ? `${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')} · agrupado por plano de contas`
+                    : 'Próximos 30 dias · agrupado por plano de contas'}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -1784,66 +1787,43 @@ export default function ContasPagar() {
                   Nenhuma conta a vencer {selectedAgendaDate ? 'nesta data' : 'nos pr\u00f3ximos 30 dias'}.
                 </div>
               ) : (() => {
-                const totalPagesAgenda = Math.max(1, Math.ceil(agendaDiaLista.length / PAGE_SIZE))
-                const pageAgenda = Math.min(agendaPage, totalPagesAgenda - 1)
-                const startA = pageAgenda * PAGE_SIZE
-                const agendaPageItems = agendaDiaLista.slice(startA, startA + PAGE_SIZE)
+                // Layout agrupado por plano de contas, sem paginação dentro do painel:
+                // cada plano vira uma seção com seu próprio total e os itens listados embaixo.
                 return (
                 <>
-                <table className="w-full text-[12.5px]">
-                  <thead className="bg-[#F9FAFB] sticky top-0">
-                    <tr>
-                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Nome</th>
-                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Plano de contas</th>
-                      <th className="py-2 px-3 text-right font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agendaPageItems.map(cp => (
-                      <tr key={cp.id} style={{ borderTop: '1px solid #F2F4F7' }}>
-                        <td className="py-2 px-3 text-[#1D2939]">
-                          <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cp.descricao || cp.credor_nome}</div>
-                          {!selectedAgendaDate && (
-                            <div className="text-[10.5px] text-[#98A2B3]">
-                              {format(parseISO(cp.data_vencimento), 'dd/MM')}
+                <div className="divide-y divide-[#F2F4F7]">
+                  {agendaAgrupadoPorPlano.map(g => (
+                    <div key={g.plano}>
+                      <div className="px-5 py-2 bg-[#F9FAFB] flex items-center justify-between sticky top-0 z-[1]">
+                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#1D2939] truncate" style={{ maxWidth: 280 }} title={g.plano}>
+                          {g.plano}
+                        </span>
+                        <span className="text-[11px] font-bold text-[#E53E3E] tabular-nums">
+                          {formatBRL(g.total)}
+                        </span>
+                      </div>
+                      <ul>
+                        {g.items.map(cp => (
+                          <li key={cp.id} className="px-5 py-2 flex items-center justify-between gap-3 hover:bg-[#FAFAFA] transition-colors">
+                            <div className="min-w-0">
+                              <div className="text-[12.5px] font-medium text-[#1D2939] truncate" style={{ maxWidth: 280 }} title={cp.descricao || cp.credor_nome}>
+                                {cp.descricao || cp.credor_nome}
+                              </div>
+                              {!selectedAgendaDate && (
+                                <div className="text-[10.5px] text-[#98A2B3]">
+                                  {format(parseISO(cp.data_vencimento), 'dd/MM')}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-[#555]">
-                          <div className="truncate" style={{ maxWidth: 220 }} title={cp.conta_contabil_id ? contaContabilMap[cp.conta_contabil_id] : ''}>
-                            {cp.conta_contabil_id ? (contaContabilMap[cp.conta_contabil_id] || '—') : '—'}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 text-right font-semibold text-[#1D2939] tabular-nums">
-                          {formatBRL(cp._pendente)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {totalPagesAgenda > 1 && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #F2F4F7', backgroundColor: '#F9FAFB' }}>
-                    <span style={{ fontSize: 11, color: '#667085', fontWeight: 500 }}>
-                      Página {pageAgenda + 1} de {totalPagesAgenda} · {startA + 1}–{Math.min(startA + PAGE_SIZE, agendaDiaLista.length)} de {agendaDiaLista.length}
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        onClick={() => setAgendaPage(p => Math.max(0, p - 1))}
-                        disabled={pageAgenda === 0}
-                        style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', border: '1px solid #D0D5DD', borderRadius: 4, backgroundColor: pageAgenda === 0 ? '#F3F4F6' : '#ffffff', color: pageAgenda === 0 ? '#98A2B3' : '#1D2939', cursor: pageAgenda === 0 ? 'not-allowed' : 'pointer' }}
-                      >
-                        Anterior
-                      </button>
-                      <button
-                        onClick={() => setAgendaPage(p => Math.min(totalPagesAgenda - 1, p + 1))}
-                        disabled={pageAgenda >= totalPagesAgenda - 1}
-                        style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', border: '1px solid #D0D5DD', borderRadius: 4, backgroundColor: pageAgenda >= totalPagesAgenda - 1 ? '#F3F4F6' : '#ffffff', color: pageAgenda >= totalPagesAgenda - 1 ? '#98A2B3' : '#1D2939', cursor: pageAgenda >= totalPagesAgenda - 1 ? 'not-allowed' : 'pointer' }}
-                      >
-                        Próxima
-                      </button>
+                            <span className="text-[12.5px] font-semibold text-[#1D2939] tabular-nums shrink-0">
+                              {formatBRL(cp._pendente)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
                 </>
                 )
               })()}
