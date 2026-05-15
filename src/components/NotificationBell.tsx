@@ -8,7 +8,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Bell, FileText, Clock, ShieldCheck, ShieldAlert, ExternalLink } from "lucide-react";
+import { Bell, FileText, Clock, ShieldCheck, ShieldAlert, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+
+const POR_PAGINA = 3;
 
 interface Notificacao {
   tipo: "lancamento_cp" | "acesso_pendente" | "acesso_verificado" | "acesso_bloqueado";
@@ -45,6 +47,7 @@ export function NotificationBell() {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [naoLidas, setNaoLidas] = useState(0);
   const [open, setOpen] = useState(false);
+  const [pagina, setPagina] = useState(0);
 
   const carregar = async () => {
     if (!user || !activeClient) return;
@@ -73,9 +76,9 @@ export function NotificationBell() {
 
   const abrir = (open: boolean) => {
     setOpen(open);
-    if (open && naoLidas > 0) {
-      // Marca como lidas ao abrir
-      marcarLidas();
+    if (open) {
+      setPagina(0); // reset pra primeira página ao abrir
+      if (naoLidas > 0) marcarLidas();
     }
   };
 
@@ -83,6 +86,11 @@ export function NotificationBell() {
     setOpen(false);
     navigate(n.link);
   };
+
+  const totalPaginas = Math.max(1, Math.ceil(notificacoes.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas - 1);
+  const inicio = paginaAtual * POR_PAGINA;
+  const visiveis = notificacoes.slice(inicio, inicio + POR_PAGINA);
 
   return (
     <DropdownMenu open={open} onOpenChange={abrir}>
@@ -116,27 +124,56 @@ export function NotificationBell() {
             Sem notificações por enquanto.
           </div>
         ) : (
-          <div className="space-y-0">
-            {notificacoes.map((n) => (
-              <button
-                key={`${n.tipo}-${n.recurso_id}`}
-                onClick={() => clicar(n)}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-[#F2F4F7] last:border-b-0 transition-colors"
-              >
-                <div className="flex items-start gap-2">
-                  <div className="mt-0.5 flex-shrink-0">{ICON_BY_TIPO[n.tipo]}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[12px] font-semibold text-[#1D2939] truncate">{n.titulo}</span>
-                      <span className="text-[10px] text-[#98A2B3] flex-shrink-0">{tempoRelativo(n.created_at)}</span>
+          <>
+            <div className="space-y-0">
+              {visiveis.map((n) => (
+                <button
+                  key={`${n.tipo}-${n.recurso_id}`}
+                  onClick={() => clicar(n)}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-[#F2F4F7] last:border-b-0 transition-colors"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="mt-0.5 flex-shrink-0">{ICON_BY_TIPO[n.tipo]}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-semibold text-[#1D2939] truncate">{n.titulo}</span>
+                        <span className="text-[10px] text-[#98A2B3] flex-shrink-0">{tempoRelativo(n.created_at)}</span>
+                      </div>
+                      <div className="text-[11.5px] text-[#667085] line-clamp-2 mt-0.5">{n.descricao}</div>
                     </div>
-                    <div className="text-[11.5px] text-[#667085] line-clamp-2 mt-0.5">{n.descricao}</div>
+                    <ExternalLink className="h-3 w-3 text-[#98A2B3] flex-shrink-0 mt-1" />
                   </div>
-                  <ExternalLink className="h-3 w-3 text-[#98A2B3] flex-shrink-0 mt-1" />
+                </button>
+              ))}
+            </div>
+
+            {totalPaginas > 1 && (
+              <>
+                <DropdownMenuSeparator />
+                <div className="flex items-center justify-between px-3 py-2 bg-[#F9FAFB]">
+                  <button
+                    onClick={(e) => { e.preventDefault(); setPagina((p) => Math.max(0, p - 1)); }}
+                    disabled={paginaAtual === 0}
+                    className="h-6 w-6 flex items-center justify-center rounded text-[#667085] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="text-[10px] text-[#667085] font-medium">
+                    {paginaAtual + 1} de {totalPaginas}
+                  </span>
+                  <button
+                    onClick={(e) => { e.preventDefault(); setPagina((p) => Math.min(totalPaginas - 1, p + 1)); }}
+                    disabled={paginaAtual >= totalPaginas - 1}
+                    className="h-6 w-6 flex items-center justify-center rounded text-[#667085] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Próxima página"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              </button>
-            ))}
-          </div>
+              </>
+            )}
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
