@@ -59,8 +59,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
     if (!user) {
+      // Enquanto auth ainda carrega ou apos logout: nao limpar selectedCompany,
+      // senao perdemos o valor restaurado do localStorage antes do user chegar.
+      // O persist useEffect ja sincroniza naturalmente se houver logout real.
       setCompanies([]);
-      setSelectedCompany(null);
       setLoading(false);
       return;
     }
