@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { CNPJParserService } from "@/modules/clients/infra/cnpj-parser.service";
+import { toTitleCase } from "@/lib/format";
 
 // Interface local para tipar os documentos vindos do banco
 interface CompanyDocument {
@@ -142,6 +143,8 @@ export function useCompanyForm(companyId?: string) {
 
         const companyPayload: any = {
             ...rest,
+            razao_social: rest.razao_social ? toTitleCase(rest.razao_social) : rest.razao_social,
+            nome_fantasia: rest.nome_fantasia ? toTitleCase(rest.nome_fantasia) : rest.nome_fantasia,
             // Mantemos o owner_id para garantir a consistência com o schema novo
             owner_id: session?.user?.id
         };

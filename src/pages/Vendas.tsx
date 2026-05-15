@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
-import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
+import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
@@ -1150,7 +1150,7 @@ export default function Vendas() {
       // 1. Insert all vendas of this batch at once
       const vendasPayload = batch.map(row => ({
         company_id: companyId,
-        cliente_nome: row.cliente_nome,
+        cliente_nome: toTitleCase(row.cliente_nome),
         cliente_cpf_cnpj: row.cliente_cpf_cnpj,
         tipo: row.tipo,
         valor_total: Math.max(0, row.valor_total - row.desconto),
@@ -1177,7 +1177,7 @@ export default function Vendas() {
       // 2. Build itens + contas_receber payloads
       const itensPayload = batch.map((row, idx) => ({
         venda_id: vendasData[idx].id,
-        descricao: row.descricao,
+        descricao: toTitleCase(row.descricao),
         quantidade: row.quantidade,
         valor_unitario: row.valor_unitario,
       }))
@@ -1211,7 +1211,7 @@ export default function Vendas() {
 
           crsPayload.push({
             company_id: companyId,
-            pagador_nome: row.cliente_nome,
+            pagador_nome: toTitleCase(row.cliente_nome),
             pagador_cpf_cnpj: row.cliente_cpf_cnpj,
             valor,
             valor_pago: isImmediatePayment ? valor : 0,
@@ -1367,7 +1367,7 @@ export default function Vendas() {
         const { error: vendaErr } = await db
           .from('vendas')
           .update({
-            cliente_nome: formCliente.trim(),
+            cliente_nome: toTitleCase(formCliente.trim()),
             cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
             tipo: formTipo,
             valor_total: totalVenda,
@@ -1395,7 +1395,7 @@ export default function Vendas() {
           .from('vendas')
           .insert({
             company_id: companyId,
-            cliente_nome: formCliente.trim(),
+            cliente_nome: toTitleCase(formCliente.trim()),
             cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
             tipo: formTipo,
             valor_total: totalVenda,
@@ -1413,7 +1413,7 @@ export default function Vendas() {
       // 2. Insert itens
       const itensPayload = formItens.map(it => ({
         venda_id: vendaId,
-        descricao: it.descricao.trim(),
+        descricao: toTitleCase(it.descricao.trim()),
         quantidade: it.quantidade,
         valor_unitario: it.valor_unitario,
       }))
@@ -1448,7 +1448,7 @@ export default function Vendas() {
 
           crsPayload = [{
             company_id: companyId,
-            pagador_nome: formCliente.trim(),
+            pagador_nome: toTitleCase(formCliente.trim()),
             pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
             valor: valorAntecipado,
             valor_pago: 0,
@@ -1473,7 +1473,7 @@ export default function Vendas() {
               : valorParcelaLiq
             return {
               company_id: companyId,
-              pagador_nome: formCliente.trim(),
+              pagador_nome: toTitleCase(formCliente.trim()),
               pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
               valor,
               valor_pago: 0,
@@ -1495,7 +1495,7 @@ export default function Vendas() {
             : formDataVenda
           crsPayload = [{
             company_id: companyId,
-            pagador_nome: formCliente.trim(),
+            pagador_nome: toTitleCase(formCliente.trim()),
             pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
             valor: valorLiquido,
             valor_pago: 0,
@@ -1535,7 +1535,7 @@ export default function Vendas() {
       // Captura dados da venda para oferecer envio via WhatsApp apos fechar o modal.
       // Skip se for edicao (so para venda nova) e se cliente nao foi identificado.
       const vendaCriada = !editandoVenda && formCliente.trim() ? {
-        cliente_nome: formCliente.trim(),
+        cliente_nome: toTitleCase(formCliente.trim()),
         cliente_cpf_cnpj: formCpfCnpj.trim() || null,
         valor_total: totalVenda,
         data_venda: formDataVenda,
@@ -1742,7 +1742,7 @@ export default function Vendas() {
     const styles: Record<string, string> = {
       pago: 'text-[#039855] bg-[#ECFDF3] border border-[#039855]',
       aberto: 'text-[#B91C1C] bg-[#FEE2E2] border border-[#B91C1C]',
-      areceber: 'text-[#1D4ED8] bg-[#EFF6FF] border border-[#1D4ED8]',
+      areceber: 'text-[#1D4ED8] bg-[#ECFDF4] border border-[#1D4ED8]',
       parcial: 'text-[#EA580C] bg-[#FFF0EB] border border-[#EA580C]',
       avista: 'text-[#555] bg-[#F6F2EB] border border-[#ccc]',
     }
@@ -1924,7 +1924,7 @@ export default function Vendas() {
           {filtroCliente && (
             <button
               onClick={() => setFiltroCliente('')}
-              className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#D1FAE5]"
+              className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#ECFDF3]"
               title="Remover filtro"
             >
               Cliente: <span className="font-normal truncate max-w-[120px]">{filtroCliente}</span>
@@ -1934,7 +1934,7 @@ export default function Vendas() {
           {filtroCR && (
             <button
               onClick={() => setFiltroCR('')}
-              className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#D1FAE5]"
+              className="inline-flex items-center gap-1 px-2 h-7 text-[11px] font-semibold text-[#1D2939] bg-[#ECFDF4] border border-[#059669] rounded hover:bg-[#ECFDF3]"
               title="Remover filtro"
             >
               CR: <span className="font-normal">{filtroCR === 'pago' ? 'Pago' : filtroCR === 'aberto' ? 'Inadimplente' : filtroCR === 'areceber' ? 'A receber' : filtroCR === 'parcial' ? 'Parcial' : 'À vista'}</span>
@@ -2030,7 +2030,7 @@ export default function Vendas() {
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
         <div
-          className="bg-white border border-[#EAECF0] rounded-xl pt-5 px-5 pb-2 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          className="bg-white border border-[#EAECF0] rounded-xl pt-5 px-5 pb-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
           <div className="flex items-baseline justify-between mb-2 flex-shrink-0">
@@ -2049,7 +2049,7 @@ export default function Vendas() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 18, right: 12, left: 0, bottom: 56 }}
+                margin={{ top: 14, right: 12, left: 0, bottom: 42 }}
               >
                 <XAxis
                   dataKey="descricao"
@@ -2080,7 +2080,7 @@ export default function Vendas() {
                         }
                       }
                     })
-                    // Max 2 linhas pra caber em 56px de altura do eixo (+ qtd na 3a)
+                    // Max 2 linhas pra caber em 42px de altura do eixo (+ qtd na 3a)
                     const visible = out.slice(0, 2)
                     if (out.length > 2 && visible[1]) {
                       visible[1] = visible[1].slice(0, maxPerLine - 1) + '…'
@@ -2114,7 +2114,7 @@ export default function Vendas() {
                   }}
                   axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={56}
+                  height={42}
                 />
                 <YAxis type="number" hide domain={[0, 'dataMax']} />
                 <Tooltip
@@ -2644,7 +2644,7 @@ export default function Vendas() {
                 (formTipo === 'contrato' || formTipo === 'pacote') &&
                 (formCpfCnpj || (formCliente || '').trim().length >= 3) &&
                 contratosAbertosCliente.length > 0 && (
-                <div className="rounded-md border-2 border-[#F59E0B] bg-[#FFFBEB] px-4 py-3">
+                <div className="rounded-md border-2 border-[#EA580C] bg-[#FFFBEB] px-4 py-3">
                   <div className="flex items-start gap-2">
                     <AlertCircle size={16} className="text-[#D97706] mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -2676,7 +2676,7 @@ export default function Vendas() {
                                 <button
                                   type="button"
                                   onClick={() => setPagamentoContrato({ contrato: c, modoQuitacao: false })}
-                                  className="px-2.5 py-1 text-[10.5px] font-bold bg-[#059669] text-white rounded hover:bg-[#047857] transition-colors"
+                                  className="px-2.5 py-1 text-[10.5px] font-bold bg-[#059669] text-white rounded hover:bg-[#039855] transition-colors"
                                 >
                                   Pagar parcela
                                 </button>

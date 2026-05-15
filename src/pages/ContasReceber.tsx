@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { safeQuery } from '@/lib/supabaseQuery'
-import { formatBRL, formatData, formatCPF, formatCNPJ } from '@/lib/format'
+import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
@@ -2401,7 +2401,7 @@ function ModalNovoCR({
           const dataVenc = format(addDays(parseISO(vencimento), i * 30), 'yyyy-MM-dd')
           records.push({
             company_id: companyId,
-            pagador_nome: pagadorNome.trim(),
+            pagador_nome: toTitleCase(pagadorNome.trim()),
             pagador_cpf_cnpj: pagadorCpfCnpj.trim() || null,
             pagador_email: pagadorEmail.trim() || null,
             valor: i === n - 1 ? Math.round((v - valorParcela * (n - 1)) * 100) / 100 : valorParcela,
@@ -2418,7 +2418,7 @@ function ModalNovoCR({
       } else {
         const { error } = await db.from('contas_receber').insert({
           company_id: companyId,
-          pagador_nome: pagadorNome.trim(),
+          pagador_nome: toTitleCase(pagadorNome.trim()),
           pagador_cpf_cnpj: pagadorCpfCnpj.trim() || null,
           pagador_email: pagadorEmail.trim() || null,
           valor: v,

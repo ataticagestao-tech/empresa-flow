@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useCompany } from "@/contexts/CompanyContext";
+import { toTitleCase } from "@/lib/format";
 
 const NONE = "__none__";
 
@@ -180,7 +181,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             const payload: any = {
                 company_id: selectedCompany.id,
                 code: codigoGerado,
-                description: values.description.trim(),
+                description: toTitleCase(values.description.trim()),
                 activity: values.type,
                 family: familyValue,
                 price: parseMoeda(preco),

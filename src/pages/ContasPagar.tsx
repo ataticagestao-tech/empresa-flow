@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
-import { formatBRL, formatData } from '@/lib/format'
+import { formatBRL, formatData, toTitleCase } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
@@ -1015,7 +1015,7 @@ export default function ContasPagar() {
 
     const base: Record<string, any> = {
       company_id: selectedCompany.id,
-      credor_nome: credorNome,
+      credor_nome: toTitleCase(credorNome),
       descricao: newForm.descricao || null,
       valor: newForm.valor,
       status: 'aberto',

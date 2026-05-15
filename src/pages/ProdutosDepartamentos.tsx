@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Product } from "@/types/product";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, toTitleCase } from "@/lib/format";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
@@ -78,7 +78,7 @@ export default function ProdutosDepartamentos() {
     const saveDeptMutation = useMutation({
         mutationFn: async () => {
             if (!selectedCompany?.id || !deptName.trim()) throw new Error("Nome obrigatório");
-            const payload = { name: deptName.trim(), company_id: selectedCompany.id };
+            const payload = { name: toTitleCase(deptName.trim()), company_id: selectedCompany.id };
             if (editingDept) {
                 const { error } = await activeClient.from("departments").update(payload).eq("id", editingDept.id);
                 if (error) throw error;
