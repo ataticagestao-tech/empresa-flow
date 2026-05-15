@@ -296,7 +296,11 @@ export default function ContasPagar() {
   // Collapsed groups
   const [collapsedGroups, setCollapsedGroups] = useState<Set<UrgencyGroup>>(new Set())
   const [pagePerGroup, setPagePerGroup] = useState<Record<string, number>>({})
+  const [agendaPage, setAgendaPage] = useState(0)
   const PAGE_SIZE = 10
+
+  // Reset paginacao da agenda quando filtros mudam
+  useEffect(() => { setAgendaPage(0) }, [selectedAgendaDate])
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -1724,7 +1728,13 @@ export default function ContasPagar() {
                 <div className="px-5 py-10 text-center text-[13px] text-[#98A2B3]">
                   Nenhuma conta a vencer {selectedAgendaDate ? 'nesta data' : 'nos pr\u00f3ximos 30 dias'}.
                 </div>
-              ) : (
+              ) : (() => {
+                const totalPagesAgenda = Math.max(1, Math.ceil(agendaDiaLista.length / PAGE_SIZE))
+                const pageAgenda = Math.min(agendaPage, totalPagesAgenda - 1)
+                const startA = pageAgenda * PAGE_SIZE
+                const agendaPageItems = agendaDiaLista.slice(startA, startA + PAGE_SIZE)
+                return (
+                <>
                 <table className="w-full text-[12.5px]">
                   <thead className="bg-[#F9FAFB] sticky top-0">
                     <tr>
@@ -1734,7 +1744,7 @@ export default function ContasPagar() {
                     </tr>
                   </thead>
                   <tbody>
-                    {agendaDiaLista.map(cp => (
+                    {agendaPageItems.map(cp => (
                       <tr key={cp.id} style={{ borderTop: '1px solid #F2F4F7' }}>
                         <td className="py-2 px-3 text-[#1D2939]">
                           <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cp.descricao || cp.credor_nome}</div>
@@ -1756,7 +1766,32 @@ export default function ContasPagar() {
                     ))}
                   </tbody>
                 </table>
-              )}
+                {totalPagesAgenda > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #F2F4F7', backgroundColor: '#F9FAFB' }}>
+                    <span style={{ fontSize: 11, color: '#667085', fontWeight: 500 }}>
+                      Página {pageAgenda + 1} de {totalPagesAgenda} · {startA + 1}–{Math.min(startA + PAGE_SIZE, agendaDiaLista.length)} de {agendaDiaLista.length}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => setAgendaPage(p => Math.max(0, p - 1))}
+                        disabled={pageAgenda === 0}
+                        style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', border: '1px solid #D0D5DD', borderRadius: 4, backgroundColor: pageAgenda === 0 ? '#F3F4F6' : '#ffffff', color: pageAgenda === 0 ? '#98A2B3' : '#1D2939', cursor: pageAgenda === 0 ? 'not-allowed' : 'pointer' }}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setAgendaPage(p => Math.min(totalPagesAgenda - 1, p + 1))}
+                        disabled={pageAgenda >= totalPagesAgenda - 1}
+                        style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', border: '1px solid #D0D5DD', borderRadius: 4, backgroundColor: pageAgenda >= totalPagesAgenda - 1 ? '#F3F4F6' : '#ffffff', color: pageAgenda >= totalPagesAgenda - 1 ? '#98A2B3' : '#1D2939', cursor: pageAgenda >= totalPagesAgenda - 1 ? 'not-allowed' : 'pointer' }}
+                      >
+                        Próxima
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </>
+                )
+              })()}
             </div>
 
             <div className="px-5 py-3 border-t border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">
