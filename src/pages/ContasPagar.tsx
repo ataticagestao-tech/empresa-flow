@@ -1016,7 +1016,7 @@ export default function ContasPagar() {
     const base: Record<string, any> = {
       company_id: selectedCompany.id,
       credor_nome: toTitleCase(credorNome),
-      descricao: newForm.descricao || null,
+      descricao: newForm.descricao ? toTitleCase(newForm.descricao) : null,
       valor: newForm.valor,
       status: 'aberto',
       conta_contabil_id: newForm.contaContabilId || null,
