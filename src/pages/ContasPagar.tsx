@@ -461,6 +461,24 @@ export default function ContasPagar() {
     [agendaDiaLista]
   )
 
+  // Agrupado por plano de contas: { plano, items, total }
+  // Ordenado por total desc para que o que mais pesa apareça primeiro no WhatsApp.
+  const agendaAgrupadoPorPlano = useMemo(() => {
+    const groups = new Map<string, { items: typeof agendaDiaLista; total: number }>()
+    for (const cp of agendaDiaLista) {
+      const plano = cp.conta_contabil_id
+        ? (contaContabilMap[cp.conta_contabil_id] || 'Sem plano de contas')
+        : 'Sem plano de contas'
+      const g = groups.get(plano) || { items: [], total: 0 }
+      g.items.push(cp)
+      g.total += cp._pendente
+      groups.set(plano, g)
+    }
+    return Array.from(groups.entries())
+      .map(([plano, g]) => ({ plano, ...g }))
+      .sort((a, b) => b.total - a.total)
+  }, [agendaDiaLista, contaContabilMap])
+
   const agendaColor = (value: number, max: number) => {
     if (value === 0 || max === 0) return '#F3F4F6'
     const r = value / max
@@ -885,11 +903,42 @@ export default function ContasPagar() {
   }
 
   const openEditModal = (cp: ContaPagar) => {
+    // Recupera o credor: tabela contas_pagar guarda só credor_nome/credor_cpf_cnpj
+    // (não tem FK), então busca match nos cadastros locais por CPF/CNPJ ou nome.
+    const cpfClean = (cp.credor_cpf_cnpj || '').replace(/\D/g, '')
+    const nomeLower = (cp.credor_nome || '').trim().toLowerCase()
+    let credorTipo: CredorTipo = 'fornecedor'
+    let credorId = ''
+    const matchSupplier = suppliers.find(s =>
+      (cpfClean && (s.cpf_cnpj || '').replace(/\D/g, '') === cpfClean) ||
+      (s.razao_social || '').trim().toLowerCase() === nomeLower
+    )
+    if (matchSupplier) {
+      credorTipo = 'fornecedor'
+      credorId = matchSupplier.id
+    } else {
+      const matchEmployee = employees.find(emp =>
+        (cpfClean && (emp.cpf || '').replace(/\D/g, '') === cpfClean) ||
+        ((emp.nome_completo || emp.name || '').trim().toLowerCase() === nomeLower)
+      )
+      if (matchEmployee) {
+        credorTipo = 'funcionario'
+        credorId = matchEmployee.id
+      } else {
+        const matchClient = clients.find(c =>
+          (c.razao_social || '').trim().toLowerCase() === nomeLower
+        )
+        if (matchClient) {
+          credorTipo = 'cliente'
+          credorId = matchClient.id
+        }
+      }
+    }
     setNewForm({
       credorNome: cp.credor_nome || '',
       descricao: cp.descricao || cp.credor_nome || '',
-      credorTipo: 'fornecedor',
-      credorId: '',
+      credorTipo,
+      credorId,
       valor: cp.valor || 0,
       dataVencimento: cp.data_vencimento || format(new Date(), 'yyyy-MM-dd'),
       competencia: cp.competencia || '',
@@ -1691,16 +1740,21 @@ export default function ContasPagar() {
                       toast.error('Nenhuma conta para copiar')
                       return
                     }
+                    const hoje = format(new Date(), 'yyyy-MM-dd')
                     const titulo = selectedAgendaDate
-                      ? `*Contas a vencer - ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}*`
-                      : '*Contas a vencer - Pr\u00f3ximos 30 dias*'
-                    const linhas = agendaDiaLista.map(cp => {
-                      const data = selectedAgendaDate ? '' : `${format(parseISO(cp.data_vencimento), 'dd/MM')} \u2014 `
-                      const plano = cp.conta_contabil_id ? (contaContabilMap[cp.conta_contabil_id] || '\u2014') : '\u2014'
-                      return `\u2022 ${data}${cp.descricao || cp.credor_nome} \u2014 ${plano} \u2014 ${formatBRL(cp._pendente)}`
-                    }).join('\n')
-                    const total = `*Total a pagar: ${formatBRL(agendaDiaTotal)}*`
-                    const texto = `${titulo}\n\n${linhas}\n\n${total}`
+                      ? (selectedAgendaDate === hoje
+                        ? `*CONTAS A PAGAR HOJE, ${format(parseISO(selectedAgendaDate), 'dd/MM')}*`
+                        : `*CONTAS A PAGAR DIA ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}*`)
+                      : '*CONTAS A PAGAR \u2014 PR\u00d3XIMOS 30 DIAS*'
+                    const blocos = agendaAgrupadoPorPlano.map(g => {
+                      const itens = g.items.map(cp => {
+                        const dataPrefix = selectedAgendaDate ? '' : `${format(parseISO(cp.data_vencimento), 'dd/MM')} \u2014 `
+                        return `${dataPrefix}${cp.descricao || cp.credor_nome} \u2014 ${formatBRL(cp._pendente)}`
+                      }).join('\n')
+                      return `*${g.plano}*\n${itens}`
+                    }).join('\n\n')
+                    const total = `*TOTAL A PAGAR: ${formatBRL(agendaDiaTotal)}*`
+                    const texto = `${titulo}\n\n${blocos}\n\n${total}`
                     try {
                       await navigator.clipboard.writeText(texto)
                       toast.success('Lista copiada! Cole no WhatsApp.')
@@ -1708,7 +1762,7 @@ export default function ContasPagar() {
                       toast.error('N\u00e3o foi poss\u00edvel copiar')
                     }
                   }}
-                  title="Copiar lista para WhatsApp"
+                  title="Copiar lista agrupada por plano de contas para WhatsApp"
                   className="flex items-center gap-1 text-[11px] font-semibold text-[#667085] hover:text-black px-2 h-7 border border-[#D0D5DD] rounded"
                 >
                   <Copy size={11} /> Copiar
@@ -2666,7 +2720,7 @@ export default function ContasPagar() {
               <div className="p-5 space-y-4">
                 {/* Descrição */}
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descricao *</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Descricao *</label>
                   <input
                     type="text"
                     value={newForm.descricao}
@@ -2680,7 +2734,7 @@ export default function ContasPagar() {
                 {/* Fornecedor / Funcionário / Cliente */}
                 <div>
                   <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Credor</label>
+                    <label className="block" style={{ fontSize: 14, color: '#000', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Credor</label>
                     {newForm.credorTipo === 'fornecedor' && (
                       <button
                         type="button"
@@ -2753,19 +2807,23 @@ export default function ContasPagar() {
                 {/* Valor + Vencimento */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor (R$) *</label>
+                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Valor (R$) *</label>
                     <input
-                      type="number"
-                      step="0.01"
-                      value={newForm.valor || ''}
-                      onChange={(e) => setNewForm({ ...newForm, valor: parseFloat(e.target.value) || 0 })}
+                      type="text"
+                      inputMode="numeric"
+                      value={newForm.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '')
+                        const valor = digits ? parseInt(digits, 10) / 100 : 0
+                        setNewForm({ ...newForm, valor })
+                      }}
                       placeholder="0,00"
                       className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none"
                       style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
                     />
                   </div>
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento *</label>
+                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Vencimento *</label>
                     <input
                       type="date"
                       value={newForm.dataVencimento}
@@ -2778,7 +2836,7 @@ export default function ContasPagar() {
 
                 {/* Competência */}
                 <div className="relative">
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Competencia (mes/ano)</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Competencia (mes/ano)</label>
                   <button
                     type="button"
                     onClick={() => setShowCompetenciaPicker(!showCompetenciaPicker)}
@@ -2827,7 +2885,7 @@ export default function ContasPagar() {
 
                 {/* Conta contábil (digitável + dropdown) */}
                 <div ref={contaContabilRef} className="relative">
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Conta contabil</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Conta contabil</label>
                   <input
                     type="text"
                     value={contaContabilSearch}
@@ -2880,7 +2938,7 @@ export default function ContasPagar() {
 
                 {/* Centro de custo */}
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Centro de custo</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Centro de custo</label>
                   <select
                     value={newForm.centroCustoId}
                     onChange={(e) => setNewForm({ ...newForm, centroCustoId: e.target.value })}
@@ -2898,7 +2956,7 @@ export default function ContasPagar() {
                 {!editingCpId && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Recorrencia</label>
+                      <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Recorrencia</label>
                       <select
                         value={newForm.recorrencia}
                         onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })}
@@ -2913,7 +2971,7 @@ export default function ContasPagar() {
                     </div>
                     {newForm.recorrencia !== 'sem' && (
                       <div>
-                        <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Num. parcelas</label>
+                        <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Num. parcelas</label>
                         <input
                           type="number"
                           min={2}
@@ -2951,7 +3009,7 @@ export default function ContasPagar() {
 
                 {/* Código de Barras */}
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Codigo de Barras</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Codigo de Barras</label>
                   <input
                     type="text"
                     value={newForm.codigoBarras}
