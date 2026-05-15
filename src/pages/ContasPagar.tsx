@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import jsPDF from 'jspdf'
@@ -250,6 +250,41 @@ export default function ContasPagar() {
   ]
   const [competenciaYear, setCompetenciaYear] = useState(new Date().getFullYear())
   const [showCompetenciaPicker, setShowCompetenciaPicker] = useState(false)
+
+  // Autocomplete conta contábil (digitável)
+  const [contaContabilSearch, setContaContabilSearch] = useState('')
+  const [contaContabilOpen, setContaContabilOpen] = useState(false)
+  const contaContabilRef = useRef<HTMLDivElement>(null)
+
+  // Sincroniza texto exibido quando contaContabilId muda externamente (ex.: edição)
+  useEffect(() => {
+    if (!newForm.contaContabilId) {
+      setContaContabilSearch('')
+      return
+    }
+    const c = chartAccounts.find(x => x.id === newForm.contaContabilId)
+    if (c) setContaContabilSearch(`${c.code} - ${c.name}`)
+  }, [newForm.contaContabilId, chartAccounts])
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    if (!contaContabilOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (contaContabilRef.current && !contaContabilRef.current.contains(e.target as Node)) {
+        setContaContabilOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [contaContabilOpen])
+
+  const chartAccountsFiltrados = useMemo(() => {
+    const t = contaContabilSearch.trim().toLowerCase()
+    if (!t) return chartAccounts.slice(0, 50)
+    return chartAccounts.filter(c =>
+      `${c.code || ''} ${c.name}`.toLowerCase().includes(t)
+    ).slice(0, 50)
+  }, [chartAccounts, contaContabilSearch])
 
   // Batch pay form
   const [batchForm, setBatchForm] = useState({
@@ -2703,20 +2738,57 @@ export default function ContasPagar() {
                   )}
                 </div>
 
-                {/* Conta contábil */}
-                <div>
+                {/* Conta contábil (digitável + dropdown) */}
+                <div ref={contaContabilRef} className="relative">
                   <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Conta contabil</label>
-                  <select
-                    value={newForm.contaContabilId}
-                    onChange={(e) => setNewForm({ ...newForm, contaContabilId: e.target.value })}
+                  <input
+                    type="text"
+                    value={contaContabilSearch}
+                    onChange={(e) => {
+                      setContaContabilSearch(e.target.value)
+                      setContaContabilOpen(true)
+                      if (!e.target.value.trim()) setNewForm({ ...newForm, contaContabilId: '' })
+                    }}
+                    onFocus={() => setContaContabilOpen(true)}
+                    placeholder="Digite codigo ou nome..."
+                    autoComplete="off"
                     className="w-full px-3 text-[13px] rounded-[8px] focus:outline-none bg-white"
                     style={{ border: '1px solid rgba(26,46,74,0.18)', color: '#059669', height: 36 }}
-                  >
-                    <option value="">Selecione do plano de contas...</option>
-                    {chartAccounts.map((ca) => (
-                      <option key={ca.id} value={ca.id}>{ca.code} - {ca.name}</option>
-                    ))}
-                  </select>
+                  />
+                  {contaContabilOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewForm({ ...newForm, contaContabilId: '' })
+                          setContaContabilSearch('')
+                          setContaContabilOpen(false)
+                        }}
+                        className="w-full text-left px-3 py-2 text-[13px] text-[#999] hover:bg-[#F6F2EB] border-b border-[#eee]"
+                      >
+                        Nenhuma
+                      </button>
+                      {chartAccountsFiltrados.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setNewForm({ ...newForm, contaContabilId: c.id })
+                            setContaContabilSearch(`${c.code} - ${c.name}`)
+                            setContaContabilOpen(false)
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-[#ECFDF4] border-b border-[#eee] last:border-0"
+                        >
+                          <div className="text-[13px] text-[#1D2939]">
+                            <span className="font-semibold">{c.code}</span> - {c.name}
+                          </div>
+                        </button>
+                      ))}
+                      {chartAccountsFiltrados.length === 0 && (
+                        <div className="px-3 py-2 text-[12px] text-[#999]">Nenhuma conta encontrada</div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Centro de custo */}
