@@ -1986,8 +1986,36 @@ export default function ContasPagar() {
                     </span>
                   </button>
 
-                  {/* Table */}
-                  {!isCollapsed && (
+                  {/* Table — Pagos usa renderizacao compacta (data, nome, valor) */}
+                  {!isCollapsed && group === 'pagos' && (
+                    <div style={{ maxWidth: 520 }}>
+                      <table className="w-full" style={{ fontSize: 11.5 }}>
+                        <thead>
+                          <tr style={{ backgroundColor: 'rgba(26,46,74,0.03)' }}>
+                            <th className="py-1 px-2 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', width: 76 }}>Data</th>
+                            <th className="py-1 px-2 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Nome</th>
+                            <th className="py-1 px-2 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '10px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', width: 90 }}>Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((cp) => (
+                            <tr key={cp.id} style={{ borderBottom: '1px solid rgba(26,46,74,0.06)' }}>
+                              <td className="py-1 px-2" style={{ fontSize: 11.5, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                                {cp.data_pagamento ? formatData(cp.data_pagamento) : formatData(cp.data_vencimento)}
+                              </td>
+                              <td className="py-1 px-2 truncate" style={{ fontSize: 11.5, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 280 }} title={cp.descricao || cp.credor_nome}>
+                                {cp.descricao || cp.credor_nome}
+                              </td>
+                              <td className="py-1 px-2 text-right" style={{ fontSize: 11.5, color: '#1D2939', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                                {formatBRL(Number(cp.valor_pago || cp.valor || 0))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {!isCollapsed && group !== 'pagos' && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
