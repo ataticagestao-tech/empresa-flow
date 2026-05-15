@@ -1901,9 +1901,8 @@ export default function ContasPagar() {
               />
             )}
 
-            {/* Grouped tables — 2 colunas: A Pagar (esq) | Pagos (dir) */}
-            {!loading && (() => {
-              const renderGroup = (group: UrgencyGroup) => {
+            {/* Grouped tables */}
+            {!loading && visibleGroups.map((group) => {
               const allItems = groupedContas[group]
               const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE))
               const currentPage = Math.min(pagePerGroup[group] ?? 0, totalPages - 1)
@@ -2228,27 +2227,7 @@ export default function ContasPagar() {
                   )}
                 </div>
               )
-              }
-              const aPagar = visibleGroups.filter(g => g !== 'pagos')
-              const pagos = visibleGroups.filter(g => g === 'pagos')
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: pagos.length > 0 ? '1fr 1fr' : '1fr', gap: 20, alignItems: 'start' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1D2939', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(26,46,74,0.08)' }}>A Pagar</div>
-                    {aPagar.map(g => renderGroup(g))}
-                    {aPagar.length === 0 && (
-                      <div style={{ fontSize: 13, color: '#98A2B3', textAlign: 'center', padding: '24px 12px' }}>Nenhum lançamento em aberto</div>
-                    )}
-                  </div>
-                  {pagos.length > 0 && (
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1D2939', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(26,46,74,0.08)' }}>Pagos</div>
-                      {pagos.map(g => renderGroup(g))}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
+            })}
           </div>
         </div>
 
