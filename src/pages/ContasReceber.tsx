@@ -17,7 +17,7 @@ import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TablePagination } from '@/components/ui/table-pagination'
 import { useConfirm } from '@/components/ui/confirm-dialog'
-import { DateRangeFilter } from '@/components/ui/date-range-filter'
+import { PeriodFilter } from '@/components/ui/period-filter'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
@@ -1023,12 +1023,13 @@ export default function ContasReceber() {
         </div>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
-          helperText="Filtrar por intervalo de vencimento."
-        />
+        <div className="flex justify-end">
+          <PeriodFilter
+            from={dateFrom}
+            to={dateTo}
+            onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          />
+        </div>
 
         {/* ── Agenda 30d (esquerda) + Contas a receber do dia (direita) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

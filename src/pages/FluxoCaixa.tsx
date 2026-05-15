@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { PeriodFilter } from "@/components/ui/period-filter";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -766,12 +766,13 @@ export default function FluxoCaixa() {
         </div>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
-          helperText="Filtrar fluxo de caixa por intervalo de data."
-        />
+        <div className="flex justify-end">
+          <PeriodFilter
+            from={dateFrom}
+            to={dateTo}
+            onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          />
+        </div>
 
         <Tabs defaultValue="relatorio" className="w-full">
           <TabsList>

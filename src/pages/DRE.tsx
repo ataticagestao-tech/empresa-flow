@@ -4,7 +4,7 @@ import { PendenciasBanner } from "@/modules/finance/presentation/components/Pend
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { PeriodFilter } from "@/components/ui/period-filter";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -341,12 +341,13 @@ export default function DRE() {
         </div>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
-          helperText="Filtrar DRE por intervalo de data de pagamento."
-        />
+        <div className="flex justify-end">
+          <PeriodFilter
+            from={dateFrom}
+            to={dateTo}
+            onApply={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          />
+        </div>
 
         {/* KPIs resumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

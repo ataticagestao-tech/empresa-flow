@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { DateRangeFilter } from '@/components/ui/date-range-filter'
+import { PeriodFilter } from '@/components/ui/period-filter'
 import jsPDF from 'jspdf'
 import {
   format,
@@ -727,12 +727,13 @@ export default function Movimentacoes() {
         </div>
 
         {/* \u2500\u2500 Filtro de periodo (padrao do sistema) \u2500\u2500 */}
-        <DateRangeFilter
-          from={dateStart}
-          to={dateEnd}
-          onApply={(f, t) => { setDateStart(f); setDateEnd(t) }}
-          helperText="Filtrar movimentacoes por intervalo de data."
-        />
+        <div className="flex justify-end">
+          <PeriodFilter
+            from={dateStart}
+            to={dateEnd}
+            onApply={(f, t) => { setDateStart(f); setDateEnd(t) }}
+          />
+        </div>
 
         {/* ====== MOVIMENTACOES CARD ====== */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">

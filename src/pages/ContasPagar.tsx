@@ -23,7 +23,7 @@ import { PendenciasBanner } from '@/modules/finance/presentation/components/Pend
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useConfirm } from '@/components/ui/confirm-dialog'
-import { DateRangeFilter } from '@/components/ui/date-range-filter'
+import { PeriodFilter } from '@/components/ui/period-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
@@ -1626,12 +1626,13 @@ export default function ContasPagar() {
         </div>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onApply={(f, t) => { setDateFrom(f); setDateTo(t); setDatePreset('personalizado') }}
-          helperText="Filtrar por intervalo de vencimento."
-        />
+        <div className="flex justify-end">
+          <PeriodFilter
+            from={dateFrom}
+            to={dateTo}
+            onApply={(f, t) => { setDateFrom(f); setDateTo(t); setDatePreset('personalizado') }}
+          />
+        </div>
 
         {/* ── Agenda do mês (esquerda) + Contas do dia (direita) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
