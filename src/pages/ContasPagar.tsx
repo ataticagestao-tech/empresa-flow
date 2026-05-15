@@ -295,6 +295,8 @@ export default function ContasPagar() {
 
   // Collapsed groups
   const [collapsedGroups, setCollapsedGroups] = useState<Set<UrgencyGroup>>(new Set())
+  const [pagePerGroup, setPagePerGroup] = useState<Record<string, number>>({})
+  const PAGE_SIZE = 10
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -1901,9 +1903,13 @@ export default function ContasPagar() {
 
             {/* Grouped table */}
             {!loading && visibleGroups.map((group) => {
-              const items = groupedContas[group]
+              const allItems = groupedContas[group]
+              const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE))
+              const currentPage = Math.min(pagePerGroup[group] ?? 0, totalPages - 1)
+              const startIdx = currentPage * PAGE_SIZE
+              const items = allItems.slice(startIdx, startIdx + PAGE_SIZE)
               const config = urgencyConfig[group]
-              const groupTotal = items.reduce((acc, cp) => acc + saldo(cp), 0)
+              const groupTotal = allItems.reduce((acc, cp) => acc + saldo(cp), 0)
               const isCollapsed = collapsedGroups.has(group)
               const todayStr = format(new Date(), 'dd/MM/yyyy')
 
@@ -1987,7 +1993,7 @@ export default function ContasPagar() {
                                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.02)' }}
                                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                               >
-                                <td className="py-3 px-3">
+                                <td className="py-1.5 px-3">
                                   <input
                                     type="checkbox"
                                     checked={selectedIds.has(cp.id)}
@@ -1997,49 +2003,26 @@ export default function ContasPagar() {
                                   />
                                 </td>
                                 {/* Vencimento */}
-                                <td className="py-3 px-3" style={{ fontSize: 13 }}>
+                                <td className="py-1.5 px-3" style={{ fontSize: 13 }}>
                                   {isHoje ? (
                                     <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
                                   ) : (
-                                    <span style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
+                                    <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
                                   )}
                                 </td>
                                 {/* Descri\u00e7\u00e3o (credor abaixo, menor) */}
-                                <td className="py-3 px-3" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
-                                  <div className="flex items-center gap-2.5">
-                                    {(() => {
-                                      const iconConf: Record<string, { Icon: typeof CheckCircle2; color: string; bg: string; title: string }> = {
-                                        pago: { Icon: CheckCircle2, color: '#039855', bg: '#e1f5ee', title: 'Pago' },
-                                        vencido: { Icon: AlertTriangle, color: '#E53E3E', bg: '#FEE2E2', title: 'Vencido' },
-                                        aberto: { Icon: CalendarClock, color: '#EA580C', bg: '#FFF0EB', title: 'Em aberto' },
-                                        parcial: { Icon: Loader2, color: '#059669', bg: '#ECFDF4', title: 'Parcial' },
-                                      }
-                                      const ic = iconConf[cp.status] || iconConf.aberto
-                                      const Icon = ic.Icon
-                                      return (
-                                        <div
-                                          title={ic.title}
-                                          className="flex items-center justify-center flex-shrink-0"
-                                          style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: ic.bg }}
-                                        >
-                                          <Icon size={15} color={ic.color} strokeWidth={2.2} />
-                                        </div>
-                                      )
-                                    })()}
-                                    <div>
-                                      <div className="font-semibold" style={{ color: '#059669' }}>{cp.descricao || cp.credor_nome}</div>
-                                      {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
-                                        <div style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
-                                      )}
-                                      {cp.credor_cpf_cnpj && (
-                                        <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
-                                      )}
-                                    </div>
-                                  </div>
+                                <td className="py-1.5 px-3" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                                  <div className="font-semibold" style={{ color: '#1D2939' }}>{cp.descricao || cp.credor_nome}</div>
+                                  {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
+                                    <div style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
+                                  )}
+                                  {cp.credor_cpf_cnpj && (
+                                    <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
+                                  )}
                                 </td>
                                 {/* Valor */}
-                                <td className="py-3 px-3 text-right">
-                                  <div className="font-semibold" style={{ color: '#059669', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
+                                <td className="py-1.5 px-3 text-right">
+                                  <div className="font-semibold" style={{ color: '#1D2939', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
                                     {formatBRL(saldo(cp))}
                                   </div>
                                   {cp.valor_pago > 0 && (
@@ -2049,16 +2032,16 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 {/* Categoria (badge) */}
-                                <td className="py-3 px-3">
-                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#667085', border: '1px solid rgba(26,46,74,0.08)' }}>
+                                <td className="py-1.5 px-3">
+                                  <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#1D2939', border: '1px solid rgba(26,46,74,0.08)' }}>
                                     {categoria}
                                   </span>
                                 </td>
                                 {/* Categoria cont\u00e1bil (plano de contas) */}
-                                <td className="py-3 px-3" style={{ fontSize: 13, color: '#667085', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
+                                <td className="py-1.5 px-3" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
                                   <div className="truncate">{contaContabilLabel}</div>
                                 </td>
-                                <td className="py-3 px-3">
+                                <td className="py-1.5 px-3">
                                   {(() => {
                                     const statusConf: Record<string, { dot: string; text: string; bg: string; label: string }> = {
                                       aberto: { dot: '#EA580C', text: '#EA580C', bg: '#FFF0EB', label: 'Em aberto' },
@@ -2078,7 +2061,7 @@ export default function ContasPagar() {
                                     )
                                   })()}
                                 </td>
-                                <td className="py-3 px-3 text-right">
+                                <td className="py-1.5 px-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     <button
                                       onClick={() => openPayModal(cp)}
@@ -2222,6 +2205,29 @@ export default function ContasPagar() {
                           })}
                         </tbody>
                       </table>
+                      {totalPages > 1 && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderTop: '1px solid rgba(26,46,74,0.06)', backgroundColor: 'rgba(26,46,74,0.02)' }}>
+                          <span style={{ fontSize: 11, color: '#667085', fontWeight: 500 }}>
+                            Página {currentPage + 1} de {totalPages} · {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, allItems.length)} de {allItems.length}
+                          </span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={() => setPagePerGroup((s) => ({ ...s, [group]: Math.max(0, currentPage - 1) }))}
+                              disabled={currentPage === 0}
+                              style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', border: '1px solid rgba(26,46,74,0.18)', borderRadius: 4, backgroundColor: currentPage === 0 ? '#F3F4F6' : '#ffffff', color: currentPage === 0 ? '#98A2B3' : '#1D2939', cursor: currentPage === 0 ? 'not-allowed' : 'pointer' }}
+                            >
+                              Anterior
+                            </button>
+                            <button
+                              onClick={() => setPagePerGroup((s) => ({ ...s, [group]: Math.min(totalPages - 1, currentPage + 1) }))}
+                              disabled={currentPage >= totalPages - 1}
+                              style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', border: '1px solid rgba(26,46,74,0.18)', borderRadius: 4, backgroundColor: currentPage >= totalPages - 1 ? '#F3F4F6' : '#ffffff', color: currentPage >= totalPages - 1 ? '#98A2B3' : '#1D2939', cursor: currentPage >= totalPages - 1 ? 'not-allowed' : 'pointer' }}
+                            >
+                              Próxima
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
