@@ -682,7 +682,11 @@ export default function Vendas() {
 
       const all: Venda[] = vendasBase.map(v => ({
         ...v,
-        vendas_itens: itensByVenda.get(v.id) || [],
+        cliente_nome: toTitleCase(v.cliente_nome),
+        vendas_itens: (itensByVenda.get(v.id) || []).map(it => ({
+          ...it,
+          descricao: toTitleCase(it.descricao),
+        })),
         contas_receber: crsByVenda.get(v.id) || [],
       }))
 
@@ -716,7 +720,11 @@ export default function Vendas() {
 
     setBankAccounts((banksRes.data as BankAccount[]) || [])
     setCentrosCusto((centrosRes.data as CentroCusto[]) || [])
-    setClientes((clientesRes.data as Cliente[]) || [])
+    setClientes(((clientesRes.data as Cliente[]) || []).map(c => ({
+      ...c,
+      razao_social: toTitleCase(c.razao_social),
+      nome_fantasia: c.nome_fantasia ? toTitleCase(c.nome_fantasia) : c.nome_fantasia,
+    })))
     setDefaultReceitaContaId((receitaContaRes.data as any)?.id || null)
     if (!(receitaContaRes.data as any)?.id) {
       console.warn('[Vendas] Nenhuma conta de receita analítica encontrada no plano de contas — CRs serão criados sem classificação e não aparecerão no DRE.')
@@ -1177,7 +1185,7 @@ export default function Vendas() {
     try {
       const { data, error: err } = await db.from('clients').insert({
         company_id: companyId,
-        razao_social: novoClienteNome.trim(),
+        razao_social: toTitleCase(novoClienteNome.trim()),
         cpf_cnpj: novoClienteCpfCnpj.replace(/\D/g, '') || null,
         email: novoClienteEmail.trim() || null,
         is_active: true,
