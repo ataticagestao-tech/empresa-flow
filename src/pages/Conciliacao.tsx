@@ -1982,8 +1982,7 @@ export default function Conciliacao() {
                                                                 <div className="flex flex-col gap-1 items-start">
                                                                     <Badge
                                                                         variant="outline"
-                                                                        className={`cursor-pointer ${score >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : score >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
-                                                                        onClick={() => handleMatch(bt, bestMatch)}
+                                                                        className={`${score >= 85 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : score >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
                                                                     >
                                                                         <Check className="h-3 w-3 mr-1" />
                                                                         {bestMatch.entity_name} - {bestMatch.description}
