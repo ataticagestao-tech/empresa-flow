@@ -14,7 +14,6 @@ import {
 import { toast } from 'sonner'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, toTitleCase } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -346,6 +345,9 @@ export default function ContasPagar() {
   }, [searchParams])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
+  // Total a pagar e Pago no período seguem o filtro (dateFrom..dateTo).
+  // Vence hoje e Próximos 7 dias permanecem ancorados na data atual — é a
+  // semântica deles (não fariam sentido fora desse contexto).
   const kpis = useMemo(() => {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
@@ -357,23 +359,40 @@ export default function ContasPagar() {
     let hojeCount = 0
     let prox7 = 0
     let prox7Count = 0
+    let pagoPeriodo = 0
+    let pagoPeriodoCount = 0
 
     for (const cp of contas) {
-      // KPIs so consideram CPs em aberto/parcial/vencido (pagas e canceladas nao entram)
-      if (cp.status === 'pago' || cp.status === 'cancelado') continue
-      const s = saldo(cp)
-      totalPagar += s
-      totalCount++
+      if (cp.status === 'cancelado') continue
 
-      const venc = parseISO(cp.data_vencimento)
+      // Pago no período: olha data_pagamento (não vencimento)
+      if (cp.status === 'pago') {
+        if (cp.data_pagamento && cp.data_pagamento >= dateFrom && cp.data_pagamento <= dateTo) {
+          pagoPeriodo += Number(cp.valor_pago || 0)
+          pagoPeriodoCount++
+        }
+        continue
+      }
+
+      // CPs em aberto/parcial/vencido — todos os 3 cards de pendência
+      const s = saldo(cp)
+      const dataVenc = cp.data_vencimento
+      const venc = parseISO(dataVenc)
       venc.setHours(0, 0, 0, 0)
 
+      // Total a pagar: respeita o filtro (vencimento no intervalo)
+      if (dataVenc >= dateFrom && dataVenc <= dateTo) {
+        totalPagar += s
+        totalCount++
+      }
+
+      // Vence hoje / Próximos 7 — ancorados no dia atual, ignoram filtro
       if (isToday(venc) && (cp.status === 'aberto' || cp.status === 'parcial')) { venceHoje += s; hojeCount++ }
       if ((isToday(venc) || (isAfter(venc, hoje) && (isBefore(venc, seteDias) || venc.getTime() === seteDias.getTime())))) { prox7 += s; prox7Count++ }
     }
 
-    return { totalPagar, totalCount, venceHoje, hojeCount, prox7, prox7Count }
-  }, [contas])
+    return { totalPagar, totalCount, venceHoje, hojeCount, prox7, prox7Count, pagoPeriodo, pagoPeriodoCount }
+  }, [contas, dateFrom, dateTo])
 
   // ─── Agenda do mês corrente (heatmap estilo GitHub) ──────────────
   const agendaMes = useMemo(() => {
@@ -469,31 +488,8 @@ export default function ContasPagar() {
     return '#B91C1C'
   }
 
-  // Load pago no mes separately (paid CPs not in main query)
-  const [pagoNoMes, setPagoNoMes] = useState(0)
-  const [pagoNoMesCount, setPagoNoMesCount] = useState(0)
-  useEffect(() => {
-    if (!selectedCompany) return
-    const hoje = new Date()
-    const inicio = format(startOfMonth(hoje), 'yyyy-MM-dd')
-    const fim = format(endOfMonth(hoje), 'yyyy-MM-dd')
-
-    safeQuery(
-      () => (activeClient as any)
-        .from('contas_pagar')
-        .select('valor_pago')
-        .or(`company_id.eq.${selectedCompany.id},unidade_destino_id.eq.${selectedCompany.id}`)
-        .eq('status', 'pago')
-        .gte('data_pagamento', inicio)
-        .lte('data_pagamento', fim),
-      'pago no mes'
-    ).then((data) => {
-      if (data && Array.isArray(data)) {
-        setPagoNoMes(data.reduce((acc: number, r: any) => acc + (r.valor_pago || 0), 0))
-        setPagoNoMesCount(data.length)
-      }
-    })
-  }, [selectedCompany, contas])
+  // "Pago no período" agora é calculado direto no useMemo de kpis a partir
+  // de contas[] (a query já carrega status=pago), respeitando dateFrom/dateTo.
 
   // ─── Filtered + Grouped ───────────────────────────────────────────
   const filteredContas = useMemo(() => {
@@ -1614,10 +1610,10 @@ export default function ContasPagar() {
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total a pagar', value: formatBRL(kpis.totalPagar), color: '#059669', sub: `${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto` },
+            { label: 'Total a pagar', value: formatBRL(kpis.totalPagar), color: '#059669', sub: `${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto no per\u00edodo` },
             { label: 'Vence hoje', value: formatBRL(kpis.venceHoje), color: '#E53E3E', sub: `${kpis.hojeCount} t\u00edtulo${kpis.hojeCount !== 1 ? 's' : ''} vencendo` },
             { label: 'Pr\u00f3ximos 7 dias', value: formatBRL(kpis.prox7), color: '#EA580C', sub: `${kpis.prox7Count} t\u00edtulo${kpis.prox7Count !== 1 ? 's' : ''} a vencer` },
-            { label: 'Pago no m\u00eas', value: formatBRL(pagoNoMes), color: '#039855', sub: `${pagoNoMesCount} t\u00edtulo${pagoNoMesCount !== 1 ? 's' : ''} quitado${pagoNoMesCount !== 1 ? 's' : ''}` },
+            { label: 'Pago no per\u00edodo', value: formatBRL(kpis.pagoPeriodo), color: '#039855', sub: `${kpis.pagoPeriodoCount} t\u00edtulo${kpis.pagoPeriodoCount !== 1 ? 's' : ''} quitado${kpis.pagoPeriodoCount !== 1 ? 's' : ''}` },
           ].map(kpi => (
             <div key={kpi.label} className="bg-white border border-[#EAECF0] rounded-xl px-4 py-3 min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
               <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
