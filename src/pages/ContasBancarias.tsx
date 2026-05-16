@@ -13,6 +13,7 @@ interface BankAccount {
   type: string; agencia: string | null; conta: string | null; digito: string | null;
   initial_balance: number | null; chave_pix: string | null;
   data_saldo_inicial: string | null; ofx_ativo: boolean; status: string;
+  ofx_acctid: string | null; auto_conciliacao_policy: string | null;
 }
 
 const BANCOS_SORTED = [...BANKS]
@@ -27,6 +28,7 @@ const tipoLabels: Record<string, string> = {
 const emptyForm = {
   name: "", banco: "", type: "checking", agencia: "", conta: "", digito: "",
   initial_balance: "", chave_pix: "", data_saldo_inicial: "", ofx_ativo: false,
+  ofx_acctid: "", auto_conciliacao_policy: "off",
 };
 
 interface CreditCard {
@@ -148,6 +150,8 @@ export default function ContasBancarias() {
         chave_pix: formData.chave_pix || null,
         data_saldo_inicial: formData.data_saldo_inicial || null,
         ofx_ativo: formData.ofx_ativo, status: "ativa",
+        ofx_acctid: formData.ofx_acctid?.trim() || null,
+        auto_conciliacao_policy: formData.auto_conciliacao_policy || "off",
       };
       if (editingId) {
         const { error } = await (activeClient as any).from("bank_accounts").update(payload).eq("id", editingId);
@@ -172,6 +176,8 @@ export default function ContasBancarias() {
       initial_balance: acc.initial_balance ? String(acc.initial_balance) : "",
       chave_pix: acc.chave_pix || "", data_saldo_inicial: acc.data_saldo_inicial || "",
       ofx_ativo: acc.ofx_ativo || false,
+      ofx_acctid: acc.ofx_acctid || "",
+      auto_conciliacao_policy: acc.auto_conciliacao_policy || "off",
     });
     setShowForm(true);
   };
@@ -402,6 +408,45 @@ export default function ContasBancarias() {
                   <span className="text-sm text-[#1D2939]">Importação OFX ativa</span>
                 </label>
               </div>
+
+              {/* Importação automática via email — só faz sentido se OFX está ativo */}
+              {formData.ofx_ativo && (
+                <div className="border-t border-[#e8e4dc] pt-4 mt-2">
+                  <div className="text-sm font-bold text-[#1D2939] mb-1">Importação automática por email</div>
+                  <p className="text-xs text-[#68748D] mb-3">
+                    Quando o banco envia o OFX por email, o sistema identifica esta conta pelo ID interno do OFX (ACCTID).
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className={LB}>ID da conta no OFX (ACCTID)</label>
+                      <input
+                        value={formData.ofx_acctid}
+                        onChange={e => set("ofx_acctid", e.target.value)}
+                        placeholder="Ex: 12345-6"
+                        className={IC}
+                      />
+                      <p className="text-[11px] text-[#68748D] mt-1">
+                        Abra um OFX recente no Bloco de Notas e procure por &lt;ACCTID&gt;.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={LB}>Auto-conciliar ao importar?</label>
+                      <select
+                        value={formData.auto_conciliacao_policy}
+                        onChange={e => set("auto_conciliacao_policy", e.target.value)}
+                        className={IC}
+                      >
+                        <option value="off">Não — só importar</option>
+                        <option value="rule_only">Sim, só via regra de alta confiança</option>
+                      </select>
+                      <p className="text-[11px] text-[#68748D] mt-1">
+                        "Alta confiança" = regra Alta + ação auto-conciliar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button onClick={handleSave} disabled={saving} className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
                   {saving ? "Salvando..." : editingId ? "Salvar" : "Cadastrar"}
