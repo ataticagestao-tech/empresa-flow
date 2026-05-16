@@ -17,6 +17,12 @@ export interface OFXSummary {
     periodStart: Date | null;
     /** Fim do periodo do extrato (BANKTRANLIST > DTEND) */
     periodEnd: Date | null;
+    /** Codigo do banco (BANKACCTFROM > BANKID), util pra identificar a conta na importacao automatica */
+    bankId: string | null;
+    /** Numero da conta (BANKACCTFROM > ACCTID), chave usada pra mapear OFX -> bank_account em import por email */
+    acctId: string | null;
+    /** Agencia (BANKACCTFROM > BRANCHID) — alguns bancos brasileiros preenchem */
+    branchId: string | null;
 }
 
 export interface OFXParseResult {
@@ -121,6 +127,9 @@ export async function parseOFXFull(file: File): Promise<OFXParseResult> {
     const closingDateRaw = getOuter('DTASOF');
     const periodStartRaw = getOuter('DTSTART');
     const periodEndRaw = getOuter('DTEND');
+    const bankIdRaw = getOuter('BANKID');
+    const acctIdRaw = getOuter('ACCTID');
+    const branchIdRaw = getOuter('BRANCHID');
 
     const closingBalance = closingBalanceRaw != null
         ? parseFloat(closingBalanceRaw.replace(',', '.'))
@@ -131,6 +140,9 @@ export async function parseOFXFull(file: File): Promise<OFXParseResult> {
         closingDate: parseOfxDate(closingDateRaw),
         periodStart: parseOfxDate(periodStartRaw),
         periodEnd: parseOfxDate(periodEndRaw),
+        bankId: bankIdRaw,
+        acctId: acctIdRaw,
+        branchId: branchIdRaw,
     };
 
     return { transactions, summary };

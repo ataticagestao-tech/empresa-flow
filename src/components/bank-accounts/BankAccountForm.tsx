@@ -39,6 +39,9 @@ const bankAccountFormSchema = z.object({
     initial_balance: z.string().optional(), // Input as string for easier handling
     pix_key: z.string().optional(),
     pix_type: z.string().optional(),
+    // Importação automática de extrato via email
+    ofx_acctid: z.string().optional(),
+    auto_conciliacao_policy: z.string().optional(),
 });
 
 type BankAccountFormValues = z.infer<typeof bankAccountFormSchema>;
@@ -66,6 +69,8 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
             initial_balance: "0,00",
             pix_key: "",
             pix_type: "cpf",
+            ofx_acctid: "",
+            auto_conciliacao_policy: "off",
         },
     });
 
@@ -81,6 +86,8 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
                 initial_balance: initialData.initial_balance ? String(initialData.initial_balance).replace('.', ',') : "0,00",
                 pix_key: initialData.pix_key || "",
                 pix_type: initialData.pix_type || "cpf",
+                ofx_acctid: initialData.ofx_acctid || "",
+                auto_conciliacao_policy: initialData.auto_conciliacao_policy || "off",
             });
         }
     }, [initialData, form]);
@@ -103,6 +110,8 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
                 current_balance: balance,
                 pix_key: values.pix_key || null,
                 pix_type: values.pix_type || null,
+                ofx_acctid: values.ofx_acctid?.trim() || null,
+                auto_conciliacao_policy: values.auto_conciliacao_policy || "off",
             };
 
             let error;
@@ -330,6 +339,59 @@ export function BankAccountForm({ onSuccess, initialData }: BankAccountFormProps
                             </FormItem>
                         )}
                     />
+                </div>
+
+                {/* ── Importação automática de extrato via email ──────── */}
+                <div className="border-t pt-4 mt-2">
+                    <div className="text-sm font-medium mb-1">Importação automática de extrato</div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                        Quando o banco envia o OFX por email diariamente, o sistema importa sozinho e
+                        identifica esta conta pelo ID interno do OFX (ACCTID).
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="ofx_acctid"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>ID da conta no OFX (ACCTID)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Ex: 12345-6" {...field} />
+                                    </FormControl>
+                                    <p className="text-[11px] text-muted-foreground mt-1">
+                                        Abra um OFX recente em editor de texto e procure por
+                                        <code className="mx-1">&lt;ACCTID&gt;</code>.
+                                    </p>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="auto_conciliacao_policy"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Auto-conciliar ao importar?</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || "off"}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="off">Não — só importar</SelectItem>
+                                            <SelectItem value="rule_only">Sim, só via regra de alta confiança</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[11px] text-muted-foreground mt-1">
+                                        "Regra de alta confiança" = regra aprendida marcada como
+                                        Alta + ação auto-conciliar.
+                                    </p>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-4">
