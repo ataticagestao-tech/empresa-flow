@@ -457,24 +457,8 @@ export default function ContasPagar() {
     () => agendaDiaLista.reduce((s, cp) => s + cp._pendente, 0),
     [agendaDiaLista]
   )
-
-  // Agrupado por plano de contas: { plano, items, total }
-  // Ordenado por total desc para que o que mais pesa apareça primeiro no WhatsApp.
-  const agendaAgrupadoPorPlano = useMemo(() => {
-    const groups = new Map<string, { items: typeof agendaDiaLista; total: number }>()
-    for (const cp of agendaDiaLista) {
-      const plano = cp.conta_contabil_id
-        ? (contaContabilMap[cp.conta_contabil_id] || 'Sem plano de contas')
-        : 'Sem plano de contas'
-      const g = groups.get(plano) || { items: [], total: 0 }
-      g.items.push(cp)
-      g.total += cp._pendente
-      groups.set(plano, g)
-    }
-    return Array.from(groups.entries())
-      .map(([plano, g]) => ({ plano, ...g }))
-      .sort((a, b) => b.total - a.total)
-  }, [agendaDiaLista, contaContabilMap])
+  // agendaAgrupadoPorPlano é declarado mais abaixo, depois de contaContabilMap
+  // (acessar contaContabilMap antes da sua declaração crashava em TDZ).
 
   const agendaColor = (value: number, max: number) => {
     if (value === 0 || max === 0) return '#F3F4F6'
@@ -1293,6 +1277,24 @@ export default function ContasPagar() {
     for (const c of chartAccounts) m[c.id] = `${c.code} - ${c.name}`
     return m
   }, [chartAccounts])
+
+  // Agenda agrupada por plano de contas (depende de agendaDiaLista + contaContabilMap).
+  // Ordenado por total desc — o que mais pesa aparece primeiro no painel/WhatsApp.
+  const agendaAgrupadoPorPlano = useMemo(() => {
+    const groups = new Map<string, { items: typeof agendaDiaLista; total: number }>()
+    for (const cp of agendaDiaLista) {
+      const plano = cp.conta_contabil_id
+        ? (contaContabilMap[cp.conta_contabil_id] || 'Sem plano de contas')
+        : 'Sem plano de contas'
+      const g = groups.get(plano) || { items: [], total: 0 }
+      g.items.push(cp)
+      g.total += cp._pendente
+      groups.set(plano, g)
+    }
+    return Array.from(groups.entries())
+      .map(([plano, g]) => ({ plano, ...g }))
+      .sort((a, b) => b.total - a.total)
+  }, [agendaDiaLista, contaContabilMap])
 
   const centroCustoMap = useMemo(() => {
     const m: Record<string, string> = {}
