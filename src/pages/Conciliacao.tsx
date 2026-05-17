@@ -1249,7 +1249,7 @@ export default function Conciliacao() {
     // Filtered system transactions for manual search (with date filter)
     const filteredSystemTransactions = useMemo(() => {
         if (!systemTransactions) return [];
-        return systemTransactions.filter(st => {
+        const filtered = systemTransactions.filter(st => {
             // Type filter
             if (selectedBankTx) {
                 const compatibleType = selectedBankTx.amount < 0 ? 'payable' : 'receivable';
@@ -1268,6 +1268,9 @@ export default function Conciliacao() {
             if (filterDateTo && st.date > filterDateTo) return false;
             return true;
         });
+        // Ordena por valor crescente: facilita somar várias pequenas até bater no extrato
+        // (cenário cartão de crédito: várias vendas pequenas → 1 depósito da operadora)
+        return filtered.sort((a, b) => Number(a.amount || 0) - Number(b.amount || 0));
     }, [systemTransactions, selectedBankTx, searchTerm, filterDateFrom, filterDateTo]);
 
     const formatBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -2233,9 +2236,11 @@ export default function Conciliacao() {
                                                     selectedSysTxsForMatch.some(s => s.id === st.id && s.type === st.type)
                                                 );
                                                 const somaSelecionada = selecionados.reduce((s, st) => s + Number(st.amount || 0), 0);
-                                                const pct = btAmount > 0 ? Math.min(100, (somaSelecionada / btAmount) * 100) : 0;
+                                                const pctReal = btAmount > 0 ? (somaSelecionada / btAmount) * 100 : 0;
+                                                const pctBarra = Math.min(100, pctReal);
                                                 const bate = btAmount > 0 && Math.abs(somaSelecionada - btAmount) < 0.01;
                                                 const excedeu = somaSelecionada > btAmount + 0.01;
+                                                const diferenca = btAmount - somaSelecionada;
                                                 const corBarra = bate ? '#059669' : excedeu ? '#E53E3E' : '#EA580C';
 
                                                 const handleConciliarMultiplos = async () => {
@@ -2267,14 +2272,20 @@ export default function Conciliacao() {
                                                                 {selecionados.length} selecionado{selecionados.length !== 1 ? 's' : ''}
                                                             </span>
                                                             <span className="font-semibold" style={{ color: corBarra }}>
-                                                                {formatBRL(somaSelecionada)} / {formatBRL(btAmount)} ({pct.toFixed(0)}%)
+                                                                {formatBRL(somaSelecionada)} / {formatBRL(btAmount)} ({pctReal.toFixed(0)}%)
                                                             </span>
                                                         </div>
                                                         <div className="w-full h-2 bg-white rounded overflow-hidden">
-                                                            <div className="h-2 transition-all" style={{ width: `${Math.min(100, pct)}%`, backgroundColor: corBarra }} />
+                                                            <div className="h-2 transition-all" style={{ width: `${pctBarra}%`, backgroundColor: corBarra }} />
                                                         </div>
+                                                        {bate && (
+                                                            <p className="text-[11px] text-emerald-700 font-medium">Soma bateu com o extrato — pronto pra conciliar.</p>
+                                                        )}
+                                                        {!bate && !excedeu && (
+                                                            <p className="text-[11px] text-[#EA580C]">Faltam <strong>{formatBRL(diferenca)}</strong> — selecione mais lançamentos pra somar até o valor do extrato.</p>
+                                                        )}
                                                         {excedeu && (
-                                                            <p className="text-[11px] text-red-600">Soma excede o valor do extrato — remova algum item.</p>
+                                                            <p className="text-[11px] text-red-600">Passou <strong>{formatBRL(Math.abs(diferenca))}</strong> — desmarque algum item ou troque por um menor.</p>
                                                         )}
                                                         <div className="flex gap-2 justify-end pt-1">
                                                             <Button variant="outline" size="sm" onClick={() => setSelectedSysTxsForMatch([])}>
