@@ -719,7 +719,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                         expected: crRevertIds.size,
                         promise: (activeClient as any)
                             .from('contas_receber')
-                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                            .update({ status: 'aberto', valor_pago: 0, data_pagamento: null })
                             .in('id', Array.from(crRevertIds))
                             .select('id'),
                     });
@@ -741,7 +741,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                         expected: cpRevertIds.size,
                         promise: (activeClient as any)
                             .from('contas_pagar')
-                            .update({ status: 'aberto', valor_pago: null, data_pagamento: null })
+                            .update({ status: 'aberto', valor_pago: 0, data_pagamento: null })
                             .in('id', Array.from(cpRevertIds))
                             .select('id'),
                     });
