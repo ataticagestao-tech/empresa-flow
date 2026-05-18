@@ -359,6 +359,67 @@ serve(async (req) => {
                 logRow.bank_account_id = account.id;
                 logRow.company_id = account.company_id;
 
+                // ── REGRA 2: Empresa precisa estar ativa ──────────────────
+                const { data: company } = await supabase
+                    .from("companies")
+                    .select("status")
+                    .eq("id", account.company_id)
+                    .maybeSingle();
+                if ((company as { status?: string } | null)?.status !== "ativa") {
+                    logRow.status = "company_inactive";
+                    logRow.error_detail = `Empresa status='${(company as { status?: string } | null)?.status ?? "desconhecido"}', precisa estar 'ativa'`;
+                    await supabase.from("email_import_log").insert(logRow);
+                    summary.errors++;
+                    continue;  // NÃO marca como lido
+                }
+
+                // ── REGRA 3: Só 1 import 'ok' por conta por dia (timezone BR) ─
+                const nowBR = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+                nowBR.setHours(0, 0, 0, 0);
+                const { count: importsToday } = await supabase
+                    .from("email_import_log")
+                    .select("id", { count: "exact", head: true })
+                    .eq("bank_account_id", account.id)
+                    .eq("status", "ok")
+                    .gte("processed_at", nowBR.toISOString());
+                if ((importsToday ?? 0) > 0) {
+                    logRow.status = "duplicate_today";
+                    logRow.error_detail = `Ja houve import 'ok' pra esta conta hoje (${nowBR.toLocaleDateString("pt-BR")}). Aguarde amanha.`;
+                    await supabase.from("email_import_log").insert(logRow);
+                    summary.errors++;
+                    continue;  // NÃO marca como lido — usuario decide o que fazer
+                }
+
+                // ── REGRA 1: Continuidade — gap maximo de 7 dias ─────────
+                // Cobre fim de semana prolongado e feriados (1º de maio etc).
+                // Skip pra primeiro import (sem ultima tx).
+                const ofxEarliest = parsed.transactions.reduce<string | null>(
+                    (min, tx) => (!min || tx.date < min ? tx.date : min),
+                    null
+                );
+                if (ofxEarliest) {
+                    const { data: lastTx } = await supabase
+                        .from("bank_transactions")
+                        .select("date")
+                        .eq("bank_account_id", account.id)
+                        .order("date", { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    const lastDate = (lastTx as { date?: string } | null)?.date;
+                    if (lastDate) {
+                        const lastMs = new Date(lastDate).getTime();
+                        const earliestMs = new Date(ofxEarliest).getTime();
+                        const daysDiff = Math.floor((earliestMs - lastMs) / 86400000);
+                        if (daysDiff > 7) {
+                            logRow.status = "continuity_gap";
+                            logRow.error_detail = `Gap de ${daysDiff} dias entre ultima tx (${lastDate}) e inicio do OFX (${ofxEarliest}). Importe os dias intermediarios primeiro.`;
+                            await supabase.from("email_import_log").insert(logRow);
+                            summary.errors++;
+                            continue;  // NÃO marca como lido
+                        }
+                    }
+                }
+
                 // Upsert transações (mesma lógica do uploadOFX no front)
                 const toInsert = parsed.transactions.map(tx => ({
                     company_id: account.company_id,
