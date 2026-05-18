@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useSearchParams } from "react-router-dom";
-import { maskCNPJ, maskCPF, maskPhone } from "@/utils/masks";
+import { maskCNPJ, maskCPF, maskPhone, maskCEP, unmask } from "@/utils/masks";
 import { logDeletion } from "@/lib/audit";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
 import { DuplicatesDialog } from "@/components/suppliers/DuplicatesDialog";
 import { SupplierHistoryContent } from "@/components/suppliers/SupplierHistoryContent";
+import { toTitleCase } from "@/lib/format";
+import { toast } from "sonner";
+import { Globe } from "lucide-react";
 
 interface Supplier {
     id: string;
@@ -20,7 +22,6 @@ interface Supplier {
     tipo_pessoa: string | null;
     cpf_cnpj: string | null;
     inscricao_estadual: string | null;
-    inscricao_municipal: string | null;
     cnae: string | null;
     cnae_descricao: string | null;
     tipo_atividade: string | null;
@@ -42,9 +43,6 @@ interface Supplier {
     observacoes: string | null;
     tags: string[] | null;
     is_active: boolean;
-    contato_nome: string | null;
-    website: string | null;
-    optante_simples: boolean | null;
     [key: string]: any;
 }
 
@@ -62,49 +60,73 @@ const fmtDoc = (doc: string | null) => {
     return doc;
 };
 
-const fmtCEP = (v: string | null) => {
-    if (!v) return null;
-    const d = v.replace(/\D/g, "");
-    if (d.length !== 8) return v;
-    return `${d.slice(0, 5)}-${d.slice(5)}`;
+const BANCOS_BR = [
+    "Banco do Brasil", "Bradesco", "Caixa Econômica Federal", "Itaú Unibanco",
+    "Santander", "Nubank", "Inter", "C6 Bank", "BTG Pactual", "Safra",
+    "Sicoob", "Sicredi", "Banrisul", "Original", "PagBank", "Mercado Pago",
+    "Neon", "Next", "Picpay", "Stone", "Outro",
+];
+
+const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+
+const emptyForm = {
+    razao_social: "",
+    nome_fantasia: "",
+    tipo_pessoa: "PJ",
+    cpf_cnpj: "",
+    cnae: "",
+    cnae_descricao: "",
+    email: "",
+    telefone: "",
+    celular: "",
+    endereco_cep: "",
+    endereco_logradouro: "",
+    endereco_numero: "",
+    endereco_complemento: "",
+    endereco_bairro: "",
+    endereco_cidade: "",
+    endereco_estado: "",
+    dados_bancarios_banco: "",
+    dados_bancarios_agencia: "",
+    dados_bancarios_conta: "",
+    dados_bancarios_tipo: "",
+    dados_bancarios_pix: "",
+    observacoes: "",
+    is_active: true,
 };
+
+const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
+const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const REQ = <span className="text-[#E53E3E]">*</span>;
 
 export default function Fornecedores() {
     const { activeClient, user, isUsingSecondary } = useAuth();
     const { selectedCompany } = useCompany();
+    const queryClient = useQueryClient();
     const confirm = useConfirm();
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [tab, setTab] = useState<"dados" | "historico">("dados");
     const [search, setSearch] = useState("");
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [formData, setFormData] = useState(emptyForm);
+    const [cnaeOpcoes, setCnaeOpcoes] = useState<Array<{ codigo: string; descricao: string }>>([]);
+    const [saving, setSaving] = useState(false);
+    const [lookingUp, setLookingUp] = useState(false);
     const [isDupOpen, setIsDupOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const { data: suppliers = [], isLoading, refetch } = useQuery({
+    const { data: suppliers = [], isLoading } = useQuery({
         queryKey: ["suppliers", selectedCompany?.id, isUsingSecondary],
         queryFn: async () => {
             if (!selectedCompany?.id) return [];
             const { data, error } = await (activeClient as any)
-                .from("suppliers")
-                .select("*")
-                .eq("company_id", selectedCompany.id)
-                .order("razao_social");
+                .from("suppliers").select("*").eq("company_id", selectedCompany.id).order("razao_social");
             if (error) throw error;
             return data as Supplier[];
         },
         enabled: !!selectedCompany?.id,
     });
-
-    useEffect(() => {
-        if (searchParams.get("new") === "true") {
-            startNew();
-            const newParams = new URLSearchParams(searchParams);
-            newParams.delete("new");
-            setSearchParams(newParams);
-        }
-    }, [searchParams, setSearchParams]);
 
     const selected = suppliers.find(s => s.id === selectedId) || null;
 
@@ -118,15 +140,163 @@ export default function Fornecedores() {
         return blob.includes(q);
     });
 
+    const set = (k: keyof typeof emptyForm, v: any) => {
+        setFormData(f => ({ ...f, [k]: v }));
+    };
+
     const startNew = () => {
         setSelectedId(null);
-        setEditingSupplier(null);
-        setIsSheetOpen(true);
+        setIsCreating(true);
+        setFormData(emptyForm);
+        setCnaeOpcoes([]);
+        setTab("dados");
     };
 
     const startEdit = (s: Supplier) => {
-        setEditingSupplier(s);
-        setIsSheetOpen(true);
+        setSelectedId(s.id);
+        setIsCreating(false);
+        setCnaeOpcoes(s.cnae && s.cnae_descricao ? [{ codigo: s.cnae, descricao: s.cnae_descricao }] : []);
+        setFormData({
+            razao_social: s.razao_social || "",
+            nome_fantasia: s.nome_fantasia || "",
+            tipo_pessoa: s.tipo_pessoa || "PJ",
+            cpf_cnpj: s.cpf_cnpj
+                ? (s.cpf_cnpj.length > 11 ? maskCNPJ(s.cpf_cnpj) : maskCPF(s.cpf_cnpj))
+                : "",
+            cnae: s.cnae || "",
+            cnae_descricao: s.cnae_descricao || s.tipo_atividade || "",
+            email: s.email || "",
+            telefone: s.telefone ? maskPhone(s.telefone) : "",
+            celular: s.celular ? maskPhone(s.celular) : "",
+            endereco_cep: s.endereco_cep ? maskCEP(s.endereco_cep) : "",
+            endereco_logradouro: s.endereco_logradouro || "",
+            endereco_numero: s.endereco_numero || "",
+            endereco_complemento: s.endereco_complemento || "",
+            endereco_bairro: s.endereco_bairro || "",
+            endereco_cidade: s.endereco_cidade || "",
+            endereco_estado: s.endereco_estado || "",
+            dados_bancarios_banco: s.dados_bancarios_banco || "",
+            dados_bancarios_agencia: s.dados_bancarios_agencia || "",
+            dados_bancarios_conta: s.dados_bancarios_conta || "",
+            dados_bancarios_tipo: s.dados_bancarios_tipo || "",
+            dados_bancarios_pix: s.dados_bancarios_pix || "",
+            observacoes: s.observacoes || "",
+            is_active: !!s.is_active,
+        });
+        setTab("dados");
+    };
+
+    useEffect(() => {
+        if (searchParams.get("new") === "true") {
+            startNew();
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete("new");
+            setSearchParams(newParams);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    const lookupCNPJ = async () => {
+        const doc = unmask(formData.cpf_cnpj || "");
+        if (formData.tipo_pessoa !== "PJ" || doc.length !== 14) {
+            toast.error("Informe um CNPJ válido.");
+            return;
+        }
+        setLookingUp(true);
+        try {
+            const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${doc}`);
+            if (!resp.ok) {
+                toast.error("Não foi possível consultar este CNPJ.");
+                return;
+            }
+            const data = await resp.json();
+            const cnaePrincipalCodigo = data?.cnae_fiscal ? String(data.cnae_fiscal) : "";
+            const cnaePrincipalDescricao = data?.cnae_fiscal_descricao ? String(data.cnae_fiscal_descricao) : "";
+            const secundarias = Array.isArray(data?.cnaes_secundarios) ? data.cnaes_secundarios : [];
+            const opcoes = [
+                ...(cnaePrincipalCodigo ? [{ codigo: cnaePrincipalCodigo, descricao: cnaePrincipalDescricao }] : []),
+                ...secundarias.filter((c: any) => c?.codigo && c?.descricao)
+                    .map((c: any) => ({ codigo: String(c.codigo), descricao: String(c.descricao) })),
+            ];
+            setCnaeOpcoes(opcoes);
+
+            setFormData(f => ({
+                ...f,
+                razao_social: f.razao_social || data?.razao_social || "",
+                nome_fantasia: f.nome_fantasia || data?.nome_fantasia || "",
+                email: f.email || data?.email || "",
+                telefone: f.telefone || maskPhone(data?.ddd_telefone_1 || data?.telefone || ""),
+                endereco_cep: f.endereco_cep || maskCEP(data?.cep || ""),
+                endereco_logradouro: f.endereco_logradouro || data?.logradouro || "",
+                endereco_numero: f.endereco_numero || data?.numero || "",
+                endereco_complemento: f.endereco_complemento || data?.complemento || "",
+                endereco_bairro: f.endereco_bairro || data?.bairro || "",
+                endereco_cidade: f.endereco_cidade || data?.municipio || "",
+                endereco_estado: f.endereco_estado || data?.uf || "",
+                cnae: f.cnae || cnaePrincipalCodigo,
+                cnae_descricao: f.cnae_descricao || cnaePrincipalDescricao,
+            }));
+            toast.success("Dados preenchidos a partir do CNPJ.");
+        } catch {
+            toast.error("Erro ao consultar CNPJ.");
+        } finally {
+            setLookingUp(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!selectedCompany?.id) return;
+        if (!formData.razao_social.trim()) {
+            toast.error("Razão Social / Nome é obrigatório.");
+            return;
+        }
+        setSaving(true);
+        try {
+            const payload: Record<string, any> = {
+                company_id: selectedCompany.id,
+                razao_social: toTitleCase(formData.razao_social),
+                nome_fantasia: formData.nome_fantasia ? toTitleCase(formData.nome_fantasia) : null,
+                tipo_pessoa: formData.tipo_pessoa,
+                cpf_cnpj: unmask(formData.cpf_cnpj) || null,
+                cnae: formData.cnae || null,
+                cnae_descricao: formData.cnae_descricao || null,
+                email: formData.email?.trim().toLowerCase() || null,
+                telefone: unmask(formData.telefone) || null,
+                celular: unmask(formData.celular) || null,
+                endereco_cep: unmask(formData.endereco_cep) || null,
+                endereco_logradouro: formData.endereco_logradouro || null,
+                endereco_numero: formData.endereco_numero || null,
+                endereco_complemento: formData.endereco_complemento || null,
+                endereco_bairro: formData.endereco_bairro || null,
+                endereco_cidade: formData.endereco_cidade || null,
+                endereco_estado: formData.endereco_estado || null,
+                dados_bancarios_banco: formData.dados_bancarios_banco || null,
+                dados_bancarios_agencia: formData.dados_bancarios_agencia || null,
+                dados_bancarios_conta: formData.dados_bancarios_conta || null,
+                dados_bancarios_tipo: formData.dados_bancarios_tipo || null,
+                dados_bancarios_pix: formData.dados_bancarios_pix || null,
+                observacoes: formData.observacoes || null,
+                is_active: !!formData.is_active,
+            };
+
+            if (isCreating) {
+                const { data, error } = await (activeClient as any).from("suppliers").insert(payload).select("id").single();
+                if (error) throw error;
+                toast.success("Fornecedor cadastrado.");
+                setIsCreating(false);
+                setSelectedId(data?.id ?? null);
+            } else if (selectedId) {
+                const { error } = await (activeClient as any).from("suppliers").update(payload).eq("id", selectedId);
+                if (error) throw error;
+                toast.success("Fornecedor atualizado.");
+            }
+            queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+        } catch (err: any) {
+            console.error(err);
+            toast.error("Erro: " + (err.message || err.details || "desconhecido"));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async (s: Supplier) => {
@@ -140,7 +310,7 @@ export default function Fornecedores() {
         const { error } = await (activeClient as any).from("suppliers").delete().eq("id", s.id);
         if (!error) {
             if (selectedId === s.id) setSelectedId(null);
-            refetch();
+            queryClient.invalidateQueries({ queryKey: ["suppliers"] });
             if (user?.id) {
                 await logDeletion(activeClient, {
                     userId: user.id,
@@ -153,7 +323,7 @@ export default function Fornecedores() {
         }
     };
 
-    const showDetail = !!selected;
+    const showDetail = !!selected || isCreating;
 
     return (
         <AppLayout title="Fornecedores">
@@ -168,13 +338,8 @@ export default function Fornecedores() {
                         </div>
                     </div>
                     <div className="p-3 border-b border-[#EAECF0]">
-                        <input
-                            type="text"
-                            placeholder="Buscar..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            className="w-full border border-[#ccc] rounded-md px-3 py-2 text-sm focus:border-[#059669] focus:outline-none"
-                        />
+                        <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
+                            className="w-full border border-[#ccc] rounded-md px-3 py-2 text-sm focus:border-[#059669] focus:outline-none" />
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {isLoading ? (
@@ -190,7 +355,7 @@ export default function Fornecedores() {
                                 const atividade = s.cnae_descricao || s.tipo_atividade || "Sem atividade";
                                 const doc = fmtDoc(s.cpf_cnpj);
                                 return (
-                                    <div key={s.id} onClick={() => { setSelectedId(s.id); setTab("dados"); }}
+                                    <div key={s.id} onClick={() => startEdit(s)}
                                         className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[#EAECF0] transition-all ${
                                             selectedId === s.id ? "bg-[#ECFDF4] border-l-2 border-l-[#059669]" : "hover:bg-[#F6F2EB]"
                                         }`}>
@@ -219,22 +384,185 @@ export default function Fornecedores() {
                     ) : (
                         <>
                             <div className="bg-[#059669] px-4 py-2 flex items-center gap-1">
-                                {[{ id: "dados" as const, label: "Dados Cadastrais" }, { id: "historico" as const, label: "Histórico de Pagamentos" }].map(t => (
-                                    <button key={t.id} onClick={() => setTab(t.id)}
+                                {[
+                                    { id: "dados" as const, label: "Dados Cadastrais" },
+                                    { id: "historico" as const, label: "Histórico de Pagamentos" },
+                                ].map(t => (
+                                    <button key={t.id} onClick={() => setTab(t.id)} disabled={isCreating && t.id === "historico"}
                                         className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
-                                            tab === t.id ? "bg-white text-[#064E3B]" : "text-[#064E3B] hover:bg-white/30"
+                                            tab === t.id ? "bg-white text-[#064E3B]" :
+                                            isCreating && t.id === "historico" ? "text-[#064E3B]/40 cursor-not-allowed" :
+                                            "text-[#064E3B] hover:bg-white/30"
                                         }`}>{t.label}</button>
                                 ))}
-                                <button onClick={() => startEdit(selected!)} className="ml-auto text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1">Editar</button>
-                                <button onClick={() => handleDelete(selected!)} className="text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>
+                                {selected && <button onClick={() => handleDelete(selected)} className="ml-auto text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-5">
                                 {tab === "dados" && (
-                                    <SupplierDetailView supplier={selected!} />
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-[2fr_1fr] gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Razão Social / Nome {REQ}</label>
+                                                <input value={formData.razao_social} onChange={e => set("razao_social", e.target.value)} className={IC} placeholder="Razão Social ou Nome Completo" />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Tipo Pessoa</label>
+                                                <select value={formData.tipo_pessoa} onChange={e => set("tipo_pessoa", e.target.value)} className={IC}>
+                                                    <option value="PJ">Pessoa Jurídica</option>
+                                                    <option value="PF">Pessoa Física</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-[1fr_2fr] gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex justify-between items-center">
+                                                    <label className={LB}>CPF / CNPJ</label>
+                                                    {formData.tipo_pessoa === "PJ" && (
+                                                        <button type="button" onClick={lookupCNPJ} disabled={lookingUp}
+                                                            className="text-[10px] font-bold text-[#059669] flex items-center gap-1 hover:underline disabled:opacity-50">
+                                                            <Globe className="w-3 h-3" /> {lookingUp ? "Buscando..." : "Buscar CNPJ"}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <input value={formData.cpf_cnpj} onChange={e => set("cpf_cnpj", formData.tipo_pessoa === "PJ" ? maskCNPJ(e.target.value) : maskCPF(e.target.value))} className={IC} placeholder={formData.tipo_pessoa === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"} maxLength={formData.tipo_pessoa === "PJ" ? 18 : 14} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Nome Fantasia</label>
+                                                <input value={formData.nome_fantasia} onChange={e => set("nome_fantasia", e.target.value)} className={IC} placeholder="Nome Fantasia (opcional)" />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-[1fr_3fr] gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>CNAE</label>
+                                                {cnaeOpcoes.length > 0 ? (
+                                                    <select value={formData.cnae} onChange={e => {
+                                                        const code = e.target.value;
+                                                        const found = cnaeOpcoes.find(o => o.codigo === code);
+                                                        setFormData(f => ({ ...f, cnae: code, cnae_descricao: found?.descricao || f.cnae_descricao }));
+                                                    }} className={IC}>
+                                                        <option value="">—</option>
+                                                        {cnaeOpcoes.map(o => <option key={o.codigo} value={o.codigo}>{o.codigo}</option>)}
+                                                    </select>
+                                                ) : (
+                                                    <input value={formData.cnae} onChange={e => set("cnae", e.target.value)} className={IC} placeholder="0000000" />
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Atividade Principal</label>
+                                                <input value={formData.cnae_descricao} onChange={e => set("cnae_descricao", e.target.value)} className={IC} placeholder="Descrição da atividade" />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>E-mail</label>
+                                                <input type="email" value={formData.email} onChange={e => set("email", e.target.value)} className={IC} placeholder="email@exemplo.com" />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Telefone</label>
+                                                <input value={formData.telefone} onChange={e => set("telefone", maskPhone(e.target.value))} className={IC} placeholder="(00) 0000-0000" maxLength={15} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Celular / WhatsApp</label>
+                                                <input value={formData.celular} onChange={e => set("celular", maskPhone(e.target.value))} className={IC} placeholder="(00) 00000-0000" maxLength={15} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-[1fr_2fr_1fr] gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>CEP</label>
+                                                <input value={formData.endereco_cep} onChange={e => set("endereco_cep", maskCEP(e.target.value))} className={IC} placeholder="00000-000" maxLength={9} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Endereço</label>
+                                                <input value={formData.endereco_logradouro} onChange={e => set("endereco_logradouro", e.target.value)} className={IC} placeholder="Rua / Avenida" />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Número</label>
+                                                <input value={formData.endereco_numero} onChange={e => set("endereco_numero", e.target.value)} className={IC} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-[1fr_1fr_2fr_1fr] gap-4">
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Complemento</label>
+                                                <input value={formData.endereco_complemento} onChange={e => set("endereco_complemento", e.target.value)} className={IC} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Bairro</label>
+                                                <input value={formData.endereco_bairro} onChange={e => set("endereco_bairro", e.target.value)} className={IC} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Cidade</label>
+                                                <input value={formData.endereco_cidade} onChange={e => set("endereco_cidade", e.target.value)} className={IC} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>UF</label>
+                                                <select value={formData.endereco_estado} onChange={e => set("endereco_estado", e.target.value)} className={IC}>
+                                                    <option value="">—</option>
+                                                    {UFS.map(u => <option key={u} value={u}>{u}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-4 gap-4 pt-2 border-t border-[#EAECF0]">
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Banco</label>
+                                                <select value={formData.dados_bancarios_banco} onChange={e => set("dados_bancarios_banco", e.target.value)} className={IC}>
+                                                    <option value="">—</option>
+                                                    {BANCOS_BR.map(b => <option key={b} value={b}>{b}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Agência</label>
+                                                <input value={formData.dados_bancarios_agencia} onChange={e => set("dados_bancarios_agencia", e.target.value.replace(/\D/g, ""))} className={IC} maxLength={6} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Conta</label>
+                                                <input value={formData.dados_bancarios_conta} onChange={e => set("dados_bancarios_conta", e.target.value)} className={IC} />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className={LB}>Tipo Conta</label>
+                                                <select value={formData.dados_bancarios_tipo} onChange={e => set("dados_bancarios_tipo", e.target.value)} className={IC}>
+                                                    <option value="">—</option>
+                                                    <option value="corrente">Corrente</option>
+                                                    <option value="poupanca">Poupança</option>
+                                                    <option value="pix">PIX</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-1">
+                                            <label className={LB}>Chave PIX</label>
+                                            <input value={formData.dados_bancarios_pix} onChange={e => set("dados_bancarios_pix", e.target.value)} className={IC} placeholder="CPF, CNPJ, email, telefone ou chave aleatória" />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1">
+                                            <label className={LB}>Observações</label>
+                                            <textarea value={formData.observacoes} onChange={e => set("observacoes", e.target.value)} className={IC} rows={2} placeholder="Notas sobre o fornecedor" />
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-2 border-t border-[#EAECF0]">
+                                            <div className="flex items-center gap-3">
+                                                <label className={LB}>Status</label>
+                                                <select value={formData.is_active ? "ativo" : "inativo"} onChange={e => set("is_active", e.target.value === "ativo")} className={`${IC} max-w-[140px]`}>
+                                                    <option value="ativo">Ativo</option>
+                                                    <option value="inativo">Inativo</option>
+                                                </select>
+                                            </div>
+                                            <button onClick={handleSave} disabled={saving}
+                                                className="bg-[#059669] text-white text-sm font-bold px-6 py-2 rounded-md disabled:opacity-40">
+                                                {saving ? "Salvando..." : isCreating ? "Cadastrar" : "Salvar Alterações"}
+                                            </button>
+                                        </div>
+                                    </div>
                                 )}
-                                {tab === "historico" && (
-                                    <SupplierHistoryContent supplier={selected!} />
+
+                                {tab === "historico" && selected && (
+                                    <SupplierHistoryContent supplier={selected} />
                                 )}
                             </div>
                         </>
@@ -242,128 +570,11 @@ export default function Fornecedores() {
                 </div>
             </div>
 
-            <SupplierSheet
-                isOpen={isSheetOpen}
-                onClose={() => {
-                    setIsSheetOpen(false);
-                    setEditingSupplier(null);
-                    refetch();
-                }}
-                supplierToEdit={editingSupplier}
-            />
-
             <DuplicatesDialog
                 open={isDupOpen}
                 onOpenChange={setIsDupOpen}
-                onApplied={() => refetch()}
+                onApplied={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}
             />
         </AppLayout>
-    );
-}
-
-const LBL = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
-const VAL = "text-sm text-[#1D2939]";
-
-function SupplierDetailView({ supplier: s }: { supplier: Supplier }) {
-    const doc = fmtDoc(s.cpf_cnpj);
-    const tel = s.telefone ? maskPhone(s.telefone) : null;
-    const cel = s.celular ? maskPhone(s.celular) : null;
-    const cep = fmtCEP(s.endereco_cep);
-    const endParts = [
-        s.endereco_logradouro && s.endereco_numero ? `${s.endereco_logradouro}, ${s.endereco_numero}` : s.endereco_logradouro,
-        s.endereco_complemento,
-        s.endereco_bairro,
-        s.endereco_cidade && s.endereco_estado ? `${s.endereco_cidade} - ${s.endereco_estado}` : s.endereco_cidade,
-        cep,
-    ].filter(Boolean);
-
-    const Field = ({ label, value }: { label: string; value: any }) => (
-        <div className="flex flex-col gap-1 min-w-0">
-            <span className={LBL}>{label}</span>
-            <span className={`${VAL} truncate`} title={value || ""}>{value || "—"}</span>
-        </div>
-    );
-
-    return (
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-base font-bold text-[#1D2939]">{s.razao_social}</h3>
-                <p className="text-xs text-[#555] mt-0.5">
-                    {[s.nome_fantasia, s.tipo_pessoa === "PF" ? "Pessoa Física" : "Pessoa Jurídica", s.is_active ? "Ativo" : "Inativo"].filter(Boolean).join(" · ")}
-                </p>
-            </div>
-
-            <Section title="Identificação">
-                <div className="grid grid-cols-3 gap-4">
-                    <Field label="CPF/CNPJ" value={doc} />
-                    <Field label="Insc. Estadual" value={s.inscricao_estadual} />
-                    <Field label="Insc. Municipal" value={s.inscricao_municipal} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <Field label="CNAE" value={s.cnae} />
-                    <Field label="Atividade Principal" value={s.cnae_descricao || s.tipo_atividade} />
-                </div>
-            </Section>
-
-            <Section title="Contato">
-                <div className="grid grid-cols-3 gap-4">
-                    <Field label="Contato" value={s.contato_nome} />
-                    <Field label="E-mail" value={s.email} />
-                    <Field label="Website" value={s.website} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <Field label="Telefone" value={tel} />
-                    <Field label="Celular" value={cel} />
-                </div>
-            </Section>
-
-            {endParts.length > 0 && (
-                <Section title="Endereço">
-                    <p className="text-sm text-[#1D2939]">{endParts.join(", ")}</p>
-                </Section>
-            )}
-
-            {(s.dados_bancarios_banco || s.dados_bancarios_pix) && (
-                <Section title="Dados Bancários">
-                    <div className="grid grid-cols-3 gap-4">
-                        <Field label="Banco" value={s.dados_bancarios_banco} />
-                        <Field label="Agência" value={s.dados_bancarios_agencia} />
-                        <Field label="Conta" value={s.dados_bancarios_conta} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Field label="Tipo Conta" value={s.dados_bancarios_tipo} />
-                        <Field label="Chave PIX" value={s.dados_bancarios_pix} />
-                    </div>
-                </Section>
-            )}
-
-            {s.tags && s.tags.length > 0 && (
-                <Section title="Tags">
-                    <div className="flex flex-wrap gap-1.5">
-                        {s.tags.map((t, i) => (
-                            <span key={i} className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#F6F2EB] text-[#555]">{t}</span>
-                        ))}
-                    </div>
-                </Section>
-            )}
-
-            {s.observacoes && (
-                <Section title="Observações">
-                    <p className="text-sm text-[#1D2939] whitespace-pre-wrap">{s.observacoes}</p>
-                </Section>
-            )}
-        </div>
-    );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-        <div className="space-y-3">
-            <div className="flex items-center gap-2">
-                <h4 className={LBL}>{title}</h4>
-                <div className="flex-1 h-px bg-[#EAECF0]" />
-            </div>
-            <div className="space-y-3">{children}</div>
-        </div>
     );
 }
