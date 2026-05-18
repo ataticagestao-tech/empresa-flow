@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gerarRelatorioFuncionarioPDF, type RelatorioFuncionarioData } from "@/lib/funcionario-pdf/gerar-pdf";
 import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
+import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 
 interface Employee {
   id: string; company_id: string;
@@ -136,6 +137,8 @@ export default function Funcionarios() {
   const [calcDependentes, setCalcDependentes] = useState(0);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [isDupOpen, setIsDupOpen] = useState(false);
+  const [solicitarOpen, setSolicitarOpen] = useState(false);
+  const [solicitarTarget, setSolicitarTarget] = useState<{ id?: string; nome?: string; tel?: string }>({});
 
   const { data: centrosCusto = [] } = useQuery({
     queryKey: ["centros_custo", selectedCompany?.id],
@@ -667,6 +670,7 @@ export default function Funcionarios() {
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Funcionários</h3>
             <div className="flex items-center gap-3">
+              <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-xs font-semibold text-emerald-300 hover:text-emerald-200" title="Solicitar dados via WhatsApp">📱 WhatsApp</button>
               <button onClick={() => setIsDupOpen(true)} className="text-xs font-semibold text-white/80 hover:text-white" title="Localizar duplicados">Duplicados</button>
               <button onClick={startNew} className="text-xs font-semibold text-white/80 hover:text-white">+ Novo</button>
             </div>
@@ -1085,6 +1089,15 @@ export default function Funcionarios() {
         open={isDupOpen}
         onOpenChange={setIsDupOpen}
         onApplied={() => queryClient.invalidateQueries({ queryKey: ["employees"] })}
+      />
+
+      <SolicitarCadastroDialog
+        open={solicitarOpen}
+        onOpenChange={setSolicitarOpen}
+        tipo="funcionario"
+        targetId={solicitarTarget.id}
+        nomeInicial={solicitarTarget.nome ?? ""}
+        telefoneInicial={solicitarTarget.tel ?? ""}
       />
     </AppLayout>
   );

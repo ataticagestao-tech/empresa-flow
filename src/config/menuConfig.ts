@@ -84,6 +84,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
       { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
+      { titleKey: 'Cadastros Pendentes', icon: Clock, url: '/cadastros-pendentes', isHardcoded: true },
     ]
   },
   {

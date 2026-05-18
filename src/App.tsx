@@ -42,6 +42,7 @@ import LogAtividades from "./pages/LogAtividades";
 import ContaBloqueada from "./pages/ContaBloqueada";
 import PlanoContas from "./pages/PlanoContas";
 import Funcionarios from "./pages/Funcionarios";
+import CadastrosPendentes from "./pages/CadastrosPendentes";
 import FluxoCaixaProjetado from "./pages/FluxoCaixaProjetado";
 import Orcamento from "./pages/Orcamento";
 import PrevisaoReceitas from "./pages/PrevisaoReceitas";
@@ -178,6 +179,7 @@ const App = () => (
                     <Route path="/clientes" element={<Clientes />} />
                     <Route path="/funcionarios" element={<Funcionarios />} />
                     <Route path="/fornecedores" element={<Fornecedores />} />
+                    <Route path="/cadastros-pendentes" element={<CadastrosPendentes />} />
                     <Route path="/movimentacoes" element={<Movimentacoes />} />
                     <Route path="/movimentacoes/*" element={<Movimentacoes />} />
                     <Route path="/categorias" element={<Categorias />} />

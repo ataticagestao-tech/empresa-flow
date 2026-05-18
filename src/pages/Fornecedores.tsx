@@ -9,6 +9,7 @@ import { logDeletion } from "@/lib/audit";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DuplicatesDialog } from "@/components/suppliers/DuplicatesDialog";
+import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 import { SupplierHistoryContent } from "@/components/suppliers/SupplierHistoryContent";
 import { toTitleCase } from "@/lib/format";
 import { toast } from "sonner";
@@ -114,6 +115,8 @@ export default function Fornecedores() {
     const [saving, setSaving] = useState(false);
     const [lookingUp, setLookingUp] = useState(false);
     const [isDupOpen, setIsDupOpen] = useState(false);
+    const [solicitarOpen, setSolicitarOpen] = useState(false);
+    const [solicitarTarget, setSolicitarTarget] = useState<{ id?: string; nome?: string; tel?: string }>({});
     const [searchParams, setSearchParams] = useSearchParams();
 
     const { data: suppliers = [], isLoading } = useQuery({
@@ -333,6 +336,7 @@ export default function Fornecedores() {
                     <div className="bg-[#1D2939] px-4 py-3 flex items-center justify-between gap-2">
                         <span className="text-[12px] font-bold uppercase tracking-wider text-white">Fornecedores</span>
                         <div className="flex items-center gap-2">
+                            <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-[11px] font-bold text-emerald-300 hover:text-emerald-200" title="Solicitar dados via WhatsApp">📱 WhatsApp</button>
                             <button onClick={() => setIsDupOpen(true)} className="text-[11px] font-bold text-white/90 hover:text-white">Duplicados</button>
                             <button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1">+ Novo</button>
                         </div>
@@ -574,6 +578,15 @@ export default function Fornecedores() {
                 open={isDupOpen}
                 onOpenChange={setIsDupOpen}
                 onApplied={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}
+            />
+
+            <SolicitarCadastroDialog
+                open={solicitarOpen}
+                onOpenChange={setSolicitarOpen}
+                tipo="fornecedor"
+                targetId={solicitarTarget.id}
+                nomeInicial={solicitarTarget.nome ?? ""}
+                telefoneInicial={solicitarTarget.tel ?? ""}
             />
         </AppLayout>
     );

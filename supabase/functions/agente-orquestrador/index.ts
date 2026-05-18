@@ -560,6 +560,76 @@ serve(async (req: Request) => {
 
     const service = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+    // 0. ROTEAMENTO CADASTRO AUTOMATIZADO
+    // Se esse telefone tem uma solicitacao de cadastro ATIVA, encaminha pro
+    // cadastro-processor e retorna. Quem responde aqui nao e necessariamente
+    // um usuario autorizado em whatsapp_acesso — pode ser funcionario/fornecedor
+    // que ainda nem tem cadastro.
+    try {
+        const { data: solicitacaoAtiva } = await service
+            .from("cadastro_solicitacoes")
+            .select("id, status")
+            .eq("telefone", phoneNorm)
+            .in("status", ["enviado", "em_conversa"])
+            .order("criado_em", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (solicitacaoAtiva) {
+            console.log("[orquestrador] rota cadastro:", solicitacaoAtiva.id);
+
+            // Monta payload pro processor (texto + midia se houver)
+            const processorMessage: any = {
+                evolution_message_id: msgId ?? null,
+            };
+
+            if (msg.midia && msgId) {
+                // Baixa midia via Evolution
+                const remoteJid = body?.data?.key?.remoteJid || "";
+                const midiaDl = await baixarMidiaEvolution(msgId, remoteJid);
+                if (midiaDl) {
+                    processorMessage.type = msg.midia.tipo; // 'image' | 'document'
+                    processorMessage.media_base64 = midiaDl.base64;
+                    processorMessage.mime = midiaDl.mimetype;
+                    if (msg.text) processorMessage.text = msg.text;
+                } else {
+                    // Falhou baixar — manda como texto-only com aviso
+                    processorMessage.type = "text";
+                    processorMessage.text = msg.text || "(o destinatario enviou uma midia mas nao consegui baixar)";
+                }
+            } else {
+                processorMessage.type = "text";
+                processorMessage.text = msg.text;
+            }
+
+            // Chama cadastro-processor (fire-and-forget seria mais rapido,
+            // mas vamos aguardar pra pegar erros corretamente)
+            const procResp = await fetch(`${SUPABASE_URL}/functions/v1/cadastro-processor`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${SERVICE_KEY}`,
+                    apikey: SERVICE_KEY,
+                },
+                body: JSON.stringify({
+                    solicitacao_id: solicitacaoAtiva.id,
+                    message: processorMessage,
+                }),
+            });
+
+            const procData = await procResp.json().catch(() => ({}));
+            return jsonResp({
+                ok: true,
+                status: "rota_cadastro",
+                solicitacao_id: solicitacaoAtiva.id,
+                processor_response: procData,
+            });
+        }
+    } catch (e: any) {
+        // Falha do roteamento NAO deve quebrar o fluxo normal — apenas loga
+        console.error("[orquestrador] erro rota cadastro:", e?.message);
+    }
+
     // 1a. Se mensagem é só 6 dígitos isolados, trata como código de verificação
     const trimmedText = msg.text.trim();
     const eCodigoVerif = /^\d{6}$/.test(trimmedText);
