@@ -395,13 +395,20 @@ export default function AreaContador() {
   ]);
 
   /* ---- KPIs ---- */
+  // Entradas/Saídas vêm do extrato bancário conciliado (bank_transactions status=reconciled),
+  // não de movimentacoes. O contador só considera o que foi efetivamente apurado contra o banco;
+  // movs manuais sem espelho no extrato ficam de fora.
+  const reconciledBankTxs = useMemo(
+    () => bankTxs.filter((t) => t.status === "reconciled"),
+    [bankTxs],
+  );
 
-  const totalEntradas = rows
-    .filter((r) => r.amount > 0)
-    .reduce((s, r) => s + r.amount, 0);
-  const totalSaidas = rows
-    .filter((r) => r.amount < 0)
-    .reduce((s, r) => s + Math.abs(r.amount), 0);
+  const totalEntradas = reconciledBankTxs
+    .filter((t) => Number(t.amount) > 0)
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const totalSaidas = reconciledBankTxs
+    .filter((t) => Number(t.amount) < 0)
+    .reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
 
   const monthLabel = format(
     new Date(selectedMonth + "-15"),
@@ -708,7 +715,7 @@ ${empresaNome}`;
                 Movimentações conciliadas
               </div>
               <div className="text-2xl font-semibold text-[#1D2939] mt-1">
-                {rows.length}
+                {reconciledBankTxs.length}
               </div>
             </CardContent>
           </Card>
