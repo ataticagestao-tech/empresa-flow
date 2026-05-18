@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Banknote,
   FileText,
   Calculator,
   Calendar,
@@ -23,13 +22,6 @@ type ReportCard = {
 };
 
 const monthlyReports: ReportCard[] = [
-  {
-    title: "Extrato Reconciliado",
-    description:
-      "Movimentação bancária do mês com vínculos a CR/CP. Exporta em Excel (CSV) já filtrado por conciliadas.",
-    url: "/extrato-reconciliado",
-    icon: Banknote,
-  },
   {
     title: "DRE Gerencial",
     description: "Resultado do mês por categoria (receitas, custos e despesas).",
