@@ -12,6 +12,7 @@ import { Search, Pencil, Trash2, X, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductSheet } from "@/components/products/ProductSheet";
+import { CategoriaContabilContent } from "@/components/products/CategoriaContabilContent";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -27,7 +28,7 @@ export default function ProdutosDepartamentos() {
     const confirm = useConfirm();
     const { companies } = useCompanies(user?.id);
     const [searchTerm, setSearchTerm] = useState("");
-    const [activeTab, setActiveTab] = useState<"products" | "departments">("products");
+    const [activeTab, setActiveTab] = useState<"products" | "departments" | "categorias">("products");
 
     // Product Sheet & Edit State
     const [isProductSheetOpen, setIsProductSheetOpen] = useState(false);
@@ -239,7 +240,20 @@ export default function ProdutosDepartamentos() {
                     >
                         Departamentos
                     </button>
+                    <button
+                        onClick={() => setActiveTab("categorias")}
+                        className={`px-5 py-2 text-[12px] font-bold -mb-[1.5px] transition-colors ${
+                            activeTab === "categorias"
+                                ? "text-[#059669] border-b-2 border-[#059669]"
+                                : "text-[#555] font-semibold"
+                        }`}
+                    >
+                        Categoria Contábil
+                    </button>
                 </div>
+
+                {/* ════════════ ABA CATEGORIAS ════════════ */}
+                {activeTab === "categorias" && <CategoriaContabilContent />}
 
                 {/* ════════════ ABA PRODUTOS ════════════ */}
                 {activeTab === "products" && (
