@@ -1991,7 +1991,7 @@ export default function Conciliacao() {
                                                                         {bestMatch.entity_name} - {bestMatch.description}
                                                                     </Badge>
                                                                     <span className="text-[10px] text-muted-foreground">
-                                                                        Venc: {format(parseISO(bestMatch.date), 'dd/MM')}
+                                                                        <span className="font-semibold text-foreground">{formatBRL(Number(bestMatch.amount || 0))}</span> • Venc: {format(parseISO(bestMatch.date), 'dd/MM')}
                                                                     </span>
                                                                 </div>
                                                             ) : (
