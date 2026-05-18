@@ -321,6 +321,186 @@ export default function Funcionarios() {
     [comissoes]
   );
 
+  const [gerandoPDF, setGerandoPDF] = useState(false);
+  const gerarPDFFuncionario = async () => {
+    if (!selected || !selectedCompany?.id) return;
+    setGerandoPDF(true);
+    try {
+      const db = activeClient as any;
+      const cpfDigits = onlyDigitsHelper(selected.cpf);
+      const fullName = normalizeName(getName(selected));
+      const tokens = fullName.split(" ").filter(t => t.length >= 3);
+      const pix = (selected.chave_pix_folha || "").trim();
+
+      const [folhaRes, benRes, candidatosRes, beneficiosRes, ccRes] = await Promise.all([
+        db.from("folha_pagamento")
+          .select("id, competencia, tipo, valor_liquido, status, conta_pagar_id, cp:conta_pagar_id(id, status, data_pagamento, valor_pago, valor, deleted_at, bank:conta_bancaria_id(name))")
+          .eq("company_id", selectedCompany.id)
+          .eq("employee_id", selected.id)
+          .order("competencia", { ascending: false }),
+        db.from("employee_benefits_lancamentos")
+          .select("id, competencia, vt_custo_empresa, va_custo_empresa, cp_vt_id, cp_va_id, cp_vt:cp_vt_id(id, status, data_pagamento, valor_pago, valor, deleted_at, bank:conta_bancaria_id(name)), cp_va:cp_va_id(id, status, data_pagamento, valor_pago, valor, deleted_at, bank:conta_bancaria_id(name))")
+          .eq("company_id", selectedCompany.id)
+          .eq("employee_id", selected.id)
+          .order("competencia", { ascending: false }),
+        (async () => {
+          if (!cpfDigits && tokens.length === 0 && !pix) return { data: [] };
+          const orParts: string[] = [];
+          if (cpfDigits) orParts.push(`credor_cpf_cnpj.ilike.*${cpfDigits.slice(0, 3)}*${cpfDigits.slice(3, 6)}*${cpfDigits.slice(6, 9)}*`);
+          for (const t of tokens) orParts.push(`credor_nome.ilike.*${t}*`);
+          if (pix) orParts.push(`observacoes.ilike.*${pix}*`);
+          let q = db.from("contas_pagar")
+            .select("id, valor, valor_pago, data_vencimento, data_pagamento, status, descricao, observacoes, credor_nome, credor_cpf_cnpj, bank:conta_bancaria_id(name), categoria:conta_contabil_id(name)")
+            .eq("company_id", selectedCompany.id)
+            .is("deleted_at", null)
+            .order("data_vencimento", { ascending: false })
+            .limit(500);
+          if (orParts.length) q = q.or(orParts.join(","));
+          return await q;
+        })(),
+        db.from("employee_benefits_lancamentos")
+          .select("competencia, dias_uteis, dias_considerados, vt_custo_empresa, va_custo_empresa, total_custo_empresa, status")
+          .eq("company_id", selectedCompany.id)
+          .eq("employee_id", selected.id)
+          .order("competencia", { ascending: false }),
+        selected.centro_custo_id
+          ? db.from("centros_custo").select("codigo, descricao").eq("id", selected.centro_custo_id).single()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      const linkedCpIds = new Set<string>();
+      const folhaRows = (folhaRes.data ?? []).map((f: any) => {
+        if (f.conta_pagar_id) linkedCpIds.add(f.conta_pagar_id);
+        const cpDeleted = !!f.cp?.deleted_at;
+        const tipoLabel = f.tipo === "mensal" ? "Salário" : f.tipo === "ferias" ? "Férias" : f.tipo === "rescisao" ? "Rescisão" : f.tipo === "13_primeiro" ? "13º — 1ª parc." : f.tipo === "13_segundo" ? "13º — 2ª parc." : f.tipo === "adiantamento" ? "Adiantamento" : f.tipo;
+        return {
+          tipo: tipoLabel,
+          competencia: f.competencia,
+          valor: Number(f.cp?.valor_pago ?? f.valor_liquido ?? f.cp?.valor ?? 0),
+          data_pagamento: f.cp?.data_pagamento ?? null,
+          conta: f.cp?.bank?.name ?? null,
+          status: cpDeleted ? "cancelado" : (f.cp?.status ?? (f.status === "paga" ? "pago" : "aberto")),
+          source: "folha" as const,
+          searchBlob: tipoLabel.toLowerCase(),
+        };
+      });
+
+      const benRows: any[] = [];
+      for (const b of benRes.data ?? []) {
+        if (b.cp_vt_id) linkedCpIds.add(b.cp_vt_id);
+        if (b.cp_va_id) linkedCpIds.add(b.cp_va_id);
+        if (Number(b.vt_custo_empresa) > 0) {
+          benRows.push({
+            tipo: "Vale Transporte",
+            competencia: b.competencia,
+            valor: Number(b.cp_vt?.valor_pago ?? b.vt_custo_empresa ?? 0),
+            data_pagamento: b.cp_vt?.data_pagamento ?? null,
+            conta: b.cp_vt?.bank?.name ?? null,
+            status: b.cp_vt?.deleted_at ? "cancelado" : (b.cp_vt?.status ?? "aberto"),
+            source: "beneficio" as const,
+            searchBlob: "vale transporte",
+          });
+        }
+        if (Number(b.va_custo_empresa) > 0) {
+          benRows.push({
+            tipo: "Vale Alimentação",
+            competencia: b.competencia,
+            valor: Number(b.cp_va?.valor_pago ?? b.va_custo_empresa ?? 0),
+            data_pagamento: b.cp_va?.data_pagamento ?? null,
+            conta: b.cp_va?.bank?.name ?? null,
+            status: b.cp_va?.deleted_at ? "cancelado" : (b.cp_va?.status ?? "aberto"),
+            source: "beneficio" as const,
+            searchBlob: "vale alimentacao",
+          });
+        }
+      }
+
+      const manuaisRows = ((candidatosRes.data ?? []) as any[])
+        .filter((cp: any) => {
+          if (linkedCpIds.has(cp.id)) return false;
+          const cpCpf = onlyDigitsHelper(cp.credor_cpf_cnpj);
+          if (cpfDigits && cpCpf === cpfDigits) return true;
+          const cpName = normalizeName(cp.credor_nome);
+          if (cpName && fullName && (cpName === fullName || cpName.startsWith(fullName) || fullName.startsWith(cpName))) return true;
+          if (cpName && tokens.length >= 2 && tokens.every(t => cpName.includes(t))) return true;
+          if (pix && cp.observacoes && cp.observacoes.includes(pix)) return true;
+          return false;
+        })
+        .map((c: any) => ({
+          tipo: c.descricao?.trim() || c.observacoes?.trim() || c.credor_nome || "CP manual",
+          competencia: c.data_vencimento ? c.data_vencimento.slice(0, 7) : "",
+          valor: Number(c.valor_pago ?? c.valor ?? 0),
+          data_pagamento: c.data_pagamento ?? null,
+          conta: c.bank?.name ?? null,
+          status: c.status ?? "aberto",
+          source: "manual" as const,
+          searchBlob: `${c.descricao || ''} ${c.observacoes || ''} ${c.credor_nome || ''} ${c.categoria?.name || ''}`.toLowerCase(),
+        }));
+
+      const allPagamentos = [...folhaRows, ...benRows, ...manuaisRows]
+        .sort((a, b) => (b.data_pagamento ?? b.competencia ?? "").localeCompare(a.data_pagamento ?? a.competencia ?? ""));
+      const comissoes = allPagamentos.filter(p => /comiss/i.test(p.searchBlob || p.tipo || ""));
+      const beneficiosMes = ((beneficiosRes.data ?? []) as any[]).map(b => ({
+        competencia: b.competencia,
+        dias_uteis: Number(b.dias_uteis) || 0,
+        dias_considerados: Number(b.dias_considerados) || 0,
+        vt_custo_empresa: Number(b.vt_custo_empresa) || 0,
+        va_custo_empresa: Number(b.va_custo_empresa) || 0,
+        total_custo_empresa: Number(b.total_custo_empresa) || 0,
+        status: b.status || "—",
+      }));
+      const cc = (ccRes as any).data;
+
+      const payload: RelatorioFuncionarioData = {
+        empresa_nome: selectedCompany.nome_fantasia || selectedCompany.razao_social || "Empresa",
+        empresa_cnpj: selectedCompany.cnpj ?? null,
+        funcionario: {
+          nome: getName(selected),
+          cpf: selected.cpf,
+          rg: selected.rg,
+          data_nascimento: selected.data_nascimento,
+          cargo: selected.role,
+          tipo_contrato: selected.tipo_contrato,
+          hire_date: selected.hire_date,
+          data_demissao: selected.data_demissao,
+          salario_base: Number(selected.salario_base || selected.salary || 0),
+          centro_custo: cc ? `${cc.codigo ? cc.codigo + " — " : ""}${cc.descricao}` : null,
+          email: selected.email,
+          phone: selected.phone,
+          banco_folha: selected.banco_folha,
+          agencia_folha: selected.agencia_folha,
+          conta_folha: selected.conta_folha,
+          tipo_conta_folha: selected.tipo_conta_folha,
+          chave_pix_folha: selected.chave_pix_folha,
+          pis: selected.pis,
+          ctps_numero: selected.ctps_numero,
+          ctps_serie: selected.ctps_serie,
+          status: selected.status || "—",
+        },
+        pagamentos: allPagamentos,
+        beneficios: beneficiosMes,
+        comissoes,
+      };
+
+      const blob = await gerarRelatorioFuncionarioPDF(payload);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = getName(selected).replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+      a.download = `relatorio-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("PDF gerado.");
+    } catch (err: any) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Erro ao gerar PDF: " + (err.message || "desconhecido"));
+    } finally {
+      setGerandoPDF(false);
+    }
+  };
+
   const vincularPagamento = async (cpId: string) => {
     if (!selected?.cpf) {
       toast.error("Cadastre o CPF do funcionário antes de vincular.");
@@ -544,7 +724,8 @@ export default function Funcionarios() {
                       tab === t.id ? "bg-white text-[#064E3B]" : "text-[#064E3B] hover:bg-white/30"
                     }`}>{t.label}</button>
                 ))}
-                {selected && <button onClick={() => handleDelete(selected)} className="ml-auto text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
+                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="ml-auto text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
+                {selected && <button onClick={() => handleDelete(selected)} className="text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5">
