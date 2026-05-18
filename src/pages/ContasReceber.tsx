@@ -58,7 +58,7 @@ interface BankAccount { id: string; name: string; banco?: string }
 interface ChartAccount { id: string; code: string; name: string }
 interface CentroCusto { id: string; codigo: string; descricao: string }
 interface Cliente { id: string; razao_social: string; nome_fantasia: string | null; cpf_cnpj: string | null; email: string | null }
-interface Product { id: string; description: string; code: string | null }
+interface Product { id: string; description: string; code: string | null; fornecedor_id?: string | null }
 
 /* ================================================================
    CONSTANTS
@@ -2248,6 +2248,7 @@ function ModalNovoCR({
   const [centroCustoOpen, setCentroCustoOpen] = useState(false)
   const centroCustoRef = useRef<HTMLDivElement>(null)
   const [descricao, setDescricao] = useState(editing?.observacoes || '')
+  const [produtoId, setProdutoId] = useState<string | null>((editing as any)?.produto_id || null)
   const [saving, setSaving] = useState(false)
 
   // Client search
@@ -2363,6 +2364,7 @@ function ModalNovoCR({
         const payload: Record<string, any> = {
           conta_contabil_id: novoContaContabilId,
           centro_custo_id: novoCentroCustoId,
+          produto_id: produtoId,
         }
         if (!lockFinancial) {
           payload.pagador_nome = pagadorNome.trim()
@@ -2411,6 +2413,7 @@ function ModalNovoCR({
             status: 'aberto',
             conta_contabil_id: contaContabilId || null,
             centro_custo_id: centroCustoId || null,
+            produto_id: produtoId,
             observacoes: descricao ? `${descricao} (${i + 1}/${n})` : `Parcela ${i + 1}/${n}`,
           })
         }
@@ -2428,6 +2431,7 @@ function ModalNovoCR({
           status: 'aberto',
           conta_contabil_id: contaContabilId || null,
           centro_custo_id: centroCustoId || null,
+          produto_id: produtoId,
           observacoes: descricao || null,
         })
         if (error) throw error
@@ -2763,13 +2767,18 @@ function ModalNovoCR({
             />
           ) : (
             <select
-              value={descricao}
-              onChange={e => setDescricao(e.target.value)}
+              value={produtoId || ''}
+              onChange={e => {
+                const id = e.target.value || null
+                setProdutoId(id)
+                const p = products.find(x => x.id === id)
+                setDescricao(p ? p.description : '')
+              }}
               className={inputCls}
             >
               <option value="">Selecione um produto/servico...</option>
               {products.map(p => (
-                <option key={p.id} value={p.description}>
+                <option key={p.id} value={p.id}>
                   {p.code ? `${p.code} - ` : ''}{p.description}
                 </option>
               ))}
