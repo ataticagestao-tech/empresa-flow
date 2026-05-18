@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import { BANKS } from "@/lib/banks";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { parseOFXFull } from "@/lib/parsers/ofx";
 
 interface BankAccount {
   id: string; company_id: string; name: string; banco: string;
@@ -140,6 +141,28 @@ export default function ContasBancarias() {
 
   const handleSave = async () => {
     if (!selectedCompany?.id || !formData.name.trim()) { toast.error("Nome é obrigatório"); return; }
+
+    // ── VALIDAÇÕES de segurança ──────────────────────────────
+    // Agência + conta obrigatórios para conta corrente/poupança/investimento (caixa físico isento)
+    if (formData.type !== "cash" && (!formData.agencia?.trim() || !formData.conta?.trim())) {
+      toast.error("Agência e Número da Conta são obrigatórios (exceto Caixa Físico)");
+      return;
+    }
+    // Banco no formato padronizado "XXX - Nome" (deve vir do combobox)
+    if (formData.type !== "cash" && formData.banco) {
+      const isValidBank = BANCOS_SORTED.some(b => `${b.codigo} - ${b.nome}` === formData.banco);
+      if (!isValidBank) {
+        toast.error("Selecione o banco da lista (clique numa opção do combobox)");
+        return;
+      }
+    }
+    // Inconsistência: OFX ativo mas sem ACCTID — bloqueia ou só avisa?
+    // Bloqueia pra forçar consistência (a Edge Function falharia silenciosamente em produção)
+    if (formData.ofx_ativo && formData.auto_conciliacao_policy === "rule_only" && !formData.ofx_acctid?.trim()) {
+      toast.error("Pra auto-conciliar você precisa cadastrar o ACCTID do OFX");
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -164,7 +187,15 @@ export default function ContasBancarias() {
       }
       queryClient.invalidateQueries({ queryKey: ["bank_accounts"] });
       setShowForm(false); setEditingId(null); setFormData(emptyForm);
-    } catch (err: any) { toast.error("Erro: " + (err.message || "Erro desconhecido")); }
+    } catch (err: any) {
+      // Mensagem amigável para violação do UNIQUE de ofx_acctid (UNIQUE parcial criado em migration)
+      const msg = err.message || "Erro desconhecido";
+      if (err.code === "23505" && /ofx_acctid/i.test(msg)) {
+        toast.error("Já existe outra conta nesta empresa com esse ACCTID. Cada ACCTID precisa ser único por empresa.");
+      } else {
+        toast.error("Erro: " + msg);
+      }
+    }
     finally { setSaving(false); }
   };
 
@@ -183,9 +214,22 @@ export default function ContasBancarias() {
   };
 
   const handleDelete = async (acc: BankAccount) => {
+    // Conta a atividade antes pra mostrar o impacto na confirmação
+    let activity = "";
+    try {
+      const [{ count: txCount }, { count: movCount }] = await Promise.all([
+        (activeClient as any).from("bank_transactions").select("id", { count: "exact", head: true }).eq("bank_account_id", acc.id),
+        (activeClient as any).from("movimentacoes").select("id", { count: "exact", head: true }).eq("conta_bancaria_id", acc.id),
+      ]);
+      const parts = [];
+      if ((txCount ?? 0) > 0) parts.push(`${txCount} transações do extrato`);
+      if ((movCount ?? 0) > 0) parts.push(`${movCount} movimentações`);
+      if (parts.length) activity = ` (${parts.join(" + ")})`;
+    } catch { /* ignora — confirmação ainda funciona sem a contagem */ }
+
     const ok = await confirm({
       title: `Excluir conta "${acc.name}"?`,
-      description: "Se houver movimentações vinculadas, a conta será marcada como inativa (soft delete).",
+      description: `Esta conta tem${activity || " 0 lançamentos"}. ${activity ? "Por isso ela será marcada como inativa (soft delete) — nada se perde." : "Como não há lançamentos, será excluída permanentemente."}`,
       confirmLabel: "Sim, excluir",
       variant: "destructive",
     });
@@ -416,17 +460,51 @@ export default function ContasBancarias() {
                   <p className="text-xs text-[#68748D] mb-3">
                     Quando o banco envia o OFX por email, o sistema identifica esta conta pelo ID interno do OFX (ACCTID).
                   </p>
+
+                  {/* Aviso: OFX ativo mas ACCTID não cadastrado → import por email não funciona */}
+                  {!formData.ofx_acctid?.trim() && (
+                    <div className="bg-[#FFF7ED] border border-[#FED7AA] rounded-md px-3 py-2 text-xs text-[#9A3412] mb-3">
+                      ⚠ "Importação OFX ativa" está marcado mas o ACCTID está vazio. Sem o ACCTID, emails com extrato desta conta vão ser ignorados.
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                       <label className={LB}>ID da conta no OFX (ACCTID)</label>
-                      <input
-                        value={formData.ofx_acctid}
-                        onChange={e => set("ofx_acctid", e.target.value)}
-                        placeholder="Ex: 12345-6"
-                        className={IC}
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          value={formData.ofx_acctid}
+                          onChange={e => set("ofx_acctid", e.target.value)}
+                          placeholder="Ex: 12345-6"
+                          className={IC + " flex-1"}
+                        />
+                        <label className="bg-[#1D2939] text-white text-xs font-bold px-3 py-2 rounded-md cursor-pointer whitespace-nowrap hover:bg-[#374151]">
+                          Extrair do OFX
+                          <input
+                            type="file"
+                            accept=".ofx,.OFX"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";  // permite re-selecionar mesmo arquivo
+                              if (!file) return;
+                              try {
+                                const { summary } = await parseOFXFull(file);
+                                if (!summary.acctId) {
+                                  toast.error("OFX sem ACCTID — banco não informou o ID da conta");
+                                  return;
+                                }
+                                set("ofx_acctid", summary.acctId);
+                                toast.success(`ACCTID extraído: ${summary.acctId}`);
+                              } catch (err: any) {
+                                toast.error("Erro ao ler OFX: " + (err.message || "arquivo inválido"));
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                       <p className="text-[11px] text-[#68748D] mt-1">
-                        Abra um OFX recente no Bloco de Notas e procure por &lt;ACCTID&gt;.
+                        Selecione um OFX e o sistema lê o ACCTID sozinho — sem precisar abrir no Bloco de Notas.
                       </p>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -486,6 +564,14 @@ export default function ContasBancarias() {
                     )}
                     {acc.ofx_ativo && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">OFX</span>
+                    )}
+                    {acc.ofx_acctid && acc.auto_conciliacao_policy === "rule_only" && (
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#1D4ED8] bg-[#DBEAFE] text-[#1D4ED8]"
+                        title={`Import automático via email ativo (ACCTID: ${acc.ofx_acctid})`}
+                      >
+                        AUTO
+                      </span>
                     )}
                     {acc.chave_pix && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">PIX</span>
