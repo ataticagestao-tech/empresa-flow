@@ -79,6 +79,7 @@ import NfseEmissao from "./pages/NfseEmissao";
 import NfseConfiguracoes from "./pages/NfseConfiguracoes";
 import PainelGerencial from "./pages/PainelGerencial";
 import ExtratoReconciliado from "./pages/ExtratoReconciliado";
+import AreaContador from "./pages/AreaContador";
 
 const queryClient = new QueryClient();
 
@@ -224,6 +225,7 @@ const App = () => (
                     <Route path="/configuracoes/nfse" element={<NfseConfiguracoes />} />
                     <Route path="/apuracao-impostos" element={<ApuracaoImpostos />} />
                     <Route path="/calendario-fiscal" element={<CalendarioFiscal />} />
+                    <Route path="/area-contador" element={<AreaContador />} />
                     <Route path="/importacao-xml" element={<ImportacaoXML />} />
                     <Route path="/folha-pagamento" element={<FolhaPagamento />} />
                     <Route path="/ponto-eletronico" element={<PontoEletronico />} />

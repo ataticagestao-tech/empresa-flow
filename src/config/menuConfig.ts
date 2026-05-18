@@ -112,6 +112,7 @@ export const menuGroups: MenuGroup[] = [
     isHardcodedLabel: true,
     ownerOnly: true,
     items: [
+      { titleKey: 'Area do Contador', icon: Briefcase, url: '/area-contador', isHardcoded: true },
       { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
       { titleKey: 'Notas Fiscais', icon: FileText, url: '/notas-fiscais', isHardcoded: true },
       { titleKey: 'Apuracao de Impostos', icon: Calculator, url: '/apuracao-impostos', isHardcoded: true },

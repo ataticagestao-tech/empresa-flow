@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList,
+    AreaChart, PieChart, Pie,
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -35,6 +36,14 @@ const C = {
     surface: "#FFFFFF",
 } as const;
 
+/* ── Billora-inspired card style (rounded, soft shadow, borderless feel) ── */
+const billoraCard: React.CSSProperties = {
+    background: C.surface,
+    borderRadius: 16,
+    border: `1px solid ${C.border}`,
+    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.06)",
+};
+
 const fmt = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 const fmtInt = (v: number) =>
@@ -48,7 +57,7 @@ const fmtShort = (v: number) => {
 };
 
 /* ── Period Type ────────────────────────────────────────────── */
-type Period = "hoje" | "mes" | "trimestre" | "mes_especifico" | "custom";
+type Period = "hoje" | "mes" | "trimestre" | "ano" | "mes_especifico" | "custom";
 
 /* ── Main Component ─────────────────────────────────────────── */
 export default function CompanyDashboard() {
@@ -111,6 +120,12 @@ export default function CompanyDashboard() {
                     periodStart: format(startOfMonth(subMonths(today, 2)), "yyyy-MM-dd"),
                     periodEnd: format(endOfMonth(today), "yyyy-MM-dd"),
                     periodLabel: "Trimestre",
+                };
+            case "ano":
+                return {
+                    periodStart: format(startOfYear(today), "yyyy-MM-dd"),
+                    periodEnd: format(endOfYear(today), "yyyy-MM-dd"),
+                    periodLabel: "Ano",
                 };
             case "mes_especifico": {
                 const d = new Date(specificYear, specificMonth, 1);
@@ -459,7 +474,7 @@ export default function CompanyDashboard() {
     // Períodos curtos (≤14 dias): barras diárias. Médios: semanais. Longos: mensais.
     // Threshold mais conservador pra evitar muitas barras finas no mês completo.
     const periodDays = differenceInCalendarDays(new Date(periodEnd + "T00:00:00"), new Date(periodStart + "T00:00:00")) + 1;
-    const chartGranularity: "day" | "week" | "month" = periodDays <= 14 ? "day" : periodDays <= 180 ? "week" : "month";
+    const chartGranularity: "day" | "week" | "month" = periodDays <= 31 ? "day" : periodDays <= 180 ? "week" : "month";
 
 // ─── Despesas diárias pelo período selecionado ──────────
     // Competência: por data_vencimento, valor cheio.
@@ -1050,6 +1065,7 @@ export default function CompanyDashboard() {
                                     { key: "hoje", label: "Hoje" },
                                     { key: "mes", label: "Este mês" },
                                     { key: "trimestre", label: "Trimestre" },
+                                    { key: "ano", label: "Ano" },
                                     { key: "mes_especifico", label: "Mês" },
                                     { key: "custom", label: "Personalizado" },
                                 ] as { key: Period; label: string }[]).map((p) => (
@@ -1147,7 +1163,7 @@ export default function CompanyDashboard() {
                 {/* ── 3 KPI Cards (mockup v1) ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="kpi-card" style={{ ...billoraCard, padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingUp size={16} strokeWidth={2.25} />
@@ -1178,7 +1194,7 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 2. Despesas */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="kpi-card" style={{ ...billoraCard, padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingDown size={16} strokeWidth={2.25} />
@@ -1209,7 +1225,7 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 3. Resultado Líquido */}
-                    <div className="kpi-card" style={{ background: C.surface, borderRadius: 12, padding: 20, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="kpi-card" style={{ ...billoraCard, padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#ECFDF5" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#059669" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <Wallet size={16} strokeWidth={2.25} />
@@ -1241,7 +1257,7 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* ── Heatmap: Faturamento Diário do Mês ── */}
-                <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", marginBottom: 16, overflow: "hidden" }}>
+                <div style={{ ...billoraCard, marginBottom: 16, overflow: "hidden" }}>
                     <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                         <SectionTitle
                             title={regime === "competencia" ? "Faturamento Diário" : "Recebimentos Diários"}
@@ -1407,7 +1423,7 @@ export default function CompanyDashboard() {
                                             </div>
                                         );
                                     }
-                                    const palette = ["#039855", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#EA580C", "#9CA3AF"];
+                                    const palette = ["#039855", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#9CA3AF"];
                                     const TOP = 5;
                                     const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
                                     const top = sorted.slice(0, TOP);
@@ -1418,23 +1434,49 @@ export default function CompanyDashboard() {
                                         ...top.map((p, i) => ({ name: p.descricao, value: p.faturamento, percent: p.percentual, color: palette[i % palette.length], semProduto: p.semProduto })),
                                         ...(restTotal > 0 ? [{ name: `Outros (${rest.length})`, value: restTotal, percent: restPct, color: palette[palette.length - 1], semProduto: false }] : []),
                                     ];
-                                    const maxValue = Math.max(...data.map(d => d.value));
+                                    const total = data.reduce((s, d) => s + d.value, 0);
                                     return (
-                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "10px 14px 12px", minHeight: 0, gap: 8, maxHeight: 260, overflowY: "auto" }}>
-                                            {data.map((d, i) => {
-                                                const pct = maxValue > 0 ? (d.value / maxValue) * 100 : 0;
-                                                return (
-                                                    <div key={i} title={`${d.name} · ${fmt(d.value)} · ${d.percent.toFixed(1)}%`}>
-                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 11 }}>
-                                                            <span style={{ color: C.text1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: d.semProduto ? "italic" : "normal", minWidth: 0 }}>{d.name}</span>
-                                                            <span style={{ color: C.text1, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{d.percent.toFixed(1)}%</span>
-                                                        </div>
-                                                        <div style={{ marginTop: 3, height: 6, background: "#F1F5F9", borderRadius: 3, overflow: "hidden" }}>
-                                                            <div style={{ width: `${pct}%`, height: "100%", background: d.color, borderRadius: 3 }} />
-                                                        </div>
+                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 12px 14px", minHeight: 0, gap: 10 }}>
+                                            {/* Donut */}
+                                            <div style={{ position: "relative", height: 140, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={data}
+                                                            dataKey="value"
+                                                            nameKey="name"
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius={42}
+                                                            outerRadius={62}
+                                                            paddingAngle={1.5}
+                                                            stroke="#fff"
+                                                            strokeWidth={2}
+                                                        >
+                                                            {data.map((d, i) => (<Cell key={i} fill={d.color} />))}
+                                                        </Pie>
+                                                        <Tooltip
+                                                            contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 11.5 }}
+                                                            itemStyle={{ color: C.text1, padding: "2px 0" }}
+                                                            formatter={(v: number, name: string) => [`${fmt(v)} · ${((v / (total || 1)) * 100).toFixed(1)}%`, name]}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                                                    <div style={{ fontSize: 9.5, color: C.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Total</div>
+                                                    <div style={{ fontSize: 13, color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtShort(total) || fmt(total)}</div>
+                                                </div>
+                                            </div>
+                                            {/* Legenda */}
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, overflowY: "auto", maxHeight: 120 }}>
+                                                {data.map((d, i) => (
+                                                    <div key={i} title={`${d.name} · ${fmt(d.value)} · ${d.percent.toFixed(1)}%`} style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                                                        <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+                                                        <span style={{ color: C.text1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: d.semProduto ? "italic" : "normal", flex: 1 }}>{d.name}</span>
+                                                        <span style={{ color: C.text2, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{d.percent.toFixed(1)}%</span>
                                                     </div>
-                                                );
-                                            })}
+                                                ))}
+                                            </div>
                                         </div>
                                     );
                                 })()}
@@ -1443,76 +1485,120 @@ export default function CompanyDashboard() {
                     </div>
                 </div>
 
-                {/* ── Mid Row: Faturamento Diário + Contas a Receber ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, marginBottom: 16, alignItems: "start" }}>
-                    {/* Faturamento do período */}
-                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)" }}>
-                        <div style={{ marginBottom: 16 }}>
-                            <SectionTitle
-                                title={`${regime === "competencia" ? "Faturamento" : "Recebimentos"} ${chartGranularity === "day" ? (regime === "competencia" ? "Diário" : "Diários") : chartGranularity === "week" ? (regime === "competencia" ? "Semanal" : "Semanais") : (regime === "competencia" ? "Mensal" : "Mensais")}`}
-                                subtitle={`${periodLabel} · ${(chartRevExp || []).length} ${chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}`}
-                                info={regime === "competencia"
-                                    ? "Vendas confirmadas agrupadas por dia/semana/mês (competência). Fonte: 'vendas.valor_liquido' por 'data_venda'."
-                                    : "Recebimentos efetivos agrupados por dia/semana/mês (caixa). Fonte: 'contas_receber.valor_pago' por 'data_pagamento'. Exclui transferências."}
-                                action={
-                                    <div style={{ textAlign: "right" }}>
-                                        <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500 }}>Total no período</div>
-                                        <div style={{ fontSize: 20, fontWeight: 700, color: "#039855", letterSpacing: "-0.015em", marginTop: 2 }}>
-                                            {fmt((chartRevExp || []).reduce((s: number, r: any) => s + (r.Receita || 0), 0))}
+                {/* ── Unified Chart Row: Receita × Despesa ── */}
+                <div style={{ ...billoraCard, padding: 20, marginBottom: 16 }}>
+                    {(() => {
+                        const seriesRev = chartRevExp || [];
+                        const seriesDesp = chartDespDiarias || [];
+                        let saldoAcc = 0;
+                        const merged = seriesRev.map((r: any, i: number) => {
+                            const receita = r.Receita || 0;
+                            const despesa = (seriesDesp[i] && seriesDesp[i].despesa) || 0;
+                            saldoAcc += receita - despesa;
+                            return {
+                                label: r.label,
+                                Receita: receita,
+                                Despesa: despesa,
+                                DespesaNeg: -despesa,
+                                Saldo: saldoAcc,
+                            };
+                        });
+                        const totalReceita = merged.reduce((s: number, r: any) => s + (r.Receita || 0), 0);
+                        const totalDespesa = merged.reduce((s: number, r: any) => s + (r.Despesa || 0), 0);
+                        const saldo = totalReceita - totalDespesa;
+                        const receitaLabel = regime === "competencia" ? "Faturamento" : "Recebimentos";
+                        const despesaLabel = regime === "competencia" ? "Despesas" : "Pagamentos";
+                        const granularityLabel = chartGranularity === "day" ? "Diário" : chartGranularity === "week" ? "Semanal" : "Mensal";
+                        return (
+                            <>
+                                <div style={{ marginBottom: 8 }}>
+                                    <SectionTitle
+                                        title={`${receitaLabel} × ${despesaLabel} — ${granularityLabel}`}
+                                        subtitle={`${periodLabel} · ${merged.length} ${chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}`}
+                                        info={regime === "competencia"
+                                            ? "Receita (vendas confirmadas por data_venda) e Despesa (contas_pagar pelo valor cheio com data_vencimento no período). Regime de competência. Exclui transferências."
+                                            : "Receita (contas_receber pagas + cartão de crédito pela data da venda) e Despesa (contas_pagar pagas por data_pagamento). Regime de caixa. Exclui transferências."}
+                                    />
+                                </div>
+                                <div style={{ display: "flex", gap: 16, marginBottom: 14, paddingTop: 6 }}>
+                                    {[
+                                        { label: receitaLabel, value: totalReceita, color: "#039855" },
+                                        { label: despesaLabel, value: totalDespesa, color: "#E53E3E" },
+                                        { label: "Resultado", value: saldo, color: saldo >= 0 ? "#039855" : "#E53E3E" },
+                                    ].map((s) => (
+                                        <div key={s.label} style={{ flex: 1 }}>
+                                            <div style={{ fontSize: 10.5, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600, marginBottom: 3 }}>{s.label}</div>
+                                            <div style={{ fontSize: 19, fontWeight: 700, color: s.color, letterSpacing: "-0.015em", fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(s.value)}</div>
                                         </div>
-                                    </div>
-                                }
-                            />
-                        </div>
+                                    ))}
+                                </div>
 
-                        <ResponsiveContainer width="100%" height={340}>
-                            <BarChart data={chartRevExp || []} margin={{ top: 52, right: 16, left: 8, bottom: 4 }} barCategoryGap="14%" barGap={2}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                                <XAxis
-                                    dataKey="label"
-                                    tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }}
-                                    axisLine={{ stroke: C.text2, strokeWidth: 1 }}
-                                    tickLine={{ stroke: C.text2 }}
-                                    interval={chartGranularity === "day" ? 1 : 0}
-                                    tickMargin={8}
-                                />
-                                <YAxis
-                                    tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
-                                    axisLine={{ stroke: C.text2, strokeWidth: 1 }}
-                                    tickLine={{ stroke: C.text2 }}
-                                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
-                                    width={42}
-                                />
-                                <Tooltip
-                                    contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
-                                    itemStyle={{ color: C.text1, padding: "2px 0" }}
-                                    labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
-                                    formatter={(v: number, name: string) => [fmtFull(v), name]}
-                                    labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
-                                    cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
-                                />
-                                <Bar dataKey="ReceitaAnterior" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " mês anterior"} fill="#E5E7EB" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                                    <LabelList dataKey="ReceitaAnterior" position="top" fontSize={10} fill={C.text2} fontWeight={500} formatter={fmtShort} />
-                                </Bar>
-                                <Bar dataKey="Receita" name={(regime === "competencia" ? "Faturamento" : "Recebimentos") + " atual"} fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                                    <LabelList dataKey="Receita" position="top" fontSize={10} fill={C.text1} fontWeight={600} formatter={fmtShort} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 10 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 10, height: 10, background: "#E5E7EB", borderRadius: 2, border: `1px solid ${C.border}` }} />
-                                Mês anterior
-                            </span>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 10, height: 10, background: "#059669", borderRadius: 2 }} />
-                                Atual
-                            </span>
-                        </div>
-                    </div>
+                                <ResponsiveContainer width="100%" height={320}>
+                                    <ComposedChart data={merged} margin={{ top: 28, right: 16, left: 8, bottom: 4 }} barCategoryGap={chartGranularity === "day" ? "18%" : "22%"} barGap={2} stackOffset="sign">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                                        <XAxis
+                                            dataKey="label"
+                                            tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }}
+                                            axisLine={{ stroke: C.border, strokeWidth: 1 }}
+                                            tickLine={false}
+                                            interval={chartGranularity === "day" ? (merged.length > 20 ? 2 : 0) : 0}
+                                            tickMargin={8}
+                                        />
+                                        <YAxis
+                                            tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tickFormatter={(v) => {
+                                                const abs = Math.abs(v);
+                                                return abs >= 1000 ? `${(abs / 1000).toFixed(0)}k` : `${abs}`;
+                                            }}
+                                            width={48}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                            itemStyle={{ color: C.text1, padding: "2px 0" }}
+                                            labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
+                                            formatter={(v: number, name: string) => [fmtFull(name === despesaLabel ? Math.abs(v) : v), name]}
+                                            labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
+                                            cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
+                                        />
+                                        <ReferenceLine y={0} stroke={C.text2} strokeWidth={1} />
+                                        <Bar dataKey="Receita" name={receitaLabel} fill="#039855" stackId="cashflow" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 56} />
+                                        <Bar dataKey="DespesaNeg" name={despesaLabel} fill="#E53E3E" stackId="cashflow" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 56} />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="Saldo"
+                                            name="Saldo acumulado"
+                                            stroke={C.text1}
+                                            strokeWidth={2.25}
+                                            dot={{ r: 2.5, fill: C.text1, stroke: "#fff", strokeWidth: 1.5 }}
+                                            activeDot={{ r: 4.5, fill: C.text1, stroke: "#fff", strokeWidth: 2 }}
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                        <span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />
+                                        {receitaLabel}
+                                    </span>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                        <span style={{ width: 10, height: 10, background: "#E53E3E", borderRadius: 2 }} />
+                                        {despesaLabel}
+                                    </span>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                        <span style={{ width: 14, height: 2, background: C.text1, borderRadius: 1 }} />
+                                        Saldo acumulado
+                                    </span>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
 
-                    {/* Contas a Receber — Buckets (mockup) */}
-                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* ── Row: Contas a Receber + A Pagar (lado a lado) ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+                    {/* Contas a Receber — Buckets */}
+                    <div style={{ ...billoraCard, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                             <SectionTitle
                                 title="Contas a Receber"
@@ -1590,80 +1676,9 @@ export default function CompanyDashboard() {
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* ── Bottom Row: Despesas Diárias + A Pagar ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 368px", gap: 16, alignItems: "start" }}>
-                    {/* Despesas Diárias do período */}
-                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding: 20, display: "flex", flexDirection: "column", minHeight: 0 }}>
-                        <div style={{ marginBottom: 16 }}>
-                            <SectionTitle
-                                title={`${regime === "competencia" ? "Despesas" : "Pagamentos"} ${chartGranularity === "day" ? (regime === "competencia" ? "Diárias" : "Diários") : chartGranularity === "week" ? "Semanais" : "Mensais"}`}
-                                subtitle={`${periodLabel} · ${(chartDespDiarias || []).length} ${chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}`}
-                                info={regime === "competencia"
-                                    ? "Despesas agrupadas por dia/semana/mês conforme o tamanho do período (regime de competência). Valor cheio das contas a pagar (todos status abertos+pago) por 'data_vencimento'. Exclui transferências."
-                                    : "Pagamentos agrupados por dia/semana/mês conforme o tamanho do período (regime de caixa). Valor efetivamente pago das contas. Fonte: 'contas_pagar.valor_pago' por 'data_pagamento', status='pago'. Exclui transferências."}
-                                action={
-                                    <div style={{ textAlign: "right" }}>
-                                        <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500 }}>Total no período</div>
-                                        <div style={{ fontSize: 20, fontWeight: 700, color: "#7F1D1D", letterSpacing: "-0.015em", marginTop: 2 }}>
-                                            {fmt((chartDespDiarias || []).reduce((s: number, r: any) => s + (r.despesa || 0), 0))}
-                                        </div>
-                                    </div>
-                                }
-                            />
-                        </div>
-
-                        <div style={{ height: 340 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartDespDiarias || []} margin={{ top: 52, right: 16, left: 8, bottom: 4 }} barCategoryGap="14%" barGap={2}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                                    <XAxis
-                                        dataKey="label"
-                                        tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }}
-                                        axisLine={{ stroke: C.text2, strokeWidth: 1 }}
-                                        tickLine={{ stroke: C.text2 }}
-                                        interval={chartGranularity === "day" ? 1 : 0}
-                                        tickMargin={8}
-                                    />
-                                    <YAxis
-                                        tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
-                                        axisLine={{ stroke: C.text2, strokeWidth: 1 }}
-                                        tickLine={{ stroke: C.text2 }}
-                                        tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
-                                        width={42}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
-                                        itemStyle={{ color: C.text1, padding: "2px 0" }}
-                                        labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
-                                        formatter={(v: number, name: string) => [fmtFull(v), name]}
-                                        labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
-                                        cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
-                                    />
-                                    <Bar dataKey="despesaAnterior" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " mês anterior"} fill="#E5E7EB" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                                        <LabelList dataKey="despesaAnterior" position="top" fontSize={10} fill={C.text2} fontWeight={500} formatter={fmtShort} />
-                                    </Bar>
-                                    <Bar dataKey="despesa" name={(regime === "competencia" ? "Despesa" : "Pagamento") + " atual"} fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                                        <LabelList dataKey="despesa" position="top" fontSize={10} fill={C.text1} fontWeight={600} formatter={fmtShort} />
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 10 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 10, height: 10, background: "#E5E7EB", borderRadius: 2, border: `1px solid ${C.border}` }} />
-                                Mês anterior
-                            </span>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ width: 10, height: 10, background: "#059669", borderRadius: 2 }} />
-                                Atual
-                            </span>
-                        </div>
-                    </div>
 
                     {/* A Pagar — Próximos 7 Dias (mockup list) */}
-                    <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                    <div style={{ ...billoraCard, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
                             <SectionTitle
                                 title="A Pagar"
