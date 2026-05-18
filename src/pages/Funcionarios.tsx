@@ -206,7 +206,7 @@ export default function Funcionarios() {
           for (const t of tokens) orParts.push(`credor_nome.ilike.*${t}*`);
           if (pix) orParts.push(`observacoes.ilike.*${pix}*`);
           let q = db.from("contas_pagar")
-            .select("id, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes, credor_nome, credor_cpf_cnpj, bank:conta_bancaria_id(name)")
+            .select("id, valor, valor_pago, data_vencimento, data_pagamento, status, descricao, observacoes, credor_nome, credor_cpf_cnpj, bank:conta_bancaria_id(name), categoria:conta_contabil_id(name)")
             .eq("company_id", selectedCompany.id)
             .is("deleted_at", null)
             .order("data_vencimento", { ascending: false })
@@ -285,13 +285,14 @@ export default function Funcionarios() {
           id: `cp-${c.id}`,
           cp_id: c.id,
           cp_cpf: c.credor_cpf_cnpj ?? null,
-          tipo: c.observacoes?.trim() || c.credor_nome || "CP manual",
+          tipo: c.descricao?.trim() || c.observacoes?.trim() || c.credor_nome || "CP manual",
           competencia: c.data_vencimento ? c.data_vencimento.slice(0, 7) : "",
           valor: Number(c.valor_pago ?? c.valor ?? 0),
           data_pagamento: c.data_pagamento ?? null,
           conta: c.bank?.name ?? null,
           status: c.status ?? "aberto",
           source: "manual" as const,
+          searchBlob: `${c.descricao || ''} ${c.observacoes || ''} ${c.credor_nome || ''} ${c.categoria?.name || ''}`.toLowerCase(),
         }));
 
       const all = [...folhaRows, ...benRows, ...manuaisRows];
@@ -302,12 +303,21 @@ export default function Funcionarios() {
       });
       return all;
     },
-    enabled: !!selected?.id && !!selectedCompany?.id && tab === "salarios",
+    enabled: !!selected?.id && !!selectedCompany?.id && (tab === "salarios" || tab === "comissoes"),
   });
 
   const totalPagoFunc = useMemo(
     () => pagamentos.filter((p: any) => p.status === "pago").reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0),
     [pagamentos]
+  );
+
+  const comissoes = useMemo(
+    () => pagamentos.filter((p: any) => /comiss/i.test(p.searchBlob || p.tipo || "")),
+    [pagamentos]
+  );
+  const totalComissoesPago = useMemo(
+    () => comissoes.filter((p: any) => p.status === "pago").reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0),
+    [comissoes]
   );
 
   const vincularPagamento = async (cpId: string) => {
@@ -732,18 +742,72 @@ export default function Funcionarios() {
 
                 {tab === "comissoes" && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      {["Jan/2026", "Fev/2026", "Mar/2026"].map((mes, i) => (
-                        <div key={i} className="border border-[#ccc] rounded-lg overflow-hidden">
-                          <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">{mes}</span></div>
-                          <div className="p-3 bg-white text-center">
-                            <p className="text-lg font-bold text-[#1D2939]">R$ 0,00</p>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Sem lançamento</span>
-                          </div>
+                    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                      <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-white">Comissões pagas</span>
+                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatBRL(totalComissoesPago)}</span>
+                      </div>
+                      {loadingPagamentos ? (
+                        <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
+                      ) : comissoes.length === 0 ? (
+                        <div className="p-6 text-center text-[#555] text-xs">
+                          Nenhuma comissão encontrada para este funcionário.
+                          <div className="mt-1 text-[10px]">Lançamentos identificados pela palavra "comissão" na descrição, observação ou categoria contábil da CP.</div>
                         </div>
-                      ))}
+                      ) : (
+                        <div className="divide-y divide-[#eee]">
+                          {comissoes.map((p: any) => {
+                            const compLabel = p.competencia && /^\d{4}-\d{2}/.test(p.competencia)
+                              ? p.competencia.slice(2, 7).split("-").reverse().join("/")
+                              : (p.competencia || "—");
+                            const statusBadge =
+                              p.status === "pago"   ? "bg-[#ECFDF4] text-[#059669]" :
+                              p.status === "parcial"? "bg-[#FEF3C7] text-[#92400E]" :
+                              p.status === "vencido"? "bg-[#FEE2E2] text-[#991B1B]" :
+                              p.status === "cancelado" ? "bg-[#EAECF0] text-[#555]" :
+                                                      "bg-[#F6F2EB] text-[#555]";
+                            const statusLabel =
+                              p.status === "pago" ? "Pago" :
+                              p.status === "parcial" ? "Parcial" :
+                              p.status === "vencido" ? "Vencido" :
+                              p.status === "cancelado" ? "Cancelado" :
+                              "Em aberto";
+                            const sourceDot =
+                              p.source === "folha"     ? "bg-[#3730A3]" :
+                              p.source === "beneficio" ? "bg-[#9D174D]" :
+                                                        "bg-[#aaa]";
+                            const sourceTitle =
+                              p.source === "folha" ? "Folha" :
+                              p.source === "beneficio" ? "Benefício" :
+                              "Manual";
+                            const podeVincular = p.source === "manual" && p.cp_id && (!p.cp_cpf || onlyDigitsHelper(p.cp_cpf) !== onlyDigitsHelper(selected?.cpf));
+                            const dataPagoLabel = p.data_pagamento ? new Date(p.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR") : null;
+                            return (
+                              <div key={p.id} className="px-3 py-2 hover:bg-[#FAFAF7]">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-2 h-2 rounded-full shrink-0 ${sourceDot}`} title={sourceTitle}></span>
+                                    <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
+                                    <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
+                                  </div>
+                                  <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatBRL(p.valor)}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2 mt-1 pl-4">
+                                  <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
+                                    <span className={`font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span>
+                                    {dataPagoLabel && <span className="whitespace-nowrap">Pago {dataPagoLabel}</span>}
+                                    {p.conta && <span className="truncate">· {p.conta}</span>}
+                                  </div>
+                                  {podeVincular && selected?.cpf ? (
+                                    <button onClick={() => vincularPagamento(p.cp_id)} title="Gravar CPF na conta a pagar" className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs text-[#555]">Lançamento de comissões será habilitado quando as tabelas estiverem configuradas.</p>
                   </div>
                 )}
 
