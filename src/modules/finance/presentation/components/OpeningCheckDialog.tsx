@@ -181,6 +181,86 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
         }
     };
 
+    // ── AUTO-AJUSTE em 1 clique ────────────────────────────────────────
+    // Cria categoria "Ajuste de Saldo" se nao existir + lanca movimentacao
+    // com o valor exato da diferenca. Pulando o passo manual de escolher categoria.
+    const handleAutoAjuste = async () => {
+        if (!bankAccountId || !selectedCompany?.id || !tipoAjuste || diff == null) return;
+        setCreating(true);
+        try {
+            // 1) Resolver a categoria — usar existente ou criar
+            let catId = existingAjusteCategory?.id ?? null;
+            if (!catId) {
+                const isEntrada = tipoAjuste === "credito";
+                const payload = {
+                    company_id: selectedCompany.id,
+                    code: isEntrada ? "9.91.01" : "9.92.01",
+                    name: isEntrada ? "Ajuste de Saldo (Entrada)" : "Ajuste de Saldo (Saída)",
+                    level: 3,
+                    account_type: isEntrada ? "revenue" : "expense",
+                    account_nature: isEntrada ? "credit" : "debit",
+                    is_analytical: true,
+                    is_synthetic: false,
+                    show_in_dre: false,
+                    parent_id: null,
+                    status: "active",
+                    accepts_manual_entry: true,
+                };
+                const { data: createdCat, error: catErr } = await (activeClient as any)
+                    .from("chart_of_accounts")
+                    .insert(payload)
+                    .select("id")
+                    .single();
+                if (catErr) {
+                    // se ja existe (race condition / codigo duplicado), tenta buscar
+                    if (catErr.code === "23505" || /duplicate|unique/i.test(catErr.message || "")) {
+                        const { data: found } = await (activeClient as any)
+                            .from("chart_of_accounts")
+                            .select("id")
+                            .eq("company_id", selectedCompany.id)
+                            .eq("code", payload.code)
+                            .maybeSingle();
+                        catId = (found as { id?: string } | null)?.id ?? null;
+                    } else {
+                        throw catErr;
+                    }
+                } else {
+                    catId = (createdCat as { id?: string } | null)?.id ?? null;
+                }
+            }
+            if (!catId) throw new Error("Não consegui criar/encontrar a categoria de ajuste");
+
+            // 2) Lançar movimentação
+            const closingDate = summary?.closingDate ?? summary?.periodEnd ?? new Date();
+            const dataIso = format(closingDate, "yyyy-MM-dd");
+            const { error: movErr } = await (activeClient as any).from("movimentacoes").insert({
+                company_id: selectedCompany.id,
+                tipo: tipoAjuste,
+                descricao: `Ajuste automatico de saldo — ${fmtDate(closingDate)}`,
+                valor: Math.abs(diff),
+                data: dataIso,
+                conta_bancaria_id: bankAccountId,
+                conta_contabil_id: catId,
+                origem: "manual",
+            });
+            if (movErr) throw movErr;
+
+            toast({
+                title: "Ajuste lançado automaticamente",
+                description: `${fmtBRL(Math.abs(diff))} em ${tipoAjuste === "credito" ? "entrada" : "saída"} — saldos alinhados`,
+            });
+            queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard_accounts_balance"] });
+            queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
+            queryClient.invalidateQueries({ queryKey: ["chart_accounts_adjustment", selectedCompany.id] });
+            handleClose();
+        } catch (e: any) {
+            toast({ title: "Erro ao auto-ajustar", description: e.message || String(e), variant: "destructive" });
+        } finally {
+            setCreating(false);
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
             <DialogContent className="sm:max-w-[520px]">
@@ -305,9 +385,18 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
 
                 <DialogFooter className="gap-2">
                     {!isAligned && !cannotCompare && !showAdjustForm && (
-                        <Button variant="outline" onClick={() => setShowAdjustForm(true)} disabled={!bankAccountId}>
-                            Lançar ajuste agora
-                        </Button>
+                        <>
+                            <Button
+                                onClick={handleAutoAjuste}
+                                disabled={!bankAccountId || creating}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                {creating ? "Ajustando..." : "✨ Ajustar saldo automaticamente"}
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowAdjustForm(true)} disabled={!bankAccountId}>
+                                Escolher categoria manualmente
+                            </Button>
+                        </>
                     )}
                     {showAdjustForm && (
                         <>
