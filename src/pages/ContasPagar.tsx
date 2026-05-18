@@ -1949,6 +1949,29 @@ export default function ContasPagar() {
                   {format(parseISO(dateFrom), 'dd/MM/yyyy')} &ndash; {format(parseISO(dateTo), 'dd/MM/yyyy')}
                 </span>
               )}
+              <input
+                type="file"
+                className="hidden"
+                id="file-upload-cp-toolbar"
+                accept="image/*,application/pdf"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  e.target.value = ''
+                  openNewModal()
+                  await handleFileUpload(file, true)
+                }}
+              />
+              <button
+                onClick={() => document.getElementById('file-upload-cp-toolbar')?.click()}
+                disabled={isUploading || isReadingBoleto}
+                title="Selecione um boleto ou fatura (PDF/imagem) — o sistema le os dados via IA e abre o lancamento ja preenchido"
+                className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-[#059669] rounded hover:bg-[#047857] transition-colors disabled:opacity-50"
+              >
+                {isReadingBoleto ? <><Loader2 size={11} className="animate-spin" /> Lendo...</> :
+                 isUploading ? <><Loader2 size={11} className="animate-spin" /> Enviando...</> :
+                 <><ScanLine size={11} /> Importar boleto/fatura</>}
+              </button>
               <button
                 onClick={openNewModal}
                 className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
