@@ -83,6 +83,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
       { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
+      { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
     ]
   },
   {
@@ -175,7 +176,6 @@ export const menuGroups: MenuGroup[] = [
     icon: Target,
     isHardcodedLabel: true,
     items: [
-      { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
       { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
       { titleKey: 'Composição de Custo', icon: Layers, url: '/composicao-custo', isHardcoded: true },
       { titleKey: 'Margem de Desconto', icon: Percent, url: '/margens-desconto', isHardcoded: true },
