@@ -717,16 +717,16 @@ export default function Funcionarios() {
             <div className="flex-1 flex items-center justify-center text-sm text-[#555]">Selecione um funcionário ou clique em "+ Novo"</div>
           ) : (
             <>
-              <div className="bg-[#059669] px-4 py-2 flex items-center gap-1">
-                {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Histórico de Salários" },
+              <div className="bg-[#059669] px-3 py-2 flex items-center gap-1 overflow-x-auto">
+                {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Salários" },
                   { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
-                    className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
-                      tab === t.id ? "bg-white text-[#064E3B]" : "text-[#064E3B] hover:bg-white/30"
+                    className={`shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
+                      tab === t.id ? "bg-white text-[#064E3B]" : "text-white/90 hover:bg-white/20"
                     }`}>{t.label}</button>
                 ))}
-                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="ml-auto text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
-                {selected && <button onClick={() => handleDelete(selected)} className="text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
+                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="shrink-0 whitespace-nowrap ml-auto text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
+                {selected && <button onClick={() => handleDelete(selected)} className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white/90 hover:bg-[#991B1B] hover:text-white rounded px-2.5 py-1 transition-colors">Excluir</button>}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5">
