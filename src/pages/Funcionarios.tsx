@@ -9,6 +9,7 @@ import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
 import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDialog";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { gerarRelatorioFuncionarioPDF, type RelatorioFuncionarioData } from "@/lib/funcionario-pdf/gerar-pdf";
 
 interface Employee {
   id: string; company_id: string;
