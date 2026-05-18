@@ -690,7 +690,7 @@ export default function Conciliacao() {
                     : "contas_receber";
                 await (activeClient as any)
                     .from(table)
-                    .update({ status: "aberto", valor_pago: null, data_pagamento: null })
+                    .update({ status: "aberto", valor_pago: 0, data_pagamento: null })
                     .eq("id", tx.linked_id);
             }
 

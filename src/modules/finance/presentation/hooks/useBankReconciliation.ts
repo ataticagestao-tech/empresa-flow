@@ -195,6 +195,32 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const { transactions: parsed, summary } = await parseOFXFull(file);
             if (!parsed.length) throw new Error("Arquivo vazio ou inválido");
 
+            // Carrega metadados da conta selecionada (usado pra validar ACCTID e calcular saldo)
+            const { data: bankAcc } = await (activeClient as any)
+                .from('bank_accounts')
+                .select('id, name, initial_balance, data_saldo_inicial, ofx_acctid')
+                .eq('id', bankAccountId)
+                .maybeSingle();
+
+            // GUARD: extrato carregado na conta errada.
+            // Se a conta tem ACCTID cadastrado e o arquivo declara ACCTID diferente,
+            // bloqueia antes de inserir. Tenta achar a conta certa pra dar uma dica.
+            if (bankAcc?.ofx_acctid && summary.acctId && bankAcc.ofx_acctid !== summary.acctId) {
+                const { data: matchAcc } = await (activeClient as any)
+                    .from('bank_accounts')
+                    .select('id, name, companies(nome_fantasia)')
+                    .eq('ofx_acctid', summary.acctId)
+                    .limit(1)
+                    .maybeSingle();
+                const matchEmpresa = matchAcc?.companies?.nome_fantasia;
+                const hint = matchAcc
+                    ? ` Esse ACCTID está cadastrado em "${matchAcc.name}"${matchEmpresa ? ` (${matchEmpresa})` : ''}.`
+                    : '';
+                throw new Error(
+                    `Extrato de outra conta: ACCTID do arquivo (${summary.acctId}) não bate com a conta "${bankAcc.name}" (${bankAcc.ofx_acctid}).${hint}`
+                );
+            }
+
             const toInsert = parsed.map(tx => {
                 // Ensure strictly only columns that exist in DB
                 const sanitized = {
@@ -252,11 +278,6 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const closingDateForBalance = summary.closingDate || summary.periodEnd;
             if (closingDateForBalance) {
                 try {
-                    const { data: bankAcc } = await (activeClient as any)
-                        .from('bank_accounts')
-                        .select('initial_balance, data_saldo_inicial')
-                        .eq('id', bankAccountId)
-                        .maybeSingle();
                     const initial = Number(bankAcc?.initial_balance ?? 0);
                     const closeIso = format(closingDateForBalance, 'yyyy-MM-dd');
                     const { data: movs } = await (activeClient as any)
