@@ -140,6 +140,9 @@ export default function Conciliacao() {
     // Multi-select dentro do modal Conciliar (para 1 bt → N CR/CP que somam igual)
     const [selectedSysTxsForMatch, setSelectedSysTxsForMatch] = useState<{ id: string; type: 'payable' | 'receivable' }[]>([]);
     const [isMatchingMultiple, setIsMatchingMultiple] = useState(false);
+    // Categoria pra registrar a DIFERENÇA quando soma dos selecionados ≠ valor do extrato
+    // (juros/multa/tarifa quando pagou mais; desconto quando pagou menos)
+    const [diferencaCategoryId, setDiferencaCategoryId] = useState<string>("");
 
     // Modal "Lançar como venda" — cria venda + CR pago + mov + match a partir de uma entrada
     const [lancarVendaBt, setLancarVendaBt] = useState<BankTransaction | null>(null);
@@ -2240,13 +2243,26 @@ export default function Conciliacao() {
                                                 const pctBarra = Math.min(100, pctReal);
                                                 const bate = btAmount > 0 && Math.abs(somaSelecionada - btAmount) < 0.01;
                                                 const excedeu = somaSelecionada > btAmount + 0.01;
-                                                const diferenca = btAmount - somaSelecionada;
+                                                const diferenca = btAmount - somaSelecionada;        // signed
+                                                const diffAmount = Math.abs(diferenca);              // abs
+                                                const btIsExpense = selectedBankTx.amount < 0;
+                                                const bancoMaior = diferenca > 0.01;
+                                                // Diferença é despesa adicional quando:
+                                                //   - bt é saída e banco>sys (pagou mais → juros/multa) OU
+                                                //   - bt é entrada e banco<sys (recebeu menos → taxa)
+                                                // Caso contrário, é receita adicional (desconto/juros recebidos).
+                                                const diffIsExpense = (btIsExpense && bancoMaior) || (!btIsExpense && !bancoMaior);
+                                                const diffLabel = diffIsExpense ? "Despesa adicional (juros/multa/tarifa)" : "Receita adicional (desconto/juros)";
+                                                const diffCategorias = (chartCategories || []).filter((c: any) => c.type === (diffIsExpense ? 'despesa' : 'receita'));
+                                                const podeAjustar = selecionados.length > 0 && diffAmount > 0.01 && !!diferencaCategoryId;
                                                 const corBarra = bate ? '#059669' : excedeu ? '#E53E3E' : '#EA580C';
 
                                                 const handleConciliarMultiplos = async () => {
-                                                    if (!selectedBankTx || selecionados.length === 0 || !bate) return;
+                                                    if (!selectedBankTx || selecionados.length === 0) return;
+                                                    if (!bate && !podeAjustar) return;
                                                     setIsMatchingMultiple(true);
                                                     try {
+                                                        // 1. Concilia os CR/CPs selecionados (com seus valores originais)
                                                         for (const st of selecionados) {
                                                             await matchTransaction.mutateAsync({
                                                                 bankTx: selectedBankTx,
@@ -2254,9 +2270,59 @@ export default function Conciliacao() {
                                                                 overrides: { amount: Number(st.amount), date: selectedBankTx.date },
                                                             });
                                                         }
-                                                        toast({ title: "Conciliado", description: `${selecionados.length} lançamento(s) vinculado(s)` });
+
+                                                        // 2. Se há diferença, cria CP/CR adicional pra registrar ela
+                                                        //    com a categoria escolhida e marca como pago no dia do extrato.
+                                                        let ajusteCriado = false;
+                                                        if (!bate && diffAmount > 0.01 && diferencaCategoryId && selectedCompany?.id) {
+                                                            const extraTable = diffIsExpense ? 'contas_pagar' : 'contas_receber';
+                                                            const nameCol = diffIsExpense ? 'credor_nome' : 'pagador_nome';
+                                                            const fkCol = diffIsExpense ? 'conta_pagar_id' : 'conta_receber_id';
+                                                            const origemMov = diffIsExpense ? 'conta_pagar' : 'conta_receber';
+                                                            const tipoMov = diffIsExpense ? 'debito' : 'credito';
+                                                            const descricaoExtra = `${diffIsExpense ? 'Juros/Tarifa' : 'Desconto/Juros recebidos'}: ${selectedBankTx.description || 'conciliação'}`;
+
+                                                            const payload: any = {
+                                                                company_id: selectedCompany.id,
+                                                                [nameCol]: descricaoExtra.substring(0, 200),
+                                                                valor: diffAmount,
+                                                                valor_pago: diffAmount,
+                                                                data_vencimento: selectedBankTx.date,
+                                                                data_pagamento: selectedBankTx.date,
+                                                                status: 'pago',
+                                                                conta_contabil_id: diferencaCategoryId,
+                                                                created_via_bank_tx_id: selectedBankTx.id,
+                                                            };
+                                                            const { data: createdExtra, error: extraErr } = await (activeClient as any)
+                                                                .from(extraTable).insert(payload).select('id').single();
+                                                            if (extraErr) throw extraErr;
+
+                                                            const { error: movErr } = await (activeClient as any)
+                                                                .from('movimentacoes')
+                                                                .insert({
+                                                                    company_id: selectedCompany.id,
+                                                                    conta_bancaria_id: selectedBankTx.bank_account_id,
+                                                                    conta_contabil_id: diferencaCategoryId,
+                                                                    [fkCol]: createdExtra.id,
+                                                                    tipo: tipoMov,
+                                                                    valor: diffAmount,
+                                                                    data: selectedBankTx.date,
+                                                                    descricao: descricaoExtra,
+                                                                    origem: origemMov,
+                                                                });
+                                                            if (movErr) throw movErr;
+                                                            ajusteCriado = true;
+                                                        }
+
+                                                        toast({
+                                                            title: "Conciliado",
+                                                            description: ajusteCriado
+                                                                ? `${selecionados.length} lançamento(s) + ajuste de ${formatBRL(diffAmount)}`
+                                                                : `${selecionados.length} lançamento(s) vinculado(s)`,
+                                                        });
                                                         setSelectedBankTx(null);
                                                         setSelectedSysTxsForMatch([]);
+                                                        setDiferencaCategoryId("");
                                                     } catch (e: any) {
                                                         toast({ title: "Erro", description: e?.message || "Falha na conciliação múltipla", variant: "destructive" });
                                                     } finally {
@@ -2281,24 +2347,44 @@ export default function Conciliacao() {
                                                         {bate && (
                                                             <p className="text-[11px] text-emerald-700 font-medium">Soma bateu com o extrato — pronto pra conciliar.</p>
                                                         )}
-                                                        {!bate && !excedeu && (
-                                                            <p className="text-[11px] text-[#EA580C]">Faltam <strong>{formatBRL(diferenca)}</strong> — selecione mais lançamentos pra somar até o valor do extrato.</p>
-                                                        )}
-                                                        {excedeu && (
-                                                            <p className="text-[11px] text-red-600">Passou <strong>{formatBRL(Math.abs(diferenca))}</strong> — desmarque algum item ou troque por um menor.</p>
+                                                        {!bate && (
+                                                            <div className="space-y-2 pt-1 border-t border-[#EAECF0]">
+                                                                <p className="text-[11px] text-[#EA580C]">
+                                                                    Diferença de <strong>{formatBRL(diffAmount)}</strong> — registre como {diffLabel.toLowerCase()} ou ajuste a seleção.
+                                                                </p>
+                                                                <div>
+                                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                                                        Categoria pra diferença
+                                                                    </Label>
+                                                                    <Select value={diferencaCategoryId} onValueChange={setDiferencaCategoryId}>
+                                                                        <SelectTrigger className="h-8 text-xs mt-1">
+                                                                            <SelectValue placeholder={`Selecionar categoria (${diffIsExpense ? 'despesa' : 'receita'})`} />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {diffCategorias.map((cat: any) => (
+                                                                                <SelectItem key={cat.id} value={cat.id}>
+                                                                                    {cat.code} {cat.name}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            </div>
                                                         )}
                                                         <div className="flex gap-2 justify-end pt-1">
-                                                            <Button variant="outline" size="sm" onClick={() => setSelectedSysTxsForMatch([])}>
+                                                            <Button variant="outline" size="sm" onClick={() => { setSelectedSysTxsForMatch([]); setDiferencaCategoryId(""); }}>
                                                                 Limpar seleção
                                                             </Button>
                                                             <Button
                                                                 size="sm"
                                                                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                disabled={!bate || isMatchingMultiple}
+                                                                disabled={(!bate && !podeAjustar) || isMatchingMultiple}
                                                                 onClick={handleConciliarMultiplos}
                                                             >
                                                                 {isMatchingMultiple ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
-                                                                Conciliar {selecionados.length} lançamento{selecionados.length !== 1 ? 's' : ''}
+                                                                {bate
+                                                                    ? `Conciliar ${selecionados.length} lançamento${selecionados.length !== 1 ? 's' : ''}`
+                                                                    : `Conciliar + ajuste de ${formatBRL(diffAmount)}`}
                                                             </Button>
                                                         </div>
                                                     </div>
