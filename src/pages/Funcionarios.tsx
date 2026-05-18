@@ -172,6 +172,167 @@ export default function Funcionarios() {
     setErrors(e => ({ ...e, [k]: false }));
   };
 
+  const onlyDigitsHelper = (v: string | null | undefined) => (v || "").replace(/\D/g, "");
+  const normalizeName = (v: string | null | undefined) =>
+    (v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+
+  const { data: pagamentos = [], isLoading: loadingPagamentos } = useQuery({
+    queryKey: ["pagamentos-funcionario", selected?.id, selected?.cpf, selected?.chave_pix_folha],
+    queryFn: async () => {
+      if (!selected?.id || !selectedCompany?.id) return [];
+      const db = activeClient as any;
+      const cpfDigits = onlyDigitsHelper(selected.cpf);
+      const fullName = normalizeName(getName(selected));
+      const tokens = fullName.split(" ").filter(t => t.length >= 3);
+      const pix = (selected.chave_pix_folha || "").trim();
+
+      const [folhaRes, benRes, candidatosRes] = await Promise.all([
+        db.from("folha_pagamento")
+          .select("id, competencia, tipo, valor_liquido, status, conta_pagar_id, cp:conta_pagar_id(id, status, data_pagamento, valor_pago, valor, deleted_at, conta_bancaria_id, bank:conta_bancaria_id(name))")
+          .eq("company_id", selectedCompany.id)
+          .eq("employee_id", selected.id)
+          .order("competencia", { ascending: false }),
+        db.from("employee_benefits_lancamentos")
+          .select("id, competencia, vt_custo_empresa, va_custo_empresa, cp_vt_id, cp_va_id, cp_vt:cp_vt_id(id, status, data_pagamento, valor_pago, valor, deleted_at, bank:conta_bancaria_id(name)), cp_va:cp_va_id(id, status, data_pagamento, valor_pago, valor, deleted_at, bank:conta_bancaria_id(name))")
+          .eq("company_id", selectedCompany.id)
+          .eq("employee_id", selected.id)
+          .order("competencia", { ascending: false }),
+        (async () => {
+          if (!cpfDigits && tokens.length === 0 && !pix) return { data: [] };
+          const orParts: string[] = [];
+          if (cpfDigits) {
+            orParts.push(`credor_cpf_cnpj.ilike.*${cpfDigits.slice(0, 3)}*${cpfDigits.slice(3, 6)}*${cpfDigits.slice(6, 9)}*`);
+          }
+          for (const t of tokens) orParts.push(`credor_nome.ilike.*${t}*`);
+          if (pix) orParts.push(`observacoes.ilike.*${pix}*`);
+          let q = db.from("contas_pagar")
+            .select("id, valor, valor_pago, data_vencimento, data_pagamento, status, observacoes, credor_nome, credor_cpf_cnpj, bank:conta_bancaria_id(name)")
+            .eq("company_id", selectedCompany.id)
+            .is("deleted_at", null)
+            .order("data_vencimento", { ascending: false })
+            .limit(500);
+          if (orParts.length) q = q.or(orParts.join(","));
+          return await q;
+        })(),
+      ]);
+
+      // Strict filter on candidates: must match CPF, full name, all tokens, or PIX
+      const manuaisRes = {
+        data: ((candidatosRes.data ?? []) as any[]).filter(cp => {
+          const cpCpf = onlyDigitsHelper(cp.credor_cpf_cnpj);
+          if (cpfDigits && cpCpf === cpfDigits) return true;
+          const cpName = normalizeName(cp.credor_nome);
+          if (cpName && fullName && (cpName === fullName || cpName.startsWith(fullName) || fullName.startsWith(cpName))) return true;
+          if (cpName && tokens.length >= 2 && tokens.every(t => cpName.includes(t))) return true;
+          if (pix && cp.observacoes && cp.observacoes.includes(pix)) return true;
+          return false;
+        }),
+      };
+
+      const linkedCpIds = new Set<string>();
+      const folhaRows = (folhaRes.data ?? []).map((f: any) => {
+        if (f.conta_pagar_id) linkedCpIds.add(f.conta_pagar_id);
+        const cpStatus = f.cp?.status;
+        const cpDeleted = !!f.cp?.deleted_at;
+        const tipoLabel = f.tipo === "mensal" ? "Salário" : f.tipo === "ferias" ? "Férias" : f.tipo === "rescisao" ? "Rescisão" : f.tipo === "13_primeiro" ? "13º — 1ª parc." : f.tipo === "13_segundo" ? "13º — 2ª parc." : f.tipo === "adiantamento" ? "Adiantamento" : f.tipo;
+        return {
+          id: `folha-${f.id}`,
+          tipo: tipoLabel,
+          competencia: f.competencia,
+          valor: Number(f.cp?.valor_pago ?? f.valor_liquido ?? f.cp?.valor ?? 0),
+          data_pagamento: f.cp?.data_pagamento ?? null,
+          conta: f.cp?.bank?.name ?? null,
+          status: cpDeleted ? "cancelado" : (cpStatus ?? (f.status === "paga" ? "pago" : "aberto")),
+          source: "folha" as const,
+        };
+      });
+
+      const benRows: any[] = [];
+      for (const b of benRes.data ?? []) {
+        if (b.cp_vt_id) linkedCpIds.add(b.cp_vt_id);
+        if (b.cp_va_id) linkedCpIds.add(b.cp_va_id);
+        if (Number(b.vt_custo_empresa) > 0) {
+          const cpDeleted = !!b.cp_vt?.deleted_at;
+          benRows.push({
+            id: `ben-vt-${b.id}`,
+            tipo: "Vale Transporte",
+            competencia: b.competencia,
+            valor: Number(b.cp_vt?.valor_pago ?? b.vt_custo_empresa ?? 0),
+            data_pagamento: b.cp_vt?.data_pagamento ?? null,
+            conta: b.cp_vt?.bank?.name ?? null,
+            status: cpDeleted ? "cancelado" : (b.cp_vt?.status ?? "aberto"),
+            source: "beneficio" as const,
+          });
+        }
+        if (Number(b.va_custo_empresa) > 0) {
+          const cpDeleted = !!b.cp_va?.deleted_at;
+          benRows.push({
+            id: `ben-va-${b.id}`,
+            tipo: "Vale Alimentação",
+            competencia: b.competencia,
+            valor: Number(b.cp_va?.valor_pago ?? b.va_custo_empresa ?? 0),
+            data_pagamento: b.cp_va?.data_pagamento ?? null,
+            conta: b.cp_va?.bank?.name ?? null,
+            status: cpDeleted ? "cancelado" : (b.cp_va?.status ?? "aberto"),
+            source: "beneficio" as const,
+          });
+        }
+      }
+
+      const manuaisRows = ((manuaisRes.data ?? []) as any[])
+        .filter(c => !linkedCpIds.has(c.id))
+        .map(c => ({
+          id: `cp-${c.id}`,
+          cp_id: c.id,
+          cp_cpf: c.credor_cpf_cnpj ?? null,
+          tipo: c.observacoes?.trim() || c.credor_nome || "CP manual",
+          competencia: c.data_vencimento ? c.data_vencimento.slice(0, 7) : "",
+          valor: Number(c.valor_pago ?? c.valor ?? 0),
+          data_pagamento: c.data_pagamento ?? null,
+          conta: c.bank?.name ?? null,
+          status: c.status ?? "aberto",
+          source: "manual" as const,
+        }));
+
+      const all = [...folhaRows, ...benRows, ...manuaisRows];
+      all.sort((a, b) => {
+        const ak = a.data_pagamento ?? a.competencia ?? "";
+        const bk = b.data_pagamento ?? b.competencia ?? "";
+        return bk.localeCompare(ak);
+      });
+      return all;
+    },
+    enabled: !!selected?.id && !!selectedCompany?.id && tab === "salarios",
+  });
+
+  const totalPagoFunc = useMemo(
+    () => pagamentos.filter((p: any) => p.status === "pago").reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0),
+    [pagamentos]
+  );
+
+  const vincularPagamento = async (cpId: string) => {
+    if (!selected?.cpf) {
+      toast.error("Cadastre o CPF do funcionário antes de vincular.");
+      return;
+    }
+    const cpfDigits = onlyDigitsHelper(selected.cpf);
+    const ok = await confirm({
+      title: "Vincular este pagamento ao funcionário?",
+      description: `O CPF ${selected.cpf} será gravado nesta conta a pagar e o vínculo passará a ser permanente.`,
+      confirmLabel: "Sim, vincular",
+    });
+    if (!ok) return;
+    try {
+      const { error } = await (activeClient as any)
+        .from("contas_pagar").update({ credor_cpf_cnpj: cpfDigits }).eq("id", cpId);
+      if (error) throw error;
+      toast.success("Pagamento vinculado ao funcionário.");
+      queryClient.invalidateQueries({ queryKey: ["pagamentos-funcionario", selected.id] });
+    } catch (err: any) {
+      toast.error("Erro ao vincular: " + (err.message || err.details || "desconhecido"));
+    }
+  };
+
   const startEdit = (emp: Employee) => {
     setSelectedId(emp.id);
     setIsCreating(false);
@@ -470,8 +631,9 @@ export default function Funcionarios() {
                 )}
 
                 {tab === "salarios" && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                      <div className="bg-[#F6F2EB] px-4 py-2"><span className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Salário Base Atual</span></div>
                       <table className="w-full text-sm">
                         <thead className="bg-[#F6F2EB]">
                           <tr><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Vigência</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Salário Base</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Variação</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Motivo</th></tr>
@@ -488,7 +650,83 @@ export default function Funcionarios() {
                         </tbody>
                       </table>
                     </div>
-                    <p className="text-xs text-[#555]">Histórico completo será carregado quando a tabela salary_history estiver disponível.</p>
+
+                    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                      <div className="bg-[#059669] px-4 py-2 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Pagamentos efetuados</span>
+                        <span className="text-[10px] font-bold text-white/90">Total pago: {formatBRL(totalPagoFunc)}</span>
+                      </div>
+                      {loadingPagamentos ? (
+                        <div className="p-8 text-center text-[#555] text-sm">Carregando…</div>
+                      ) : pagamentos.length === 0 ? (
+                        <div className="p-8 text-center text-[#555] text-sm">
+                          Nenhum lançamento encontrado para este funcionário.
+                          {!selected?.cpf && <div className="mt-1 text-[11px]">Dica: cadastre o CPF para identificar CPs lançadas manualmente.</div>}
+                        </div>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead className="bg-[#F6F2EB]">
+                            <tr>
+                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Competência</th>
+                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Tipo</th>
+                              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Valor</th>
+                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Pago em</th>
+                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Conta</th>
+                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Status</th>
+                              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pagamentos.map((p: any) => {
+                              const compLabel = p.competencia && /^\d{4}-\d{2}/.test(p.competencia)
+                                ? p.competencia.slice(0, 7).split("-").reverse().join("/")
+                                : (p.competencia || "—");
+                              const statusBadge =
+                                p.status === "pago"   ? "bg-[#ECFDF4] text-[#059669]" :
+                                p.status === "parcial"? "bg-[#FEF3C7] text-[#92400E]" :
+                                p.status === "vencido"? "bg-[#FEE2E2] text-[#991B1B]" :
+                                p.status === "cancelado" ? "bg-[#EAECF0] text-[#555]" :
+                                                        "bg-[#F6F2EB] text-[#555]";
+                              const statusLabel =
+                                p.status === "pago" ? "Pago" :
+                                p.status === "parcial" ? "Parcial" :
+                                p.status === "vencido" ? "Vencido" :
+                                p.status === "cancelado" ? "Cancelado" :
+                                "Em aberto";
+                              const sourceBadge =
+                                p.source === "folha"     ? "bg-[#E0E7FF] text-[#3730A3]" :
+                                p.source === "beneficio" ? "bg-[#FCE7F3] text-[#9D174D]" :
+                                                          "bg-[#F6F2EB] text-[#555]";
+                              const sourceLabel =
+                                p.source === "folha" ? "Folha" :
+                                p.source === "beneficio" ? "Benefício" :
+                                "Manual";
+                              const podeVincular = p.source === "manual" && p.cp_id && (!p.cp_cpf || onlyDigitsHelper(p.cp_cpf) !== onlyDigitsHelper(selected?.cpf));
+                              return (
+                                <tr key={p.id} className="border-t border-[#eee]">
+                                  <td className="px-4 py-2.5">{compLabel}</td>
+                                  <td className="px-4 py-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sourceBadge}`}>{sourceLabel}</span>
+                                      <span className="truncate max-w-[260px]" title={p.tipo}>{p.tipo}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right font-semibold">{formatBRL(p.valor)}</td>
+                                  <td className="px-4 py-2.5 text-[#555]">{p.data_pagamento ? new Date(p.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                                  <td className="px-4 py-2.5 text-[#555]">{p.conta || "—"}</td>
+                                  <td className="px-4 py-2.5"><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span></td>
+                                  <td className="px-4 py-2.5 text-right">
+                                    {podeVincular && selected?.cpf ? (
+                                      <button onClick={() => vincularPagamento(p.cp_id)} className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-1">Vincular CPF</button>
+                                    ) : null}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
                 )}
 
