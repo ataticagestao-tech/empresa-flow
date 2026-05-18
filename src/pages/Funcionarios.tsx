@@ -631,101 +631,114 @@ export default function Funcionarios() {
                 )}
 
                 {tab === "salarios" && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                      <div className="bg-[#F6F2EB] px-4 py-2"><span className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Salário Base Atual</span></div>
-                      <table className="w-full text-sm">
+                      <div className="bg-[#F6F2EB] px-3 py-1.5"><span className="text-[9px] font-bold uppercase tracking-wider text-[#555]">Salário Base Atual</span></div>
+                      <table className="w-full text-xs">
                         <thead className="bg-[#F6F2EB]">
-                          <tr><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Vigência</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Salário Base</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Variação</th><th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Motivo</th></tr>
+                          <tr>
+                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Vigência</th>
+                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Salário</th>
+                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Var.</th>
+                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Motivo</th>
+                          </tr>
                         </thead>
                         <tbody>
                           {selected ? (
-                            <tr className="border-t border-[#eee] font-bold">
-                              <td className="px-4 py-2.5">{selected.hire_date ? new Date(selected.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
-                              <td className="px-4 py-2.5">{formatBRL(selected.salario_base || selected.salary || 0)}</td>
-                              <td className="px-4 py-2.5"><span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#ECFDF4] text-[#059669]">Atual</span></td>
-                              <td className="px-4 py-2.5 text-[#555]">Admissão</td>
+                            <tr className="border-t border-[#eee] font-semibold">
+                              <td className="px-2.5 py-1.5">{selected.hire_date ? new Date(selected.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                              <td className="px-2.5 py-1.5">{formatBRL(selected.salario_base || selected.salary || 0)}</td>
+                              <td className="px-2.5 py-1.5"><span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ECFDF4] text-[#059669]">Atual</span></td>
+                              <td className="px-2.5 py-1.5 text-[#555]">Admissão</td>
                             </tr>
-                          ) : <tr><td colSpan={4} className="px-4 py-8 text-center text-[#555]">Selecione um funcionário</td></tr>}
+                          ) : <tr><td colSpan={4} className="px-3 py-6 text-center text-[#555]">Selecione um funcionário</td></tr>}
                         </tbody>
                       </table>
                     </div>
 
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                      <div className="bg-[#059669] px-4 py-2 flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Pagamentos efetuados</span>
-                        <span className="text-[10px] font-bold text-white/90">Total pago: {formatBRL(totalPagoFunc)}</span>
+                      <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-white">Pagamentos</span>
+                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatBRL(totalPagoFunc)}</span>
                       </div>
                       {loadingPagamentos ? (
-                        <div className="p-8 text-center text-[#555] text-sm">Carregando…</div>
+                        <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
                       ) : pagamentos.length === 0 ? (
-                        <div className="p-8 text-center text-[#555] text-sm">
-                          Nenhum lançamento encontrado para este funcionário.
-                          {!selected?.cpf && <div className="mt-1 text-[11px]">Dica: cadastre o CPF para identificar CPs lançadas manualmente.</div>}
+                        <div className="p-6 text-center text-[#555] text-xs">
+                          Nenhum lançamento encontrado.
+                          {!selected?.cpf && <div className="mt-1 text-[10px]">Cadastre o CPF para identificar CPs manuais.</div>}
                         </div>
                       ) : (
-                        <table className="w-full text-sm">
-                          <thead className="bg-[#F6F2EB]">
-                            <tr>
-                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Competência</th>
-                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Tipo</th>
-                              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Valor</th>
-                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Pago em</th>
-                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Conta</th>
-                              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Status</th>
-                              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase text-[#555]">Ação</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {pagamentos.map((p: any) => {
-                              const compLabel = p.competencia && /^\d{4}-\d{2}/.test(p.competencia)
-                                ? p.competencia.slice(0, 7).split("-").reverse().join("/")
-                                : (p.competencia || "—");
-                              const statusBadge =
-                                p.status === "pago"   ? "bg-[#ECFDF4] text-[#059669]" :
-                                p.status === "parcial"? "bg-[#FEF3C7] text-[#92400E]" :
-                                p.status === "vencido"? "bg-[#FEE2E2] text-[#991B1B]" :
-                                p.status === "cancelado" ? "bg-[#EAECF0] text-[#555]" :
-                                                        "bg-[#F6F2EB] text-[#555]";
-                              const statusLabel =
-                                p.status === "pago" ? "Pago" :
-                                p.status === "parcial" ? "Parcial" :
-                                p.status === "vencido" ? "Vencido" :
-                                p.status === "cancelado" ? "Cancelado" :
-                                "Em aberto";
-                              const sourceBadge =
-                                p.source === "folha"     ? "bg-[#E0E7FF] text-[#3730A3]" :
-                                p.source === "beneficio" ? "bg-[#FCE7F3] text-[#9D174D]" :
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[11px]">
+                            <thead className="bg-[#F6F2EB]">
+                              <tr>
+                                <th className="text-left px-2 py-1.5 text-[9px] font-bold uppercase text-[#555]">Comp.</th>
+                                <th className="text-left px-2 py-1.5 text-[9px] font-bold uppercase text-[#555]">Tipo</th>
+                                <th className="text-right px-2 py-1.5 text-[9px] font-bold uppercase text-[#555]">Valor</th>
+                                <th className="text-left px-2 py-1.5 text-[9px] font-bold uppercase text-[#555]">Pago</th>
+                                <th className="text-left px-2 py-1.5 text-[9px] font-bold uppercase text-[#555]">Conta</th>
+                                <th className="text-left px-2 py-1.5 text-[9px] font-bold uppercase text-[#555]">St.</th>
+                                <th className="px-1 py-1.5"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pagamentos.map((p: any) => {
+                                const compLabel = p.competencia && /^\d{4}-\d{2}/.test(p.competencia)
+                                  ? p.competencia.slice(2, 7).split("-").reverse().join("/")
+                                  : (p.competencia || "—");
+                                const statusBadge =
+                                  p.status === "pago"   ? "bg-[#ECFDF4] text-[#059669]" :
+                                  p.status === "parcial"? "bg-[#FEF3C7] text-[#92400E]" :
+                                  p.status === "vencido"? "bg-[#FEE2E2] text-[#991B1B]" :
+                                  p.status === "cancelado" ? "bg-[#EAECF0] text-[#555]" :
                                                           "bg-[#F6F2EB] text-[#555]";
-                              const sourceLabel =
-                                p.source === "folha" ? "Folha" :
-                                p.source === "beneficio" ? "Benefício" :
-                                "Manual";
-                              const podeVincular = p.source === "manual" && p.cp_id && (!p.cp_cpf || onlyDigitsHelper(p.cp_cpf) !== onlyDigitsHelper(selected?.cpf));
-                              return (
-                                <tr key={p.id} className="border-t border-[#eee]">
-                                  <td className="px-4 py-2.5">{compLabel}</td>
-                                  <td className="px-4 py-2.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sourceBadge}`}>{sourceLabel}</span>
-                                      <span className="truncate max-w-[260px]" title={p.tipo}>{p.tipo}</span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-2.5 text-right font-semibold">{formatBRL(p.valor)}</td>
-                                  <td className="px-4 py-2.5 text-[#555]">{p.data_pagamento ? new Date(p.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
-                                  <td className="px-4 py-2.5 text-[#555]">{p.conta || "—"}</td>
-                                  <td className="px-4 py-2.5"><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span></td>
-                                  <td className="px-4 py-2.5 text-right">
-                                    {podeVincular && selected?.cpf ? (
-                                      <button onClick={() => vincularPagamento(p.cp_id)} className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-1">Vincular CPF</button>
-                                    ) : null}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                                const statusLabel =
+                                  p.status === "pago" ? "Pago" :
+                                  p.status === "parcial" ? "Parc." :
+                                  p.status === "vencido" ? "Venc." :
+                                  p.status === "cancelado" ? "Canc." :
+                                  "Aberto";
+                                const sourceDot =
+                                  p.source === "folha"     ? "bg-[#3730A3]" :
+                                  p.source === "beneficio" ? "bg-[#9D174D]" :
+                                                            "bg-[#aaa]";
+                                const sourceTitle =
+                                  p.source === "folha" ? "Folha" :
+                                  p.source === "beneficio" ? "Benefício" :
+                                  "Manual";
+                                const podeVincular = p.source === "manual" && p.cp_id && (!p.cp_cpf || onlyDigitsHelper(p.cp_cpf) !== onlyDigitsHelper(selected?.cpf));
+                                const dataPagoLabel = p.data_pagamento ? new Date(p.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR").slice(0, 5) : "—";
+                                return (
+                                  <tr key={p.id} className="border-t border-[#eee]">
+                                    <td className="px-2 py-1.5 whitespace-nowrap">{compLabel}</td>
+                                    <td className="px-2 py-1.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sourceDot}`} title={sourceTitle}></span>
+                                        <span className="truncate max-w-[140px]" title={p.tipo}>{p.tipo}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">{formatBRL(p.valor)}</td>
+                                    <td className="px-2 py-1.5 text-[#555] whitespace-nowrap">{dataPagoLabel}</td>
+                                    <td className="px-2 py-1.5 text-[#555] truncate max-w-[80px]" title={p.conta || ""}>{p.conta || "—"}</td>
+                                    <td className="px-2 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span></td>
+                                    <td className="px-1 py-1.5 text-right">
+                                      {podeVincular && selected?.cpf ? (
+                                        <button onClick={() => vincularPagamento(p.cp_id)} title="Gravar CPF na conta a pagar" className="text-[9px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-1.5 py-0.5">Vincular</button>
+                                      ) : null}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
+                      <div className="bg-[#F6F2EB] px-3 py-1.5 border-t border-[#eee] flex items-center gap-3 text-[9px] text-[#555]">
+                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#3730A3]"></span>Folha</span>
+                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#9D174D]"></span>Benefício</span>
+                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#aaa]"></span>Manual</span>
+                      </div>
                     </div>
                   </div>
                 )}
