@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, Copy } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Copy, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
     Table,
@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
 import { DuplicatesDialog } from "@/components/suppliers/DuplicatesDialog";
+import { SupplierHistoryDialog } from "@/components/suppliers/SupplierHistoryDialog";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +32,7 @@ export default function Fornecedores() {
     const [editingSupplier, setEditingSupplier] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDupOpen, setIsDupOpen] = useState(false);
+    const [historySupplier, setHistorySupplier] = useState<any | null>(null);
     const [searchParams, setSearchParams] = useSearchParams();
 
     const normalizeSearch = (value: unknown) =>
@@ -200,10 +202,13 @@ export default function Fornecedores() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(supplier)}>
+                                                <Button variant="ghost" size="icon" onClick={() => setHistorySupplier(supplier)} title="Histórico de pagamentos / PDF">
+                                                    <FileText className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(supplier)} title="Editar">
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier)}>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier)} title="Excluir">
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>
@@ -228,6 +233,12 @@ export default function Fornecedores() {
                     open={isDupOpen}
                     onOpenChange={setIsDupOpen}
                     onApplied={() => refetch()}
+                />
+
+                <SupplierHistoryDialog
+                    open={!!historySupplier}
+                    onOpenChange={(o) => { if (!o) setHistorySupplier(null); }}
+                    supplier={historySupplier}
                 />
             </div>
         </AppLayout>
