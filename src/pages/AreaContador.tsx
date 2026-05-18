@@ -30,25 +30,25 @@ interface BankAccount {
   banco: string | null;
 }
 
-interface BankTx {
+interface Movimentacao {
   id: string;
-  date: string;
-  amount: number;
-  description: string | null;
-  memo: string | null;
-  status: string;
-  bank_account_id: string;
-  reconciled_at: string | null;
-  reconciliation_note: string | null;
-  reconciled_payable_id: string | null;
-  reconciled_receivable_id: string | null;
+  data: string;
+  valor: number;                    // sempre positivo; sinal vem de tipo
+  tipo: "credito" | "debito";
+  descricao: string | null;
+  origem: string;                   // 'manual' | 'ofx' | 'conta_receber' | 'conta_pagar' | 'transferencia'
+  conta_bancaria_id: string;
+  conta_contabil_id: string | null; // categoria preenchida diretamente na mov
+  centro_custo_id: string | null;
+  conta_receber_id: string | null;
+  conta_pagar_id: string | null;
 }
 
 interface ContaPagar {
   id: string;
   credor_nome: string | null;
   descricao: string | null;
-  category_id: string | null;
+  conta_contabil_id: string | null;
   centro_custo_id: string | null;
 }
 
@@ -56,7 +56,7 @@ interface ContaReceber {
   id: string;
   pagador_nome: string | null;
   descricao: string | null;
-  category_id: string | null;
+  conta_contabil_id: string | null;
   centro_custo_id: string | null;
 }
 
@@ -141,30 +141,32 @@ export default function AreaContador() {
     enabled: !!cId,
   });
 
+  // Movimentações = fonte da verdade do fluxo de caixa (real activity).
+  // Mudou de bank_transactions porque aquela só pegava txs vindas de
+  // extrato OFX conciliado — perdia CR/CP quitados manualmente + ajustes.
   const {
     data: txs = [],
     isLoading: loadingTx,
-  } = useQuery<BankTx[]>({
-    queryKey: ["ac_txs", cId, selectedAccountId, startDate, endDate],
+  } = useQuery<Movimentacao[]>({
+    queryKey: ["ac_movs", cId, selectedAccountId, startDate, endDate],
     queryFn: async () => {
       let q = (db as any)
-        .from("bank_transactions")
+        .from("movimentacoes")
         .select(
-          `id, date, amount, description, memo, status, bank_account_id,
-           reconciled_at, reconciliation_note,
-           reconciled_payable_id, reconciled_receivable_id`,
+          `id, data, valor, tipo, descricao, origem,
+           conta_bancaria_id, conta_contabil_id, centro_custo_id,
+           conta_receber_id, conta_pagar_id`,
         )
         .eq("company_id", cId)
-        .eq("status", "reconciled")
-        .gte("date", startDate)
-        .lte("date", endDate)
-        .order("date", { ascending: true });
+        .gte("data", startDate)
+        .lte("data", endDate)
+        .order("data", { ascending: true });
       if (selectedAccountId !== "all") {
-        q = q.eq("bank_account_id", selectedAccountId);
+        q = q.eq("conta_bancaria_id", selectedAccountId);
       }
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as BankTx[];
+      return (data ?? []) as Movimentacao[];
     },
     enabled: !!cId,
   });
@@ -174,7 +176,7 @@ export default function AreaContador() {
       Array.from(
         new Set(
           txs
-            .map((t) => t.reconciled_payable_id)
+            .map((t) => t.conta_pagar_id)
             .filter((x): x is string => !!x),
         ),
       ),
@@ -185,7 +187,7 @@ export default function AreaContador() {
       Array.from(
         new Set(
           txs
-            .map((t) => t.reconciled_receivable_id)
+            .map((t) => t.conta_receber_id)
             .filter((x): x is string => !!x),
         ),
       ),
@@ -198,7 +200,7 @@ export default function AreaContador() {
       if (payIds.length === 0) return [];
       const { data } = await (db as any)
         .from("contas_pagar")
-        .select("id, credor_nome, descricao, category_id, centro_custo_id")
+        .select("id, credor_nome, descricao, conta_contabil_id, centro_custo_id")
         .in("id", payIds);
       return (data ?? []) as ContaPagar[];
     },
@@ -211,7 +213,7 @@ export default function AreaContador() {
       if (recIds.length === 0) return [];
       const { data } = await (db as any)
         .from("contas_receber")
-        .select("id, pagador_nome, descricao, category_id, centro_custo_id")
+        .select("id, pagador_nome, descricao, conta_contabil_id, centro_custo_id")
         .in("id", recIds);
       return (data ?? []) as ContaReceber[];
     },
@@ -281,8 +283,8 @@ export default function AreaContador() {
     accountName: string;
     description: string;
     memo: string;
-    amount: number;
-    type: "Crédito (CR)" | "Débito (CP)" | "Outro";
+    amount: number;                                  // com sinal: credito=+, debito=-
+    type: "Crédito (CR)" | "Débito (CP)" | "Transferência" | "Manual" | "OFX direto" | "Outro";
     counterparty: string;
     categoryCode: string;
     categoryName: string;
@@ -292,35 +294,47 @@ export default function AreaContador() {
 
   const rows: Row[] = useMemo(() => {
     return txs.map((t) => {
-      const acc = accountById.get(t.bank_account_id);
+      const acc = accountById.get(t.conta_bancaria_id);
+
+      // Sinal do valor vem do tipo: credito=+, debito=-
+      const signedAmount = t.tipo === "credito" ? Number(t.valor) : -Number(t.valor);
+
+      // Classifica o tipo pra exibir + label da contraparte vem do CR/CP linkado
       let type: Row["type"] = "Outro";
       let counterparty = "";
-      let categoryId: string | null = null;
-      let centroId: string | null = null;
+      // Categoria/centro tem prioridade na propria mov; fallback pro CR/CP linkado.
+      let categoryId: string | null = t.conta_contabil_id;
+      let centroId: string | null = t.centro_custo_id;
 
-      if (t.reconciled_receivable_id) {
-        const r = receivableById.get(t.reconciled_receivable_id);
+      if (t.conta_receber_id) {
+        const r = receivableById.get(t.conta_receber_id);
         type = "Crédito (CR)";
         counterparty = r?.pagador_nome || "";
-        categoryId = r?.category_id ?? null;
-        centroId = r?.centro_custo_id ?? null;
-      } else if (t.reconciled_payable_id) {
-        const p = payableById.get(t.reconciled_payable_id);
+        if (!categoryId) categoryId = r?.conta_contabil_id ?? null;
+        if (!centroId) centroId = r?.centro_custo_id ?? null;
+      } else if (t.conta_pagar_id) {
+        const p = payableById.get(t.conta_pagar_id);
         type = "Débito (CP)";
         counterparty = p?.credor_nome || "";
-        categoryId = p?.category_id ?? null;
-        centroId = p?.centro_custo_id ?? null;
+        if (!categoryId) categoryId = p?.conta_contabil_id ?? null;
+        if (!centroId) centroId = p?.centro_custo_id ?? null;
+      } else if (t.origem === "transferencia") {
+        type = "Transferência";
+      } else if (t.origem === "manual") {
+        type = "Manual";
+      } else if (t.origem === "ofx") {
+        type = "OFX direto";
       }
 
       const cat = categoryId ? chartById.get(categoryId) : undefined;
       const cc = centroId ? centroById.get(centroId) : undefined;
 
       return {
-        date: t.date,
+        date: t.data,
         accountName: acc ? `${acc.banco || ""} ${acc.name}`.trim() : "",
-        description: t.description || "",
-        memo: t.memo || "",
-        amount: t.amount,
+        description: t.descricao || "",
+        memo: "",                                    // movimentacoes nao tem memo separado
+        amount: signedAmount,
         type,
         counterparty,
         categoryCode: cat?.code || "",
@@ -328,7 +342,7 @@ export default function AreaContador() {
         centroCusto: cc
           ? [cc.codigo, cc.descricao].filter(Boolean).join(" - ")
           : "",
-        note: t.reconciliation_note || "",
+        note: "",                                    // sem nota direta no movs (poderia adicionar depois)
       };
     });
   }, [
