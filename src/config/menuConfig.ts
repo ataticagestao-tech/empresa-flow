@@ -83,6 +83,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
       { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
+      { titleKey: 'Categoria dos Produtos', icon: Book, url: '/produtos-categoria', isHardcoded: true },
       { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
       { titleKey: 'Cadastros Pendentes', icon: Clock, url: '/cadastros-pendentes', isHardcoded: true },
     ]

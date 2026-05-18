@@ -34,6 +34,7 @@ import Ajuda from "./pages/Ajuda";
 import CRM from "./pages/CRM";
 
 import ProdutosDepartamentos from "./pages/ProdutosDepartamentos";
+import ProdutosCategoria from "./pages/ProdutosCategoria";
 import Recibos from "./pages/Recibos";
 import NotFound from "./pages/NotFound";
 import AdminUsuarios from "./pages/AdminUsuarios";
@@ -235,6 +236,7 @@ const App = () => (
                     <Route path="/encargos" element={<EncargosRH />} />
                     <Route path="/admissoes-demissoes" element={<AdmissoesDemissoes />} />
                     <Route path="/operacional" element={<ProdutosDepartamentos />} />
+                    <Route path="/produtos-categoria" element={<ProdutosCategoria />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
