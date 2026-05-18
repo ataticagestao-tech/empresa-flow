@@ -14,11 +14,17 @@ interface EmailRequest {
     assunto: string;
     corpo: string;
     remetente?: string;
-    /** Anexo opcional (ex: PDF). Pode passar undefined para email texto puro. */
+    /** Anexo único (legado — mantido por compatibilidade). */
     anexo?: {
         pdfBase64: string;
         nomeArquivo: string;
     };
+    /** Múltiplos anexos. Se passar anexos[] e anexo, ambos são incluídos. */
+    anexos?: Array<{
+        conteudoBase64: string;
+        nomeArquivo: string;
+        contentType?: string;
+    }>;
 }
 
 function gerarHTMLEmail(corpo: string, titulo = "Tatica Gestao"): string {
@@ -99,10 +105,23 @@ serve(async (req: Request) => {
             html: gerarHTMLEmail(body.corpo, body.assunto),
         };
 
+        const attachments: Array<{ filename: string; content: string; content_type?: string }> = [];
         if (body.anexo?.pdfBase64 && body.anexo?.nomeArquivo) {
-            payload.attachments = [
-                { filename: body.anexo.nomeArquivo, content: body.anexo.pdfBase64 },
-            ];
+            attachments.push({ filename: body.anexo.nomeArquivo, content: body.anexo.pdfBase64 });
+        }
+        if (Array.isArray(body.anexos)) {
+            for (const a of body.anexos) {
+                if (a?.conteudoBase64 && a?.nomeArquivo) {
+                    attachments.push({
+                        filename: a.nomeArquivo,
+                        content: a.conteudoBase64,
+                        ...(a.contentType ? { content_type: a.contentType } : {}),
+                    });
+                }
+            }
+        }
+        if (attachments.length > 0) {
+            payload.attachments = attachments;
         }
 
         const response = await fetch("https://api.resend.com/emails", {
