@@ -171,7 +171,7 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
         y += 6;
     };
 
-    const drawKV = (label: string, value: string, opts?: { col?: 0 | 1 | 2; cols?: number }) => {
+    const drawKV = (label: string, value: string, opts?: { col?: 0 | 1 | 2; cols?: number }): number => {
         const cols = opts?.cols || 1;
         if (cols === 1) {
             ensureSpace(6);
@@ -185,10 +185,12 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
             const lines = doc.splitTextToSize(value || "—", contentW - 40);
             doc.text(lines, margin + 40, y);
             y += Math.max(5, lines.length * 4.5);
+            return lines.length;
         } else {
             const col = opts?.col ?? 0;
             const colW = contentW / cols;
             const x = margin + col * colW;
+            const labelW = 22;
             doc.setFont("helvetica", "normal");
             doc.setFontSize(8);
             doc.setTextColor(110, 120, 130);
@@ -196,15 +198,20 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
             doc.setTextColor(29, 41, 57);
-            const lines = doc.splitTextToSize(value || "—", colW - 28);
-            doc.text(lines, x + 28, y);
+            const lines = doc.splitTextToSize(value || "—", colW - labelW - 2);
+            doc.text(lines, x + labelW, y);
+            return lines.length;
         }
     };
 
     const drawKVRow = (pairs: { label: string; value: string }[]) => {
         ensureSpace(6);
-        pairs.forEach((p, i) => drawKV(p.label, p.value, { col: i as 0 | 1 | 2, cols: pairs.length as any }));
-        y += 6;
+        let maxLines = 1;
+        pairs.forEach((p, i) => {
+            const n = drawKV(p.label, p.value, { col: i as 0 | 1 | 2, cols: pairs.length as any });
+            if (n > maxLines) maxLines = n;
+        });
+        y += Math.max(6, maxLines * 4.5 + 1.5);
     };
 
     /* ── Header ─────────────────────────── */
@@ -343,11 +350,11 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
         doc.setFontSize(7);
         doc.setTextColor(80, 88, 100);
         doc.text("COMP.", margin + 2, y + 1);
-        doc.text("ORIGEM", margin + 18, y + 1);
-        doc.text("DESCRIÇÃO", margin + 38, y + 1);
-        doc.text("PAGO EM", margin + 105, y + 1);
-        doc.text("CONTA", margin + 130, y + 1);
-        doc.text("STATUS", margin + 155, y + 1);
+        doc.text("ORIGEM", margin + 14, y + 1);
+        doc.text("DESCRIÇÃO", margin + 30, y + 1);
+        doc.text("PAGO EM", margin + 88, y + 1);
+        doc.text("CONTA", margin + 110, y + 1);
+        doc.text("STATUS", margin + 132, y + 1);
         doc.text("VALOR", margin + contentW - 2, y + 1, { align: "right" });
         y += 5;
 
@@ -362,18 +369,19 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
             doc.setTextColor(29, 41, 57);
             doc.text(fmtCompetencia(item.competencia), margin + 2, y + 2);
             doc.setTextColor(80, 88, 100);
-            doc.text(sourceLabel(item.source), margin + 18, y + 2);
+            doc.text(sourceLabel(item.source), margin + 14, y + 2);
             doc.setTextColor(29, 41, 57);
-            const desc = doc.splitTextToSize(item.tipo || "—", 65);
-            doc.text(desc[0], margin + 38, y + 2);
+            const desc = doc.splitTextToSize(item.tipo || "—", 55);
+            doc.text(desc[0], margin + 30, y + 2);
             doc.setTextColor(80, 88, 100);
-            doc.text(item.data_pagamento ? fmtData(item.data_pagamento) : "—", margin + 105, y + 2);
-            const conta = doc.splitTextToSize(item.conta || "—", 23);
-            doc.text(conta[0], margin + 130, y + 2);
+            doc.text(item.data_pagamento ? fmtData(item.data_pagamento) : "—", margin + 88, y + 2);
+            const conta = doc.splitTextToSize(item.conta || "—", 20);
+            doc.text(conta[0], margin + 110, y + 2);
             const [r, g, b] = statusColor(item.status);
             doc.setTextColor(r, g, b);
             doc.setFont("helvetica", "bold");
-            doc.text(statusLabel(item.status), margin + 155, y + 2);
+            const statusTxt = doc.splitTextToSize(statusLabel(item.status), 18);
+            doc.text(statusTxt[0], margin + 132, y + 2);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(29, 41, 57);
             doc.text(fmt(item.valor), margin + contentW - 2, y + 2, { align: "right" });
@@ -390,11 +398,11 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
         doc.setFontSize(7);
         doc.setTextColor(80, 88, 100);
         doc.text("COMPETÊNCIA", margin + 2, y + 1);
-        doc.text("DIAS ÚTEIS", margin + 40, y + 1);
-        doc.text("CONSIDERADOS", margin + 65, y + 1);
-        doc.text("VT", margin + 100, y + 1);
-        doc.text("VA", margin + 125, y + 1);
-        doc.text("STATUS", margin + 150, y + 1);
+        doc.text("DIAS ÚTEIS", margin + 32, y + 1);
+        doc.text("CONSIDERADOS", margin + 58, y + 1);
+        doc.text("VT", margin + 88, y + 1);
+        doc.text("VA", margin + 108, y + 1);
+        doc.text("STATUS", margin + 132, y + 1);
         doc.text("TOTAL", margin + contentW - 2, y + 1, { align: "right" });
         y += 5;
 
@@ -408,14 +416,15 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
             doc.setFontSize(8);
             doc.setTextColor(29, 41, 57);
             doc.text(fmtCompetencia(item.competencia), margin + 2, y + 2);
-            doc.text(String(item.dias_uteis ?? "—"), margin + 40, y + 2);
-            doc.text(String(item.dias_considerados ?? "—"), margin + 65, y + 2);
-            doc.text(fmt(item.vt_custo_empresa), margin + 100, y + 2);
-            doc.text(fmt(item.va_custo_empresa), margin + 125, y + 2);
+            doc.text(String(item.dias_uteis ?? "—"), margin + 32, y + 2);
+            doc.text(String(item.dias_considerados ?? "—"), margin + 58, y + 2);
+            doc.text(fmt(item.vt_custo_empresa), margin + 88, y + 2);
+            doc.text(fmt(item.va_custo_empresa), margin + 108, y + 2);
             const [r, g, b] = statusColor(item.status === "confirmado" ? "pago" : item.status);
             doc.setTextColor(r, g, b);
             doc.setFont("helvetica", "bold");
-            doc.text(statusLabel(item.status), margin + 150, y + 2);
+            const statusTxt = doc.splitTextToSize(statusLabel(item.status), 18);
+            doc.text(statusTxt[0], margin + 132, y + 2);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(29, 41, 57);
             doc.text(fmt(item.total_custo_empresa), margin + contentW - 2, y + 2, { align: "right" });
