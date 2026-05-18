@@ -10,6 +10,7 @@ import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDi
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gerarRelatorioFuncionarioPDF, type RelatorioFuncionarioData } from "@/lib/funcionario-pdf/gerar-pdf";
+import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 
 interface Employee {
   id: string; company_id: string;
@@ -780,7 +781,16 @@ export default function Funcionarios() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Telefone</label>
-                        <input value={formData.phone} onChange={e => set("phone", formatPhone(e.target.value))} className={IC} placeholder="(00) 00000-0000" maxLength={15} />
+                        <div className="flex gap-2 items-start">
+                          <input
+                            value={formData.phone}
+                            onChange={e => set("phone", formatPhone(e.target.value))}
+                            className={IC}
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                          />
+                          <WhatsappValidatorButton phone={formData.phone} />
+                        </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-4 gap-4">

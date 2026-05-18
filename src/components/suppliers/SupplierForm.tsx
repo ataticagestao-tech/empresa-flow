@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { maskCNPJ, maskCPF, maskPhone, maskCEP, unmask, autoCorrectUrl } from "@/utils/masks";
+import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -650,12 +651,15 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-muted-foreground text-[12px] font-bold uppercase">Celular / WhatsApp</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                className="h-9 border-[#EAECF0]"
-                                                {...field}
-                                                onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                                maxLength={15}
-                                            />
+                                            <div className="flex gap-2 items-start">
+                                                <Input
+                                                    className="h-9 border-[#EAECF0]"
+                                                    {...field}
+                                                    onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                                                    maxLength={15}
+                                                />
+                                                <WhatsappValidatorButton phone={field.value ?? ""} size="sm" />
+                                            </div>
                                         </FormControl>
                                     </FormItem>
                                 )}

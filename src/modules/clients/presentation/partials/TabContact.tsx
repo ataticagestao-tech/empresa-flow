@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 
 import { ClientFormValues } from "../../domain/schemas/client.schema";
 import { maskPhone, autoCorrectUrl } from "@/utils/masks";
+import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 
 interface TabContactProps {
     form: UseFormReturn<ClientFormValues>;
@@ -67,13 +68,16 @@ export function TabContact({ form }: TabContactProps) {
                                 <Phone className="w-3 h-3" /> Celular / WhatsApp
                             </FormLabel>
                             <FormControl>
-                                <Input
-                                    className="h-9 border-[#EAECF0]"
-                                    {...field}
-                                    value={field.value ?? ""}
-                                    onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                                    maxLength={15}
-                                />
+                                <div className="flex gap-2 items-start">
+                                    <Input
+                                        className="h-9 border-[#EAECF0]"
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                                        maxLength={15}
+                                    />
+                                    <WhatsappValidatorButton phone={field.value ?? ""} size="sm" />
+                                </div>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
