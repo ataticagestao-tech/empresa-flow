@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
+import { Phone, Check, X, Loader2 } from "lucide-react";
 import { validateWhatsAppNumber } from "@/lib/whatsapp/validate-whatsapp";
 
 type Status = "idle" | "validating" | "valid" | "no_whatsapp" | "format" | "error";
 
 interface Props {
     phone: string;
-    /** Tamanho do botao. Default: "md". */
+    /** Mantido por compatibilidade — o botao agora e sempre o mesmo tamanho discreto. */
     size?: "sm" | "md";
 }
 
 /**
- * Botao "Validar WhatsApp" para colocar ao lado de um input de telefone.
+ * Botao discreto "Validar WhatsApp" — icone redondo verde ao lado do input de telefone.
  * Verifica via Evolution API (edge function `validar-whatsapp`) se o numero
  * tem WhatsApp ativo. Reseta automaticamente quando `phone` muda.
- *
- * Uso:
- * <div className="flex gap-2">
- *   <Input value={phone} onChange={...} />
- *   <WhatsappValidatorButton phone={phone} />
- * </div>
  */
-export function WhatsappValidatorButton({ phone, size = "md" }: Props) {
+export function WhatsappValidatorButton({ phone }: Props) {
     const [status, setStatus] = useState<Status>("idle");
     const [message, setMessage] = useState("");
 
@@ -51,50 +46,54 @@ export function WhatsappValidatorButton({ phone, size = "md" }: Props) {
         }
         if (result.exists) {
             setStatus("valid");
-            setMessage("Tem WhatsApp ativo — pode receber mensagens.");
+            setMessage("Tem WhatsApp");
         } else {
             setStatus("no_whatsapp");
-            setMessage("Numero valido, mas sem WhatsApp.");
+            setMessage("Sem WhatsApp");
         }
     }
 
-    const btnClass =
-        size === "sm"
-            ? "text-[10px] px-2 h-9"
-            : "text-xs px-3 h-9 sm:h-10";
+    const tooltip =
+        status === "valid"
+            ? "Tem WhatsApp ativo"
+            : status === "no_whatsapp"
+                ? "Numero sem WhatsApp"
+                : status === "format"
+                    ? message || "Formato invalido"
+                    : status === "error"
+                        ? message || "Falha ao validar"
+                        : "Validar WhatsApp";
+
+    const colorClasses =
+        status === "valid"
+            ? "border-[#25D366] bg-[#25D366] text-white"
+            : status === "no_whatsapp"
+                ? "border-[#DC2626] text-[#DC2626] hover:bg-[#DC2626] hover:text-white"
+                : status === "format" || status === "error"
+                    ? "border-[#B45309] text-[#B45309] hover:bg-[#B45309] hover:text-white"
+                    : "border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white";
 
     return (
-        <div className="flex flex-col gap-1">
-            <button
-                type="button"
-                onClick={handleValidate}
-                disabled={status === "validating" || !phone}
-                className={
-                    "shrink-0 font-bold uppercase tracking-wider border border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white rounded-md disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap " +
-                    btnClass
-                }
-                title="Verificar se este numero tem WhatsApp"
-            >
-                {status === "validating" ? "..." : "Validar WhatsApp"}
-            </button>
-            {status !== "idle" && status !== "validating" && (
-                <div
-                    className={
-                        "text-[11px] px-2 py-1 rounded " +
-                        (status === "valid"
-                            ? "bg-[#D1FAE5] text-[#047857]"
-                            : status === "no_whatsapp"
-                                ? "bg-[#FEE2E2] text-[#B91C1C]"
-                                : status === "format"
-                                    ? "bg-[#FEF3C7] text-[#B45309]"
-                                    : "bg-gray-100 text-gray-600")
-                    }
-                >
-                    {status === "valid" && "✓ "}
-                    {status === "no_whatsapp" && "✗ "}
-                    {message}
-                </div>
+        <button
+            type="button"
+            onClick={handleValidate}
+            disabled={status === "validating" || !phone}
+            title={tooltip}
+            aria-label={tooltip}
+            className={
+                "shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-full border transition-colors disabled:opacity-40 disabled:cursor-not-allowed " +
+                colorClasses
+            }
+        >
+            {status === "validating" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+            ) : status === "valid" ? (
+                <Check className="h-4 w-4" />
+            ) : status === "no_whatsapp" ? (
+                <X className="h-4 w-4" />
+            ) : (
+                <Phone className="h-4 w-4" />
             )}
-        </div>
+        </button>
     );
 }

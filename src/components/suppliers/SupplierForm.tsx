@@ -56,6 +56,7 @@ const supplierFormSchema = z.object({
     inscricao_municipal: z.string().optional(),
     inscricao_suframa: z.string().optional(),
     cnae: z.string().optional(),
+    cnae_descricao: z.string().optional(),
     tipo_atividade: z.string().optional(),
     optante_simples: z.boolean().default(false),
     produtor_rural: z.boolean().default(false),
@@ -113,6 +114,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
             inscricao_municipal: "",
             inscricao_suframa: "",
             cnae: "",
+            cnae_descricao: "",
             tipo_atividade: "",
             optante_simples: false,
             produtor_rural: false,
@@ -329,12 +331,11 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
             setIfEmpty("endereco_cidade", (data?.municipio as any) || "");
             setIfEmpty("endereco_estado", (data?.uf as any) || "");
             setIfEmpty("cnae", cnaePrincipalCodigo);
-            setCnaeDescricao((prev) => {
-                if (prev) return prev;
-                const escolhido = current.cnae && String(current.cnae).trim() ? String(current.cnae) : cnaePrincipalCodigo;
-                const found = opcoes.find((o) => o.codigo === escolhido);
-                return found?.descricao || cnaePrincipalDescricao || "";
-            });
+            const escolhidoCodigo = current.cnae && String(current.cnae).trim() ? String(current.cnae) : cnaePrincipalCodigo;
+            const foundOpt = opcoes.find((o) => o.codigo === escolhidoCodigo);
+            const descricaoEscolhida = foundOpt?.descricao || cnaePrincipalDescricao || "";
+            setCnaeDescricao((prev) => prev || descricaoEscolhida);
+            setIfEmpty("cnae_descricao", descricaoEscolhida);
 
             if (data?.opcao_pelo_simples && !current.optante_simples) {
                 form.setValue("optante_simples", true, { shouldDirty: true });
@@ -948,7 +949,9 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                     onValueChange={(value) => {
                                                         field.onChange(value);
                                                         const found = cnaeOpcoes.find((o) => o.codigo === value);
-                                                        setCnaeDescricao(found?.descricao || "");
+                                                        const desc = found?.descricao || "";
+                                                        setCnaeDescricao(desc);
+                                                        form.setValue("cnae_descricao", desc, { shouldDirty: true });
                                                     }}
                                                     value={field.value}
                                                 >
@@ -974,6 +977,7 @@ export function SupplierForm({ onSuccess, initialData }: SupplierFormProps) {
                                                             onChange={(e) => {
                                                                 field.onChange(e);
                                                                 if (cnaeDescricao) setCnaeDescricao("");
+                                                                form.setValue("cnae_descricao", "", { shouldDirty: true });
                                                             }}
                                                         />
                                                         <Search className="w-4 h-4 text-muted-foreground absolute right-2 top-2.5" />
