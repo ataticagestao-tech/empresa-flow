@@ -362,12 +362,12 @@ serve(async (req) => {
                 // ── REGRA 2: Empresa precisa estar ativa ──────────────────
                 const { data: company } = await supabase
                     .from("companies")
-                    .select("status")
+                    .select("is_active")
                     .eq("id", account.company_id)
                     .maybeSingle();
-                if ((company as { status?: string } | null)?.status !== "ativa") {
+                if ((company as { is_active?: boolean } | null)?.is_active !== true) {
                     logRow.status = "company_inactive";
-                    logRow.error_detail = `Empresa status='${(company as { status?: string } | null)?.status ?? "desconhecido"}', precisa estar 'ativa'`;
+                    logRow.error_detail = `Empresa is_active=${(company as { is_active?: boolean } | null)?.is_active ?? "desconhecido"}, precisa estar TRUE`;
                     await supabase.from("email_import_log").insert(logRow);
                     summary.errors++;
                     continue;  // NÃO marca como lido

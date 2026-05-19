@@ -1115,16 +1115,25 @@ export default function Conciliacao() {
         let totalFailed = 0;
         setBatchProgress({ total, done: 0, success: 0, failed: 0 });
 
-        // Montar items para RPC
-        const items = effectiveToApprove.map(s => ({
-            bank_tx_id: s.bankTransaction.id,
-            amount: Math.abs(s.bankTransaction.amount),
-            date: s.bankTransaction.date,
-            description: s.bankTransaction.description || "Conciliação automática",
-            is_expense: s.bankTransaction.amount < 0,
-            account_id: s.accountId || null,
-            unidade_destino_id: (s.bankTransaction as any).unidade_destino_id || null,
-        }));
+        // Montar items para RPC.
+        // Se a Camada -1 sugeriu CR/CP existente (systemTransaction), passa o ID
+        // via payable_id/receivable_id para o conciliar_lote LINKAR em vez de
+        // criar duplicata. Sem isso, o RPC cria CR/CP novo do zero (bug 2026-05).
+        const items = effectiveToApprove.map(s => {
+            const sysTx = s.systemTransaction;
+            const linksExisting = sysTx && (sysTx.status === 'aberto' || sysTx.status === 'vencido' || sysTx.status === 'parcial' || sysTx.status === 'pago');
+            return {
+                bank_tx_id: s.bankTransaction.id,
+                amount: Math.abs(s.bankTransaction.amount),
+                date: s.bankTransaction.date,
+                description: s.bankTransaction.description || "Conciliação automática",
+                is_expense: s.bankTransaction.amount < 0,
+                account_id: s.accountId || null,
+                unidade_destino_id: (s.bankTransaction as any).unidade_destino_id || null,
+                payable_id: linksExisting && sysTx.type === 'payable' ? sysTx.id : null,
+                receivable_id: linksExisting && sysTx.type === 'receivable' ? sysTx.id : null,
+            };
+        });
 
         // Enviar em lotes de 100
         const batchSize = 100;
