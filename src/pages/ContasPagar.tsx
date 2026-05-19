@@ -2015,7 +2015,9 @@ export default function ContasPagar() {
                     // Se o grupo nao tem item nesta pagina, nao renderiza
                     if (items.length === 0) return null
               const config = urgencyConfig[group]
-              const groupTotal = allItems.reduce((acc, cp) => acc + saldo(cp), 0)
+              const groupTotal = group === 'pagos'
+                ? allItems.reduce((acc, cp) => acc + Number(cp.valor_pago || cp.valor || 0), 0)
+                : allItems.reduce((acc, cp) => acc + saldo(cp), 0)
               const isCollapsed = collapsedGroups.has(group)
               const todayStr = format(new Date(), 'dd/MM/yyyy')
 
@@ -2044,7 +2046,7 @@ export default function ContasPagar() {
 
                   {/* Table — Pagos usa renderizacao compacta (data, nome, valor) */}
                   {!isCollapsed && group === 'pagos' && (
-                    <div style={{ maxWidth: 520 }}>
+                    <div className="overflow-x-auto">
                       <table className="w-full" style={{ fontSize: 11.5 }}>
                         <thead>
                           <tr style={{ backgroundColor: 'rgba(26,46,74,0.03)' }}>
