@@ -6,7 +6,6 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
-import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
@@ -1470,37 +1469,10 @@ export default function Vendas() {
         if (melhorConta) contaContabilCR = melhorConta
       }
 
-      if (editandoVenda) {
-        // UPDATE existing venda
-        const { error: vendaErr } = await db
-          .from('vendas')
-          .update({
-            cliente_nome: toTitleCase(formCliente.trim()),
-            cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
-            tipo: formTipo,
-            valor_total: totalVenda,
-            data_venda: formDataVenda,
-            forma_pagamento: formaVenda,
-          })
-          .eq('id', editandoVenda.id)
-
-        if (vendaErr) throw vendaErr
-        vendaId = editandoVenda.id
-
-        // Soft-delete CRs antigos (trigger bloqueia hard-delete de CRs pagos).
-        // Itens podem ser deletados direto.
-        const ac = activeClient as any
-        const nowIso = new Date().toISOString()
-        await ac
-          .from('contas_receber')
-          .update({ deleted_at: nowIso, deleted_by: user?.id || null })
-          .eq('venda_id', vendaId)
-          .is('deleted_at', null)
-        await ac.from('vendas_itens').delete().eq('venda_id', vendaId)
-      } else {
-        // ─── Anti-duplicata (heuristica): mesmo cliente + valor + data ───
-        const clienteTrim = toTitleCase(formCliente.trim())
-        const cpfLimpo = formCpfCnpj.replace(/\D/g, '') || null
+      // ─── Anti-duplicata (heuristica, só pra venda nova): cliente+valor+data ───
+      const clienteTrim = toTitleCase(formCliente.trim())
+      const cpfLimpo = formCpfCnpj.replace(/\D/g, '') || null
+      if (!editandoVenda) {
         let dupQuery = db
           .from('vendas')
           .select('id, valor_total, data_venda')
@@ -1508,7 +1480,6 @@ export default function Vendas() {
           .eq('valor_total', totalVenda)
           .eq('data_venda', formDataVenda)
           .limit(1)
-        // Match por CPF se houver; senão por nome
         if (cpfLimpo) {
           dupQuery = dupQuery.eq('cliente_cpf_cnpj', cpfLimpo)
         } else {
@@ -1526,39 +1497,19 @@ export default function Vendas() {
           if (!ok) return
           setSalvando(true)
         }
-
-        // INSERT new venda
-        const { data: vendaData, error: vendaErr } = await db
-          .from('vendas')
-          .insert({
-            company_id: companyId,
-            cliente_nome: clienteTrim,
-            cliente_cpf_cnpj: cpfLimpo,
-            tipo: formTipo,
-            valor_total: totalVenda,
-            data_venda: formDataVenda,
-            forma_pagamento: formaVenda,
-            status: 'confirmado',
-          })
-          .select()
-          .single()
-
-        if (vendaErr) throw vendaErr
-        vendaId = vendaData.id
       }
 
-      // 2. Insert itens
+      // ─── Montar itens ───
       const itensPayload = formItens.map(it => ({
-        venda_id: vendaId,
         descricao: toTitleCase(it.descricao.trim()),
         quantidade: it.quantidade,
         valor_unitario: it.valor_unitario,
       }))
 
-      const { error: itensErr } = await db.from('vendas_itens').insert(itensPayload)
-      if (itensErr) throw itensErr
-
-      // 3. Gerar CRs para cada split de pagamento e quitar os à vista
+      // ─── Montar CRs (todos os splits consolidados em UM array) ───
+      // _gerar_mov: true sinaliza pra RPC criar movimentação bancária junto
+      // (quita imediato — vendas à vista ou cartão 1x).
+      const crsPayloadCompleto: any[] = []
       for (const split of pagamentosResolvidos) {
         const splitBruto = Math.round(split.valor * 100) / 100
         const taxaCfg = split.taxa
@@ -1574,8 +1525,7 @@ export default function Vendas() {
         const temAntecipacao = taxaCfg?.antecipacao_ativa || false
         const taxaAntecipacao = taxaCfg?.taxa_antecipacao || 0
         const splitIsAVista = FORMAS_A_VISTA.includes(split.forma)
-
-        let crsPayload: any[]
+        const deveQuitar = (splitIsAVista && !isParcelado) || (isParcelado && numParcelas === 1)
 
         if (temAntecipacao && isParcelado && numParcelas > 1) {
           const prazoMedioMeses = (numParcelas + 1) / 2
@@ -1583,10 +1533,9 @@ export default function Vendas() {
           const valorAntecipado = Math.round((valorLiquido - descontoAntecipacao) * 100) / 100
           const dataRecebimento = format(addDays(parseISO(formDataVenda), diasRecebimento || 1), 'yyyy-MM-dd')
 
-          crsPayload = [{
-            company_id: companyId,
-            pagador_nome: toTitleCase(formCliente.trim()),
-            pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+          crsPayloadCompleto.push({
+            pagador_nome: clienteTrim,
+            pagador_cpf_cnpj: cpfLimpo,
             valor: valorAntecipado,
             valor_pago: 0,
             data_vencimento: dataRecebimento,
@@ -1595,12 +1544,12 @@ export default function Vendas() {
             conta_bancaria_id: split.conta_bancaria_id || null,
             conta_contabil_id: contaContabilCR,
             centro_custo_id: formCentroCusto || null,
-            venda_id: vendaId,
             observacoes: `Venda ${numParcelas}x antecipada | Bruto: R$${splitBruto.toFixed(2)} | Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)}) | Antecipação: ${taxaAntecipacao}% a.m. (R$${descontoAntecipacao.toFixed(2)})`,
-          }]
+            _gerar_mov: false,
+          })
         } else if (isParcelado && numParcelas > 1) {
           const valorParcelaLiq = Math.round((valorLiquido / numParcelas) * 100) / 100
-          crsPayload = Array.from({ length: numParcelas }, (_, i) => {
+          for (let i = 0; i < numParcelas; i++) {
             const dataBase = addMonths(parseISO(formDataVenda), i + 1)
             const dataRecebimento = diasRecebimento > 0
               ? format(addDays(dataBase, diasRecebimento), 'yyyy-MM-dd')
@@ -1608,10 +1557,9 @@ export default function Vendas() {
             const valor = i === numParcelas - 1
               ? Math.round((valorLiquido - valorParcelaLiq * (numParcelas - 1)) * 100) / 100
               : valorParcelaLiq
-            return {
-              company_id: companyId,
-              pagador_nome: toTitleCase(formCliente.trim()),
-              pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+            crsPayloadCompleto.push({
+              pagador_nome: clienteTrim,
+              pagador_cpf_cnpj: cpfLimpo,
               valor,
               valor_pago: 0,
               data_vencimento: dataRecebimento,
@@ -1620,61 +1568,67 @@ export default function Vendas() {
               conta_bancaria_id: split.conta_bancaria_id || null,
               conta_contabil_id: contaContabilCR,
               centro_custo_id: formCentroCusto || null,
-              venda_id: vendaId,
               observacoes: taxaPct > 0
                 ? `Parcela ${i + 1}/${numParcelas} | Taxa operadora: ${taxaPct}%`
                 : `Parcela ${i + 1}/${numParcelas}`,
-            }
-          })
+              _gerar_mov: false,
+            })
+          }
         } else {
-          // Para 'pendente' (saldo a definir): vencimento = data escolhida pela
-          // usuária ou +30 dias por padrão. Demais formas (boleto, etc.) seguem
-          // o diasRecebimento da config de taxa.
           const dataRecebimento = split.forma === 'pendente'
             ? (split.vencimento_pendente || format(addDays(parseISO(formDataVenda), 30), 'yyyy-MM-dd'))
             : diasRecebimento > 0
               ? format(addDays(parseISO(formDataVenda), diasRecebimento), 'yyyy-MM-dd')
               : formDataVenda
-          crsPayload = [{
-            company_id: companyId,
-            pagador_nome: toTitleCase(formCliente.trim()),
-            pagador_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+          crsPayloadCompleto.push({
+            pagador_nome: clienteTrim,
+            pagador_cpf_cnpj: cpfLimpo,
             valor: valorLiquido,
-            valor_pago: 0,
+            valor_pago: deveQuitar ? valorLiquido : 0,
             data_vencimento: dataRecebimento,
-            status: 'aberto',
+            data_pagamento: deveQuitar ? formDataVenda : null,
+            status: deveQuitar ? 'pago' : 'aberto',
             forma_recebimento: split.forma,
             conta_bancaria_id: split.conta_bancaria_id || null,
             conta_contabil_id: contaContabilCR,
             centro_custo_id: formCentroCusto || null,
-            venda_id: vendaId,
             observacoes: split.forma === 'pendente'
               ? 'Saldo em aberto — forma a definir'
               : taxaPct > 0
                 ? `Taxa operadora: ${taxaPct}% (R$${valorTaxa.toFixed(2)})`
                 : null,
-          }]
-        }
-
-        const { data: crsData, error: crsErr } = await db
-          .from('contas_receber')
-          .insert(crsPayload)
-          .select()
-        if (crsErr) throw crsErr
-
-        // Quita imediatamente as parcelas à vista (pix/dinheiro/débito) ou cartão de crédito 1x
-        const deveQuitar = (splitIsAVista && !isParcelado) || (isParcelado && numParcelas === 1)
-        if (deveQuitar && crsData && crsData.length > 0) {
-          for (const cr of crsData) {
-            await quitarCR(cr.id, {
-              valorPago: cr.valor,
-              dataPagamento: formDataVenda,
-              formaRecebimento: split.forma,
-              contaBancariaId: split.conta_bancaria_id,
-            })
-          }
+            _gerar_mov: deveQuitar && !!split.conta_bancaria_id,
+          })
         }
       }
+
+      // ─── Chamada RPC atômica (venda + itens + CRs + movs em UMA transação) ───
+      const vendaPayload = {
+        company_id: companyId,
+        cliente_nome: clienteTrim,
+        cliente_cpf_cnpj: cpfLimpo,
+        tipo: formTipo,
+        valor_total: totalVenda,
+        data_venda: formDataVenda,
+        forma_pagamento: formaVenda,
+        status: 'confirmado',
+      }
+
+      const rpcName = editandoVenda ? 'atualizar_venda_atomica' : 'criar_venda_atomica'
+      const rpcPayload: Record<string, any> = {
+        venda: vendaPayload,
+        itens: itensPayload,
+        crs: crsPayloadCompleto,
+      }
+      if (editandoVenda) {
+        rpcPayload.venda_id = editandoVenda.id
+        rpcPayload.user_id = user?.id || null
+      }
+
+      const { data: rpcResult, error: rpcErr } = await (db as any).rpc(rpcName, { p_payload: rpcPayload })
+      if (rpcErr) throw rpcErr
+      if (!rpcResult?.success) throw new Error('Falha ao salvar venda (RPC retornou sem sucesso).')
+      vendaId = rpcResult.venda_id
 
       // Captura dados da venda para oferecer envio via WhatsApp apos fechar o modal.
       // Skip se for edicao (so para venda nova) e se cliente nao foi identificado.
