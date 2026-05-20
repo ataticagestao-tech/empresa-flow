@@ -34,6 +34,8 @@ DECLARE
   v_valor_pago NUMERIC;
   v_cr_id UUID;
   v_obs TEXT;
+  v_conta_bancaria_id UUID;
+  v_conta_tipo TEXT;
   v_count_total INT := 0;
   v_count_restaurado INT := 0;
   v_count_pago_mov INT := 0;
@@ -150,12 +152,50 @@ BEGIN
         '. Esta venda pode ser duplicata — revisar e cancelar se for o caso.';
       v_count_aberto_dup := v_count_aberto_dup + 1;
     ELSIF v_venda.forma_pagamento IN ('pix', 'dinheiro', 'cartao_debito') THEN
-      -- REGRA 4
-      v_status := 'pago';
-      v_data_pagamento := v_venda.data_venda;
-      v_valor_pago := v_venda.valor_total;
-      v_obs := 'Backfill 2026-05-20 — venda à vista presumida recebida.';
-      v_count_pago_avista := v_count_pago_avista + 1;
+      -- REGRA 4: à vista presumida recebida. Lookup conta bancaria pra
+      -- evitar CR fantasma (pago sem mov). Se nao achar, fallback Regra 5.
+      v_conta_tipo := CASE
+        WHEN v_venda.forma_pagamento = 'dinheiro' THEN 'caixinha'
+        ELSE 'conta_corrente'
+      END;
+
+      SELECT id INTO v_conta_bancaria_id
+      FROM public.bank_accounts
+      WHERE company_id = v_venda.company_id
+        AND type = v_conta_tipo
+        AND is_active = TRUE
+      ORDER BY created_at
+      LIMIT 1;
+
+      -- Fallback: nao achou tipo especifico -> tenta qualquer ativa nao-cartao.
+      -- Aplica TAMBEM pra dinheiro (empresa pode nao ter caixinha cadastrada,
+      -- nesse caso usa conta_corrente como aproximacao — Izabel ajusta depois).
+      IF v_conta_bancaria_id IS NULL THEN
+        SELECT id INTO v_conta_bancaria_id
+        FROM public.bank_accounts
+        WHERE company_id = v_venda.company_id
+          AND type <> 'cartao_credito'
+          AND is_active = TRUE
+        ORDER BY created_at
+        LIMIT 1;
+      END IF;
+
+      IF v_conta_bancaria_id IS NOT NULL THEN
+        v_status := 'pago';
+        v_data_pagamento := v_venda.data_venda;
+        v_valor_pago := v_venda.valor_total;
+        v_obs := 'Backfill 2026-05-20 — venda à vista presumida recebida (' ||
+          v_venda.forma_pagamento || ').';
+        v_count_pago_avista := v_count_pago_avista + 1;
+      ELSE
+        -- Fallback final: nao achou conta apropriada, cai pra Regra 5
+        v_status := 'aberto';
+        v_data_pagamento := NULL;
+        v_valor_pago := 0;
+        v_obs := 'Backfill 2026-05-20 — venda à vista sem conta bancária ' ||
+          'cadastrada (' || v_conta_tipo || '). Quitar manualmente.';
+        v_count_aberto := v_count_aberto + 1;
+      END IF;
     ELSE
       -- REGRA 5
       v_status := 'aberto';
@@ -168,12 +208,32 @@ BEGIN
     INSERT INTO public.contas_receber (
       company_id, pagador_nome, pagador_cpf_cnpj,
       valor, valor_pago, data_vencimento, data_pagamento,
-      status, forma_recebimento, venda_id, observacoes
+      status, forma_recebimento, venda_id, observacoes,
+      conta_bancaria_id
     ) VALUES (
       v_venda.company_id, v_venda.cliente_nome, v_venda.cliente_cpf_cnpj,
       v_venda.valor_total, v_valor_pago, v_venda.data_venda, v_data_pagamento,
-      v_status, v_venda.forma_pagamento, v_venda.id, v_obs
-    );
+      v_status, v_venda.forma_pagamento, v_venda.id, v_obs,
+      CASE WHEN v_status = 'pago' THEN v_conta_bancaria_id ELSE NULL END
+    ) RETURNING id INTO v_cr_id;
+
+    -- Se foi CR pago (Regra 4 com conta achada), cria mov vinculada pra
+    -- evitar fantasma. Trigger garantir_mov_ao_quitar_cr está bypassado
+    -- via app.skip_mov_garantia, entao precisamos inserir explicitamente.
+    IF v_status = 'pago' AND v_conta_bancaria_id IS NOT NULL THEN
+      INSERT INTO public.movimentacoes (
+        company_id, conta_bancaria_id, conta_receber_id,
+        tipo, valor, data, descricao, origem, status_conciliacao
+      ) VALUES (
+        v_venda.company_id, v_conta_bancaria_id, v_cr_id,
+        'credito', v_venda.valor_total, v_venda.data_venda,
+        'Recebimento — ' || v_venda.cliente_nome ||
+          ' (backfill venda órfã)', 'conta_receber', 'pendente'
+      );
+    END IF;
+
+    -- Reset pro próximo loop
+    v_conta_bancaria_id := NULL;
   END LOOP;
 
   PERFORM set_config('app.skip_categoria_garantia', 'false', true);
@@ -201,4 +261,14 @@ WHERE observacoes LIKE 'Backfill 2026-05-20%' AND deleted_at IS NULL
 UNION ALL
 SELECT 'CRs restaurados pelo backfill', COUNT(*)
 FROM public.contas_receber
-WHERE observacoes LIKE '%[Restaurado em 2026-05-20%' AND deleted_at IS NULL;
+WHERE observacoes LIKE '%[Restaurado em 2026-05-20%' AND deleted_at IS NULL
+UNION ALL
+SELECT 'CR FANTASMAS criados pelo backfill (esperado: 0)', COUNT(*)
+FROM public.contas_receber cr
+WHERE cr.observacoes LIKE 'Backfill 2026-05-20%'
+  AND cr.deleted_at IS NULL
+  AND cr.status IN ('pago','conciliado','parcial')
+  AND cr.valor_pago > 0
+  AND NOT EXISTS (
+    SELECT 1 FROM public.movimentacoes m WHERE m.conta_receber_id = cr.id
+  );
