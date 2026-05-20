@@ -84,7 +84,6 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
       { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
-      { titleKey: 'Cadastros Pendentes', icon: Clock, url: '/cadastros-pendentes', isHardcoded: true },
     ]
   },
   {
@@ -203,6 +202,7 @@ export const menuGroups: MenuGroup[] = [
     isHardcodedLabel: true,
     ownerOnly: true,
     items: [
+      { titleKey: 'Equipe', icon: UserPlus, url: '/equipe', isHardcoded: true },
       { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },
       { titleKey: 'WhatsApp Autorizados', icon: Shield, url: '/admin/whatsapp-autorizados', isHardcoded: true, adminOnly: true },
       { titleKey: 'Log de Atividades', icon: Shield, url: '/admin/log-atividades', isHardcoded: true, adminOnly: true },

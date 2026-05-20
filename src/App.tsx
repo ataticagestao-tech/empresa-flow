@@ -29,6 +29,7 @@ import ContasReceber from "./pages/ContasReceber";
 import Conciliacao from "./pages/Conciliacao";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
+import Equipe from "./pages/Equipe";
 import ImportData from "./pages/ImportData";
 import Ajuda from "./pages/Ajuda";
 import CRM from "./pages/CRM";
@@ -237,6 +238,7 @@ const App = () => (
                     <Route path="/admissoes-demissoes" element={<AdmissoesDemissoes />} />
                     <Route path="/operacional" element={<ProdutosDepartamentos />} />
                     <Route path="/produtos-categoria" element={<ProdutosCategoria />} />
+                    <Route path="/equipe" element={<Equipe />} />
                     <Route element={<RequireSuperAdmin />}>
                       <Route path="/configuracoes" element={<Configuracoes />} />
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
