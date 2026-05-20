@@ -11,6 +11,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { RegistrarPagamentoDialog } from '@/modules/clients/presentation/components/RegistrarPagamentoDialog'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -231,6 +232,7 @@ export default function Vendas() {
   const { selectedCompany } = useCompany()
   const { activeClient, isUsingSecondary, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
+  const confirm = useConfirm()
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
@@ -1495,13 +1497,42 @@ export default function Vendas() {
           .is('deleted_at', null)
         await ac.from('vendas_itens').delete().eq('venda_id', vendaId)
       } else {
+        // ─── Anti-duplicata (heuristica): mesmo cliente + valor + data ───
+        const clienteTrim = toTitleCase(formCliente.trim())
+        const cpfLimpo = formCpfCnpj.replace(/\D/g, '') || null
+        let dupQuery = db
+          .from('vendas')
+          .select('id, valor_total, data_venda')
+          .eq('company_id', companyId)
+          .eq('valor_total', totalVenda)
+          .eq('data_venda', formDataVenda)
+          .limit(1)
+        // Match por CPF se houver; senão por nome
+        if (cpfLimpo) {
+          dupQuery = dupQuery.eq('cliente_cpf_cnpj', cpfLimpo)
+        } else {
+          dupQuery = dupQuery.eq('cliente_nome', clienteTrim)
+        }
+        const dup = await dupQuery
+        if (dup.data && dup.data.length > 0) {
+          setSalvando(false)
+          const ok = await confirm({
+            title: 'Venda parecida encontrada',
+            description: `Ja existe uma venda de "${clienteTrim}" no valor de ${formatBRL(totalVenda)} em ${format(parseISO(formDataVenda), 'dd/MM/yyyy')}. Deseja criar mesmo assim?`,
+            confirmLabel: 'Criar mesmo assim',
+            variant: 'destructive',
+          })
+          if (!ok) return
+          setSalvando(true)
+        }
+
         // INSERT new venda
         const { data: vendaData, error: vendaErr } = await db
           .from('vendas')
           .insert({
             company_id: companyId,
-            cliente_nome: toTitleCase(formCliente.trim()),
-            cliente_cpf_cnpj: formCpfCnpj.replace(/\D/g, '') || null,
+            cliente_nome: clienteTrim,
+            cliente_cpf_cnpj: cpfLimpo,
             tipo: formTipo,
             valor_total: totalVenda,
             data_venda: formDataVenda,

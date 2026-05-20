@@ -2215,6 +2215,7 @@ function ModalNovoCR({
   const isEditing = !!editing
   const isPaid = editing?.status === 'pago' || editing?.status === 'conciliado'
   const lockFinancial = isEditing && isPaid
+  const confirm = useConfirm()
 
   const [tipo, setTipo] = useState('unica')
   const [pagadorNome, setPagadorNome] = useState(editing?.pagador_nome || '')
@@ -2420,9 +2421,33 @@ function ModalNovoCR({
         const { error } = await db.from('contas_receber').insert(records)
         if (error) throw error
       } else {
+        const pagadorTrim = toTitleCase(pagadorNome.trim())
+        // ─── Anti-duplicata (heuristica): mesmo pagador + valor + vencimento ───
+        const dup = await db
+          .from('contas_receber')
+          .select('id, status')
+          .eq('company_id', companyId)
+          .eq('pagador_nome', pagadorTrim)
+          .eq('valor', v)
+          .eq('data_vencimento', vencimento)
+          .is('deleted_at', null)
+          .neq('status', 'cancelado')
+          .limit(1)
+        if (dup.data && dup.data.length > 0) {
+          setSaving(false)
+          const ok = await confirm({
+            title: 'Lancamento parecido encontrado',
+            description: `Ja existe um titulo de "${pagadorTrim}" no valor de R$ ${v.toFixed(2).replace('.', ',')} vencendo em ${format(parseISO(vencimento), 'dd/MM/yyyy')}. Deseja criar mesmo assim?`,
+            confirmLabel: 'Criar mesmo assim',
+            variant: 'destructive',
+          })
+          if (!ok) return
+          setSaving(true)
+        }
+
         const { error } = await db.from('contas_receber').insert({
           company_id: companyId,
-          pagador_nome: toTitleCase(pagadorNome.trim()),
+          pagador_nome: pagadorTrim,
           pagador_cpf_cnpj: pagadorCpfCnpj.trim() || null,
           pagador_email: pagadorEmail.trim() || null,
           valor: v,
