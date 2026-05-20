@@ -12,6 +12,7 @@ import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { RegistrarPagamentoDialog } from '@/modules/clients/presentation/components/RegistrarPagamentoDialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { RoleGate } from '@/components/auth/RoleGate'
 import {
   Search, Plus, Eye, Trash2, X, Pencil,
   Loader2, AlertCircle, Check, Package,
@@ -2613,9 +2614,11 @@ export default function Vendas() {
                           <button onClick={() => carregarVendaParaEdicao(v)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Editar venda">
                             <Pencil size={12} />
                           </button>
-                          <button onClick={() => setConfirmDelete(v.id)} className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors" title="Excluir">
-                            <Trash2 size={12} />
-                          </button>
+                          <RoleGate minRole="owner">
+                            <button onClick={() => setConfirmDelete(v.id)} className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors" title="Excluir">
+                              <Trash2 size={12} />
+                            </button>
+                          </RoleGate>
                         </div>
                       </td>
                     </tr>

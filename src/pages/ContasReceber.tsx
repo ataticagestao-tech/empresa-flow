@@ -19,6 +19,7 @@ import { TablePagination } from '@/components/ui/table-pagination'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
+import { RoleGate } from '@/components/auth/RoleGate'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -1469,14 +1470,16 @@ export default function ContasReceber() {
                                 Quitar
                               </button>
                             )}
-                            {/* Excluir direto */}
-                            <button
-                              onClick={() => excluirCR(cr)}
-                              title="Excluir titulo"
-                              className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            {/* Excluir direto (só owner) */}
+                            <RoleGate minRole="owner">
+                              <button
+                                onClick={() => excluirCR(cr)}
+                                title="Excluir titulo"
+                                className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </RoleGate>
                             {/* Dropdown */}
                             <div className="relative">
                               <button

@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
+import { RoleGate } from '@/components/auth/RoleGate'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
@@ -2294,37 +2295,39 @@ export default function ContasPagar() {
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
                                             {(cp.status === 'pago' || cp.status === 'parcial') ? 'Enviar comprovante E-mail' : 'Enviar info E-mail'}
                                           </button>
-                                          <button
-                                            onClick={async () => {
-                                              setDropdownOpen(null)
-                                              const ok = await confirm({ title: `Excluir lancamento "${cp.descricao || cp.credor_nome}"?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
-                                              if (!ok) return
-                                              try {
-                                                const ac = activeClient as any
-                                                await softDeleteWithUndo({
-                                                  client: ac,
-                                                  table: 'contas_pagar',
-                                                  id: cp.id,
-                                                  successLabel: 'Lancamento excluido',
-                                                  onChange: () => { void loadData() },
-                                                  cleanup: async () => {
-                                                    await ac.from('movimentacoes').delete().eq('conta_pagar_id', cp.id)
-                                                    await ac.from('bank_reconciliation_matches').update({ payable_id: null }).eq('payable_id', cp.id)
-                                                    await ac.from('bank_transactions').update({ reconciled_payable_id: null }).eq('reconciled_payable_id', cp.id)
-                                                  },
-                                                })
-                                              } catch (err: any) {
-                                                console.error('[excluirCP]', err)
-                                                toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))
-                                              }
-                                            }}
-                                            className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
-                                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(139,0,0,0.05)' }}
-                                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
-                                          >
-                                            <Trash2 size={14} /> Excluir lancamento
-                                          </button>
+                                          <RoleGate minRole="owner">
+                                            <button
+                                              onClick={async () => {
+                                                setDropdownOpen(null)
+                                                const ok = await confirm({ title: `Excluir lancamento "${cp.descricao || cp.credor_nome}"?`, description: "Esta acao nao pode ser desfeita. Todas as movimentacoes e conciliacoes associadas serao removidas.", confirmLabel: "Sim, excluir", variant: "destructive" })
+                                                if (!ok) return
+                                                try {
+                                                  const ac = activeClient as any
+                                                  await softDeleteWithUndo({
+                                                    client: ac,
+                                                    table: 'contas_pagar',
+                                                    id: cp.id,
+                                                    successLabel: 'Lancamento excluido',
+                                                    onChange: () => { void loadData() },
+                                                    cleanup: async () => {
+                                                      await ac.from('movimentacoes').delete().eq('conta_pagar_id', cp.id)
+                                                      await ac.from('bank_reconciliation_matches').update({ payable_id: null }).eq('payable_id', cp.id)
+                                                      await ac.from('bank_transactions').update({ reconciled_payable_id: null }).eq('reconciled_payable_id', cp.id)
+                                                    },
+                                                  })
+                                                } catch (err: any) {
+                                                  console.error('[excluirCP]', err)
+                                                  toast.error('Erro ao excluir: ' + (err.message || 'Erro desconhecido'))
+                                                }
+                                              }}
+                                              className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
+                                              style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(139,0,0,0.05)' }}
+                                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
+                                            >
+                                              <Trash2 size={14} /> Excluir lancamento
+                                            </button>
+                                          </RoleGate>
                                         </div>,
                                         document.body
                                       )}
