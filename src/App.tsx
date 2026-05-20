@@ -78,6 +78,7 @@ import NfseEmissao from "./pages/NfseEmissao";
 import NfseConfiguracoes from "./pages/NfseConfiguracoes";
 import PainelGerencial from "./pages/PainelGerencial";
 import AreaContador from "./pages/AreaContador";
+import VendaSistema from "./pages/VendaSistema";
 
 const queryClient = new QueryClient();
 
@@ -163,6 +164,8 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
+                <Route path="/venda" element={<VendaSistema />} />
+                <Route path="/lp" element={<VendaSistema />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<Auth />} />
                 <Route element={<RequireAuth />}>
