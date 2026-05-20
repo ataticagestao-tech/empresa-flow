@@ -145,8 +145,8 @@ export default function ContasReceber() {
   // ── Filters ──
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const [filtersExpanded, setFiltersExpanded] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState<string | null>(null)
 
@@ -505,11 +505,12 @@ export default function ContasReceber() {
   }
 
   // ── KPIs ──
+  // KPIs refletem o período do filtro (dateFrom/dateTo via dateFilteredItems).
+  // CR pago entra pelo data_pagamento; CR em aberto/vencido pelo data_vencimento
+  // (essa lógica de "qual data importa" já está em refDateFor).
   const kpis = useMemo(() => {
     const hoje = new Date().toISOString().split('T')[0]
     const em7dias = format(addDays(new Date(), 7), 'yyyy-MM-dd')
-    const mesInicio = format(startOfMonth(new Date()), 'yyyy-MM-dd')
-    const mesFim = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
     let totalAberto = 0
     let countAberto = 0
@@ -520,10 +521,7 @@ export default function ContasReceber() {
     let recebidoMes = 0
     let countRecebido = 0
 
-    // KPIs sao snapshot do estado atual (todos os titulos da empresa),
-    // independentes do filtro de data — caso contrario, filtrar uma janela
-    // sem vencimentos zera a tela inteira mesmo com saldo aberto em outras datas.
-    for (const cr of enrichedItems) {
+    for (const cr of dateFilteredItems) {
       const saldo = cr.valor - (cr.valor_pago || 0)
       const st = cr._status
 
@@ -539,7 +537,7 @@ export default function ContasReceber() {
         totalVencido += saldo
         countVencido += 1
       }
-      if (cr.data_pagamento && cr.data_pagamento >= mesInicio && cr.data_pagamento <= mesFim) {
+      if (cr.data_pagamento && (cr._status === 'pago' || cr._status === 'parcial')) {
         recebidoMes += (cr.valor_pago || 0)
         countRecebido += 1
       }
@@ -551,7 +549,7 @@ export default function ContasReceber() {
       totalVencido, countVencido,
       recebidoMes, countRecebido,
     }
-  }, [enrichedItems])
+  }, [dateFilteredItems])
 
   // ─── Agenda heatmap (estilo GitHub) ─────────────────────
   // Janela dinamica: usa [dateFrom, dateTo] do filtro quando setado, senao default ±15 dias.
@@ -975,7 +973,7 @@ export default function ContasReceber() {
 
   return (
     <AppLayout title="Contas a Receber">
-      <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+      <div className="max-w-[1400px] mx-auto space-y-4">
 
 
         {/* ── KPI Cards (padrão Vendas) ── */}
@@ -1000,7 +998,7 @@ export default function ContasReceber() {
               sub: `${kpis.countVencido} título${kpis.countVencido !== 1 ? 's' : ''} em atraso`,
             },
             {
-              label: 'Recebido no mês',
+              label: 'Recebido no período',
               value: formatBRL(kpis.recebidoMes),
               color: '#039855',
               sub: `${kpis.countRecebido} recebimento${kpis.countRecebido !== 1 ? 's' : ''} no período`,
@@ -1036,10 +1034,10 @@ export default function ContasReceber() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Agenda heatmap */}
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAECF0]">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#EAECF0]">
               <div>
-                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">Agenda de Recebimentos</div>
-                <div className="text-[12px] text-[#98A2B3] mt-1">
+                <div className="text-[14px] font-bold text-[#1D2939] tracking-tight">Agenda de recebimentos</div>
+                <div className="text-[11.5px] text-[#98A2B3] mt-0.5">
                   {(dateFrom || dateTo) ? 'Período filtrado' : 'Próximos 30 dias'} &middot; {agenda30.totalDays} dia{agenda30.totalDays !== 1 ? 's' : ''} &middot; {agenda30.diasComEntrada} com entrada
                   {agenda30.diasVencidos > 0 && (
                     <span className="text-[#C2410C] font-semibold"> &middot; {agenda30.diasVencidos} em atraso</span>
@@ -1131,10 +1129,10 @@ export default function ContasReceber() {
 
           {/* Contas a receber (painel lateral) */}
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAECF0]">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#EAECF0]">
               <div>
-                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">Contas a receber</div>
-                <div className="text-[12px] text-[#98A2B3] mt-1">
+                <div className="text-[14px] font-bold text-[#1D2939] tracking-tight">Contas a receber</div>
+                <div className="text-[11.5px] text-[#98A2B3] mt-0.5">
                   {selectedAgendaDate
                     ? `Vencimento em ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}`
                     : (dateFrom || dateTo)
@@ -1271,7 +1269,11 @@ export default function ContasReceber() {
             {/* Limpar */}
             {(search || statusFilter !== 'todos' || dateFrom || dateTo) && (
               <button
-                onClick={() => { setSearch(''); setStatusFilter('todos'); setDateFrom(''); setDateTo('') }}
+                onClick={() => {
+                  setSearch(''); setStatusFilter('todos')
+                  setDateFrom(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+                  setDateTo(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+                }}
                 className="text-[11px] font-semibold text-[#667085] hover:text-black px-1.5 h-7"
               >
                 Limpar
@@ -1289,9 +1291,9 @@ export default function ContasReceber() {
 
         {/* ── Table ── */}
         <div className="border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-white uppercase tracking-widest">
-              T&iacute;tulos ({filtered.length})
+          <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#059669' }}>
+            <h3 className="text-[13px] font-bold text-white tracking-tight">
+              Títulos · {filtered.length}
             </h3>
             {someSelected ? (
               <div className="flex items-center gap-3">
@@ -1344,10 +1346,10 @@ export default function ContasReceber() {
                 description="Ajuste os filtros ou o periodo para ver resultados."
               />
             ) : (<>
-              <table className="w-full text-[13px]">
+              <table className="w-full text-[12.5px]">
                 <thead>
-                  <tr className="border-b border-[#e5e5e5]">
-                    <th className="px-3 py-2 w-10">
+                  <tr className="bg-[#F9FAFB] border-b border-[#EAECF0]">
+                    <th className="px-3 py-2 w-9">
                       <input
                         type="checkbox"
                         checked={allSelectableSelected}
@@ -1355,14 +1357,14 @@ export default function ContasReceber() {
                         className="w-4 h-4 rounded border-[#ccc] text-[#059669] focus:ring-[#059669] cursor-pointer"
                       />
                     </th>
-                    {['Pagador', 'Plano de contas', 'Vencimento', 'Valor', 'Pago', 'Saldo', 'Status', 'Acoes'].map(h => (
-                      <th
-                        key={h}
-                        className="px-4 py-2 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Pagador</th>
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Categoria</th>
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Vencimento</th>
+                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085]">Valor</th>
+                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085]">Pago</th>
+                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085]">Saldo</th>
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Status</th>
+                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085] w-[120px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1439,15 +1441,15 @@ export default function ContasReceber() {
                           )}
                         </td>
                         {/* Valor */}
-                        <td className="px-3 py-1.5 font-medium text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums">
+                        <td className="px-3 py-1.5 font-medium text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums text-right">
                           {formatBRL(cr.valor)}
                         </td>
                         {/* Pago */}
-                        <td className="px-3 py-1.5 text-[12px] text-[#039855] font-medium align-middle whitespace-nowrap tabular-nums">
+                        <td className="px-3 py-1.5 text-[12px] text-[#039855] font-medium align-middle whitespace-nowrap tabular-nums text-right">
                           {formatBRL(cr.valor_pago || 0)}
                         </td>
                         {/* Saldo */}
-                        <td className="px-3 py-1.5 font-semibold text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums">
+                        <td className="px-3 py-1.5 font-semibold text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums text-right">
                           {formatBRL(saldo)}
                         </td>
                         {/* Status */}
@@ -1460,8 +1462,8 @@ export default function ContasReceber() {
                           </span>
                         </td>
                         {/* Acoes */}
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                        <td className="px-3 py-1.5 align-middle whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             {cr._status !== 'pago' && cr._status !== 'cancelado' && (
                               <button
                                 onClick={() => setQuitarModal(cr)}
