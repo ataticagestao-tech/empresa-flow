@@ -66,22 +66,17 @@ import MultiEmpresa from "./pages/MultiEmpresa";
 import ContratosRecorrentes from "./pages/ContratosRecorrentes";
 import EmpresaResumo from "./pages/EmpresaResumo";
 import NotasFiscais from "./pages/NotasFiscais";
-import ApuracaoImpostos from "./pages/ApuracaoImpostos";
-import CalendarioFiscal from "./pages/CalendarioFiscal";
 import ImportacaoXML from "./pages/ImportacaoXML";
 import FolhaPagamento from "./pages/FolhaPagamento";
 import PontoEletronico from "./pages/PontoEletronico";
 import FeriasAfastamentos from "./pages/FeriasAfastamentos";
 import EncargosRH from "./pages/EncargosRH";
 import AdmissoesDemissoes from "./pages/AdmissoesDemissoes";
-import DREContabil from "./pages/DREContabil";
-import BalancoPatrimonial from "./pages/BalancoPatrimonial";
 import FluxoCaixa from "./pages/FluxoCaixa";
 import MapeamentoContabil from "./pages/MapeamentoContabil";
 import NfseEmissao from "./pages/NfseEmissao";
 import NfseConfiguracoes from "./pages/NfseConfiguracoes";
 import PainelGerencial from "./pages/PainelGerencial";
-import ExtratoReconciliado from "./pages/ExtratoReconciliado";
 import AreaContador from "./pages/AreaContador";
 
 const queryClient = new QueryClient();
@@ -211,10 +206,7 @@ const App = () => (
                     <Route path="/contratos-recorrentes" element={<ContratosRecorrentes />} />
                     <Route path="/regua-cobranca" element={<ReguaCobranca />} />
                     <Route path="/painel-gerencial" element={<PainelGerencial />} />
-                    <Route path="/extrato-reconciliado" element={<ExtratoReconciliado />} />
                     <Route path="/dre" element={<DRE />} />
-                    <Route path="/demonstrativos/dre" element={<DREContabil />} />
-                    <Route path="/demonstrativos/bp" element={<BalancoPatrimonial />} />
                     <Route path="/demonstrativos/dfc" element={<FluxoCaixa />} />
                     <Route path="/demonstrativos/mapeamento" element={<MapeamentoContabil />} />
                     <Route path="/estoque" element={<EstoqueProdutos />} />
@@ -227,8 +219,6 @@ const App = () => (
                     <Route path="/notas-fiscais" element={<NotasFiscais />} />
                     <Route path="/nfse" element={<NfseEmissao />} />
                     <Route path="/configuracoes/nfse" element={<NfseConfiguracoes />} />
-                    <Route path="/apuracao-impostos" element={<ApuracaoImpostos />} />
-                    <Route path="/calendario-fiscal" element={<CalendarioFiscal />} />
                     <Route path="/area-contador" element={<AreaContador />} />
                     <Route path="/importacao-xml" element={<ImportacaoXML />} />
                     <Route path="/folha-pagamento" element={<FolhaPagamento />} />

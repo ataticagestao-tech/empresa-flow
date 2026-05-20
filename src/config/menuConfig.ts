@@ -30,13 +30,10 @@ import {
   Clock,
   GitMerge,
   CheckSquare,
-  Calendar,
   Receipt,
   Briefcase,
   Palmtree,
   UserPlus,
-  BarChart3,
-  Scale,
   Banknote,
   LucideIcon
 } from "lucide-react";
@@ -96,10 +93,7 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true, ownerOnly: true },
-      { titleKey: 'Extrato Reconciliado', icon: CheckSquare, url: '/extrato-reconciliado', isHardcoded: true, ownerOnly: true },
       { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
-      { titleKey: 'DRE Contábil', icon: BarChart3, url: '/demonstrativos/dre', isHardcoded: true },
-      { titleKey: 'Balanço Patrimonial', icon: Scale, url: '/demonstrativos/bp', isHardcoded: true, ownerOnly: true },
       { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
       { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
       { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
@@ -116,8 +110,6 @@ export const menuGroups: MenuGroup[] = [
       { titleKey: 'Area do Contador', icon: Briefcase, url: '/area-contador', isHardcoded: true },
       { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
       { titleKey: 'Notas Fiscais', icon: FileText, url: '/notas-fiscais', isHardcoded: true },
-      { titleKey: 'Apuracao de Impostos', icon: Calculator, url: '/apuracao-impostos', isHardcoded: true },
-      { titleKey: 'Calendario Fiscal', icon: Calendar, url: '/calendario-fiscal', isHardcoded: true },
       { titleKey: 'Importacao XML', icon: Upload, url: '/importacao-xml', isHardcoded: true },
       { titleKey: 'Config NFSe', icon: Settings, url: '/configuracoes/nfse', isHardcoded: true },
     ]
