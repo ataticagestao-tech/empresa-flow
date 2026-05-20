@@ -2045,36 +2045,8 @@ export default function ContasPagar() {
                     </span>
                   </button>
 
-                  {/* Table — Pagos usa renderizacao compacta (data, nome, valor) */}
-                  {!isCollapsed && group === 'pagos' && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full" style={{ fontSize: 11.5 }}>
-                        <thead>
-                          <tr style={{ backgroundColor: 'rgba(26,46,74,0.03)' }}>
-                            <th className="py-1 px-2 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', width: 76 }}>Data</th>
-                            <th className="py-1 px-2 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '10px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Nome</th>
-                            <th className="py-1 px-2 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '10px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', width: 90 }}>Valor</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((cp) => (
-                            <tr key={cp.id} style={{ borderBottom: '1px solid rgba(26,46,74,0.06)' }}>
-                              <td className="py-1 px-2" style={{ fontSize: 11.5, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
-                                {cp.data_pagamento ? formatData(cp.data_pagamento) : formatData(cp.data_vencimento)}
-                              </td>
-                              <td className="py-1 px-2 truncate" style={{ fontSize: 11.5, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 280 }} title={cp.descricao || cp.credor_nome}>
-                                {cp.descricao || cp.credor_nome}
-                              </td>
-                              <td className="py-1 px-2 text-right" style={{ fontSize: 11.5, color: '#1D2939', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                                {formatBRL(Number(cp.valor_pago || cp.valor || 0))}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  {!isCollapsed && group !== 'pagos' && (
+                  {/* Table — mesmo layout completo para todos os grupos, inclusive Pagos */}
+                  {!isCollapsed && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -2098,7 +2070,7 @@ export default function ContasPagar() {
                                 style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                               />
                             </th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Vencimento</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{group === 'pagos' ? 'Pagamento' : 'Vencimento'}</th>
                             <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descrição</th>
                             <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
                             <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
@@ -2134,9 +2106,11 @@ export default function ContasPagar() {
                                     style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                                   />
                                 </td>
-                                {/* Vencimento */}
+                                {/* Vencimento (ou Pagamento, em Pagos) */}
                                 <td className="py-1 px-2.5" style={{ fontSize: 13 }}>
-                                  {isHoje ? (
+                                  {group === 'pagos' ? (
+                                    <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_pagamento || cp.data_vencimento)}</span>
+                                  ) : isHoje ? (
                                     <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
                                   ) : (
                                     <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
@@ -2152,12 +2126,12 @@ export default function ContasPagar() {
                                     <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
                                   )}
                                 </td>
-                                {/* Valor */}
+                                {/* Valor (em Pagos, mostra valor pago; demais grupos, saldo a pagar) */}
                                 <td className="py-1 px-2.5 text-right">
                                   <div className="font-semibold" style={{ color: '#1D2939', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
-                                    {formatBRL(saldo(cp))}
+                                    {formatBRL(group === 'pagos' ? Number(cp.valor_pago || cp.valor || 0) : saldo(cp))}
                                   </div>
-                                  {cp.valor_pago > 0 && (
+                                  {group !== 'pagos' && cp.valor_pago > 0 && (
                                     <div style={{ fontSize: 11, color: '#98A2B3', fontVariantNumeric: 'tabular-nums' }}>
                                       total: {formatBRL(cp.valor)}
                                     </div>
@@ -2195,15 +2169,17 @@ export default function ContasPagar() {
                                 </td>
                                 <td className="py-1 px-2.5 text-right">
                                   <div className="flex items-center justify-end gap-1">
-                                    <button
-                                      onClick={() => openPayModal(cp)}
-                                      className="text-xs font-semibold px-3 py-1.5 rounded-[6px] transition"
-                                      style={{ border: '1px solid #059669', color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
-                                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#059669'; (e.currentTarget as HTMLElement).style.color = '#ffffff' }}
-                                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; (e.currentTarget as HTMLElement).style.color = '#059669' }}
-                                    >
-                                      Pagar
-                                    </button>
+                                    {cp.status !== 'pago' && (
+                                      <button
+                                        onClick={() => openPayModal(cp)}
+                                        className="text-xs font-semibold px-3 py-1.5 rounded-[6px] transition"
+                                        style={{ border: '1px solid #059669', color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#059669'; (e.currentTarget as HTMLElement).style.color = '#ffffff' }}
+                                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; (e.currentTarget as HTMLElement).style.color = '#059669' }}
+                                      >
+                                        Pagar
+                                      </button>
+                                    )}
                                     <div className="relative">
                                       <button
                                         onClick={(e) => {
