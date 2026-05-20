@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { AlertTriangle, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 import { usePendenciasReclassificacao } from "../hooks/usePendenciasReclassificacao";
+import { PendenciasReclassificacaoDialog } from "./PendenciasReclassificacaoDialog";
 import { formatBRL } from "@/lib/format";
 
 interface Props {
@@ -11,8 +12,8 @@ interface Props {
 }
 
 export function PendenciasBanner({ variant = "full", filter = "all", className = "" }: Props) {
-    const navigate = useNavigate();
     const { data } = usePendenciasReclassificacao();
+    const [dialogOpen, setDialogOpen] = useState(false);
 
     if (!data) return null;
 
@@ -41,37 +42,51 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
 
     if (variant === "compact") {
         return (
-            <button
-                type="button"
-                onClick={() => navigate("/conciliacao")}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#fbbf24] bg-[#FFF0EB] text-[#7a5400] text-[11px] font-semibold hover:bg-[#fde68a] transition-colors cursor-pointer ${className}`}
-                title="Ir para Conciliação Bancária"
-            >
-                <AlertTriangle className="h-3 w-3" />
-                <span>{count} pendência{count > 1 ? "s" : ""} de reclassificação</span>
-                <span className="text-[#9a6e00] tabular-nums">· {formatBRL(total)}</span>
-            </button>
+            <>
+                <button
+                    type="button"
+                    onClick={() => setDialogOpen(true)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#fbbf24] bg-[#FFF0EB] text-[#7a5400] text-[11px] font-semibold hover:bg-[#fde68a] transition-colors cursor-pointer ${className}`}
+                    title="Reclassificar movimentações pendentes"
+                >
+                    <AlertTriangle className="h-3 w-3" />
+                    <span>{count} pendência{count > 1 ? "s" : ""} de reclassificação</span>
+                    <span className="text-[#9a6e00] tabular-nums">· {formatBRL(total)}</span>
+                </button>
+                <PendenciasReclassificacaoDialog
+                    open={dialogOpen}
+                    onOpenChange={setDialogOpen}
+                    filter={filter}
+                />
+            </>
         );
     }
 
     return (
-        <div className={`flex items-start gap-3 px-4 py-3 rounded-md border border-[#fbbf24] bg-[#FFF0EB] ${className}`}>
-            <AlertTriangle className="h-4 w-4 text-[#EA580C] flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-bold text-[#7a5400]">
-                    {count} movimenta{count > 1 ? "ções" : "ção"} pendente{count > 1 ? "s" : ""} de reclassificação
-                </p>
-                <p className="text-[11px] text-[#9a6e00] mt-0.5">
-                    {parts.join(" · ")}. Vincule a um cliente/fornecedor e categoria contábil em Conciliação Bancária.
-                </p>
+        <>
+            <div className={`flex items-start gap-3 px-4 py-3 rounded-md border border-[#fbbf24] bg-[#FFF0EB] ${className}`}>
+                <AlertTriangle className="h-4 w-4 text-[#EA580C] flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-bold text-[#7a5400]">
+                        {count} movimenta{count > 1 ? "ções" : "ção"} pendente{count > 1 ? "s" : ""} de reclassificação
+                    </p>
+                    <p className="text-[11px] text-[#9a6e00] mt-0.5">
+                        {parts.join(" · ")}. Atribua uma categoria contábil para que apareçam no DRE.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setDialogOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#059669] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
+                >
+                    Reclassificar <ArrowRight className="h-3 w-3" />
+                </button>
             </div>
-            <button
-                type="button"
-                onClick={() => navigate("/conciliacao")}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#059669] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
-            >
-                Reclassificar <ArrowRight className="h-3 w-3" />
-            </button>
-        </div>
+            <PendenciasReclassificacaoDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                filter={filter}
+            />
+        </>
     );
 }
