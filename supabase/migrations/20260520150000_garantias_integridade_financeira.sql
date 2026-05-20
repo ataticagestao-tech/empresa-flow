@@ -54,7 +54,7 @@ BEGIN
     COALESCE(NEW.data_pagamento, CURRENT_DATE),
     'Recebimento — ' || COALESCE(NEW.pagador_nome, '(sem nome)'),
     'conta_receber',
-    CASE WHEN NEW.status = 'conciliado' THEN 'conciliado' ELSE 'manual' END
+    CASE WHEN NEW.status = 'conciliado' THEN 'conciliado' ELSE 'pendente' END
   );
 
   PERFORM set_config('app.skip_categoria_garantia', 'false', true);
@@ -103,7 +103,7 @@ BEGIN
     COALESCE(NEW.data_pagamento, CURRENT_DATE),
     'Pagamento — ' || COALESCE(NEW.credor_nome, '(sem nome)'),
     'conta_pagar',
-    CASE WHEN NEW.status = 'conciliado' THEN 'conciliado' ELSE 'manual' END
+    CASE WHEN NEW.status = 'conciliado' THEN 'conciliado' ELSE 'pendente' END
   );
 
   PERFORM set_config('app.skip_categoria_garantia', 'false', true);
