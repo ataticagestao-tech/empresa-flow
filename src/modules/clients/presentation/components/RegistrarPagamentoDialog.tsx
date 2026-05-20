@@ -77,6 +77,19 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                 ? `Quitação — ${contrato.procedimento || "contrato"}`
                 : `Pagamento avulso — ${contrato.procedimento || "contrato"}`;
 
+            // Herda conta_contabil_id de qualquer CR existente do mesmo contrato
+            // (preserva categoria contábil — alimenta DRE/Fluxo de Caixa).
+            const { data: crsExistentes } = await ac
+                .from("contas_receber")
+                .select("conta_contabil_id")
+                .eq("venda_id", contrato.id)
+                .not("conta_contabil_id", "is", null)
+                .limit(1);
+            const contaContabilHerda = crsExistentes?.[0]?.conta_contabil_id ?? null;
+
+            // INSERT CR com conta_bancaria_id + conta_contabil_id.
+            // Trigger garantir_mov_ao_quitar_cr cria a mov automaticamente
+            // (não precisamos do INSERT mov manual abaixo).
             const { data: cr, error: crErr } = await ac
                 .from("contas_receber")
                 .insert({
@@ -91,25 +104,16 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                     forma_recebimento: forma,
                     venda_id: contrato.id,
                     observacoes: observacoes.trim() || obsBase,
+                    conta_bancaria_id: contaBancaria,
+                    conta_contabil_id: contaContabilHerda,
                 })
                 .select()
                 .single();
 
             if (crErr) throw crErr;
 
-            const { error: movErr } = await ac.from("movimentacoes").insert({
-                company_id: selectedCompany.id,
-                conta_bancaria_id: contaBancaria,
-                conta_contabil_id: null,
-                tipo: "credito",
-                valor: v,
-                data,
-                descricao: `${modoQuitacao ? "Quitação" : "Pagamento avulso"} — ${clientName} — ${contrato.procedimento || "Contrato"}`,
-                origem: "conta_receber",
-                conta_receber_id: cr.id,
-            });
-
-            if (movErr) throw movErr;
+            // Mov é criada automaticamente pelo trigger garantir_mov_ao_quitar_cr
+            // ao detectar status='pago' + conta_bancaria_id preenchido.
 
             // No modo Quitação, soft-delete das CRs em aberto da venda
             // (as que ainda não foram pagas) — limpa o calendário de parcelas.

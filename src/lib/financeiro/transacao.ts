@@ -24,19 +24,12 @@ export async function quitarCR(
     const novoValorPago = (cr.valor_pago || 0) + valorFinal
     const novoStatus = novoValorPago >= cr.valor ? 'pago' : 'parcial'
 
-    // 1. Atualizar CR
-    const { error: erroCR } = await supabase
-      .from('contas_receber')
-      .update({
-        valor_pago: novoValorPago,
-        status: novoStatus,
-        data_pagamento: dados.dataPagamento,
-        forma_recebimento: dados.formaRecebimento,
-      })
-      .eq('id', crId)
-    if (erroCR) throw erroCR
+    // ORDEM IMPORTANTE: INSERT mov PRIMEIRO, depois UPDATE CR.
+    // Com a Garantia 1 (trigger garantir_mov_ao_quitar_cr), se o UPDATE viesse
+    // antes, o trigger criaria a mov automaticamente — e o INSERT abaixo
+    // duplicaria. Invertendo, o trigger detecta mov ja existente e nao age.
 
-    // 2. Gerar movimentação
+    // 1. Gerar movimentação (idempotente via trigger anti_duplicata_movimentacoes)
     const { error: erroMov } = await supabase.from('movimentacoes').insert({
       company_id: cr.company_id,
       conta_bancaria_id: dados.contaBancariaId,
@@ -49,6 +42,19 @@ export async function quitarCR(
       conta_receber_id: crId,
     })
     if (erroMov) throw erroMov
+
+    // 2. Atualizar CR (inclui conta_bancaria_id pra a Garantia 1 ter referencia)
+    const { error: erroCR } = await supabase
+      .from('contas_receber')
+      .update({
+        valor_pago: novoValorPago,
+        status: novoStatus,
+        data_pagamento: dados.dataPagamento,
+        forma_recebimento: dados.formaRecebimento,
+        conta_bancaria_id: dados.contaBancariaId,
+      })
+      .eq('id', crId)
+    if (erroCR) throw erroCR
 
     // 3. Gerar recibo apenas se totalmente pago
     let recibo = null
@@ -89,19 +95,10 @@ export async function quitarCP(
     const novoValorPago = (cp.valor_pago || 0) + valorFinal
     const novoStatus = novoValorPago >= cp.valor ? 'pago' : 'parcial'
 
-    // 1. Atualizar CP
-    const { error: erroCP } = await supabase
-      .from('contas_pagar')
-      .update({
-        valor_pago: novoValorPago,
-        status: novoStatus,
-        data_pagamento: dados.dataPagamento,
-        forma_pagamento: dados.formaPagamento,
-      })
-      .eq('id', cpId)
-    if (erroCP) throw erroCP
+    // ORDEM IMPORTANTE: INSERT mov PRIMEIRO, depois UPDATE CP.
+    // Mesma razão que quitarCR — evita duplicacao com trigger Garantia 1.
 
-    // 2. Gerar movimentação
+    // 1. Gerar movimentação
     const { error: erroMov } = await supabase.from('movimentacoes').insert({
       company_id: cp.company_id,
       conta_bancaria_id: dados.contaBancariaId,
@@ -114,6 +111,19 @@ export async function quitarCP(
       conta_pagar_id: cpId,
     })
     if (erroMov) throw erroMov
+
+    // 2. Atualizar CP (inclui conta_bancaria_id pra a Garantia 1)
+    const { error: erroCP } = await supabase
+      .from('contas_pagar')
+      .update({
+        valor_pago: novoValorPago,
+        status: novoStatus,
+        data_pagamento: dados.dataPagamento,
+        forma_pagamento: dados.formaPagamento,
+        conta_bancaria_id: dados.contaBancariaId,
+      })
+      .eq('id', cpId)
+    if (erroCP) throw erroCP
 
     return { sucesso: true }
   } catch (erro: any) {
