@@ -214,19 +214,18 @@ export default function VendaSistema() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto bg-[#F5F0E8] text-[#2c2c2c] font-sans antialiased md:mx-16 lg:mx-28 xl:mx-40 2xl:mx-52">
-        <TopBar />
-        <Hero />
-        <Sobre />
-        <Sistema />
-        <Servicos />
-        <Planos />
-        <Consultoria />
-        <Fundadores />
-        <CTAFinal />
-        <Footer />
-      </div>
+    <div className="min-h-screen bg-[#F5F0E8] text-[#2c2c2c] font-sans antialiased">
+      <div className="h-10 bg-white md:h-14 lg:h-16" aria-hidden />
+      <TopBar />
+      <Hero />
+      <Sobre />
+      <Sistema />
+      <Servicos />
+      <Planos />
+      <Consultoria />
+      <Fundadores />
+      <CTAFinal />
+      <Footer />
       <WhatsAppFloat />
     </div>
   );
