@@ -37,7 +37,7 @@ import {
 
 const WHATSAPP_NUMERO = "5535999905768";
 const WHATSAPP_MSG = encodeURIComponent(
-  "Olá! Quero falar com um especialista da Tática Financeiro."
+  "Olá! Quero contratar a Tática Financeiro."
 );
 const whatsappUrl = `https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`;
 
@@ -299,7 +299,7 @@ function TopBar() {
         <div className="flex items-center gap-2">
           <Button asChild className="hidden rounded-md bg-[#2C7BC4] px-5 text-white hover:bg-[#1f5d96] sm:inline-flex">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Fale com um especialista
+              Quero contratar
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </a>
           </Button>
@@ -322,7 +322,7 @@ function TopBar() {
               </a>
             ))}
             <a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-2 rounded-md bg-[#2C7BC4] px-4 py-2.5 text-center text-[14px] font-semibold text-white">
-              Fale com um especialista
+              Quero contratar
             </a>
           </nav>
         </div>
@@ -368,7 +368,7 @@ function Hero() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="h-12 rounded-md bg-[#2C7BC4] px-7 text-[14px] font-bold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-[#1f5d96] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)]">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                Fale com um especialista
+                Quero contratar
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -426,7 +426,7 @@ function Sobre() {
             </div>
             <Button asChild className="mt-8 h-11 rounded-md bg-[#2C7BC4] px-6 text-[13.5px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                Fale com um especialista
+                Quero contratar
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -566,7 +566,7 @@ function Servicos() {
         <div className="mt-12 text-center">
           <Button asChild size="lg" className="h-12 rounded-md bg-[#2C7BC4] px-7 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Fale com um especialista
+              Quero contratar
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>
@@ -684,7 +684,7 @@ function Consultoria() {
         <div className="mt-14 text-center">
           <Button asChild size="lg" className="h-12 rounded-md bg-[#2C7BC4] px-7 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
-              Fale com um especialista
+              Quero contratar
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>
@@ -754,7 +754,7 @@ function CTAFinal() {
 
         <Button asChild size="lg" className="mt-9 h-14 rounded-md bg-[#2C7BC4] px-10 text-[15px] font-bold uppercase tracking-wider text-white hover:-translate-y-0.5 hover:bg-[#1f5d96] hover:shadow-[0_12px_30px_rgba(44,123,196,0.4)]">
           <a href={whatsappUrl} target="_blank" rel="noreferrer">
-            Fale com um especialista
+            Quero contratar
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
         </Button>
