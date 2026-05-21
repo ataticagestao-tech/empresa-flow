@@ -230,31 +230,63 @@ export default function VendaSistema() {
   );
 }
 
-function LogoSymbol({
-  size = 32,
+function LogoOficial({
   variant = "dark",
+  size = "md",
   className = "",
 }: {
-  size?: number;
   variant?: "dark" | "light";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const fill = variant === "light" ? "white" : "#171717";
+  const text = variant === "light" ? "#FFFFFF" : "#171717";
+  const arcColor = "#B98A3C"; // dourado bronze
+  const dims = {
+    sm: { box: 32, font: 18, sub: 7, gap: 1, subTracking: "0.16em" },
+    md: { box: 44, font: 24, sub: 8, gap: 2, subTracking: "0.18em" },
+    lg: { box: 60, font: 32, sub: 10, gap: 3, subTracking: "0.18em" },
+  }[size];
+
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="19" height="19" rx="4" fill={fill} />
-      <rect x="26" y="3" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
-      <rect x="3" y="26" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
-      <rect x="26" y="26" width="19" height="19" rx="4" fill={fill} />
-    </svg>
+    <div className={`relative inline-flex flex-col items-center ${className}`} aria-label="Tática">
+      <div className="relative" style={{ width: dims.box, height: dims.box }}>
+        {/* Arco dourado parcial */}
+        <svg
+          viewBox="0 0 100 100"
+          className="absolute inset-0 h-full w-full"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M 75 12 A 42 42 0 1 0 75 88"
+            stroke={arcColor}
+            strokeWidth="3"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
+      </div>
+      <div className="leading-none" style={{ marginTop: -dims.box * 0.66 }}>
+        <p
+          className="font-serif font-semibold tracking-[0.02em]"
+          style={{ color: text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: dims.font }}
+        >
+          TÁTICA
+        </p>
+      </div>
+      <p
+        className="font-medium"
+        style={{
+          color: text,
+          fontSize: dims.sub,
+          letterSpacing: dims.subTracking,
+          marginTop: dims.gap,
+          textTransform: "uppercase",
+        }}
+      >
+        Gestão &amp; Finanças Empresariais
+      </p>
+    </div>
   );
 }
 
@@ -308,12 +340,8 @@ function TopBar() {
   return (
     <header className="sticky top-0 z-50 border-b border-black/5 bg-[#F5F0E8]/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
-        <Link to="/" className="flex items-center gap-3">
-          <LogoSymbol size={40} variant="dark" />
-          <div className="leading-[1.1]">
-            <p className="text-[15px] font-black tracking-tight text-[#0D2847]">TÁTICA</p>
-            <p className="text-[13px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
-          </div>
+        <Link to="/" className="flex items-center">
+          <LogoOficial size="sm" variant="dark" />
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex">
@@ -797,13 +825,7 @@ function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-10 md:grid-cols-[2fr_1fr_1fr_1.4fr]">
           <div>
-            <div className="flex items-center gap-3">
-              <LogoSymbol size={36} variant="light" />
-              <div className="leading-[1.15]">
-                <p className="text-[16px] font-black tracking-tight text-white">TÁTICA</p>
-                <p className="text-[14px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
-              </div>
-            </div>
+            <LogoOficial size="sm" variant="light" className="!items-start" />
             <p className="mt-4 max-w-xs text-[13px] leading-relaxed">
               Gestão financeira especializada com sistema próprio para empresas que querem crescer
               com clareza, controle e lucratividade real.

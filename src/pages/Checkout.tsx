@@ -21,15 +21,34 @@ import {
 
 const WHATSAPP_NUMERO = "5535999905768";
 
-function LogoSymbol({ size = 32, variant = "dark" }: { size?: number; variant?: "dark" | "light" }) {
-  const fill = variant === "light" ? "white" : "#171717";
+function LogoOficial({ variant = "dark", size = "sm" }: { variant?: "dark" | "light"; size?: "sm" | "md" }) {
+  const text = variant === "light" ? "#FFFFFF" : "#171717";
+  const arcColor = "#B98A3C";
+  const dims = size === "md"
+    ? { box: 44, font: 24, sub: 8, gap: 2 }
+    : { box: 32, font: 18, sub: 7, gap: 1 };
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="19" height="19" rx="4" fill={fill} />
-      <rect x="26" y="3" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
-      <rect x="3" y="26" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
-      <rect x="26" y="26" width="19" height="19" rx="4" fill={fill} />
-    </svg>
+    <div className="relative inline-flex flex-col items-start" aria-label="Tática">
+      <div className="relative" style={{ width: dims.box, height: dims.box }}>
+        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" fill="none" aria-hidden="true">
+          <path d="M 75 12 A 42 42 0 1 0 75 88" stroke={arcColor} strokeWidth="3" strokeLinecap="round" fill="none" />
+        </svg>
+      </div>
+      <div className="leading-none" style={{ marginTop: -dims.box * 0.66 }}>
+        <p
+          className="font-serif font-semibold tracking-[0.02em]"
+          style={{ color: text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: dims.font }}
+        >
+          TÁTICA
+        </p>
+      </div>
+      <p
+        className="font-medium uppercase"
+        style={{ color: text, fontSize: dims.sub, letterSpacing: "0.16em", marginTop: dims.gap }}
+      >
+        Gestão &amp; Finanças Empresariais
+      </p>
+    </div>
   );
 }
 
@@ -235,13 +254,7 @@ export default function Checkout() {
             <ArrowLeft className="h-4 w-4" />
             <span className="text-[13.5px] font-medium">Voltar para a página inicial</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <LogoSymbol size={36} variant="light" />
-            <div className="leading-[1.1]">
-              <p className="text-[14px] font-black tracking-tight text-white">TÁTICA</p>
-              <p className="text-[12px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
-            </div>
-          </div>
+          <LogoOficial variant="light" size="sm" />
         </div>
       </header>
 
@@ -528,12 +541,8 @@ function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsa
     <div className="min-h-screen bg-[#F5F0E8] text-[#2c2c2c]">
       <header className="bg-[#0D2847]">
         <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
-          <Link to="/venda" className="flex items-center gap-3">
-            <LogoSymbol size={36} variant="light" />
-            <div className="leading-[1.1]">
-              <p className="text-[14px] font-black tracking-tight text-white">TÁTICA</p>
-              <p className="text-[12px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
-            </div>
+          <Link to="/venda" className="flex items-center">
+            <LogoOficial variant="light" size="sm" />
           </Link>
         </div>
       </header>
