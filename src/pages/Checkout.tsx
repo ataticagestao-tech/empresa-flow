@@ -25,26 +25,32 @@ function LogoOficial({ variant = "dark", size = "sm" }: { variant?: "dark" | "li
   const text = variant === "light" ? "#FFFFFF" : "#171717";
   const arcColor = "#B98A3C";
   const dims = size === "md"
-    ? { box: 44, font: 24, sub: 8, gap: 2 }
-    : { box: 32, font: 18, sub: 7, gap: 1 };
+    ? { font: 28, arc: 52, sub: 8, gap: 3, arcDX: -14, arcDY: -12, strokeW: 3, subTracking: "0.20em" }
+    : { font: 20, arc: 36, sub: 7, gap: 2, arcDX: -10, arcDY: -8, strokeW: 2.5, subTracking: "0.18em" };
   return (
-    <div className="relative inline-flex flex-col items-start" aria-label="Tática">
-      <div className="relative" style={{ width: dims.box, height: dims.box }}>
-        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" fill="none" aria-hidden="true">
-          <path d="M 75 12 A 42 42 0 1 0 75 88" stroke={arcColor} strokeWidth="3" strokeLinecap="round" fill="none" />
+    <div className="inline-flex flex-col items-start" aria-label="Tática">
+      <div className="relative inline-block leading-none">
+        <svg
+          width={dims.arc}
+          height={dims.arc}
+          viewBox="0 0 100 100"
+          fill="none"
+          className="absolute z-0"
+          style={{ left: dims.arcDX, top: dims.arcDY }}
+          aria-hidden="true"
+        >
+          <path d="M 75 12 A 42 42 0 1 0 75 88" stroke={arcColor} strokeWidth={dims.strokeW} strokeLinecap="round" fill="none" />
         </svg>
-      </div>
-      <div className="leading-none" style={{ marginTop: -dims.box * 0.66 }}>
         <p
-          className="font-serif font-semibold tracking-[0.02em]"
-          style={{ color: text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: dims.font }}
+          className="relative z-10 font-semibold tracking-[0.02em]"
+          style={{ color: text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: dims.font, lineHeight: 1 }}
         >
           TÁTICA
         </p>
       </div>
       <p
         className="font-medium uppercase"
-        style={{ color: text, fontSize: dims.sub, letterSpacing: "0.16em", marginTop: dims.gap }}
+        style={{ color: text, fontSize: dims.sub, letterSpacing: dims.subTracking, marginTop: dims.gap }}
       >
         Gestão &amp; Finanças Empresariais
       </p>

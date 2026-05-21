@@ -242,34 +242,40 @@ function LogoOficial({
   const text = variant === "light" ? "#FFFFFF" : "#171717";
   const arcColor = "#B98A3C"; // dourado bronze
   const dims = {
-    sm: { box: 32, font: 18, sub: 7, gap: 1, subTracking: "0.16em" },
-    md: { box: 44, font: 24, sub: 8, gap: 2, subTracking: "0.18em" },
-    lg: { box: 60, font: 32, sub: 10, gap: 3, subTracking: "0.18em" },
+    sm: { font: 20, arc: 36, sub: 7, gap: 2, subTracking: "0.18em", arcDX: -10, arcDY: -8, strokeW: 2.5 },
+    md: { font: 28, arc: 52, sub: 8, gap: 3, subTracking: "0.20em", arcDX: -14, arcDY: -12, strokeW: 3 },
+    lg: { font: 36, arc: 68, sub: 10, gap: 4, subTracking: "0.22em", arcDX: -18, arcDY: -16, strokeW: 3.5 },
   }[size];
 
   return (
-    <div className={`relative inline-flex flex-col items-center ${className}`} aria-label="Tática">
-      <div className="relative" style={{ width: dims.box, height: dims.box }}>
-        {/* Arco dourado parcial */}
+    <div className={`inline-flex flex-col items-start ${className}`} aria-label="Tática">
+      <div className="relative inline-block leading-none">
+        {/* Arco dourado ancorado à esquerda, abrindo em direção ao T */}
         <svg
+          width={dims.arc}
+          height={dims.arc}
           viewBox="0 0 100 100"
-          className="absolute inset-0 h-full w-full"
           fill="none"
+          className="absolute z-0"
+          style={{ left: dims.arcDX, top: dims.arcDY }}
           aria-hidden="true"
         >
           <path
             d="M 75 12 A 42 42 0 1 0 75 88"
             stroke={arcColor}
-            strokeWidth="3"
+            strokeWidth={dims.strokeW}
             strokeLinecap="round"
             fill="none"
           />
         </svg>
-      </div>
-      <div className="leading-none" style={{ marginTop: -dims.box * 0.66 }}>
         <p
-          className="font-serif font-semibold tracking-[0.02em]"
-          style={{ color: text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: dims.font }}
+          className="relative z-10 font-semibold tracking-[0.02em]"
+          style={{
+            color: text,
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: dims.font,
+            lineHeight: 1,
+          }}
         >
           TÁTICA
         </p>
