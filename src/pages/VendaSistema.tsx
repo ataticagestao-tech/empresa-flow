@@ -215,7 +215,6 @@ export default function VendaSistema() {
 
   return (
     <div className="min-h-screen bg-[#F5F0E8] text-[#2c2c2c] font-sans antialiased">
-      <div className="h-10 bg-white md:h-14 lg:h-16" aria-hidden />
       <TopBar />
       <Hero />
       <Sobre />
@@ -279,19 +278,19 @@ function PhotoFrame({
 function TopBar() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-50 bg-[#0D2847] shadow-[0_2px_12px_rgba(0,0,0,0.25)]">
+    <header className="sticky top-0 z-50 border-b border-black/5 bg-[#F5F0E8]/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-lg bg-[#2C7BC4] text-[18px] font-black text-white">T</div>
           <div className="leading-[1.1]">
-            <p className="text-[15px] font-black tracking-tight text-white">TÁTICA</p>
+            <p className="text-[15px] font-black tracking-tight text-[#0D2847]">TÁTICA</p>
             <p className="text-[13px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
           </div>
         </Link>
 
         <nav className="hidden items-center gap-7 lg:flex">
           {navLinks.map((x) => (
-            <a key={x.href} href={x.href} className="text-[14px] font-medium text-[#B8C8E0] transition hover:text-[#22A55C]">
+            <a key={x.href} href={x.href} className="text-[14px] font-medium text-[#0D2847]/75 transition hover:text-[#22A55C]">
               {x.l}
             </a>
           ))}
@@ -306,7 +305,7 @@ function TopBar() {
           </Button>
           <button
             onClick={() => setOpen((v) => !v)}
-            className="grid h-10 w-10 place-items-center rounded-md text-white/80 hover:bg-white/10 lg:hidden"
+            className="grid h-10 w-10 place-items-center rounded-md text-[#0D2847]/80 hover:bg-black/5 lg:hidden"
             aria-label="Abrir menu"
           >
             <MenuIcon className="h-5 w-5" />
@@ -315,10 +314,10 @@ function TopBar() {
       </div>
 
       {open && (
-        <div className="border-t border-white/10 bg-[#0D2847] lg:hidden">
+        <div className="border-t border-black/5 bg-[#F5F0E8] lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {navLinks.map((x) => (
-              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[14px] text-white/80 hover:bg-white/5 hover:text-white">
+              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[14px] text-[#0D2847]/80 hover:bg-black/5 hover:text-[#22A55C]">
                 {x.l}
               </a>
             ))}
