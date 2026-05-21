@@ -21,6 +21,18 @@ import {
 
 const WHATSAPP_NUMERO = "5535999905768";
 
+function LogoSymbol({ size = 32, variant = "dark" }: { size?: number; variant?: "dark" | "light" }) {
+  const fill = variant === "light" ? "white" : "#171717";
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="19" height="19" rx="4" fill={fill} />
+      <rect x="26" y="3" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
+      <rect x="3" y="26" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
+      <rect x="26" y="26" width="19" height="19" rx="4" fill={fill} />
+    </svg>
+  );
+}
+
 type PlanoKey = "Assistente" | "Controller" | "Gestor";
 
 type Plano = {
@@ -224,7 +236,7 @@ export default function Checkout() {
             <span className="text-[13.5px] font-medium">Voltar para a página inicial</span>
           </Link>
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#2C7BC4] text-[15px] font-black text-white">T</div>
+            <LogoSymbol size={36} variant="light" />
             <div className="leading-[1.1]">
               <p className="text-[14px] font-black tracking-tight text-white">TÁTICA</p>
               <p className="text-[12px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
@@ -517,7 +529,7 @@ function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsa
       <header className="bg-[#0D2847]">
         <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
           <Link to="/venda" className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-[#2C7BC4] text-[15px] font-black text-white">T</div>
+            <LogoSymbol size={36} variant="light" />
             <div className="leading-[1.1]">
               <p className="text-[14px] font-black tracking-tight text-white">TÁTICA</p>
               <p className="text-[12px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>

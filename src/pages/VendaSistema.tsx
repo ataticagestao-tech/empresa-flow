@@ -230,6 +230,34 @@ export default function VendaSistema() {
   );
 }
 
+function LogoSymbol({
+  size = 32,
+  variant = "dark",
+  className = "",
+}: {
+  size?: number;
+  variant?: "dark" | "light";
+  className?: string;
+}) {
+  const fill = variant === "light" ? "white" : "#171717";
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="19" height="19" rx="4" fill={fill} />
+      <rect x="26" y="3" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
+      <rect x="3" y="26" width="19" height="19" rx="4" fill={fill} opacity="0.2" />
+      <rect x="26" y="26" width="19" height="19" rx="4" fill={fill} />
+    </svg>
+  );
+}
+
 function PhotoFrame({
   src,
   alt,
@@ -281,7 +309,7 @@ function TopBar() {
     <header className="sticky top-0 z-50 border-b border-black/5 bg-[#F5F0E8]/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-[#2C7BC4] text-[18px] font-black text-white">T</div>
+          <LogoSymbol size={40} variant="dark" />
           <div className="leading-[1.1]">
             <p className="text-[15px] font-black tracking-tight text-[#0D2847]">TÁTICA</p>
             <p className="text-[13px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
@@ -769,9 +797,12 @@ function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-10 md:grid-cols-[2fr_1fr_1fr_1.4fr]">
           <div>
-            <div className="leading-[1.15]">
-              <p className="text-[16px] font-black tracking-tight text-white">TÁTICA</p>
-              <p className="text-[14px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
+            <div className="flex items-center gap-3">
+              <LogoSymbol size={36} variant="light" />
+              <div className="leading-[1.15]">
+                <p className="text-[16px] font-black tracking-tight text-white">TÁTICA</p>
+                <p className="text-[14px] font-black tracking-tight text-[#22A55C]">FINANCEIRO</p>
+              </div>
             </div>
             <p className="mt-4 max-w-xs text-[13px] leading-relaxed">
               Gestão financeira especializada com sistema próprio para empresas que querem crescer
