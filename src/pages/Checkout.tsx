@@ -25,8 +25,8 @@ function LogoOficial({ variant = "dark", size = "sm" }: { variant?: "dark" | "li
   const text = variant === "light" ? "#FFFFFF" : "#171717";
   const arcColor = "#B98A3C";
   const dims = size === "md"
-    ? { font: 28, arc: 52, sub: 8, gap: 3, arcDX: -14, arcDY: -12, strokeW: 3, subTracking: "0.20em" }
-    : { font: 20, arc: 36, sub: 7, gap: 2, arcDX: -10, arcDY: -8, strokeW: 2.5, subTracking: "0.18em" };
+    ? { font: 28, arc: 52, sub: 8, gap: 3, arcDX: -34, arcDY: -12, strokeW: 3, subTracking: "0.20em" }
+    : { font: 20, arc: 36, sub: 7, gap: 2, arcDX: -26, arcDY: -8, strokeW: 2.5, subTracking: "0.18em" };
   return (
     <div className="inline-flex flex-col items-start" aria-label="Tática">
       <div className="relative inline-block leading-none">

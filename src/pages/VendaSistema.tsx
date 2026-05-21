@@ -242,9 +242,9 @@ function LogoOficial({
   const text = variant === "light" ? "#FFFFFF" : "#171717";
   const arcColor = "#B98A3C"; // dourado bronze
   const dims = {
-    sm: { font: 20, arc: 36, sub: 7, gap: 2, subTracking: "0.18em", arcDX: -10, arcDY: -8, strokeW: 2.5 },
-    md: { font: 28, arc: 52, sub: 8, gap: 3, subTracking: "0.20em", arcDX: -14, arcDY: -12, strokeW: 3 },
-    lg: { font: 36, arc: 68, sub: 10, gap: 4, subTracking: "0.22em", arcDX: -18, arcDY: -16, strokeW: 3.5 },
+    sm: { font: 20, arc: 36, sub: 7, gap: 2, subTracking: "0.18em", arcDX: -26, arcDY: -8, strokeW: 2.5 },
+    md: { font: 28, arc: 52, sub: 8, gap: 3, subTracking: "0.20em", arcDX: -34, arcDY: -12, strokeW: 3 },
+    lg: { font: 36, arc: 68, sub: 10, gap: 4, subTracking: "0.22em", arcDX: -42, arcDY: -16, strokeW: 3.5 },
   }[size];
 
   return (
