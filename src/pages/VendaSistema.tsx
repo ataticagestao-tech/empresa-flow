@@ -8,21 +8,13 @@ import {
   Check,
   Sparkles,
   ShieldCheck,
-  Wallet,
-  Banknote,
-  Receipt,
-  FileBarChart,
-  PiggyBank,
   Phone,
   Mail,
   Building2,
   MessageSquare,
-  Send,
   Bell,
   BarChart3,
-  FolderOpen,
   Users2,
-  GraduationCap,
   LineChart,
   Linkedin,
   Instagram,
@@ -39,6 +31,8 @@ import {
   Lock,
   Smartphone,
   Zap,
+  ImageIcon,
+  User,
 } from "lucide-react";
 
 const WHATSAPP_NUMERO = "5535999905768";
@@ -47,10 +41,7 @@ const WHATSAPP_MSG = encodeURIComponent(
 );
 const whatsappUrl = `https://wa.me/${WHATSAPP_NUMERO}?text=${WHATSAPP_MSG}`;
 
-const whatsappPlano = (plano: string) =>
-  `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(
-    `Olá! Tenho interesse no plano ${plano} da Tática Financeiro.`
-  )}`;
+const checkoutUrl = (plano: string) => `/checkout?plano=${encodeURIComponent(plano)}`;
 
 const heroBullets = [
   "Clareza financeira sem burocracia",
@@ -167,12 +158,14 @@ const consultoria = [
 const fundadores = [
   {
     inicial: "A",
+    foto: "/images/fundador-1.jpg",
     nome: "Nome do Fundador",
     cargo: "Diretor Comercial e Co-fundador",
     bio: "Especialista em finanças estratégicas com vasta experiência em gestão financeira empresarial. Transforma a visão de negócio em estratégias financeiras de alto impacto para nossos clientes.",
   },
   {
     inicial: "B",
+    foto: "/images/fundador-2.jpg",
     nome: "Nome do Co-fundador",
     cargo: "Diretora de Operações e Co-fundadora",
     bio: "Especialista em BPO Financeiro e tecnologia, lidera o desenvolvimento e evolução do Sistema Tática. Traz eficiência operacional e clareza nos processos para cada cliente atendido.",
@@ -234,6 +227,51 @@ export default function VendaSistema() {
       <Footer />
       <WhatsAppFloat />
     </div>
+  );
+}
+
+function PhotoFrame({
+  src,
+  alt,
+  fallback,
+  className = "",
+  rounded = "rounded-2xl",
+  fallbackIcon: Icon = ImageIcon,
+  fallbackLabel,
+}: {
+  src?: string;
+  alt: string;
+  fallback?: React.ReactNode;
+  className?: string;
+  rounded?: string;
+  fallbackIcon?: typeof ImageIcon;
+  fallbackLabel?: string;
+}) {
+  const [failed, setFailed] = useState(!src);
+  if (!src || failed) {
+    return (
+      <div
+        className={`relative grid place-items-center overflow-hidden border border-dashed border-white/20 bg-white/[0.03] text-white/40 ${rounded} ${className}`}
+        aria-label={alt}
+      >
+        {fallback ?? (
+          <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+            <Icon className="h-6 w-6" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em]">
+              {fallbackLabel ?? "Foto aqui"}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className={`block h-full w-full object-cover ${rounded} ${className}`}
+    />
   );
 }
 
@@ -394,13 +432,25 @@ function Sobre() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {stats.map((s) => (
-              <div key={s.l} className="rounded-2xl border-t-[3px] border-[#22A55C] bg-[#F5F0E8] p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
-                <p className={`font-black tracking-tight text-[#0D2847] ${s.small ? "text-[16px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
-                <p className="mt-1 text-[12.5px] text-[#666]">{s.l}</p>
-              </div>
-            ))}
+          <div className="space-y-4">
+            <div className="aspect-[16/10] w-full overflow-hidden rounded-2xl bg-[#0D2847]">
+              <PhotoFrame
+                src="/images/equipe-tatica.jpg"
+                alt="Equipe Tática"
+                rounded="rounded-2xl"
+                fallbackIcon={Users2}
+                fallbackLabel="Foto da equipe"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {stats.map((s) => (
+                <div key={s.l} className="rounded-2xl border-t-[3px] border-[#22A55C] bg-[#F5F0E8] p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
+                  <p className={`font-black tracking-tight text-[#0D2847] ${s.small ? "text-[16px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
+                  <p className="mt-1 text-[12.5px] text-[#666]">{s.l}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -422,6 +472,19 @@ function Sistema() {
             Enquanto outros dependem de ferramentas genéricas, a Tática opera com plataforma desenvolvida
             internamente para entregar mais agilidade, precisão e controle.
           </p>
+        </div>
+
+        <div className="relative mx-auto mt-14 max-w-4xl">
+          <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-[#22A55C]/25 via-transparent to-[#2C7BC4]/15 blur-2xl" />
+          <div className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.5)]">
+            <PhotoFrame
+              src="/images/sistema-dashboard.jpg"
+              alt="Preview do Sistema Tática"
+              rounded="rounded-2xl"
+              fallbackIcon={BarChart3}
+              fallbackLabel="Screenshot do sistema"
+            />
+          </div>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -572,10 +635,10 @@ function Planos() {
                       : "bg-[#2C7BC4] text-white hover:bg-[#1f5d96]"
                   }`}
                 >
-                  <a href={whatsappPlano(p.nome)} target="_blank" rel="noreferrer">
+                  <Link to={checkoutUrl(p.nome)}>
                     Contratar
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
@@ -648,16 +711,30 @@ function Fundadores() {
 
         <div className="mt-14 grid gap-6 md:grid-cols-2">
           {fundadores.map((f) => (
-            <div key={f.nome} className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 backdrop-blur">
-              <div className="grid h-16 w-16 place-items-center rounded-full bg-[#2C7BC4] text-[24px] font-black text-white">
-                {f.inicial}
+            <div key={f.nome} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur">
+              <div className="aspect-[4/3] w-full">
+                <PhotoFrame
+                  src={f.foto}
+                  alt={`Foto de ${f.nome}`}
+                  rounded="rounded-none"
+                  fallbackIcon={User}
+                  fallbackLabel={`Foto · ${f.inicial}`}
+                />
               </div>
-              <p className="mt-5 text-[18px] font-black tracking-tight text-white">{f.nome}</p>
-              <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#22A55C]">{f.cargo}</p>
-              <p className="mt-4 text-[14px] leading-relaxed text-[#B8C8E0]">{f.bio}</p>
+              <div className="p-7">
+                <p className="text-[18px] font-black tracking-tight text-white">{f.nome}</p>
+                <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#22A55C]">{f.cargo}</p>
+                <p className="mt-4 text-[14px] leading-relaxed text-[#B8C8E0]">{f.bio}</p>
+              </div>
             </div>
           ))}
         </div>
+
+        <p className="mt-10 text-center text-[11.5px] text-white/40">
+          Para trocar as fotos, salve os arquivos como{" "}
+          <code className="rounded bg-white/10 px-1.5 py-0.5 text-white/70">public/images/fundador-1.jpg</code> e{" "}
+          <code className="rounded bg-white/10 px-1.5 py-0.5 text-white/70">public/images/fundador-2.jpg</code>.
+        </p>
       </div>
     </section>
   );
