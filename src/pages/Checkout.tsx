@@ -23,7 +23,7 @@ const WHATSAPP_NUMERO = "5535999905768";
 
 function LogoOficial({ variant = "dark", size = "sm" }: { variant?: "dark" | "light"; size?: "sm" | "md" }) {
   const text = variant === "light" ? "#FFFFFF" : "#171717";
-  const brandGreen = "#0BE041";
+  const brandGreen = "#1A7A3D";
   const dims = size === "md"
     ? { sym: 38, font: 26, sub: 9, gap: 2, subTracking: "0.18em" }
     : { sym: 28, font: 19, sub: 8, gap: 1, subTracking: "0.16em" };
@@ -263,7 +263,7 @@ export default function Checkout() {
 
       <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="mb-8">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2C7BC4]">Finalizar contratação</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">Finalizar contratação</p>
           <h1 className="mt-2 text-[clamp(1.8rem,3.5vw,2.4rem)] font-black leading-tight tracking-tight text-[#0D2847]">
             Estamos a um passo de organizar o financeiro da sua empresa.
           </h1>
@@ -278,7 +278,7 @@ export default function Checkout() {
             <Card className="border-black/10 bg-white shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
               <CardContent className="space-y-5 p-7">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2C7BC4]">Etapa 1</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1E5A8C]">Etapa 1</p>
                   <p className="mt-1 text-[16px] font-black tracking-tight text-[#0D2847]">Dados da empresa</p>
                 </div>
 
@@ -306,7 +306,7 @@ export default function Checkout() {
             <Card className="border-black/10 bg-white shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
               <CardContent className="space-y-5 p-7">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2C7BC4]">Etapa 2</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1E5A8C]">Etapa 2</p>
                   <p className="mt-1 text-[16px] font-black tracking-tight text-[#0D2847]">Contato do responsável</p>
                 </div>
 
@@ -344,7 +344,7 @@ export default function Checkout() {
             <Card className="border-black/10 bg-white shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
               <CardContent className="space-y-5 p-7">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2C7BC4]">Etapa 3</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1E5A8C]">Etapa 3</p>
                   <p className="mt-1 text-[16px] font-black tracking-tight text-[#0D2847]">Forma de pagamento</p>
                   <p className="mt-1 text-[12.5px] text-[#666]">
                     Sua preferência. O link de pagamento será enviado pelo nosso time após o contrato.
@@ -363,13 +363,13 @@ export default function Checkout() {
                         aria-pressed={active}
                         className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition ${
                           active
-                            ? "border-[#0BE041] bg-[#0BE041]/8 shadow-[0_8px_20px_-15px_rgba(34,165,92,0.5)]"
-                            : "border-black/10 bg-white hover:border-[#2C7BC4]/40 hover:bg-[#F5F0E8]/40"
+                            ? "border-[#1A7A3D] bg-[#1A7A3D]/8 shadow-[0_8px_20px_-15px_rgba(34,165,92,0.5)]"
+                            : "border-black/10 bg-white hover:border-[#1E5A8C]/40 hover:bg-[#F5F0E8]/40"
                         }`}
                       >
                         <div
                           className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                            active ? "bg-[#0BE041] text-white" : "bg-[#2C7BC4]/10 text-[#2C7BC4]"
+                            active ? "bg-[#1A7A3D] text-white" : "bg-[#1E5A8C]/10 text-[#1E5A8C]"
                           }`}
                         >
                           <Icon className="h-4 w-4" />
@@ -378,7 +378,7 @@ export default function Checkout() {
                           <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{f.label}</p>
                           <p className="mt-0.5 text-[12px] text-[#666]">{f.sub}</p>
                         </div>
-                        {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#0BE041]" />}
+                        {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1A7A3D]" />}
                       </button>
                     );
                   })}
@@ -409,8 +409,8 @@ export default function Checkout() {
             <Card className="border-black/10 bg-white shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
               <CardContent className="space-y-5 p-7">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2C7BC4]">Resumo do pedido</p>
-                  <Badge className="rounded-full bg-[#0BE041]/12 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#0BE041] hover:bg-[#0BE041]/12">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1E5A8C]">Resumo do pedido</p>
+                  <Badge className="rounded-full bg-[#1A7A3D]/12 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#1A7A3D] hover:bg-[#1A7A3D]/12">
                     Plano {plano.nome}
                   </Badge>
                 </div>
@@ -427,12 +427,12 @@ export default function Checkout() {
                         aria-pressed={active}
                         className={`flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-left transition ${
                           active
-                            ? "border-[#0BE041] bg-[#0BE041]/8"
-                            : "border-black/10 bg-white hover:border-[#2C7BC4]/40"
+                            ? "border-[#1A7A3D] bg-[#1A7A3D]/8"
+                            : "border-black/10 bg-white hover:border-[#1E5A8C]/40"
                         }`}
                       >
-                        <span className={`text-[13px] font-bold ${active ? "text-[#0BE041]" : "text-[#0D2847]"}`}>{p.nome}</span>
-                        {active && <CheckCircle2 className="h-4 w-4 text-[#0BE041]" />}
+                        <span className={`text-[13px] font-bold ${active ? "text-[#1A7A3D]" : "text-[#0D2847]"}`}>{p.nome}</span>
+                        {active && <CheckCircle2 className="h-4 w-4 text-[#1A7A3D]" />}
                       </button>
                     );
                   })}
@@ -445,7 +445,7 @@ export default function Checkout() {
                 <ul className="space-y-2 border-t border-black/8 pt-4">
                   {plano.bullets.slice(0, 6).map((b) => (
                     <li key={b} className="flex items-start gap-2.5 text-[13px] text-[#1A1A2E]">
-                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0BE041]" />
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1A7A3D]" />
                       {b}
                     </li>
                   ))}
@@ -471,7 +471,7 @@ export default function Checkout() {
 
                 <Button
                   onClick={handleConfirmar}
-                  className="w-full rounded-md bg-[#2C7BC4] py-6 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]"
+                  className="w-full rounded-md bg-[#1E5A8C] py-6 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]"
                 >
                   Confirmar contratação
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -479,15 +479,15 @@ export default function Checkout() {
 
                 <div className="space-y-2 text-[11.5px] text-[#666]">
                   <p className="flex items-center gap-2">
-                    <Lock className="h-3.5 w-3.5 text-[#0BE041]" />
+                    <Lock className="h-3.5 w-3.5 text-[#1A7A3D]" />
                     Seus dados estão seguros e em conformidade com a LGPD.
                   </p>
                   <p className="flex items-center gap-2">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#0BE041]" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#1A7A3D]" />
                     Sem fidelidade. Sem taxa de setup.
                   </p>
                   <p className="flex items-center gap-2">
-                    <MessageSquare className="h-3.5 w-3.5 text-[#0BE041]" />
+                    <MessageSquare className="h-3.5 w-3.5 text-[#1A7A3D]" />
                     Atendimento humano por WhatsApp em até 1 hora útil.
                   </p>
                 </div>
@@ -530,7 +530,7 @@ function Campo({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-invalid={invalid}
-        className={`mt-2 h-11 border-black/15 text-[13.5px] focus-visible:ring-[#2C7BC4] ${
+        className={`mt-2 h-11 border-black/15 text-[13.5px] focus-visible:ring-[#1E5A8C] ${
           invalid ? "border-red-400 focus-visible:ring-red-400" : ""
         }`}
       />
@@ -551,7 +551,7 @@ function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsa
       </header>
 
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#0BE041]/15 text-[#0BE041]">
+        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#1A7A3D]/15 text-[#1A7A3D]">
           <CheckCircle2 className="h-10 w-10" />
         </div>
         <h1 className="mt-8 text-[clamp(1.8rem,4vw,2.4rem)] font-black tracking-tight text-[#0D2847]">
@@ -584,7 +584,7 @@ function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsa
 function PassoSucesso({ n, t, d }: { n: string; t: string; d: string }) {
   return (
     <div className="flex gap-4 rounded-xl border border-black/8 bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#2C7BC4] text-[13px] font-black text-white">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#1E5A8C] text-[13px] font-black text-white">
         {n}
       </div>
       <div>
