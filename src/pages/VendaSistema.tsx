@@ -588,12 +588,36 @@ function Sistema() {
 }
 
 function GaleriaSistema() {
-  const thumbs = [
-    { src: "/images/sistema/contas-receber.jpg", label: "Contas a Receber", desc: "Recebimentos por convênio, particular e procedimento." },
-    { src: "/images/sistema/conciliacao.jpg", label: "Conciliação Bancária", desc: "Lançamentos do dia conciliados com o extrato em minutos." },
-    { src: "/images/sistema/dre.jpg", label: "DRE Mensal", desc: "Resultado do mês por unidade, regime de caixa e competência." },
-    { src: "/images/sistema/fluxo-caixa.jpg", label: "Fluxo de Caixa", desc: "Projeção de 90 dias com cenários e alertas de saldo crítico." },
+  const grupos = [
+    {
+      titulo: "Operação Financeira",
+      sub: "Tudo que entra e tudo que sai, rastreado por convênio, procedimento e unidade",
+      thumbs: [
+        { src: "/images/sistema/vendas.png", label: "Vendas", desc: "Lançamento por procedimento, convênio ou particular." },
+        { src: "/images/sistema/contas-receber.png", label: "Contas a Receber", desc: "Recebimentos abertos, parciais e quitados em um só lugar." },
+        { src: "/images/sistema/contas-pagar.png", label: "Contas a Pagar", desc: "Pagamentos agendados com alertas de vencimento." },
+      ],
+    },
+    {
+      titulo: "Análise e Decisão",
+      sub: "Saber, dia 1º, exatamente quanto sua clínica lucrou",
+      thumbs: [
+        { src: "/images/sistema/dre.png", label: "DRE Mensal", desc: "Resultado por unidade, em caixa e competência." },
+        { src: "/images/sistema/fluxo-caixa.png", label: "Fluxo de Caixa", desc: "Projeção de 90 dias e alerta de saldo crítico." },
+        { src: "/images/sistema/conciliacao.png", label: "Conciliação Bancária", desc: "Extratos conferidos com o sistema em minutos." },
+      ],
+    },
+    {
+      titulo: "Gestão da Equipe",
+      sub: "Folha, ponto e cobrança automatizados — menos retrabalho administrativo",
+      thumbs: [
+        { src: "/images/sistema/folha-pagamento.png", label: "Folha de Pagamento", desc: "Cálculo de salários, encargos e benefícios." },
+        { src: "/images/sistema/regua-cobranca.png", label: "Régua de Cobrança", desc: "Lembretes automáticos por WhatsApp e e-mail." },
+        { src: "/images/sistema/relatorios.png", label: "Relatórios Gerenciais", desc: "DRE, fluxo, inadimplência e contábil em um clique." },
+      ],
+    },
   ];
+
   return (
     <section id="plataforma" className="bg-white">
       <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
@@ -603,49 +627,56 @@ function GaleriaSistema() {
             Veja o sistema <span className="text-[#3D7068]">em funcionamento</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
-            Telas reais do Tatica Gestão. A mesma plataforma usada pela nossa equipe de BPO
+            Telas reais do Tática Gestão. A mesma plataforma usada pela nossa equipe de BPO
             estará disponível para a sua clínica em tempo real.
           </p>
         </div>
 
-        <div className="relative mx-auto mt-14 max-w-5xl">
+        <div className="relative mx-auto mt-10 max-w-5xl md:mt-14">
           <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-[#3D7068]/20 via-transparent to-[#1E5A8C]/15 blur-2xl" />
-          <div className="aspect-[16/9] overflow-hidden rounded-2xl border border-black/8 bg-[#0D2847] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)]">
-            <PhotoFrame
-              src="/images/sistema/dashboard.jpg"
-              alt="Dashboard Tática Gestão"
-              rounded="rounded-2xl"
-              fallbackIcon={BarChart3}
-              fallbackLabel="Dashboard principal"
+          <div className="overflow-hidden rounded-2xl border border-black/8 bg-[#0D2847] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)]">
+            <img
+              src="/images/sistema/dashboard.png"
+              alt="Dashboard principal Tática Gestão"
+              loading="lazy"
+              className="block w-full"
             />
           </div>
           <p className="mt-4 text-center text-[12px] text-[#666]">
-            Dashboard principal · indicadores financeiros consolidados por unidade
+            <strong className="text-[#0D2847]">Dashboard principal</strong> · indicadores consolidados por unidade
           </p>
         </div>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {thumbs.map((t) => (
-            <div key={t.label} className="overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.1)] transition hover:-translate-y-1 hover:shadow-[0_16px_32px_-15px_rgba(0,0,0,0.18)]">
-              <div className="aspect-[4/3] w-full bg-[#0D2847]">
-                <PhotoFrame
-                  src={t.src}
-                  alt={t.label}
-                  rounded="rounded-none"
-                  fallbackIcon={BarChart3}
-                  fallbackLabel={t.label}
-                />
+        <div className="mt-12 space-y-12 md:mt-16 md:space-y-16">
+          {grupos.map((g) => (
+            <div key={g.titulo}>
+              <div className="mb-6 flex flex-col items-start gap-1 border-l-4 border-[#3D7068] pl-4 md:mb-8">
+                <h3 className="text-[16px] font-black tracking-tight text-[#0D2847] md:text-[18px]">{g.titulo}</h3>
+                <p className="text-[12.5px] leading-relaxed text-[#666] md:text-[13.5px]">{g.sub}</p>
               </div>
-              <div className="p-5">
-                <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{t.label}</p>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-[#666]">{t.desc}</p>
+              <div className="grid gap-5 md:grid-cols-3">
+                {g.thumbs.map((t) => (
+                  <div
+                    key={t.label}
+                    className="overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.1)] transition hover:-translate-y-1 hover:shadow-[0_16px_32px_-15px_rgba(0,0,0,0.18)]"
+                  >
+                    <div className="overflow-hidden bg-[#F4F1EA]">
+                      <img src={t.src} alt={t.label} loading="lazy" className="block w-full" />
+                    </div>
+                    <div className="border-t border-black/5 p-4 md:p-5">
+                      <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{t.label}</p>
+                      <p className="mt-1 text-[12.5px] leading-relaxed text-[#666]">{t.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
         </div>
 
-        <p className="mx-auto mt-10 max-w-xl text-center text-[12px] italic text-[#666]">
-          As telas mostradas são exemplos reais da plataforma. Dados sensíveis foram anonimizados.
+        <p className="mx-auto mt-12 max-w-2xl text-center text-[12px] italic text-[#666] md:mt-14">
+          Telas reais da plataforma — nome da empresa anonimizado.
+          Existem mais de 20 módulos integrados, incluindo Multi-empresa, Estoque, NFS-e e Painel Gerencial.
         </p>
       </div>
     </section>
