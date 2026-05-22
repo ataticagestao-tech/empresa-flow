@@ -23,7 +23,7 @@ const WHATSAPP_NUMERO = "5535999905768";
 
 function LogoOficial({ variant = "dark", size = "sm" }: { variant?: "dark" | "light"; size?: "sm" | "md" }) {
   const text = variant === "light" ? "#FFFFFF" : "#171717";
-  const brandGreen = "#1A7A3D";
+  const brandGreen = "#3D7068";
   const dims = size === "md"
     ? { sym: 38, font: 26, sub: 9, gap: 2, subTracking: "0.18em" }
     : { sym: 28, font: 19, sub: 8, gap: 1, subTracking: "0.16em" };
@@ -250,7 +250,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F0E8] text-[#2c2c2c] font-sans antialiased">
+    <div className="min-h-screen bg-[#F4F1EA] text-[#2c2c2c] font-sans antialiased">
       <header className="bg-[#0D2847]">
         <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
           <Link to="/venda" className="flex items-center gap-3 text-white/85 transition hover:text-white">
@@ -363,13 +363,13 @@ export default function Checkout() {
                         aria-pressed={active}
                         className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition ${
                           active
-                            ? "border-[#1A7A3D] bg-[#1A7A3D]/8 shadow-[0_8px_20px_-15px_rgba(34,165,92,0.5)]"
-                            : "border-black/10 bg-white hover:border-[#1E5A8C]/40 hover:bg-[#F5F0E8]/40"
+                            ? "border-[#3D7068] bg-[#3D7068]/8 shadow-[0_8px_20px_-15px_rgba(34,165,92,0.5)]"
+                            : "border-black/10 bg-white hover:border-[#1E5A8C]/40 hover:bg-[#F4F1EA]/40"
                         }`}
                       >
                         <div
                           className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                            active ? "bg-[#1A7A3D] text-white" : "bg-[#1E5A8C]/10 text-[#1E5A8C]"
+                            active ? "bg-[#3D7068] text-white" : "bg-[#1E5A8C]/10 text-[#1E5A8C]"
                           }`}
                         >
                           <Icon className="h-4 w-4" />
@@ -378,7 +378,7 @@ export default function Checkout() {
                           <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{f.label}</p>
                           <p className="mt-0.5 text-[12px] text-[#666]">{f.sub}</p>
                         </div>
-                        {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1A7A3D]" />}
+                        {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3D7068]" />}
                       </button>
                     );
                   })}
@@ -410,7 +410,7 @@ export default function Checkout() {
               <CardContent className="space-y-5 p-7">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1E5A8C]">Resumo do pedido</p>
-                  <Badge className="rounded-full bg-[#1A7A3D]/12 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#1A7A3D] hover:bg-[#1A7A3D]/12">
+                  <Badge className="rounded-full bg-[#3D7068]/12 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#3D7068] hover:bg-[#3D7068]/12">
                     Plano {plano.nome}
                   </Badge>
                 </div>
@@ -427,25 +427,25 @@ export default function Checkout() {
                         aria-pressed={active}
                         className={`flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-left transition ${
                           active
-                            ? "border-[#1A7A3D] bg-[#1A7A3D]/8"
+                            ? "border-[#3D7068] bg-[#3D7068]/8"
                             : "border-black/10 bg-white hover:border-[#1E5A8C]/40"
                         }`}
                       >
-                        <span className={`text-[13px] font-bold ${active ? "text-[#1A7A3D]" : "text-[#0D2847]"}`}>{p.nome}</span>
-                        {active && <CheckCircle2 className="h-4 w-4 text-[#1A7A3D]" />}
+                        <span className={`text-[13px] font-bold ${active ? "text-[#3D7068]" : "text-[#0D2847]"}`}>{p.nome}</span>
+                        {active && <CheckCircle2 className="h-4 w-4 text-[#3D7068]" />}
                       </button>
                     );
                   })}
                 </div>
 
-                <div className="rounded-xl bg-[#F5F0E8] p-5">
+                <div className="rounded-xl bg-[#F4F1EA] p-5">
                   <p className="text-[12.5px] leading-relaxed text-[#666]">{plano.resumo}</p>
                 </div>
 
                 <ul className="space-y-2 border-t border-black/8 pt-4">
                   {plano.bullets.slice(0, 6).map((b) => (
                     <li key={b} className="flex items-start gap-2.5 text-[13px] text-[#1A1A2E]">
-                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1A7A3D]" />
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3D7068]" />
                       {b}
                     </li>
                   ))}
@@ -479,15 +479,15 @@ export default function Checkout() {
 
                 <div className="space-y-2 text-[11.5px] text-[#666]">
                   <p className="flex items-center gap-2">
-                    <Lock className="h-3.5 w-3.5 text-[#1A7A3D]" />
+                    <Lock className="h-3.5 w-3.5 text-[#3D7068]" />
                     Seus dados estão seguros e em conformidade com a LGPD.
                   </p>
                   <p className="flex items-center gap-2">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#1A7A3D]" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#3D7068]" />
                     Sem fidelidade. Sem taxa de setup.
                   </p>
                   <p className="flex items-center gap-2">
-                    <MessageSquare className="h-3.5 w-3.5 text-[#1A7A3D]" />
+                    <MessageSquare className="h-3.5 w-3.5 text-[#3D7068]" />
                     Atendimento humano por WhatsApp em até 1 hora útil.
                   </p>
                 </div>
@@ -541,7 +541,7 @@ function Campo({
 
 function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsavel: string; onVoltar: () => void }) {
   return (
-    <div className="min-h-screen bg-[#F5F0E8] text-[#2c2c2c]">
+    <div className="min-h-screen bg-[#F4F1EA] text-[#2c2c2c]">
       <header className="bg-[#0D2847]">
         <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
           <Link to="/venda" className="flex items-center">
@@ -551,7 +551,7 @@ function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsa
       </header>
 
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#1A7A3D]/15 text-[#1A7A3D]">
+        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#3D7068]/15 text-[#3D7068]">
           <CheckCircle2 className="h-10 w-10" />
         </div>
         <h1 className="mt-8 text-[clamp(1.8rem,4vw,2.4rem)] font-black tracking-tight text-[#0D2847]">
