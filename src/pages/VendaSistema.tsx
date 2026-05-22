@@ -335,7 +335,7 @@ function PhotoFrame({
 function TopBar() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-50 border-b border-black/5 bg-[#F4F1EA]/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
+    <header className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
         <Link to="/" className="flex items-center">
           <LogoOficial size="sm" variant="dark" />
@@ -367,7 +367,7 @@ function TopBar() {
       </div>
 
       {open && (
-        <div className="border-t border-black/5 bg-[#F4F1EA] lg:hidden">
+        <div className="border-t border-black/5 bg-white lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {navLinks.map((x) => (
               <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[14px] text-[#0D2847]/80 hover:bg-black/5 hover:text-[#3D7068]">
