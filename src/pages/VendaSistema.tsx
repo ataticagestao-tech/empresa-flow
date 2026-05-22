@@ -240,58 +240,49 @@ function LogoOficial({
   className?: string;
 }) {
   const text = variant === "light" ? "#FFFFFF" : "#171717";
-  const arcColor = "#B98A3C"; // dourado bronze
+  const brandGreen = "#0BE041";
   const dims = {
-    sm: { font: 20, arc: 36, sub: 7, gap: 2, subTracking: "0.18em", arcDX: -26, arcDY: -8, strokeW: 2.5 },
-    md: { font: 28, arc: 52, sub: 8, gap: 3, subTracking: "0.20em", arcDX: -34, arcDY: -12, strokeW: 3 },
-    lg: { font: 36, arc: 68, sub: 10, gap: 4, subTracking: "0.22em", arcDX: -42, arcDY: -16, strokeW: 3.5 },
+    sm: { sym: 28, font: 19, sub: 8, gap: 1, subTracking: "0.16em" },
+    md: { sym: 38, font: 26, sub: 9, gap: 2, subTracking: "0.18em" },
+    lg: { sym: 52, font: 34, sub: 11, gap: 3, subTracking: "0.20em" },
   }[size];
 
   return (
-    <div className={`inline-flex flex-col items-start ${className}`} aria-label="Tática">
-      <div className="relative inline-block leading-none">
-        {/* Arco dourado ancorado à esquerda, abrindo em direção ao T */}
-        <svg
-          width={dims.arc}
-          height={dims.arc}
-          viewBox="0 0 100 100"
-          fill="none"
-          className="absolute z-0"
-          style={{ left: dims.arcDX, top: dims.arcDY }}
-          aria-hidden="true"
-        >
-          <path
-            d="M 75 12 A 42 42 0 1 0 75 88"
-            stroke={arcColor}
-            strokeWidth={dims.strokeW}
-            strokeLinecap="round"
-            fill="none"
-          />
-        </svg>
+    <div className={`inline-flex items-center gap-3 ${className}`} aria-label="Tática Financeiro">
+      <svg
+        width={dims.sym}
+        height={dims.sym}
+        viewBox="0 0 80 80"
+        fill={brandGreen}
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path d="m13.33,0C5.97,0,0,5.97,0,13.33s5.97,13.34,13.33,13.33c7.36,0,13.33-5.97,13.33-13.33,0-7.36-5.97-13.33-13.33-13.33Z" />
+        <path d="m66.67,53.33c-5.75,0-10.95-2.33-14.71-6.09l-.5-.5c2.45-4.16,2.45-9.32,0-13.48l.5-.5c3.77-3.76,8.97-6.09,14.71-6.09,7.36,0,13.33-5.97,13.33-13.33S74.03,0,66.67,0s-13.33,5.97-13.33,13.33c0,5.74-2.33,10.95-6.09,14.71l-.5.5c-5.11-3.01-11.78-2.36-16.17,2.02-4.39,4.39-5.03,11.06-2.02,16.17l-.5.5c-3.77,3.76-8.97,6.09-14.71,6.09-7.36,0-13.33,5.97-13.33,13.33s5.97,13.33,13.33,13.33,13.33-5.97,13.33-13.33c0-5.75,2.33-10.95,6.09-14.71l.5-.5c4.16,2.45,9.32,2.45,13.48,0l.5.5c3.76,3.77,6.09,8.97,6.09,14.71,0,7.36,5.97,13.33,13.33,13.33s13.33-5.97,13.33-13.33-5.97-13.33-13.33-13.33Z" />
+      </svg>
+      <div className="leading-none">
         <p
-          className="relative z-10 font-semibold tracking-[0.02em]"
+          className="font-bold tracking-tight"
           style={{
             color: text,
-            fontFamily: "'Playfair Display', Georgia, serif",
             fontSize: dims.font,
             lineHeight: 1,
           }}
         >
           TÁTICA
         </p>
+        <p
+          className="font-bold uppercase"
+          style={{
+            color: brandGreen,
+            fontSize: dims.sub,
+            letterSpacing: dims.subTracking,
+            marginTop: dims.gap,
+          }}
+        >
+          Financeiro
+        </p>
       </div>
-      <p
-        className="font-medium"
-        style={{
-          color: text,
-          fontSize: dims.sub,
-          letterSpacing: dims.subTracking,
-          marginTop: dims.gap,
-          textTransform: "uppercase",
-        }}
-      >
-        Gestão &amp; Finanças Empresariais
-      </p>
     </div>
   );
 }
@@ -352,7 +343,7 @@ function TopBar() {
 
         <nav className="hidden items-center gap-7 lg:flex">
           {navLinks.map((x) => (
-            <a key={x.href} href={x.href} className="text-[14px] font-medium text-[#0D2847]/75 transition hover:text-[#22A55C]">
+            <a key={x.href} href={x.href} className="text-[14px] font-medium text-[#0D2847]/75 transition hover:text-[#0BE041]">
               {x.l}
             </a>
           ))}
@@ -379,7 +370,7 @@ function TopBar() {
         <div className="border-t border-black/5 bg-[#F5F0E8] lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-3">
             {navLinks.map((x) => (
-              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[14px] text-[#0D2847]/80 hover:bg-black/5 hover:text-[#22A55C]">
+              <a key={x.href} href={x.href} onClick={() => setOpen(false)} className="rounded px-2 py-2 text-[14px] text-[#0D2847]/80 hover:bg-black/5 hover:text-[#0BE041]">
                 {x.l}
               </a>
             ))}
@@ -397,31 +388,31 @@ function Hero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#0D2847] via-[#13355D] to-[#0D2847] text-white">
       <div className="pointer-events-none absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full bg-[#2C7BC4]/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -left-32 h-[400px] w-[400px] rounded-full bg-[#22A55C]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-32 h-[400px] w-[400px] rounded-full bg-[#0BE041]/10 blur-3xl" />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pb-24 pt-20 md:grid-cols-[1.1fr_0.9fr] md:pt-28">
         <div>
-          <Badge variant="outline" className="rounded-full border-[#22A55C]/40 bg-[#22A55C]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#7FD8A0]">
+          <Badge variant="outline" className="rounded-full border-[#0BE041]/40 bg-[#0BE041]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#7FD8A0]">
             <Sparkles className="mr-1.5 h-3 w-3" />
             Sistema próprio + Gestão especializada
           </Badge>
 
           <h1 className="mt-6 text-[clamp(2.4rem,5vw,3.4rem)] font-black leading-[1.08] tracking-tight">
             Clareza Financeira,<br />
-            <span className="text-[#22A55C]">Controle Total</span> e<br />
+            <span className="text-[#0BE041]">Controle Total</span> e<br />
             Crescimento Real
           </h1>
 
           <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-[#B8C8E0]">
             Com a Tática, sua empresa tem gestão financeira completa executada por especialistas
-            e potencializada pelo nosso <strong className="text-[#22A55C]">sistema próprio</strong>,
+            e potencializada pelo nosso <strong className="text-[#0BE041]">sistema próprio</strong>,
             desenvolvido para o seu negócio crescer com dados precisos.
           </p>
 
           <ul className="mt-7 space-y-2">
             {heroBullets.map((b) => (
               <li key={b} className="flex items-start gap-3 text-[14.5px] text-[#C8D8EC]">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#22A55C]" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0BE041]" />
                 {b}
               </li>
             ))}
@@ -434,7 +425,7 @@ function Hero() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="lg" className="h-12 rounded-md border-white/20 bg-transparent px-7 text-[14px] text-[#B8C8E0] hover:border-[#2C7BC4] hover:bg-transparent hover:text-[#22A55C]">
+            <Button asChild variant="outline" size="lg" className="h-12 rounded-md border-white/20 bg-transparent px-7 text-[14px] text-[#B8C8E0] hover:border-[#2C7BC4] hover:bg-transparent hover:text-[#0BE041]">
               <a href="#planos">Ver planos</a>
             </Button>
           </div>
@@ -446,11 +437,11 @@ function Hero() {
               key={titulo}
               className={`rounded-2xl border p-6 transition ${
                 destaque
-                  ? "border-[#22A55C] bg-[#22A55C]/10"
+                  ? "border-[#0BE041] bg-[#0BE041]/10"
                   : "border-white/10 bg-white/[0.04]"
               }`}
             >
-              <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#22A55C]/25 text-[#22A55C]" : "bg-[#2C7BC4]/20 text-[#7AB8F0]"}`}>
+              <div className={`grid h-11 w-11 place-items-center rounded-lg ${destaque ? "bg-[#0BE041]/25 text-[#0BE041]" : "bg-[#2C7BC4]/20 text-[#7AB8F0]"}`}>
                 <Icon className="h-5 w-5" />
               </div>
               <p className="mt-4 text-[15px] font-bold tracking-tight text-white">{titulo}</p>
@@ -471,7 +462,7 @@ function Sobre() {
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2C7BC4]">Quem somos</p>
             <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.4rem)] font-black leading-[1.2] tracking-tight text-[#0D2847]">
-              Parceiro estratégico que <span className="text-[#22A55C]">revela oportunidades</span> para decisões baseadas em dados
+              Parceiro estratégico que <span className="text-[#0BE041]">revela oportunidades</span> para decisões baseadas em dados
             </h2>
             <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-[#666]">
               <p>
@@ -507,7 +498,7 @@ function Sobre() {
 
             <div className="grid grid-cols-2 gap-4">
               {stats.map((s) => (
-                <div key={s.l} className="rounded-2xl border-t-[3px] border-[#22A55C] bg-[#F5F0E8] p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
+                <div key={s.l} className="rounded-2xl border-t-[3px] border-[#0BE041] bg-[#F5F0E8] p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
                   <p className={`font-black tracking-tight text-[#0D2847] ${s.small ? "text-[16px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
                   <p className="mt-1 text-[12.5px] text-[#666]">{s.l}</p>
                 </div>
@@ -523,12 +514,12 @@ function Sobre() {
 function Sistema() {
   return (
     <section id="sistema" className="relative overflow-hidden bg-[#0D2847] text-white">
-      <div className="pointer-events-none absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#22A55C]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#0BE041]/10 blur-3xl" />
       <div className="relative mx-auto max-w-6xl px-6 py-24">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#22A55C]">Nosso grande diferencial</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0BE041]">Nosso grande diferencial</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black leading-tight tracking-tight">
-            Sistema <span className="text-[#22A55C]">Próprio</span>
+            Sistema <span className="text-[#0BE041]">Próprio</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-[#9FB3CE]">
             Enquanto outros dependem de ferramentas genéricas, a Tática opera com plataforma desenvolvida
@@ -537,7 +528,7 @@ function Sistema() {
         </div>
 
         <div className="relative mx-auto mt-14 max-w-4xl">
-          <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-[#22A55C]/25 via-transparent to-[#2C7BC4]/15 blur-2xl" />
+          <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-[#0BE041]/25 via-transparent to-[#2C7BC4]/15 blur-2xl" />
           <div className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.5)]">
             <PhotoFrame
               src="/images/sistema-dashboard.jpg"
@@ -551,8 +542,8 @@ function Sistema() {
 
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {sistemaCards.map(({ icon: Icon, t, d }) => (
-            <div key={t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition hover:-translate-y-1 hover:border-[#22A55C]/50 hover:bg-white/[0.06]">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#22A55C]/15 text-[#22A55C]">
+            <div key={t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition hover:-translate-y-1 hover:border-[#0BE041]/50 hover:bg-white/[0.06]">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#0BE041]/15 text-[#0BE041]">
                 <Icon className="h-5 w-5" />
               </div>
               <p className="mt-5 text-[16px] font-bold tracking-tight text-white">{t}</p>
@@ -561,13 +552,13 @@ function Sistema() {
           ))}
         </div>
 
-        <div className="mt-12 rounded-2xl border border-[#22A55C]/40 bg-[#22A55C]/10 p-8 md:p-10">
+        <div className="mt-12 rounded-2xl border border-[#0BE041]/40 bg-[#0BE041]/10 p-8 md:p-10">
           <div className="grid items-start gap-7 md:grid-cols-[auto_1fr]">
-            <div className="grid h-16 w-16 place-items-center rounded-xl bg-[#22A55C]/25 text-[#22A55C]">
+            <div className="grid h-16 w-16 place-items-center rounded-xl bg-[#0BE041]/25 text-[#0BE041]">
               <Cpu className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="text-[20px] font-black tracking-tight text-[#22A55C]">
+              <h3 className="text-[20px] font-black tracking-tight text-[#0BE041]">
                 Por que sistema próprio faz diferença?
               </h3>
               <p className="mt-3 text-[14.5px] leading-relaxed text-[#C8D8EC]">
@@ -602,7 +593,7 @@ function Servicos() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2C7BC4]">O que entregamos</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
-            Conheça nossos <span className="text-[#22A55C]">serviços</span>
+            Conheça nossos <span className="text-[#0BE041]">serviços</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
             Soluções completas de gestão financeira, do operacional ao estratégico,
@@ -614,7 +605,7 @@ function Servicos() {
           {servicos.map((s, i) => (
             <div
               key={s.t}
-              className="group rounded-2xl border-l-4 border-transparent bg-white p-7 transition hover:-translate-y-1 hover:border-l-[#22A55C] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+              className="group rounded-2xl border-l-4 border-transparent bg-white p-7 transition hover:-translate-y-1 hover:border-l-[#0BE041] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
             >
               <div className="grid h-9 w-9 place-items-center rounded-md bg-[#2C7BC4]/10 text-[11px] font-black text-[#2C7BC4]">
                 {String(i + 1).padStart(2, "0")}
@@ -645,7 +636,7 @@ function Planos() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2C7BC4]">Planos</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
-            Escolha o plano <span className="text-[#22A55C]">ideal</span> para sua empresa
+            Escolha o plano <span className="text-[#0BE041]">ideal</span> para sua empresa
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
             Todos os planos incluem acesso ao Sistema Próprio Tática sem custo adicional.
@@ -658,13 +649,13 @@ function Planos() {
               key={p.nome}
               className={`relative overflow-hidden rounded-2xl border-2 transition ${
                 p.destaque
-                  ? "border-[#22A55C] bg-[#0D2847] text-white shadow-[0_20px_50px_-20px_rgba(34,165,92,0.45)] lg:-translate-y-3"
-                  : "border-transparent bg-white text-[#0D2847] hover:-translate-y-1 hover:border-[#22A55C]/40 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)]"
+                  ? "border-[#0BE041] bg-[#0D2847] text-white shadow-[0_20px_50px_-20px_rgba(34,165,92,0.45)] lg:-translate-y-3"
+                  : "border-transparent bg-white text-[#0D2847] hover:-translate-y-1 hover:border-[#0BE041]/40 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)]"
               }`}
             >
               {p.destaque && (
                 <div className="absolute left-1/2 top-0 -translate-x-1/2 translate-y-[-50%]">
-                  <Badge className="rounded-full bg-[#22A55C] px-4 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white hover:bg-[#22A55C]">
+                  <Badge className="rounded-full bg-[#0BE041] px-4 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white hover:bg-[#0BE041]">
                     Mais popular
                   </Badge>
                 </div>
@@ -683,7 +674,7 @@ function Planos() {
                         p.destaque ? "text-[#C8D8EC]" : "text-[#666]"
                       } ${i < p.bullets.length - 1 ? (p.destaque ? "border-b border-white/8" : "border-b border-[#EFE7D2]") : ""}`}
                     >
-                      <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${p.destaque ? "text-[#22A55C]" : "text-[#2C7BC4]"}`} />
+                      <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${p.destaque ? "text-[#0BE041]" : "text-[#2C7BC4]"}`} />
                       {b}
                     </li>
                   ))}
@@ -693,7 +684,7 @@ function Planos() {
                   asChild
                   className={`mt-8 w-full rounded-md py-6 text-[13.5px] font-bold uppercase tracking-wider ${
                     p.destaque
-                      ? "bg-[#22A55C] text-white hover:bg-[#1a8049]"
+                      ? "bg-[#0BE041] text-white hover:bg-[#1a8049]"
                       : "bg-[#2C7BC4] text-white hover:bg-[#1f5d96]"
                   }`}
                 >
@@ -718,7 +709,7 @@ function Consultoria() {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2C7BC4]">Solução completa</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
-            Consultoria Financeira <span className="text-[#22A55C]">Personalizada</span>
+            Consultoria Financeira <span className="text-[#0BE041]">Personalizada</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
             A Tática oferece consultoria estratégica integrada ao nosso sistema para otimizar
@@ -730,7 +721,7 @@ function Consultoria() {
           {consultoria.map(({ icon: Icon, t, d }) => (
             <div
               key={t}
-              className="flex gap-5 rounded-2xl border-l-4 border-[#22A55C] bg-[#F5F0E8] p-7 transition hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+              className="flex gap-5 rounded-2xl border-l-4 border-[#0BE041] bg-[#F5F0E8] p-7 transition hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
             >
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#2C7BC4]/10 text-[#2C7BC4]">
                 <Icon className="h-5 w-5" />
@@ -762,9 +753,9 @@ function Fundadores() {
       <div className="pointer-events-none absolute -left-32 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-[#2C7BC4]/15 blur-3xl" />
       <div className="relative mx-auto max-w-5xl px-6 py-24">
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#22A55C]">Quem está por trás</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0BE041]">Quem está por trás</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
-            Conheça nossos <span className="text-[#22A55C]">fundadores</span>
+            Conheça nossos <span className="text-[#0BE041]">fundadores</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[14.5px] leading-relaxed text-[#9FB3CE]">
             A Tática é formada por especialistas com experiência real em gestão financeira e tecnologia.
@@ -785,7 +776,7 @@ function Fundadores() {
               </div>
               <div className="p-7">
                 <p className="text-[18px] font-black tracking-tight text-white">{f.nome}</p>
-                <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#22A55C]">{f.cargo}</p>
+                <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0BE041]">{f.cargo}</p>
                 <p className="mt-4 text-[14px] leading-relaxed text-[#B8C8E0]">{f.bio}</p>
               </div>
             </div>
@@ -807,7 +798,7 @@ function CTAFinal() {
     <section id="contato" className="bg-[#0D2847] text-center text-white">
       <div className="mx-auto max-w-3xl px-6 py-24">
         <h2 className="text-[clamp(2rem,4.5vw,2.8rem)] font-black leading-[1.12] tracking-tight">
-          Estamos prontos para ser seu <span className="text-[#22A55C]">parceiro estratégico</span>
+          Estamos prontos para ser seu <span className="text-[#0BE041]">parceiro estratégico</span>
         </h2>
         <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#9FB3CE]">
           Transforme a gestão financeira da sua empresa com especialistas dedicados e tecnologia exclusiva.
@@ -843,34 +834,34 @@ function Footer() {
             <ul className="mt-4 space-y-2.5 text-[13px]">
               {navLinks.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href} className="hover:text-[#22A55C]">{l.l}</a>
+                  <a href={l.href} className="hover:text-[#0BE041]">{l.l}</a>
                 </li>
               ))}
-              <li><Link to="/auth" className="hover:text-[#22A55C]">Acessar sistema</Link></li>
+              <li><Link to="/auth" className="hover:text-[#0BE041]">Acessar sistema</Link></li>
             </ul>
           </div>
 
           <div>
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white">Redes sociais</p>
             <ul className="mt-4 space-y-2.5 text-[13px]">
-              <li><a href="#" className="hover:text-[#22A55C]">Instagram</a></li>
-              <li><a href="#" className="hover:text-[#22A55C]">LinkedIn</a></li>
-              <li><a href="#" className="hover:text-[#22A55C]">Facebook</a></li>
-              <li><a href="#" className="hover:text-[#22A55C]">YouTube</a></li>
+              <li><a href="#" className="hover:text-[#0BE041]">Instagram</a></li>
+              <li><a href="#" className="hover:text-[#0BE041]">LinkedIn</a></li>
+              <li><a href="#" className="hover:text-[#0BE041]">Facebook</a></li>
+              <li><a href="#" className="hover:text-[#0BE041]">YouTube</a></li>
             </ul>
           </div>
 
           <div>
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white">Contato</p>
             <ul className="mt-4 space-y-3 text-[13px]">
-              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-[#22A55C]" /> (35) 99990-5768</li>
-              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#22A55C]" /> ataticagestao@gmail.com</li>
+              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-[#0BE041]" /> (35) 99990-5768</li>
+              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#0BE041]" /> ataticagestao@gmail.com</li>
               <li>
-                <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#22A55C] hover:text-white">
+                <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#0BE041] hover:text-white">
                   <MessageSquare className="h-4 w-4" /> WhatsApp direto
                 </a>
               </li>
-              <li className="flex items-center gap-2"><Building2 className="h-4 w-4 text-[#22A55C]" /> ataticagestao.com</li>
+              <li className="flex items-center gap-2"><Building2 className="h-4 w-4 text-[#0BE041]" /> ataticagestao.com</li>
             </ul>
           </div>
         </div>

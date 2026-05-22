@@ -23,37 +23,34 @@ const WHATSAPP_NUMERO = "5535999905768";
 
 function LogoOficial({ variant = "dark", size = "sm" }: { variant?: "dark" | "light"; size?: "sm" | "md" }) {
   const text = variant === "light" ? "#FFFFFF" : "#171717";
-  const arcColor = "#B98A3C";
+  const brandGreen = "#0BE041";
   const dims = size === "md"
-    ? { font: 28, arc: 52, sub: 8, gap: 3, arcDX: -34, arcDY: -12, strokeW: 3, subTracking: "0.20em" }
-    : { font: 20, arc: 36, sub: 7, gap: 2, arcDX: -26, arcDY: -8, strokeW: 2.5, subTracking: "0.18em" };
+    ? { sym: 38, font: 26, sub: 9, gap: 2, subTracking: "0.18em" }
+    : { sym: 28, font: 19, sub: 8, gap: 1, subTracking: "0.16em" };
   return (
-    <div className="inline-flex flex-col items-start" aria-label="Tática">
-      <div className="relative inline-block leading-none">
-        <svg
-          width={dims.arc}
-          height={dims.arc}
-          viewBox="0 0 100 100"
-          fill="none"
-          className="absolute z-0"
-          style={{ left: dims.arcDX, top: dims.arcDY }}
-          aria-hidden="true"
-        >
-          <path d="M 75 12 A 42 42 0 1 0 75 88" stroke={arcColor} strokeWidth={dims.strokeW} strokeLinecap="round" fill="none" />
-        </svg>
-        <p
-          className="relative z-10 font-semibold tracking-[0.02em]"
-          style={{ color: text, fontFamily: "'Playfair Display', Georgia, serif", fontSize: dims.font, lineHeight: 1 }}
-        >
+    <div className="inline-flex items-center gap-3" aria-label="Tática Financeiro">
+      <svg
+        width={dims.sym}
+        height={dims.sym}
+        viewBox="0 0 80 80"
+        fill={brandGreen}
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path d="m13.33,0C5.97,0,0,5.97,0,13.33s5.97,13.34,13.33,13.33c7.36,0,13.33-5.97,13.33-13.33,0-7.36-5.97-13.33-13.33-13.33Z" />
+        <path d="m66.67,53.33c-5.75,0-10.95-2.33-14.71-6.09l-.5-.5c2.45-4.16,2.45-9.32,0-13.48l.5-.5c3.77-3.76,8.97-6.09,14.71-6.09,7.36,0,13.33-5.97,13.33-13.33S74.03,0,66.67,0s-13.33,5.97-13.33,13.33c0,5.74-2.33,10.95-6.09,14.71l-.5.5c-5.11-3.01-11.78-2.36-16.17,2.02-4.39,4.39-5.03,11.06-2.02,16.17l-.5.5c-3.77,3.76-8.97,6.09-14.71,6.09-7.36,0-13.33,5.97-13.33,13.33s5.97,13.33,13.33,13.33,13.33-5.97,13.33-13.33c0-5.75,2.33-10.95,6.09-14.71l.5-.5c4.16,2.45,9.32,2.45,13.48,0l.5.5c3.76,3.77,6.09,8.97,6.09,14.71,0,7.36,5.97,13.33,13.33,13.33s13.33-5.97,13.33-13.33-5.97-13.33-13.33-13.33Z" />
+      </svg>
+      <div className="leading-none">
+        <p className="font-bold tracking-tight" style={{ color: text, fontSize: dims.font, lineHeight: 1 }}>
           TÁTICA
         </p>
+        <p
+          className="font-bold uppercase"
+          style={{ color: brandGreen, fontSize: dims.sub, letterSpacing: dims.subTracking, marginTop: dims.gap }}
+        >
+          Financeiro
+        </p>
       </div>
-      <p
-        className="font-medium uppercase"
-        style={{ color: text, fontSize: dims.sub, letterSpacing: dims.subTracking, marginTop: dims.gap }}
-      >
-        Gestão &amp; Finanças Empresariais
-      </p>
     </div>
   );
 }
@@ -366,13 +363,13 @@ export default function Checkout() {
                         aria-pressed={active}
                         className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition ${
                           active
-                            ? "border-[#22A55C] bg-[#22A55C]/8 shadow-[0_8px_20px_-15px_rgba(34,165,92,0.5)]"
+                            ? "border-[#0BE041] bg-[#0BE041]/8 shadow-[0_8px_20px_-15px_rgba(34,165,92,0.5)]"
                             : "border-black/10 bg-white hover:border-[#2C7BC4]/40 hover:bg-[#F5F0E8]/40"
                         }`}
                       >
                         <div
                           className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                            active ? "bg-[#22A55C] text-white" : "bg-[#2C7BC4]/10 text-[#2C7BC4]"
+                            active ? "bg-[#0BE041] text-white" : "bg-[#2C7BC4]/10 text-[#2C7BC4]"
                           }`}
                         >
                           <Icon className="h-4 w-4" />
@@ -381,7 +378,7 @@ export default function Checkout() {
                           <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{f.label}</p>
                           <p className="mt-0.5 text-[12px] text-[#666]">{f.sub}</p>
                         </div>
-                        {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#22A55C]" />}
+                        {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-[#0BE041]" />}
                       </button>
                     );
                   })}
@@ -413,7 +410,7 @@ export default function Checkout() {
               <CardContent className="space-y-5 p-7">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2C7BC4]">Resumo do pedido</p>
-                  <Badge className="rounded-full bg-[#22A55C]/12 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#22A55C] hover:bg-[#22A55C]/12">
+                  <Badge className="rounded-full bg-[#0BE041]/12 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#0BE041] hover:bg-[#0BE041]/12">
                     Plano {plano.nome}
                   </Badge>
                 </div>
@@ -430,12 +427,12 @@ export default function Checkout() {
                         aria-pressed={active}
                         className={`flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-left transition ${
                           active
-                            ? "border-[#22A55C] bg-[#22A55C]/8"
+                            ? "border-[#0BE041] bg-[#0BE041]/8"
                             : "border-black/10 bg-white hover:border-[#2C7BC4]/40"
                         }`}
                       >
-                        <span className={`text-[13px] font-bold ${active ? "text-[#22A55C]" : "text-[#0D2847]"}`}>{p.nome}</span>
-                        {active && <CheckCircle2 className="h-4 w-4 text-[#22A55C]" />}
+                        <span className={`text-[13px] font-bold ${active ? "text-[#0BE041]" : "text-[#0D2847]"}`}>{p.nome}</span>
+                        {active && <CheckCircle2 className="h-4 w-4 text-[#0BE041]" />}
                       </button>
                     );
                   })}
@@ -448,7 +445,7 @@ export default function Checkout() {
                 <ul className="space-y-2 border-t border-black/8 pt-4">
                   {plano.bullets.slice(0, 6).map((b) => (
                     <li key={b} className="flex items-start gap-2.5 text-[13px] text-[#1A1A2E]">
-                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22A55C]" />
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0BE041]" />
                       {b}
                     </li>
                   ))}
@@ -482,15 +479,15 @@ export default function Checkout() {
 
                 <div className="space-y-2 text-[11.5px] text-[#666]">
                   <p className="flex items-center gap-2">
-                    <Lock className="h-3.5 w-3.5 text-[#22A55C]" />
+                    <Lock className="h-3.5 w-3.5 text-[#0BE041]" />
                     Seus dados estão seguros e em conformidade com a LGPD.
                   </p>
                   <p className="flex items-center gap-2">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#22A55C]" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#0BE041]" />
                     Sem fidelidade. Sem taxa de setup.
                   </p>
                   <p className="flex items-center gap-2">
-                    <MessageSquare className="h-3.5 w-3.5 text-[#22A55C]" />
+                    <MessageSquare className="h-3.5 w-3.5 text-[#0BE041]" />
                     Atendimento humano por WhatsApp em até 1 hora útil.
                   </p>
                 </div>
@@ -554,7 +551,7 @@ function SucessoView({ plano, responsavel, onVoltar }: { plano: string; responsa
       </header>
 
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#22A55C]/15 text-[#22A55C]">
+        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#0BE041]/15 text-[#0BE041]">
           <CheckCircle2 className="h-10 w-10" />
         </div>
         <h1 className="mt-8 text-[clamp(1.8rem,4vw,2.4rem)] font-black tracking-tight text-[#0D2847]">
