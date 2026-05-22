@@ -175,9 +175,9 @@ const fundadores = [
 const navLinks = [
   { href: "#sobre", l: "Sobre nós" },
   { href: "#sistema", l: "Nosso Sistema" },
+  { href: "#plataforma", l: "Plataforma" },
   { href: "#servicos", l: "Serviços" },
   { href: "#planos", l: "Planos" },
-  { href: "#solucao", l: "Solução" },
 ];
 
 export default function VendaSistema() {
@@ -219,6 +219,7 @@ export default function VendaSistema() {
       <Hero />
       <Sobre />
       <Sistema />
+      <GaleriaSistema />
       <Servicos />
       <Planos />
       <Consultoria />
@@ -581,6 +582,71 @@ function Sistema() {
             </div>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function GaleriaSistema() {
+  const thumbs = [
+    { src: "/images/sistema/contas-receber.jpg", label: "Contas a Receber", desc: "Recebimentos por convênio, particular e procedimento." },
+    { src: "/images/sistema/conciliacao.jpg", label: "Conciliação Bancária", desc: "Lançamentos do dia conciliados com o extrato em minutos." },
+    { src: "/images/sistema/dre.jpg", label: "DRE Mensal", desc: "Resultado do mês por unidade, regime de caixa e competência." },
+    { src: "/images/sistema/fluxo-caixa.jpg", label: "Fluxo de Caixa", desc: "Projeção de 90 dias com cenários e alertas de saldo crítico." },
+  ];
+  return (
+    <section id="plataforma" className="bg-white">
+      <div className="mx-auto max-w-6xl px-6 py-24">
+        <div className="text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">A plataforma</p>
+          <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
+            Veja o sistema <span className="text-[#3D7068]">em funcionamento</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#666]">
+            Telas reais do Tatica Gestão. A mesma plataforma usada pela nossa equipe de BPO
+            estará disponível para a sua clínica em tempo real.
+          </p>
+        </div>
+
+        <div className="relative mx-auto mt-14 max-w-5xl">
+          <div className="absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-br from-[#3D7068]/20 via-transparent to-[#1E5A8C]/15 blur-2xl" />
+          <div className="aspect-[16/9] overflow-hidden rounded-2xl border border-black/8 bg-[#0D2847] shadow-[0_30px_60px_-30px_rgba(0,0,0,0.3)]">
+            <PhotoFrame
+              src="/images/sistema/dashboard.jpg"
+              alt="Dashboard Tática Gestão"
+              rounded="rounded-2xl"
+              fallbackIcon={BarChart3}
+              fallbackLabel="Dashboard principal"
+            />
+          </div>
+          <p className="mt-4 text-center text-[12px] text-[#666]">
+            Dashboard principal · indicadores financeiros consolidados por unidade
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          {thumbs.map((t) => (
+            <div key={t.label} className="overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.1)] transition hover:-translate-y-1 hover:shadow-[0_16px_32px_-15px_rgba(0,0,0,0.18)]">
+              <div className="aspect-[4/3] w-full bg-[#0D2847]">
+                <PhotoFrame
+                  src={t.src}
+                  alt={t.label}
+                  rounded="rounded-none"
+                  fallbackIcon={BarChart3}
+                  fallbackLabel={t.label}
+                />
+              </div>
+              <div className="p-5">
+                <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{t.label}</p>
+                <p className="mt-1 text-[12.5px] leading-relaxed text-[#666]">{t.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="mx-auto mt-10 max-w-xl text-center text-[12px] italic text-[#666]">
+          As telas mostradas são exemplos reais da plataforma. Dados sensíveis foram anonimizados.
+        </p>
       </div>
     </section>
   );
