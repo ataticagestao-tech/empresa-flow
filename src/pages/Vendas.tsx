@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
-import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
@@ -23,8 +22,9 @@ import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/venda
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 
-// Cast supabase for GESTAP tables not in the generated types
-const db = supabase as any
+// `db` agora é definido dentro do componente como alias do activeClient
+// (antes era `const db = supabase as any` no top-level, o que ignorava o
+// projeto secundário em multi-tenant e mandava vendas pro banco errado).
 
 /* ================================================================
    TYPES
@@ -233,6 +233,9 @@ export default function Vendas() {
   const { activeClient, isUsingSecondary, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const confirm = useConfirm()
+  // Alias do client ativo — todas as queries de Vendas devem passar por aqui
+  // pra respeitar o projeto em que a empresa logada está hospedada.
+  const db = activeClient as any
 
   // ─── Data state ──────────────────────────────────────────────
   const [vendas, setVendas] = useState<Venda[]>([])
@@ -251,6 +254,10 @@ export default function Vendas() {
     step: 'choose' | 'whats' | 'email'
   } | null>(null)
   const [defaultReceitaContaId, setDefaultReceitaContaId] = useState<string | null>(null)
+  // Set de IDs válidos no plano de contas da empresa — usado pra evitar FK
+  // violation 23503 quando produto carrega conta_contabil_id órfão (ex.: plano
+  // de contas resetado e produto manteve referência antiga).
+  const [validContaContabilIds, setValidContaContabilIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -704,7 +711,7 @@ export default function Vendas() {
     if (!companyId || !activeClient) return
 
     const ac = activeClient as any
-    const [banksRes, centrosRes, clientesRes, produtosRes, receitaContaRes] = await Promise.all([
+    const [banksRes, centrosRes, clientesRes, produtosRes, receitaContaRes, allContasRes] = await Promise.all([
       ac.from('bank_accounts').select('id, name, banco, type').eq('company_id', companyId).eq('is_active', true),
       ac.from('centros_custo').select('id, codigo, descricao').eq('company_id', companyId).eq('ativo', true),
       ac.from('clients').select('id, razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', companyId).eq('is_active', true).order('razao_social'),
@@ -718,6 +725,7 @@ export default function Vendas() {
         .order('code')
         .limit(1)
         .maybeSingle(),
+      ac.from('chart_of_accounts').select('id').eq('company_id', companyId),
     ])
 
     setBankAccounts((banksRes.data as BankAccount[]) || [])
@@ -731,6 +739,7 @@ export default function Vendas() {
     if (!(receitaContaRes.data as any)?.id) {
       console.warn('[Vendas] Nenhuma conta de receita analítica encontrada no plano de contas — CRs serão criados sem classificação e não aparecerão no DRE.')
     }
+    setValidContaContabilIds(new Set(((allContasRes.data as any[]) || []).map((r: any) => r.id)))
 
     // Fallback: se activeClient não retornou produtos, tentar com db
     let prods = (produtosRes.data as Produto[]) || []
@@ -1468,6 +1477,14 @@ export default function Vendas() {
         }
         if (melhorConta) contaContabilCR = melhorConta
       }
+      // Anti-FK violation 23503: se a conta escolhida vier de um produto com
+      // referência órfã (plano de contas foi resetado/recriado), cai pro default
+      // analítico válido — ou null se nem o default existir mais.
+      if (contaContabilCR && validContaContabilIds.size > 0 && !validContaContabilIds.has(contaContabilCR)) {
+        contaContabilCR = defaultReceitaContaId && validContaContabilIds.has(defaultReceitaContaId)
+          ? defaultReceitaContaId
+          : null
+      }
 
       // ─── Anti-duplicata (heuristica, só pra venda nova): cliente+valor+data ───
       const clienteTrim = toTitleCase(formCliente.trim())
@@ -1625,7 +1642,16 @@ export default function Vendas() {
         rpcPayload.user_id = user?.id || null
       }
 
-      const { data: rpcResult, error: rpcErr } = await (db as any).rpc(rpcName, { p_payload: rpcPayload })
+      // Timeout defensivo: se a RPC não voltar em 30s, libera o spinner com
+      // erro descritivo em vez de deixar o botão girando indefinidamente.
+      const rpcPromise = (db as any).rpc(rpcName, { p_payload: rpcPayload })
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+        setTimeout(() => resolve({
+          data: null,
+          error: new Error('Sem resposta do servidor em 30s. Verifique a conexão e tente novamente. Se persistir, abra o console (F12) e copie o erro.'),
+        }), 30000)
+      )
+      const { data: rpcResult, error: rpcErr } = await Promise.race([rpcPromise, timeoutPromise]) as any
       if (rpcErr) throw rpcErr
       if (!rpcResult?.success) throw new Error('Falha ao salvar venda (RPC retornou sem sucesso).')
       vendaId = rpcResult.venda_id
