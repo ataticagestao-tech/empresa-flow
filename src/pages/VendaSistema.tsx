@@ -337,7 +337,7 @@ function TopBar() {
   const [open, setOpen] = useState(false);
   return (
     <header className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
-      <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
+      <div className="mx-auto flex h-[60px] max-w-6xl items-center justify-between px-4 md:h-[72px] md:px-6">
         <Link to="/" className="flex items-center">
           <LogoOficial size="sm" variant="dark" />
         </Link>
@@ -391,14 +391,14 @@ function Hero() {
       <div className="pointer-events-none absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full bg-[#1E5A8C]/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-32 h-[400px] w-[400px] rounded-full bg-[#3D7068]/10 blur-3xl" />
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pb-24 pt-20 md:grid-cols-[1.1fr_0.9fr] md:pt-28">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-14 pt-10 md:gap-14 md:px-6 md:pb-24 md:pt-28 md:grid-cols-[1.1fr_0.9fr]">
         <div>
           <Badge variant="outline" className="rounded-full border-[#3D7068]/40 bg-[#3D7068]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8FB5AE]">
             <Sparkles className="mr-1.5 h-3 w-3" />
             BPO Financeiro para a área da saúde
           </Badge>
 
-          <h1 className="mt-6 text-[clamp(2.4rem,5vw,3.4rem)] font-black leading-[1.08] tracking-tight">
+          <h1 className="mt-5 text-[clamp(1.9rem,7vw,3.4rem)] font-black leading-[1.1] tracking-tight md:mt-6">
             Cuide dos seus pacientes.<br />
             <span className="text-[#3D7068]">A Tática cuida</span><br />
             do seu financeiro.
@@ -419,14 +419,14 @@ function Hero() {
             ))}
           </ul>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg" className="h-12 rounded-md bg-[#1E5A8C] px-7 text-[14px] font-bold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-[#1f5d96] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)]">
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
+            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#1E5A8C] px-7 text-[14px] font-bold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-[#1f5d96] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
                 Quero contratar
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
-            <Button asChild variant="outline" size="lg" className="h-12 rounded-md border-white/20 bg-transparent px-7 text-[14px] text-[#B8C8E0] hover:border-[#1E5A8C] hover:bg-transparent hover:text-[#3D7068]">
+            <Button asChild variant="outline" size="lg" className="h-12 w-full rounded-md border-white/20 bg-transparent px-7 text-[14px] text-[#B8C8E0] hover:border-[#1E5A8C] hover:bg-transparent hover:text-[#3D7068] sm:w-auto">
               <a href="#planos">Ver planos</a>
             </Button>
           </div>
@@ -458,7 +458,7 @@ function Hero() {
 function Sobre() {
   return (
     <section id="sobre" className="bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-24">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="grid items-center gap-14 md:grid-cols-[1.1fr_0.9fr]">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">Quem somos</p>
@@ -516,7 +516,7 @@ function Sistema() {
   return (
     <section id="sistema" className="relative overflow-hidden bg-[#0D2847] text-white">
       <div className="pointer-events-none absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#3D7068]/10 blur-3xl" />
-      <div className="relative mx-auto max-w-6xl px-6 py-24">
+      <div className="relative mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#3D7068]">Nosso grande diferencial</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black leading-tight tracking-tight">
@@ -596,7 +596,7 @@ function GaleriaSistema() {
   ];
   return (
     <section id="plataforma" className="bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-24">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">A plataforma</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
@@ -655,7 +655,7 @@ function GaleriaSistema() {
 function Servicos() {
   return (
     <section id="servicos" className="bg-[#F4F1EA]">
-      <div className="mx-auto max-w-6xl px-6 py-24">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">O que entregamos</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
@@ -698,7 +698,7 @@ function Servicos() {
 function Planos() {
   return (
     <section id="planos" className="bg-[#E8E4DA]">
-      <div className="mx-auto max-w-6xl px-6 py-24">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">Planos</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
@@ -727,7 +727,7 @@ function Planos() {
                 </div>
               )}
 
-              <CardContent className="p-8">
+              <CardContent className="p-6 md:p-8">
                 <h3 className={`text-[24px] font-black tracking-tight ${p.destaque ? "text-white" : "text-[#0D2847]"}`}>
                   {p.nome}
                 </h3>
@@ -771,7 +771,7 @@ function Planos() {
 function Consultoria() {
   return (
     <section id="solucao" className="bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-24">
+      <div className="mx-auto max-w-6xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1E5A8C]">Solução completa</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight text-[#0D2847]">
@@ -817,7 +817,7 @@ function Fundadores() {
   return (
     <section className="relative overflow-hidden bg-[#0D2847] text-white">
       <div className="pointer-events-none absolute -left-32 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-[#1E5A8C]/15 blur-3xl" />
-      <div className="relative mx-auto max-w-5xl px-6 py-24">
+      <div className="relative mx-auto max-w-5xl px-5 py-14 md:px-6 md:py-24">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#3D7068]">Quem está por trás</p>
           <h2 className="mt-3 text-[clamp(1.9rem,4vw,2.6rem)] font-black tracking-tight">
@@ -862,7 +862,7 @@ function Fundadores() {
 function CTAFinal() {
   return (
     <section id="contato" className="bg-[#0D2847] text-center text-white">
-      <div className="mx-auto max-w-3xl px-6 py-24">
+      <div className="mx-auto max-w-3xl px-5 py-14 md:px-6 md:py-24">
         <h2 className="text-[clamp(2rem,4.5vw,2.8rem)] font-black leading-[1.12] tracking-tight">
           Estamos prontos para ser seu <span className="text-[#3D7068]">parceiro estratégico</span>
         </h2>
@@ -885,7 +885,7 @@ function CTAFinal() {
 function Footer() {
   return (
     <footer className="bg-[#081A30] text-[#7290B0]">
-      <div className="mx-auto max-w-6xl px-6 py-16">
+      <div className="mx-auto max-w-6xl px-5 py-12 md:px-6 md:py-16">
         <div className="grid gap-10 md:grid-cols-[2fr_1fr_1fr_1.4fr]">
           <div>
             <LogoOficial size="sm" variant="light" className="!items-start" />
