@@ -41,6 +41,13 @@ interface Empresa {
   document: string
 }
 
+interface CadMatch {
+  tipo: 'funcionario' | 'fornecedor' | 'cliente'
+  nome: string
+  email?: string | null
+  telefone?: string | null
+}
+
 interface GerarItem {
   id: string // CR/CP id (para venda: primeira CR paga da venda)
   origem: 'cr' | 'cp' | 'venda'
@@ -50,8 +57,9 @@ interface GerarItem {
   valor: number
   data: string
   email?: string | null
+  telefone?: string | null
   jaTemRecibo: boolean
-  match?: { tipo: 'funcionario' | 'fornecedor' | 'cliente'; email?: string | null } | null
+  match?: CadMatch | null
 }
 
 // ---------------------------------------------------------------------------
@@ -558,45 +566,79 @@ export default function Recibos() {
       try {
         // 1. Carrega cadastros em paralelo (para match)
         const [empsRes, supsRes, clisRes] = await Promise.all([
-          client.from('employees').select('name, cpf, email').eq('company_id', selectedCompany!.id),
-          client.from('suppliers').select('razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', selectedCompany!.id),
-          client.from('clients').select('razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', selectedCompany!.id),
+          client.from('employees').select('name, cpf, email, phone').eq('company_id', selectedCompany!.id),
+          client.from('suppliers').select('razao_social, nome_fantasia, cpf_cnpj, email, telefone, celular').eq('company_id', selectedCompany!.id),
+          client.from('clients').select('razao_social, nome_fantasia, cpf_cnpj, email, telefone, celular').eq('company_id', selectedCompany!.id),
         ])
         if (cancelled) return
 
-        type CadEntry = { tipo: 'funcionario' | 'fornecedor' | 'cliente'; email?: string | null }
-        const byDoc: Record<string, CadEntry> = {}
-        const byName: Record<string, CadEntry> = {}
+        const tokens = (s: string): string[] => {
+          const n = normalize(s)
+          if (!n) return []
+          return n.split(/\s+/).filter(t => t.length >= 3)
+        }
+
+        const byDoc: Record<string, CadMatch> = {}
+        const byName: Record<string, CadMatch> = {}
+        const cadastros: { match: CadMatch; tokens: string[] }[] = []
+
+        const addCadastro = (cad: CadMatch, nome: string, doc: string) => {
+          if (doc && !byDoc[doc]) byDoc[doc] = cad
+          const n = normalize(nome)
+          if (n && !byName[n]) byName[n] = cad
+          const tks = tokens(nome)
+          if (tks.length >= 2) cadastros.push({ match: cad, tokens: tks })
+        }
 
         ;((empsRes.data as any[]) || []).forEach(e => {
-          const doc = onlyDigits(e.cpf)
-          if (doc) byDoc[doc] = { tipo: 'funcionario', email: e.email }
-          const n = normalize(e.name)
-          if (n) byName[n] = { tipo: 'funcionario', email: e.email }
+          if (!e.name) return
+          const cad: CadMatch = { tipo: 'funcionario', nome: e.name, email: e.email, telefone: e.phone }
+          addCadastro(cad, e.name, onlyDigits(e.cpf))
         })
         ;((supsRes.data as any[]) || []).forEach(s => {
-          const doc = onlyDigits(s.cpf_cnpj)
-          if (doc && !byDoc[doc]) byDoc[doc] = { tipo: 'fornecedor', email: s.email }
-          const n1 = normalize(s.nome_fantasia)
-          if (n1 && !byName[n1]) byName[n1] = { tipo: 'fornecedor', email: s.email }
-          const n2 = normalize(s.razao_social)
-          if (n2 && !byName[n2]) byName[n2] = { tipo: 'fornecedor', email: s.email }
+          const nomeBase = s.nome_fantasia || s.razao_social
+          if (!nomeBase) return
+          const cad: CadMatch = { tipo: 'fornecedor', nome: nomeBase, email: s.email, telefone: s.celular || s.telefone }
+          addCadastro(cad, nomeBase, onlyDigits(s.cpf_cnpj))
+          // Indexa pelos dois nomes (fantasia + razão) sem duplicar cadastro fuzzy
+          if (s.razao_social && s.razao_social !== nomeBase) {
+            const n2 = normalize(s.razao_social)
+            if (n2 && !byName[n2]) byName[n2] = cad
+          }
         })
         ;((clisRes.data as any[]) || []).forEach(c => {
-          const doc = onlyDigits(c.cpf_cnpj)
-          if (doc && !byDoc[doc]) byDoc[doc] = { tipo: 'cliente', email: c.email }
-          const n1 = normalize(c.nome_fantasia)
-          if (n1 && !byName[n1]) byName[n1] = { tipo: 'cliente', email: c.email }
-          const n2 = normalize(c.razao_social)
-          if (n2 && !byName[n2]) byName[n2] = { tipo: 'cliente', email: c.email }
+          const nomeBase = c.nome_fantasia || c.razao_social
+          if (!nomeBase) return
+          const cad: CadMatch = { tipo: 'cliente', nome: nomeBase, email: c.email, telefone: c.celular || c.telefone }
+          addCadastro(cad, nomeBase, onlyDigits(c.cpf_cnpj))
+          if (c.razao_social && c.razao_social !== nomeBase) {
+            const n2 = normalize(c.razao_social)
+            if (n2 && !byName[n2]) byName[n2] = cad
+          }
         })
 
-        const matchCadastro = (nome: string, cpfCnpj?: string | null): CadEntry | null => {
+        // Match fuzzy: todos os tokens >=3 chars do cadastro precisam estar nos tokens do alvo
+        const matchFuzzy = (alvoTokens: string[]): CadMatch | null => {
+          if (alvoTokens.length === 0) return null
+          const alvoSet = new Set(alvoTokens)
+          let melhor: { match: CadMatch; score: number } | null = null
+          for (const c of cadastros) {
+            const todosPresentes = c.tokens.every(t => alvoSet.has(t))
+            if (todosPresentes) {
+              const score = c.tokens.length // mais tokens = match mais especifico
+              if (!melhor || score > melhor.score) melhor = { match: c.match, score }
+            }
+          }
+          return melhor?.match || null
+        }
+
+        const matchCadastro = (nome: string, cpfCnpj?: string | null): CadMatch | null => {
           const doc = cpfCnpj ? onlyDigits(cpfCnpj) : ''
           if (doc && byDoc[doc]) return byDoc[doc]
           const n = normalize(nome)
           if (n && byName[n]) return byName[n]
-          return null
+          // Fallback: fuzzy por tokens
+          return matchFuzzy(tokens(nome))
         }
 
         // 2. Carrega lista da aba ativa
@@ -620,6 +662,7 @@ export default function Recibos() {
               valor: Number(r.valor_pago || r.valor || 0),
               data: r.data_pagamento || r.data_vencimento || '',
               email: m?.email || null,
+              telefone: m?.telefone || null,
               jaTemRecibo: false,
               match: m,
             }
@@ -645,6 +688,7 @@ export default function Recibos() {
               valor: Number(r.valor_pago || r.valor || 0),
               data: r.data_pagamento || r.data_vencimento || '',
               email: m?.email || null,
+              telefone: m?.telefone || null,
               jaTemRecibo: false,
               match: m,
             }
@@ -1147,7 +1191,7 @@ export default function Recibos() {
             )}
           </div>
 
-          {/* E-mail (opcional) */}
+          {/* E-mail (opcional) + feedback de match cadastro */}
           {gerarSelecionado && (
             <div className="space-y-1">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
@@ -1160,6 +1204,30 @@ export default function Recibos() {
                 placeholder="cliente@exemplo.com"
                 className="h-9"
               />
+              {/* Feedback do match cadastro */}
+              {gerarSelecionado.match ? (
+                gerarSelecionado.match.email ? (
+                  <div className="text-[10px] text-[#039855] flex items-center gap-1">
+                    <span>✓</span>
+                    <span>
+                      E-mail puxado do cadastro <strong>{gerarSelecionado.match.tipo === 'funcionario' ? 'Funcionário' : gerarSelecionado.match.tipo === 'fornecedor' ? 'Fornecedor' : 'Cliente'}</strong>: {gerarSelecionado.match.nome}
+                      {gerarSelecionado.match.telefone && <> · Tel: {gerarSelecionado.match.telefone}</>}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-[#EA580C] flex items-center gap-1">
+                    <span>⚠</span>
+                    <span>
+                      Cadastro <strong>{gerarSelecionado.match.tipo === 'funcionario' ? 'Funcionário' : gerarSelecionado.match.tipo === 'fornecedor' ? 'Fornecedor' : 'Cliente'}</strong> encontrado ({gerarSelecionado.match.nome}), mas <strong>sem e-mail cadastrado</strong>. Preencha manualmente.
+                      {gerarSelecionado.match.telefone && <> · Tel cadastrado: {gerarSelecionado.match.telefone}</>}
+                    </span>
+                  </div>
+                )
+              ) : (
+                <div className="text-[10px] text-[#9CA3AF]">
+                  Nenhum cadastro encontrado para "<strong>{gerarSelecionado.titulo}</strong>". Cadastre em Clientes/Fornecedores/Funcionários para preenchimento automatico.
+                </div>
+              )}
             </div>
           )}
 
