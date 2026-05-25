@@ -8,6 +8,8 @@ interface Props {
     phone: string;
     /** Mantido por compatibilidade — o botao agora e sempre o mesmo tamanho discreto. */
     size?: "sm" | "md";
+    /** "icon" (padrao) = botao redondo verde; "text" = botao texto estilo header. */
+    variant?: "icon" | "text";
 }
 
 /**
@@ -15,7 +17,7 @@ interface Props {
  * Verifica via Evolution API (edge function `validar-whatsapp`) se o numero
  * tem WhatsApp ativo. Reseta automaticamente quando `phone` muda.
  */
-export function WhatsappValidatorButton({ phone }: Props) {
+export function WhatsappValidatorButton({ phone, variant = "icon" }: Props) {
     const [status, setStatus] = useState<Status>("idle");
     const [message, setMessage] = useState("");
 
@@ -72,6 +74,27 @@ export function WhatsappValidatorButton({ phone }: Props) {
                 : status === "format" || status === "error"
                     ? "border-[#B45309] text-[#B45309] hover:bg-[#B45309] hover:text-white"
                     : "border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white";
+
+    if (variant === "text") {
+        const label =
+            status === "validating" ? "Validando…" :
+            status === "valid" ? "WhatsApp ✓" :
+            status === "no_whatsapp" ? "Sem WhatsApp" :
+            status === "format" || status === "error" ? "WhatsApp !" :
+            "WhatsApp";
+        return (
+            <button
+                type="button"
+                onClick={handleValidate}
+                disabled={status === "validating" || !phone}
+                title={tooltip}
+                aria-label={tooltip}
+                className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50"
+            >
+                {label}
+            </button>
+        );
+    }
 
     return (
         <button
