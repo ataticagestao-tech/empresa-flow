@@ -732,7 +732,6 @@ export default function Funcionarios() {
                     }`}>{t.label}</button>
                 ))}
                 {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="shrink-0 whitespace-nowrap ml-auto text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
-                {selected && <WhatsappValidatorButton phone={formData.phone} variant="text" />}
                 {selected && <button onClick={() => handleDelete(selected)} className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white/90 hover:bg-[#991B1B] hover:text-white rounded px-2.5 py-1 transition-colors">Excluir</button>}
               </div>
 
@@ -788,13 +787,16 @@ export default function Funcionarios() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={LB}>Telefone</label>
-                        <input
-                          value={formData.phone}
-                          onChange={e => set("phone", formatPhone(e.target.value))}
-                          className={IC}
-                          placeholder="(00) 00000-0000"
-                          maxLength={15}
-                        />
+                        <div className="flex gap-2 items-start">
+                          <input
+                            value={formData.phone}
+                            onChange={e => set("phone", formatPhone(e.target.value))}
+                            className={IC}
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                          />
+                          <WhatsappValidatorButton phone={formData.phone} />
+                        </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-4 gap-4">
