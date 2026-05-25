@@ -817,14 +817,23 @@ export default function Recibos() {
         email_destino: gerarEmail.trim() || null,
         pdf_url: pdfUrl,
       }
-      // recibos_v2 so tem conta_receber_id (CR ou venda via CR). CP fica sem FK.
-      if (item.origem !== 'cp') {
+      if (item.origem === 'cp') {
+        insertPayload.conta_pagar_id = item.id
+      } else {
         insertPayload.conta_receber_id = item.id
       }
 
-      const { error: erroInsert } = await client
+      let { error: erroInsert } = await client
         .from('recibos_v2')
         .insert(insertPayload)
+
+      // Fallback: se a migration conta_pagar_id ainda nao foi aplicada,
+      // tenta inserir sem o FK (recibo de CP fica sem vinculo)
+      if (erroInsert && item.origem === 'cp' && /conta_pagar_id/i.test(erroInsert.message || '')) {
+        delete insertPayload.conta_pagar_id
+        const retry = await client.from('recibos_v2').insert(insertPayload)
+        erroInsert = retry.error
+      }
 
       if (erroInsert) {
         toast.error('Erro ao salvar recibo', { description: erroInsert.message })
