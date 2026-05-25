@@ -6,7 +6,8 @@ import {
   Mail, MoreHorizontal, Check, Ban, RefreshCw,
   AlertTriangle, Eye, Send, XCircle, DollarSign, Activity,
   ShoppingCart, FileDown, ChevronDown, ArrowDownAZ, ArrowDownZA,
-  ArrowDown01, ArrowDown10, Layers, RotateCcw
+  ArrowDown01, ArrowDown10, Layers, RotateCcw, ChevronLeft,
+  ChevronRight as ChevronRightIcon, Filter
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -232,10 +233,17 @@ export default function NfseEmissao() {
   const [vendasSearch, setVendasSearch] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  // Sort + Agrupar por coluna
-  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
+  // Sort + Agrupar por coluna (default: data desc)
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>({ key: 'data', dir: 'desc' })
   const [groupBy, setGroupBy] = useState<SortKey | null>(null)
   const [menuCol, setMenuCol] = useState<SortKey | null>(null)
+
+  // Selecao de vendas para emissao (calculo de imposto em tempo real)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // Paginacao
+  const PAGE_SIZE = 10
+  const [page, setPage] = useState(1)
   useEffect(() => {
     if (!menuCol) return
     const handler = () => setMenuCol(null)
@@ -453,17 +461,77 @@ export default function NfseEmissao() {
   }, [])
 
   const limparOrdenacao = useCallback(() => {
-    setSort(null)
+    setSort({ key: 'data', dir: 'desc' })
     setGroupBy(null)
     setMenuCol(null)
   }, [])
+
+  // Paginacao: total de paginas + lista da pagina atual
+  const totalPaginas = Math.max(1, Math.ceil(vendasFiltradas.length / PAGE_SIZE))
+  const vendasPaginadas = useMemo(() => {
+    if (groupBy) return vendasFiltradas
+    const start = (page - 1) * PAGE_SIZE
+    return vendasFiltradas.slice(start, start + PAGE_SIZE)
+  }, [vendasFiltradas, page, groupBy])
+
+  useEffect(() => { setPage(1) }, [vendasFiltro, vendasSearch, sort, groupBy, mesAno])
+  useEffect(() => {
+    if (page > totalPaginas) setPage(totalPaginas)
+  }, [page, totalPaginas])
+
+  // Selecao
+  const toggleSelecionada = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelecionarTodasDaPagina = useCallback(() => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      const list = groupBy ? vendasFiltradas : vendasPaginadas
+      const allSelected = list.every(v => next.has(v.id))
+      if (allSelected) {
+        list.forEach(v => next.delete(v.id))
+      } else {
+        list.forEach(v => next.add(v.id))
+      }
+      return next
+    })
+  }, [groupBy, vendasFiltradas, vendasPaginadas])
+
+  const totaisSelecao = useMemo(() => {
+    let count = 0
+    let subtotal = 0
+    for (const v of vendas) {
+      if (selectedIds.has(v.id)) {
+        count++
+        subtotal += v.valor_total || 0
+      }
+    }
+    const aliquota = config?.aliquota_padrao ?? 3
+    const iss = (subtotal * aliquota) / 100
+    return { count, subtotal, iss, aliquota, liquido: subtotal - iss }
+  }, [vendas, selectedIds, config])
 
   const renderVendaRow = (v: VendaRow) => {
     const itensTxt = v.itens.length > 0
       ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'}`).join(', ')
       : '—'
+    const isSelected = selectedIds.has(v.id)
     return (
-      <tr key={v.id} className="border-b border-gray-200 hover:bg-gray-50/60 transition-colors">
+      <tr key={v.id} className={`border-b border-gray-200 hover:bg-gray-50/60 transition-colors ${isSelected ? 'bg-emerald-50/40' : ''}`}>
+        <td className="px-3 py-2 text-center">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => toggleSelecionada(v.id)}
+            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200 cursor-pointer"
+          />
+        </td>
         <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{formatData(v.data_venda)}</td>
         <td className="px-4 py-2 text-gray-600">
           <div className="max-w-[260px] truncate" title={itensTxt}>{itensTxt}</div>
@@ -985,6 +1053,19 @@ export default function NfseEmissao() {
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" />
+              <select
+                value={vendasFiltro}
+                onChange={e => setVendasFiltro(e.target.value as 'todas' | 'pendentes' | 'emitidas')}
+                className="pl-9 pr-8 py-2 rounded-lg border-2 border-emerald-200 bg-emerald-50/60 text-sm font-medium text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              >
+                <option value="pendentes">Pendentes (NF nao emitida)</option>
+                <option value="emitidas">NF ja emitida</option>
+                <option value="todas">Todas as vendas</option>
+              </select>
+            </div>
+
             <div className="relative flex-1 max-w-xs">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -1002,16 +1083,6 @@ export default function NfseEmissao() {
               onChange={e => setMesAno(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
-
-            <select
-              value={vendasFiltro}
-              onChange={e => setVendasFiltro(e.target.value as 'todas' | 'pendentes' | 'emitidas')}
-              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="pendentes">Pendentes (NF nao emitida)</option>
-              <option value="emitidas">NF ja emitida</option>
-              <option value="todas">Todas as vendas</option>
-            </select>
 
             <button onClick={loadVendas} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Atualizar">
               <RefreshCw size={16} className="text-gray-500" />
@@ -1054,6 +1125,15 @@ export default function NfseEmissao() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-xs text-white uppercase tracking-wider">
+                      <th className="px-3 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={(groupBy ? vendasFiltradas : vendasPaginadas).length > 0 && (groupBy ? vendasFiltradas : vendasPaginadas).every(v => selectedIds.has(v.id))}
+                          onChange={toggleSelecionarTodasDaPagina}
+                          className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200 cursor-pointer"
+                          title="Selecionar todas desta pagina"
+                        />
+                      </th>
                       <ColHeader col="data"  label="Data"               type="date" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
                       <ColHeader col="item"  label="Item/s"             type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
                       <ColHeader col="nome"  label="Nome"               type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
@@ -1070,7 +1150,7 @@ export default function NfseEmissao() {
                         const total = rows.reduce((s, r) => s + (r.valor_total || 0), 0)
                         return [
                           <tr key={`group-${groupKey}`} className="bg-emerald-50/60 border-y border-emerald-100">
-                            <td colSpan={8} className="px-4 py-2 text-xs font-semibold text-emerald-900">
+                            <td colSpan={9} className="px-4 py-2 text-xs font-semibold text-emerald-900">
                               {groupKey} <span className="ml-2 font-normal text-emerald-700">· {rows.length} venda(s) · {formatBRL(total)}</span>
                             </td>
                           </tr>,
@@ -1078,13 +1158,81 @@ export default function NfseEmissao() {
                         ]
                       })
                     ) : (
-                      vendasFiltradas.map(v => renderVendaRow(v))
+                      vendasPaginadas.map(v => renderVendaRow(v))
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {/* Paginacao (oculta quando agrupado) */}
+              {!groupBy && vendasFiltradas.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-600">
+                  <span>
+                    Mostrando {Math.min((page - 1) * PAGE_SIZE + 1, vendasFiltradas.length)}–
+                    {Math.min(page * PAGE_SIZE, vendasFiltradas.length)} de {vendasFiltradas.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft size={14} /> Anterior
+                    </button>
+                    <span className="px-3 py-1.5 font-medium text-gray-700">
+                      Página {page} de {totalPaginas}
+                    </span>
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPaginas, p + 1))}
+                      disabled={page >= totalPaginas}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Próxima <ChevronRightIcon size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
               </>
             )}
+          </div>
+        )}
+
+        {/* ── Resumo de selecao + calculo de imposto ── */}
+        {activeTab === 'vendas' && totaisSelecao.count > 0 && (
+          <div className="bg-white rounded-xl border-2 border-emerald-200 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <Check size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Vendas selecionadas para emissão</p>
+                  <p className="text-lg font-semibold text-emerald-700">{totaisSelecao.count} venda(s)</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500">Subtotal</p>
+                  <p className="font-semibold text-gray-800">{formatBRL(totaisSelecao.subtotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ISS ({totaisSelecao.aliquota}%)</p>
+                  <p className="font-semibold text-orange-600">{formatBRL(totaisSelecao.iss)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Valor líquido</p>
+                  <p className="font-semibold text-emerald-700">{formatBRL(totaisSelecao.liquido)}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-gray-500 hover:text-gray-700 underline"
+              >
+                Limpar seleção
+              </button>
+            </div>
           </div>
         )}
 
