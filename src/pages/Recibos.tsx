@@ -481,7 +481,23 @@ export default function Recibos() {
     }
     setWhatsSending(true)
     try {
-      const result = await sendWhatsApp({ phone: whatsPhone, text: whatsText })
+      // Template Cloud (recibo_pagamento aprovado pela Meta) com 4 vars: nome, num, valor, data.
+      // Texto livre vai como fallback pra Evolution / janela de 24h.
+      const valorSemRS = formatBRL(whatsDialog.valor).replace(/^R\$\s*/, '')
+      const result = await sendWhatsApp({
+        phone: whatsPhone,
+        text: whatsText,
+        template: {
+          name: 'recibo_pagamento',
+          languageCode: 'pt_BR',
+          bodyParams: [
+            whatsDialog.favorecido || 'Cliente',
+            String(whatsDialog.numero),
+            valorSemRS,
+            formatData(whatsDialog.data_pagamento),
+          ],
+        },
+      })
       if (result.ok) {
         toast.success('WhatsApp enviado!', { description: `Para ${result.phone || whatsPhone}` })
         setWhatsDialog(null)
