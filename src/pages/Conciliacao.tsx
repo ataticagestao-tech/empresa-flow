@@ -1109,7 +1109,27 @@ export default function Conciliacao() {
             return;
         }
 
-        const effectiveToApprove = naoTransfers;
+        // Bloqueia aprovação em lote de itens SEM sugestão de match com CR/CP
+        // existente. Sem sysTx, conciliar_lote cria CR/CP novo — fonte recorrente
+        // de duplicatas com folha/CR já lançado. Pra esses casos, usar
+        // "Conciliar Manualmente" (1-por-1) que dá controle total.
+        const comSysTx = naoTransfers.filter(s => !!s.systemTransaction);
+        const semSysTx = naoTransfers.filter(s => !s.systemTransaction);
+
+        if (semSysTx.length > 0) {
+            toast({
+                title: `${semSysTx.length} sem CR/CP sugerido — pulados`,
+                description: `Pra não duplicar lançamentos, use "Conciliar Manualmente" nessas linhas. ${comSysTx.length} com sugestão serão conciliadas.`,
+                variant: "destructive",
+            });
+        }
+
+        if (comSysTx.length === 0) {
+            setSelectedIds(new Set());
+            return;
+        }
+
+        const effectiveToApprove = comSysTx;
         const total = effectiveToApprove.length;
         let totalSuccess = 0;
         let totalFailed = 0;
@@ -1373,6 +1393,36 @@ export default function Conciliacao() {
                     </div>
                 ) : (
                     <div className="grid gap-6">
+
+                        {/* Banner instrucional — primeira importação */}
+                        {(!importHistory || importHistory.length === 0) && (
+                            <div className="bg-gradient-to-r from-emerald-50 to-emerald-50/50 border border-emerald-200 rounded-xl p-5">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                                        <Upload className="h-5 w-5 text-emerald-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-base font-bold text-[#1D2939] mb-1">
+                                            Primeira importação desta conta
+                                        </h3>
+                                        <p className="text-sm text-[#475467] mb-3 leading-relaxed">
+                                            Use os botões <b>OFX</b>, <b>PDF</b> ou <b>Excel</b> acima. O sistema vai:
+                                        </p>
+                                        <ul className="text-sm text-[#475467] space-y-1.5 mb-3 leading-relaxed">
+                                            <li className="flex gap-2"><span className="text-emerald-600 font-bold">•</span> Detectar créditos e débitos automaticamente</li>
+                                            <li className="flex gap-2"><span className="text-emerald-600 font-bold">•</span> Casar com contas a pagar/receber já lançadas no sistema</li>
+                                            <li className="flex gap-2"><span className="text-emerald-600 font-bold">•</span> Aplicar regras de Alta confiança automaticamente</li>
+                                            <li className="flex gap-2"><span className="text-emerald-600 font-bold">•</span> Sugerir categoria para o que sobrou</li>
+                                        </ul>
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
+                                            <b>Importante:</b> o <b>ACCTID</b> do arquivo OFX precisa bater 100% com o que está cadastrado na conta bancária
+                                            (inclusive hífen e zeros à esquerda). Se não bater, o upload é bloqueado para evitar lançar extrato na conta errada.
+                                            Verifique em <a href="/contas-bancarias" className="font-semibold underline">Contas Bancárias</a>.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Saldo do caixa da conta selecionada */}
                         {(() => {
