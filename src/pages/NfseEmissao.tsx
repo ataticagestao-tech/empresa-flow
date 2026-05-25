@@ -4,8 +4,8 @@ import { format, endOfMonth, parseISO } from 'date-fns'
 import {
   FileText, Plus, Search, Loader2, X, Download,
   Mail, MoreHorizontal, Check, Ban, RefreshCw,
-  ChevronDown, ChevronRight, Clock, AlertTriangle,
-  Eye, Send, XCircle, DollarSign, Activity
+  AlertTriangle, Eye, Send, XCircle, DollarSign, Activity,
+  ShoppingCart, FileDown
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -84,6 +84,25 @@ interface NfseConfig {
   natureza_operacao: number
 }
 
+interface VendaItem {
+  id: string
+  venda_id: string
+  descricao: string | null
+  quantidade: number
+  valor_total: number
+}
+
+interface VendaRow {
+  id: string
+  data_venda: string
+  cliente_nome: string | null
+  cliente_cpf_cnpj: string | null
+  valor_total: number
+  forma_pagamento: string | null
+  nf_emitida: boolean
+  itens: VendaItem[]
+}
+
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon?: 'check' | 'spin' | 'ban' | 'alert' }> = {
   rascunho:          { label: 'Rascunho',        color: '#667085', bg: '#F3F4F6' },
@@ -127,10 +146,20 @@ export default function NfseEmissao() {
   const [config, setConfig] = useState<NfseConfig | null>(null)
   const [clients, setClients] = useState<Client[]>([])
 
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'vendas' | 'emissoes'>('vendas')
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
   const [mesAno, setMesAno] = useState(() => format(new Date(), 'yyyy-MM'))
+
+  // Vendas (relação a faturar)
+  const [vendas, setVendas] = useState<VendaRow[]>([])
+  const [loadingVendas, setLoadingVendas] = useState(true)
+  const [vendasFiltro, setVendasFiltro] = useState<'todas' | 'pendentes' | 'emitidas'>('pendentes')
+  const [vendasSearch, setVendasSearch] = useState('')
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   // Modals
   const [showNovaModal, setShowNovaModal] = useState(false)
@@ -195,6 +224,50 @@ export default function NfseEmissao() {
     setLoading(false)
   }, [selectedCompany, activeClient, mesAno])
 
+  const loadVendas = useCallback(async () => {
+    if (!selectedCompany) return
+    setLoadingVendas(true)
+    const db = activeClient as any
+
+    const inicioMes = `${mesAno}-01`
+    const fimMes = format(endOfMonth(parseISO(inicioMes)), 'yyyy-MM-dd')
+
+    try {
+      const { data: vData } = await db.from('vendas')
+        .select('id, data_venda, cliente_nome, cliente_cpf_cnpj, valor_total, forma_pagamento, nf_emitida')
+        .eq('company_id', selectedCompany.id)
+        .gte('data_venda', inicioMes)
+        .lte('data_venda', fimMes)
+        .order('data_venda', { ascending: false })
+
+      const lista = (vData || []) as VendaRow[]
+      const ids = lista.map(v => v.id)
+
+      const itensByVenda = new Map<string, VendaItem[]>()
+      if (ids.length > 0) {
+        const chunkSize = 300
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize)
+          const { data: itensData } = await db.from('vendas_itens')
+            .select('id, venda_id, descricao, quantidade, valor_total')
+            .in('venda_id', chunk)
+          for (const it of (itensData || []) as VendaItem[]) {
+            const arr = itensByVenda.get(it.venda_id) || []
+            arr.push(it)
+            itensByVenda.set(it.venda_id, arr)
+          }
+        }
+      }
+
+      setVendas(lista.map(v => ({ ...v, itens: itensByVenda.get(v.id) || [] })))
+    } catch (err: any) {
+      console.error('Erro ao carregar vendas:', err)
+      toast.error(err.message || 'Erro ao carregar vendas')
+    } finally {
+      setLoadingVendas(false)
+    }
+  }, [selectedCompany, activeClient, mesAno])
+
   const loadClients = useCallback(async () => {
     if (!selectedCompany) return
     const db = activeClient as any
@@ -206,6 +279,7 @@ export default function NfseEmissao() {
   }, [selectedCompany, activeClient])
 
   useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadVendas() }, [loadVendas])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -219,6 +293,92 @@ export default function NfseEmissao() {
       processando: processando.length,
     }
   }, [emissoes])
+
+  // ─── Vendas: KPIs + filtros ────────────────────────────────────────
+  const vendasKpis = useMemo(() => {
+    const total = vendas.length
+    const emitidas = vendas.filter(v => v.nf_emitida).length
+    const pendentes = total - emitidas
+    const valorPendente = vendas.filter(v => !v.nf_emitida).reduce((s, v) => s + (v.valor_total || 0), 0)
+    return { total, emitidas, pendentes, valorPendente }
+  }, [vendas])
+
+  const vendasFiltradas = useMemo(() => {
+    let list = vendas
+    if (vendasFiltro === 'pendentes') list = list.filter(v => !v.nf_emitida)
+    if (vendasFiltro === 'emitidas') list = list.filter(v => v.nf_emitida)
+    if (vendasSearch.trim()) {
+      const term = vendasSearch.toLowerCase()
+      list = list.filter(v =>
+        v.cliente_nome?.toLowerCase().includes(term) ||
+        v.cliente_cpf_cnpj?.includes(term) ||
+        v.itens.some(it => it.descricao?.toLowerCase().includes(term))
+      )
+    }
+    return list
+  }, [vendas, vendasFiltro, vendasSearch])
+
+  const toggleNfEmitida = useCallback(async (venda: VendaRow) => {
+    if (togglingId) return
+    setTogglingId(venda.id)
+    const db = activeClient as any
+    const novoStatus = !venda.nf_emitida
+    try {
+      const { error } = await db.from('vendas')
+        .update({
+          nf_emitida: novoStatus,
+          nf_emitida_em: novoStatus ? new Date().toISOString() : null,
+        })
+        .eq('id', venda.id)
+      if (error) throw error
+      setVendas(prev => prev.map(v => v.id === venda.id ? { ...v, nf_emitida: novoStatus } : v))
+      toast.success(novoStatus ? 'Marcada como NF emitida' : 'Desmarcada')
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar')
+    } finally {
+      setTogglingId(null)
+    }
+  }, [activeClient, togglingId])
+
+  const emitirParaVenda = useCallback((v: VendaRow) => {
+    const discriminacao = v.itens.length > 0
+      ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'} — ${formatBRL(it.valor_total)}`).join('\n')
+      : ''
+    resetForm()
+    setForm(prev => ({
+      ...prev,
+      tomador_documento: v.cliente_cpf_cnpj || '',
+      tomador_razao_social: v.cliente_nome || '',
+      discriminacao: discriminacao || prev.discriminacao,
+      valor_servicos: v.valor_total || 0,
+    }))
+    loadClients()
+    setShowNovaModal(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const exportarCSV = useCallback(() => {
+    const linhas = [
+      ['Data', 'Itens', 'Nome', 'CNPJ/CPF', 'Valor', 'Forma de pagamento', 'NF emitida'],
+      ...vendasFiltradas.map(v => [
+        formatData(v.data_venda),
+        v.itens.map(it => `${it.quantidade}x ${it.descricao || ''}`.trim()).join(' | '),
+        v.cliente_nome || '',
+        formatDoc(v.cliente_cpf_cnpj) || '',
+        (v.valor_total || 0).toFixed(2).replace('.', ','),
+        v.forma_pagamento || '',
+        v.nf_emitida ? 'Sim' : 'Nao',
+      ]),
+    ]
+    const csv = linhas.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `relacao-nf-${mesAno}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [vendasFiltradas, mesAno])
 
   // ─── Filtered ─────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -541,12 +701,17 @@ export default function NfseEmissao() {
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
+          {(activeTab === 'vendas' ? [
+            { label: 'Vendas no periodo', value: vendasKpis.total, icon: ShoppingCart, color: '#059669' },
+            { label: 'NF pendentes', value: vendasKpis.pendentes, icon: AlertTriangle, color: '#EA580C' },
+            { label: 'NF emitidas', value: vendasKpis.emitidas, icon: Check, color: '#059669' },
+            { label: 'Valor pendente', value: formatBRL(vendasKpis.valorPendente), icon: DollarSign, color: '#EA580C' },
+          ] : [
             { label: 'Total NFSe', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
             { label: 'Valor emitido', value: formatBRL(kpis.totalEmitido), icon: DollarSign, color: '#059669' },
             { label: 'Processando', value: kpis.processando, icon: Activity, color: '#EA580C' },
-          ].map((kpi, i) => (
+          ]).map((kpi, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
                 <kpi.icon size={20} style={{ color: kpi.color }} />
@@ -559,54 +724,205 @@ export default function NfseEmissao() {
           ))}
         </div>
 
-        {/* ── Toolbar ── */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* ── Tabs ── */}
+        <div className="flex items-center gap-1 border-b border-gray-200">
           <button
-            onClick={openNovaModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#059669' }}
+            onClick={() => setActiveTab('vendas')}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'vendas'
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
           >
-            <Plus size={16} /> Nova NFSe
+            <span className="inline-flex items-center gap-2"><ShoppingCart size={15} /> Vendas a faturar</span>
           </button>
-
-          <div className="relative flex-1 max-w-xs">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Buscar por tomador, numero..."
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <input
-            type="month"
-            value={mesAno}
-            onChange={e => setMesAno(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-          />
-
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+          <button
+            onClick={() => setActiveTab('emissoes')}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'emissoes'
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
           >
-            <option value="todos">Todos status</option>
-            <option value="autorizada">Autorizada</option>
-            <option value="rascunho">Rascunho</option>
-            <option value="enviando">Enviando</option>
-            <option value="processando">Processando</option>
-            <option value="erro_autorizacao">Erro</option>
-            <option value="cancelada">Cancelada</option>
-          </select>
-
-          <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Atualizar">
-            <RefreshCw size={16} className="text-gray-500" />
+            <span className="inline-flex items-center gap-2"><FileText size={15} /> NFSe emitidas</span>
           </button>
         </div>
 
-        {/* ── Table ── */}
+        {/* ── Toolbar ── */}
+        {activeTab === 'emissoes' ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={openNovaModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
+              style={{ backgroundColor: '#059669' }}
+            >
+              <Plus size={16} /> Nova NFSe
+            </button>
+
+            <div className="relative flex-1 max-w-xs">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Buscar por tomador, numero..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <input
+              type="month"
+              value={mesAno}
+              onChange={e => setMesAno(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="todos">Todos status</option>
+              <option value="autorizada">Autorizada</option>
+              <option value="rascunho">Rascunho</option>
+              <option value="enviando">Enviando</option>
+              <option value="processando">Processando</option>
+              <option value="erro_autorizacao">Erro</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+
+            <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Atualizar">
+              <RefreshCw size={16} className="text-gray-500" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={vendasSearch}
+                onChange={e => setVendasSearch(e.target.value)}
+                placeholder="Buscar por cliente, CPF/CNPJ, item..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <input
+              type="month"
+              value={mesAno}
+              onChange={e => setMesAno(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+
+            <select
+              value={vendasFiltro}
+              onChange={e => setVendasFiltro(e.target.value as 'todas' | 'pendentes' | 'emitidas')}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="pendentes">Pendentes (NF nao emitida)</option>
+              <option value="emitidas">NF ja emitida</option>
+              <option value="todas">Todas as vendas</option>
+            </select>
+
+            <button onClick={loadVendas} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Atualizar">
+              <RefreshCw size={16} className="text-gray-500" />
+            </button>
+
+            <button
+              onClick={exportarCSV}
+              disabled={vendasFiltradas.length === 0}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50"
+              title="Exportar CSV"
+            >
+              <FileDown size={15} className="text-gray-500" /> Exportar CSV
+            </button>
+          </div>
+        )}
+
+        {/* ── Table: Vendas a faturar ── */}
+        {activeTab === 'vendas' && (
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            {loadingVendas ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="animate-spin text-gray-400" size={24} />
+              </div>
+            ) : vendasFiltradas.length === 0 ? (
+              <div className="text-center py-20 text-gray-400 text-sm">
+                Nenhuma venda neste filtro
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
+                      <th className="px-4 py-3">Data</th>
+                      <th className="px-4 py-3">Item/s</th>
+                      <th className="px-4 py-3">Nome</th>
+                      <th className="px-4 py-3">CPF/CNPJ</th>
+                      <th className="px-4 py-3 text-right">Valor</th>
+                      <th className="px-4 py-3">Forma de pagamento</th>
+                      <th className="px-4 py-3 text-center">NF emitida</th>
+                      <th className="px-4 py-3 text-center">Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendasFiltradas.map(v => {
+                      const itensTxt = v.itens.length > 0
+                        ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'}`).join(', ')
+                        : '—'
+                      return (
+                        <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatData(v.data_venda)}</td>
+                          <td className="px-4 py-3 text-gray-600 max-w-[280px]">
+                            <span title={itensTxt} className="line-clamp-2">{itensTxt}</span>
+                          </td>
+                          <td className="px-4 py-3 font-medium">{v.cliente_nome || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
+                          <td className="px-4 py-3 text-right font-medium">{formatBRL(v.valor_total)}</td>
+                          <td className="px-4 py-3 text-gray-600 capitalize">{v.forma_pagamento || '—'}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => toggleNfEmitida(v)}
+                              disabled={togglingId === v.id}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
+                                v.nf_emitida
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                              }`}
+                              title={v.nf_emitida ? 'Clique para desmarcar' : 'Clique para marcar como emitida'}
+                            >
+                              {togglingId === v.id ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : v.nf_emitida ? (
+                                <Check size={12} />
+                              ) : (
+                                <X size={12} />
+                              )}
+                              {v.nf_emitida ? 'Sim' : 'Nao'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => emitirParaVenda(v)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+                              title="Abrir Nova NFSe com dados desta venda"
+                            >
+                              <Send size={12} /> Emitir NFSe
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Table: NFSe emitidas ── */}
+        {activeTab === 'emissoes' && (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -769,6 +1085,7 @@ export default function NfseEmissao() {
             </div>
           )}
         </div>
+        )}
 
         {/* ════════════════════════════════════════════════════════════════
             MODAL: Nova NFSe
