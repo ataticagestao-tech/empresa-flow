@@ -14,8 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 import { sendReciboEmail } from '@/lib/recibos/send-recibo-email'
-import { gerarReciboPDF, downloadBlob } from '@/lib/recibos/gerar-pdf'
-import { toTitleCase } from '@/lib/format'
+import { criarRecibo } from '@/lib/recibos/recibos-service'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,6 +39,18 @@ interface Recibo {
 interface Empresa {
   name: string
   document: string
+}
+
+interface GerarItem {
+  id: string // CR/CP id (para venda: primeira CR paga da venda)
+  origem: 'cr' | 'cp' | 'venda'
+  vendaId?: string // só para tab venda (informativo)
+  titulo: string
+  subtitulo: string
+  valor: number
+  data: string
+  email?: string | null
+  jaTemRecibo: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -253,17 +264,15 @@ export default function Recibos() {
   const [emailSending, setEmailSending] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  // Novo Recibo avulso
-  const hoje = new Date().toISOString().split('T')[0]
-  const [showNovo, setShowNovo] = useState(false)
-  const [novoFavorecido, setNovoFavorecido] = useState('')
-  const [novoCpf, setNovoCpf] = useState('')
-  const [novoValor, setNovoValor] = useState('')
-  const [novoDescricao, setNovoDescricao] = useState('')
-  const [novoData, setNovoData] = useState(hoje)
-  const [novoForma, setNovoForma] = useState('')
-  const [novoEmail, setNovoEmail] = useState('')
-  const [novoSubmitting, setNovoSubmitting] = useState(false)
+  // Gerar Recibo (a partir de CR / CP / Venda)
+  const [showGerar, setShowGerar] = useState(false)
+  const [gerarTab, setGerarTab] = useState<'cr' | 'cp' | 'venda'>('cr')
+  const [gerarBusca, setGerarBusca] = useState('')
+  const [gerarLoading, setGerarLoading] = useState(false)
+  const [gerarLista, setGerarLista] = useState<GerarItem[]>([])
+  const [gerarSelecionado, setGerarSelecionado] = useState<GerarItem | null>(null)
+  const [gerarEmail, setGerarEmail] = useState('')
+  const [gerarSubmitting, setGerarSubmitting] = useState(false)
 
   // Fetch recibos
   useEffect(() => {
@@ -526,130 +535,155 @@ export default function Recibos() {
     }
   }
 
-  const fecharNovo = () => {
-    setShowNovo(false)
-    setNovoFavorecido('')
-    setNovoCpf('')
-    setNovoValor('')
-    setNovoDescricao('')
-    setNovoData(hoje)
-    setNovoForma('')
-    setNovoEmail('')
+  const fecharGerar = () => {
+    setShowGerar(false)
+    setGerarBusca('')
+    setGerarLista([])
+    setGerarSelecionado(null)
+    setGerarEmail('')
   }
 
-  const gerarReciboAvulso = async () => {
-    if (!selectedCompany?.id) {
-      toast.error('Selecione uma empresa.')
-      return
-    }
-    const favorecido = novoFavorecido.trim()
-    if (!favorecido) {
-      toast.error('Informe o favorecido.')
-      return
-    }
-    const valorNum = Number(String(novoValor).replace(',', '.'))
-    if (!valorNum || valorNum <= 0) {
-      toast.error('Informe um valor valido.')
-      return
-    }
-    const descricao = novoDescricao.trim()
-    if (!descricao) {
-      toast.error('Informe a descricao do servico.')
-      return
-    }
+  // Busca CR/CP/Venda conforme aba ativa
+  useEffect(() => {
+    if (!showGerar || !selectedCompany?.id) return
+    let cancelled = false
 
-    setNovoSubmitting(true)
+    async function carregar() {
+      setGerarLoading(true)
+      setGerarSelecionado(null)
+      const client = activeClient ?? supabase
+      try {
+        if (gerarTab === 'cr') {
+          const { data } = await client
+            .from('contas_receber')
+            .select('id, observacoes, pagador_nome, valor, valor_pago, data_pagamento, data_vencimento, status')
+            .eq('company_id', selectedCompany!.id)
+            .eq('status', 'pago')
+            .is('deleted_at', null)
+            .order('data_pagamento', { ascending: false })
+            .limit(200)
+          if (cancelled) return
+          const lista: GerarItem[] = ((data as any[]) || []).map(r => ({
+            id: r.id,
+            origem: 'cr',
+            titulo: r.pagador_nome || r.observacoes || 'Sem nome',
+            subtitulo: r.observacoes || '',
+            valor: Number(r.valor_pago || r.valor || 0),
+            data: r.data_pagamento || r.data_vencimento || '',
+            email: null,
+            jaTemRecibo: false,
+          }))
+          setGerarLista(lista)
+        } else if (gerarTab === 'cp') {
+          const { data } = await client
+            .from('contas_pagar')
+            .select('id, descricao, credor_nome, valor, valor_pago, data_pagamento, data_vencimento, status')
+            .eq('company_id', selectedCompany!.id)
+            .eq('status', 'pago')
+            .is('deleted_at', null)
+            .order('data_pagamento', { ascending: false })
+            .limit(200)
+          if (cancelled) return
+          const lista: GerarItem[] = ((data as any[]) || []).map(r => ({
+            id: r.id,
+            origem: 'cp',
+            titulo: r.credor_nome || r.descricao || 'Sem nome',
+            subtitulo: r.descricao || '',
+            valor: Number(r.valor_pago || r.valor || 0),
+            data: r.data_pagamento || r.data_vencimento || '',
+            email: null,
+            jaTemRecibo: false,
+          }))
+          setGerarLista(lista)
+        } else {
+          // Vendas — buscar vendas confirmadas com pelo menos uma CR paga; usar a 1a CR paga como account_id
+          const { data: vendas } = await client
+            .from('vendas')
+            .select('id, cliente_nome, observacoes, valor_total, data_venda, status')
+            .eq('company_id', selectedCompany!.id)
+            .eq('status', 'confirmado')
+            .is('deleted_at', null)
+            .order('data_venda', { ascending: false })
+            .limit(200)
+          if (cancelled) return
+          const vendaIds = ((vendas as any[]) || []).map((v: any) => v.id)
+          const crPorVenda: Record<string, any> = {}
+          if (vendaIds.length > 0) {
+            const { data: crs } = await client
+              .from('contas_receber')
+              .select('id, venda_id, valor_pago, valor, data_pagamento, pagador_nome, status')
+              .in('venda_id', vendaIds)
+              .eq('status', 'pago')
+              .is('deleted_at', null)
+            ;((crs as any[]) || []).forEach((cr: any) => {
+              if (!crPorVenda[cr.venda_id]) crPorVenda[cr.venda_id] = cr
+            })
+          }
+          const lista: GerarItem[] = ((vendas as any[]) || [])
+            .filter((v: any) => crPorVenda[v.id])
+            .map((v: any) => {
+              const cr = crPorVenda[v.id]
+              return {
+                id: cr.id, // CR id pra passar ao criarRecibo
+                origem: 'venda' as const,
+                vendaId: v.id,
+                titulo: v.cliente_nome || cr.pagador_nome || 'Cliente',
+                subtitulo: v.observacoes || `Venda ${formatData(v.data_venda)}`,
+                valor: Number(v.valor_total || cr.valor_pago || cr.valor || 0),
+                data: cr.data_pagamento || v.data_venda || '',
+                email: null,
+                jaTemRecibo: false,
+              }
+            })
+          setGerarLista(lista)
+        }
+      } catch (err) {
+        console.error('Erro carregar lista gerar recibo:', err)
+        if (!cancelled) setGerarLista([])
+      } finally {
+        if (!cancelled) setGerarLoading(false)
+      }
+    }
+    carregar()
+    return () => { cancelled = true }
+  }, [showGerar, gerarTab, selectedCompany?.id, activeClient])
+
+  const gerarListaFiltrada = gerarLista.filter(item => {
+    const needle = normalize(gerarBusca)
+    if (!needle) return true
+    const hay = normalize([item.titulo, item.subtitulo, formatBRL(item.valor)].join(' '))
+    return hay.includes(needle)
+  })
+
+  const handleGerarRecibo = async () => {
+    if (!gerarSelecionado) {
+      toast.error('Selecione um item para gerar o recibo.')
+      return
+    }
+    setGerarSubmitting(true)
     try {
       const client = activeClient ?? supabase
-
-      const { data: ultimoRec } = await client
-        .from('recibos_v2')
-        .select('numero_sequencial')
-        .eq('company_id', selectedCompany.id)
-        .order('numero_sequencial', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const proximoNumero = ((ultimoRec as any)?.numero_sequencial || 0) + 1
-
-      const { data: empresaData } = await client
-        .from('companies')
-        .select('razao_social, nome_fantasia, cnpj, dados_bancarios_pix')
-        .eq('id', selectedCompany.id)
-        .single()
-
-      const empresaNome = (empresaData as any)?.nome_fantasia || (empresaData as any)?.razao_social || 'Empresa'
-
-      const { data: template } = await client
-        .from('receipt_templates')
-        .select('cor_primaria, rodape_texto')
-        .eq('company_id', selectedCompany.id)
-        .maybeSingle()
-
-      const dataPgto = new Date(novoData + 'T12:00:00')
-      const numeroStr = `RCB-${dataPgto.getFullYear()}-${String(proximoNumero).padStart(6, '0')}`
-
-      const pdfBlob = await gerarReciboPDF({
-        numero: numeroStr,
-        valor: valorNum,
-        favorecido,
-        forma_pagamento: novoForma.trim() || undefined,
-        data_pagamento: new Intl.DateTimeFormat('pt-BR').format(dataPgto),
-        data_hora_pagamento: new Intl.DateTimeFormat('pt-BR', {
-          day: '2-digit', month: '2-digit', year: 'numeric',
-          hour: '2-digit', minute: '2-digit',
-        }).format(dataPgto),
-        descricao,
-        empresa_nome: empresaNome,
-        empresa_cnpj: (empresaData as any)?.cnpj ?? undefined,
-        pagador_razao_social: (empresaData as any)?.razao_social || (empresaData as any)?.nome_fantasia || undefined,
-        chave_pix: (empresaData as any)?.dados_bancarios_pix || undefined,
-        cor_primaria: (template as any)?.cor_primaria ?? '#1D2939',
-        rodape_texto: (template as any)?.rodape_texto,
-        tipo: 'receivable',
+      const tipo = gerarSelecionado.origem === 'cp' ? 'payable' : 'receivable'
+      const result = await criarRecibo(client, {
+        account_id: gerarSelecionado.id,
+        tipo,
+        email_destino: gerarEmail.trim() || undefined,
+        enviar_email: !!gerarEmail.trim(),
       })
-
-      const storagePath = `${selectedCompany.id}/recibos/${numeroStr}.pdf`
-      const { error: erroUpload } = await client.storage
-        .from('documentos')
-        .upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
-
-      let pdfUrl: string | null = null
-      if (!erroUpload) {
-        const { data: urlData } = client.storage.from('documentos').getPublicUrl(storagePath)
-        pdfUrl = urlData?.publicUrl ?? null
-      } else {
-        console.warn('Erro upload PDF recibo avulso:', erroUpload)
-      }
-
-      const { error: erroInsert } = await client
-        .from('recibos_v2')
-        .insert({
-          company_id: selectedCompany.id,
-          pagador_nome: favorecido,
-          pagador_cpf_cnpj: novoCpf.trim() || null,
-          valor: valorNum,
-          data: novoData,
-          descricao_servico: descricao,
-          forma_pagamento: novoForma.trim() || null,
-          numero_sequencial: proximoNumero,
-          email_destino: novoEmail.trim() || null,
-          pdf_url: pdfUrl,
-        })
-
-      if (erroInsert) {
-        toast.error('Erro ao salvar recibo', { description: erroInsert.message })
+      if (!result.ok) {
+        toast.error('Erro ao gerar recibo', { description: result.erro })
         return
       }
-
-      downloadBlob(pdfBlob, `${numeroStr}.pdf`)
-      toast.success('Recibo gerado!', { description: `#${proximoNumero}` })
-      fecharNovo()
+      toast.success('Recibo gerado!', {
+        description: gerarEmail.trim() ? `Enviado para ${gerarEmail.trim()}` : 'PDF baixado.',
+      })
+      fecharGerar()
       setRefreshKey(k => k + 1)
     } catch (err: any) {
-      console.error('Erro gerar recibo avulso:', err)
+      console.error('Erro gerar recibo:', err)
       toast.error('Erro ao gerar recibo', { description: err?.message || 'Tente novamente.' })
     } finally {
-      setNovoSubmitting(false)
+      setGerarSubmitting(false)
     }
   }
 
@@ -668,11 +702,11 @@ export default function Recibos() {
                   {filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}
                 </span>
                 <button
-                  onClick={() => setShowNovo(true)}
+                  onClick={() => setShowGerar(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                 >
                   <Plus className="w-3 h-3" />
-                  Novo Recibo
+                  Gerar Recibo
                 </button>
               </div>
             </div>
@@ -832,118 +866,114 @@ export default function Recibos() {
 
       </div>
 
-      <Dialog open={showNovo} onOpenChange={(o) => { if (!o) fecharNovo() }}>
-        <DialogContent className="sm:max-w-[520px]">
+      <Dialog open={showGerar} onOpenChange={(o) => { if (!o) fecharGerar() }}>
+        <DialogContent className="sm:max-w-[640px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-emerald-600" />
-              Novo Recibo (avulso)
+              Gerar Recibo
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1 col-span-2">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
-                  Favorecido / Pagador <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  value={novoFavorecido}
-                  onChange={(e) => setNovoFavorecido(e.target.value)}
-                  onBlur={() => setNovoFavorecido(v => toTitleCase(v))}
-                  placeholder="Nome completo"
-                  className="h-9"
-                />
+
+          {/* Tabs CR / CP / Venda */}
+          <div className="flex gap-1.5 border-b border-[#E5E7EB] pb-2">
+            {([
+              { key: 'cr', label: 'Conta a Receber' },
+              { key: 'cp', label: 'Conta a Pagar' },
+              { key: 'venda', label: 'Venda' },
+            ] as const).map(t => (
+              <button
+                key={t.key}
+                onClick={() => { setGerarTab(t.key); setGerarSelecionado(null); setGerarBusca('') }}
+                className={`px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded border transition-colors ${
+                  gerarTab === t.key
+                    ? 'bg-[#2A2724] text-white border-[#2A2724]'
+                    : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Busca */}
+          <div className="flex items-center gap-2 border border-[#D1D5DB] rounded px-3 py-2 bg-white">
+            <Search className="w-3.5 h-3.5 text-[#9CA3AF] shrink-0" />
+            <input
+              type="text"
+              value={gerarBusca}
+              onChange={(e) => setGerarBusca(e.target.value)}
+              placeholder={gerarTab === 'cp' ? 'Buscar por credor, descricao, valor...' : gerarTab === 'venda' ? 'Buscar por cliente, descricao, valor...' : 'Buscar por pagador, descricao, valor...'}
+              className="flex-1 text-xs text-[#0F172A] placeholder:text-[#9CA3AF] bg-transparent outline-none border-none"
+            />
+          </div>
+
+          {/* Lista */}
+          <div className="border border-[#E5E7EB] rounded max-h-[280px] overflow-y-auto bg-white">
+            {gerarLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">CPF / CNPJ</Label>
-                <Input
-                  value={novoCpf}
-                  onChange={(e) => setNovoCpf(e.target.value)}
-                  placeholder="Opcional"
-                  className="h-9"
-                />
+            ) : gerarListaFiltrada.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-xs text-[#9CA3AF]">
+                <FileText className="w-7 h-7 text-[#D1D5DB] mb-2" />
+                {gerarTab === 'cp' ? 'Nenhuma CP paga encontrada.' : gerarTab === 'venda' ? 'Nenhuma venda com pagamento encontrado.' : 'Nenhuma CR paga encontrada.'}
               </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
-                  Valor (R$) <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={novoValor}
-                  onChange={(e) => setNovoValor(e.target.value)}
-                  placeholder="0,00"
-                  className="h-9"
-                />
-              </div>
-            </div>
+            ) : (
+              gerarListaFiltrada.map(item => (
+                <button
+                  key={`${item.origem}-${item.id}`}
+                  onClick={() => {
+                    setGerarSelecionado(item)
+                    setGerarEmail(item.email || '')
+                  }}
+                  className={`w-full text-left px-3 py-2.5 border-b border-[#E5E7EB] last:border-b-0 transition-colors hover:bg-[#F9FAFB] ${
+                    gerarSelecionado?.id === item.id && gerarSelecionado?.origem === item.origem ? 'bg-[#ECFDF4] border-l-2 border-l-[#059669]' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold text-[#0F172A] truncate">{item.titulo}</div>
+                      {item.subtitulo && (
+                        <div className="text-[11px] text-[#4B5563] truncate mt-0.5">{item.subtitulo}</div>
+                      )}
+                      <div className="text-[10px] text-[#9CA3AF] mt-0.5">
+                        {item.data ? formatData(item.data) : '—'}
+                      </div>
+                    </div>
+                    <div className="text-sm font-bold text-[#0F172A] shrink-0">{formatBRL(item.valor)}</div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* E-mail (opcional) */}
+          {gerarSelecionado && (
             <div className="space-y-1">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
-                Descricao do servico <span className="text-red-500">*</span>
+                E-mail destinatario <span className="text-[#999] font-normal normal-case">(opcional — envia o PDF por e-mail)</span>
               </Label>
-              <textarea
-                value={novoDescricao}
-                onChange={(e) => setNovoDescricao(e.target.value)}
-                rows={3}
-                placeholder="Ex: Servicos prestados em maio/2026"
-                className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669]"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
-                  Data <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  value={novoData}
-                  onChange={(e) => setNovoData(e.target.value)}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Forma de pagamento</Label>
-                <select
-                  value={novoForma}
-                  onChange={(e) => setNovoForma(e.target.value)}
-                  className="h-9 w-full px-3 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669]"
-                >
-                  <option value="">Selecione...</option>
-                  <option value="dinheiro">Dinheiro</option>
-                  <option value="pix">PIX</option>
-                  <option value="cartao_credito">Cartao de credito</option>
-                  <option value="cartao_debito">Cartao de debito</option>
-                  <option value="boleto">Boleto</option>
-                  <option value="transferencia">Transferencia</option>
-                  <option value="cheque">Cheque</option>
-                </select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">E-mail destinatario</Label>
               <Input
                 type="email"
-                value={novoEmail}
-                onChange={(e) => setNovoEmail(e.target.value)}
-                placeholder="Opcional - usado para reenviar depois"
+                value={gerarEmail}
+                onChange={(e) => setGerarEmail(e.target.value)}
+                placeholder="cliente@exemplo.com"
                 className="h-9"
               />
             </div>
-            <div className="rounded-md bg-[#F0F9F4] border border-[#A7F3D0] p-2.5 text-[11px] text-[#065F46]">
-              O PDF sera gerado, salvo e baixado automaticamente. O recibo NAO movimenta o financeiro (saldo/CR/CP).
-            </div>
-          </div>
+          )}
+
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={fecharNovo} disabled={novoSubmitting}>
+            <Button variant="outline" onClick={fecharGerar} disabled={gerarSubmitting}>
               Cancelar
             </Button>
             <Button
-              onClick={gerarReciboAvulso}
-              disabled={novoSubmitting || !novoFavorecido.trim() || !novoValor || !novoDescricao.trim()}
+              onClick={handleGerarRecibo}
+              disabled={gerarSubmitting || !gerarSelecionado}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              {novoSubmitting ? 'Gerando...' : 'Gerar recibo'}
+              {gerarSubmitting ? 'Gerando...' : 'Gerar recibo'}
             </Button>
           </DialogFooter>
         </DialogContent>
