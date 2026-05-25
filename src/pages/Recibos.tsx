@@ -51,6 +51,7 @@ interface GerarItem {
   data: string
   email?: string | null
   jaTemRecibo: boolean
+  match?: { tipo: 'funcionario' | 'fornecedor' | 'cliente'; email?: string | null } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -552,57 +553,110 @@ export default function Recibos() {
       setGerarLoading(true)
       setGerarSelecionado(null)
       const client = activeClient ?? supabase
+      const onlyDigits = (s: any) => String(s || '').replace(/\D/g, '')
+
       try {
+        // 1. Carrega cadastros em paralelo (para match)
+        const [empsRes, supsRes, clisRes] = await Promise.all([
+          client.from('employees').select('name, cpf, email').eq('company_id', selectedCompany!.id),
+          client.from('suppliers').select('razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', selectedCompany!.id),
+          client.from('clients').select('razao_social, nome_fantasia, cpf_cnpj, email').eq('company_id', selectedCompany!.id),
+        ])
+        if (cancelled) return
+
+        type CadEntry = { tipo: 'funcionario' | 'fornecedor' | 'cliente'; email?: string | null }
+        const byDoc: Record<string, CadEntry> = {}
+        const byName: Record<string, CadEntry> = {}
+
+        ;((empsRes.data as any[]) || []).forEach(e => {
+          const doc = onlyDigits(e.cpf)
+          if (doc) byDoc[doc] = { tipo: 'funcionario', email: e.email }
+          const n = normalize(e.name)
+          if (n) byName[n] = { tipo: 'funcionario', email: e.email }
+        })
+        ;((supsRes.data as any[]) || []).forEach(s => {
+          const doc = onlyDigits(s.cpf_cnpj)
+          if (doc && !byDoc[doc]) byDoc[doc] = { tipo: 'fornecedor', email: s.email }
+          const n1 = normalize(s.nome_fantasia)
+          if (n1 && !byName[n1]) byName[n1] = { tipo: 'fornecedor', email: s.email }
+          const n2 = normalize(s.razao_social)
+          if (n2 && !byName[n2]) byName[n2] = { tipo: 'fornecedor', email: s.email }
+        })
+        ;((clisRes.data as any[]) || []).forEach(c => {
+          const doc = onlyDigits(c.cpf_cnpj)
+          if (doc && !byDoc[doc]) byDoc[doc] = { tipo: 'cliente', email: c.email }
+          const n1 = normalize(c.nome_fantasia)
+          if (n1 && !byName[n1]) byName[n1] = { tipo: 'cliente', email: c.email }
+          const n2 = normalize(c.razao_social)
+          if (n2 && !byName[n2]) byName[n2] = { tipo: 'cliente', email: c.email }
+        })
+
+        const matchCadastro = (nome: string, cpfCnpj?: string | null): CadEntry | null => {
+          const doc = cpfCnpj ? onlyDigits(cpfCnpj) : ''
+          if (doc && byDoc[doc]) return byDoc[doc]
+          const n = normalize(nome)
+          if (n && byName[n]) return byName[n]
+          return null
+        }
+
+        // 2. Carrega lista da aba ativa
         if (gerarTab === 'cr') {
           const { data } = await client
             .from('contas_receber')
-            .select('id, observacoes, pagador_nome, valor, valor_pago, data_pagamento, data_vencimento, status')
+            .select('id, observacoes, pagador_nome, pagador_cpf_cnpj, valor, valor_pago, data_pagamento, data_vencimento, status')
             .eq('company_id', selectedCompany!.id)
             .eq('status', 'pago')
             .is('deleted_at', null)
             .order('data_pagamento', { ascending: false })
             .limit(200)
           if (cancelled) return
-          const lista: GerarItem[] = ((data as any[]) || []).map(r => ({
-            id: r.id,
-            origem: 'cr',
-            titulo: r.pagador_nome || r.observacoes || 'Sem nome',
-            subtitulo: r.observacoes || '',
-            valor: Number(r.valor_pago || r.valor || 0),
-            data: r.data_pagamento || r.data_vencimento || '',
-            email: null,
-            jaTemRecibo: false,
-          }))
+          const lista: GerarItem[] = ((data as any[]) || []).map(r => {
+            const m = matchCadastro(r.pagador_nome, r.pagador_cpf_cnpj)
+            return {
+              id: r.id,
+              origem: 'cr',
+              titulo: r.pagador_nome || r.observacoes || 'Sem nome',
+              subtitulo: r.observacoes || '',
+              valor: Number(r.valor_pago || r.valor || 0),
+              data: r.data_pagamento || r.data_vencimento || '',
+              email: m?.email || null,
+              jaTemRecibo: false,
+              match: m,
+            }
+          })
           setGerarLista(lista)
         } else if (gerarTab === 'cp') {
           const { data } = await client
             .from('contas_pagar')
-            .select('id, descricao, credor_nome, valor, valor_pago, data_pagamento, data_vencimento, status')
+            .select('id, descricao, credor_nome, credor_cpf_cnpj, valor, valor_pago, data_pagamento, data_vencimento, status')
             .eq('company_id', selectedCompany!.id)
             .eq('status', 'pago')
             .is('deleted_at', null)
             .order('data_pagamento', { ascending: false })
             .limit(200)
           if (cancelled) return
-          const lista: GerarItem[] = ((data as any[]) || []).map(r => ({
-            id: r.id,
-            origem: 'cp',
-            titulo: r.credor_nome || r.descricao || 'Sem nome',
-            subtitulo: r.descricao || '',
-            valor: Number(r.valor_pago || r.valor || 0),
-            data: r.data_pagamento || r.data_vencimento || '',
-            email: null,
-            jaTemRecibo: false,
-          }))
+          const lista: GerarItem[] = ((data as any[]) || []).map(r => {
+            const m = matchCadastro(r.credor_nome, r.credor_cpf_cnpj)
+            return {
+              id: r.id,
+              origem: 'cp',
+              titulo: r.credor_nome || r.descricao || 'Sem nome',
+              subtitulo: r.descricao || '',
+              valor: Number(r.valor_pago || r.valor || 0),
+              data: r.data_pagamento || r.data_vencimento || '',
+              email: m?.email || null,
+              jaTemRecibo: false,
+              match: m,
+            }
+          })
           setGerarLista(lista)
         } else {
-          // Vendas — buscar vendas confirmadas com pelo menos uma CR paga; usar a 1a CR paga como account_id
+          // Vendas — vendas confirmadas (vendas NAO tem deleted_at); cruza com 1a CR paga
           const { data: vendas } = await client
             .from('vendas')
-            .select('id, cliente_nome, observacoes, valor_total, data_venda, status')
+            .select('id, cliente_nome, cliente_cpf_cnpj, observacoes, valor_total, data_venda, status')
             .eq('company_id', selectedCompany!.id)
             .eq('status', 'confirmado')
-            .is('deleted_at', null)
             .order('data_venda', { ascending: false })
             .limit(200)
           if (cancelled) return
@@ -623,16 +677,18 @@ export default function Recibos() {
             .filter((v: any) => crPorVenda[v.id])
             .map((v: any) => {
               const cr = crPorVenda[v.id]
+              const m = matchCadastro(v.cliente_nome, v.cliente_cpf_cnpj)
               return {
-                id: cr.id, // CR id pra passar ao criarRecibo
+                id: cr.id,
                 origem: 'venda' as const,
                 vendaId: v.id,
                 titulo: v.cliente_nome || cr.pagador_nome || 'Cliente',
                 subtitulo: v.observacoes || `Venda ${formatData(v.data_venda)}`,
                 valor: Number(v.valor_total || cr.valor_pago || cr.valor || 0),
                 data: cr.data_pagamento || v.data_venda || '',
-                email: null,
+                email: m?.email || null,
                 jaTemRecibo: false,
+                match: m,
               }
             })
           setGerarLista(lista)
@@ -933,7 +989,22 @@ export default function Recibos() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-[#0F172A] truncate">{item.titulo}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-[#0F172A] truncate">{item.titulo}</span>
+                        {item.match && (
+                          <span
+                            className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                              item.match.tipo === 'funcionario'
+                                ? 'bg-[#ECFDF3] border-[#039855] text-[#039855]'
+                                : item.match.tipo === 'fornecedor'
+                                ? 'bg-[#FFF7ED] border-[#EA580C] text-[#EA580C]'
+                                : 'bg-[#EFF6FF] border-[#1E3A8A] text-[#1E3A8A]'
+                            }`}
+                          >
+                            {item.match.tipo === 'funcionario' ? 'Func.' : item.match.tipo === 'fornecedor' ? 'Forn.' : 'Cli.'}
+                          </span>
+                        )}
+                      </div>
                       {item.subtitulo && (
                         <div className="text-[11px] text-[#4B5563] truncate mt-0.5">{item.subtitulo}</div>
                       )}
