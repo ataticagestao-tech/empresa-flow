@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 import { sendReciboEmail } from '@/lib/recibos/send-recibo-email'
-import { criarRecibo } from '@/lib/recibos/recibos-service'
+import { gerarReciboPDF, downloadBlob } from '@/lib/recibos/gerar-pdf'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -712,26 +712,145 @@ export default function Recibos() {
   })
 
   const handleGerarRecibo = async () => {
-    if (!gerarSelecionado) {
+    if (!gerarSelecionado || !selectedCompany?.id) {
       toast.error('Selecione um item para gerar o recibo.')
       return
     }
     setGerarSubmitting(true)
     try {
       const client = activeClient ?? supabase
-      const tipo = gerarSelecionado.origem === 'cp' ? 'payable' : 'receivable'
-      const result = await criarRecibo(client, {
-        account_id: gerarSelecionado.id,
-        tipo,
-        email_destino: gerarEmail.trim() || undefined,
-        enviar_email: !!gerarEmail.trim(),
-      })
-      if (!result.ok) {
-        toast.error('Erro ao gerar recibo', { description: result.erro })
+      const item = gerarSelecionado
+
+      // 1. Buscar dados da CR ou CP selecionada
+      const sourceTable = item.origem === 'cp' ? 'contas_pagar' : 'contas_receber'
+      const { data: contaData, error: erroConta } = await client
+        .from(sourceTable)
+        .select('*')
+        .eq('id', item.id)
+        .single()
+      if (erroConta || !contaData) {
+        toast.error('Conta nao encontrada.')
         return
       }
+      const conta = contaData as any
+
+      // 2. Proximo numero_sequencial
+      const { data: ultimoRec } = await client
+        .from('recibos_v2')
+        .select('numero_sequencial')
+        .eq('company_id', selectedCompany.id)
+        .order('numero_sequencial', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const proximoNumero = ((ultimoRec as any)?.numero_sequencial || 0) + 1
+
+      // 3. Dados da empresa
+      const { data: empresaData } = await client
+        .from('companies')
+        .select('razao_social, nome_fantasia, cnpj, dados_bancarios_pix')
+        .eq('id', selectedCompany.id)
+        .single()
+      const empresaNome = (empresaData as any)?.nome_fantasia || (empresaData as any)?.razao_social || 'Empresa'
+
+      // 4. Template (cor/rodape)
+      const { data: template } = await client
+        .from('receipt_templates')
+        .select('cor_primaria, rodape_texto')
+        .eq('company_id', selectedCompany.id)
+        .maybeSingle()
+
+      // 5. Montar dados do PDF
+      const dataPgto = new Date(
+        (conta.data_pagamento || conta.data_vencimento || new Date().toISOString().split('T')[0]) + 'T12:00:00'
+      )
+      const numeroStr = `RCB-${dataPgto.getFullYear()}-${String(proximoNumero).padStart(6, '0')}`
+      const valorRecibo = Number(conta.valor_pago || conta.valor || item.valor || 0)
+      const favorecidoNome = item.origem === 'cp' ? (conta.credor_nome || item.titulo) : (conta.pagador_nome || item.titulo)
+      const cpfCnpj = item.origem === 'cp' ? conta.credor_cpf_cnpj : conta.pagador_cpf_cnpj
+      const descricaoServico = (conta.descricao || conta.observacoes || item.subtitulo || item.titulo).trim() || favorecidoNome
+      const formaPgto = item.origem === 'cp' ? conta.forma_pagamento : conta.forma_recebimento
+
+      const pdfBlob = await gerarReciboPDF({
+        numero: numeroStr,
+        valor: valorRecibo,
+        favorecido: favorecidoNome,
+        forma_pagamento: formaPgto || undefined,
+        data_pagamento: new Intl.DateTimeFormat('pt-BR').format(dataPgto),
+        data_hora_pagamento: new Intl.DateTimeFormat('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        }).format(dataPgto),
+        descricao: descricaoServico,
+        empresa_nome: empresaNome,
+        empresa_cnpj: (empresaData as any)?.cnpj ?? undefined,
+        pagador_razao_social: (empresaData as any)?.razao_social || (empresaData as any)?.nome_fantasia || undefined,
+        chave_pix: (empresaData as any)?.dados_bancarios_pix || undefined,
+        cor_primaria: (template as any)?.cor_primaria ?? '#1D2939',
+        rodape_texto: (template as any)?.rodape_texto,
+        tipo: item.origem === 'cp' ? 'payable' : 'receivable',
+      })
+
+      // 6. Upload PDF
+      const storagePath = `${selectedCompany.id}/recibos/${numeroStr}.pdf`
+      const { error: erroUpload } = await client.storage
+        .from('documentos')
+        .upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+
+      let pdfUrl: string | null = null
+      if (!erroUpload) {
+        const { data: urlData } = client.storage.from('documentos').getPublicUrl(storagePath)
+        pdfUrl = urlData?.publicUrl ?? null
+      } else {
+        console.warn('Erro upload PDF recibo:', erroUpload)
+      }
+
+      // 7. INSERT recibos_v2 (colunas REAIS do schema)
+      const insertPayload: any = {
+        company_id: selectedCompany.id,
+        pagador_nome: favorecidoNome,
+        pagador_cpf_cnpj: cpfCnpj || null,
+        valor: valorRecibo,
+        data: (conta.data_pagamento || conta.data_vencimento || new Date().toISOString().split('T')[0]),
+        descricao_servico: descricaoServico,
+        forma_pagamento: formaPgto || null,
+        numero_sequencial: proximoNumero,
+        email_destino: gerarEmail.trim() || null,
+        pdf_url: pdfUrl,
+      }
+      // recibos_v2 so tem conta_receber_id (CR ou venda via CR). CP fica sem FK.
+      if (item.origem !== 'cp') {
+        insertPayload.conta_receber_id = item.id
+      }
+
+      const { error: erroInsert } = await client
+        .from('recibos_v2')
+        .insert(insertPayload)
+
+      if (erroInsert) {
+        toast.error('Erro ao salvar recibo', { description: erroInsert.message })
+        return
+      }
+
+      // 8. Download local + envio e-mail (opcional)
+      downloadBlob(pdfBlob, `${numeroStr}.pdf`)
+
+      const emailTo = gerarEmail.trim()
+      if (emailTo && pdfUrl) {
+        try {
+          await sendReciboEmail({
+            destinatario: emailTo,
+            assunto: `Comprovante de pagamento — Recibo ${numeroStr}`,
+            corpo: `Olá!\n\nSegue em anexo o recibo no valor de ${formatBRL(valorRecibo)}.\n\n${descricaoServico}`,
+            pdfUrl,
+            nomeArquivo: `${numeroStr}.pdf`,
+          })
+        } catch (err) {
+          console.warn('Falha ao enviar e-mail:', err)
+        }
+      }
+
       toast.success('Recibo gerado!', {
-        description: gerarEmail.trim() ? `Enviado para ${gerarEmail.trim()}` : 'PDF baixado.',
+        description: emailTo ? `Enviado para ${emailTo}` : `#${proximoNumero} — PDF baixado.`,
       })
       fecharGerar()
       setRefreshKey(k => k + 1)
