@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Search, Mail, Download, FileText, ChevronRight, MessageCircle } from 'lucide-react'
+import { Search, Mail, Download, FileText, ChevronRight, MessageCircle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 import { sendReciboEmail } from '@/lib/recibos/send-recibo-email'
+import { gerarReciboPDF, downloadBlob } from '@/lib/recibos/gerar-pdf'
+import { toTitleCase } from '@/lib/format'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -249,6 +251,19 @@ export default function Recibos() {
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [emailSending, setEmailSending] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Novo Recibo avulso
+  const hoje = new Date().toISOString().split('T')[0]
+  const [showNovo, setShowNovo] = useState(false)
+  const [novoFavorecido, setNovoFavorecido] = useState('')
+  const [novoCpf, setNovoCpf] = useState('')
+  const [novoValor, setNovoValor] = useState('')
+  const [novoDescricao, setNovoDescricao] = useState('')
+  const [novoData, setNovoData] = useState(hoje)
+  const [novoForma, setNovoForma] = useState('')
+  const [novoEmail, setNovoEmail] = useState('')
+  const [novoSubmitting, setNovoSubmitting] = useState(false)
 
   // Fetch recibos
   useEffect(() => {
@@ -340,7 +355,7 @@ export default function Recibos() {
     }
 
     fetchRecibos()
-  }, [selectedCompany?.id, activeClient])
+  }, [selectedCompany?.id, activeClient, refreshKey])
 
   // Fetch empresa info
   useEffect(() => {
@@ -511,6 +526,133 @@ export default function Recibos() {
     }
   }
 
+  const fecharNovo = () => {
+    setShowNovo(false)
+    setNovoFavorecido('')
+    setNovoCpf('')
+    setNovoValor('')
+    setNovoDescricao('')
+    setNovoData(hoje)
+    setNovoForma('')
+    setNovoEmail('')
+  }
+
+  const gerarReciboAvulso = async () => {
+    if (!selectedCompany?.id) {
+      toast.error('Selecione uma empresa.')
+      return
+    }
+    const favorecido = novoFavorecido.trim()
+    if (!favorecido) {
+      toast.error('Informe o favorecido.')
+      return
+    }
+    const valorNum = Number(String(novoValor).replace(',', '.'))
+    if (!valorNum || valorNum <= 0) {
+      toast.error('Informe um valor valido.')
+      return
+    }
+    const descricao = novoDescricao.trim()
+    if (!descricao) {
+      toast.error('Informe a descricao do servico.')
+      return
+    }
+
+    setNovoSubmitting(true)
+    try {
+      const client = activeClient ?? supabase
+
+      const { data: ultimoRec } = await client
+        .from('recibos_v2')
+        .select('numero_sequencial')
+        .eq('company_id', selectedCompany.id)
+        .order('numero_sequencial', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const proximoNumero = ((ultimoRec as any)?.numero_sequencial || 0) + 1
+
+      const { data: empresaData } = await client
+        .from('companies')
+        .select('razao_social, nome_fantasia, cnpj, dados_bancarios_pix')
+        .eq('id', selectedCompany.id)
+        .single()
+
+      const empresaNome = (empresaData as any)?.nome_fantasia || (empresaData as any)?.razao_social || 'Empresa'
+
+      const { data: template } = await client
+        .from('receipt_templates')
+        .select('cor_primaria, rodape_texto')
+        .eq('company_id', selectedCompany.id)
+        .maybeSingle()
+
+      const dataPgto = new Date(novoData + 'T12:00:00')
+      const numeroStr = `RCB-${dataPgto.getFullYear()}-${String(proximoNumero).padStart(6, '0')}`
+
+      const pdfBlob = await gerarReciboPDF({
+        numero: numeroStr,
+        valor: valorNum,
+        favorecido,
+        forma_pagamento: novoForma.trim() || undefined,
+        data_pagamento: new Intl.DateTimeFormat('pt-BR').format(dataPgto),
+        data_hora_pagamento: new Intl.DateTimeFormat('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        }).format(dataPgto),
+        descricao,
+        empresa_nome: empresaNome,
+        empresa_cnpj: (empresaData as any)?.cnpj ?? undefined,
+        pagador_razao_social: (empresaData as any)?.razao_social || (empresaData as any)?.nome_fantasia || undefined,
+        chave_pix: (empresaData as any)?.dados_bancarios_pix || undefined,
+        cor_primaria: (template as any)?.cor_primaria ?? '#1D2939',
+        rodape_texto: (template as any)?.rodape_texto,
+        tipo: 'receivable',
+      })
+
+      const storagePath = `${selectedCompany.id}/recibos/${numeroStr}.pdf`
+      const { error: erroUpload } = await client.storage
+        .from('documentos')
+        .upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+
+      let pdfUrl: string | null = null
+      if (!erroUpload) {
+        const { data: urlData } = client.storage.from('documentos').getPublicUrl(storagePath)
+        pdfUrl = urlData?.publicUrl ?? null
+      } else {
+        console.warn('Erro upload PDF recibo avulso:', erroUpload)
+      }
+
+      const { error: erroInsert } = await client
+        .from('recibos_v2')
+        .insert({
+          company_id: selectedCompany.id,
+          pagador_nome: favorecido,
+          pagador_cpf_cnpj: novoCpf.trim() || null,
+          valor: valorNum,
+          data: novoData,
+          descricao_servico: descricao,
+          forma_pagamento: novoForma.trim() || null,
+          numero_sequencial: proximoNumero,
+          email_destino: novoEmail.trim() || null,
+          pdf_url: pdfUrl,
+        })
+
+      if (erroInsert) {
+        toast.error('Erro ao salvar recibo', { description: erroInsert.message })
+        return
+      }
+
+      downloadBlob(pdfBlob, `${numeroStr}.pdf`)
+      toast.success('Recibo gerado!', { description: `#${proximoNumero}` })
+      fecharNovo()
+      setRefreshKey(k => k + 1)
+    } catch (err: any) {
+      console.error('Erro gerar recibo avulso:', err)
+      toast.error('Erro ao gerar recibo', { description: err?.message || 'Tente novamente.' })
+    } finally {
+      setNovoSubmitting(false)
+    }
+  }
+
   return (
     <AppLayout title="Recibos">
       <div className="flex gap-4 h-[calc(100vh-120px)]">
@@ -519,9 +661,20 @@ export default function Recibos() {
         <div className="w-[420px] min-w-[360px] flex flex-col">
           <div className="border border-[#D1D5DB] rounded-lg overflow-hidden flex flex-col h-full">
             {/* Card header */}
-            <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between shrink-0">
+            <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between shrink-0 gap-3">
               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Recibos</h3>
-              <span className="text-[10px] text-white/60 font-medium">{filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-white/60 font-medium">
+                  {filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={() => setShowNovo(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Novo Recibo
+                </button>
+              </div>
             </div>
 
             {/* Search + filter */}
@@ -678,6 +831,123 @@ export default function Recibos() {
         </div>
 
       </div>
+
+      <Dialog open={showNovo} onOpenChange={(o) => { if (!o) fecharNovo() }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-emerald-600" />
+              Novo Recibo (avulso)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1 col-span-2">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  Favorecido / Pagador <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={novoFavorecido}
+                  onChange={(e) => setNovoFavorecido(e.target.value)}
+                  onBlur={() => setNovoFavorecido(v => toTitleCase(v))}
+                  placeholder="Nome completo"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">CPF / CNPJ</Label>
+                <Input
+                  value={novoCpf}
+                  onChange={(e) => setNovoCpf(e.target.value)}
+                  placeholder="Opcional"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  Valor (R$) <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={novoValor}
+                  onChange={(e) => setNovoValor(e.target.value)}
+                  placeholder="0,00"
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                Descricao do servico <span className="text-red-500">*</span>
+              </Label>
+              <textarea
+                value={novoDescricao}
+                onChange={(e) => setNovoDescricao(e.target.value)}
+                rows={3}
+                placeholder="Ex: Servicos prestados em maio/2026"
+                className="w-full px-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  Data <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  value={novoData}
+                  onChange={(e) => setNovoData(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Forma de pagamento</Label>
+                <select
+                  value={novoForma}
+                  onChange={(e) => setNovoForma(e.target.value)}
+                  className="h-9 w-full px-3 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] focus:outline-none focus:border-[#059669]"
+                >
+                  <option value="">Selecione...</option>
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="pix">PIX</option>
+                  <option value="cartao_credito">Cartao de credito</option>
+                  <option value="cartao_debito">Cartao de debito</option>
+                  <option value="boleto">Boleto</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">E-mail destinatario</Label>
+              <Input
+                type="email"
+                value={novoEmail}
+                onChange={(e) => setNovoEmail(e.target.value)}
+                placeholder="Opcional - usado para reenviar depois"
+                className="h-9"
+              />
+            </div>
+            <div className="rounded-md bg-[#F0F9F4] border border-[#A7F3D0] p-2.5 text-[11px] text-[#065F46]">
+              O PDF sera gerado, salvo e baixado automaticamente. O recibo NAO movimenta o financeiro (saldo/CR/CP).
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={fecharNovo} disabled={novoSubmitting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={gerarReciboAvulso}
+              disabled={novoSubmitting || !novoFavorecido.trim() || !novoValor || !novoDescricao.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {novoSubmitting ? 'Gerando...' : 'Gerar recibo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!emailDialog} onOpenChange={(o) => { if (!o) setEmailDialog(null) }}>
         <DialogContent className="sm:max-w-[520px]">
