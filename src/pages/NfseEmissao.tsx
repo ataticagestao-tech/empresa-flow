@@ -262,6 +262,16 @@ export default function NfseEmissao() {
   // Form
   const [form, setForm] = useState({ ...emptyForm })
   const [submitting, setSubmitting] = useState(false)
+
+  // Cliente typeahead (busca com autocomplete)
+  const [clientSearch, setClientSearch] = useState('')
+  const [showClientDropdown, setShowClientDropdown] = useState(false)
+  useEffect(() => {
+    if (!showClientDropdown) return
+    const handler = () => setShowClientDropdown(false)
+    window.addEventListener('mousedown', handler)
+    return () => window.removeEventListener('mousedown', handler)
+  }, [showClientDropdown])
   const [polling, setPolling] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollingCountRef = useRef(0)
@@ -370,6 +380,7 @@ export default function NfseEmissao() {
 
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { loadVendas() }, [loadVendas])
+  useEffect(() => { loadClients() }, [loadClients])
 
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -596,22 +607,62 @@ export default function NfseEmissao() {
     }
   }, [activeClient, togglingId])
 
+  const filteredClients = useMemo(() => {
+    const term = clientSearch.toLowerCase().trim()
+    const termDigits = clientSearch.replace(/\D/g, '')
+    if (!term) return clients.slice(0, 30)
+    return clients.filter(c => {
+      if (c.razao_social?.toLowerCase().includes(term)) return true
+      if (termDigits && (c.cpf_cnpj || '').replace(/\D/g, '').includes(termDigits)) return true
+      return false
+    }).slice(0, 30)
+  }, [clients, clientSearch])
+
   const emitirParaVenda = useCallback((v: VendaRow) => {
     const discriminacao = v.itens.length > 0
       ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'} — ${formatBRL(it.valor_total)}`).join('\n')
       : ''
     resetForm()
-    setForm(prev => ({
-      ...prev,
-      tomador_documento: v.cliente_cpf_cnpj || '',
-      tomador_razao_social: v.cliente_nome || '',
-      discriminacao: discriminacao || prev.discriminacao,
-      valor_servicos: v.valor_total || 0,
-    }))
-    loadClients()
+    setClientSearch('')
+
+    // Tenta achar cliente cadastrado pelo CPF/CNPJ da venda
+    const vendaDoc = (v.cliente_cpf_cnpj || '').replace(/\D/g, '')
+    const matched = vendaDoc ? clients.find(c => (c.cpf_cnpj || '').replace(/\D/g, '') === vendaDoc) : null
+
+    if (matched) {
+      handleClientSelect(matched.id)
+      setForm(prev => ({
+        ...prev,
+        client_id: matched.id,
+        tomador_documento: matched.cpf_cnpj || vendaDoc,
+        tomador_razao_social: matched.razao_social || v.cliente_nome || '',
+        tomador_email: matched.email || '',
+        tomador_telefone: matched.telefone || '',
+        tomador_endereco_logradouro: matched.endereco_logradouro || '',
+        tomador_endereco_numero: matched.endereco_numero || '',
+        tomador_endereco_complemento: matched.endereco_complemento || '',
+        tomador_endereco_bairro: matched.endereco_bairro || '',
+        tomador_endereco_cidade: matched.endereco_cidade || '',
+        tomador_endereco_estado: matched.endereco_estado || '',
+        tomador_endereco_cep: matched.endereco_cep || '',
+        discriminacao: discriminacao || prev.discriminacao,
+        valor_servicos: v.valor_total || 0,
+      }))
+      setClientSearch(matched.razao_social || '')
+    } else {
+      setForm(prev => ({
+        ...prev,
+        tomador_documento: v.cliente_cpf_cnpj || '',
+        tomador_razao_social: v.cliente_nome || '',
+        discriminacao: discriminacao || prev.discriminacao,
+        valor_servicos: v.valor_total || 0,
+      }))
+      setClientSearch(v.cliente_nome || '')
+    }
+
     setShowNovaModal(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [clients])
 
   const exportarCSV = useCallback(() => {
     const linhas = [
@@ -667,6 +718,7 @@ export default function NfseEmissao() {
 
   const openNovaModal = () => {
     resetForm()
+    setClientSearch('')
     loadClients()
     setShowNovaModal(true)
   }
@@ -1425,20 +1477,72 @@ export default function NfseEmissao() {
                   </h3>
 
                   <div className="space-y-3">
-                    <div>
-                      <label className={labelClass}>Selecionar cliente</label>
-                      <select
-                        value={form.client_id}
-                        onChange={e => handleClientSelect(e.target.value)}
-                        className={inputClass}
-                      >
-                        <option value="">-- Selecione ou preencha manualmente --</option>
-                        {clients.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.razao_social} {c.cpf_cnpj ? `(${formatDoc(c.cpf_cnpj)})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="relative" onMouseDown={e => e.stopPropagation()}>
+                      <label className={labelClass}>Buscar cliente cadastrado</label>
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={clientSearch}
+                          onChange={e => { setClientSearch(e.target.value); setShowClientDropdown(true) }}
+                          onFocus={() => setShowClientDropdown(true)}
+                          placeholder="Digite o nome ou CPF/CNPJ..."
+                          className={`${inputClass} pl-9`}
+                          autoComplete="off"
+                        />
+                        {form.client_id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setClientSearch('')
+                              setForm(prev => ({
+                                ...prev,
+                                client_id: '',
+                                tomador_documento: '',
+                                tomador_razao_social: '',
+                                tomador_email: '',
+                                tomador_telefone: '',
+                                tomador_endereco_logradouro: '',
+                                tomador_endereco_numero: '',
+                                tomador_endereco_complemento: '',
+                                tomador_endereco_bairro: '',
+                                tomador_endereco_cidade: '',
+                                tomador_endereco_estado: '',
+                                tomador_endereco_cep: '',
+                              }))
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 text-gray-400"
+                            title="Limpar"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {showClientDropdown && (
+                        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                          {filteredClients.length === 0 ? (
+                            <div className="px-3 py-3 text-xs text-gray-400 text-center">
+                              {clients.length === 0 ? 'Carregando clientes...' : 'Nenhum cliente encontrado. Preencha manualmente abaixo.'}
+                            </div>
+                          ) : (
+                            filteredClients.map(c => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                  handleClientSelect(c.id)
+                                  setClientSearch(c.razao_social || '')
+                                  setShowClientDropdown(false)
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 border-b border-gray-50 last:border-0"
+                              >
+                                <div className="font-medium text-gray-800">{c.razao_social || '(sem nome)'}</div>
+                                {c.cpf_cnpj && <div className="text-xs text-gray-500">{formatDoc(c.cpf_cnpj)}</div>}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
