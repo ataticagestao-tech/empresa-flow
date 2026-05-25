@@ -280,7 +280,9 @@ export default function Recibos() {
   const [gerarLoading, setGerarLoading] = useState(false)
   const [gerarLista, setGerarLista] = useState<GerarItem[]>([])
   const [gerarSelecionado, setGerarSelecionado] = useState<GerarItem | null>(null)
+  const [gerarEnvio, setGerarEnvio] = useState<'nenhum' | 'email' | 'whatsapp'>('nenhum')
   const [gerarEmail, setGerarEmail] = useState('')
+  const [gerarTelefone, setGerarTelefone] = useState('')
   const [gerarSubmitting, setGerarSubmitting] = useState(false)
 
   // Fetch recibos
@@ -550,6 +552,8 @@ export default function Recibos() {
     setGerarLista([])
     setGerarSelecionado(null)
     setGerarEmail('')
+    setGerarTelefone('')
+    setGerarEnvio('nenhum')
   }
 
   // Busca CR/CP/Venda conforme aba ativa
@@ -760,6 +764,14 @@ export default function Recibos() {
       toast.error('Selecione um item para gerar o recibo.')
       return
     }
+    if (gerarEnvio === 'email' && !gerarEmail.trim()) {
+      toast.error('Informe o e-mail destinatário.')
+      return
+    }
+    if (gerarEnvio === 'whatsapp' && !gerarTelefone.trim()) {
+      toast.error('Informe o telefone do destinatário.')
+      return
+    }
     setGerarSubmitting(true)
     try {
       const client = activeClient ?? supabase
@@ -858,7 +870,7 @@ export default function Recibos() {
         descricao_servico: descricaoServico,
         forma_pagamento: formaPgto || null,
         numero_sequencial: proximoNumero,
-        email_destino: gerarEmail.trim() || null,
+        email_destino: gerarEnvio === 'email' ? (gerarEmail.trim() || null) : null,
         pdf_url: pdfUrl,
       }
       if (item.origem === 'cp') {
@@ -884,27 +896,64 @@ export default function Recibos() {
         return
       }
 
-      // 8. Download local + envio e-mail (opcional)
+      // 8. Download local sempre
       downloadBlob(pdfBlob, `${numeroStr}.pdf`)
 
-      const emailTo = gerarEmail.trim()
-      if (emailTo && pdfUrl) {
+      // 9. Envio conforme modo selecionado
+      let envioMsg = `#${proximoNumero} — PDF baixado.`
+      let envioOk = true
+
+      if (gerarEnvio === 'email') {
+        const emailTo = gerarEmail.trim()
+        if (pdfUrl) {
+          try {
+            const r = await sendReciboEmail({
+              destinatario: emailTo,
+              assunto: `Comprovante de pagamento — Recibo ${numeroStr}`,
+              corpo: `Olá!\n\nSegue em anexo o recibo no valor de ${formatBRL(valorRecibo)}.\n\n${descricaoServico}`,
+              pdfUrl,
+              nomeArquivo: `${numeroStr}.pdf`,
+            })
+            if (r.ok) envioMsg = `Enviado por e-mail para ${emailTo}`
+            else { envioOk = false; envioMsg = `Falha ao enviar e-mail: ${r.error || 'erro'}` }
+          } catch (err: any) {
+            envioOk = false
+            envioMsg = `Falha ao enviar e-mail: ${err?.message || 'erro'}`
+          }
+        } else {
+          envioOk = false
+          envioMsg = 'PDF nao subiu pro storage; envio por e-mail cancelado.'
+        }
+      } else if (gerarEnvio === 'whatsapp') {
+        const fone = gerarTelefone.trim()
         try {
-          await sendReciboEmail({
-            destinatario: emailTo,
-            assunto: `Comprovante de pagamento — Recibo ${numeroStr}`,
-            corpo: `Olá!\n\nSegue em anexo o recibo no valor de ${formatBRL(valorRecibo)}.\n\n${descricaoServico}`,
-            pdfUrl,
-            nomeArquivo: `${numeroStr}.pdf`,
+          const valorSemRS = formatBRL(valorRecibo).replace(/^R\$\s*/, '')
+          const dataFmt = new Intl.DateTimeFormat('pt-BR').format(dataPgto)
+          const linkPdf = pdfUrl ? `\n\nPDF: ${pdfUrl}` : ''
+          const text = `Olá! Segue comprovante de pagamento:\n\n*Recibo ${numeroStr}*\nFavorecido: ${favorecidoNome}\nValor: ${formatBRL(valorRecibo)}\nPago em: ${dataFmt}${descricaoServico ? `\nDescrição: ${descricaoServico}` : ''}${linkPdf}`
+          const r = await sendWhatsApp({
+            phone: fone,
+            text,
+            template: {
+              name: 'recibo_pagamento',
+              languageCode: 'pt_BR',
+              bodyParams: [favorecidoNome || 'Cliente', numeroStr, valorSemRS, dataFmt],
+            },
           })
-        } catch (err) {
-          console.warn('Falha ao enviar e-mail:', err)
+          if (r.ok) envioMsg = `Enviado por WhatsApp para ${r.phone || fone}`
+          else { envioOk = false; envioMsg = `Falha ao enviar WhatsApp: ${r.error || 'erro'}` }
+        } catch (err: any) {
+          envioOk = false
+          envioMsg = `Falha ao enviar WhatsApp: ${err?.message || 'erro'}`
         }
       }
 
-      toast.success('Recibo gerado!', {
-        description: emailTo ? `Enviado para ${emailTo}` : `#${proximoNumero} — PDF baixado.`,
-      })
+      if (envioOk) {
+        toast.success('Recibo gerado!', { description: envioMsg })
+      } else {
+        // PDF foi gerado e salvo, mas envio falhou
+        toast.warning(`Recibo #${proximoNumero} gerado, mas envio falhou`, { description: envioMsg })
+      }
       fecharGerar()
       setRefreshKey(k => k + 1)
     } catch (err: any) {
@@ -1154,6 +1203,11 @@ export default function Recibos() {
                   onClick={() => {
                     setGerarSelecionado(item)
                     setGerarEmail(item.email || '')
+                    setGerarTelefone(item.telefone || '')
+                    // Auto-seleciona modo se tem contato; senao mantem 'nenhum'
+                    if (item.email) setGerarEnvio('email')
+                    else if (item.telefone) setGerarEnvio('whatsapp')
+                    else setGerarEnvio('nenhum')
                   }}
                   className={`w-full text-left px-3 py-2.5 border-b border-[#E5E7EB] last:border-b-0 transition-colors hover:bg-[#F9FAFB] ${
                     gerarSelecionado?.id === item.id && gerarSelecionado?.origem === item.origem ? 'bg-[#ECFDF4] border-l-2 border-l-[#059669]' : ''
@@ -1191,41 +1245,82 @@ export default function Recibos() {
             )}
           </div>
 
-          {/* E-mail (opcional) + feedback de match cadastro */}
+          {/* Envio: nenhum / email / whatsapp */}
           {gerarSelecionado && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
-                E-mail destinatario <span className="text-[#999] font-normal normal-case">(opcional — envia o PDF por e-mail)</span>
+                Como enviar o recibo?
               </Label>
-              <Input
-                type="email"
-                value={gerarEmail}
-                onChange={(e) => setGerarEmail(e.target.value)}
-                placeholder="cliente@exemplo.com"
-                className="h-9"
-              />
+              <div className="flex gap-1.5">
+                {([
+                  { key: 'nenhum', label: 'Só baixar PDF', icon: <Download className="w-3 h-3" /> },
+                  { key: 'email', label: 'E-mail', icon: <Mail className="w-3 h-3" /> },
+                  { key: 'whatsapp', label: 'WhatsApp', icon: <MessageCircle className="w-3 h-3" /> },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setGerarEnvio(opt.key)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider rounded border transition-colors ${
+                      gerarEnvio === opt.key
+                        ? opt.key === 'whatsapp'
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : opt.key === 'email'
+                          ? 'bg-[#1E3A8A] text-white border-[#1E3A8A]'
+                          : 'bg-[#2A2724] text-white border-[#2A2724]'
+                        : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
+                    }`}
+                  >
+                    {opt.icon}
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Campo dinâmico conforme modo */}
+              {gerarEnvio === 'email' && (
+                <div className="space-y-1 pt-1">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                    E-mail destinatário <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    value={gerarEmail}
+                    onChange={(e) => setGerarEmail(e.target.value)}
+                    placeholder="cliente@exemplo.com"
+                    className="h-9"
+                  />
+                </div>
+              )}
+              {gerarEnvio === 'whatsapp' && (
+                <div className="space-y-1 pt-1">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                    Telefone (WhatsApp) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={gerarTelefone}
+                    onChange={(e) => setGerarTelefone(e.target.value)}
+                    placeholder="11999999999 (com DDD)"
+                    className="h-9"
+                  />
+                  <p className="text-[10px] text-[#999]">Aceita com ou sem DDI/parênteses/traços.</p>
+                </div>
+              )}
+
               {/* Feedback do match cadastro */}
               {gerarSelecionado.match ? (
-                gerarSelecionado.match.email ? (
-                  <div className="text-[10px] text-[#039855] flex items-center gap-1">
-                    <span>✓</span>
-                    <span>
-                      E-mail puxado do cadastro <strong>{gerarSelecionado.match.tipo === 'funcionario' ? 'Funcionário' : gerarSelecionado.match.tipo === 'fornecedor' ? 'Fornecedor' : 'Cliente'}</strong>: {gerarSelecionado.match.nome}
-                      {gerarSelecionado.match.telefone && <> · Tel: {gerarSelecionado.match.telefone}</>}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="text-[10px] text-[#EA580C] flex items-center gap-1">
-                    <span>⚠</span>
-                    <span>
-                      Cadastro <strong>{gerarSelecionado.match.tipo === 'funcionario' ? 'Funcionário' : gerarSelecionado.match.tipo === 'fornecedor' ? 'Fornecedor' : 'Cliente'}</strong> encontrado ({gerarSelecionado.match.nome}), mas <strong>sem e-mail cadastrado</strong>. Preencha manualmente.
-                      {gerarSelecionado.match.telefone && <> · Tel cadastrado: {gerarSelecionado.match.telefone}</>}
-                    </span>
-                  </div>
-                )
+                <div className="text-[10px] text-[#039855] flex items-start gap-1 pt-1">
+                  <span>✓</span>
+                  <span>
+                    Cadastro <strong>{gerarSelecionado.match.tipo === 'funcionario' ? 'Funcionário' : gerarSelecionado.match.tipo === 'fornecedor' ? 'Fornecedor' : 'Cliente'}</strong>: {gerarSelecionado.match.nome}
+                    {gerarSelecionado.match.email && <> · E-mail: {gerarSelecionado.match.email}</>}
+                    {gerarSelecionado.match.telefone && <> · Tel: {gerarSelecionado.match.telefone}</>}
+                    {!gerarSelecionado.match.email && !gerarSelecionado.match.telefone && <> · <span className="text-[#EA580C]">sem contato cadastrado</span></>}
+                  </span>
+                </div>
               ) : (
-                <div className="text-[10px] text-[#9CA3AF]">
-                  Nenhum cadastro encontrado para "<strong>{gerarSelecionado.titulo}</strong>". Cadastre em Clientes/Fornecedores/Funcionários para preenchimento automatico.
+                <div className="text-[10px] text-[#9CA3AF] pt-1">
+                  Nenhum cadastro encontrado para "<strong>{gerarSelecionado.titulo}</strong>". Preencha manualmente o {gerarEnvio === 'whatsapp' ? 'telefone' : gerarEnvio === 'email' ? 'e-mail' : 'campo'} acima ou só baixe o PDF.
                 </div>
               )}
             </div>
@@ -1237,10 +1332,21 @@ export default function Recibos() {
             </Button>
             <Button
               onClick={handleGerarRecibo}
-              disabled={gerarSubmitting || !gerarSelecionado}
+              disabled={
+                gerarSubmitting ||
+                !gerarSelecionado ||
+                (gerarEnvio === 'email' && !gerarEmail.trim()) ||
+                (gerarEnvio === 'whatsapp' && !gerarTelefone.trim())
+              }
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              {gerarSubmitting ? 'Gerando...' : 'Gerar recibo'}
+              {gerarSubmitting
+                ? 'Gerando...'
+                : gerarEnvio === 'email'
+                ? 'Gerar e enviar por e-mail'
+                : gerarEnvio === 'whatsapp'
+                ? 'Gerar e enviar por WhatsApp'
+                : 'Gerar recibo'}
             </Button>
           </DialogFooter>
         </DialogContent>
