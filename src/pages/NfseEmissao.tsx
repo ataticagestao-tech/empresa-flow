@@ -161,6 +161,12 @@ export default function NfseEmissao() {
   const [vendasSearch, setVendasSearch] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
+  // Filtros por coluna
+  const [filtroItem, setFiltroItem] = useState('')
+  const [filtroNome, setFiltroNome] = useState('')
+  const [filtroDoc, setFiltroDoc] = useState('')
+  const [filtroForma, setFiltroForma] = useState('todas')
+
   // Modals
   const [showNovaModal, setShowNovaModal] = useState(false)
   const [showCancelarModal, setShowCancelarModal] = useState(false)
@@ -303,6 +309,12 @@ export default function NfseEmissao() {
     return { total, emitidas, pendentes, valorPendente }
   }, [vendas])
 
+  const formasDisponiveis = useMemo(() => {
+    const set = new Set<string>()
+    vendas.forEach(v => { if (v.forma_pagamento) set.add(v.forma_pagamento) })
+    return Array.from(set).sort()
+  }, [vendas])
+
   const vendasFiltradas = useMemo(() => {
     let list = vendas
     if (vendasFiltro === 'pendentes') list = list.filter(v => !v.nf_emitida)
@@ -315,8 +327,23 @@ export default function NfseEmissao() {
         v.itens.some(it => it.descricao?.toLowerCase().includes(term))
       )
     }
+    if (filtroItem.trim()) {
+      const t = filtroItem.toLowerCase()
+      list = list.filter(v => v.itens.some(it => it.descricao?.toLowerCase().includes(t)))
+    }
+    if (filtroNome.trim()) {
+      const t = filtroNome.toLowerCase()
+      list = list.filter(v => v.cliente_nome?.toLowerCase().includes(t))
+    }
+    if (filtroDoc.trim()) {
+      const t = filtroDoc.replace(/\D/g, '')
+      if (t) list = list.filter(v => (v.cliente_cpf_cnpj || '').replace(/\D/g, '').includes(t))
+    }
+    if (filtroForma !== 'todas') {
+      list = list.filter(v => v.forma_pagamento === filtroForma)
+    }
     return list
-  }, [vendas, vendasFiltro, vendasSearch])
+  }, [vendas, vendasFiltro, vendasSearch, filtroItem, filtroNome, filtroDoc, filtroForma])
 
   const toggleNfEmitida = useCallback(async (venda: VendaRow) => {
     if (togglingId) return
@@ -855,15 +882,60 @@ export default function NfseEmissao() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
-                      <th className="px-4 py-3">Data</th>
-                      <th className="px-4 py-3">Item/s</th>
-                      <th className="px-4 py-3">Nome</th>
-                      <th className="px-4 py-3">CPF/CNPJ</th>
-                      <th className="px-4 py-3 text-right">Valor</th>
-                      <th className="px-4 py-3">Forma de pagamento</th>
-                      <th className="px-4 py-3 text-center">NF emitida</th>
-                      <th className="px-4 py-3 text-center">Acoes</th>
+                    <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-xs text-white uppercase tracking-wider">
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Data</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Item/s</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Nome</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">CPF/CNPJ</th>
+                      <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Valor</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Forma de pagamento</th>
+                      <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">NF emitida</th>
+                      <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Ações</th>
+                    </tr>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-2"></th>
+                      <th className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={filtroItem}
+                          onChange={e => setFiltroItem(e.target.value)}
+                          placeholder="filtrar..."
+                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        />
+                      </th>
+                      <th className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={filtroNome}
+                          onChange={e => setFiltroNome(e.target.value)}
+                          placeholder="filtrar..."
+                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        />
+                      </th>
+                      <th className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={filtroDoc}
+                          onChange={e => setFiltroDoc(e.target.value)}
+                          placeholder="filtrar..."
+                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        />
+                      </th>
+                      <th className="px-3 py-2"></th>
+                      <th className="px-3 py-2">
+                        <select
+                          value={filtroForma}
+                          onChange={e => setFiltroForma(e.target.value)}
+                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
+                        >
+                          <option value="todas">todas</option>
+                          {formasDisponiveis.map(f => (
+                            <option key={f} value={f}>{f}</option>
+                          ))}
+                        </select>
+                      </th>
+                      <th className="px-3 py-2"></th>
+                      <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -874,13 +946,13 @@ export default function NfseEmissao() {
                       return (
                         <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatData(v.data_venda)}</td>
-                          <td className="px-4 py-3 text-gray-600 max-w-[280px]">
-                            <span title={itensTxt} className="line-clamp-2">{itensTxt}</span>
+                          <td className="px-4 py-3 text-gray-600">
+                            <div className="max-w-[260px] truncate" title={itensTxt}>{itensTxt}</div>
                           </td>
-                          <td className="px-4 py-3 font-medium">{v.cliente_nome || '—'}</td>
-                          <td className="px-4 py-3 text-gray-500">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
-                          <td className="px-4 py-3 text-right font-medium">{formatBRL(v.valor_total)}</td>
-                          <td className="px-4 py-3 text-gray-600 capitalize">{v.forma_pagamento || '—'}</td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap">{v.cliente_nome || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
+                          <td className="px-4 py-3 text-right font-medium whitespace-nowrap">{formatBRL(v.valor_total)}</td>
+                          <td className="px-4 py-3 text-gray-600 capitalize whitespace-nowrap">{v.forma_pagamento || '—'}</td>
                           <td className="px-4 py-3 text-center">
                             <button
                               onClick={() => toggleNfEmitida(v)}
@@ -936,14 +1008,14 @@ export default function NfseEmissao() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
-                    <th className="px-4 py-3">Numero</th>
-                    <th className="px-4 py-3">Data</th>
-                    <th className="px-4 py-3">Tomador</th>
-                    <th className="px-4 py-3">Servico</th>
-                    <th className="px-4 py-3 text-right">Valor</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-center">Acoes</th>
+                  <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-xs text-white uppercase tracking-wider">
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Numero</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Data</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Tomador</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Servico</th>
+                    <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Valor</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Acoes</th>
                   </tr>
                 </thead>
                 <tbody>
