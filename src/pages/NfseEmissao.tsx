@@ -5,7 +5,8 @@ import {
   FileText, Plus, Search, Loader2, X, Download,
   Mail, MoreHorizontal, Check, Ban, RefreshCw,
   AlertTriangle, Eye, Send, XCircle, DollarSign, Activity,
-  ShoppingCart, FileDown
+  ShoppingCart, FileDown, ChevronDown, ArrowDownAZ, ArrowDownZA,
+  ArrowDown01, ArrowDown10, Layers, RotateCcw
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -135,6 +136,76 @@ const emptyForm = {
   codigo_cnae: '',
 }
 
+// ─── Column header with sort/group menu ────────────────────────────
+type SortKey = 'data' | 'item' | 'nome' | 'doc' | 'valor' | 'forma' | 'nf'
+type ColType = 'text' | 'num' | 'date' | 'bool'
+
+interface ColHeaderProps {
+  col: SortKey
+  label: string
+  type: ColType
+  align: 'left' | 'right' | 'center'
+  menuCol: SortKey | null
+  setMenuCol: (v: SortKey | null) => void
+  sort: { key: SortKey; dir: 'asc' | 'desc' } | null
+  groupBy: SortKey | null
+  onSort: (key: SortKey, dir: 'asc' | 'desc') => void
+  onGroup: (key: SortKey) => void
+}
+
+function ColHeader({ col, label, type, align, menuCol, setMenuCol, sort, groupBy, onSort, onGroup }: ColHeaderProps) {
+  const isOpen = menuCol === col
+  const isActiveSort = sort?.key === col
+  const isActiveGroup = groupBy === col
+  const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+
+  const ascLabel = type === 'num' ? 'Menor → Maior' : type === 'date' ? 'Mais antiga primeiro' : type === 'bool' ? 'Pendentes primeiro' : 'A → Z'
+  const descLabel = type === 'num' ? 'Maior → Menor' : type === 'date' ? 'Mais recente primeiro' : type === 'bool' ? 'Emitidas primeiro' : 'Z → A'
+
+  return (
+    <th className={`px-4 py-3 font-semibold whitespace-nowrap relative ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}`}>
+      <button
+        onClick={e => { e.stopPropagation(); setMenuCol(isOpen ? null : col) }}
+        className={`inline-flex items-center gap-1.5 ${alignClass} w-full hover:text-gray-200 transition-colors ${(isActiveSort || isActiveGroup) ? 'text-emerald-300' : ''}`}
+      >
+        <span>{label}</span>
+        {isActiveSort && (sort!.dir === 'asc' ? <ArrowDownAZ size={12} /> : <ArrowDownZA size={12} />)}
+        {isActiveGroup && <Layers size={12} />}
+        <ChevronDown size={12} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div
+          onClick={e => e.stopPropagation()}
+          className="absolute z-30 mt-1 left-2 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px] text-gray-700 normal-case tracking-normal font-normal"
+        >
+          <button
+            onClick={() => onSort(col, 'desc')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 text-left"
+          >
+            {type === 'num' || type === 'date' ? <ArrowDown10 size={14} /> : <ArrowDownZA size={14} />}
+            {descLabel}
+          </button>
+          <button
+            onClick={() => onSort(col, 'asc')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 text-left"
+          >
+            {type === 'num' || type === 'date' ? <ArrowDown01 size={14} /> : <ArrowDownAZ size={14} />}
+            {ascLabel}
+          </button>
+          <div className="border-t border-gray-100 my-1" />
+          <button
+            onClick={() => onGroup(col)}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 text-left ${isActiveGroup ? 'text-emerald-700 font-medium' : ''}`}
+          >
+            <Layers size={14} />
+            {isActiveGroup ? 'Desagrupar' : 'Agrupar por esta coluna'}
+          </button>
+        </div>
+      )}
+    </th>
+  )
+}
+
 // ─── Component ──────────────────────────────────────────────────────
 export default function NfseEmissao() {
   const { selectedCompany } = useCompany()
@@ -161,11 +232,16 @@ export default function NfseEmissao() {
   const [vendasSearch, setVendasSearch] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  // Filtros por coluna
-  const [filtroItem, setFiltroItem] = useState('')
-  const [filtroNome, setFiltroNome] = useState('')
-  const [filtroDoc, setFiltroDoc] = useState('')
-  const [filtroForma, setFiltroForma] = useState('todas')
+  // Sort + Agrupar por coluna
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null)
+  const [groupBy, setGroupBy] = useState<SortKey | null>(null)
+  const [menuCol, setMenuCol] = useState<SortKey | null>(null)
+  useEffect(() => {
+    if (!menuCol) return
+    const handler = () => setMenuCol(null)
+    window.addEventListener('click', handler)
+    return () => window.removeEventListener('click', handler)
+  }, [menuCol])
 
   // Modals
   const [showNovaModal, setShowNovaModal] = useState(false)
@@ -309,11 +385,17 @@ export default function NfseEmissao() {
     return { total, emitidas, pendentes, valorPendente }
   }, [vendas])
 
-  const formasDisponiveis = useMemo(() => {
-    const set = new Set<string>()
-    vendas.forEach(v => { if (v.forma_pagamento) set.add(v.forma_pagamento) })
-    return Array.from(set).sort()
-  }, [vendas])
+  const vendaSortValue = useCallback((v: VendaRow, key: SortKey): string | number => {
+    switch (key) {
+      case 'data':  return v.data_venda || ''
+      case 'item':  return v.itens.map(it => it.descricao || '').join(', ').toLowerCase()
+      case 'nome':  return (v.cliente_nome || '').toLowerCase()
+      case 'doc':   return (v.cliente_cpf_cnpj || '').replace(/\D/g, '')
+      case 'valor': return v.valor_total || 0
+      case 'forma': return (v.forma_pagamento || '').toLowerCase()
+      case 'nf':    return v.nf_emitida ? 1 : 0
+    }
+  }, [])
 
   const vendasFiltradas = useMemo(() => {
     let list = vendas
@@ -327,23 +409,102 @@ export default function NfseEmissao() {
         v.itens.some(it => it.descricao?.toLowerCase().includes(term))
       )
     }
-    if (filtroItem.trim()) {
-      const t = filtroItem.toLowerCase()
-      list = list.filter(v => v.itens.some(it => it.descricao?.toLowerCase().includes(t)))
-    }
-    if (filtroNome.trim()) {
-      const t = filtroNome.toLowerCase()
-      list = list.filter(v => v.cliente_nome?.toLowerCase().includes(t))
-    }
-    if (filtroDoc.trim()) {
-      const t = filtroDoc.replace(/\D/g, '')
-      if (t) list = list.filter(v => (v.cliente_cpf_cnpj || '').replace(/\D/g, '').includes(t))
-    }
-    if (filtroForma !== 'todas') {
-      list = list.filter(v => v.forma_pagamento === filtroForma)
+    if (sort) {
+      const { key, dir } = sort
+      list = [...list].sort((a, b) => {
+        const va = vendaSortValue(a, key)
+        const vb = vendaSortValue(b, key)
+        if (va < vb) return dir === 'asc' ? -1 : 1
+        if (va > vb) return dir === 'asc' ? 1 : -1
+        return 0
+      })
     }
     return list
-  }, [vendas, vendasFiltro, vendasSearch, filtroItem, filtroNome, filtroDoc, filtroForma])
+  }, [vendas, vendasFiltro, vendasSearch, sort, vendaSortValue])
+
+  const vendasAgrupadas = useMemo(() => {
+    if (!groupBy) return null
+    const map = new Map<string, VendaRow[]>()
+    for (const v of vendasFiltradas) {
+      const raw = vendaSortValue(v, groupBy)
+      const key = groupBy === 'nf'
+        ? (v.nf_emitida ? 'NF emitida' : 'NF pendente')
+        : groupBy === 'data'
+          ? formatData(v.data_venda)
+          : groupBy === 'valor'
+            ? formatBRL(v.valor_total)
+            : String(raw || '—')
+      const arr = map.get(key) || []
+      arr.push(v)
+      map.set(key, arr)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [vendasFiltradas, groupBy, vendaSortValue])
+
+  const aplicarSort = useCallback((key: SortKey, dir: 'asc' | 'desc') => {
+    setSort({ key, dir })
+    setGroupBy(null)
+    setMenuCol(null)
+  }, [])
+
+  const aplicarGroup = useCallback((key: SortKey) => {
+    setGroupBy(prev => prev === key ? null : key)
+    setMenuCol(null)
+  }, [])
+
+  const limparOrdenacao = useCallback(() => {
+    setSort(null)
+    setGroupBy(null)
+    setMenuCol(null)
+  }, [])
+
+  const renderVendaRow = (v: VendaRow) => {
+    const itensTxt = v.itens.length > 0
+      ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'}`).join(', ')
+      : '—'
+    return (
+      <tr key={v.id} className="border-b border-gray-200 hover:bg-gray-50/60 transition-colors">
+        <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{formatData(v.data_venda)}</td>
+        <td className="px-4 py-2 text-gray-600">
+          <div className="max-w-[260px] truncate" title={itensTxt}>{itensTxt}</div>
+        </td>
+        <td className="px-4 py-2 font-medium whitespace-nowrap">{v.cliente_nome || '—'}</td>
+        <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
+        <td className="px-4 py-2 text-right font-medium whitespace-nowrap">{formatBRL(v.valor_total)}</td>
+        <td className="px-4 py-2 text-gray-600 capitalize whitespace-nowrap">{v.forma_pagamento || '—'}</td>
+        <td className="px-4 py-2 text-center">
+          <button
+            onClick={() => toggleNfEmitida(v)}
+            disabled={togglingId === v.id}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
+              v.nf_emitida
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+            }`}
+            title={v.nf_emitida ? 'Clique para desmarcar' : 'Clique para marcar como emitida'}
+          >
+            {togglingId === v.id ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : v.nf_emitida ? (
+              <Check size={12} />
+            ) : (
+              <X size={12} />
+            )}
+            {v.nf_emitida ? 'Sim' : 'Nao'}
+          </button>
+        </td>
+        <td className="px-4 py-2 text-center">
+          <button
+            onClick={() => emitirParaVenda(v)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+            title="Abrir Nova NFSe com dados desta venda"
+          >
+            <Send size={12} /> Emitir NFSe
+          </button>
+        </td>
+      </tr>
+    )
+  }
 
   const toggleNfEmitida = useCallback(async (venda: VendaRow) => {
     if (togglingId) return
@@ -879,116 +1040,50 @@ export default function NfseEmissao() {
                 Nenhuma venda neste filtro
               </div>
             ) : (
+              <>
+              {(sort || groupBy) && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
+                  {sort && <span>Ordenado por <strong>{sort.key}</strong> ({sort.dir === 'asc' ? 'crescente' : 'decrescente'})</span>}
+                  {groupBy && <span>Agrupado por <strong>{groupBy}</strong></span>}
+                  <button onClick={limparOrdenacao} className="ml-auto inline-flex items-center gap-1 text-emerald-700 hover:underline">
+                    <RotateCcw size={12} /> Limpar
+                  </button>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-xs text-white uppercase tracking-wider">
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Data</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Item/s</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Nome</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">CPF/CNPJ</th>
-                      <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Valor</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Forma de pagamento</th>
-                      <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">NF emitida</th>
+                      <ColHeader col="data"  label="Data"               type="date" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
+                      <ColHeader col="item"  label="Item/s"             type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
+                      <ColHeader col="nome"  label="Nome"               type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
+                      <ColHeader col="doc"   label="CPF/CNPJ"           type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
+                      <ColHeader col="valor" label="Valor"              type="num"  align="right"  menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
+                      <ColHeader col="forma" label="Forma de pagamento" type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
+                      <ColHeader col="nf"    label="NF emitida"         type="bool" align="center" menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
                       <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Ações</th>
-                    </tr>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-3 py-2"></th>
-                      <th className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={filtroItem}
-                          onChange={e => setFiltroItem(e.target.value)}
-                          placeholder="filtrar..."
-                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        />
-                      </th>
-                      <th className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={filtroNome}
-                          onChange={e => setFiltroNome(e.target.value)}
-                          placeholder="filtrar..."
-                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        />
-                      </th>
-                      <th className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={filtroDoc}
-                          onChange={e => setFiltroDoc(e.target.value)}
-                          placeholder="filtrar..."
-                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        />
-                      </th>
-                      <th className="px-3 py-2"></th>
-                      <th className="px-3 py-2">
-                        <select
-                          value={filtroForma}
-                          onChange={e => setFiltroForma(e.target.value)}
-                          className="w-full px-2 py-1 text-xs font-normal normal-case rounded border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-200"
-                        >
-                          <option value="todas">todas</option>
-                          {formasDisponiveis.map(f => (
-                            <option key={f} value={f}>{f}</option>
-                          ))}
-                        </select>
-                      </th>
-                      <th className="px-3 py-2"></th>
-                      <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {vendasFiltradas.map(v => {
-                      const itensTxt = v.itens.length > 0
-                        ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'}`).join(', ')
-                        : '—'
-                      return (
-                        <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatData(v.data_venda)}</td>
-                          <td className="px-4 py-3 text-gray-600">
-                            <div className="max-w-[260px] truncate" title={itensTxt}>{itensTxt}</div>
-                          </td>
-                          <td className="px-4 py-3 font-medium whitespace-nowrap">{v.cliente_nome || '—'}</td>
-                          <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
-                          <td className="px-4 py-3 text-right font-medium whitespace-nowrap">{formatBRL(v.valor_total)}</td>
-                          <td className="px-4 py-3 text-gray-600 capitalize whitespace-nowrap">{v.forma_pagamento || '—'}</td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => toggleNfEmitida(v)}
-                              disabled={togglingId === v.id}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
-                                v.nf_emitida
-                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                              }`}
-                              title={v.nf_emitida ? 'Clique para desmarcar' : 'Clique para marcar como emitida'}
-                            >
-                              {togglingId === v.id ? (
-                                <Loader2 size={12} className="animate-spin" />
-                              ) : v.nf_emitida ? (
-                                <Check size={12} />
-                              ) : (
-                                <X size={12} />
-                              )}
-                              {v.nf_emitida ? 'Sim' : 'Nao'}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => emitirParaVenda(v)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
-                              title="Abrir Nova NFSe com dados desta venda"
-                            >
-                              <Send size={12} /> Emitir NFSe
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {groupBy && vendasAgrupadas ? (
+                      vendasAgrupadas.flatMap(([groupKey, rows]) => {
+                        const total = rows.reduce((s, r) => s + (r.valor_total || 0), 0)
+                        return [
+                          <tr key={`group-${groupKey}`} className="bg-emerald-50/60 border-y border-emerald-100">
+                            <td colSpan={8} className="px-4 py-2 text-xs font-semibold text-emerald-900">
+                              {groupKey} <span className="ml-2 font-normal text-emerald-700">· {rows.length} venda(s) · {formatBRL(total)}</span>
+                            </td>
+                          </tr>,
+                          ...rows.map(v => renderVendaRow(v))
+                        ]
+                      })
+                    ) : (
+                      vendasFiltradas.map(v => renderVendaRow(v))
+                    )}
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
