@@ -336,6 +336,7 @@ export default function NfseEmissao() {
       const { data: vData } = await db.from('vendas')
         .select('id, data_venda, cliente_nome, cliente_cpf_cnpj, valor_total, forma_pagamento, nf_emitida')
         .eq('company_id', selectedCompany.id)
+        .is('deleted_at', null)
         .gte('data_venda', inicioMes)
         .lte('data_venda', fimMes)
         .order('data_venda', { ascending: false })

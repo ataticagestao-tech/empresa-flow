@@ -241,6 +241,7 @@ export default function CompanyDashboard() {
         const { data: vendasPeriodo } = await db.from("vendas")
             .select("id, data_venda")
             .eq("company_id", cId)
+            .is("deleted_at", null)
             .gte("data_venda", start).lte("data_venda", end)
             .limit(10000);
         const vendaDataMap: Record<string, string> = {};
@@ -285,6 +286,7 @@ export default function CompanyDashboard() {
                 const { data } = await db.from("vendas")
                     .select("valor_liquido")
                     .eq("company_id", cId).eq("status", "confirmado")
+                    .is("deleted_at", null)
                     .gte("data_venda", periodStart).lte("data_venda", periodEnd)
                     .limit(10000);
                 return (data || [])
@@ -350,6 +352,7 @@ export default function CompanyDashboard() {
                 const { data } = await db.from("vendas")
                     .select("valor_liquido")
                     .eq("company_id", cId).eq("status", "confirmado")
+                    .is("deleted_at", null)
                     .gte("data_venda", prevMonthStart).lte("data_venda", prevMonthEnd)
                     .limit(10000);
                 return (data || [])
@@ -655,7 +658,8 @@ export default function CompanyDashboard() {
                 if (vendaIds.length > 0) {
                     const { data: vendas } = await db.from("vendas")
                         .select("id, valor_total, procedimento, vendas_itens(descricao, valor_total)")
-                        .in("id", vendaIds);
+                        .in("id", vendaIds)
+                        .is("deleted_at", null);
                     (vendas || []).forEach((v: any) => {
                         vendasMap[v.id] = {
                             valor_total: Number(v.valor_total || 0),
@@ -730,6 +734,7 @@ export default function CompanyDashboard() {
             const { data: vendas } = await db.from("vendas")
                 .select("id, valor_total, valor_liquido, data_venda, procedimento, tipo, vendas_itens(descricao, quantidade, valor_total)")
                 .eq("company_id", cId).eq("status", "confirmado")
+                .is("deleted_at", null)
                 .gte("data_venda", periodStart).lte("data_venda", periodEnd)
                 .limit(10000);
 
@@ -815,6 +820,7 @@ export default function CompanyDashboard() {
                 const { data } = await db.from("vendas")
                     .select("valor_liquido, data_venda")
                     .eq("company_id", cId).eq("status", "confirmado")
+                    .is("deleted_at", null)
                     .gte("data_venda", prevMonthStart).lte("data_venda", prevMonthEndFull)
                     .limit(10000);
                 (data || []).forEach((r: any) => {
