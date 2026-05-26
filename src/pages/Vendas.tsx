@@ -328,8 +328,6 @@ export default function Vendas() {
   const [importContaBancaria, setImportContaBancaria] = useState('')
   const [importCentroCusto, setImportCentroCusto] = useState('')
   const [importFile, setImportFile] = useState<File | null>(null)
-  const [importDividirPor100, setImportDividirPor100] = useState(false)
-  const [importReparsing, setImportReparsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Form state ──────────────────────────────────────────────
@@ -1234,7 +1232,6 @@ export default function Vendas() {
     setImportRows([])
     setImportErros(0)
     setImportFile(file)
-    setImportDividirPor100(false)
 
     try {
       const result = await parseVendasSpreadsheet(file)
@@ -1244,23 +1241,6 @@ export default function Vendas() {
     } catch (err: any) {
       setImportError(err.message || 'Erro ao processar planilha.')
       setModalImport(true)
-    }
-  }
-
-  // Re-parseia o arquivo aplicando ou removendo o divisor de 100. Usado quando
-  // o usuário marca o toggle "Valores 100x maiores que o esperado" no preview.
-  async function reparseImport(dividirPor100: boolean) {
-    if (!importFile) return
-    setImportReparsing(true)
-    try {
-      const result = await parseVendasSpreadsheet(importFile, { valueDivisor: dividirPor100 ? 100 : 1 })
-      setImportRows(result.rows)
-      setImportErros(result.totalErros)
-      setImportDividirPor100(dividirPor100)
-    } catch (err: any) {
-      setImportError(err.message || 'Erro ao processar planilha.')
-    } finally {
-      setImportReparsing(false)
     }
   }
 
@@ -1415,7 +1395,6 @@ export default function Vendas() {
     setImportContaBancaria('')
     setImportCentroCusto('')
     setImportFile(null)
-    setImportDividirPor100(false)
   }
 
   function baixarModeloPlanilha() {
@@ -2107,7 +2086,7 @@ export default function Vendas() {
           <div className="flex-1" />
           {/* Ações */}
           <button
-            onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null); setImportFile(null); setImportDividirPor100(false) }}
+            onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null); setImportFile(null) }}
             className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] transition-colors"
           >
             <Upload size={11} /> Importar
@@ -3707,31 +3686,6 @@ export default function Vendas() {
                     <span className="flex items-center gap-1 text-[#039855] font-semibold">
                       <CheckCircle2 size={14} /> {importRows.filter(r => r.erros.length === 0).length} válida{importRows.filter(r => r.erros.length === 0).length !== 1 ? 's' : ''}
                     </span>
-                  </div>
-
-                  {/* Diagnóstico: corrige bug do Excel BR que converte "32.00" em 3200
-                      (auto-detecção de "ponto = milhar" durante digitação). */}
-                  <div className="border border-[#FCD34D] bg-[#FEF3C7] rounded-lg px-3 py-2.5 text-xs">
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={importDividirPor100}
-                        onChange={e => reparseImport(e.target.checked)}
-                        disabled={importReparsing || !importFile}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1">
-                        <p className="font-semibold text-[#92400E]">
-                          Os valores aparecem 100x maiores que o esperado?
-                        </p>
-                        <p className="text-[#92400E]/80 mt-0.5 leading-snug">
-                          Marque se sua planilha mostra R$ 3.200,00 onde era pra ser R$ 32,00. Acontece
-                          quando o Excel em PT-BR converteu o valor "32.00" como milhar (3200) durante
-                          a digitação. Após marcar, confira o "Valor cru" na coluna ao passar o mouse.
-                          {importReparsing && <span className="ml-2 text-[#92400E] font-semibold">Reprocessando...</span>}
-                        </p>
-                      </div>
-                    </label>
                   </div>
 
                   {/* Config row */}
