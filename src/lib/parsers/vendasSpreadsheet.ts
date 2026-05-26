@@ -341,20 +341,120 @@ function rawToString(value: any): string {
 }
 
 /* ================================================================
+   CSV PARSER (manual, evita XLSX auto-detectar datas/numeros)
+   ================================================================ */
+
+/** Parser CSV simples. Suporta:
+ *  - separadores: vírgula, ponto-vírgula, tab (auto-detecta pela primeira linha)
+ *  - quotes duplas com escape "" dentro
+ *  - linhas com \r\n ou \n
+ *  Retorna array de objetos {coluna: valor} com TUDO como string crua.
+ *  Evita que biblioteca alguma faça auto-conversão de "32,00" pra 3200
+ *  ou de "30/06/2026" pra serial Excel decimal. */
+function parseCSVText(text: string): any[] {
+  // Detecta BOM e remove
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+
+  // Auto-detecta separador na primeira linha não-vazia
+  const firstLineEnd = text.indexOf('\n')
+  const firstLine = firstLineEnd > 0 ? text.slice(0, firstLineEnd) : text
+  const candidates: Array<[string, number]> = [
+    [';', (firstLine.match(/;/g) || []).length],
+    [',', (firstLine.match(/,/g) || []).length],
+    ['\t', (firstLine.match(/\t/g) || []).length],
+  ]
+  candidates.sort((a, b) => b[1] - a[1])
+  const sep = candidates[0][1] > 0 ? candidates[0][0] : ';'
+
+  const rows: string[][] = []
+  let current: string[] = []
+  let cell = ''
+  let inQuotes = false
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        cell += c
+      }
+    } else {
+      if (c === '"') {
+        inQuotes = true
+      } else if (c === sep) {
+        current.push(cell)
+        cell = ''
+      } else if (c === '\r') {
+        // pula, espera \n
+      } else if (c === '\n') {
+        current.push(cell)
+        rows.push(current)
+        current = []
+        cell = ''
+      } else {
+        cell += c
+      }
+    }
+  }
+  // Última célula/linha sem newline final
+  if (cell.length > 0 || current.length > 0) {
+    current.push(cell)
+    rows.push(current)
+  }
+
+  if (rows.length === 0) return []
+  const headers = rows[0].map(h => h.trim())
+  const result: any[] = []
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i]
+    // Linha totalmente vazia: pula
+    if (r.length === 1 && r[0].trim() === '') continue
+    const obj: Record<string, string> = {}
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = r[j] !== undefined ? r[j] : ''
+    }
+    result.push(obj)
+  }
+  return result
+}
+
+/* ================================================================
    MAIN PARSER
    ================================================================ */
 
 export async function parseVendasSpreadsheet(file: File, opts: ParseOptions = {}): Promise<ParseResult> {
   const valueDivisor = opts.valueDivisor && opts.valueDivisor > 0 ? opts.valueDivisor : 1
 
-  const buffer = await file.arrayBuffer()
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: false })
+  const fileName = (file.name || '').toLowerCase()
+  const isCSV = fileName.endsWith('.csv')
 
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) throw new Error('Planilha vazia — nenhuma aba encontrada.')
+  let rawRows: any[]
 
-  const sheet = workbook.Sheets[sheetName]
-  const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true })
+  if (isCSV) {
+    // CSV via parser próprio: tudo como string crua. Evita XLSX library
+    // converter "32,00" em 3200 (US thousands) ou strings de data em serial.
+    const text = await file.text()
+    rawRows = parseCSVText(text)
+  } else {
+    // XLSX/XLS: XLSX library lê células com tipos nativos. Pra valores e datas
+    // confiáveis, usar raw:false + cellText:true força formato texto, mas isso
+    // pode introduzir o formato regional do Excel. Mantemos raw:true e
+    // confiamos no parseNumber/parseDate pra tratar o que vier.
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: false })
+
+    const sheetName = workbook.SheetNames[0]
+    if (!sheetName) throw new Error('Planilha vazia — nenhuma aba encontrada.')
+
+    const sheet = workbook.Sheets[sheetName]
+    rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true })
+  }
 
   if (rawRows.length === 0) throw new Error('Planilha vazia — nenhuma linha de dados encontrada.')
 
