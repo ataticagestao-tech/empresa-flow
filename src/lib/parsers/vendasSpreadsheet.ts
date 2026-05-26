@@ -296,7 +296,14 @@ export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
     const tipo = normalizeTipo(String(getValue('tipo') || 'servico'))
     const descricao = String(getValue('descricao') || '').trim()
     const quantidade = parseNumber(getValue('quantidade'))
-    const valorUnitario = parseNumber(getValue('valor_unitario'))
+    const rawValorUnit = getValue('valor_unitario')
+    if (i < 3) {
+      console.log(`[parseVendas] linha ${i + 2}: valor_unitario raw=`, rawValorUnit, 'tipo:', typeof rawValorUnit)
+    }
+    const valorUnitario = parseNumber(rawValorUnit)
+    if (i < 3) {
+      console.log(`[parseVendas] linha ${i + 2}: valor_unitario parsed=`, valorUnitario)
+    }
     const desconto = parseNumber(getValue('desconto')) || 0
     const dataVenda = parseDate(getValue('data_venda'))
     const formaPagRaw = String(getValue('forma_pagamento') || '').trim()
