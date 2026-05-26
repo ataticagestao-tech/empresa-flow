@@ -161,11 +161,33 @@ function parseDate(value: any): string | null {
 function parseNumber(value: any): number | null {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'number') return value
-  const str = String(value).trim()
-    .replace(/R\$\s*/gi, '')
-    .replace(/\./g, '')     // remove thousand separator
-    .replace(',', '.')       // decimal comma to dot
-    .trim()
+  let str = String(value).trim().replace(/R\$\s*/gi, '').trim()
+  if (!str) return null
+
+  const lastComma = str.lastIndexOf(',')
+  const lastDot = str.lastIndexOf('.')
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Ambos separadores: o último é decimal
+    if (lastComma > lastDot) {
+      // BR "1.234,56" → ponto é milhar, vírgula é decimal
+      str = str.replace(/\./g, '').replace(',', '.')
+    } else {
+      // US "1,234.56" → vírgula é milhar, ponto é decimal
+      str = str.replace(/,/g, '')
+    }
+  } else if (lastComma >= 0) {
+    // Só vírgula → decimal BR
+    str = str.replace(',', '.')
+  } else if (lastDot >= 0) {
+    // Só ponto: ambíguo. Se 1-2 dígitos depois → decimal ("32.00"); se 3 dígitos → milhar ("3.200")
+    const afterDot = str.length - lastDot - 1
+    if (afterDot === 3) {
+      str = str.replace(/\./g, '')
+    }
+    // 1 ou 2 dígitos: mantém como decimal, parseFloat resolve
+  }
+
   const num = parseFloat(str)
   return isNaN(num) ? null : num
 }
