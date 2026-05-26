@@ -16,7 +16,7 @@ import {
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
   QrCode, Receipt, Calendar, UserPlus, ChevronDown,
-  Upload, Download, CheckCircle2, XCircle
+  Upload, Download, CheckCircle2, XCircle, ShoppingCart
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
@@ -327,6 +327,9 @@ export default function Vendas() {
   const [importResult, setImportResult] = useState<{ ok: number; fail: number } | null>(null)
   const [importContaBancaria, setImportContaBancaria] = useState('')
   const [importCentroCusto, setImportCentroCusto] = useState('')
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importDividirPor100, setImportDividirPor100] = useState(false)
+  const [importReparsing, setImportReparsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Form state ──────────────────────────────────────────────
@@ -1230,6 +1233,8 @@ export default function Vendas() {
     setImportResult(null)
     setImportRows([])
     setImportErros(0)
+    setImportFile(file)
+    setImportDividirPor100(false)
 
     try {
       const result = await parseVendasSpreadsheet(file)
@@ -1239,6 +1244,23 @@ export default function Vendas() {
     } catch (err: any) {
       setImportError(err.message || 'Erro ao processar planilha.')
       setModalImport(true)
+    }
+  }
+
+  // Re-parseia o arquivo aplicando ou removendo o divisor de 100. Usado quando
+  // o usuário marca o toggle "Valores 100x maiores que o esperado" no preview.
+  async function reparseImport(dividirPor100: boolean) {
+    if (!importFile) return
+    setImportReparsing(true)
+    try {
+      const result = await parseVendasSpreadsheet(importFile, { valueDivisor: dividirPor100 ? 100 : 1 })
+      setImportRows(result.rows)
+      setImportErros(result.totalErros)
+      setImportDividirPor100(dividirPor100)
+    } catch (err: any) {
+      setImportError(err.message || 'Erro ao processar planilha.')
+    } finally {
+      setImportReparsing(false)
     }
   }
 
@@ -1392,6 +1414,8 @@ export default function Vendas() {
     setImportProgress({ current: 0, total: 0 })
     setImportContaBancaria('')
     setImportCentroCusto('')
+    setImportFile(null)
+    setImportDividirPor100(false)
   }
 
   function baixarModeloPlanilha() {
@@ -2083,7 +2107,7 @@ export default function Vendas() {
           <div className="flex-1" />
           {/* Ações */}
           <button
-            onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null) }}
+            onClick={() => { setModalImport(true); setImportRows([]); setImportError(null); setImportResult(null); setImportFile(null); setImportDividirPor100(false) }}
             className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] transition-colors"
           >
             <Upload size={11} /> Importar
@@ -2289,7 +2313,26 @@ export default function Vendas() {
                 <AlertCircle size={16} className="mr-2" /> {error}
               </div>
             ) : vendasFiltradas.length === 0 ? (
-              <div className="text-center py-12 text-[#555] text-sm">Nenhuma venda encontrada.</div>
+              vendas.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#ECFDF4] flex items-center justify-center mb-4">
+                    <ShoppingCart className="h-6 w-6 text-[#059669]" />
+                  </div>
+                  <p className="text-[15px] font-bold text-[#1D2939] mb-1.5">Nenhuma venda lançada ainda</p>
+                  <p className="text-[13px] text-[#667085] text-center max-w-md mb-5 leading-relaxed">
+                    Lance sua primeira venda. O sistema cuida do resto: gera conta a receber se for a prazo, atualiza o estoque
+                    se for produto cadastrado, e registra a movimentação no caixa.
+                  </p>
+                  <button
+                    onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
+                    className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] transition-colors"
+                  >
+                    <Plus size={17} strokeWidth={2.5} /> Lançar primeira venda
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-[#555] text-sm">Nenhuma venda encontrada com os filtros aplicados.</div>
+              )
             ) : (
               <table className="w-full text-sm">
                 <thead>
@@ -3666,6 +3709,31 @@ export default function Vendas() {
                     </span>
                   </div>
 
+                  {/* Diagnóstico: corrige bug do Excel BR que converte "32.00" em 3200
+                      (auto-detecção de "ponto = milhar" durante digitação). */}
+                  <div className="border border-[#FCD34D] bg-[#FEF3C7] rounded-lg px-3 py-2.5 text-xs">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={importDividirPor100}
+                        onChange={e => reparseImport(e.target.checked)}
+                        disabled={importReparsing || !importFile}
+                        className="mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#92400E]">
+                          Os valores aparecem 100x maiores que o esperado?
+                        </p>
+                        <p className="text-[#92400E]/80 mt-0.5 leading-snug">
+                          Marque se sua planilha mostra R$ 3.200,00 onde era pra ser R$ 32,00. Acontece
+                          quando o Excel em PT-BR converteu o valor "32.00" como milhar (3200) durante
+                          a digitação. Após marcar, confira o "Valor cru" na coluna ao passar o mouse.
+                          {importReparsing && <span className="ml-2 text-[#92400E] font-semibold">Reprocessando...</span>}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
                   {/* Config row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -3727,9 +3795,19 @@ export default function Vendas() {
                                 </td>
                                 <td className="px-3 py-2 text-[#333] max-w-[200px] truncate">{row.descricao || '-'}</td>
                                 <td className="px-3 py-2 text-right text-[#333]">{row.quantidade}</td>
-                                <td className="px-3 py-2 text-right text-[#333]">{formatBRL(row.valor_unitario)}</td>
+                                <td
+                                  className="px-3 py-2 text-right text-[#333] cursor-help"
+                                  title={`Valor cru da planilha: "${row.raw_valor_unitario}"`}
+                                >
+                                  {formatBRL(row.valor_unitario)}
+                                </td>
                                 <td className="px-3 py-2 text-right font-semibold text-[#1D2939]">{formatBRL(row.valor_total)}</td>
-                                <td className="px-3 py-2 text-[#333]">{row.data_venda ? formatData(row.data_venda) : '-'}</td>
+                                <td
+                                  className="px-3 py-2 text-[#333] cursor-help"
+                                  title={`Valor cru da planilha: "${row.raw_data_venda}"`}
+                                >
+                                  {row.data_venda ? formatData(row.data_venda) : '-'}
+                                </td>
                                 <td className="px-3 py-2 text-[#333]">{LABEL_FORMA[row.forma_pagamento] || row.forma_pagamento}</td>
                                 <td className="px-3 py-2">
                                   {hasError ? (

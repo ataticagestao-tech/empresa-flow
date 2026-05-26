@@ -19,11 +19,22 @@ export interface VendaImportRow {
   parcelas: number
   observacoes: string | null
   erros: string[]
+  // Diagnostico: exibe o valor cru lido da planilha pra usuario
+  // identificar discrepancia (ex.: Excel BR convertendo "32.00" em 3200).
+  raw_valor_unitario: string
+  raw_data_venda: string
 }
 
 export interface ParseResult {
   rows: VendaImportRow[]
   totalErros: number
+}
+
+export interface ParseOptions {
+  /** Divisor aplicado ao valor_unitario apos parsing.
+   *  Use 100 quando o Excel BR converteu "32.00" em 3200 (auto-deteccao
+   *  de "ponto = milhar" durante digitacao). Default: 1. */
+  valueDivisor?: number
 }
 
 /* ================================================================
@@ -33,7 +44,10 @@ export interface ParseResult {
 const FORMAS_VALIDAS = ['pix', 'dinheiro', 'cartao_credito', 'cartao_debito', 'boleto', 'parcelado']
 const TIPOS_VALIDOS = ['servico', 'produto', 'pacote', 'contrato']
 
-// Map common column names to internal keys
+const COMBINING_MARKS = /[̀-ͯ]/g
+
+// Map common column names to internal keys. Match EXATO tem prioridade
+// sobre alias na funcao de mapeamento (ver buildColumnMapping abaixo).
 const COLUMN_MAP: Record<string, string> = {
   // cliente_nome
   'cliente_nome': 'cliente_nome',
@@ -115,6 +129,13 @@ const COLUMN_MAP: Record<string, string> = {
   'observação': 'observacoes',
 }
 
+// Conjunto de chaves "canonicas" (cliente_nome, valor_unitario, etc).
+// Match exato com uma dessas tem prioridade sobre qualquer alias.
+const CANONICAL_KEYS = new Set([
+  'cliente_nome', 'cliente_cpf_cnpj', 'tipo', 'descricao', 'quantidade',
+  'valor_unitario', 'desconto', 'data_venda', 'forma_pagamento', 'parcelas', 'observacoes',
+])
+
 /* ================================================================
    HELPERS
    ================================================================ */
@@ -125,76 +146,161 @@ function normalizeColumnName(name: string): string {
     .toLowerCase()
     .trim()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')  // remove accents for matching
+    .replace(COMBINING_MARKS, '')
+}
+
+function buildColumnMapping(sampleKeys: string[]): Record<string, string> {
+  const mapping: Record<string, string> = {}
+  // Pass 1: match exato com chave canonica (case-insensitive, sem acentos).
+  // Garante que se a planilha tem AMBOS "valor" e "valor_unitario",
+  // o canonico vence em vez do alias 'valor' que tambem mapeia pra 'valor_unitario'.
+  const matchedFields = new Set<string>()
+  for (const key of sampleKeys) {
+    const normalized = normalizeColumnName(key)
+    if (CANONICAL_KEYS.has(normalized)) {
+      mapping[key] = normalized
+      matchedFields.add(normalized)
+    }
+  }
+  // Pass 2: aliases. Pula campos ja preenchidos.
+  for (const key of sampleKeys) {
+    if (mapping[key]) continue
+    const normalized = normalizeColumnName(key)
+    const mapped = COLUMN_MAP[key.toLowerCase().trim()] || COLUMN_MAP[normalized]
+    if (mapped && !matchedFields.has(mapped)) {
+      mapping[key] = mapped
+      matchedFields.add(mapped)
+    }
+  }
+  return mapping
+}
+
+/** Formata data manualmente a partir de serial Excel (epoch 1899-12-30,
+ *  pulando o bug do leap year 1900). Evita interferencia de timezone. */
+function serialToISO(serial: number): string | null {
+  if (!isFinite(serial) || serial < 1 || serial > 200000) return null
+  const epoch = Date.UTC(1899, 11, 30)
+  const ms = epoch + Math.floor(serial) * 86400000
+  const d = new Date(ms)
+  const y = d.getUTCFullYear()
+  const m = d.getUTCMonth() + 1
+  const day = d.getUTCDate()
+  if (y < 1900 || y > 2100) return null
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function isValidYMD(y: number, m: number, d: number): boolean {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return false
+  if (y < 1900 || y > 2100) return false
+  if (m < 1 || m > 12) return false
+  if (d < 1 || d > 31) return false
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return d <= daysInMonth
 }
 
 function parseDate(value: any): string | null {
-  if (!value) return null
+  if (value === null || value === undefined || value === '') return null
+
+  // Date object (XLSX com cellDates: true). Usa componentes UTC pra evitar
+  // shift de timezone (Brasil UTC-3 pode mover 00:00 UTC pra dia anterior).
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null
+    const y = value.getUTCFullYear()
+    const m = value.getUTCMonth() + 1
+    const d = value.getUTCDate()
+    if (!isValidYMD(y, m, d)) return null
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
 
   // Excel serial date number
   if (typeof value === 'number') {
-    const date = XLSX.SSF.parse_date_code(value)
-    if (date) {
-      const y = date.y
-      const m = String(date.m).padStart(2, '0')
-      const d = String(date.d).padStart(2, '0')
-      return `${y}-${m}-${d}`
-    }
+    if (value < 1 || value > 200000) return null
+    return serialToISO(value)
   }
 
-  const str = String(value).trim()
+  let str = String(value).trim()
+  if (!str) return null
 
-  // DD/MM/YYYY or DD-MM-YYYY
-  const brMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+  // ISO com hora: "2026-01-02T00:00:00..." -> pega so a data
+  const isoTimeMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoTimeMatch) {
+    const y = parseInt(isoTimeMatch[1], 10)
+    const m = parseInt(isoTimeMatch[2], 10)
+    const d = parseInt(isoTimeMatch[3], 10)
+    if (isValidYMD(y, m, d)) return `${isoTimeMatch[1]}-${isoTimeMatch[2]}-${isoTimeMatch[3]}`
+    return null
+  }
+
+  // DD/MM/YYYY ou DD-MM-YYYY ou DD.MM.YYYY (BR - sempre primeiro grupo eh dia)
+  const brMatch = str.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)
   if (brMatch) {
     const [, d, m, y] = brMatch
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+    let yy = parseInt(y, 10)
+    const dd = parseInt(d, 10)
+    const mm = parseInt(m, 10)
+    if (yy < 100) yy = yy < 80 ? 2000 + yy : 1900 + yy
+    if (dd > 12 && mm > 12) return null
+    let finalY = yy
+    let finalM = mm
+    let finalD = dd
+    if (mm > 12 && dd <= 12) {
+      // Provavel MM/DD/YYYY (usuario importou de sistema US)
+      finalM = dd
+      finalD = mm
+    }
+    if (!isValidYMD(finalY, finalM, finalD)) return null
+    return `${finalY}-${String(finalM).padStart(2, '0')}-${String(finalD).padStart(2, '0')}`
   }
-
-  // YYYY-MM-DD
-  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (isoMatch) return isoMatch[0]
 
   return null
 }
 
 function parseNumber(value: any): number | null {
   if (value === null || value === undefined || value === '') return null
-  if (typeof value === 'number') return value
-  let str = String(value).trim().replace(/R\$\s*/gi, '').trim()
+  if (typeof value === 'number') return isFinite(value) ? value : null
+  let str = String(value).trim().replace(/R\$\s*/gi, '').replace(/\s+/g, '').trim()
   if (!str) return null
+
+  const negative = str.startsWith('-')
+  if (negative) str = str.slice(1)
+  if (str.startsWith('+')) str = str.slice(1)
 
   const lastComma = str.lastIndexOf(',')
   const lastDot = str.lastIndexOf('.')
 
   if (lastComma >= 0 && lastDot >= 0) {
-    // Ambos separadores: o último é decimal
     if (lastComma > lastDot) {
-      // BR "1.234,56" → ponto é milhar, vírgula é decimal
+      // BR "1.234,56" -> ponto eh milhar, virgula eh decimal
       str = str.replace(/\./g, '').replace(',', '.')
     } else {
-      // US "1,234.56" → vírgula é milhar, ponto é decimal
+      // US "1,234.56" -> virgula eh milhar, ponto eh decimal
       str = str.replace(/,/g, '')
     }
   } else if (lastComma >= 0) {
-    // Só vírgula → decimal BR
-    str = str.replace(',', '.')
+    // Soh virgula -> decimal BR. Remove dots (caso "1.500,00" sem decimal)
+    str = str.replace(/\./g, '').replace(',', '.')
   } else if (lastDot >= 0) {
-    // Só ponto: ambíguo. Se 1-2 dígitos depois → decimal ("32.00"); se 3 dígitos → milhar ("3.200")
-    const afterDot = str.length - lastDot - 1
-    if (afterDot === 3) {
+    // Soh ponto: ambiguo.
+    // - 1-2 digitos depois -> decimal ("32.00", "1.5")
+    // - 3 digitos depois -> milhar BR ("3.200")
+    // - multiplos pontos -> milhar BR ("1.234.567")
+    const segs = str.split('.')
+    const lastSeg = segs[segs.length - 1]
+    if (segs.length > 2) {
+      str = str.replace(/\./g, '')
+    } else if (lastSeg.length === 3) {
       str = str.replace(/\./g, '')
     }
-    // 1 ou 2 dígitos: mantém como decimal, parseFloat resolve
   }
 
   const num = parseFloat(str)
-  return isNaN(num) ? null : num
+  if (!isFinite(num)) return null
+  return negative ? -num : num
 }
 
 function normalizeFormaPagamento(value: string): string {
   const v = value.toLowerCase().trim()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFD').replace(COMBINING_MARKS, '')
 
   if (v.includes('pix') || v.includes('ted')) return 'pix'
   if (v.includes('dinheiro') || v.includes('especie')) return 'dinheiro'
@@ -205,7 +311,6 @@ function normalizeFormaPagamento(value: string): string {
   if (v.includes('boleto')) return 'boleto'
   if (v.includes('parcel')) return 'parcelado'
 
-  // Direct match
   if (FORMAS_VALIDAS.includes(v)) return v
 
   return v
@@ -213,22 +318,35 @@ function normalizeFormaPagamento(value: string): string {
 
 function normalizeTipo(value: string): string {
   const v = value.toLowerCase().trim()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFD').replace(COMBINING_MARKS, '')
 
-  if (v.includes('servico') || v.includes('serviço')) return 'servico'
+  if (v.includes('servico')) return 'servico'
   if (v.includes('produto')) return 'produto'
   if (v.includes('pacote')) return 'pacote'
   if (v.includes('contrato')) return 'contrato'
 
   if (TIPOS_VALIDOS.includes(v)) return v
-  return 'servico' // default
+  return 'servico'
+}
+
+/** Converte qualquer valor cru a representacao de string para exibir no preview.
+ *  Date object -> ISO; numero -> toString; string -> trim. */
+function rawToString(value: any): string {
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return String(value)
+    return value.toISOString().slice(0, 10)
+  }
+  return String(value).trim()
 }
 
 /* ================================================================
    MAIN PARSER
    ================================================================ */
 
-export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
+export async function parseVendasSpreadsheet(file: File, opts: ParseOptions = {}): Promise<ParseResult> {
+  const valueDivisor = opts.valueDivisor && opts.valueDivisor > 0 ? opts.valueDivisor : 1
+
   const buffer = await file.arrayBuffer()
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: false })
 
@@ -236,22 +354,17 @@ export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
   if (!sheetName) throw new Error('Planilha vazia — nenhuma aba encontrada.')
 
   const sheet = workbook.Sheets[sheetName]
-  const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+  const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true })
 
   if (rawRows.length === 0) throw new Error('Planilha vazia — nenhuma linha de dados encontrada.')
 
-  // Map columns
-  const sampleKeys = Object.keys(rawRows[0])
-  const columnMapping: Record<string, string> = {}
-
-  for (const key of sampleKeys) {
-    const normalized = normalizeColumnName(key)
-    // Try exact match first, then normalized (accent-stripped) match
-    const mapped = COLUMN_MAP[key.toLowerCase().trim()] || COLUMN_MAP[normalized]
-    if (mapped) {
-      columnMapping[key] = mapped
-    }
-  }
+  // Junta as chaves de TODAS as primeiras linhas pra cobrir o caso onde a linha 1
+  // tem celulas vazias que sheet_to_json omite. Usa as 5 primeiras linhas como amostra.
+  const sample = rawRows.slice(0, 5)
+  const sampleKeysSet = new Set<string>()
+  for (const r of sample) for (const k of Object.keys(r)) sampleKeysSet.add(k)
+  const sampleKeys = Array.from(sampleKeysSet)
+  const columnMapping = buildColumnMapping(sampleKeys)
 
   // Check required columns
   const mappedFields = new Set(Object.values(columnMapping))
@@ -281,8 +394,14 @@ export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
     const raw = rawRows[i]
     const erros: string[] = []
 
-    // Extract mapped values
     const getValue = (field: string): any => {
+      for (const [origKey, mappedKey] of Object.entries(columnMapping)) {
+        if (mappedKey === field) {
+          const v = raw[origKey]
+          if (v !== undefined && v !== '') return v
+        }
+      }
+      // Fallback: retorna o primeiro encontrado (mesmo vazio) pra manter o raw display
       for (const [origKey, mappedKey] of Object.entries(columnMapping)) {
         if (mappedKey === field) return raw[origKey]
       }
@@ -297,21 +416,16 @@ export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
     const descricao = String(getValue('descricao') || '').trim()
     const quantidade = parseNumber(getValue('quantidade'))
     const rawValorUnit = getValue('valor_unitario')
-    if (i < 3) {
-      console.log(`[parseVendas] linha ${i + 2}: valor_unitario raw=`, rawValorUnit, 'tipo:', typeof rawValorUnit)
-    }
-    const valorUnitario = parseNumber(rawValorUnit)
-    if (i < 3) {
-      console.log(`[parseVendas] linha ${i + 2}: valor_unitario parsed=`, valorUnitario)
-    }
+    const rawDataVenda = getValue('data_venda')
+    const valorUnitarioParsed = parseNumber(rawValorUnit)
+    const valorUnitario = valorUnitarioParsed !== null ? valorUnitarioParsed / valueDivisor : null
     const desconto = parseNumber(getValue('desconto')) || 0
-    const dataVenda = parseDate(getValue('data_venda'))
+    const dataVenda = parseDate(rawDataVenda)
     const formaPagRaw = String(getValue('forma_pagamento') || '').trim()
     const formaPagamento = normalizeFormaPagamento(formaPagRaw)
     const parcelas = parseNumber(getValue('parcelas')) || (formaPagamento === 'parcelado' ? 2 : 1)
     const observacoes = getValue('observacoes') ? String(getValue('observacoes')).trim() : null
 
-    // Validations
     if (!clienteNome) erros.push('Cliente vazio')
     if (!descricao) erros.push('Descrição vazia')
     if (quantidade === null || quantidade <= 0) erros.push('Quantidade inválida')
@@ -325,7 +439,7 @@ export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
     const vUnit = valorUnitario || 0
 
     rows.push({
-      linha: i + 2, // +2 because row 1 is header, data starts at 2
+      linha: i + 2,
       cliente_nome: clienteNome,
       cliente_cpf_cnpj: clienteCpfCnpj,
       tipo,
@@ -339,6 +453,8 @@ export async function parseVendasSpreadsheet(file: File): Promise<ParseResult> {
       parcelas: Math.max(1, Math.round(parcelas)),
       observacoes,
       erros,
+      raw_valor_unitario: rawToString(rawValorUnit),
+      raw_data_venda: rawToString(rawDataVenda),
     })
   }
 
