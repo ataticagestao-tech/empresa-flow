@@ -336,33 +336,35 @@ export default function Fornecedores() {
         setGerandoPDF(true);
         try {
             const tipoLabel = (t: string | null) => (t === "PF" ? "PF" : t === "PJ" ? "PJ" : "—");
+            const fmtCad = (iso?: string | null) =>
+                iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
             const linhas = [...suppliers]
                 .sort((a, b) => (a.razao_social || "").localeCompare(b.razao_social || "", "pt-BR"))
                 .map(s => [
                     s.razao_social || "—",
-                    s.nome_fantasia || "—",
                     tipoLabel(s.tipo_pessoa),
                     fmtDoc(s.cpf_cnpj) || "—",
                     s.cnae_descricao || s.tipo_atividade || "—",
                     [s.endereco_cidade, s.endereco_estado].filter(Boolean).join("/") || "—",
                     s.celular ? maskPhone(s.celular) : s.telefone ? maskPhone(s.telefone) : "—",
-                    s.email || "—",
+                    fmtCad(s.created_at),
                     s.is_active ? "Ativo" : "Inativo",
                 ]);
             const blob = gerarRelatorioListaPDF({
                 empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
+                empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
                 empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
+                empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join("/") || null,
                 titulo: "FORNECEDORES",
                 colunas: [
-                    { header: "Razão Social / Nome", flex: 18 },
-                    { header: "Nome Fantasia", flex: 13 },
-                    { header: "Tipo", flex: 4, align: "center" },
-                    { header: "CPF / CNPJ", flex: 11 },
+                    { header: "Razão Social / Nome", flex: 22 },
+                    { header: "Tipo", flex: 5, align: "center" },
+                    { header: "CPF / CNPJ", flex: 13 },
                     { header: "Atividade", flex: 16 },
-                    { header: "Cidade/UF", flex: 10 },
-                    { header: "Telefone", flex: 9 },
-                    { header: "E-mail", flex: 14 },
-                    { header: "Status", flex: 5, align: "center" },
+                    { header: "Cidade/UF", flex: 11 },
+                    { header: "Telefone", flex: 11 },
+                    { header: "Cadastro", flex: 9, align: "center" },
+                    { header: "Status", flex: 7, align: "center" },
                 ],
                 linhas,
             });

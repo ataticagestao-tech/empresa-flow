@@ -336,39 +336,37 @@ export default function Funcionarios() {
     }
     setGerandoListaPDF(true);
     try {
-      const ccById = new Map((centrosCusto as any[]).map(c => [c.id, c]));
+      const fmtCad = (iso?: string | null) =>
+        iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
       const linhas = [...employees]
         .sort((a, b) => getName(a).localeCompare(getName(b), "pt-BR"))
-        .map(e => {
-          const cc = e.centro_custo_id ? ccById.get(e.centro_custo_id) : null;
-          return [
-            getName(e) || "—",
-            e.cpf ? formatCPF(e.cpf) : "—",
-            e.role || "—",
-            tipoContratoLabels[e.tipo_contrato || ""] || "—",
-            e.hire_date ? new Date(e.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—",
-            cc ? `${cc.codigo ? cc.codigo + " — " : ""}${cc.descricao}` : "—",
-            formatBRL(Number(e.salario_base || e.salary || 0)),
-            e.phone ? formatPhone(e.phone) : "—",
-            e.email || "—",
-            isActive(e.status) ? "Ativo" : "Inativo",
-          ];
-        });
+        .map(e => [
+          getName(e) || "—",
+          e.cpf ? formatCPF(e.cpf) : "—",
+          e.role || "—",
+          tipoContratoLabels[e.tipo_contrato || ""] || "—",
+          e.hire_date ? new Date(e.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—",
+          fmtCad(e.created_at),
+          formatBRL(Number(e.salario_base || e.salary || 0)),
+          e.phone ? formatPhone(e.phone) : "—",
+          isActive(e.status) ? "Ativo" : "Inativo",
+        ]);
       const blob = gerarRelatorioListaPDF({
         empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
+        empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
         empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
+        empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join("/") || null,
         titulo: "FUNCIONÁRIOS",
         colunas: [
-          { header: "Nome", flex: 18 },
-          { header: "CPF", flex: 9 },
-          { header: "Cargo", flex: 12 },
+          { header: "Nome", flex: 20 },
+          { header: "CPF", flex: 11 },
+          { header: "Cargo", flex: 13 },
           { header: "Contrato", flex: 7, align: "center" },
-          { header: "Admissão", flex: 8, align: "center" },
-          { header: "Centro de Custo", flex: 13 },
-          { header: "Salário", flex: 9, align: "right" },
-          { header: "Telefone", flex: 9 },
-          { header: "E-mail", flex: 13 },
-          { header: "Status", flex: 5, align: "center" },
+          { header: "Admissão", flex: 9, align: "center" },
+          { header: "Cadastro", flex: 9, align: "center" },
+          { header: "Salário", flex: 11, align: "right" },
+          { header: "Telefone", flex: 11 },
+          { header: "Status", flex: 7, align: "center" },
         ],
         linhas,
       });

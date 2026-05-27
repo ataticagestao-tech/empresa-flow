@@ -10,16 +10,21 @@ export interface ColunaLista {
 }
 
 export interface RelatorioListaData {
+    /** Nome principal exibido em destaque (normalmente nome fantasia) */
     empresa_nome: string;
     empresa_cnpj?: string | null;
+    /** Razão social, exibida abaixo do nome quando difere do nome principal */
+    empresa_razao_social?: string | null;
+    /** Localização "Cidade/UF" exibida no cabeçalho */
+    empresa_local?: string | null;
     /** Título do relatório, ex.: "FUNCIONÁRIOS" */
     titulo: string;
-    /** Subtítulo opcional exibido abaixo do título da empresa */
-    subtitulo?: string;
     colunas: ColunaLista[];
     /** Cada linha é um array de strings com o mesmo tamanho de `colunas` */
     linhas: string[][];
     cor_primaria?: string;
+    /** Orientação da página. Padrão: retrato ("portrait"). */
+    orientacao?: "portrait" | "landscape";
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -36,11 +41,12 @@ function hexToRgb(hex: string): [number, number, number] {
  * Reutilizado por Funcionários, Clientes e Fornecedores.
  */
 export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
-    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+    const orientacao = data.orientacao || "portrait";
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: orientacao });
     const cor = data.cor_primaria || "#059669";
     const [cr, cg, cb] = hexToRgb(cor);
-    const W = 297;
-    const H = 210;
+    const W = orientacao === "landscape" ? 297 : 210;
+    const H = orientacao === "landscape" ? 210 : 297;
     const margin = 12;
     const contentW = W - margin * 2;
 
@@ -55,39 +61,52 @@ export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
     }
 
     const rowH = 6;
-    const headerBandH = 26;
-    const tableTop = headerBandH + 10;
+    const headerBandH = 32;
+    const tableTop = headerBandH + 9;
     const bottomLimit = H - 12;
+
+    const emitidoEm = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
     let y = 0;
 
     const drawHeader = () => {
         doc.setFillColor(cr, cg, cb);
         doc.rect(0, 0, W, headerBandH, "F");
+
+        /* ── Lado esquerdo: dados da empresa ── */
         doc.setFont("helvetica", "bold");
         doc.setFontSize(15);
         doc.setTextColor(255, 255, 255);
-        doc.text(data.empresa_nome, margin, 12);
+        doc.text(data.empresa_nome, margin, 13);
+
+        let ly = 19;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(225, 235, 240);
-        const subParts = [
+        const razao = data.empresa_razao_social?.trim();
+        if (razao && razao.toLowerCase() !== data.empresa_nome.trim().toLowerCase()) {
+            doc.text(doc.splitTextToSize(razao, contentW * 0.6)[0], margin, ly);
+            ly += 5;
+        }
+        const infoParts = [
             data.empresa_cnpj ? `CNPJ: ${data.empresa_cnpj}` : null,
-            data.subtitulo || null,
+            data.empresa_local || null,
         ].filter(Boolean);
-        if (subParts.length) doc.text(subParts.join("   ·   "), margin, 18);
+        if (infoParts.length) doc.text(infoParts.join("   ·   "), margin, ly);
 
+        /* ── Lado direito: título e datas ── */
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
+        doc.setFontSize(12);
         doc.setTextColor(255, 255, 255);
-        doc.text(data.titulo, W - margin, 12, { align: "right" });
+        doc.text(data.titulo, W - margin, 13, { align: "right" });
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(225, 235, 240);
         doc.text(
-            `${data.linhas.length} ${data.linhas.length === 1 ? "registro" : "registros"}  ·  Emitido em ${new Date().toLocaleDateString("pt-BR")}`,
-            W - margin, 18, { align: "right" },
+            `${data.linhas.length} ${data.linhas.length === 1 ? "registro" : "registros"}`,
+            W - margin, 19, { align: "right" },
         );
+        doc.text(`Data de emissão: ${emitidoEm}`, W - margin, 24, { align: "right" });
     };
 
     const drawColumnHeaders = () => {
