@@ -8,6 +8,7 @@ import { formatBRL } from "@/lib/format";
 import { BANKS } from "@/lib/banks";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { parseOFXFull } from "@/lib/parsers/ofx";
+import { FieldHelp } from "@/components/ui/field-help";
 
 interface BankAccount {
   id: string; company_id: string; name: string; banco: string;
@@ -443,14 +444,27 @@ export default function ContasBancarias() {
                 O saldo inicial define o ponto de partida do fluxo de caixa. Informe o saldo real na data de início do uso do sistema.
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1"><label className={LB}>Saldo Inicial (R$)</label><input value={formData.initial_balance} onChange={e => set("initial_balance", e.target.value)} placeholder="0,00" className={IC} /></div>
-                <div className="flex flex-col gap-1"><label className={LB}>Data do Saldo Inicial</label><input type="date" value={formData.data_saldo_inicial} onChange={e => set("data_saldo_inicial", e.target.value)} className={IC} /></div>
+                <div className="flex flex-col gap-1">
+                  <label className={LB}>
+                    Saldo Inicial (R$)
+                    <FieldHelp>Quanto havia nesta conta no dia em que você começou a usar o sistema. Todo movimento daqui pra frente vai partir deste valor.</FieldHelp>
+                  </label>
+                  <input value={formData.initial_balance} onChange={e => set("initial_balance", e.target.value)} placeholder="0,00" className={IC} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className={LB}>
+                    Data do Saldo Inicial
+                    <FieldHelp>Data em que esse saldo foi consultado. Use o último dia do mês anterior ao início do uso — o sistema considera só lançamentos a partir desta data.</FieldHelp>
+                  </label>
+                  <input type="date" value={formData.data_saldo_inicial} onChange={e => set("data_saldo_inicial", e.target.value)} className={IC} />
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={formData.ofx_ativo} onChange={e => set("ofx_ativo", e.target.checked)} className="w-4 h-4 accent-[#059669]" />
                   <span className="text-sm text-[#1D2939]">Importação OFX ativa</span>
                 </label>
+                <FieldHelp>Marque se você vai importar extratos OFX desta conta. Habilita o upload de OFX em Conciliação Bancária e a importação automática por e-mail.</FieldHelp>
               </div>
 
               {/* Importação automática via email — só faz sentido se OFX está ativo */}

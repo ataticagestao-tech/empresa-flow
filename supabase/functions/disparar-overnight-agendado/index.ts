@@ -9,6 +9,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import {
+    getCloudConfig,
+    isCloudEnabled,
+    uploadMedia,
+} from "../_shared/whatsapp-cloud.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -132,11 +137,66 @@ serve(async (req: Request) => {
             const legendaPadrao = cfg.whatsapp_mensagem?.trim() ||
                 `Bom fechamento de dia. Segue o Overnight de ${formatBR(agora)}.`;
 
-            // 3. envia para cada destinatário
+            // 3. nome da empresa (pro template Cloud)
+            const { data: companyData } = await service
+                .from("companies")
+                .select("nome_fantasia, razao_social")
+                .eq("id", cfg.company_id)
+                .maybeSingle();
+            const nomeEmpresa =
+                (companyData as any)?.nome_fantasia ||
+                (companyData as any)?.razao_social ||
+                "sua empresa";
+
+            // 4. Se Cloud ativado, faz upload do PDF uma vez e reusa media_id
+            //    (a Meta exige template + DOCUMENT header pra mensagens proativas)
+            let cloudMediaId: string | null = null;
+            let cloudUploadError: string | null = null;
+            if (isCloudEnabled()) {
+                const cfgCloud = getCloudConfig();
+                if (!cfgCloud) {
+                    cloudUploadError = "WhatsApp Cloud nao configurado (secrets faltando)";
+                } else {
+                    const up = await uploadMedia(
+                        cfgCloud,
+                        gerarBody.pdfBase64,
+                        fileName,
+                        "application/pdf",
+                    );
+                    if (!up.ok) cloudUploadError = up.error ?? "Upload PDF falhou";
+                    else cloudMediaId = up.mediaId ?? null;
+                }
+            }
+
+            // 5. envia para cada destinatário
             const okList: string[] = [];
             const errList: Array<{ phone: string; erro: string }> = [];
 
             for (const phone of destinos) {
+                if (cloudUploadError) {
+                    errList.push({ phone, erro: cloudUploadError });
+                    continue;
+                }
+
+                const reqBody: Record<string, unknown> = isCloudEnabled() && cloudMediaId
+                    ? {
+                          phone,
+                          template: {
+                              name: "overnight_diario",
+                              languageCode: "pt_BR",
+                              bodyParams: [nomeEmpresa, formatBR(agora)],
+                              headerDocumentMediaId: cloudMediaId,
+                              headerDocumentFilename: fileName,
+                          },
+                      }
+                    : {
+                          phone,
+                          mediaBase64: gerarBody.pdfBase64,
+                          fileName,
+                          mimeType: "application/pdf",
+                          caption: legendaPadrao,
+                      };
+
                 const r = await fetch(`${supabaseUrl}/functions/v1/enviar-whatsapp`, {
                     method: "POST",
                     headers: {
@@ -144,13 +204,7 @@ serve(async (req: Request) => {
                         Authorization: `Bearer ${serviceRoleKey}`,
                         apikey: serviceRoleKey,
                     },
-                    body: JSON.stringify({
-                        phone,
-                        mediaBase64: gerarBody.pdfBase64,
-                        fileName,
-                        mimeType: "application/pdf",
-                        caption: legendaPadrao,
-                    }),
+                    body: JSON.stringify(reqBody),
                 });
                 const rBody: any = await r.json().catch(() => ({}));
                 if (r.ok && rBody?.ok !== false) {

@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
     subMonths, subWeeks, subDays, addDays, format, differenceInDays, differenceInCalendarDays,
@@ -982,6 +983,9 @@ export default function CompanyDashboard() {
     return (
         <AppLayout title="Dashboard">
             <div style={{ width: "100%", fontFamily: "var(--font-base)" }}>
+                {/* ── Onboarding Checklist (oculta automaticamente quando 100%) ── */}
+                {cId && <OnboardingChecklist companyId={cId} />}
+
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
                     <div>

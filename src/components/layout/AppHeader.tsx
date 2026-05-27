@@ -33,7 +33,7 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 sm:h-16 items-center gap-2 sm:gap-3 border-b border-sidebar-border bg-sidebar px-3 sm:px-5 shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
+    <header className="sticky top-0 z-10 flex h-14 sm:h-16 items-center gap-1.5 sm:gap-3 border-b border-sidebar-border bg-sidebar px-2 sm:px-5 shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
       <SidebarTrigger className="text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors flex-shrink-0" />
 
       {location.pathname !== "/" && (
@@ -42,18 +42,18 @@ export function AppHeader() {
           size="icon"
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="h-7 w-7 sm:h-8 sm:w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0"
+          className="hidden sm:inline-flex h-7 w-7 sm:h-8 sm:w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
       )}
 
-      <div className="ml-auto flex items-center gap-2 sm:gap-3 flex-shrink-0">
+      <div className="ml-auto flex items-center gap-1.5 sm:gap-3 flex-shrink min-w-0">
         <CompanySelector />
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title={theme === "dark" ? "Modo claro" : "Modo escuro"}
-          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
+          className="hidden sm:flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors flex-shrink-0"
         >
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
@@ -61,7 +61,7 @@ export function AppHeader() {
           onClick={() => window.dispatchEvent(new Event(COMMAND_PALETTE_OPEN_EVENT))}
           title="Buscar páginas e ações (Ctrl+K)"
           aria-label="Abrir busca rápida"
-          className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
+          className="hidden sm:flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md border border-sidebar-border text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors flex-shrink-0"
         >
           <Plus className="h-4 w-4" />
         </button>

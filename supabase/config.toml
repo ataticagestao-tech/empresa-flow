@@ -2,3 +2,6 @@ project_id = "onobornmnzemgsduscug"
 
 [functions.import-omie-data]
 verify_jwt = false
+
+[functions.whatsapp-cloud-webhook]
+verify_jwt = false

@@ -24,7 +24,7 @@ export function CompanySelector() {
 
   if (loading) {
     return (
-      <Button variant="outline" className="w-[160px] md:w-[250px] justify-start" disabled>
+      <Button variant="outline" className="w-[110px] sm:w-[160px] md:w-[250px] max-w-full justify-start" disabled>
         <Building2 className="mr-2 h-4 w-4" />
         Carregando...
       </Button>
@@ -33,7 +33,7 @@ export function CompanySelector() {
 
   if (companies.length === 0) {
     return (
-      <Button variant="outline" className="w-[160px] md:w-[250px] justify-start" disabled>
+      <Button variant="outline" className="w-[110px] sm:w-[160px] md:w-[250px] max-w-full justify-start" disabled>
         <Building2 className="mr-2 h-4 w-4" />
         Nenhuma empresa
       </Button>
@@ -47,7 +47,7 @@ export function CompanySelector() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[160px] md:w-[250px] justify-between bg-sidebar-accent/40 border-sidebar-border hover:bg-sidebar-accent hover:border-sidebar-border text-sidebar-foreground text-[12px] font-medium h-8"
+          className="w-[110px] sm:w-[160px] md:w-[250px] max-w-full justify-between bg-sidebar-accent/40 border-sidebar-border hover:bg-sidebar-accent hover:border-sidebar-border text-sidebar-foreground text-[12px] font-medium h-8"
         >
           <div className="flex items-center gap-1.5 truncate">
             <Building2 className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60" />
@@ -58,7 +58,7 @@ export function CompanySelector() {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[210px] md:w-[260px] p-0">
+      <PopoverContent className="w-[min(90vw,260px)] md:w-[260px] p-0" align="end" sideOffset={6}>
         <Command>
           <CommandInput placeholder="Buscar empresa..." className="text-[11px] h-7" />
           <CommandList className="max-h-[300px]">

@@ -16,7 +16,20 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+function getUserIdFromJwt(authHeader: string): string | null {
+    try {
+        const token = authHeader.replace(/^Bearer\s+/i, "");
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+        const payloadB64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = payloadB64 + "=".repeat((4 - payloadB64.length % 4) % 4);
+        const payload = JSON.parse(atob(padded));
+        return payload?.sub ?? null;
+    } catch {
+        return null;
+    }
+}
 
 interface AprovarRequest {
     solicitacao_id: string;
@@ -153,14 +166,11 @@ serve(async (req) => {
 
         const service = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-        // ---- Valida user + acesso ----
-        const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-            global: { headers: { Authorization: authHeader } },
-            auth: { persistSession: false },
-        });
-        const { data: userData } = await userClient.auth.getUser();
-        if (!userData?.user) return jsonResponse({ error: "Token invalido" }, 401);
-        const userId = userData.user.id;
+        // ---- Identifica user via JWT (gateway ja validou) ----
+        const userId = getUserIdFromJwt(authHeader);
+        if (!userId) {
+            return jsonResponse({ error: "Token sem user_id" }, 401);
+        }
 
         // ---- Carrega solicitacao ----
         const { data: solicitacao, error: solErr } = await service

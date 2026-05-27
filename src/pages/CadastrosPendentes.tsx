@@ -2,7 +2,8 @@
 // Lista todas as solicitacoes de cadastro automatico via WhatsApp,
 // com drawer pra revisar, editar e aprovar.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -106,12 +107,21 @@ export default function CadastrosPendentes() {
     const queryClient = useQueryClient();
     const confirm = useConfirm();
 
+    const [searchParams] = useSearchParams();
+    const tipoInicial = searchParams.get("tipo");
     const [statusFilter, setStatusFilter] = useState<string>("todos");
-    const [tipoFilter, setTipoFilter] = useState<string>("todos");
+    const [tipoFilter, setTipoFilter] = useState<string>(
+        tipoInicial === "funcionario" || tipoInicial === "fornecedor" ? tipoInicial : "todos"
+    );
     const [search, setSearch] = useState("");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [editandoDados, setEditandoDados] = useState<Record<string, any>>({});
     const [aprovando, setAprovando] = useState(false);
+
+    useEffect(() => {
+        const t = searchParams.get("tipo");
+        if (t === "funcionario" || t === "fornecedor") setTipoFilter(t);
+    }, [searchParams]);
 
     // ---- Carrega solicitacoes ----
     const { data: solicitacoes = [], isLoading } = useQuery({

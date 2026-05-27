@@ -1,319 +1,300 @@
-// solicitar-cadastro
-// Cria uma solicitacao de cadastro automatico e dispara mensagem inicial via WhatsApp.
+// solicitar-cadastro — versao com suporte Evolution + Cloud API
 //
-// Fluxo:
-// 1. Valida payload + auth do usuario (JWT)
-// 2. Verifica que usuario tem acesso a company_id informado
-// 3. Carrega registro existente (se employee_id/supplier_id) pra computar campos faltando
-// 4. Insere row em cadastro_solicitacoes (status=aguardando_envio)
-// 5. Renderiza template e dispara via enviar-whatsapp
-// 6. Registra mensagem em cadastro_mensagens (direcao=enviada)
-// 7. Atualiza status -> enviado
+// Quando USE_WHATSAPP_CLOUD=true: envia o template "solicitar_cadastro_funcionario"
+// (aprovado pela Meta) com 2 variaveis {nome, empresa}. O detalhamento dos
+// campos a preencher chega depois, em texto livre, quando o destinatario
+// responder a mensagem (abrindo a janela de 24h).
+//
+// Quando USE_WHATSAPP_CLOUD=false (legado): envia mensagem unica via Evolution
+// ja contendo a lista completa de campos.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
-import { normalizePhone } from "../_shared/phone.ts";
 import {
-    renderTemplateInicial,
-    camposObrigatoriosDefault,
-    camposPedidosDefault,
-    camposFaltandoDoRegistro,
-} from "../_shared/templates-cadastro.ts";
+    getCloudConfig,
+    isCloudEnabled,
+    sendCloudTemplate,
+} from "../_shared/whatsapp-cloud.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-interface SolicitarCadastroRequest {
-    company_id: string;
-    tipo: "funcionario" | "fornecedor";
-    employee_id?: string | null;
-    supplier_id?: string | null;
-    nome: string;
-    telefone: string;
-    /** Override dos campos a pedir (default: todos os do tipo) */
-    campos_pedidos?: string[];
-    /** Override dos campos obrigatorios (default: cpf ou cnpj) */
-    campos_obrigatorios?: string[];
-    /** Pre-valida que numero existe no WhatsApp antes de enviar (default: true) */
-    pre_validar_whatsapp?: boolean;
-    /** Permite destinatario pular campos opcionais (default: true) */
-    permite_skip?: boolean;
-    /** Template customizado (sobrescreve o default) */
-    template_customizado?: string;
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function j(payload: unknown, status = 200): Response {
+    return new Response(JSON.stringify(payload), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+}
+
+/** Normaliza telefone pra Evolution (12 ou 13 digitos) */
+function normalizePhoneEvolution(raw: string): string | null {
+    if (!raw) return null;
+    let d = raw.replace(/\D/g, "");
+    if (!d) return null;
+    if (d.startsWith("0")) d = d.slice(1);
+    if (!d.startsWith("55")) {
+        if (d.length === 10 || d.length === 11) d = "55" + d;
+        else return null;
+    }
+    if (d.length < 12 || d.length > 13) return null;
+    return d;
+}
+
+function getUserIdFromJwt(authHeader: string): string | null {
+    try {
+        const token = authHeader.replace(/^Bearer\s+/i, "");
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+        const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
+        return JSON.parse(atob(padded))?.sub ?? null;
+    } catch { return null; }
+}
+
+const LABELS_FUNC: Record<string, string> = {
+    nome_completo: "Nome completo", cpf: "CPF", rg: "RG",
+    data_nascimento: "Data de nascimento",
+    endereco: "Endereço (rua, número, bairro, cidade, CEP)",
+    pix: "Chave PIX", banco: "Banco / Agência / Conta",
+    email: "Email", pis: "PIS/NIS",
+};
+const LABELS_FORN: Record<string, string> = {
+    cnpj: "CNPJ", razao_social: "Razão social", nome_fantasia: "Nome fantasia",
+    endereco: "Endereço (rua, número, bairro, cidade, CEP)",
+    email: "Email", telefone: "Telefone",
+    pix: "Chave PIX", banco: "Banco / Agência / Conta",
+};
+
+function renderEvolutionTemplate(
+    tipo: string,
+    nome: string,
+    empresa: string,
+    campos: string[],
+    permiteSkip: boolean,
+): string {
+    const labels = tipo === "funcionario" ? LABELS_FUNC : LABELS_FORN;
+    const linhas = campos.map((c) => `${labels[c] ?? c}:`).join("\n");
+    const docObr = tipo === "funcionario" ? "CPF" : "CNPJ";
+    const skipHint = permiteSkip
+        ? `\n\n⚠️ Apenas o ${docObr} é obrigatório. Demais campos pode pular respondendo "não sei" ou "pular".`
+        : `\n\n⚠️ Todos os campos são obrigatórios.`;
+
+    if (tipo === "funcionario") {
+        return `Olá ${nome}! 👋\nA *${empresa}* precisa atualizar seus dados cadastrais.\n\nVocê pode responder de 3 formas:\n📝 Texto: copie e preencha o formulário abaixo\n📸 Foto: envie foto do RG/CNH + comprovante de residência\n📄 PDF: envie PDF dos documentos\n\nSe preferir texto, copie e preencha:\n\n${linhas}${skipHint}\n\n_Esta solicitação expira em 7 dias._`;
+    }
+    return `Olá! A *${empresa}* precisa cadastrar/atualizar os dados de *${nome}*.\n\nVocê pode enviar:\n📸 Foto do cartão CNPJ (mais rápido)\n📝 Ou preencher abaixo:\n\n${linhas}${skipHint}\n\n_Esta solicitação expira em 7 dias._`;
+}
+
+const CAMPOS_FUNC = ["nome_completo", "cpf", "rg", "data_nascimento", "endereco", "pix", "banco"];
+const CAMPOS_FORN = ["cnpj", "razao_social", "nome_fantasia", "endereco", "email", "telefone", "pix", "banco"];
+
+interface EnvioResult {
+    ok: boolean;
+    error?: string;
+    messageId?: string | null;
+    rawResponse?: unknown;
+    provider: "evolution" | "cloud";
+    mensagemEnviada?: string;
+}
+
+async function enviarViaEvolution(
+    telefoneNormalizado: string,
+    mensagemTexto: string,
+): Promise<EnvioResult> {
+    const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL") ?? "https://api.ataticagestao.com";
+    const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
+    const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE") ?? "financeiro";
+
+    if (!EVOLUTION_API_KEY) {
+        return { ok: false, error: "EVOLUTION_API_KEY nao configurada", provider: "evolution" };
+    }
+
+    const evolutionUrl = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${EVOLUTION_INSTANCE}`;
+    const sendResp = await fetch(evolutionUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
+        body: JSON.stringify({ number: telefoneNormalizado, text: mensagemTexto }),
+    });
+    const sendBody = await sendResp.text();
+    let sendData: any;
+    try { sendData = JSON.parse(sendBody); } catch { sendData = { raw: sendBody }; }
+
+    if (!sendResp.ok) {
+        return {
+            ok: false,
+            error: `Evolution retornou ${sendResp.status}: ${sendData?.message ?? sendBody}`,
+            rawResponse: sendData,
+            provider: "evolution",
+        };
+    }
+
+    return {
+        ok: true,
+        messageId: sendData?.key?.id ?? sendData?.response?.key?.id ?? null,
+        rawResponse: sendData,
+        provider: "evolution",
+        mensagemEnviada: mensagemTexto,
+    };
+}
+
+async function enviarViaCloud(
+    telefone: string,
+    nome: string,
+    nomeEmpresa: string,
+    tipo: string,
+): Promise<EnvioResult> {
+    const cfg = getCloudConfig();
+    if (!cfg) {
+        return { ok: false, error: "WhatsApp Cloud nao configurado (secrets faltando)", provider: "cloud" };
+    }
+
+    // Hoje so temos o template de funcionario aprovado.
+    // Pra fornecedor: reusa o mesmo template (mensagem generica de cadastro).
+    // TODO: quando criar template proprio de fornecedor, separar.
+    const templateName = tipo === "funcionario"
+        ? "solicitar_cadastro_funcionario"
+        : "solicitar_cadastro_funcionario";
+
+    const result = await sendCloudTemplate(cfg, {
+        to: telefone,
+        templateName,
+        bodyParams: [nome, nomeEmpresa],
+    });
+
+    if (!result.ok) {
+        return { ok: false, error: result.error, rawResponse: result.rawError, provider: "cloud" };
+    }
+
+    return {
+        ok: true,
+        messageId: result.waMessageId ?? null,
+        rawResponse: { waMessageId: result.waMessageId },
+        provider: "cloud",
+        mensagemEnviada: `[template:${templateName}] ${nome}, ${nomeEmpresa}`,
+    };
 }
 
 serve(async (req) => {
-    if (req.method === "OPTIONS") {
-        return new Response("ok", { headers: corsHeaders });
-    }
+    if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
     try {
         const authHeader = req.headers.get("authorization");
-        if (!authHeader) return jsonResponse({ error: "Authorization header obrigatorio" }, 401);
+        if (!authHeader) return j({ error: "Authorization obrigatorio" }, 401);
 
-        const payload = (await req.json()) as SolicitarCadastroRequest;
+        const body = await req.json();
         const {
-            company_id,
-            tipo,
-            employee_id,
-            supplier_id,
-            nome,
-            telefone,
-            campos_pedidos,
-            campos_obrigatorios,
-            pre_validar_whatsapp = true,
+            company_id, tipo, employee_id, supplier_id, nome, telefone,
             permite_skip = true,
-            template_customizado,
-        } = payload;
+        } = body;
 
-        // ---- Validacao basica ----
-        if (!company_id) return jsonResponse({ error: "company_id obrigatorio" }, 400);
-        if (!tipo || !["funcionario", "fornecedor"].includes(tipo)) {
-            return jsonResponse({ error: "tipo deve ser 'funcionario' ou 'fornecedor'" }, 400);
-        }
-        if (!nome || nome.trim().length === 0) return jsonResponse({ error: "nome obrigatorio" }, 400);
-        if (!telefone) return jsonResponse({ error: "telefone obrigatorio" }, 400);
+        if (!company_id) return j({ error: "company_id obrigatorio" }, 400);
+        if (!tipo || !["funcionario", "fornecedor"].includes(tipo)) return j({ error: "tipo invalido" }, 400);
+        if (!nome?.trim()) return j({ error: "nome obrigatorio" }, 400);
+        if (!telefone) return j({ error: "telefone obrigatorio" }, 400);
 
-        if (tipo === "funcionario" && supplier_id) {
-            return jsonResponse({ error: "supplier_id nao permitido com tipo=funcionario" }, 400);
-        }
-        if (tipo === "fornecedor" && employee_id) {
-            return jsonResponse({ error: "employee_id nao permitido com tipo=fornecedor" }, 400);
-        }
+        const telefoneNormalizado = normalizePhoneEvolution(telefone);
+        if (!telefoneNormalizado) return j({ error: `Telefone invalido: ${telefone}` }, 400);
 
-        // ---- Normaliza telefone ----
-        const telefoneNormalizado = normalizePhone(telefone);
-        if (!telefoneNormalizado) {
-            return jsonResponse(
-                { error: `Telefone invalido: ${telefone}. Use DDD + numero (ex: 11999998888).` },
-                400,
-            );
-        }
-
-        // ---- Verifica que usuario tem acesso a company_id ----
-        const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-            global: { headers: { Authorization: authHeader } },
-            auth: { persistSession: false },
-        });
-
-        const { data: userData, error: userErr } = await userClient.auth.getUser();
-        if (userErr || !userData?.user) {
-            return jsonResponse({ error: "Token invalido ou expirado" }, 401);
-        }
-        const userId = userData.user.id;
+        const userId = getUserIdFromJwt(authHeader);
+        if (!userId) return j({ error: "Token sem user_id" }, 401);
 
         const service = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
         const { data: acesso } = await service
-            .from("user_companies")
-            .select("company_id")
-            .eq("user_id", userId)
-            .eq("company_id", company_id)
-            .maybeSingle();
+            .from("user_companies").select("company_id")
+            .eq("user_id", userId).eq("company_id", company_id).maybeSingle();
+        if (!acesso) return j({ error: "Sem acesso a essa empresa" }, 403);
 
-        if (!acesso) {
-            return jsonResponse({ error: "Sem acesso a essa empresa" }, 403);
-        }
-
-        // ---- Carrega registro existente (se houver) pra computar campos faltando ----
-        let registroExistente: Record<string, any> | null = null;
-        if (employee_id) {
-            const { data } = await service
-                .from("employees")
-                .select("*")
-                .eq("id", employee_id)
-                .eq("company_id", company_id)
-                .maybeSingle();
-            registroExistente = data;
-            if (!registroExistente) {
-                return jsonResponse({ error: `Funcionario ${employee_id} nao encontrado` }, 404);
-            }
-        } else if (supplier_id) {
-            const { data } = await service
-                .from("suppliers")
-                .select("*")
-                .eq("id", supplier_id)
-                .eq("company_id", company_id)
-                .maybeSingle();
-            registroExistente = data;
-            if (!registroExistente) {
-                return jsonResponse({ error: `Fornecedor ${supplier_id} nao encontrado` }, 404);
-            }
-        }
-
-        // ---- Carrega nome da empresa pra usar no template ----
         const { data: companyData } = await service
-            .from("companies")
-            .select("nome_fantasia, razao_social")
-            .eq("id", company_id)
-            .maybeSingle();
+            .from("companies").select("nome_fantasia, razao_social")
+            .eq("id", company_id).maybeSingle();
         const nomeEmpresa =
-            companyData?.nome_fantasia || companyData?.razao_social || "sua empresa";
+            (companyData as any)?.nome_fantasia ||
+            (companyData as any)?.razao_social ||
+            "sua empresa";
 
-        // ---- Computa campos faltando ----
-        const camposParaPedir = campos_pedidos ?? camposPedidosDefault(tipo);
-        const obrigatorios = campos_obrigatorios ?? camposObrigatoriosDefault(tipo);
+        const camposParaPedir = tipo === "funcionario" ? CAMPOS_FUNC : CAMPOS_FORN;
+        const obrigatorios = tipo === "funcionario" ? ["cpf"] : ["cnpj"];
 
-        let camposFaltando: string[];
-        if (registroExistente) {
-            // Atualizar: pede so o que falta
-            const faltandoNoRegistro = camposFaltandoDoRegistro(tipo, registroExistente);
-            camposFaltando = camposParaPedir.filter((c) => faltandoNoRegistro.includes(c));
-            // Se nao falta nada, ainda assim respeita override de campos_pedidos
-            if (camposFaltando.length === 0) {
-                return jsonResponse(
-                    {
-                        error: "Cadastro ja esta completo, nada para solicitar",
-                        registro_atual: { id: employee_id ?? supplier_id, ...registroExistente },
-                    },
-                    400,
-                );
-            }
-        } else {
-            // Novo cadastro: pede tudo
-            camposFaltando = camposParaPedir;
-        }
-
-        // ---- Verifica que nao tem solicitacao ativa duplicada ----
         const { data: existente } = await service
-            .from("cadastro_solicitacoes")
-            .select("id, status")
-            .eq("company_id", company_id)
-            .eq("telefone", telefoneNormalizado)
+            .from("cadastro_solicitacoes").select("id, status")
+            .eq("company_id", company_id).eq("telefone", telefoneNormalizado)
             .in("status", ["aguardando_envio", "enviado", "em_conversa"])
             .maybeSingle();
-
         if (existente) {
-            return jsonResponse(
-                {
-                    error: "Ja existe solicitacao ativa para esse telefone nesta empresa",
-                    solicitacao_id: existente.id,
-                    status: existente.status,
-                },
-                409,
-            );
+            return j({
+                error: "Ja existe solicitacao ativa para esse telefone",
+                solicitacao_id: (existente as any).id,
+                status: (existente as any).status,
+            }, 409);
         }
 
-        // ---- (Opcional) Pre-valida que numero existe no WhatsApp ----
-        if (pre_validar_whatsapp) {
-            try {
-                const validarResp = await fetch(
-                    `${SUPABASE_URL}/functions/v1/validar-whatsapp`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${SERVICE_KEY}`,
-                        },
-                        body: JSON.stringify({ phone: telefoneNormalizado }),
-                    },
-                );
-                const validacao = await validarResp.json();
-                if (validacao?.ok && validacao?.exists === false) {
-                    return jsonResponse(
-                        {
-                            error: "Numero nao tem WhatsApp ativo",
-                            telefone: telefoneNormalizado,
-                            detalhes: validacao,
-                        },
-                        400,
-                    );
-                }
-                // Se a validacao falhar (api_error), prossegue mesmo assim (fail-open)
-            } catch (e) {
-                console.warn("[solicitar-cadastro] validar-whatsapp falhou, prosseguindo:", e);
-            }
-        }
-
-        // ---- Insere solicitacao ----
         const { data: solicitacao, error: insertErr } = await service
             .from("cadastro_solicitacoes")
             .insert({
-                company_id,
-                tipo,
+                company_id, tipo,
                 employee_id: employee_id ?? null,
                 supplier_id: supplier_id ?? null,
                 nome_destinatario: nome.trim(),
                 telefone: telefoneNormalizado,
                 status: "aguardando_envio",
                 campos_obrigatorios: obrigatorios,
-                campos_faltando: camposFaltando,
+                campos_faltando: camposParaPedir,
                 permite_skip,
                 criado_por: userId,
             })
-            .select()
-            .single();
+            .select().single();
 
         if (insertErr || !solicitacao) {
-            return jsonResponse(
-                { error: "Falha ao criar solicitacao", details: insertErr?.message },
-                500,
-            );
+            return j({ error: "Falha ao criar solicitacao", details: insertErr?.message }, 500);
         }
 
-        // ---- Renderiza template ----
-        const mensagemTexto = template_customizado ?? renderTemplateInicial({
-            tipo,
-            nome_destinatario: nome.trim(),
-            nome_empresa: nomeEmpresa,
-            campos_faltando: camposFaltando,
-            permite_skip,
-        });
-
-        // ---- Dispara via enviar-whatsapp ----
-        const sendResp = await fetch(`${SUPABASE_URL}/functions/v1/enviar-whatsapp`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${SERVICE_KEY}`,
-            },
-            body: JSON.stringify({
-                phone: telefoneNormalizado,
-                text: mensagemTexto,
-            }),
-        });
-
-        const sendData = await sendResp.json();
-
-        if (!sendResp.ok) {
-            // Rollback: deleta a solicitacao se nao conseguimos enviar
-            await service.from("cadastro_solicitacoes").delete().eq("id", solicitacao.id);
-            return jsonResponse(
-                {
-                    error: "Falha ao enviar WhatsApp",
-                    details: sendData?.error || sendData,
-                },
-                502,
+        let envio: EnvioResult;
+        if (isCloudEnabled()) {
+            envio = await enviarViaCloud(telefoneNormalizado, nome.trim(), nomeEmpresa, tipo);
+        } else {
+            const mensagemTexto = renderEvolutionTemplate(
+                tipo, nome.trim(), nomeEmpresa, camposParaPedir, permite_skip,
             );
+            envio = await enviarViaEvolution(telefoneNormalizado, mensagemTexto);
         }
 
-        // ---- Registra mensagem enviada ----
+        if (!envio.ok) {
+            await service.from("cadastro_solicitacoes").delete().eq("id", (solicitacao as any).id);
+            return j({
+                error: envio.error ?? "Falha ao enviar WhatsApp",
+                provider: envio.provider,
+                details: envio.rawResponse,
+            }, 502);
+        }
+
         await service.from("cadastro_mensagens").insert({
-            solicitacao_id: solicitacao.id,
+            solicitacao_id: (solicitacao as any).id,
             direcao: "enviada",
-            conteudo: mensagemTexto,
-            evolution_message_id: sendData?.response?.key?.id ?? null,
+            conteudo: envio.mensagemEnviada ?? "",
+            evolution_message_id: envio.messageId ?? null,
         });
 
-        // ---- Atualiza status -> enviado ----
-        const { data: solicitacaoFinal } = await service
-            .from("cadastro_solicitacoes")
-            .update({ status: "enviado" })
-            .eq("id", solicitacao.id)
-            .select()
-            .single();
+        await service.from("cadastro_solicitacoes")
+            .update({ status: "enviado" }).eq("id", (solicitacao as any).id);
 
-        return jsonResponse({
+        return j({
             ok: true,
-            solicitacao: solicitacaoFinal ?? solicitacao,
+            provider: envio.provider,
+            solicitacao: { ...(solicitacao as any), status: "enviado" },
             telefone: telefoneNormalizado,
-            campos_faltando: camposFaltando,
-            mensagem_enviada: mensagemTexto,
+            mensagem_enviada: envio.mensagemEnviada,
+            response: envio.rawResponse,
         });
+
     } catch (err: any) {
-        console.error("[solicitar-cadastro] erro:", err);
-        return jsonResponse({ error: err?.message || String(err) }, 500);
+        console.error("[solicitar-cadastro] erro:", err?.message, err?.stack);
+        return j({ error: err?.message || String(err), stack: err?.stack }, 500);
     }
 });

@@ -208,21 +208,31 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
         (acc: number, r: any) => acc + (Number(r.saldo_atual) || 0), 0,
     );
 
-    // Movs do dia (exclui transferências) — base do consolidado_dia
-    const { data: movsHoje, error: movsHojeErr } = await client
-        .from("movimentacoes")
-        .select("tipo, valor")
+    // Entradas/saídas do dia — vindas de CR/CP pagas (lançado em contas a receber/pagar)
+    const { data: crPagosHoje, error: crPagosHojeErr } = await client
+        .from("contas_receber")
+        .select("valor_pago")
         .eq("company_id", companyId)
-        .eq("data", hojeIso)
-        .neq("origem", "transferencia");
-    if (movsHojeErr) throw new Error(`movimentacoes (hoje): ${movsHojeErr.message}`);
+        .eq("status", "pago")
+        .eq("data_pagamento", hojeIso)
+        .is("deleted_at", null);
+    if (crPagosHojeErr) throw new Error(`contas_receber (hoje): ${crPagosHojeErr.message}`);
 
-    let entradas_dia = 0, saidas_dia = 0;
-    for (const m of movsHoje ?? []) {
-        const v = Number(m.valor) || 0;
-        if (m.tipo === "credito") entradas_dia += v;
-        else if (m.tipo === "debito") saidas_dia += v;
-    }
+    const { data: cpPagosHoje, error: cpPagosHojeErr } = await client
+        .from("contas_pagar")
+        .select("valor_pago")
+        .eq("company_id", companyId)
+        .eq("status", "pago")
+        .eq("data_pagamento", hojeIso)
+        .is("deleted_at", null);
+    if (cpPagosHojeErr) throw new Error(`contas_pagar (hoje): ${cpPagosHojeErr.message}`);
+
+    const entradas_dia = (crPagosHoje ?? []).reduce(
+        (acc: number, r: any) => acc + (Number(r.valor_pago) || 0), 0,
+    );
+    const saidas_dia = (cpPagosHoje ?? []).reduce(
+        (acc: number, r: any) => acc + (Number(r.valor_pago) || 0), 0,
+    );
 
     // Vendas do dia — agrupadas por forma de recebimento
     const { data: vendasRaw, error: vendasErr } = await client
@@ -299,22 +309,33 @@ async function coletarDados(client: SupabaseClient, companyId: string): Promise<
     }));
     const cr_total = contas_receber.reduce((a, t) => a + t.valor, 0);
 
-    // Consolidado do mês (até hoje, exclui transferências)
-    const { data: movsMes, error: movsMesErr } = await client
-        .from("movimentacoes")
-        .select("tipo, valor")
+    // Consolidado do mês — CR/CP pagas no mês (lançado em contas a receber/pagar)
+    const { data: crPagosMes, error: crPagosMesErr } = await client
+        .from("contas_receber")
+        .select("valor_pago")
         .eq("company_id", companyId)
-        .gte("data", inicioMesIso)
-        .lte("data", hojeIso)
-        .neq("origem", "transferencia");
-    if (movsMesErr) throw new Error(`movimentacoes (mês): ${movsMesErr.message}`);
+        .eq("status", "pago")
+        .gte("data_pagamento", inicioMesIso)
+        .lte("data_pagamento", hojeIso)
+        .is("deleted_at", null);
+    if (crPagosMesErr) throw new Error(`contas_receber (mês): ${crPagosMesErr.message}`);
 
-    let entradas_mes = 0, saidas_mes = 0;
-    for (const m of movsMes ?? []) {
-        const v = Number(m.valor) || 0;
-        if (m.tipo === "credito") entradas_mes += v;
-        else if (m.tipo === "debito") saidas_mes += v;
-    }
+    const { data: cpPagosMes, error: cpPagosMesErr } = await client
+        .from("contas_pagar")
+        .select("valor_pago")
+        .eq("company_id", companyId)
+        .eq("status", "pago")
+        .gte("data_pagamento", inicioMesIso)
+        .lte("data_pagamento", hojeIso)
+        .is("deleted_at", null);
+    if (cpPagosMesErr) throw new Error(`contas_pagar (mês): ${cpPagosMesErr.message}`);
+
+    const entradas_mes = (crPagosMes ?? []).reduce(
+        (acc: number, r: any) => acc + (Number(r.valor_pago) || 0), 0,
+    );
+    const saidas_mes = (cpPagosMes ?? []).reduce(
+        (acc: number, r: any) => acc + (Number(r.valor_pago) || 0), 0,
+    );
 
     return {
         empresa,
@@ -369,7 +390,7 @@ async function renderizarPdf(d: OvernightDados): Promise<Uint8Array> {
     ctx.y -= 18;
 
     ensureSpace(ctx, 110);
-    desenharTituloSecao(ctx, "1.", "RESUMO EXECUTIVO DO DIA");
+    desenharTituloSecao(ctx, "1.", "RESUMO EXECUTIVO — MÊS");
     desenharResumoBoxes(ctx, d);
     ctx.y -= 14;
 
@@ -542,8 +563,8 @@ function desenharResumoBoxes(ctx: RenderCtx, d: OvernightDados) {
 
     const resultadoMes = d.faturamento_mes - d.consolidado_mes.saidas;
     const itens = [
-        { titulo: "FATURAMENTO CONSOLIDADO (+)", valor: formatarMoeda(d.faturamento_mes),        cor: COLOR_GREEN },
-        { titulo: "DESPESAS E CUSTOS (-)",       valor: formatarMoeda(d.consolidado_mes.saidas), cor: COLOR_RED },
+        { titulo: "FATURAMENTO DO MÊS (vendas)", valor: formatarMoeda(d.faturamento_mes),        cor: COLOR_GREEN },
+        { titulo: "DESPESAS DO MÊS (CP pagas)",  valor: formatarMoeda(d.consolidado_mes.saidas), cor: COLOR_RED },
         { titulo: "RESULTADO DO MÊS (=)",        valor: signedMoeda(resultadoMes),               cor: corResultado(resultadoMes) },
     ];
 
