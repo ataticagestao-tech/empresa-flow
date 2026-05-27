@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ExportMenu } from "@/components/ExportMenu";
 import { useCRM, Opportunity } from "@/modules/crm/hooks/useCRM";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, Calendar, DollarSign, User, ArrowRight } from "lucide-react";
@@ -57,6 +58,20 @@ export default function CRM() {
                         <h2 className="text-2xl font-bold tracking-tight text-foreground">Pipeline de Vendas</h2>
                         <p className="text-muted-foreground">Gerencie suas negociações e acompanhe o progresso.</p>
                     </div>
+                    <div className="flex items-center gap-2">
+                    <ExportMenu<Opportunity>
+                        rows={() => opportunities || []}
+                        titulo="OPORTUNIDADES (CRM)"
+                        baseName="crm-oportunidades"
+                        size="md"
+                        columns={[
+                            { header: 'Negocio', value: o => o.title, pdfFlex: 22, excelWidth: 34 },
+                            { header: 'Cliente', value: o => o.client_name || '—', pdfFlex: 18, excelWidth: 28 },
+                            { header: 'Etapa', value: o => stages?.find(s => s.id === o.stage_id)?.name || '—', align: 'center', excelWidth: 18 },
+                            { header: 'Valor', value: o => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(o.value || 0), numericValue: o => o.value || 0, excelWidth: 16 },
+                            { header: 'Prev. fechamento', value: o => (o.expected_close_date ? new Date(o.expected_close_date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'), align: 'center', excelWidth: 16 },
+                        ]}
+                    />
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button className="bg-emerald-600 hover:bg-emerald-700">
@@ -108,6 +123,7 @@ export default function CRM() {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+                    </div>
                 </div>
 
                 {/* Kanban Board */}

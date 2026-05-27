@@ -8,6 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -295,6 +296,20 @@ export default function AdmissoesDemissoes() {
           <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <RefreshCw size={16} className="text-gray-500" />
           </button>
+
+          <ExportMenu<AdmissaoDemissao>
+            rows={() => filteredRegistros}
+            titulo="ADMISSOES E DEMISSOES"
+            baseName="admissoes-demissoes"
+            size="md"
+            columns={[
+              { header: 'Funcionario', value: r => getNomeFuncionario(r.funcionario_id), pdfFlex: 20, excelWidth: 30 },
+              { header: 'Tipo', value: r => (r.tipo === 'admissao' ? 'Admissao' : 'Demissao'), align: 'center', excelWidth: 14 },
+              { header: 'Data', value: r => formatData(r.data_evento), align: 'center', excelWidth: 14 },
+              { header: 'Motivo', value: r => (r.motivo_demissao ? MOTIVO_LABELS[r.motivo_demissao] || r.motivo_demissao : '—'), pdfFlex: 16, excelWidth: 20 },
+              { header: 'Valor rescisao', value: r => (r.liquido_rescisao ? formatBRL(r.liquido_rescisao) : '—'), numericValue: r => r.liquido_rescisao || 0, excelWidth: 16 },
+            ]}
+          />
         </div>
 
         {/* ── Table ── */}

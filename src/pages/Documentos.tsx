@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ExportMenu } from "@/components/ExportMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -297,18 +298,49 @@ export default function Documentos() {
 
         {/* Action Buttons */}
         <div className="flex items-center justify-end">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             {tab === "explorador" && (
-              <Button onClick={() => setShowUpload(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </Button>
+              <>
+                <ExportMenu<Documento>
+                  rows={() => filteredDocs}
+                  titulo="DOCUMENTOS"
+                  baseName="documentos"
+                  orientacao="portrait"
+                  size="md"
+                  columns={[
+                    { header: 'Nome', value: d => d.nome, pdfFlex: 24, excelWidth: 36 },
+                    { header: 'Categoria', value: d => getCategoriaLabel(d.categoria), excelWidth: 18 },
+                    { header: 'Tamanho', value: d => formatBytes(d.tamanho_bytes), align: 'right', excelWidth: 12 },
+                    { header: 'Data', value: d => formatDate(d.created_at), align: 'center', excelWidth: 14 },
+                  ]}
+                />
+                <Button onClick={() => setShowUpload(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
+              </>
             )}
             {tab === "vencimentos" && (
-              <Button onClick={() => setShowAddVenc(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Vencimento
-              </Button>
+              <>
+                <ExportMenu<(typeof validadesEnriched)[number]>
+                  rows={() => validadesEnriched}
+                  titulo="VENCIMENTOS DE DOCUMENTOS"
+                  baseName="documentos-vencimentos"
+                  size="md"
+                  columns={[
+                    { header: 'Documento', value: v => v.documentos?.nome || '—', pdfFlex: 22, excelWidth: 34 },
+                    { header: 'Categoria', value: v => (v.documentos?.categoria ? getCategoriaLabel(v.documentos.categoria) : '—'), excelWidth: 18 },
+                    { header: 'Emissao', value: v => formatDate(v.data_emissao), align: 'center', excelWidth: 14 },
+                    { header: 'Vencimento', value: v => formatDate(v.data_validade), align: 'center', excelWidth: 14 },
+                    { header: 'Responsavel', value: v => v.responsavel || '—', pdfFlex: 16, excelWidth: 22 },
+                    { header: 'Dias restantes', value: v => v.dias_restantes, numericValue: v => v.dias_restantes, excelWidth: 14 },
+                  ]}
+                />
+                <Button onClick={() => setShowAddVenc(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Vencimento
+                </Button>
+              </>
             )}
           </div>
         </div>

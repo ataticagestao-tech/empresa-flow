@@ -8,6 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -229,6 +230,26 @@ export default function EncargosRH() {
           <button onClick={() => setSelectedAno(a => a + 1)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <ChevronRight size={16} className="text-gray-500" />
           </button>
+
+          <div className="ml-auto">
+            <ExportMenu<Encargo>
+              rows={() => encargos}
+              titulo="ENCARGOS TRABALHISTAS"
+              baseName="encargos-trabalhistas"
+              subtitulo={String(selectedAno)}
+              size="md"
+              columns={[
+                { header: 'Competencia', value: e => e.competencia, align: 'center', excelWidth: 14 },
+                { header: 'FGTS', value: e => formatBRL(e.fgts_total), numericValue: e => e.fgts_total || 0, excelWidth: 14 },
+                { header: 'INSS', value: e => formatBRL(e.inss_total ?? e.inss_patronal + e.inss_funcionarios), numericValue: e => e.inss_total ?? e.inss_patronal + e.inss_funcionarios, excelWidth: 14 },
+                { header: 'IRRF', value: e => formatBRL(e.irrf_retido), numericValue: e => e.irrf_retido || 0, excelWidth: 14 },
+                { header: 'Total', value: e => formatBRL(e.total_encargos), numericValue: e => e.total_encargos || 0, excelWidth: 14 },
+                { header: 'Status FGTS', value: e => STATUS_GUIA[e.status_fgts]?.label || e.status_fgts, align: 'center', excelWidth: 14 },
+                { header: 'Status INSS', value: e => STATUS_GUIA[e.status_inss]?.label || e.status_inss, align: 'center', excelWidth: 14 },
+                { header: 'Status IRRF', value: e => STATUS_GUIA[e.status_irrf]?.label || e.status_irrf, align: 'center', excelWidth: 14 },
+              ]}
+            />
+          </div>
         </div>
 
         {/* ── Grid mensal ── */}

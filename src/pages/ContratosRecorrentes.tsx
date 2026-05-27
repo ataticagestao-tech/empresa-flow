@@ -6,6 +6,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ExportMenu } from '@/components/ExportMenu'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays, addMonths, addDays } from 'date-fns'
@@ -430,13 +431,29 @@ export default function ContratosRecorrentes() {
               Gerencie contratos e gere contas a receber automaticamente.
             </p>
           </div>
-          <button
-            onClick={() => { setEditingContrato(null); setShowModal(true) }}
-            className="flex items-center gap-2 bg-[#059669] text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg hover:bg-[#1D2939] transition-colors"
-          >
-            <Plus size={16} />
-            Novo contrato
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportMenu<Contrato>
+              rows={() => filtered}
+              titulo="CONTRATOS RECORRENTES"
+              baseName="contratos-recorrentes"
+              size="md"
+              columns={[
+                { header: 'Cliente', value: c => c.cliente_nome, pdfFlex: 16, excelWidth: 28 },
+                { header: 'Descricao', value: c => c.descricao, pdfFlex: 20, excelWidth: 32 },
+                { header: 'Valor', value: c => formatBRL(c.valor), numericValue: c => c.valor, excelWidth: 14 },
+                { header: 'Periodicidade', value: c => periodicidadeBadge(c.periodicidade), align: 'center', excelWidth: 14 },
+                { header: 'Prox. vencimento', value: c => (c.proximo_vencimento ? formatData(c.proximo_vencimento) : '--'), align: 'center', excelWidth: 16 },
+                { header: 'Status', value: c => statusBadge(c.status).label, align: 'center', excelWidth: 12 },
+              ]}
+            />
+            <button
+              onClick={() => { setEditingContrato(null); setShowModal(true) }}
+              className="flex items-center gap-2 bg-[#059669] text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg hover:bg-[#1D2939] transition-colors"
+            >
+              <Plus size={16} />
+              Novo contrato
+            </button>
+          </div>
         </div>
 
         {/* KPIs */}

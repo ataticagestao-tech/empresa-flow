@@ -5,6 +5,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
+import { ExportMenu } from "@/components/ExportMenu";
 import { BANKS } from "@/lib/banks";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { parseOFXFull } from "@/lib/parsers/ofx";
@@ -404,10 +405,29 @@ export default function ContasBancarias() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold text-[#1D2939]">Contas Bancárias</h2>
-          <button onClick={() => { setEditingId(null); setFormData(emptyForm); setShowForm(!showForm); }}
-            className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">
-            {showForm ? "Fechar" : "+ Nova Conta"}
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={accounts}
+              baseName="contas-bancarias"
+              titulo="CONTAS BANCÁRIAS"
+              orientacao="portrait"
+              size="md"
+              columns={[
+                { header: "Banco", value: (a) => a.banco || "Sem banco", pdfFlex: 16, excelWidth: 22 },
+                { header: "Conta", value: (a) => a.name, pdfFlex: 18, excelWidth: 26 },
+                { header: "Tipo", value: (a) => tipoLabels[a.type] || a.type, align: "center", pdfFlex: 12, excelWidth: 16 },
+                { header: "Agência", value: (a) => a.agencia || "", align: "center", pdfFlex: 9 },
+                { header: "Conta nº", value: (a) => a.conta ? `${a.conta}${a.digito ? `-${a.digito}` : ""}` : "", align: "center", pdfFlex: 10 },
+                { header: "Chave PIX", value: (a) => a.chave_pix || "", pdfFlex: 16, excelWidth: 24 },
+                { header: "Saldo", value: (a) => formatBRL(getSaldo(a)), numericValue: (a) => Number(getSaldo(a) || 0), pdfFlex: 11, excelWidth: 14 },
+                { header: "Status", value: (a) => (a.status === "ativa" || a.status === "active") ? "Ativa" : "Inativa", align: "center", pdfFlex: 8 },
+              ]}
+            />
+            <button onClick={() => { setEditingId(null); setFormData(emptyForm); setShowForm(!showForm); }}
+              className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">
+              {showForm ? "Fechar" : "+ Nova Conta"}
+            </button>
+          </div>
         </div>
 
         {/* New Account Form */}
