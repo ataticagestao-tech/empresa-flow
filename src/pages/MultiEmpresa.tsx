@@ -194,10 +194,13 @@ async function calcConsolidadoLive(
   const naoTransfer = (r: any) => !(r.conta_contabil_id && transferIds.has(r.conta_contabil_id));
 
   const [vendasRes, cpCompRes, banksRes, crAbertoRes, cpAbertoRes] = await Promise.all([
-    // Faturamento (competência): vendas confirmadas por data_venda
+    // Faturamento por data_venda — mesma base da página Vendas: soma valor_total
+    // de todas as vendas não excluídas no período, SEM filtro de status (vendas
+    // importadas podem ter status nulo; um filtro status<>cancelado excluiria
+    // nulos por causa da lógica three-valued do Postgres).
     db.from("vendas")
-      .select("company_id, valor_liquido")
-      .in("company_id", companyIds).eq("status", "confirmado")
+      .select("company_id, valor_total")
+      .in("company_id", companyIds)
       .is("deleted_at", null)
       .gte("data_venda", periodStart).lte("data_venda", periodEnd)
       .limit(50000),
@@ -229,7 +232,7 @@ async function calcConsolidadoLive(
   });
 
   (vendasRes.data || []).forEach((r: any) => {
-    if (base[r.company_id]) base[r.company_id].faturamento += Number(r.valor_liquido || 0);
+    if (base[r.company_id]) base[r.company_id].faturamento += Number(r.valor_total || 0);
   });
   (cpCompRes.data || []).filter(naoTransfer).forEach((r: any) => {
     if (base[r.company_id]) base[r.company_id].despesa += Number(r.valor || 0);
