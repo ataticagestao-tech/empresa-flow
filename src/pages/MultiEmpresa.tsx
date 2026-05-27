@@ -17,7 +17,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell, Legend,
+  ResponsiveContainer,
 } from "recharts";
 import {
   Building2, Plus, Trash2, Edit2, RefreshCw, ArrowRightLeft,
@@ -374,12 +374,12 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   const margem = metrics && metrics.totals.faturamento > 0
     ? (metrics.totals.resultado / metrics.totals.faturamento) * 100 : 0;
 
-  const chartData = (metrics?.rows || []).map((r) => ({
-    nome: r.nome.length > 14 ? r.nome.slice(0, 13) + "…" : r.nome,
-    Faturamento: r.faturamento,
-    Despesa: r.despesa,
-    Resultado: r.resultado,
-  }));
+  const chartData = (metrics?.rows || [])
+    .map((r) => ({
+      nome: r.nome.length > 18 ? r.nome.slice(0, 17) + "…" : r.nome,
+      Faturamento: r.faturamento,
+    }))
+    .sort((a, b) => b.Faturamento - a.Faturamento);
 
   return (
     <div className="space-y-6">
@@ -451,19 +451,14 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
                 <h3 className="font-semibold">Comparativo por empresa</h3>
                 {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               </div>
-              <div className="h-[300px]">
+              <div className="h-[380px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barCategoryGap="20%">
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <XAxis dataKey="nome" interval={0} angle={-40} textAnchor="end" height={90} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 12 }} />
                     <ReTooltip formatter={(v: number) => fmt(v)} />
-                    <Legend />
                     <Bar dataKey="Faturamento" fill="#059669" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Despesa" fill="#E53E3E" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Resultado" radius={[4, 4, 0, 0]}>
-                      {chartData.map((d, i) => <Cell key={i} fill={d.Resultado >= 0 ? "#2563EB" : "#F97316"} />)}
-                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
