@@ -10,6 +10,7 @@ import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDi
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gerarRelatorioFuncionarioPDF, type RelatorioFuncionarioData } from "@/lib/funcionario-pdf/gerar-pdf";
+import { gerarRelatorioListaPDF, downloadListaPDF } from "@/lib/cadastros-pdf/gerar-lista-pdf";
 import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 
@@ -326,6 +327,61 @@ export default function Funcionarios() {
   );
 
   const [gerandoPDF, setGerandoPDF] = useState(false);
+  const [gerandoListaPDF, setGerandoListaPDF] = useState(false);
+
+  const exportarListaPDF = () => {
+    if (!employees.length) {
+      toast.error("Nenhum funcionário para exportar.");
+      return;
+    }
+    setGerandoListaPDF(true);
+    try {
+      const ccById = new Map((centrosCusto as any[]).map(c => [c.id, c]));
+      const linhas = [...employees]
+        .sort((a, b) => getName(a).localeCompare(getName(b), "pt-BR"))
+        .map(e => {
+          const cc = e.centro_custo_id ? ccById.get(e.centro_custo_id) : null;
+          return [
+            getName(e) || "—",
+            e.cpf ? formatCPF(e.cpf) : "—",
+            e.role || "—",
+            tipoContratoLabels[e.tipo_contrato || ""] || "—",
+            e.hire_date ? new Date(e.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—",
+            cc ? `${cc.codigo ? cc.codigo + " — " : ""}${cc.descricao}` : "—",
+            formatBRL(Number(e.salario_base || e.salary || 0)),
+            e.phone ? formatPhone(e.phone) : "—",
+            e.email || "—",
+            isActive(e.status) ? "Ativo" : "Inativo",
+          ];
+        });
+      const blob = gerarRelatorioListaPDF({
+        empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
+        empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
+        titulo: "FUNCIONÁRIOS",
+        colunas: [
+          { header: "Nome", flex: 18 },
+          { header: "CPF", flex: 9 },
+          { header: "Cargo", flex: 12 },
+          { header: "Contrato", flex: 7, align: "center" },
+          { header: "Admissão", flex: 8, align: "center" },
+          { header: "Centro de Custo", flex: 13 },
+          { header: "Salário", flex: 9, align: "right" },
+          { header: "Telefone", flex: 9 },
+          { header: "E-mail", flex: 13 },
+          { header: "Status", flex: 5, align: "center" },
+        ],
+        linhas,
+      });
+      downloadListaPDF(blob, "funcionarios");
+      toast.success(`${linhas.length} funcionários exportados.`);
+    } catch (err: any) {
+      console.error("Erro ao gerar PDF:", err);
+      toast.error("Erro ao gerar PDF: " + (err.message || "desconhecido"));
+    } finally {
+      setGerandoListaPDF(false);
+    }
+  };
+
   const gerarPDFFuncionario = async () => {
     if (!selected || !selectedCompany?.id) return;
     setGerandoPDF(true);
@@ -673,6 +729,8 @@ export default function Funcionarios() {
               <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-xs font-semibold text-white/80 hover:text-white" title="Solicitar dados via WhatsApp">WhatsApp</button>
               <span className="text-white/30">·</span>
               <button onClick={() => setIsDupOpen(true)} className="text-xs font-semibold text-white/80 hover:text-white" title="Localizar duplicados">Duplicados</button>
+              <span className="text-white/30">·</span>
+              <button onClick={exportarListaPDF} disabled={gerandoListaPDF} className="text-xs font-semibold text-white/80 hover:text-white disabled:opacity-50" title="Exportar todos os cadastros em PDF">{gerandoListaPDF ? "Gerando…" : "PDF"}</button>
               <span className="text-white/30">·</span>
               <button onClick={startNew} className="text-xs font-semibold text-white/80 hover:text-white">+ Novo</button>
             </div>

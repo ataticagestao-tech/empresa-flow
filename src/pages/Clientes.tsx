@@ -18,6 +18,7 @@ import { MergeDuplicatesDialog } from "@/modules/clients/presentation/components
 import { useClientContratos } from "@/modules/clients/presentation/hooks/useClientContratos";
 import { hasContratosByCompany } from "@/config/features";
 import { gerarFichaClientePDF, downloadFichaPDF } from "@/lib/ficha-cliente/gerar-pdf";
+import { gerarRelatorioListaPDF, downloadListaPDF } from "@/lib/cadastros-pdf/gerar-lista-pdf";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -162,6 +163,7 @@ export default function Clientes() {
     const [detailTab, setDetailTab] = useState<DetailTab>("historico");
     const [mergeOpen, setMergeOpen] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
+    const [listaPdfLoading, setListaPdfLoading] = useState(false);
     const [whatsClienteOpen, setWhatsClienteOpen] = useState(false);
     const [emailClienteOpen, setEmailClienteOpen] = useState(false);
     const { toast } = useToast();
@@ -740,6 +742,56 @@ export default function Clientes() {
         return "aberto";
     };
 
+    /* ─── Exportar todos os clientes em PDF (lista) ─────────── */
+
+    const handleExportListaPDF = () => {
+        const lista = (clients || []) as any[];
+        if (!lista.length) {
+            toast({ title: "Nenhum cliente para exportar", variant: "destructive" });
+            return;
+        }
+        setListaPdfLoading(true);
+        try {
+            const tipoLabel = (t: string | null) => (t === "PF" ? "PF" : t === "PJ" ? "PJ" : "—");
+            const linhas = [...lista]
+                .sort((a, b) => (a.razao_social || "").localeCompare(b.razao_social || "", "pt-BR"))
+                .map(c => [
+                    c.razao_social || "—",
+                    c.nome_fantasia || "—",
+                    tipoLabel(c.tipo_pessoa),
+                    formatDoc(c.cpf_cnpj) || "—",
+                    [c.endereco_cidade, c.endereco_estado].filter(Boolean).join("/") || "—",
+                    c.celular ? maskPhone(c.celular) : c.telefone ? maskPhone(c.telefone) : "—",
+                    c.email || "—",
+                    c.is_active ? "Ativo" : "Inativo",
+                ]);
+            const blob = gerarRelatorioListaPDF({
+                empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
+                empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
+                titulo: "CLIENTES",
+                cor_primaria: "#2563EB",
+                colunas: [
+                    { header: "Razão Social / Nome", flex: 20 },
+                    { header: "Nome Fantasia", flex: 14 },
+                    { header: "Tipo", flex: 4, align: "center" },
+                    { header: "CPF / CNPJ", flex: 12 },
+                    { header: "Cidade/UF", flex: 11 },
+                    { header: "Telefone", flex: 10 },
+                    { header: "E-mail", flex: 15 },
+                    { header: "Status", flex: 5, align: "center" },
+                ],
+                linhas,
+            });
+            downloadListaPDF(blob, "clientes");
+            toast({ title: "PDF gerado", description: `${linhas.length} clientes exportados.` });
+        } catch (err: any) {
+            console.error("[handleExportListaPDF]", err);
+            toast({ title: "Erro ao gerar PDF", description: err.message || "desconhecido", variant: "destructive" });
+        } finally {
+            setListaPdfLoading(false);
+        }
+    };
+
     /* ─── Exportar ficha do cliente em PDF ──────────────────── */
 
     const handleExportPDF = async () => {
@@ -843,6 +895,9 @@ export default function Clientes() {
                                     {duplicatesCount} dup.
                                 </button>
                             )}
+                            <button onClick={handleExportListaPDF} disabled={listaPdfLoading} className="text-xs font-semibold text-[#BFDBFE] hover:text-white disabled:opacity-50 flex items-center gap-1" title="Exportar todos os cadastros em PDF">
+                                <FileDown className="h-3 w-3" />{listaPdfLoading ? "Gerando…" : "PDF"}
+                            </button>
                             <button onClick={handleNew} className="text-xs font-semibold text-[#BFDBFE] hover:text-white">+ Novo</button>
                         </div>
                     </div>
