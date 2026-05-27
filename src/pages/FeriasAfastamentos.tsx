@@ -8,6 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -288,6 +289,24 @@ export default function FeriasAfastamentos() {
           <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <RefreshCw size={16} className="text-gray-500" />
           </button>
+
+          <div className="ml-auto">
+            <ExportMenu
+              rows={filteredRegistros}
+              baseName="ferias-afastamentos"
+              titulo="FÉRIAS E AFASTAMENTOS"
+              subtitulo={String(anoFilter)}
+              columns={[
+                { header: 'Funcionário', value: (r) => getNomeFuncionario(r.funcionario_id), pdfFlex: 22, excelWidth: 28 },
+                { header: 'Tipo', value: (r) => (TIPO_LABELS[r.tipo] || TIPO_LABELS.outros).label, pdfFlex: 14, excelWidth: 20 },
+                { header: 'Início', value: (r) => formatData(r.data_inicio), align: 'center', pdfFlex: 9 },
+                { header: 'Fim', value: (r) => formatData(r.data_fim), align: 'center', pdfFlex: 9 },
+                { header: 'Dias', value: (r) => r.dias_corridos ?? '', numericValue: (r) => Number(r.dias_corridos || 0), pdfFlex: 7 },
+                { header: 'Valor', value: (r) => r.valor_ferias ? formatBRL(r.valor_ferias) : '', numericValue: (r) => Number(r.valor_ferias || 0), pdfFlex: 11 },
+                { header: 'Status', value: (r) => (STATUS_CONFIG[r.status] || STATUS_CONFIG.programado).label, pdfFlex: 10 },
+              ]}
+            />
+          </div>
         </div>
 
         {/* ── Table ── */}

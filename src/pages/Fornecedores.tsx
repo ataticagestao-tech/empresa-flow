@@ -12,9 +12,9 @@ import { DuplicatesDialog } from "@/components/suppliers/DuplicatesDialog";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 import { SupplierHistoryContent } from "@/components/suppliers/SupplierHistoryContent";
 import { toTitleCase } from "@/lib/format";
-import { gerarRelatorioListaPDF, downloadListaPDF } from "@/lib/cadastros-pdf/gerar-lista-pdf";
+import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { toast } from "sonner";
-import { Globe } from "lucide-react";
+import { Globe, MessageCircle, Copy } from "lucide-react";
 
 interface Supplier {
     id: string;
@@ -119,7 +119,6 @@ export default function Fornecedores() {
     const [solicitarOpen, setSolicitarOpen] = useState(false);
     const [solicitarTarget, setSolicitarTarget] = useState<{ id?: string; nome?: string; tel?: string }>({});
     const [searchParams, setSearchParams] = useSearchParams();
-    const [gerandoPDF, setGerandoPDF] = useState(false);
 
     const { data: suppliers = [], isLoading } = useQuery({
         queryKey: ["suppliers", selectedCompany?.id, isUsingSecondary],
@@ -328,55 +327,20 @@ export default function Fornecedores() {
         }
     };
 
-    const exportarPDF = () => {
-        if (!suppliers.length) {
-            toast.error("Nenhum fornecedor para exportar.");
-            return;
-        }
-        setGerandoPDF(true);
-        try {
-            const tipoLabel = (t: string | null) => (t === "PF" ? "PF" : t === "PJ" ? "PJ" : "—");
-            const fmtCad = (iso?: string | null) =>
-                iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
-            const linhas = [...suppliers]
-                .sort((a, b) => (a.razao_social || "").localeCompare(b.razao_social || "", "pt-BR"))
-                .map(s => [
-                    s.razao_social || "—",
-                    tipoLabel(s.tipo_pessoa),
-                    fmtDoc(s.cpf_cnpj) || "—",
-                    s.cnae_descricao || s.tipo_atividade || "—",
-                    [s.endereco_cidade, s.endereco_estado].filter(Boolean).join("/") || "—",
-                    s.celular ? maskPhone(s.celular) : s.telefone ? maskPhone(s.telefone) : "—",
-                    fmtCad(s.created_at),
-                    s.is_active ? "Ativo" : "Inativo",
-                ]);
-            const blob = gerarRelatorioListaPDF({
-                empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
-                empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
-                empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
-                empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join("/") || null,
-                titulo: "FORNECEDORES",
-                colunas: [
-                    { header: "Razão Social / Nome", flex: 22 },
-                    { header: "Tipo", flex: 5, align: "center" },
-                    { header: "CPF / CNPJ", flex: 13 },
-                    { header: "Atividade", flex: 16 },
-                    { header: "Cidade/UF", flex: 11 },
-                    { header: "Telefone", flex: 11 },
-                    { header: "Cadastro", flex: 9, align: "center" },
-                    { header: "Status", flex: 7, align: "center" },
-                ],
-                linhas,
-            });
-            downloadListaPDF(blob, "fornecedores");
-            toast.success("PDF gerado.");
-        } catch (err: any) {
-            console.error("Erro ao gerar PDF:", err);
-            toast.error("Erro ao gerar PDF: " + (err.message || "desconhecido"));
-        } finally {
-            setGerandoPDF(false);
-        }
-    };
+    const tipoLabelExport = (t: string | null) => (t === "PF" ? "PF" : t === "PJ" ? "PJ" : "—");
+    const fmtCadExport = (iso?: string | null) =>
+        iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
+    const suppliersExportRows = [...suppliers].sort((a, b) => (a.razao_social || "").localeCompare(b.razao_social || "", "pt-BR"));
+    const suppliersExportColumns: ExportColumn<Supplier>[] = [
+        { header: "Razão Social / Nome", pdfFlex: 22, value: (s) => s.razao_social || "—" },
+        { header: "Tipo", pdfFlex: 5, align: "center", value: (s) => tipoLabelExport(s.tipo_pessoa) },
+        { header: "CPF / CNPJ", pdfFlex: 13, value: (s) => fmtDoc(s.cpf_cnpj) || "—" },
+        { header: "Atividade", pdfFlex: 16, value: (s) => s.cnae_descricao || s.tipo_atividade || "—" },
+        { header: "Cidade/UF", pdfFlex: 11, value: (s) => [s.endereco_cidade, s.endereco_estado].filter(Boolean).join("/") || "—" },
+        { header: "Telefone", pdfFlex: 11, value: (s) => (s.celular ? maskPhone(s.celular) : s.telefone ? maskPhone(s.telefone) : "—") },
+        { header: "Cadastro", pdfFlex: 9, align: "center", value: (s) => fmtCadExport(s.created_at) },
+        { header: "Status", pdfFlex: 7, align: "center", value: (s) => (s.is_active ? "Ativo" : "Inativo") },
+    ];
 
     const showDetail = !!selected || isCreating;
 
@@ -387,11 +351,10 @@ export default function Fornecedores() {
                 <div className="w-[340px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
                     <div className="bg-[#1D2939] px-4 py-3 flex items-center justify-between gap-2">
                         <span className="text-[12px] font-bold uppercase tracking-wider text-white">Fornecedores</span>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-[11px] font-bold text-white/90 hover:text-white" title="Solicitar dados via WhatsApp">WhatsApp</button>
-                            <span className="text-white/30">·</span>
-                            <button onClick={() => setIsDupOpen(true)} className="text-[11px] font-bold text-white/90 hover:text-white">Duplicados</button>
-                            <button onClick={exportarPDF} disabled={gerandoPDF} className="text-[11px] font-bold text-white/90 hover:text-white disabled:opacity-50" title="Exportar todos os cadastros em PDF">{gerandoPDF ? "Gerando…" : "PDF"}</button>
+                        <div className="flex items-center gap-1">
+                            <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
+                            <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
+                            <ExportMenu rows={suppliersExportRows} columns={suppliersExportColumns} titulo="FORNECEDORES" baseName="fornecedores" orientacao="landscape" size="sm" disabled={!suppliers.length} />
                             <button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1 ml-1">+ Novo</button>
                         </div>
                     </div>

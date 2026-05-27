@@ -20,6 +20,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { logDeletion } from "@/lib/audit";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ExportMenu } from "@/components/ExportMenu";
 
 export default function Categorias() {
     const { selectedCompany } = useCompany();
@@ -103,10 +104,23 @@ export default function Categorias() {
                         <Tag className="h-8 w-8 text-primary" />
                         Categorias
                     </h2>
-                    <Button onClick={handleNew}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Nova Categoria
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <ExportMenu
+                            rows={filteredCategories ?? []}
+                            baseName="categorias"
+                            titulo="CATEGORIAS"
+                            size="md"
+                            columns={[
+                                { header: "Nome", value: (c: any) => c.name, pdfFlex: 20, excelWidth: 30 },
+                                { header: "Tipo", value: (c: any) => (c.type === "income" ? "Receita" : "Despesa"), align: "center", pdfFlex: 8, excelWidth: 14 },
+                                { header: "Descrição", value: (c: any) => c.description || "-", pdfFlex: 24, excelWidth: 40 },
+                            ]}
+                        />
+                        <Button onClick={handleNew}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Nova Categoria
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>

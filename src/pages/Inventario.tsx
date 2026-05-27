@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import { ExportMenu } from "@/components/ExportMenu";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 const fmtDate = (d: string | null) => d ? format(new Date(d + "T12:00:00"), "dd/MM/yyyy") : "—";
@@ -264,9 +265,23 @@ export default function Inventario() {
             <h2 className="text-lg font-bold text-foreground tracking-tight">Inventário</h2>
             <p className="text-[12.5px] text-muted-foreground mt-0.5">Contagem física e ajuste de estoque</p>
           </div>
-          <Button onClick={() => { setFDescricao(""); setFDataInicio(format(new Date(), "yyyy-MM-dd")); setIsSheetOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> Novo Inventário
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={filtered}
+              baseName="inventario"
+              titulo="INVENTARIOS"
+              size="md"
+              orientacao="portrait"
+              columns={[
+                { header: "Descrição", value: (inv) => inv.descricao || "Sem descrição", pdfFlex: 30, excelWidth: 40 },
+                { header: "Data Início", value: (inv) => fmtDate(inv.data_inicio), pdfFlex: 12 },
+                { header: "Status", value: (inv) => (statusMap[inv.status] || statusMap.aberto).label, align: "center", pdfFlex: 10 },
+              ]}
+            />
+            <Button onClick={() => { setFDescricao(""); setFDataInicio(format(new Date(), "yyyy-MM-dd")); setIsSheetOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Novo Inventário
+            </Button>
+          </div>
         </div>
 
         {/* KPIs */}

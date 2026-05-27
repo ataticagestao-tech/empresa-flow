@@ -16,9 +16,11 @@ import {
   Loader2, AlertCircle, Check, Package,
   Briefcase, FileText, RefreshCw, CreditCard, Banknote,
   QrCode, Receipt, Calendar, UserPlus, ChevronDown,
-  Upload, Download, CheckCircle2, XCircle, ShoppingCart
+  Upload, Download, CheckCircle2, XCircle, ShoppingCart, FileSpreadsheet
 } from 'lucide-react'
 import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/vendasSpreadsheet'
+import { gerarRelatorioListaPDF, downloadListaPDF } from '@/lib/cadastros-pdf/gerar-lista-pdf'
+import * as XLSX from 'xlsx'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 
@@ -302,6 +304,10 @@ export default function Vendas() {
   const ITENS_POR_PAGINA = 5
   const [paginaAtual, setPaginaAtual] = useState(1)
 
+  // ─── Exportação (Excel / PDF) ────────────────────────────────
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
   // ─── Banner customizado por empresa (salvo em localStorage) ──
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [bannerUploading, setBannerUploading] = useState(false)
@@ -452,6 +458,16 @@ export default function Vendas() {
 
   // Reset para página 1 quando filtros/dados mudam
   useEffect(() => { setPaginaAtual(1) }, [searchTerm, filtroTipo, filtroForma, filtroCR, filtroCliente, filtroData, filtroItens, filtroValorMin, filtroValorMax, filtroProduto, filtroCodigo, dateFrom, dateTo])
+
+  // Fecha o menu de exportação ao clicar fora
+  useEffect(() => {
+    if (!exportMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [exportMenuOpen])
 
   // ─── Top 10 produtos mais vendidos (gráfico) ───────────────
   const produtosRanking = useMemo(() => {
@@ -1190,6 +1206,100 @@ export default function Vendas() {
     if (!doc) return '-'
     const clean = doc.replace(/\D/g, '')
     return clean.length <= 11 ? formatCPF(clean) : formatCNPJ(clean)
+  }
+
+  // ─── Exportação de vendas (respeita TODOS os filtros aplicados) ──────
+  const STATUS_LABEL_EXPORT: Record<string, string> = {
+    pago: 'Pago', aberto: 'Inadimplente', areceber: 'A receber', parcial: 'Parcial', avista: 'À vista',
+  }
+
+  // Monta a base de dados da exportação a partir de vendasFiltradas, na mesma
+  // ordem/código exibidos na tela. Retorna valores ricos (valor numérico) pro
+  // Excel e já formatados pra leitura no PDF.
+  function montarLinhasExport() {
+    return [...vendasFiltradas]
+      .sort((a, b) => (vendaCodigoMap[a.id] || '').localeCompare(vendaCodigoMap[b.id] || ''))
+      .map(v => {
+        const itens = (v.vendas_itens || []).map(it => it.descricao).filter(Boolean).join('; ')
+        return {
+          codigo: vendaCodigoMap[v.id] || '',
+          data: v.data_venda ? v.data_venda.split('-').reverse().join('/') : '',
+          cliente: v.cliente_nome || '',
+          documento: v.cliente_cpf_cnpj ? formatDoc(v.cliente_cpf_cnpj) : '',
+          tipo: LABEL_TIPO[v.tipo] || v.tipo,
+          itens,
+          qtdItens: v.vendas_itens?.length || 0,
+          forma: LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento,
+          valor: Number(v.valor_total || 0),
+          status: STATUS_LABEL_EXPORT[getCRStatus(v)] || '',
+        }
+      })
+  }
+
+  const exportBaseName = () => {
+    const emp = (selectedCompany?.nome_fantasia || selectedCompany?.razao_social || 'empresa')
+    return `vendas-${emp}-${dateFrom}_a_${dateTo}`
+  }
+
+  function exportarVendasExcel() {
+    setExportMenuOpen(false)
+    const linhas = montarLinhasExport()
+    if (linhas.length === 0) { alert('Nenhuma venda para exportar com os filtros atuais.'); return }
+    const aoaData = linhas.map(l => ({
+      'Código': l.codigo,
+      'Data': l.data,
+      'Cliente': l.cliente,
+      'CPF/CNPJ': l.documento,
+      'Tipo': l.tipo,
+      'Itens': l.itens,
+      'Qtd. Itens': l.qtdItens,
+      'Forma de Pagamento': l.forma,
+      'Valor Total': l.valor,
+      'Situação': l.status,
+    }))
+    const totalGeral = linhas.reduce((s, l) => s + l.valor, 0)
+    const ws = XLSX.utils.json_to_sheet(aoaData)
+    // Linha de total ao final
+    XLSX.utils.sheet_add_aoa(ws, [['', '', '', '', '', '', '', 'TOTAL', totalGeral, '']], { origin: -1 })
+    ws['!cols'] = [
+      { wch: 9 }, { wch: 12 }, { wch: 28 }, { wch: 20 }, { wch: 11 },
+      { wch: 36 }, { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 14 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Vendas')
+    const safe = exportBaseName().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase()
+    XLSX.writeFile(wb, `${safe}.xlsx`)
+  }
+
+  function exportarVendasPDF() {
+    setExportMenuOpen(false)
+    const linhas = montarLinhasExport()
+    if (linhas.length === 0) { alert('Nenhuma venda para exportar com os filtros atuais.'); return }
+    const periodo = `${dateFrom.split('-').reverse().join('/')} a ${dateTo.split('-').reverse().join('/')}`
+    const blob = gerarRelatorioListaPDF({
+      empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || 'Empresa',
+      empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
+      empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
+      empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join('/') || null,
+      titulo: `VENDAS · ${periodo}`,
+      orientacao: 'landscape',
+      colunas: [
+        { header: 'Código', flex: 8 },
+        { header: 'Data', flex: 9, align: 'center' },
+        { header: 'Cliente', flex: 20 },
+        { header: 'Tipo', flex: 9, align: 'center' },
+        { header: 'Itens', flex: 24 },
+        { header: 'Qtd', flex: 5, align: 'center' },
+        { header: 'Forma', flex: 12 },
+        { header: 'Valor', flex: 11, align: 'right' },
+        { header: 'Situação', flex: 10, align: 'center' },
+      ],
+      linhas: linhas.map(l => [
+        l.codigo, l.data, l.cliente, l.tipo, l.itens || '—',
+        String(l.qtdItens), l.forma, formatBRL(l.valor), l.status,
+      ]),
+    })
+    downloadListaPDF(blob, exportBaseName())
   }
 
   // ─── Salvar novo cliente ───────────────────────────────────
@@ -2091,6 +2201,36 @@ export default function Vendas() {
           >
             <Upload size={11} /> Importar
           </button>
+          {/* Exportar (Excel / PDF) — respeita os filtros aplicados */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setExportMenuOpen(o => !o)}
+              className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black bg-white border border-[#D0D5DD] rounded hover:bg-[#F6F2EB] transition-colors"
+              title="Exportar vendas filtradas"
+            >
+              <Download size={11} /> Exportar
+              <ChevronDown size={11} className={`transition-transform ${exportMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {exportMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-white border border-[#D0D5DD] rounded-md shadow-lg overflow-hidden">
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wide border-b border-[#F1F3F5]">
+                  {vendasFiltradas.length} {vendasFiltradas.length === 1 ? 'venda' : 'vendas'}
+                </div>
+                <button
+                  onClick={exportarVendasExcel}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[12px] font-medium text-[#1D2939] hover:bg-[#ECFDF4] transition-colors"
+                >
+                  <FileSpreadsheet size={14} className="text-[#039855]" /> Excel (.xlsx)
+                </button>
+                <button
+                  onClick={exportarVendasPDF}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[12px] font-medium text-[#1D2939] hover:bg-[#FEF3F2] transition-colors border-t border-[#F1F3F5]"
+                >
+                  <FileText size={14} className="text-[#D92D20]" /> PDF
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => { resetForm(); setEditandoVenda(null); setModalAberto(true) }}
             className="flex items-center gap-2 px-5 h-10 text-[13.5px] font-bold text-white bg-[#039855] rounded-md hover:bg-[#027A47] active:scale-[0.98] transition-all shadow-md hover:shadow-lg"

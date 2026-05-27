@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ExportMenu } from '@/components/ExportMenu';
 
 interface MembroEquipe {
   user_companies_id: string;
@@ -213,10 +214,23 @@ export default function Equipe() {
               Gerencie quem tem acesso a esta empresa e o que cada um pode fazer.
             </p>
           </div>
-          <Button onClick={() => setShowAdd(true)} className="bg-[#059669] hover:bg-[#047857] text-white">
-            <UserPlus size={16} className="mr-1.5" />
-            Adicionar usuário
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={membros}
+              baseName="equipe"
+              titulo="EQUIPE"
+              size="md"
+              columns={[
+                { header: "Usuário", value: (m: MembroEquipe) => m.full_name || "(sem nome)", pdfFlex: 20, excelWidth: 28 },
+                { header: "Email", value: (m: MembroEquipe) => m.email || "(sem email)", pdfFlex: 22, excelWidth: 32 },
+                { header: "Nível", value: (m: MembroEquipe) => ROLE_LABELS[m.role], align: "center", pdfFlex: 12, excelWidth: 18 },
+              ]}
+            />
+            <Button onClick={() => setShowAdd(true)} className="bg-[#059669] hover:bg-[#047857] text-white">
+              <UserPlus size={16} className="mr-1.5" />
+              Adicionar usuário
+            </Button>
+          </div>
         </div>
 
         {/* Legenda de roles */}

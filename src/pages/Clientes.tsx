@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, Bell, ShoppingCart,
     Receipt, DollarSign, Stethoscope, FileText, StickyNote,
-    CreditCard, Package, Users, FileDown,
+    CreditCard, Package, FileDown, Copy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +18,7 @@ import { MergeDuplicatesDialog } from "@/modules/clients/presentation/components
 import { useClientContratos } from "@/modules/clients/presentation/hooks/useClientContratos";
 import { hasContratosByCompany } from "@/config/features";
 import { gerarFichaClientePDF, downloadFichaPDF } from "@/lib/ficha-cliente/gerar-pdf";
-import { gerarRelatorioListaPDF, downloadListaPDF } from "@/lib/cadastros-pdf/gerar-lista-pdf";
+import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -163,7 +163,6 @@ export default function Clientes() {
     const [detailTab, setDetailTab] = useState<DetailTab>("historico");
     const [mergeOpen, setMergeOpen] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
-    const [listaPdfLoading, setListaPdfLoading] = useState(false);
     const [whatsClienteOpen, setWhatsClienteOpen] = useState(false);
     const [emailClienteOpen, setEmailClienteOpen] = useState(false);
     const { toast } = useToast();
@@ -744,57 +743,20 @@ export default function Clientes() {
 
     /* ─── Exportar todos os clientes em PDF (lista) ─────────── */
 
-    const handleExportListaPDF = () => {
-        const lista = (clients || []) as any[];
-        if (!lista.length) {
-            toast({ title: "Nenhum cliente para exportar", variant: "destructive" });
-            return;
-        }
-        setListaPdfLoading(true);
-        try {
-            const tipoLabel = (t: string | null) => (t === "PF" ? "PF" : t === "PJ" ? "PJ" : "—");
-            const fmtCad = (iso?: string | null) =>
-                iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
-            const linhas = [...lista]
-                .sort((a, b) => (a.razao_social || "").localeCompare(b.razao_social || "", "pt-BR"))
-                .map(c => [
-                    c.razao_social || "—",
-                    tipoLabel(c.tipo_pessoa),
-                    formatDoc(c.cpf_cnpj) || "—",
-                    [c.endereco_cidade, c.endereco_estado].filter(Boolean).join("/") || "—",
-                    c.celular ? maskPhone(c.celular) : c.telefone ? maskPhone(c.telefone) : "—",
-                    c.email || "—",
-                    fmtCad(c.created_at),
-                    c.is_active ? "Ativo" : "Inativo",
-                ]);
-            const blob = gerarRelatorioListaPDF({
-                empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
-                empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
-                empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
-                empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join("/") || null,
-                titulo: "CLIENTES",
-                cor_primaria: "#2563EB",
-                colunas: [
-                    { header: "Razão Social / Nome", flex: 22 },
-                    { header: "Tipo", flex: 5, align: "center" },
-                    { header: "CPF / CNPJ", flex: 13 },
-                    { header: "Cidade/UF", flex: 11 },
-                    { header: "Telefone", flex: 11 },
-                    { header: "E-mail", flex: 16 },
-                    { header: "Cadastro", flex: 9, align: "center" },
-                    { header: "Status", flex: 7, align: "center" },
-                ],
-                linhas,
-            });
-            downloadListaPDF(blob, "clientes");
-            toast({ title: "PDF gerado", description: `${linhas.length} clientes exportados.` });
-        } catch (err: any) {
-            console.error("[handleExportListaPDF]", err);
-            toast({ title: "Erro ao gerar PDF", description: err.message || "desconhecido", variant: "destructive" });
-        } finally {
-            setListaPdfLoading(false);
-        }
-    };
+    const tipoLabelExport = (t: string | null) => (t === "PF" ? "PF" : t === "PJ" ? "PJ" : "—");
+    const fmtCadExport = (iso?: string | null) =>
+        iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
+    const clientsExportRows = [...((clients || []) as any[])].sort((a, b) => (a.razao_social || "").localeCompare(b.razao_social || "", "pt-BR"));
+    const clientsExportColumns: ExportColumn<any>[] = [
+        { header: "Razão Social / Nome", pdfFlex: 22, value: (c) => c.razao_social || "—" },
+        { header: "Tipo", pdfFlex: 5, align: "center", value: (c) => tipoLabelExport(c.tipo_pessoa) },
+        { header: "CPF / CNPJ", pdfFlex: 13, value: (c) => formatDoc(c.cpf_cnpj) || "—" },
+        { header: "Cidade/UF", pdfFlex: 11, value: (c) => [c.endereco_cidade, c.endereco_estado].filter(Boolean).join("/") || "—" },
+        { header: "Telefone", pdfFlex: 11, value: (c) => (c.celular ? maskPhone(c.celular) : c.telefone ? maskPhone(c.telefone) : "—") },
+        { header: "E-mail", pdfFlex: 16, value: (c) => c.email || "—" },
+        { header: "Cadastro", pdfFlex: 9, align: "center", value: (c) => fmtCadExport(c.created_at) },
+        { header: "Status", pdfFlex: 7, align: "center", value: (c) => (c.is_active ? "Ativo" : "Inativo") },
+    ];
 
     /* ─── Exportar ficha do cliente em PDF ──────────────────── */
 
@@ -888,21 +850,18 @@ export default function Clientes() {
                     {/* Header azul */}
                     <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
                         <h3 className="text-xs font-bold text-white uppercase tracking-widest">Clientes</h3>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
                             {duplicatesCount > 0 && (
                                 <button
                                     onClick={() => setMergeOpen(true)}
-                                    className="text-xs font-semibold text-amber-200 hover:text-white flex items-center gap-1"
-                                    title="Mesclar clientes com mesmo CPF/CNPJ"
+                                    className="text-amber-300 hover:text-white p-1.5 rounded hover:bg-white/10"
+                                    title={`Mesclar ${duplicatesCount} cliente(s) com mesmo CPF/CNPJ`}
                                 >
-                                    <Users className="h-3 w-3" />
-                                    {duplicatesCount} dup.
+                                    <Copy className="h-4 w-4" />
                                 </button>
                             )}
-                            <button onClick={handleExportListaPDF} disabled={listaPdfLoading} className="text-xs font-semibold text-[#BFDBFE] hover:text-white disabled:opacity-50 flex items-center gap-1" title="Exportar todos os cadastros em PDF">
-                                <FileDown className="h-3 w-3" />{listaPdfLoading ? "Gerando…" : "PDF"}
-                            </button>
-                            <button onClick={handleNew} className="text-xs font-semibold text-[#BFDBFE] hover:text-white">+ Novo</button>
+                            <ExportMenu rows={clientsExportRows} columns={clientsExportColumns} titulo="CLIENTES" baseName="clientes" orientacao="landscape" corPrimaria="#2563EB" size="sm" disabled={!(clients || []).length} />
+                            <button onClick={handleNew} className="text-[11px] font-bold text-[#BFDBFE] hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
                         </div>
                     </div>
 

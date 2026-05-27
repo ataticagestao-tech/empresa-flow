@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ExportMenu } from '@/components/ExportMenu'
 import jsPDF from 'jspdf'
 import {
   format,
@@ -657,6 +658,22 @@ export default function Movimentacoes() {
             <Button variant="outline" size="sm" onClick={exportCSV} disabled={filtered.length === 0}>
               <Download className="h-3.5 w-3.5 mr-1" /> Excel
             </Button>
+            <ExportMenu
+              rows={filtered}
+              baseName="movimentacoes"
+              titulo="MOVIMENTAÇÕES"
+              size="md"
+              disabled={filtered.length === 0}
+              columns={[
+                { header: 'Data', value: (m) => (m.data ? format(parseISO(m.data), 'dd/MM/yyyy') : ''), align: 'center', pdfFlex: 9 },
+                { header: 'Descrição', value: (m) => m.descricao || '—', pdfFlex: 26, excelWidth: 38 },
+                { header: 'Tipo', value: (m) => (m.tipo === 'credito' ? 'Entrada' : 'Saída'), pdfFlex: 8 },
+                { header: 'Categoria', value: (m) => (m.conta_contabil ? `${m.conta_contabil.code} - ${m.conta_contabil.name}` : '—'), pdfFlex: 20, excelWidth: 30 },
+                { header: 'Conta', value: (m) => m.conta_bancaria?.name || '—', pdfFlex: 14, excelWidth: 22 },
+                { header: 'Origem', value: (m) => ORIGEM_LABELS[m.origem] || m.origem, pdfFlex: 11 },
+                { header: 'Valor', value: (m) => `${m.tipo === 'credito' ? '+' : '-'}${formatBRL(m.valor)}`, numericValue: (m) => (m.tipo === 'credito' ? m.valor : -m.valor), pdfFlex: 11 },
+              ]}
+            />
             <Button size="sm" onClick={openModal} className="text-white" style={{ backgroundColor: '#059669' }}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Lançamento manual
             </Button>

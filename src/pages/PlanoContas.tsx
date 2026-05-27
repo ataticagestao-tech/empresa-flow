@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PLANO_PATRIMONIAL, GRUPO_LABELS, type ContaModelo } from "@/data/planoContasPatrimonial";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { BookOpen, Plus, X, Check, ChevronRight, ChevronDown, Download } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
 
 interface Conta {
   id: string; code: string; name: string; level: number;
@@ -584,6 +585,19 @@ export default function PlanoContas() {
           </button>
           <button onClick={() => { setShowForm(!showForm); setEditingId(null); }}
             className="bg-black text-white text-[12px] font-semibold px-3 py-1.5 rounded hover:bg-[#1D2939]">+ Nova Conta</button>
+          <ExportMenu
+            rows={filteredContas}
+            baseName="plano-contas"
+            titulo="PLANO DE CONTAS"
+            orientacao="portrait"
+            columns={[
+              { header: 'Código', value: (c) => c.code, pdfFlex: 10, excelWidth: 14 },
+              { header: 'Nome', value: (c) => c.name, pdfFlex: 34, excelWidth: 40 },
+              { header: 'Tipo', value: (c) => getBadge(c).label, pdfFlex: 12, excelWidth: 14 },
+              { header: 'Natureza', value: (c) => c.account_nature === 'debit' ? 'Devedora' : c.account_nature === 'credit' ? 'Credora' : '', pdfFlex: 12, excelWidth: 14 },
+              { header: 'Nível', value: (c) => c.level, numericValue: (c) => Number(c.level || 0), align: 'center', pdfFlex: 7 },
+            ]}
+          />
         </div>
 
         {/* Modelo Padrão Panel */}

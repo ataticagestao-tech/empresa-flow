@@ -20,6 +20,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserProfile, UserStatus } from "@/types/admin";
 import { Navigate } from "react-router-dom";
 import { Plus, Search, Users, Loader2 } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function AdminUsuarios() {
   const { isSuperAdmin, loading: adminLoading } = useAdmin();
@@ -169,10 +172,24 @@ export default function AdminUsuarios() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Usuário
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={filteredUsers}
+              baseName="usuarios"
+              titulo="USUÁRIOS"
+              size="md"
+              columns={[
+                { header: "Usuário", value: (u: UserProfile) => u.full_name, pdfFlex: 20, excelWidth: 28 },
+                { header: "Email", value: (u: UserProfile) => u.email || "-", pdfFlex: 22, excelWidth: 32 },
+                { header: "Status", value: (u: UserProfile) => ((u.status || "active") === "active" ? "Ativo" : (u.status === "suspended" ? "Suspenso" : "Removido")), align: "center", pdfFlex: 10, excelWidth: 14 },
+                { header: "Cadastro", value: (u: UserProfile) => (u.created_at ? format(new Date(u.created_at), "dd/MM/yyyy", { locale: ptBR }) : "-"), align: "center", pdfFlex: 10, excelWidth: 14 },
+              ]}
+            />
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Usuário
+            </Button>
+          </div>
         </div>
 
         {/* Users Table */}

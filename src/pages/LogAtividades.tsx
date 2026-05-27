@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Activity, FileText, ArrowUpCircle, ShoppingCart, Bot, User, Globe } from "lucide-react";
+import { ExportMenu } from "@/components/ExportMenu";
 
 interface Atividade {
   id: string;
@@ -128,10 +129,25 @@ export default function LogAtividades() {
       <div className="space-y-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-[#1D2939]">
-              <Activity className="h-5 w-5 text-emerald-600" />
-              Log de Atividades — {selectedCompany?.nome_fantasia || "—"}
-            </CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-[#1D2939]">
+                <Activity className="h-5 w-5 text-emerald-600" />
+                Log de Atividades — {selectedCompany?.nome_fantasia || "—"}
+              </CardTitle>
+              <ExportMenu
+                rows={filtradas}
+                baseName="log-atividades"
+                titulo="LOG DE ATIVIDADES"
+                disabled={filtradas.length === 0}
+                columns={[
+                  { header: "Quem", value: (a) => a.actor_label, pdfFlex: 16, excelWidth: 24 },
+                  { header: "Ação", value: (a) => ACTION_LABEL[a.action] || a.action, pdfFlex: 12 },
+                  { header: "Tipo", value: (a) => ENTITY_LABEL[a.entity_type] || a.entity_type, pdfFlex: 12 },
+                  { header: "Resumo", value: (a) => a.resumo, pdfFlex: 34, excelWidth: 50 },
+                  { header: "Quando", value: (a) => formatarData(a.created_at), align: "center", pdfFlex: 14 },
+                ]}
+              />
+            </div>
             <p className="text-[12px] text-[#667085]">
               Todas as movimentações da empresa: quem criou, pagou, cancelou e quando.
             </p>

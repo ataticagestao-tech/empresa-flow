@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ExportMenu } from "@/components/ExportMenu";
 import {
     MessageCircle, CheckCircle2, XCircle, Clock, AlertTriangle,
     Loader2, FileImage, FileText, User, Building2,
@@ -266,13 +267,27 @@ export default function CadastrosPendentes() {
                         <h3 className="text-xs font-bold text-white uppercase tracking-widest">
                             Cadastros Pendentes
                         </h3>
-                        <button
-                            onClick={() => queryClient.invalidateQueries({ queryKey: ["cadastros-pendentes"] })}
-                            className="text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1"
-                            title="Atualizar"
-                        >
-                            <RefreshCw className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <ExportMenu
+                                rows={filtradas}
+                                baseName="cadastros-pendentes"
+                                titulo="CADASTROS PENDENTES"
+                                columns={[
+                                    { header: "Nome", value: (s) => s.nome_destinatario, pdfFlex: 24, excelWidth: 30 },
+                                    { header: "Telefone", value: (s) => formatTel(s.telefone), pdfFlex: 16, excelWidth: 20 },
+                                    { header: "Tipo", value: (s) => (s.tipo === "funcionario" ? "Funcionário" : "Fornecedor"), pdfFlex: 12 },
+                                    { header: "Status", value: (s) => STATUS_INFO[s.status]?.label || s.status, pdfFlex: 14 },
+                                    { header: "Criado em", value: (s) => formatDate(s.criado_em), align: "center", pdfFlex: 14 },
+                                ]}
+                            />
+                            <button
+                                onClick={() => queryClient.invalidateQueries({ queryKey: ["cadastros-pendentes"] })}
+                                className="text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1"
+                                title="Atualizar"
+                            >
+                                <RefreshCw className="w-3 h-3" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Filtros */}

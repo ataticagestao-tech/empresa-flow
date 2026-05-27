@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { ClipboardList, Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ExportMenu } from "@/components/ExportMenu";
 
 const T = {
     primary: "#059669", primaryLt: "#ECFDF4",
@@ -189,7 +190,22 @@ export default function FichaTecnica() {
                             <p style={{ fontSize: 12, color: T.text3 }}>Composição de insumos por produto/serviço</p>
                         </div>
                     </div>
-                    <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Ficha</Button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <ExportMenu
+                            rows={filtered}
+                            baseName="ficha-tecnica"
+                            titulo="FICHAS TECNICAS"
+                            columns={[
+                                { header: "Produto/Serviço", value: (f) => f.product_name, pdfFlex: 24, excelWidth: 36 },
+                                { header: "Insumos", value: (f) => f.items.length, numericValue: (f) => f.items.length, align: "center", pdfFlex: 8 },
+                                { header: "Custo Insumos", value: (f) => fmt(f.items.reduce((s, it) => s + it.quantidade * it.custo_unitario, 0)), numericValue: (f) => f.items.reduce((s, it) => s + it.quantidade * it.custo_unitario, 0), pdfFlex: 12 },
+                                { header: "Mão de Obra", value: (f) => fmt(f.mao_de_obra), numericValue: (f) => Number(f.mao_de_obra || 0), pdfFlex: 12 },
+                                { header: "Custo Total", value: (f) => fmt(f.items.reduce((s, it) => s + it.quantidade * it.custo_unitario, 0) + f.mao_de_obra), numericValue: (f) => f.items.reduce((s, it) => s + it.quantidade * it.custo_unitario, 0) + f.mao_de_obra, pdfFlex: 12 },
+                                { header: "Tempo (min)", value: (f) => f.tempo_minutos, numericValue: (f) => Number(f.tempo_minutos || 0), align: "center", pdfFlex: 10 },
+                            ]}
+                        />
+                        <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Ficha</Button>
+                    </div>
                 </div>
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>

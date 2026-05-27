@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 import { sendReciboEmail } from '@/lib/recibos/send-recibo-email'
 import { gerarReciboPDF, downloadBlob } from '@/lib/recibos/gerar-pdf'
+import { ExportMenu } from '@/components/ExportMenu'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -978,6 +979,19 @@ export default function Recibos() {
                 <span className="text-[10px] text-white/60 font-medium">
                   {filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}
                 </span>
+                <ExportMenu
+                  rows={filtrados}
+                  baseName="recibos"
+                  titulo="RECIBOS"
+                  columns={[
+                    { header: 'Número', value: (r) => r.numero, pdfFlex: 8 },
+                    { header: 'Favorecido', value: (r) => r.favorecido, pdfFlex: 22, excelWidth: 30 },
+                    { header: 'Descrição', value: (r) => r.descricao, pdfFlex: 24, excelWidth: 36 },
+                    { header: 'Status', value: (r) => ({ enviado: 'Enviado', pendente: 'Pendente envio', erro: 'Erro' }[r.status_email] || r.status_email), align: 'center', pdfFlex: 11 },
+                    { header: 'Data', value: (r) => formatData(r.data_pagamento), align: 'center', pdfFlex: 10 },
+                    { header: 'Valor', value: (r) => formatBRL(r.valor), numericValue: (r) => Number(r.valor || 0), pdfFlex: 10 },
+                  ]}
+                />
                 <button
                   onClick={() => setShowGerar(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"

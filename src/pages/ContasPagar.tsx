@@ -28,6 +28,7 @@ import { RoleGate } from '@/components/auth/RoleGate'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
+import { ExportMenu } from '@/components/ExportMenu'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface ContaPagar {
@@ -1854,6 +1855,20 @@ export default function ContasPagar() {
               >
                 <Download size={12} /> Exportar PDF
               </button>
+              <ExportMenu<ContaPagar>
+                rows={() => filteredContas}
+                columns={[
+                  { header: 'Vencimento', value: (cp) => formatData(cp.data_vencimento), pdfFlex: 8 },
+                  { header: 'Credor / Descrição', value: (cp) => cp.descricao || cp.credor_nome || '—', pdfFlex: 20 },
+                  { header: 'Categoria', value: (cp) => cp.conta_contabil_id ? (contaContabilMap[cp.conta_contabil_id] || '—') : '—', pdfFlex: 18 },
+                  { header: 'Valor', value: (cp) => formatBRL(cp.valor), numericValue: (cp) => Number(cp.valor || 0), align: 'right', pdfFlex: 10 },
+                  { header: 'Status', value: (cp) => urgencyConfig[classifyUrgency(cp)].label, pdfFlex: 10 },
+                ]}
+                titulo="CONTAS A PAGAR"
+                baseName="contas-pagar"
+                formats={['excel']}
+                size="sm"
+              />
             </div>
           </div>
           {/* Batch selection bar */}

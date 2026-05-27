@@ -10,6 +10,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -492,6 +493,23 @@ export default function FolhaPagamentoPage() {
           <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <RefreshCw size={16} className="text-gray-500" />
           </button>
+
+          <ExportMenu<FolhaPagamento>
+            rows={() => filteredFolhas}
+            columns={[
+              { header: 'Funcionario', value: (f) => getNomeFuncionario(f.employee_id), pdfFlex: 22 },
+              { header: 'Tipo', value: (f) => TIPO_LABELS[f.tipo] || f.tipo, pdfFlex: 12 },
+              { header: 'Salario base', value: (f) => formatBRL(f.salario_base), numericValue: (f) => Number(f.salario_base || 0), align: 'right', pdfFlex: 11 },
+              { header: 'Proventos', value: (f) => formatBRL(f.total_proventos), numericValue: (f) => Number(f.total_proventos || 0), align: 'right', pdfFlex: 11 },
+              { header: 'Descontos', value: (f) => formatBRL(f.total_descontos), numericValue: (f) => Number(f.total_descontos || 0), align: 'right', pdfFlex: 11 },
+              { header: 'Liquido', value: (f) => formatBRL(f.valor_liquido), numericValue: (f) => Number(f.valor_liquido || 0), align: 'right', pdfFlex: 11 },
+              { header: 'Status', value: (f) => (STATUS_CONFIG[f.status] || STATUS_CONFIG.rascunho).label, pdfFlex: 10 },
+            ]}
+            titulo="FOLHA DE PAGAMENTO"
+            subtitulo={compLabel}
+            baseName="folha-pagamento"
+            size="md"
+          />
         </div>
 
         {/* ── Table ── */}

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { TableProperties, Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 
 const T = {
     primary: "#059669", primaryLt: "#ECFDF4",
@@ -144,6 +145,18 @@ export default function TabelaPrecos() {
         return products.filter((p: any) => p.description.toLowerCase().includes(needle));
     }, [products, searchTerm]);
 
+    const exportColumns = useMemo<ExportColumn<any>[]>(() => {
+        const cols: ExportColumn<any>[] = [
+            { header: "Produto", value: (p) => (p.code ? `${p.code} - ` : "") + p.description, pdfFlex: 28, excelWidth: 40 },
+            { header: "Preço Padrão", value: (p) => fmt(Number(p.price || 0)), numericValue: (p) => Number(p.price || 0), pdfFlex: 12 },
+        ];
+        if (viewList) {
+            cols.push({ header: viewList.name, value: (p) => fmt(viewList.prices[p.id] ?? Number(p.price || 0)), numericValue: (p) => viewList.prices[p.id] ?? Number(p.price || 0), pdfFlex: 12 });
+            cols.push({ header: "Diferença", value: (p) => { const d = (viewList.prices[p.id] ?? Number(p.price || 0)) - Number(p.price || 0); return d !== 0 ? `${d > 0 ? "+" : ""}${fmt(d)}` : "—"; }, numericValue: (p) => (viewList.prices[p.id] ?? Number(p.price || 0)) - Number(p.price || 0), pdfFlex: 12 });
+        }
+        return cols;
+    }, [viewList]);
+
     return (
         <AppLayout title="Tabela de Preços">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -157,7 +170,15 @@ export default function TabelaPrecos() {
                             <p style={{ fontSize: 12, color: T.text3 }}>{lists.length} tabela{lists.length !== 1 ? "s" : ""} cadastrada{lists.length !== 1 ? "s" : ""}</p>
                         </div>
                     </div>
-                    <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Tabela</Button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <ExportMenu
+                            rows={filteredProducts}
+                            baseName="tabela-precos"
+                            titulo={viewList ? `TABELA DE PRECOS · ${viewList.name.toUpperCase()}` : "TABELA DE PRECOS"}
+                            columns={exportColumns}
+                        />
+                        <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Tabela</Button>
+                    </div>
                 </div>
 
                 {/* Lists cards */}

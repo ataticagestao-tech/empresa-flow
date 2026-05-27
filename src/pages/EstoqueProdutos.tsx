@@ -16,6 +16,7 @@ import {
   Pencil, Archive, ChevronRight
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportMenu } from "@/components/ExportMenu";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 const fmtQty = (v: number, un: string = "un") => `${Number(v).toLocaleString("pt-BR")} ${un}`;
@@ -201,7 +202,23 @@ export default function EstoqueProdutos() {
             <h2 className="text-lg font-bold text-foreground tracking-tight">Estoque de Produtos</h2>
             <p className="text-[12.5px] text-muted-foreground mt-0.5">Controle de insumos e materiais</p>
           </div>
-          <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={filtered}
+              baseName="estoque"
+              titulo="ESTOQUE DE PRODUTOS"
+              size="md"
+              columns={[
+                { header: "Código", value: (p) => p.code || "—", pdfFlex: 8 },
+                { header: "Descrição", value: (p) => p.description, pdfFlex: 24, excelWidth: 36 },
+                { header: "Estoque", value: (p) => fmtQty(p.estoque_atual, p.unidade_medida), numericValue: (p) => Number(p.estoque_atual || 0), pdfFlex: 10 },
+                { header: "Mín.", value: (p) => fmtQty(p.estoque_minimo, p.unidade_medida), numericValue: (p) => Number(p.estoque_minimo || 0), pdfFlex: 8 },
+                { header: "Custo Médio", value: (p) => fmt(p.custo_medio || 0), numericValue: (p) => Number(p.custo_medio || 0), pdfFlex: 10 },
+                { header: "Status", value: (p) => getStatus(p).label, align: "center", pdfFlex: 8 },
+              ]}
+            />
+            <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
+          </div>
         </div>
 
         {/* Alerta estoque mínimo */}

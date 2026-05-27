@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { ExportMenu } from "@/components/ExportMenu";
 
 interface CentroCusto {
   id: string; company_id: string; codigo: string; descricao: string;
@@ -128,10 +129,26 @@ export default function CentrosCusto() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-bold text-[#1D2939]">Setores / Centros de Custo</h2>
-          <button onClick={() => { setEditingId(null); setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" }); setShowForm(!showForm); }}
-            className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">
-            {showForm ? "Fechar" : "+ Adicionar Setor"}
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={centros}
+              baseName="centros-custo"
+              titulo="CENTROS DE CUSTO"
+              size="md"
+              columns={[
+                { header: "Código", value: (c: CentroCusto) => c.codigo || "-", pdfFlex: 8, excelWidth: 14 },
+                { header: "Descrição", value: (c: CentroCusto) => c.descricao, pdfFlex: 22, excelWidth: 32 },
+                { header: "Funcionários", value: (c: CentroCusto) => empCounts[c.id] || 0, numericValue: (c: CentroCusto) => empCounts[c.id] || 0, align: "center", pdfFlex: 8, excelWidth: 14 },
+                { header: "Meta Mensal", value: (c: CentroCusto) => (c.meta_mensal ? formatBRL(c.meta_mensal) : "-"), numericValue: (c: CentroCusto) => Number(c.meta_mensal || 0), pdfFlex: 10, excelWidth: 14 },
+                { header: "Tipo", value: (c: CentroCusto) => (c.is_padrao ? "Padrão Tática" : "Personalizado"), align: "center", pdfFlex: 10, excelWidth: 16 },
+                { header: "Status", value: (c: CentroCusto) => (c.ativo ? "Ativo" : "Inativo"), align: "center", pdfFlex: 8, excelWidth: 12 },
+              ]}
+            />
+            <button onClick={() => { setEditingId(null); setFormData({ codigo: "", descricao: "", pai_id: "", meta_mensal: "" }); setShowForm(!showForm); }}
+              className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">
+              {showForm ? "Fechar" : "+ Adicionar Setor"}
+            </button>
+          </div>
         </div>
 
         {/* New Sector Form */}

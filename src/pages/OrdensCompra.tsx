@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import { ExportMenu } from "@/components/ExportMenu";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 const fmtDate = (d: string | null) => d ? format(new Date(d + "T12:00:00"), "dd/MM/yyyy") : "—";
@@ -322,7 +323,23 @@ export default function OrdensCompra() {
             <h2 className="text-lg font-bold text-foreground tracking-tight">Ordens de Compra</h2>
             <p className="text-[12.5px] text-muted-foreground mt-0.5">Gerencie pedidos de compra aos fornecedores</p>
           </div>
-          <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova Ordem</Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={filtered}
+              baseName="ordens-compra"
+              titulo="ORDENS DE COMPRA"
+              size="md"
+              columns={[
+                { header: "Número", value: (o) => o.numero, pdfFlex: 10 },
+                { header: "Fornecedor", value: (o) => fornecedorMap[o.fornecedor_id] || "—", pdfFlex: 22, excelWidth: 32 },
+                { header: "Emissão", value: (o) => fmtDate(o.data_emissao), pdfFlex: 10 },
+                { header: "Previsão", value: (o) => fmtDate(o.data_prevista), pdfFlex: 10 },
+                { header: "Valor", value: (o) => fmt(o.valor_total), numericValue: (o) => Number(o.valor_total || 0), pdfFlex: 12 },
+                { header: "Status", value: (o) => (statusMap[o.status] || statusMap.rascunho).label, align: "center", pdfFlex: 10 },
+              ]}
+            />
+            <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova Ordem</Button>
+          </div>
         </div>
 
         {/* KPIs */}

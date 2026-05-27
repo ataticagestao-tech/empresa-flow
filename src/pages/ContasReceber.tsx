@@ -20,6 +20,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { RoleGate } from '@/components/auth/RoleGate'
+import { ExportMenu } from '@/components/ExportMenu'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -1328,13 +1329,31 @@ export default function ContasReceber() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={exportarPrevistasPDF}
-                title="Exportar contas previstas em PDF"
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-white/90 hover:text-white border border-white/30 px-3 py-1 rounded-md hover:bg-white/10 transition"
-              >
-                <Download size={12} /> Exportar PDF
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={exportarPrevistasPDF}
+                  title="Exportar contas previstas em PDF"
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-white/90 hover:text-white border border-white/30 px-3 py-1 rounded-md hover:bg-white/10 transition"
+                >
+                  <Download size={12} /> Exportar PDF
+                </button>
+                <ExportMenu<CR & { _status: string }>
+                  rows={() => filtered}
+                  columns={[
+                    { header: 'Vencimento', value: (cr) => formatData(cr.data_vencimento), pdfFlex: 8 },
+                    { header: 'Cliente / Descrição', value: (cr) => cr.pagador_nome || '—', pdfFlex: 20 },
+                    { header: 'Categoria', value: (cr) => cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—', pdfFlex: 18 },
+                    { header: 'Valor', value: (cr) => formatBRL(cr.valor), numericValue: (cr) => Number(cr.valor || 0), align: 'right', pdfFlex: 9 },
+                    { header: 'Pago', value: (cr) => formatBRL(cr.valor_pago || 0), numericValue: (cr) => Number(cr.valor_pago || 0), align: 'right', pdfFlex: 9 },
+                    { header: 'Saldo', value: (cr) => formatBRL(cr.valor - (cr.valor_pago || 0)), numericValue: (cr) => Number(cr.valor || 0) - Number(cr.valor_pago || 0), align: 'right', pdfFlex: 9 },
+                    { header: 'Status', value: (cr) => statusBadge(cr._status).label, pdfFlex: 9 },
+                  ]}
+                  titulo="CONTAS A RECEBER"
+                  baseName="contas-receber"
+                  formats={['excel']}
+                  size="sm"
+                />
+              </div>
             )}
           </div>
           <div className="bg-white overflow-x-auto">

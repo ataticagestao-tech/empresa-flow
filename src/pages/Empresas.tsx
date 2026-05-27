@@ -7,6 +7,7 @@ import { maskCNPJ } from "@/utils/masks";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { ExportMenu } from "@/components/ExportMenu";
 
 const STEPS = ["CNPJ", "Dados Gerais", "Regime Tributário", "Responsável", "Confirmar"];
 
@@ -466,8 +467,22 @@ export default function Empresas() {
             <h2 className="text-lg font-bold text-[#1D2939]">Empresas</h2>
             <p className="text-sm text-[#555]">Gerencie suas unidades de negócio</p>
           </div>
-          <button onClick={() => { setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); setMode("create"); }}
-            className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              rows={filtered}
+              baseName="empresas"
+              titulo="EMPRESAS"
+              size="md"
+              columns={[
+                { header: "Razão Social", value: (c: Company) => c.razao_social || "-", pdfFlex: 24, excelWidth: 36 },
+                { header: "CNPJ", value: (c: Company) => (c.cnpj ? maskCNPJ(c.cnpj) : "-"), pdfFlex: 14, excelWidth: 20 },
+                { header: "Cidade/UF", value: (c: Company) => [c.endereco_cidade, c.endereco_estado].filter(Boolean).join(" - ") || "-", pdfFlex: 14, excelWidth: 22 },
+                { header: "Status", value: (c: Company) => (companiesWithCharts.has(c.id) ? "Configurado" : "Pendente"), align: "center", pdfFlex: 10, excelWidth: 14 },
+              ]}
+            />
+            <button onClick={() => { setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); setMode("create"); }}
+              className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
+          </div>
         </div>
 
         {!selectedCompany && (

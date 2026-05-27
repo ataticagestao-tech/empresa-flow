@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { MessageCircle, Copy } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -10,7 +11,7 @@ import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDi
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gerarRelatorioFuncionarioPDF, type RelatorioFuncionarioData } from "@/lib/funcionario-pdf/gerar-pdf";
-import { gerarRelatorioListaPDF, downloadListaPDF } from "@/lib/cadastros-pdf/gerar-lista-pdf";
+import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 
@@ -327,58 +328,6 @@ export default function Funcionarios() {
   );
 
   const [gerandoPDF, setGerandoPDF] = useState(false);
-  const [gerandoListaPDF, setGerandoListaPDF] = useState(false);
-
-  const exportarListaPDF = () => {
-    if (!employees.length) {
-      toast.error("Nenhum funcionário para exportar.");
-      return;
-    }
-    setGerandoListaPDF(true);
-    try {
-      const fmtCad = (iso?: string | null) =>
-        iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
-      const linhas = [...employees]
-        .sort((a, b) => getName(a).localeCompare(getName(b), "pt-BR"))
-        .map(e => [
-          getName(e) || "—",
-          e.cpf ? formatCPF(e.cpf) : "—",
-          e.role || "—",
-          tipoContratoLabels[e.tipo_contrato || ""] || "—",
-          e.hire_date ? new Date(e.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—",
-          fmtCad(e.created_at),
-          formatBRL(Number(e.salario_base || e.salary || 0)),
-          e.phone ? formatPhone(e.phone) : "—",
-          isActive(e.status) ? "Ativo" : "Inativo",
-        ]);
-      const blob = gerarRelatorioListaPDF({
-        empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Empresa",
-        empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
-        empresa_cnpj: (selectedCompany as any)?.cnpj ?? null,
-        empresa_local: [(selectedCompany as any)?.endereco_cidade, (selectedCompany as any)?.endereco_estado].filter(Boolean).join("/") || null,
-        titulo: "FUNCIONÁRIOS",
-        colunas: [
-          { header: "Nome", flex: 20 },
-          { header: "CPF", flex: 11 },
-          { header: "Cargo", flex: 13 },
-          { header: "Contrato", flex: 7, align: "center" },
-          { header: "Admissão", flex: 9, align: "center" },
-          { header: "Cadastro", flex: 9, align: "center" },
-          { header: "Salário", flex: 11, align: "right" },
-          { header: "Telefone", flex: 11 },
-          { header: "Status", flex: 7, align: "center" },
-        ],
-        linhas,
-      });
-      downloadListaPDF(blob, "funcionarios");
-      toast.success(`${linhas.length} funcionários exportados.`);
-    } catch (err: any) {
-      console.error("Erro ao gerar PDF:", err);
-      toast.error("Erro ao gerar PDF: " + (err.message || "desconhecido"));
-    } finally {
-      setGerandoListaPDF(false);
-    }
-  };
 
   const gerarPDFFuncionario = async () => {
     if (!selected || !selectedCompany?.id) return;
@@ -716,6 +665,21 @@ export default function Funcionarios() {
   };
   const isActive = (s: string) => s === "active" || s === "ativo";
 
+  const fmtCadExport = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
+  const employeesExportRows = [...employees].sort((a, b) => getName(a).localeCompare(getName(b), "pt-BR"));
+  const employeesExportColumns: ExportColumn<Employee>[] = [
+    { header: "Nome", pdfFlex: 20, value: (e) => getName(e) || "—" },
+    { header: "CPF", pdfFlex: 11, value: (e) => (e.cpf ? formatCPF(e.cpf) : "—") },
+    { header: "Cargo", pdfFlex: 13, value: (e) => e.role || "—" },
+    { header: "Contrato", pdfFlex: 7, align: "center", value: (e) => tipoContratoLabels[e.tipo_contrato || ""] || "—" },
+    { header: "Admissão", pdfFlex: 9, align: "center", value: (e) => (e.hire_date ? new Date(e.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—") },
+    { header: "Cadastro", pdfFlex: 9, align: "center", value: (e) => fmtCadExport(e.created_at) },
+    { header: "Salário", pdfFlex: 11, align: "right", value: (e) => formatBRL(Number(e.salario_base || e.salary || 0)), numericValue: (e) => Number(e.salario_base || e.salary || 0) },
+    { header: "Telefone", pdfFlex: 11, value: (e) => (e.phone ? formatPhone(e.phone) : "—") },
+    { header: "Status", pdfFlex: 7, align: "center", value: (e) => (isActive(e.status) ? "Ativo" : "Inativo") },
+  ];
+
   return (
     <AppLayout title="Funcionários">
       <div className="flex gap-4 h-[calc(100vh-120px)]">
@@ -723,14 +687,11 @@ export default function Funcionarios() {
         <div className="w-1/3 min-w-[280px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Funcionários</h3>
-            <div className="flex items-center gap-3">
-              <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-xs font-semibold text-white/80 hover:text-white" title="Solicitar dados via WhatsApp">WhatsApp</button>
-              <span className="text-white/30">·</span>
-              <button onClick={() => setIsDupOpen(true)} className="text-xs font-semibold text-white/80 hover:text-white" title="Localizar duplicados">Duplicados</button>
-              <span className="text-white/30">·</span>
-              <button onClick={exportarListaPDF} disabled={gerandoListaPDF} className="text-xs font-semibold text-white/80 hover:text-white disabled:opacity-50" title="Exportar todos os cadastros em PDF">{gerandoListaPDF ? "Gerando…" : "PDF"}</button>
-              <span className="text-white/30">·</span>
-              <button onClick={startNew} className="text-xs font-semibold text-white/80 hover:text-white">+ Novo</button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
+              <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
+              <ExportMenu rows={employeesExportRows} columns={employeesExportColumns} titulo="FUNCIONÁRIOS" baseName="funcionarios" orientacao="landscape" size="sm" disabled={!employees.length} />
+              <button onClick={startNew} className="text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
             </div>
           </div>
           <div className="p-3 border-b border-[#eee]">

@@ -8,6 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -294,6 +295,27 @@ export default function PontoEletronico() {
           <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <RefreshCw size={16} className="text-gray-500" />
           </button>
+
+          <div className="ml-auto">
+            <ExportMenu
+              rows={filteredPontos}
+              baseName="ponto-eletronico"
+              titulo="PONTO ELETRÔNICO"
+              subtitulo={mesLabel}
+              columns={[
+                { header: 'Funcionário', value: (p) => getNomeFuncionario(p.funcionario_id), pdfFlex: 20, excelWidth: 28 },
+                { header: 'Data', value: (p) => formatData(p.data), align: 'center', pdfFlex: 9 },
+                { header: 'Entrada', value: (p) => p.entrada || '', align: 'center', pdfFlex: 7 },
+                { header: 'Saída alm.', value: (p) => p.saida_almoco || '', align: 'center', pdfFlex: 7 },
+                { header: 'Retorno', value: (p) => p.retorno_almoco || '', align: 'center', pdfFlex: 7 },
+                { header: 'Saída', value: (p) => p.saida || '', align: 'center', pdfFlex: 7 },
+                { header: 'Horas', value: (p) => p.horas_trabalhadas != null ? p.horas_trabalhadas : '', numericValue: (p) => Number(p.horas_trabalhadas || 0), pdfFlex: 7 },
+                { header: 'HE', value: (p) => (p.horas_extras_50 + p.horas_extras_100) > 0 ? (p.horas_extras_50 + p.horas_extras_100).toFixed(1) : '', numericValue: (p) => p.horas_extras_50 + p.horas_extras_100, pdfFlex: 7 },
+                { header: 'Obs', value: (p) => p.tipo_ausencia ? (TIPO_AUSENCIA_LABELS[p.tipo_ausencia]?.label || p.tipo_ausencia) : (p.justificativa || ''), pdfFlex: 14 },
+                { header: 'Status', value: (p) => p.aprovado ? 'Aprovado' : 'Pendente', align: 'center', pdfFlex: 8 },
+              ]}
+            />
+          </div>
         </div>
 
         {/* ── Table ── */}
