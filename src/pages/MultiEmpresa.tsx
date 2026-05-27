@@ -193,37 +193,54 @@ async function calcConsolidadoLive(
   const transferIds = new Set((transfAcc || []).map((a: any) => a.id));
   const naoTransfer = (r: any) => !(r.conta_contabil_id && transferIds.has(r.conta_contabil_id));
 
-  const [vendasRes, cpCompRes, banksRes, crAbertoRes, cpAbertoRes] = await Promise.all([
+  // Supabase corta cada resposta em ~1000 linhas. Como somamos as vendas/CP/CR
+  // de TODAS as empresas do grupo numa query só, precisamos paginar (range) até
+  // esgotar — senão empresas inteiras ficam de fora e aparecem com R$ 0.
+  const fetchAll = async (build: (from: number, to: number) => any, pageSize = 1000) => {
+    const all: any[] = [];
+    let from = 0;
+    for (let guard = 0; guard < 2000; guard++) {
+      const { data, error } = await build(from, from + pageSize - 1);
+      if (error) break;
+      const batch = data || [];
+      all.push(...batch);
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  };
+
+  const [vendasRows, cpCompRows, banksRes, crAbertoRows, cpAbertoRows] = await Promise.all([
     // Faturamento por data_venda — mesma base da página Vendas: soma valor_total
     // de todas as vendas não excluídas no período, SEM filtro de status (vendas
     // importadas podem ter status nulo; um filtro status<>cancelado excluiria
     // nulos por causa da lógica three-valued do Postgres).
-    db.from("vendas")
+    fetchAll((f, t) => db.from("vendas")
       .select("company_id, valor_total")
       .in("company_id", companyIds)
       .is("deleted_at", null)
       .gte("data_venda", periodStart).lte("data_venda", periodEnd)
-      .limit(50000),
+      .order("id").range(f, t)),
     // Despesas (competência): CP por data_vencimento, valor cheio
-    db.from("contas_pagar")
+    fetchAll((f, t) => db.from("contas_pagar")
       .select("company_id, valor, conta_contabil_id")
       .in("company_id", companyIds)
       .in("status", ["aberto", "parcial", "vencido", "pago"])
       .is("deleted_at", null)
       .gte("data_vencimento", periodStart).lte("data_vencimento", periodEnd)
-      .limit(50000),
-    // Caixa atual
+      .order("id").range(f, t)),
+    // Caixa atual (poucas linhas — sem paginação)
     db.from("bank_accounts").select("company_id, current_balance").in("company_id", companyIds),
     // CR em aberto
-    db.from("contas_receber")
+    fetchAll((f, t) => db.from("contas_receber")
       .select("company_id, valor, valor_pago, conta_contabil_id")
       .in("company_id", companyIds).in("status", ["aberto", "parcial", "vencido"])
-      .is("deleted_at", null).limit(50000),
+      .is("deleted_at", null).order("id").range(f, t)),
     // CP em aberto
-    db.from("contas_pagar")
+    fetchAll((f, t) => db.from("contas_pagar")
       .select("company_id, valor, valor_pago, conta_contabil_id")
       .in("company_id", companyIds).in("status", ["aberto", "parcial", "vencido"])
-      .is("deleted_at", null).limit(50000),
+      .is("deleted_at", null).order("id").range(f, t)),
   ]);
 
   const base: Record<string, Omit<CompanyMetric, "nome">> = {};
@@ -231,19 +248,19 @@ async function calcConsolidadoLive(
     base[id] = { company_id: id, faturamento: 0, despesa: 0, resultado: 0, caixa: 0, cr_aberto: 0, cp_aberto: 0 };
   });
 
-  (vendasRes.data || []).forEach((r: any) => {
+  vendasRows.forEach((r: any) => {
     if (base[r.company_id]) base[r.company_id].faturamento += Number(r.valor_total || 0);
   });
-  (cpCompRes.data || []).filter(naoTransfer).forEach((r: any) => {
+  cpCompRows.filter(naoTransfer).forEach((r: any) => {
     if (base[r.company_id]) base[r.company_id].despesa += Number(r.valor || 0);
   });
   (banksRes.data || []).forEach((r: any) => {
     if (base[r.company_id]) base[r.company_id].caixa += Number(r.current_balance || 0);
   });
-  (crAbertoRes.data || []).filter(naoTransfer).forEach((r: any) => {
+  crAbertoRows.filter(naoTransfer).forEach((r: any) => {
     if (base[r.company_id]) base[r.company_id].cr_aberto += Number(r.valor || 0) - Number(r.valor_pago || 0);
   });
-  (cpAbertoRes.data || []).filter(naoTransfer).forEach((r: any) => {
+  cpAbertoRows.filter(naoTransfer).forEach((r: any) => {
     if (base[r.company_id]) base[r.company_id].cp_aberto += Number(r.valor || 0) - Number(r.valor_pago || 0);
   });
 
