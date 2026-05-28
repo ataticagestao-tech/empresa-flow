@@ -169,7 +169,7 @@ export function CategoriaContabilContent() {
 
     return (
         <div className="border border-[#D0D5DD] rounded-lg overflow-hidden bg-white">
-            <div className="bg-[#1D2939] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                     <h2 className="text-[14px] font-bold uppercase tracking-wider text-white">Categoria contábil dos produtos</h2>
                     <p className="text-[11px] text-white/80 mt-0.5">Vincule a conta de receita correta a cada produto. Sem isso, as vendas vão para a conta padrão (geralmente a primeira do plano).</p>
