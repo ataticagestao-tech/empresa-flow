@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductSheet } from "@/components/products/ProductSheet";
@@ -178,7 +177,6 @@ export default function ProdutosDepartamentos() {
     return (
         <AppLayout title="Operacional">
             <div className="space-y-3">
-                <PageToolbar title="Operacional" />
                 {/* Header + Tabs */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
                     <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
