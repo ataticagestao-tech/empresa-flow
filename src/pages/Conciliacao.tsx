@@ -1309,7 +1309,15 @@ export default function Conciliacao() {
 
     return (
         <AppLayout title="Conciliação Bancária">
-            <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="space-y-6 animate-in fade-in duration-500 bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 mt-3 min-h-[calc(100vh-160px)]">
+
+                {/* ═══ MENU SUPERIOR (header da página) ═══ */}
+                <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
+                    <div className="bg-[#2A2724] px-4 py-3">
+                        <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Conciliação Bancária</h1>
+                        <p className="text-[11px] text-white/80 mt-0.5">Importe extratos e concilie com seus lançamentos</p>
+                    </div>
+                </div>
 
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#EAECF0] shadow-sm">
