@@ -89,6 +89,12 @@
   --color-border:        var(--divider);
   --color-border-strong: var(--border);
 
+  /* Linha fina padrão do sistema — preto sutil, apenas para delimitar quadros/cards.
+     Uso: border: var(--border-hairline)  ·  células pequenas: var(--hairline-soft) */
+  --hairline:         rgba(0,0,0,0.18);
+  --hairline-soft:    rgba(0,0,0,0.12);
+  --border-hairline:  1px solid var(--hairline);
+
   /* Texto */
   --color-text-primary:   var(--text-1);
   --color-text-secondary: var(--text-2);

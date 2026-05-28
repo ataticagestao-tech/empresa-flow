@@ -55,8 +55,8 @@
     --info: 224 76% 33%;             /* #1E3A8A */
     --info-foreground: 0 0% 100%;
 
-    /* Borders — cinza neutro */
-    --border: 220 13% 91%;           /* #E5E7EB */
+    /* Borders — hairline padrão do sistema (≈ rgba(0,0,0,0.18) sobre branco) */
+    --border: 0 0% 82%;              /* #D1D1D1 — linha fina sutil p/ delimitar */
     --input: 220 13% 84%;            /* #D1D5DB */
     --ring: 160 84% 31%;
 

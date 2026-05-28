@@ -41,7 +41,7 @@ const C = {
 const billoraCard: React.CSSProperties = {
     background: C.surface,
     borderRadius: 16,
-    border: `1px solid ${C.border}`,
+    border: "var(--border-hairline)",
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.06)",
 };
 
@@ -959,10 +959,10 @@ export default function CompanyDashboard() {
     const heatmapColor = (value: number, max: number) => {
         if (value === 0 || max === 0) return "#F3F4F6";
         const r = value / max;
-        if (r < 0.25) return "#D1FAE5";
-        if (r < 0.5) return "#6EE7B7";
-        if (r < 0.75) return "#34D399";
-        return "#059669";
+        if (r < 0.25) return "#A7F3D0";
+        if (r < 0.5) return "#34D399";
+        if (r < 0.75) return "#10B981";
+        return "#047857";
     };
 
     const tooltipStyle = {
@@ -1158,7 +1158,7 @@ export default function CompanyDashboard() {
                 {/* ── 3 KPI Cards (mockup v1) ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
-                    <div className="kpi-card" style={{ ...billoraCard, padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
+                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingUp size={16} strokeWidth={2.25} />
@@ -1189,7 +1189,7 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 2. Despesas */}
-                    <div className="kpi-card" style={{ ...billoraCard, padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
+                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingDown size={16} strokeWidth={2.25} />
@@ -1220,7 +1220,7 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 3. Resultado Líquido */}
-                    <div className="kpi-card" style={{ ...billoraCard, padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
+                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#ECFDF5" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#059669" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <Wallet size={16} strokeWidth={2.25} />
@@ -1263,7 +1263,7 @@ export default function CompanyDashboard() {
                             action={
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: C.textMuted }}>
                                     <span>Menos</span>
-                                    {["#F3F4F6", "#D1FAE5", "#6EE7B7", "#34D399", "#059669"].map((c, i) => (
+                                    {["#F3F4F6", "#A7F3D0", "#34D399", "#10B981", "#047857"].map((c, i) => (
                                         <span key={i} style={{ width: 14, height: 14, background: c, borderRadius: 3, border: c === "#F3F4F6" ? `1px solid ${C.border}` : "none" }} />
                                     ))}
                                     <span>Mais</span>
@@ -1273,27 +1273,27 @@ export default function CompanyDashboard() {
                     </div>
                     {/* Mini-stats strip */}
                     {heatmap.total > 0 && (
-                        <div style={{ display: "flex", gap: 0, padding: "0 20px", borderBottom: `1px solid ${C.border}`, background: "#FAFBFC" }}>
+                        <div style={{ display: "flex", gap: 0, padding: "0 20px", background: "#059669" }}>
                             {[
                                 { label: "Total", value: fmt(heatmap.total) },
                                 { label: "Média diária", value: fmt(heatmap.avg) },
                                 { label: "Melhor dia", value: heatmap.bestDay && heatmap.bestDay.value > 0 ? `${format(heatmap.bestDay.date, "dd/MM")} · ${fmt(heatmap.bestDay.value)}` : "—" },
                                 { label: "Dias com vendas", value: `${heatmap.daysWithSales} / ${heatmap.days.length}` },
                             ].map((s, i, arr) => (
-                                <div key={s.label} style={{ flex: 1, padding: "14px 20px", borderRight: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                                    <div style={{ fontSize: 11, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500, marginBottom: 3 }}>{s.label}</div>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text1, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+                                <div key={s.label} style={{ flex: 1, padding: "14px 20px", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500, marginBottom: 3 }}>{s.label}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
                                 </div>
                             ))}
                         </div>
                     )}
                     <div style={{ display: "flex", gap: 32, padding: 20, alignItems: "flex-start" }}>
                         {/* Heatmap grid */}
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", padding: 16 }}>
                             {/* Day-of-week labels */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.textMuted, paddingTop: 22 }}>
                                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                                    <div key={d} style={{ height: 36, display: "flex", alignItems: "center" }}>{d}</div>
+                                    <div key={d} style={{ height: 44, display: "flex", alignItems: "center" }}>{d}</div>
                                 ))}
                             </div>
                             {/* Weeks */}
@@ -1303,7 +1303,7 @@ export default function CompanyDashboard() {
                                     {heatmap.weeks.map((_, wi) => {
                                         const monthAtThisCol = heatmap.monthLabels.find(m => m.weekIndex === wi);
                                         return (
-                                            <div key={wi} style={{ width: 36, fontSize: 11, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 8 : 0 }}>
+                                            <div key={wi} style={{ width: 44, fontSize: 11, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 8 : 0 }}>
                                                 {monthAtThisCol?.label || ""}
                                             </div>
                                         );
@@ -1317,18 +1317,18 @@ export default function CompanyDashboard() {
                                                 key={di}
                                                 title={`${format(day.date, "dd/MM")} · ${fmt(day.value)}`}
                                                 style={{
-                                                    width: 36, height: 36, borderRadius: 6,
+                                                    width: 44, height: 44, borderRadius: 8,
                                                     background: heatmapColor(day.value, heatmap.max),
-                                                    border: day.value === 0 ? `1px solid ${C.border}` : "none",
+                                                    border: "1px solid var(--hairline-soft)",
                                                     display: "flex", alignItems: "center", justifyContent: "center",
-                                                    fontSize: 12.5, fontWeight: 600,
+                                                    fontSize: 14, fontWeight: 600,
                                                     color: day.value === 0 ? C.textMuted : (day.value / (heatmap.max || 1)) >= 0.5 ? "#fff" : C.text1,
                                                 }}
                                             >
                                                 {format(day.date, "d")}
                                             </div>
                                         ) : (
-                                            <div key={di} style={{ width: 36, height: 36 }} />
+                                            <div key={di} style={{ width: 44, height: 44 }} />
                                         ))}
                                     </div>
                                 ))}
@@ -1338,7 +1338,7 @@ export default function CompanyDashboard() {
                         {/* Stats */}
                         <div style={{ flex: 1, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignSelf: "stretch" }}>
                             {/* Produtos vendidos - ranking */}
-                            <div style={{ background: "#F9FAFB", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                            <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                                 <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
                                     <div style={{ fontSize: 13, color: C.text1, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Produtos e serviços <span style={{ color: C.textMuted, fontWeight: 500 }}>· {monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</span></div>
                                 </div>
@@ -1404,7 +1404,7 @@ export default function CompanyDashboard() {
                                 )}
                             </div>
                             {/* Distribuição de produtos e serviços (pizza) */}
-                            <div style={{ background: "#F9FAFB", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                            <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                                 <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}` }}>
                                     <div style={{ fontSize: 13, color: C.text1, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Distribuição</div>
                                     <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
@@ -1418,7 +1418,7 @@ export default function CompanyDashboard() {
                                             </div>
                                         );
                                     }
-                                    const palette = ["#039855", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#9CA3AF"];
+                                    const palette = ["#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#9CA3AF"];
                                     const TOP = 5;
                                     const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
                                     const top = sorted.slice(0, TOP);
@@ -1451,7 +1451,7 @@ export default function CompanyDashboard() {
                                                             {data.map((d, i) => (<Cell key={i} fill={d.color} />))}
                                                         </Pie>
                                                         <Tooltip
-                                                            contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 11.5 }}
+                                                            contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
                                                             itemStyle={{ color: C.text1, padding: "2px 0" }}
                                                             formatter={(v: number, name: string) => [`${fmt(v)} · ${((v / (total || 1)) * 100).toFixed(1)}%`, name]}
                                                         />
@@ -1481,7 +1481,7 @@ export default function CompanyDashboard() {
                 </div>
 
                 {/* ── Unified Chart Row: Receita × Despesa ── */}
-                <div style={{ ...billoraCard, padding: 20, marginBottom: 16 }}>
+                <div style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, marginBottom: 16 }}>
                     {(() => {
                         const seriesRev = chartRevExp || [];
                         const seriesDesp = chartDespDiarias || [];
@@ -1529,14 +1529,14 @@ export default function CompanyDashboard() {
                                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
                                         <XAxis
                                             dataKey="label"
-                                            tick={{ fontSize: 11, fill: C.text2, fontWeight: 500 }}
+                                            tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }}
                                             axisLine={{ stroke: C.border, strokeWidth: 1 }}
                                             tickLine={false}
                                             interval={chartGranularity === "day" ? (merged.length > 20 ? 2 : 0) : 0}
                                             tickMargin={8}
                                         />
                                         <YAxis
-                                            tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
+                                            tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }}
                                             axisLine={false}
                                             tickLine={false}
                                             tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)}
@@ -1545,7 +1545,7 @@ export default function CompanyDashboard() {
                                         <Tooltip
                                             contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
                                             itemStyle={{ color: C.text1, padding: "2px 0" }}
-                                            labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
+                                            labelStyle={{ color: C.text2, fontSize: 12, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
                                             formatter={(v: number, name: string) => [fmtFull(v), name]}
                                             labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
                                             cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
