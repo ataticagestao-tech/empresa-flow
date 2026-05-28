@@ -14,6 +14,7 @@ import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageToolbar } from '@/components/layout/PageToolbar'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TablePagination } from '@/components/ui/table-pagination'
@@ -22,6 +23,7 @@ import { PeriodFilter } from '@/components/ui/period-filter'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { RoleGate } from '@/components/auth/RoleGate'
 import { ExportMenu } from '@/components/ExportMenu'
+import { SpreadsheetTable, type SpreadsheetColumn } from '@/components/SpreadsheetTable'
 import {
   addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, format,
 } from 'date-fns'
@@ -678,6 +680,24 @@ export default function ContasReceber() {
     [agendaDiaLista]
   )
 
+  // Agenda agrupada por plano de contas (mesmo layout de Contas a Pagar):
+  // cada plano vira uma seção com subtotal e os itens listados embaixo.
+  const agendaAgrupadoPorPlano = useMemo(() => {
+    const groups = new Map<string, { items: typeof agendaDiaLista; total: number }>()
+    for (const cr of agendaDiaLista) {
+      const plano = cr.conta_contabil_id
+        ? (categoryMap[cr.conta_contabil_id] || 'Sem plano de contas')
+        : 'Sem plano de contas'
+      const g = groups.get(plano) || { items: [], total: 0 }
+      g.items.push(cr)
+      g.total += cr._pendente
+      groups.set(plano, g)
+    }
+    return Array.from(groups.entries())
+      .map(([plano, g]) => ({ plano, ...g }))
+      .sort((a, b) => b.total - a.total)
+  }, [agendaDiaLista, categoryMap])
+
   const agendaColor = (value: number, max: number, isOverdue: boolean) => {
     if (value === 0 || max === 0) return '#F3F4F6'
     const r = value / max
@@ -979,50 +999,45 @@ export default function ContasReceber() {
 
         <PageToolbar title="Contas a Receber" />
 
-        {/* ── KPI Cards (padrão Vendas) ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            {
-              label: 'Total em aberto',
-              value: formatBRL(kpis.totalAberto),
-              color: '#1D2939',
-              sub: `${kpis.countAberto} título${kpis.countAberto !== 1 ? 's' : ''} em aberto`,
-            },
-            {
-              label: 'Vencendo em 7 dias',
-              value: formatBRL(kpis.vencendo7d),
-              color: '#EA580C',
-              sub: `${kpis.countVencendo} título${kpis.countVencendo !== 1 ? 's' : ''} a vencer`,
-            },
-            {
-              label: 'Vencidos',
-              value: formatBRL(kpis.totalVencido),
-              color: '#7F1D1D',
-              sub: `${kpis.countVencido} título${kpis.countVencido !== 1 ? 's' : ''} em atraso`,
-            },
-            {
-              label: 'Recebido no período',
-              value: formatBRL(kpis.recebidoMes),
-              color: '#039855',
-              sub: `${kpis.countRecebido} recebimento${kpis.countRecebido !== 1 ? 's' : ''} no período`,
-            },
-          ].map(kpi => (
-            <div
-              key={kpi.label}
-              className="bg-white border border-[#EAECF0] rounded-xl px-4 py-3 min-w-0"
-              style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
-            >
-              <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-black m-0 whitespace-nowrap">{kpi.label}</p>
-              <p
-                className="mt-1.5 font-extrabold truncate"
-                style={{ fontSize: 18, color: kpi.color, letterSpacing: '-0.02em', lineHeight: 1.15 }}
-              >
-                {kpi.value}
-              </p>
-              <p className="text-[11px] text-[#98A2B3] mt-1 truncate">{kpi.sub}</p>
-            </div>
-          ))}
-        </div>
+        {/* ── KPI Cards (padrão único do sistema) ── */}
+        <KpiCardGrid>
+          <KpiCard
+            label="Total em aberto"
+            value={formatBRL(kpis.totalAberto)}
+            valueColor="#1D2939"
+            icon={<DollarSign size={18} />}
+            iconColor={{ bg: '#EFF4FF', fg: '#1E3A8A' }}
+            info="Soma de todos os títulos a receber ainda não pagos (aberto, parcial e vencido) no período."
+            sub={`${kpis.countAberto} título${kpis.countAberto !== 1 ? 's' : ''} em aberto`}
+          />
+          <KpiCard
+            label="Vencendo em 7 dias"
+            value={formatBRL(kpis.vencendo7d)}
+            valueColor="#EA580C"
+            icon={<Clock size={18} />}
+            iconColor={{ bg: '#FFF7ED', fg: '#EA580C' }}
+            info="Títulos a receber cujo vencimento cai nos próximos 7 dias — o que entra no caixa em breve."
+            sub={`${kpis.countVencendo} título${kpis.countVencendo !== 1 ? 's' : ''} a vencer`}
+          />
+          <KpiCard
+            label="Vencidos"
+            value={formatBRL(kpis.totalVencido)}
+            valueColor="#E53E3E"
+            icon={<AlertTriangle size={18} />}
+            iconColor={{ bg: '#FEF2F2', fg: '#B91C1C' }}
+            info="Títulos a receber que passaram do vencimento e ainda não foram pagos — inadimplência a cobrar."
+            sub={`${kpis.countVencido} título${kpis.countVencido !== 1 ? 's' : ''} em atraso`}
+          />
+          <KpiCard
+            label="Recebido no período"
+            value={formatBRL(kpis.recebidoMes)}
+            valueColor="#039855"
+            icon={<CheckCircle2 size={18} />}
+            iconColor={{ bg: '#ECFDF5', fg: '#059669' }}
+            info="Total efetivamente recebido (títulos quitados) dentro do período selecionado."
+            sub={`${kpis.countRecebido} recebimento${kpis.countRecebido !== 1 ? 's' : ''} no período`}
+          />
+        </KpiCardGrid>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
         <div className="flex justify-end">
@@ -1192,48 +1207,75 @@ export default function ContasReceber() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto" style={{ maxHeight: 360 }}>
+            <div className="flex-1 p-3" style={{ minHeight: 0 }}>
+              <div className="border border-[#EAECF0] rounded-lg overflow-auto bg-white" style={{ maxHeight: 336 }}>
               {agendaDiaLista.length === 0 ? (
                 <div className="px-5 py-10 text-center text-[13px] text-[#98A2B3]">
                   Nenhuma conta a receber {selectedAgendaDate ? 'nesta data' : 'nesta janela'}.
                 </div>
               ) : (
-                <table className="w-full text-[12.5px]">
-                  <thead className="bg-[#F9FAFB] sticky top-0">
-                    <tr>
-                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Nome</th>
-                      <th className="py-2 px-3 text-left font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Plano de contas</th>
-                      <th className="py-2 px-3 text-right font-semibold uppercase tracking-wider text-[10.5px] text-[#98A2B3]">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agendaDiaLista.map(cr => {
-                      const hoje = format(new Date(), 'yyyy-MM-dd')
-                      const isVencido = cr.data_vencimento < hoje
-                      return (
-                        <tr key={cr.id} style={{ borderTop: '1px solid #F2F4F7' }}>
-                          <td className="py-2 px-3 text-[#1D2939]">
-                            <div className="font-semibold truncate" style={{ maxWidth: 180 }}>{cr.pagador_nome}</div>
-                            {!selectedAgendaDate && (
-                              <div className={`text-[10.5px] ${isVencido ? 'text-[#C2410C] font-semibold' : 'text-[#98A2B3]'}`}>
-                                {format(parseISO(cr.data_vencimento), 'dd/MM')}{isVencido ? ' · vencida' : ''}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-[#555]">
-                            <div className="truncate" style={{ maxWidth: 220 }} title={cr.conta_contabil_id ? categoryMap[cr.conta_contabil_id] : ''}>
-                              {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
-                            </div>
-                          </td>
-                          <td className={`py-2 px-3 text-right font-semibold tabular-nums ${isVencido ? 'text-[#C2410C]' : 'text-[#1D2939]'}`}>
-                            {formatBRL(cr._pendente)}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <div className="divide-y divide-[#F2F4F7]">
+                  {agendaAgrupadoPorPlano.map(g => (
+                    <div key={g.plano}>
+                      <div className="px-3 py-2 bg-[#F9FAFB] flex items-center justify-between sticky top-0 z-[1]">
+                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#1D2939] truncate" style={{ maxWidth: 280 }} title={g.plano}>
+                          {g.plano}
+                        </span>
+                        <span className="text-[11px] font-bold text-[#039855] tabular-nums">
+                          {formatBRL(g.total)}
+                        </span>
+                      </div>
+                      <SpreadsheetTable
+                        rows={g.items}
+                        rowKey={(cr: any) => cr.id}
+                        showHeader={false}
+                        resetKey={`${selectedAgendaDate ?? 'all'}|${g.plano}`}
+                        className="text-[12.5px]"
+                        cellClassName="border-[#F2F4F7]"
+                        columns={[
+                          {
+                            id: 'nome',
+                            weight: 24,
+                            truncate: false,
+                            header: 'Nome',
+                            title: (cr: any) => cr.pagador_nome ?? '',
+                            cellClassName: 'text-[#1D2939]',
+                            render: (cr: any) => {
+                              const isVencido = cr.data_vencimento < format(new Date(), 'yyyy-MM-dd')
+                              return (
+                                <>
+                                  <div className="font-medium truncate">{cr.pagador_nome}</div>
+                                  {!selectedAgendaDate && (
+                                    <div className={`text-[10.5px] ${isVencido ? 'text-[#C2410C] font-semibold' : 'text-[#98A2B3]'}`}>
+                                      {format(parseISO(cr.data_vencimento), 'dd/MM')}{isVencido ? ' · vencida' : ''}
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            },
+                          },
+                          {
+                            id: 'valor',
+                            weight: 10,
+                            numeric: true,
+                            header: 'Valor',
+                            cellClassName: 'font-semibold',
+                            render: (cr: any) => {
+                              const isVencido = cr.data_vencimento < format(new Date(), 'yyyy-MM-dd')
+                              return (
+                                <span className={isVencido ? 'text-[#C2410C]' : 'text-[#1D2939]'}>
+                                  {formatBRL(cr._pendente)}
+                                </span>
+                              )
+                            },
+                          },
+                        ]}
+                      />
+                    </div>
+                  ))}
+                </div>
               )}
+              </div>
             </div>
 
             <div className="px-5 py-3 border-t border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">
@@ -1924,51 +1966,6 @@ function ModalQuitarLote({
             )}
           </button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-/* ================================================================
-   KPI CARD
-   ================================================================ */
-
-function KpiCard({
-  icon, label, value, color,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  color: { text: string; bg: string; border: string; icon: string }
-}) {
-  return (
-    <div
-      className="bg-white border border-[#EAECF0] rounded-xl p-5 flex flex-col gap-2"
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-[13px] font-bold text-[#1D2939] uppercase tracking-[0.05em] whitespace-nowrap">
-          {label}
-        </div>
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-          style={{ backgroundColor: color.bg, color: color.icon }}
-        >
-          {icon}
-        </div>
-      </div>
-      <div
-        className="font-extrabold leading-[1.1]"
-        style={{
-          color: color.text,
-          fontSize: 'clamp(18px, 1.8vw, 26px)',
-          letterSpacing: '-0.5px',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {value}
       </div>
     </div>
   )

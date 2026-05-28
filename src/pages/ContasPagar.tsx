@@ -30,6 +30,7 @@ import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { ExportMenu } from '@/components/ExportMenu'
+import { SpreadsheetTable } from '@/components/SpreadsheetTable'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface ContaPagar {
@@ -1607,7 +1608,7 @@ export default function ContasPagar() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Contas a Pagar">
-      <div className="max-w-[1400px] mx-auto space-y-6 p-6" style={{ backgroundColor: '#F6F2EB', minHeight: '100%' }}>
+      <div className="max-w-[1400px] mx-auto space-y-4">
 
         <PageToolbar title="Contas a Pagar" />
 
@@ -1785,20 +1786,19 @@ export default function ContasPagar() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto" style={{ maxHeight: 360 }}>
+            <div className="flex-1 p-3" style={{ minHeight: 0 }}>
+              <div className="border border-[#EAECF0] rounded-lg overflow-auto bg-white" style={{ maxHeight: 336 }}>
               {agendaDiaLista.length === 0 ? (
                 <div className="px-5 py-10 text-center text-[13px] text-[#98A2B3]">
                   Nenhuma conta a vencer {selectedAgendaDate ? 'nesta data' : 'nos pr\u00f3ximos 30 dias'}.
                 </div>
-              ) : (() => {
-                // Layout agrupado por plano de contas, sem paginação dentro do painel:
-                // cada plano vira uma seção com seu próprio total e os itens listados embaixo.
-                return (
-                <>
+              ) : (
+                // Agrupado por plano de contas: cada plano é uma seção (cabeçalho +
+                // subtotal) com sua própria tabela (estilo planilha, sem repetir cabeçalho).
                 <div className="divide-y divide-[#F2F4F7]">
                   {agendaAgrupadoPorPlano.map(g => (
                     <div key={g.plano}>
-                      <div className="px-5 py-2 bg-[#F9FAFB] flex items-center justify-between sticky top-0 z-[1]">
+                      <div className="px-3 py-2 bg-[#F9FAFB] flex items-center justify-between sticky top-0 z-[1]">
                         <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#1D2939] truncate" style={{ maxWidth: 280 }} title={g.plano}>
                           {g.plano}
                         </span>
@@ -1806,31 +1806,47 @@ export default function ContasPagar() {
                           {formatBRL(g.total)}
                         </span>
                       </div>
-                      <ul>
-                        {g.items.map(cp => (
-                          <li key={cp.id} className="px-5 py-2 flex items-center justify-between gap-3 hover:bg-[#FAFAFA] transition-colors">
-                            <div className="min-w-0">
-                              <div className="text-[12.5px] font-medium text-[#1D2939] truncate" style={{ maxWidth: 280 }} title={cp.descricao || cp.credor_nome}>
-                                {cp.descricao || cp.credor_nome}
-                              </div>
-                              {!selectedAgendaDate && (
-                                <div className="text-[10.5px] text-[#98A2B3]">
-                                  {format(parseISO(cp.data_vencimento), 'dd/MM')}
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-[12.5px] font-semibold text-[#1D2939] tabular-nums shrink-0">
-                              {formatBRL(cp._pendente)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                      <SpreadsheetTable
+                        rows={g.items}
+                        rowKey={(cp: any) => cp.id}
+                        showHeader={false}
+                        resetKey={`${selectedAgendaDate ?? 'all'}|${g.plano}`}
+                        className="text-[12.5px]"
+                        cellClassName="border-[#F2F4F7]"
+                        columns={[
+                          {
+                            id: 'nome',
+                            weight: 24,
+                            truncate: false,
+                            header: 'Conta',
+                            title: (cp: any) => cp.descricao || cp.credor_nome || '',
+                            cellClassName: 'text-[#1D2939]',
+                            render: (cp: any) => (
+                              <>
+                                <div className="font-medium truncate">{cp.descricao || cp.credor_nome}</div>
+                                {!selectedAgendaDate && (
+                                  <div className="text-[10.5px] text-[#98A2B3]">
+                                    {format(parseISO(cp.data_vencimento), 'dd/MM')}
+                                  </div>
+                                )}
+                              </>
+                            ),
+                          },
+                          {
+                            id: 'valor',
+                            weight: 10,
+                            numeric: true,
+                            header: 'Valor',
+                            cellClassName: 'font-semibold text-[#1D2939]',
+                            render: (cp: any) => formatBRL(cp._pendente),
+                          },
+                        ]}
+                      />
                     </div>
                   ))}
                 </div>
-                </>
-                )
-              })()}
+              )}
+              </div>
             </div>
 
             <div className="px-5 py-3 border-t border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">

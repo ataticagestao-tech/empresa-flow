@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Select,
@@ -20,6 +20,7 @@ import {
   exportarRelatorioPDF,
   type EmpresaInfo,
 } from "@/lib/relatorios/gerar-relatorio";
+import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 
 interface Props {
   client: any;
@@ -36,9 +37,6 @@ const fmtCell = (v: string | number | null | undefined): string => {
   return String(v);
 };
 
-const alignClass = (align?: "left" | "right" | "center") =>
-  align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
-
 export function CentralRelatorios({ client, companyId, empresa, range, periodoLabel }: Props) {
   const [areaId, setAreaId] = useState<GrupoRelatorio>(GRUPOS_RELATORIO[0].id);
   const reportsInArea = useMemo(
@@ -53,60 +51,19 @@ export function CentralRelatorios({ client, companyId, empresa, range, periodoLa
     [selectedId],
   );
 
-  // Larguras das colunas em PORCENTAGEM (somam sempre 100%).
-  // A tabela tem width:100%, então ela preenche o quadro e NUNCA o ultrapassa.
-  // Arrastar a divisória entre duas colunas troca largura entre elas (total fixo).
-  const colWeight = (c: any): number => c.excelWidth ?? (c.numericValue ? 14 : 18);
-  const pctFromDef = (d: typeof def): number[] => {
-    if (!d) return [];
-    const weights = d.columns.map(colWeight);
-    const total = weights.reduce((s, w) => s + w, 0) || 1;
-    return weights.map((w) => (w / total) * 100);
-  };
-
-  const [selCell, setSelCell] = useState<string | null>(null);
-  const [colPct, setColPct] = useState<number[]>(() => pctFromDef(def));
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  useEffect(() => {
-    setColPct(pctFromDef(def));
-    setSelCell(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [def?.id]);
-
-  // Redimensiona a divisória entre a coluna i e a i+1: o que uma ganha, a outra
-  // perde. O total fica em 100%, então a tabela jamais cresce além do quadro.
-  const startResize = (e: React.MouseEvent, i: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const W = tableRef.current?.offsetWidth ?? 1;
-    const startPcts = colPct.length ? [...colPct] : pctFromDef(def);
-    if (i < 0 || i >= startPcts.length - 1) return;
-    const startX = e.clientX;
-    const pairTotal = startPcts[i] + startPcts[i + 1];
-    const minPct = Math.min(pairTotal / 2, Math.max(5, (60 / W) * 100));
-    const onMove = (ev: MouseEvent) => {
-      const dPct = ((ev.clientX - startX) / W) * 100;
-      let ni = startPcts[i] + dPct;
-      ni = Math.max(minPct, Math.min(pairTotal - minPct, ni));
-      setColPct((prev) => {
-        const base = prev.length ? [...prev] : [...startPcts];
-        base[i] = ni;
-        base[i + 1] = pairTotal - ni;
-        return base;
-      });
-    };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  };
+  // Colunas da prévia no formato do SpreadsheetTable (peso = excelWidth da coluna).
+  const previewColumns = useMemo<SpreadsheetColumn<any>[]>(() => {
+    if (!def) return [];
+    return def.columns.map((c, i) => ({
+      id: String(i),
+      header: c.header,
+      align: c.align,
+      numeric: !!c.numericValue,
+      weight: c.excelWidth ?? (c.numericValue ? 14 : 18),
+      render: (row: any) => fmtCell(c.value(row)),
+      title: (row: any) => fmtCell(c.value(row)),
+    }));
+  }, [def]);
 
   const {
     data: rows,
@@ -178,6 +135,16 @@ export function CentralRelatorios({ client, companyId, empresa, range, periodoLa
   const firstNumIdx = totals.findIndex((t) => t !== null);
   const totalLabelIdx = firstNumIdx > 0 ? firstNumIdx - 1 : 0;
   const hasTotals = firstNumIdx >= 0 && (rows?.length ?? 0) > 0;
+
+  const totalsRow = useMemo(() => {
+    if (!def || !hasTotals) return undefined;
+    return def.columns.map((c, ci) => {
+      if (totals[ci] !== null)
+        return (totals[ci] as number).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+      if (ci === totalLabelIdx) return "TOTAL";
+      return null;
+    });
+  }, [def, totals, hasTotals, totalLabelIdx]);
 
   const previewRows = (rows ?? []).slice(0, PREVIEW_LIMIT);
   const downloadDisabled = busy !== null || isLoading || !rows || rows.length === 0;
@@ -304,96 +271,20 @@ export function CentralRelatorios({ client, companyId, empresa, range, periodoLa
                       : "Nenhum registro cadastrado."}
                   </div>
                 ) : (
-                  <table
-                    ref={tableRef}
-                    className="text-xs border-collapse"
-                    style={{ width: "100%", tableLayout: "fixed" }}
-                  >
-                    <colgroup>
-                      {def.columns.map((_, i) => (
-                        <col
-                          key={i}
-                          style={{ width: `${colPct[i] ?? 100 / def.columns.length}%` }}
-                        />
-                      ))}
-                    </colgroup>
-                    <thead className="bg-muted/50 sticky top-0 z-10">
-                      <tr>
-                        {def.columns.map((c, i) => (
-                          <th
-                            key={i}
-                            className={cn(
-                              "relative border-b border-r border-border/60 px-4 py-3 font-semibold text-muted-foreground select-none",
-                              alignClass(c.align),
-                            )}
-                          >
-                            <span className="block truncate">{c.header}</span>
-                            {i < def.columns.length - 1 && (
-                              <span
-                                role="separator"
-                                aria-orientation="vertical"
-                                onMouseDown={(e) => startResize(e, i)}
-                                className="absolute top-0 -right-1 z-20 h-full w-2 cursor-col-resize hover:bg-primary/40"
-                              />
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewRows.map((row, ri) => (
-                        <tr key={ri}>
-                          {def.columns.map((c, ci) => {
-                            const text = fmtCell(c.value(row));
-                            const cellKey = `${ri}:${ci}`;
-                            const selected = selCell === cellKey;
-                            return (
-                              <td
-                                key={ci}
-                                title={text}
-                                onClick={() => setSelCell(cellKey)}
-                                className={cn(
-                                  "border-b border-r border-border/40 px-4 py-3 text-[#1D2939] truncate cursor-cell select-text",
-                                  alignClass(c.align),
-                                  c.numericValue && "tabular-nums",
-                                  selected && "ring-2 ring-inset ring-primary bg-primary/5",
-                                )}
-                              >
-                                {text}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                    {hasTotals && (
-                      <tfoot>
-                        <tr className="bg-muted/30 font-semibold">
-                          {def.columns.map((c, ci) => {
-                            let content = "";
-                            if (totals[ci] !== null)
-                              content = (totals[ci] as number).toLocaleString("pt-BR", {
-                                maximumFractionDigits: 2,
-                              });
-                            else if (ci === totalLabelIdx) content = "TOTAL";
-                            return (
-                              <td
-                                key={ci}
-                                title={content}
-                                className={cn(
-                                  "border-t-2 border-r border-border/40 px-4 py-3 text-[#1D2939] truncate",
-                                  alignClass(c.align),
-                                  c.numericValue && "tabular-nums",
-                                )}
-                              >
-                                {content}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      </tfoot>
-                    )}
-                  </table>
+                  <div className="p-3">
+                    <div className="border border-border/60 rounded-lg overflow-hidden">
+                      <SpreadsheetTable
+                        columns={previewColumns}
+                        rows={previewRows}
+                        rowKey={(_, i) => String(i)}
+                        totals={totalsRow}
+                        resetKey={def.id}
+                        className="text-xs"
+                        headerClassName="bg-muted/50 text-muted-foreground font-semibold px-4 py-3"
+                        cellClassName="px-4 py-3 text-[#1D2939]"
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
 
