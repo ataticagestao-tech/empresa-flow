@@ -65,7 +65,18 @@ export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
     const tableTop = headerBandH + 9;
     const bottomLimit = H - 12;
 
-    const emitidoEm = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const agora = new Date();
+    const emitidoEm = agora.toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+    });
+    // Código de identificação do documento (rastreabilidade), ex.: REL-MOV-20260527-1432
+    const abbr = (data.titulo || "REL")
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase() || "REL";
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const codigoDoc = `REL-${abbr}-${agora.getFullYear()}${pad2(agora.getMonth() + 1)}${pad2(agora.getDate())}-${pad2(agora.getHours())}${pad2(agora.getMinutes())}`;
 
     let y = 0;
 
@@ -106,7 +117,9 @@ export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
             `${data.linhas.length} ${data.linhas.length === 1 ? "registro" : "registros"}`,
             W - margin, 19, { align: "right" },
         );
-        doc.text(`Data de emissão: ${emitidoEm}`, W - margin, 24, { align: "right" });
+        doc.text(`Emitido em ${emitidoEm}`, W - margin, 24, { align: "right" });
+        doc.setFontSize(7);
+        doc.text(`Cód.: ${codigoDoc}`, W - margin, 28.5, { align: "right" });
     };
 
     const drawColumnHeaders = () => {
