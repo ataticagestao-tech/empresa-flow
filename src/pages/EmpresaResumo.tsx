@@ -46,6 +46,14 @@ export default function EmpresaResumo() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  // Sincroniza a ficha quando o usuário troca de empresa no seletor do topo.
+  // Sem isso a página fica presa no :id da URL e não reflete a nova empresa.
+  useEffect(() => {
+    if (selectedCompany?.id && id && selectedCompany.id !== id) {
+      navigate(`/empresas/${selectedCompany.id}`, { replace: true });
+    }
+  }, [selectedCompany?.id, id, navigate]);
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !id) return;
