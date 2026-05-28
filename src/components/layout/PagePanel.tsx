@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { ModuleTabs } from "./ModuleTabs"
 
 interface PagePanelProps {
   /** Título exibido no header escuro. */
@@ -53,8 +54,10 @@ export function PagePanel({
               <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">{headerActions}</div>
             )}
           </div>
-          {tabs && (
+          {tabs ? (
             <div className="flex px-4 border-b border-[#EAECF0] overflow-x-auto">{tabs}</div>
+          ) : (
+            <ModuleTabs />
           )}
         </div>
 
