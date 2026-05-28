@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +31,7 @@ import {
   LineChart,
   ComposedChart,
 } from "recharts";
-import { AlertTriangle, Calendar } from "lucide-react";
+import { AlertTriangle, Calendar, HelpCircle, TrendingUp, TrendingDown, Wallet, Repeat, ArrowLeftRight, Landmark } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 
 /* ── Design Tokens ──────────────────────────────────────────── */
@@ -63,6 +64,9 @@ function KpiCard({
   color = C.text1,
   delta,
   deltaLabel,
+  info,
+  icon,
+  accent,
 }: {
   label: string;
   value: string;
@@ -70,45 +74,82 @@ function KpiCard({
   color?: string;
   delta?: number | null;
   deltaLabel?: string;
+  /** Texto do tooltip "?" — explica o número para quem não conhece o sistema. */
+  info?: string;
+  /** Ícone opcional (chip no canto). */
+  icon?: React.ReactNode;
+  /** Cores do chip do ícone. Default: navy institucional. */
+  accent?: { bg: string; fg: string };
 }) {
   const hasDelta = delta !== undefined && delta !== null && isFinite(delta);
   return (
-    <div className="border border-[#ccc] rounded-lg overflow-hidden">
-      <div className="bg-[#059669] px-4 py-2">
-        <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-          {label}
-        </h3>
-      </div>
-      <div className="p-4 bg-white">
-        <p className="text-xl font-bold" style={{ color }}>
-          {value}
-        </p>
-        {hasDelta && (
-          <p className="text-xs mt-1.5 flex items-center gap-1">
-            <span
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{
-                backgroundColor: delta > 0 ? "#ECFDF4" : delta < 0 ? "#FEE2E2" : "#F6F2EB",
-                color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
-              }}
-            >
-              {delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} {Math.abs(delta).toFixed(1)}%
+    <div
+      className="flex flex-col rounded-xl border border-[#EAECF0] bg-white p-4 transition-shadow duration-200 hover:shadow-md"
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04)" }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#667085]">
+          <span className="truncate">{label}</span>
+          {info && (
+            <span title={info} className="inline-flex shrink-0 cursor-help text-[#98A2B3]">
+              <HelpCircle size={12.5} />
             </span>
-            <span className="text-gray-400">{deltaLabel || "vs mês anterior"}</span>
-          </p>
-        )}
-        {subtitle && (
-          <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+          )}
+        </span>
+        {icon && (
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: accent?.bg ?? "#EFF4FF", color: accent?.fg ?? "#1E3A8A" }}
+          >
+            {icon}
+          </span>
         )}
       </div>
+      <p
+        className="mt-2.5 truncate font-bold leading-none tabular-nums"
+        style={{ color, fontSize: "clamp(23px, 2.1vw, 29px)", letterSpacing: "-0.02em" }}
+      >
+        {value}
+      </p>
+      {(hasDelta || subtitle) && (
+        <div className="mt-2.5 flex flex-col gap-1">
+          {hasDelta && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                style={{
+                  backgroundColor: delta > 0 ? "#ECFDF4" : delta < 0 ? "#FEE2E2" : "#F1F3F5",
+                  color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
+                }}
+              >
+                {delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} {Math.abs(delta).toFixed(1)}%
+              </span>
+              <span className="text-[11px] text-[#98A2B3]">{deltaLabel || "vs mês anterior"}</span>
+            </div>
+          )}
+          {subtitle && <p className="truncate text-[11.5px] text-[#667085]">{subtitle}</p>}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Section Header ─────────────────────────────────────────── */
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({
+  children,
+  subtitle,
+}: {
+  children: React.ReactNode;
+  subtitle?: string;
+}) {
   return (
-    <h2 className="text-lg font-bold text-[#1D2939] mt-8 mb-4">{children}</h2>
+    <div className="mb-4 mt-10">
+      <div className="flex items-center gap-2.5">
+        <span className="h-5 w-1 rounded-full bg-[#1E3A8A]" />
+        <h2 className="text-[17px] font-bold tracking-tight text-[#1E3A8A]">{children}</h2>
+      </div>
+      {subtitle && <p className="ml-[14px] mt-1 text-[12.5px] text-[#667085]">{subtitle}</p>}
+    </div>
   );
 }
 
@@ -1464,10 +1505,11 @@ export default function PainelGerencial() {
         </div>
 
         {/* ── HEADER + FILTRO ─────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-6 mb-2">
-          <p className="text-sm text-gray-500">
-            Cockpit financeiro consolidado &mdash; {format(realToday, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
+        <PageToolbar
+          className="mt-6"
+          title="Painel Gerencial"
+          subtitle={<>Cockpit financeiro consolidado &mdash; {format(realToday, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</>}
+        >
           <div className="flex items-center gap-2 flex-wrap">
             {/* Toggle Regime: Competência (vendas) vs Caixa (CR recebido) */}
             <div
@@ -1514,7 +1556,7 @@ export default function PainelGerencial() {
               </div>
             )}
           </div>
-        </div>
+        </PageToolbar>
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1522,6 +1564,9 @@ export default function PainelGerencial() {
             label="Faturamento"
             value={fmt(faturamento)}
             color={C.green}
+            icon={<TrendingUp size={15} />}
+            accent={{ bg: "#ECFDF5", fg: "#059669" }}
+            info="Total faturado/recebido no período, conforme o regime escolhido: competência = vendas emitidas; caixa = recebimentos efetivos."
             subtitle={
               faturamentoFonte === "cr"
                 ? `fonte: contas a receber recebidas`
@@ -1533,8 +1578,25 @@ export default function PainelGerencial() {
             }
             delta={deltaFaturamento}
           />
-          <KpiCard label="Despesas totais" value={fmt(despesasTotais)} color={C.red} delta={deltaDespesas} deltaLabel={deltaDespesas && deltaDespesas > 0 ? "↑ vs mês anterior" : "vs mês anterior"} />
-          <KpiCard label="Resultado" value={fmt(resultadoDre)} color={resultadoDre >= 0 ? C.green : C.red} delta={deltaResultado} />
+          <KpiCard
+            label="Despesas totais"
+            value={fmt(despesasTotais)}
+            color={C.red}
+            icon={<TrendingDown size={15} />}
+            accent={{ bg: "#FEF2F2", fg: "#B91C1C" }}
+            info="Soma de tudo que foi efetivamente pago no período (contas a pagar quitadas)."
+            delta={deltaDespesas}
+            deltaLabel={deltaDespesas && deltaDespesas > 0 ? "↑ vs mês anterior" : "vs mês anterior"}
+          />
+          <KpiCard
+            label="Resultado"
+            value={fmt(resultadoDre)}
+            color={resultadoDre >= 0 ? C.green : C.red}
+            icon={<Wallet size={15} />}
+            accent={resultadoDre >= 0 ? { bg: "#ECFDF5", fg: "#059669" } : { bg: "#FEF2F2", fg: "#B91C1C" }}
+            info="Faturamento menos Despesas no período. Verde = lucro, vermelho = prejuízo."
+            delta={deltaResultado}
+          />
         </div>
 
         {/* ── KPIs GERENCIAIS (segunda linha) ─────────────────── */}
@@ -1543,6 +1605,9 @@ export default function PainelGerencial() {
             label="Custo fixo recorrente"
             value={fmt(custoFixoMensal)}
             color={C.text1}
+            icon={<Repeat size={15} />}
+            accent={{ bg: "#EFF4FF", fg: "#1E3A8A" }}
+            info="Despesas com fornecedores que se repetiram em relação ao mês anterior — uma estimativa do seu custo fixo mensal."
             subtitle={
               custoFixoCredoresCount > 0
                 ? `${custoFixoCredoresCount} ${custoFixoCredoresCount === 1 ? "credor" : "credores"} repetidos vs mês anterior · ${fmtPct(custoFixoPctFat)} do faturamento`
@@ -1553,6 +1618,9 @@ export default function PainelGerencial() {
             label="Transferências entre contas"
             value={fmt(transferenciasInternas)}
             color={C.text2}
+            icon={<ArrowLeftRight size={15} />}
+            accent={{ bg: "#F1F3F5", fg: "#475467" }}
+            info="Dinheiro movido entre contas da própria empresa. Não é receita nem despesa — apenas remanejamento interno."
             subtitle={
               transferenciasInternas > 0
                 ? `${fmtPct(transferPctFaturamento)} do faturamento do período`
@@ -1563,12 +1631,15 @@ export default function PainelGerencial() {
             label="Saldo em bancos"
             value={fmt(saldoTotal)}
             color={saldoTotal >= 0 ? C.green : C.red}
+            icon={<Landmark size={15} />}
+            accent={{ bg: "#ECFDF5", fg: "#059669" }}
+            info="Soma do saldo atual de todas as contas bancárias ativas, hoje."
             subtitle={`${contasAtivas} ${contasAtivas === 1 ? "conta ativa" : "contas ativas"}`}
           />
         </div>
 
         {/* ── RECEITA x DESPESAS — últimos 6 meses ─────────────── */}
-        <SectionTitle>Receita x Despesas &mdash; últimos 6 meses</SectionTitle>
+        <SectionTitle subtitle="Tendência mês a mês para enxergar se a empresa está crescendo, estável ou em queda.">Receita x Despesas &mdash; últimos 6 meses</SectionTitle>
         <div className="bg-white rounded-2xl border border-[#EAECF0] p-5 mb-6">
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={faturamentoMensal} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
@@ -1728,7 +1799,7 @@ export default function PainelGerencial() {
         </div>
 
         {/* ── FLUXO DE CAIXA — projeção 90 dias ───────────────── */}
-        <SectionTitle>Fluxo de caixa &mdash; projeção 90 dias</SectionTitle>
+        <SectionTitle subtitle="Saldo projetado dia a dia somando recebimentos a entrar e contas a pagar — antecipa risco de faltar caixa.">Fluxo de caixa &mdash; projeção 90 dias</SectionTitle>
 
         {primeiroDiaNegativo && (
           <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4 flex items-center gap-3">

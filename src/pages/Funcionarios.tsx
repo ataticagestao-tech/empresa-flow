@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { MessageCircle, Copy } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -682,7 +683,9 @@ export default function Funcionarios() {
 
   return (
     <AppLayout title="Funcionários">
-      <div className="flex gap-4 h-[calc(100vh-120px)]">
+      <div className="flex flex-col h-[calc(100vh-120px)]">
+        <PageToolbar title="Funcionários" />
+        <div className="flex gap-4 flex-1 min-h-0">
         {/* LEFT: List */}
         <div className="w-1/3 min-w-[280px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
@@ -1101,6 +1104,7 @@ export default function Funcionarios() {
               </div>
             </>
           )}
+        </div>
         </div>
       </div>
 

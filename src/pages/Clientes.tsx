@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, Bell, ShoppingCart,
@@ -842,7 +843,9 @@ export default function Clientes() {
 
     return (
         <AppLayout title="Clientes">
-            <div className="flex gap-4 h-[calc(100vh-120px)] animate-in fade-in duration-500">
+            <div className="flex flex-col h-[calc(100vh-120px)] animate-in fade-in duration-500">
+                <PageToolbar title="Clientes" />
+                <div className="flex gap-4 flex-1 min-h-0">
 
                 {/* ═══ PAINEL ESQUERDO — Lista ═══ */}
                 <div className="w-1/3 min-w-[360px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
@@ -1417,6 +1420,7 @@ export default function Clientes() {
                     defaultSubject="Mensagem da Tatica Gestão"
                     defaultBody={selectedClient ? `Olá ${toTitleCase(selectedClient.razao_social || "")}!\n\n` : ""}
                 />
+                </div>
             </div>
         </AppLayout>
     );

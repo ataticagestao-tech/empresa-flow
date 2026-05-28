@@ -5,6 +5,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -260,7 +261,9 @@ export default function CadastrosPendentes() {
 
     return (
         <AppLayout title="Cadastros Pendentes">
-            <div className="flex gap-4 h-[calc(100vh-120px)]">
+            <div className="flex flex-col h-[calc(100vh-120px)]">
+                <PageToolbar title="Cadastros Pendentes" />
+                <div className="flex gap-4 flex-1 min-h-0">
                 {/* LEFT: lista */}
                 <div className="w-[420px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
                     <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
@@ -533,6 +536,7 @@ export default function CadastrosPendentes() {
                             )}
                         </>
                     )}
+                </div>
                 </div>
             </div>
         </AppLayout>

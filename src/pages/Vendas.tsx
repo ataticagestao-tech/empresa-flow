@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { RegistrarPagamentoDialog } from '@/modules/clients/presentation/components/RegistrarPagamentoDialog'
@@ -2009,6 +2010,8 @@ export default function Vendas() {
   return (
     <AppLayout title="Vendas">
       <div className="max-w-[1400px] mx-auto space-y-5">
+
+        <PageToolbar title="Vendas" />
 
         {/* ─── Banner customizado (upload de imagem por empresa) ── */}
         <div className="relative h-[140px] rounded-xl overflow-hidden border border-[#EAECF0] bg-white group">

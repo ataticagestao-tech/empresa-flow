@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -296,8 +297,7 @@ export default function Documentos() {
     <AppLayout>
       <div className="space-y-6">
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end">
+        <PageToolbar title="Documentos">
           <div className="flex gap-2 items-center">
             {tab === "explorador" && (
               <>
@@ -343,7 +343,7 @@ export default function Documentos() {
               </>
             )}
           </div>
-        </div>
+        </PageToolbar>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">

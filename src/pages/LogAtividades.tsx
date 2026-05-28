@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,6 +128,7 @@ export default function LogAtividades() {
   return (
     <AppLayout title="Log de Atividades">
       <div className="space-y-4">
+        <PageToolbar title="Log de Atividades" />
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -346,7 +347,9 @@ export default function Fornecedores() {
 
     return (
         <AppLayout title="Fornecedores">
-            <div className="flex gap-3 h-[calc(100vh-130px)] min-h-[600px]">
+            <div className="flex flex-col h-[calc(100vh-130px)] min-h-[600px]">
+                <PageToolbar title="Fornecedores" />
+                <div className="flex gap-3 flex-1 min-h-0">
                 {/* LEFT: List */}
                 <div className="w-[340px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
                     <div className="bg-[#1D2939] px-4 py-3 flex items-center justify-between gap-2">
@@ -588,6 +591,7 @@ export default function Fornecedores() {
                             </div>
                         </>
                     )}
+                </div>
                 </div>
             </div>
 

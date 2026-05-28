@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Search, Mail, Download, FileText, ChevronRight, MessageCircle, Plus } from 'lucide-react'
+import { PageToolbar } from '@/components/layout/PageToolbar'
+import { Search, Mail, Download, FileText, ChevronRight, MessageCircle, Plus, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -262,6 +263,10 @@ export default function Recibos() {
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [dataDe, setDataDe] = useState('')
+  const [dataAte, setDataAte] = useState('')
+  const [filtroDataAberto, setFiltroDataAberto] = useState(false)
+  const filtroDataRef = useRef<HTMLDivElement>(null)
   const [selecionado, setSelecionado] = useState<Recibo | null>(null)
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [whatsDialog, setWhatsDialog] = useState<Recibo | null>(null)
@@ -417,6 +422,11 @@ export default function Recibos() {
     // Status filter
     if (filtroStatus !== 'todos' && r.status_email !== filtroStatus) return false
 
+    // Date range filter (compara yyyy-MM-dd)
+    const dataRecibo = (r.data_pagamento || '').slice(0, 10)
+    if (dataDe && dataRecibo < dataDe) return false
+    if (dataAte && dataRecibo > dataAte) return false
+
     // Search filter
     const needle = normalize(busca)
     if (!needle) return true
@@ -425,6 +435,20 @@ export default function Recibos() {
     )
     return haystack.includes(needle)
   })
+
+  const temFiltro = !!busca || filtroStatus !== 'todos' || !!dataDe || !!dataAte
+
+  // Fecha o popover de filtro de data ao clicar fora
+  useEffect(() => {
+    if (!filtroDataAberto) return
+    const handler = (e: MouseEvent) => {
+      if (filtroDataRef.current && !filtroDataRef.current.contains(e.target as Node)) {
+        setFiltroDataAberto(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [filtroDataAberto])
 
   // KPIs (sobre todos os recibos da empresa, independente do filtro)
   const kpis = useMemo(() => {
@@ -977,7 +1001,9 @@ export default function Recibos() {
 
   return (
     <AppLayout title="Recibos">
-      <KpiCardGrid className="mb-4">
+      <div className="flex flex-col h-[calc(100vh-120px)]">
+        <PageToolbar title="Recibos" />
+        <KpiCardGrid className="mb-4">
         <KpiCard
           label="Total de recibos"
           value={kpis.total}
@@ -987,7 +1013,7 @@ export default function Recibos() {
         <KpiCard label="Pendentes" value={kpis.pendentes} valueColor="#EA580C" sub="aguardando envio" />
         <KpiCard label="Erros" value={kpis.erros} valueColor="#E53E3E" sub="falha no envio" />
       </KpiCardGrid>
-      <div className="flex gap-4 h-[calc(100vh-210px)]">
+        <div className="flex gap-4 flex-1 min-h-0">
 
         {/* ---- LEFT COLUMN: List ---- */}
         <div className="w-[420px] min-w-[360px] flex flex-col">
@@ -1024,16 +1050,72 @@ export default function Recibos() {
 
             {/* Search + filter */}
             <div className="p-3 border-b border-[#E5E7EB] bg-white space-y-2 shrink-0">
-              {/* Search */}
-              <div className="flex items-center gap-2 border border-[#D1D5DB] rounded px-3 py-2 bg-white">
-                <Search className="w-3.5 h-3.5 text-[#9CA3AF] shrink-0" />
-                <input
-                  type="text"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar por nome ou numero..."
-                  className="flex-1 text-xs text-[#0F172A] placeholder:text-[#9CA3AF] bg-transparent outline-none border-none"
-                />
+              {/* Search + botão de filtro de data (suspenso) */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex-1 flex items-center gap-2 border border-[#D1D5DB] rounded px-3 py-2 bg-white">
+                  <Search className="w-3.5 h-3.5 text-[#9CA3AF] shrink-0" />
+                  <input
+                    type="text"
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar por nome ou numero..."
+                    className="flex-1 text-xs text-[#0F172A] placeholder:text-[#9CA3AF] bg-transparent outline-none border-none"
+                  />
+                </div>
+
+                <div className="relative shrink-0" ref={filtroDataRef}>
+                  <button
+                    type="button"
+                    onClick={() => setFiltroDataAberto((o) => !o)}
+                    title="Filtrar por data"
+                    className={`relative flex items-center justify-center w-[34px] h-[34px] rounded border transition-colors ${
+                      dataDe || dataAte
+                        ? 'bg-[#2A2724] text-white border-[#2A2724]'
+                        : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
+                    }`}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    {(dataDe || dataAte) && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#059669] border border-white" />
+                    )}
+                  </button>
+
+                  {filtroDataAberto && (
+                    <div className="absolute right-0 top-full mt-1 z-30 w-[240px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Filtrar por data</span>
+                        {(dataDe || dataAte) && (
+                          <button
+                            onClick={() => { setDataDe(''); setDataAte('') }}
+                            className="text-[10px] font-semibold text-[#E53E3E] hover:underline"
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-[#4B5563] block mb-1">De</label>
+                        <input
+                          type="date"
+                          value={dataDe}
+                          max={dataAte || undefined}
+                          onChange={(e) => setDataDe(e.target.value)}
+                          className="w-full border border-[#D1D5DB] rounded px-2 py-1.5 text-[11px] text-[#0F172A] bg-white outline-none focus:border-[#059669]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-[#4B5563] block mb-1">Até</label>
+                        <input
+                          type="date"
+                          value={dataAte}
+                          min={dataDe || undefined}
+                          onChange={(e) => setDataAte(e.target.value)}
+                          className="w-full border border-[#D1D5DB] rounded px-2 py-1.5 text-[11px] text-[#0F172A] bg-white outline-none focus:border-[#059669]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Status filter */}
@@ -1086,8 +1168,8 @@ export default function Recibos() {
               ) : filtrados.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 px-4 text-center text-xs text-[#9CA3AF]">
                   <FileText className="w-8 h-8 text-[#D1D5DB] mb-2" />
-                  <p className="mb-3">{busca ? 'Nenhum recibo encontrado.' : 'Nenhum recibo gerado ainda.'}</p>
-                  {!busca && (
+                  <p className="mb-3">{temFiltro ? 'Nenhum recibo encontrado.' : 'Nenhum recibo gerado ainda.'}</p>
+                  {!temFiltro && (
                     <button
                       onClick={() => setShowGerar(true)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
@@ -1183,6 +1265,7 @@ export default function Recibos() {
           </div>
         </div>
 
+        </div>
       </div>
 
       <Dialog open={showGerar} onOpenChange={(o) => { if (!o) fecharGerar() }}>
