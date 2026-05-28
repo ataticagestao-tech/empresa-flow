@@ -27,6 +27,9 @@ export interface RelatorioListaData {
     orientacao?: "portrait" | "landscape";
     /** Logo da empresa em dataURL/base64 (PNG/JPG). Se ausente, usa monograma com a inicial. */
     logo_base64?: string | null;
+    /** Largura/altura do logo em mm (já ajustadas à proporção pelo chamador). */
+    logo_w?: number;
+    logo_h?: number;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -87,24 +90,36 @@ export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
         doc.rect(0, 0, W, headerBandH, "F");
 
         /* ── Logo da empresa ou monograma (canto esquerdo) ── */
-        const logoSize = 16;
-        const logoY = (headerBandH - logoSize) / 2;
-        if (data.logo_base64) {
-            try {
-                doc.addImage(data.logo_base64, "PNG", margin, logoY, logoSize, logoSize);
-            } catch {
-                /* imagem inválida — ignora e segue sem logo */
-            }
-        } else {
+        const drawMonograma = (): number => {
+            const s = 16;
+            const ly = (headerBandH - s) / 2;
             const inicial = (data.empresa_nome || "?").trim().charAt(0).toUpperCase() || "?";
             doc.setFillColor(255, 255, 255);
-            doc.roundedRect(margin, logoY, logoSize, logoSize, 3, 3, "F");
+            doc.roundedRect(margin, ly, s, s, 3, 3, "F");
             doc.setFont("helvetica", "bold");
             doc.setFontSize(17);
             doc.setTextColor(cr, cg, cb);
-            doc.text(inicial, margin + logoSize / 2, logoY + logoSize / 2 + 2.2, { align: "center" });
+            doc.text(inicial, margin + s / 2, ly + s / 2 + 2.2, { align: "center" });
+            return margin + s + 5;
+        };
+
+        let textX: number;
+        if (data.logo_base64) {
+            const lw = data.logo_w && data.logo_w > 0 ? data.logo_w : 16;
+            const lh = data.logo_h && data.logo_h > 0 ? data.logo_h : 16;
+            const ly = (headerBandH - lh) / 2;
+            const fmt = /^data:image\/png/i.test(data.logo_base64) ? "PNG"
+                : /^data:image\/jpe?g/i.test(data.logo_base64) ? "JPEG"
+                : "PNG";
+            try {
+                doc.addImage(data.logo_base64, fmt, margin, ly, lw, lh);
+                textX = margin + lw + 5;
+            } catch {
+                textX = drawMonograma();
+            }
+        } else {
+            textX = drawMonograma();
         }
-        const textX = margin + logoSize + 5;
         const leftMaxW = W - margin - 72 - textX; // reserva ~72mm p/ o bloco da direita
 
         /* ── Lado esquerdo: dados da empresa ── */

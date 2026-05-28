@@ -65,6 +65,37 @@ function fmtCell(v: string | number | null | undefined): string {
 }
 
 /**
+ * Carrega o logo da empresa (URL) e devolve dataURL + dimensões em mm já
+ * ajustadas à proporção (altura máx 16mm, largura máx 42mm). Null se falhar.
+ */
+async function carregarLogo(url: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return resolve(null)
+        ctx.drawImage(img, 0, 0)
+        const dataUrl = canvas.toDataURL('image/png')
+        const ratio = img.naturalWidth / img.naturalHeight || 1
+        let h = 16
+        let w = h * ratio
+        if (w > 42) { w = 42; h = w / ratio }
+        resolve({ dataUrl, w, h })
+      } catch {
+        resolve(null) // imagem cross-origin sem CORS, etc.
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
+/**
  * Botão "Exportar" com menu Excel/PDF reutilizável por todos os módulos.
  * Puxa os dados da empresa (nome, CNPJ, cidade) do CompanyContext sozinho.
  */
@@ -73,7 +104,7 @@ export function ExportMenu<T>({
   columns,
   titulo,
   baseName,
-  orientacao = 'landscape',
+  orientacao = 'portrait',
   subtitulo,
   corPrimaria,
   size = 'sm',
@@ -159,7 +190,7 @@ export function ExportMenu<T>({
     XLSX.writeFile(wb, `${baseFileName()}.xlsx`)
   }
 
-  const exportarPDF = () => {
+  const exportarPDF = async () => {
     setOpen(false)
     const data = getRows()
     if (data.length === 0) { alert('Nenhum registro para exportar com os filtros atuais.'); return }
@@ -171,6 +202,10 @@ export function ExportMenu<T>({
     }))
     const linhas: string[][] = data.map(row => columns.map(c => fmtCell(c.value(row))))
 
+    // Logo real da empresa (companies.logo_url); cai no monograma se ausente/falhar.
+    const logoUrl = (selectedCompany as any)?.logo_url
+    const logo = logoUrl ? await carregarLogo(logoUrl) : null
+
     const blob = gerarRelatorioListaPDF({
       empresa_nome: selectedCompany?.nome_fantasia || selectedCompany?.razao_social || 'Empresa',
       empresa_razao_social: (selectedCompany as any)?.razao_social ?? null,
@@ -181,6 +216,9 @@ export function ExportMenu<T>({
       cor_primaria: corPrimaria,
       colunas,
       linhas,
+      logo_base64: logo?.dataUrl ?? null,
+      logo_w: logo?.w,
+      logo_h: logo?.h,
     })
     downloadListaPDF(blob, baseName)
   }

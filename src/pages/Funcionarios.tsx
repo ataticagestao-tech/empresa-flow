@@ -694,7 +694,7 @@ export default function Funcionarios() {
             <div className="flex items-center gap-1">
               <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
               <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
-              <ExportMenu rows={employeesExportRows} columns={employeesExportColumns} titulo="FUNCIONÁRIOS" baseName="funcionarios" orientacao="landscape" size="sm" disabled={!employees.length} />
+              <ExportMenu rows={employeesExportRows} columns={employeesExportColumns} titulo="FUNCIONÁRIOS" baseName="funcionarios" orientacao="portrait" size="sm" disabled={!employees.length} />
               <button onClick={startNew} className="text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
             </div>
           </div>
