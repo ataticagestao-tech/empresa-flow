@@ -5,7 +5,7 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ExportMenu } from "@/components/ExportMenu";
 
@@ -60,14 +60,6 @@ export default function Empresas() {
       setStep(0);
     }
   }, [isCreatingFromUrl]);
-
-  // Redireciona direto para resumo se tem empresa selecionada e não está criando/editando
-  useEffect(() => {
-    if (isCreatingFromUrl) return;
-    if (selectedCompany?.id && mode === "list" && !editingId) {
-      navigate(`/empresas/${selectedCompany.id}`, { replace: true });
-    }
-  }, [selectedCompany?.id, mode, editingId, navigate, isCreatingFromUrl]);
 
   useEffect(() => {
     if (!companies || companies.length === 0) return;
@@ -455,6 +447,12 @@ export default function Empresas() {
         </div>
       </AppLayout>
     );
+  }
+
+  // Empresa selecionada → vai direto para a ficha. Redirect declarativo (durante
+  // o render) em vez de useEffect, senão a lista pisca antes de redirecionar.
+  if (!isCreatingFromUrl && selectedCompany?.id && mode === "list" && !editingId) {
+    return <Navigate to={`/empresas/${selectedCompany.id}`} replace />;
   }
 
   // ─── LIST MODE ───
