@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -120,16 +120,15 @@ export default function CentrosCusto() {
 
   return (
     <AppLayout title="Centros de Custo">
-      <div className="space-y-6">
+      <div>
 
+        <PagePanel title="Setores / Centros de Custo">
         {/* Alert */}
         <div className="bg-[#FFF0EB] border border-[#e6c200] border-l-4 border-l-[#EA580C] rounded-md px-4 py-2.5 text-sm font-semibold text-[#EA580C]">
           Os setores abaixo foram criados pela Tática como padrão para esta empresa. O cliente pode renomear ou adicionar novos setores, mas não pode excluir os padrões.
         </div>
 
-        {/* Header */}
-        <PageToolbar title="Setores / Centros de Custo">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-end">
             <ExportMenu
               rows={centros}
               baseName="centros-custo"
@@ -149,7 +148,6 @@ export default function CentrosCusto() {
               {showForm ? "Fechar" : "+ Adicionar Setor"}
             </button>
           </div>
-        </PageToolbar>
 
         {/* New Sector Form */}
         {showForm && (
@@ -266,6 +264,7 @@ export default function CentrosCusto() {
             </div>
           </div>
         )}
+        </PagePanel>
       </div>
     </AppLayout>
   );

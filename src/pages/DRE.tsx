@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -314,12 +314,11 @@ export default function DRE() {
 
   return (
     <AppLayout title="DRE">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
         <PendenciasBanner variant="full" filter="credito" />
-        {/* Header */}
-        <PageToolbar title="Demonstrativo de Resultados" subtitle="Orçado vs Realizado por conta contábil">
-          <div className="flex items-center gap-2 flex-wrap">
+        <PagePanel title="Demonstrativo de Resultados" subtitle="Orçado vs Realizado por conta contábil">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <Select value={centroCustoId} onValueChange={setCentroCustoId}>
               <SelectTrigger className="w-[180px] h-8 text-xs">
                 <SelectValue placeholder="Centro de Custo" />
@@ -335,7 +334,6 @@ export default function DRE() {
               <Download className="h-3.5 w-3.5 mr-1" /> Excel
             </Button>
           </div>
-        </PageToolbar>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
         <div className="flex justify-end">
@@ -443,6 +441,7 @@ export default function DRE() {
             )}
           </CardContent>
         </Card>
+        </PagePanel>
       </div>
     </AppLayout>
   );

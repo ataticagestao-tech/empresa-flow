@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { PeriodFilter } from "@/components/ui/period-filter";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { CentralRelatorios } from "@/components/relatorios/CentralRelatorios";
 import type { EmpresaInfo } from "@/lib/relatorios/gerar-relatorio";
 
@@ -83,8 +83,9 @@ export default function Relatorios() {
 
     return (
         <AppLayout title="Relatórios">
-            <div className="space-y-6 animate-fade-in">
-                <PageToolbar title="Relatórios" subtitle="Exporte seus dados em Excel ou PDF">
+            <div className="animate-fade-in">
+                <PagePanel title="Relatórios" subtitle="Exporte seus dados em Excel ou PDF">
+                    <div className="flex justify-end">
                     <PeriodFilter
                         from={dateRange.start}
                         to={dateRange.end}
@@ -99,7 +100,7 @@ export default function Relatorios() {
                             }
                         }}
                     />
-                </PageToolbar>
+                    </div>
 
                 <Card>
                     <CardHeader>
@@ -119,6 +120,7 @@ export default function Relatorios() {
                         />
                     </CardContent>
                 </Card>
+                </PagePanel>
             </div>
         </AppLayout>
     );

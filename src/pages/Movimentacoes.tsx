@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -641,11 +641,10 @@ export default function Movimentacoes() {
 
   return (
     <AppLayout title="Movimentações">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
-        {/* ====== HEADER ====== */}
-        <PageToolbar title="Movimentações financeiras" subtitle="Entradas e saídas consolidadas a partir de CR, CP, vendas e lançamentos manuais">
-          <div className="flex items-center gap-2 flex-wrap">
+        <PagePanel title="Movimentações financeiras" subtitle="Entradas e saídas consolidadas a partir de CR, CP, vendas e lançamentos manuais">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <Button variant="outline" size="sm" onClick={exportPDF} disabled={filtered.length === 0}>
               <FileText className="h-3.5 w-3.5 mr-1" /> PDF
             </Button>
@@ -672,7 +671,6 @@ export default function Movimentacoes() {
               <Plus className="h-3.5 w-3.5 mr-1" /> Lançamento manual
             </Button>
           </div>
-        </PageToolbar>
 
         {/* ====== KPIs ====== */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -834,6 +832,7 @@ export default function Movimentacoes() {
             )}
           </CardContent>
         </Card>
+        </PagePanel>
       </div>
 
       {/* ====== MODAL: Lançamento Manual ====== */}
