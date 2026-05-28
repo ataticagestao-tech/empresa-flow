@@ -452,29 +452,56 @@ export default function FolhaPagamentoPage() {
     const db = activeClient as any
 
     try {
-      const ids = rascunhos.map(f => f.id)
-      const { error } = await db.from('folha_pagamento')
-        .update({ status: 'fechada' })
-        .in('id', ids)
-
-      if (error) throw error
-
-      // Gerar CP consolidado
-      const totalLiquido = rascunhos.reduce((s, f) => s + f.valor_liquido, 0)
       const [ano, mes] = competencia.split('-')
       const mesLabel = MESES[parseInt(mes) - 1]
+      const onlyDigits = (s?: string | null) => (s || '').replace(/\D/g, '')
 
-      await db.from('contas_pagar').insert({
-        company_id: selectedCompany.id,
-        credor_nome: 'Folha de pagamento',
-        descricao: `Folha ${mesLabel}/${ano} - ${rascunhos.length} funcionario(s)`,
-        valor: totalLiquido,
-        data_vencimento: `${competencia}-05`,
-        status: 'aberto',
-        competencia,
-      })
+      let cpsCriados = 0
+      let erros = 0
 
-      toast.success(`Folha fechada: ${rascunhos.length} registro(s)`)
+      // Um Conta a Pagar por funcionario (com CPF p/ match de PIX), vinculado de volta a folha.
+      // Processamento independente por linha: se uma falhar, as outras seguem; re-fechar
+      // so pega os rascunhos restantes (folha fechada sai do filtro, sem duplicar CP).
+      for (const folha of rascunhos) {
+        try {
+          const func = funcionarios.find(f => f.id === folha.employee_id)
+          const nome = func?.nome_completo || func?.name || 'Funcionário'
+          const cpf = onlyDigits(func?.cpf)
+
+          const { data: cp, error: cpError } = await db.from('contas_pagar')
+            .insert({
+              company_id: selectedCompany.id,
+              credor_nome: nome,
+              credor_cpf_cnpj: cpf || null,
+              descricao: `Salário ${mesLabel}/${ano}`,
+              valor: folha.valor_liquido,
+              data_vencimento: `${competencia}-05`,
+              status: 'aberto',
+              competencia,
+            })
+            .select('id')
+            .single()
+
+          if (cpError) throw cpError
+
+          const { error: updError } = await db.from('folha_pagamento')
+            .update({ status: 'fechada', conta_pagar_id: cp.id })
+            .eq('id', folha.id)
+
+          if (updError) throw updError
+
+          cpsCriados++
+        } catch (e) {
+          console.error('Erro ao fechar folha do funcionario', folha.employee_id, e)
+          erros++
+        }
+      }
+
+      if (cpsCriados > 0) {
+        toast.success(`Folha fechada: ${cpsCriados} conta(s) a pagar gerada(s)${erros > 0 ? ` — ${erros} com erro` : ''}`)
+      } else {
+        toast.error('Não foi possível fechar a folha')
+      }
       loadData()
     } catch (err: any) {
       toast.error(err.message || 'Erro ao fechar folha')
