@@ -52,6 +52,7 @@ interface Funcionario {
   id: string
   nome_completo?: string | null
   name?: string | null
+  cpf?: string | null
   role?: string | null
   salary?: number | null
   salario_base?: number | null
@@ -105,6 +106,18 @@ const TIPOS_CONTRATO_FOLHA = ['clt', 'temporario', 'estagio']
 
 // tipo_contrato nulo no cadastro tem default 'clt'
 const normalizaTipoContrato = (t?: string | null) => (t || 'clt').toLowerCase()
+
+// Campos obrigatorios para lancar a folha de um funcionario.
+// Cadastro incompleto = nao pode lancar (retorna a lista do que falta).
+function getCamposFaltando(func: Funcionario): string[] {
+  const faltando: string[] = []
+  const nome = (func.nome_completo || func.name || '').trim()
+  if (!nome) faltando.push('nome')
+  if (!(func.cpf || '').trim()) faltando.push('CPF')
+  const salario = Number(func.salario_base ?? func.salary ?? 0)
+  if (!salario || salario <= 0) faltando.push('salário base')
+  return faltando
+}
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
@@ -270,6 +283,18 @@ export default function FolhaPagamentoPage() {
     }),
     [funcionariosAtivos, calcForm.tiposContrato])
 
+  // Elegiveis com cadastro incompleto (nome/CPF/salario) — nao podem ser lancados
+  const funcionariosIncompletos = useMemo(() =>
+    funcionariosElegiveis
+      .map(f => ({ func: f, faltando: getCamposFaltando(f) }))
+      .filter(x => x.faltando.length > 0),
+    [funcionariosElegiveis])
+
+  // Elegiveis com cadastro completo — serao calculados
+  const funcionariosCalculaveis = useMemo(() =>
+    funcionariosElegiveis.filter(f => getCamposFaltando(f).length === 0),
+    [funcionariosElegiveis])
+
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const totalProventos = folhas.reduce((s, f) => s + (f.total_proventos || 0), 0)
@@ -322,10 +347,31 @@ export default function FolhaPagamentoPage() {
         return
       }
 
+      // Separa quem tem cadastro completo (nome/CPF/salario) de quem nao tem
+      const funcsIncompletos = funcsParaCalc.filter(f => getCamposFaltando(f).length > 0)
+      const funcsCompletos = funcsParaCalc.filter(f => getCamposFaltando(f).length === 0)
+
+      // Notifica os bloqueados por cadastro incompleto
+      if (funcsIncompletos.length > 0) {
+        const detalhes = funcsIncompletos
+          .map(f => `${f.nome_completo || f.name || 'Sem nome'} (falta: ${getCamposFaltando(f).join(', ')})`)
+          .join('; ')
+        toast.warning(
+          `${funcsIncompletos.length} funcionário(s) não lançado(s) — cadastro incompleto: ${detalhes}`,
+          { duration: 10000 }
+        )
+      }
+
+      if (funcsCompletos.length === 0) {
+        toast.error('Nenhum funcionário com cadastro completo (nome, CPF e salário base) para lançar')
+        setCalculating(false)
+        return
+      }
+
       let criados = 0
       let ignorados = 0
 
-      for (const func of funcsParaCalc) {
+      for (const func of funcsCompletos) {
         // Verificar se ja existe
         const { data: existing } = await db.from('folha_pagamento')
           .select('id')
@@ -737,9 +783,29 @@ export default function FolhaPagamentoPage() {
                   })}
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Serão calculados <strong>{funcionariosElegiveis.length}</strong> funcionário(s) ativo(s) dos tipos selecionados.
+                  Serão calculados <strong>{funcionariosCalculaveis.length}</strong> funcionário(s) com cadastro completo.
                 </p>
               </div>
+
+              {/* Aviso: cadastro incompleto — nao podem ser lancados */}
+              {funcionariosIncompletos.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <AlertTriangle size={14} />
+                    {funcionariosIncompletos.length} funcionário(s) não serão lançados — cadastro incompleto:
+                  </div>
+                  <ul className="ml-5 list-disc space-y-0.5">
+                    {funcionariosIncompletos.map(({ func, faltando }) => (
+                      <li key={func.id}>
+                        <span className="font-medium">{func.nome_completo || func.name || 'Sem nome'}</span> — falta: {faltando.join(', ')}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="ml-5 text-amber-700">
+                    Complete o cadastro em Funcionários (nome, CPF e salário base) para lançar a folha destes.
+                  </p>
+                </div>
+              )}
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
                 <p>INSS: tabela progressiva {new Date().getFullYear()}</p>
                 <p>IRRF: tabela progressiva {new Date().getFullYear()}</p>
