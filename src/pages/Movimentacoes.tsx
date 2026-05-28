@@ -7,6 +7,7 @@ import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PageToolbar } from '@/components/layout/PageToolbar'
 import { PeriodFilter } from '@/components/ui/period-filter'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ExportMenu } from '@/components/ExportMenu'
@@ -754,26 +755,17 @@ export default function Movimentacoes() {
           </div>
 
           {/* Tipo */}
-          <div className="inline-flex rounded-md border border-input bg-background p-0.5">
-            {([
-              { id: 'todos' as TipoFilter, label: 'Todos' },
-              { id: 'entradas' as TipoFilter, label: 'Entradas' },
-              { id: 'saidas' as TipoFilter, label: 'Saídas' },
-              { id: 'transferencias' as TipoFilter, label: 'Transf.' },
-            ]).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setTipoFilter(tab.id)}
-                className={`px-3 h-8 rounded text-xs font-medium transition-colors ${
-                  tipoFilter === tab.id
-                    ? 'bg-foreground text-background'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl<TipoFilter>
+            size="sm"
+            value={tipoFilter}
+            onChange={setTipoFilter}
+            options={[
+              { value: 'todos', label: 'Todos' },
+              { value: 'entradas', label: 'Entradas' },
+              { value: 'saidas', label: 'Saídas' },
+              { value: 'transferencias', label: 'Transf.' },
+            ]}
+          />
 
           {/* Período */}
           <PeriodFilter
