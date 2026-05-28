@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,11 +195,11 @@ export default function EstoqueProdutos() {
 
   return (
     <AppLayout title="Estoque">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
         {/* Header */}
-        <PageToolbar title="Estoque de Produtos" subtitle="Controle de insumos e materiais">
-          <div className="flex items-center gap-2">
+        <PagePanel title="Estoque de Produtos" subtitle="Controle de insumos e materiais">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <ExportMenu
               rows={filtered}
               baseName="estoque"
@@ -216,7 +216,6 @@ export default function EstoqueProdutos() {
             />
             <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Novo Produto</Button>
           </div>
-        </PageToolbar>
 
         {/* Alerta estoque mínimo */}
         {alertas.length > 0 && (
@@ -409,6 +408,7 @@ export default function EstoqueProdutos() {
             )}
           </SheetContent>
         </Sheet>
+        </PagePanel>
       </div>
     </AppLayout>
   );

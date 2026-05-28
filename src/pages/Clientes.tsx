@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Button } from "@/components/ui/button";
 import {
     Plus, Search, Pencil, Trash2, Bell, ShoppingCart,
@@ -843,30 +842,34 @@ export default function Clientes() {
 
     return (
         <AppLayout title="Clientes">
-            <div className="flex flex-col h-[calc(100vh-120px)] animate-in fade-in duration-500">
-                <PageToolbar title="Clientes" />
+            <div className="py-3 h-[calc(100vh-120px)] animate-in fade-in duration-500">
+                <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
+                {/* ═══ MENU SUPERIOR (header da página) ═══ */}
+                <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
+                  <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Clientes</h1>
+                      <p className="text-[11px] text-white/80 mt-0.5">Cadastro de clientes e histórico financeiro</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {duplicatesCount > 0 && (
+                        <button
+                          onClick={() => setMergeOpen(true)}
+                          className="text-amber-300 hover:text-white p-1.5 rounded hover:bg-white/10"
+                          title={`Mesclar ${duplicatesCount} cliente(s) com mesmo CPF/CNPJ`}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      )}
+                      <ExportMenu rows={clientsExportRows} columns={clientsExportColumns} titulo="CLIENTES" baseName="clientes" orientacao="landscape" corPrimaria="#2563EB" size="sm" disabled={!(clients || []).length} />
+                      <button onClick={handleNew} className="text-[11px] font-bold text-white/70 hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex gap-4 flex-1 min-h-0">
 
                 {/* ═══ PAINEL ESQUERDO — Lista ═══ */}
                 <div className="w-1/3 min-w-[360px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-
-                    {/* Header azul */}
-                    <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-white uppercase tracking-widest">Clientes</h3>
-                        <div className="flex items-center gap-1">
-                            {duplicatesCount > 0 && (
-                                <button
-                                    onClick={() => setMergeOpen(true)}
-                                    className="text-amber-300 hover:text-white p-1.5 rounded hover:bg-white/10"
-                                    title={`Mesclar ${duplicatesCount} cliente(s) com mesmo CPF/CNPJ`}
-                                >
-                                    <Copy className="h-4 w-4" />
-                                </button>
-                            )}
-                            <ExportMenu rows={clientsExportRows} columns={clientsExportColumns} titulo="CLIENTES" baseName="clientes" orientacao="landscape" corPrimaria="#2563EB" size="sm" disabled={!(clients || []).length} />
-                            <button onClick={handleNew} className="text-[11px] font-bold text-white/70 hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
-                        </div>
-                    </div>
 
                     {/* Busca */}
                     <div className="p-3 border-b border-[#eee]">
@@ -1420,6 +1423,7 @@ export default function Clientes() {
                     defaultSubject="Mensagem da Tatica Gestão"
                     defaultBody={selectedClient ? `Olá ${toTitleCase(selectedClient.razao_social || "")}!\n\n` : ""}
                 />
+                </div>
                 </div>
             </div>
         </AppLayout>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -98,10 +98,10 @@ export default function Categorias() {
 
     return (
         <AppLayout title="Categorias">
-            <div className="space-y-6 animate-fade-in">
+            <div className="animate-fade-in">
 
-                <PageToolbar title="Categorias">
-                    <div className="flex items-center gap-2">
+                <PagePanel title="Categorias" subtitle="Categorias de produtos e serviços">
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
                         <ExportMenu
                             rows={filteredCategories ?? []}
                             baseName="categorias"
@@ -118,7 +118,6 @@ export default function Categorias() {
                             Nova Categoria
                         </Button>
                     </div>
-                </PageToolbar>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -190,6 +189,7 @@ export default function Categorias() {
                     }}
                     dataToEdit={editingItem}
                 />
+                </PagePanel>
             </div>
         </AppLayout>
     );

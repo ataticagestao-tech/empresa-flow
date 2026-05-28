@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -347,20 +346,26 @@ export default function Fornecedores() {
 
     return (
         <AppLayout title="Fornecedores">
-            <div className="flex flex-col h-[calc(100vh-130px)] min-h-[600px]">
-                <PageToolbar title="Fornecedores" />
+            <div className="py-3 h-[calc(100vh-130px)] min-h-[600px]">
+                <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
+                {/* ═══ MENU SUPERIOR (header da página) ═══ */}
+                <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
+                  <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Fornecedores</h1>
+                      <p className="text-[11px] text-white/80 mt-0.5">Cadastro de fornecedores e dados de pagamento</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
+                      <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
+                      <ExportMenu rows={suppliersExportRows} columns={suppliersExportColumns} titulo="FORNECEDORES" baseName="fornecedores" orientacao="landscape" size="sm" disabled={!suppliers.length} />
+                      <button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1 ml-1">+ Novo</button>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex gap-3 flex-1 min-h-0">
                 {/* LEFT: List */}
                 <div className="w-[340px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-                    <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-2">
-                        <span className="text-[12px] font-bold uppercase tracking-wider text-white">Fornecedores</span>
-                        <div className="flex items-center gap-1">
-                            <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
-                            <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
-                            <ExportMenu rows={suppliersExportRows} columns={suppliersExportColumns} titulo="FORNECEDORES" baseName="fornecedores" orientacao="landscape" size="sm" disabled={!suppliers.length} />
-                            <button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1 ml-1">+ Novo</button>
-                        </div>
-                    </div>
                     <div className="p-3 border-b border-[#EAECF0]">
                         <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)}
                             className="w-full border border-[#ccc] rounded-md px-3 py-2 text-sm focus:border-[#059669] focus:outline-none" />
@@ -591,6 +596,7 @@ export default function Fornecedores() {
                             </div>
                         </>
                     )}
+                </div>
                 </div>
                 </div>
             </div>

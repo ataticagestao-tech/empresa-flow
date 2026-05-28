@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -93,8 +93,8 @@ export default function Configuracoes() {
 
     return (
         <AppLayout title="Configurações">
-            <div className="space-y-6 animate-fade-in">
-                <PageToolbar title="Configurações" />
+            <div className="animate-fade-in">
+                <PagePanel title="Configurações" subtitle="Preferências gerais, fiscais e integrações">
 
                 <Tabs defaultValue="geral" className="w-full">
                     <TabsList className="flex w-full max-w-2xl mb-6 overflow-x-auto">
@@ -202,6 +202,7 @@ export default function Configuracoes() {
                         </Card>
                     </TabsContent>
                 </Tabs>
+                </PagePanel>
             </div>
         </AppLayout>
     );

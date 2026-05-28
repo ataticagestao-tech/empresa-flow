@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -116,9 +116,9 @@ export default function AdminUsuarios() {
 
   return (
     <AppLayout title="Gerenciar Usuários">
-      <div className="space-y-6">
+      <div>
 
-        <PageToolbar title="Gerenciar Usuários" />
+        <PagePanel title="Gerenciar Usuários" subtitle="Usuários, acessos e permissões do sistema">
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -216,6 +216,7 @@ export default function AdminUsuarios() {
             )}
           </CardContent>
         </Card>
+        </PagePanel>
       </div>
 
       {/* Modals */}

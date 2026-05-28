@@ -185,6 +185,8 @@ export default function FolhaPagamentoPage() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
   const [faixasINSS, setFaixasINSS] = useState<FaixaINSS[]>([])
   const [faixasIRRF, setFaixasIRRF] = useState<FaixaIRRF[]>([])
+  // Horas extras aprovadas do Ponto, agregadas por funcionario na competencia
+  const [pontoHoras, setPontoHoras] = useState<Record<string, { he50: number; he100: number }>>({})
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
 
@@ -228,7 +230,9 @@ export default function FolhaPagamentoPage() {
     setLoading(true)
     const db = activeClient as any
 
-    const [folhaRes, funcRes, inssRes, irrfRes] = await Promise.all([
+    const fimMes = format(addMonths(new Date(Number(competencia.split('-')[0]), Number(competencia.split('-')[1]) - 1, 1), 1), 'yyyy-MM') + '-01'
+
+    const [folhaRes, funcRes, inssRes, irrfRes, pontoRes] = await Promise.all([
       db.from('folha_pagamento')
         .select('*')
         .eq('company_id', selectedCompany.id)
@@ -246,17 +250,29 @@ export default function FolhaPagamentoPage() {
         .select('faixa_min, faixa_max, aliquota, deducao')
         .eq('ano', new Date().getFullYear())
         .order('faixa_min'),
+      // Ponto aprovado da competencia (HE entram na folha mensal)
+      db.from('ponto_eletronico')
+        .select('employee_id, horas_extras_50, horas_extras_100, aprovado, data')
+        .eq('company_id', selectedCompany.id)
+        .eq('aprovado', true)
+        .gte('data', `${competencia}-01`)
+        .lt('data', fimMes),
     ])
 
-    console.log('[FolhaPag] company_id:', selectedCompany.id)
-    console.log('[FolhaPag] funcRes:', funcRes)
-    console.log('[FolhaPag] funcRes.error:', funcRes.error)
-    console.log('[FolhaPag] funcRes.data:', funcRes.data)
+    // Agrega HE aprovadas por funcionario
+    const heMap: Record<string, { he50: number; he100: number }> = {}
+    for (const p of (pontoRes.data || [])) {
+      const cur = heMap[p.employee_id] || { he50: 0, he100: 0 }
+      cur.he50 += Number(p.horas_extras_50 || 0)
+      cur.he100 += Number(p.horas_extras_100 || 0)
+      heMap[p.employee_id] = cur
+    }
 
     setFolhas(folhaRes.data || [])
     setFuncionarios(funcRes.data || [])
     setFaixasINSS(inssRes.data || [])
     setFaixasIRRF(irrfRes.data || [])
+    setPontoHoras(heMap)
     setLoading(false)
   }, [selectedCompany, activeClient, competencia])
 
@@ -388,23 +404,30 @@ export default function FolhaPagamentoPage() {
 
         const salarioBase = func.salario_base || func.salary || 0
 
-        // Calcular INSS progressivo
-        const inssFunc = calcularINSS(salarioBase, faixasINSS)
+        // Horas extras aprovadas do Ponto — só entram na folha mensal.
+        // Valor-hora = salário / 220 (CLT). HE 50% = ×1,5 · HE 100% = ×2,0.
+        const he = calcForm.tipo === 'mensal' ? (pontoHoras[func.id] || { he50: 0, he100: 0 }) : { he50: 0, he100: 0 }
+        const valorHora = salarioBase / 220
+        const valorHE50 = Math.round(he.he50 * valorHora * 1.5 * 100) / 100
+        const valorHE100 = Math.round(he.he100 * valorHora * 2.0 * 100) / 100
 
-        // Calcular IRRF
-        const baseIRRF = salarioBase - inssFunc
+        // Bruto = salário base + horas extras
+        const totalProventos = Math.round((salarioBase + valorHE50 + valorHE100) * 100) / 100
+
+        // INSS progressivo sobre o bruto
+        const inssFunc = calcularINSS(totalProventos, faixasINSS)
+
+        // IRRF sobre bruto - INSS
+        const baseIRRF = totalProventos - inssFunc
         const irrf = calcularIRRF(baseIRRF, faixasIRRF)
 
-        // VT: 6% do salario (desconto funcionario)
+        // VT: 6% do salário base (não incide sobre HE)
         const vt = Math.round(salarioBase * 0.06 * 100) / 100
 
-        // FGTS: 8% do salario
-        const fgts = Math.round(salarioBase * 0.08 * 100) / 100
+        // FGTS 8% e INSS patronal 20% sobre o bruto
+        const fgts = Math.round(totalProventos * 0.08 * 100) / 100
+        const inssPatronal = Math.round(totalProventos * 0.20 * 100) / 100
 
-        // INSS patronal: 20% (se nao Simples Nacional)
-        const inssPatronal = Math.round(salarioBase * 0.20 * 100) / 100
-
-        const totalProventos = salarioBase
         const totalDescontos = Math.round((inssFunc + irrf + vt) * 100) / 100
         const valorLiquido = Math.round((totalProventos - totalDescontos) * 100) / 100
 
@@ -414,6 +437,10 @@ export default function FolhaPagamentoPage() {
           competencia,
           tipo: calcForm.tipo,
           salario_base: salarioBase,
+          horas_extras_50: he.he50,
+          horas_extras_100: he.he100,
+          valor_he_50: valorHE50,
+          valor_he_100: valorHE100,
           total_proventos: totalProventos,
           inss_funcionario: inssFunc,
           irrf,
@@ -838,6 +865,7 @@ export default function FolhaPagamentoPage() {
                 <p>IRRF: tabela progressiva {new Date().getFullYear()}</p>
                 <p>FGTS: 8% | INSS patronal: 20%</p>
                 <p>VT: 6% do salario base</p>
+                <p>Horas extras: puxadas do Ponto aprovado (50% e 100%) — só na folha mensal</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">

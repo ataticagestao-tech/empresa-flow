@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -160,11 +160,10 @@ export default function BalancoPatrimonial() {
 
   return (
     <AppLayout title="Balanço Patrimonial">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
-        {/* Header */}
-        <PageToolbar title="Balanço Patrimonial" subtitle="Posição patrimonial na data de referência">
-          <div className="flex items-center gap-2 flex-wrap">
+        <PagePanel title="Balanço Patrimonial" subtitle="Posição patrimonial na data de referência">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <Select value={mesRef} onValueChange={setMesRef}>
               <SelectTrigger className="w-[130px] h-8 text-xs">
                 <SelectValue />
@@ -200,7 +199,6 @@ export default function BalancoPatrimonial() {
               </>
             )}
           </div>
-        </PageToolbar>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -261,6 +259,7 @@ export default function BalancoPatrimonial() {
             </CardContent>
           </Card>
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );

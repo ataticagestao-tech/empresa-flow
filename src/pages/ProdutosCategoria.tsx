@@ -1,12 +1,13 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { CategoriaContabilContent } from "@/components/products/CategoriaContabilContent";
 
 export default function ProdutosCategoria() {
     return (
         <AppLayout title="Categoria contábil dos produtos">
-            <PageToolbar title="Categoria contábil dos produtos" />
-            <CategoriaContabilContent />
+            <PagePanel title="Categoria contábil dos produtos" subtitle="Vincule cada produto à conta de receita correta">
+                <CategoriaContabilContent />
+            </PagePanel>
         </AppLayout>
     );
 }

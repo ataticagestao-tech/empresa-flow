@@ -8,7 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -214,9 +214,9 @@ export default function CalendarioFiscal() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Calendario Fiscal">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
 
-        <PageToolbar title="Calendário Fiscal" />
+        <PagePanel title="Calendário Fiscal" subtitle="Obrigações e vencimentos fiscais do período">
 
         {/* ── Certificado digital alert ── */}
         {certificado && certStatus && certStatus.dias <= 60 && (
@@ -397,6 +397,7 @@ export default function CalendarioFiscal() {
             )}
           </div>
         </div>
+        </PagePanel>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════

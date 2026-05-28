@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -141,9 +141,9 @@ export default function MargensDesconto() {
 
     return (
         <AppLayout title="Margens de Desconto">
-            <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ fontFamily: FONT }} className="animate-fade-in">
 
-                <PageToolbar title="Margens de Desconto" subtitle={`${configuredCount} de ${products.length} produtos configurados`} />
+                <PagePanel title="Margens de Desconto" subtitle={`${configuredCount} de ${products.length} produtos configurados`}>
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>
@@ -240,6 +240,7 @@ export default function MargensDesconto() {
                         )}
                     </DialogContent>
                 </Dialog>
+                </PagePanel>
             </div>
         </AppLayout>
     );

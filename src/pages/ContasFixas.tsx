@@ -3,7 +3,7 @@ import { format, startOfMonth, endOfMonth, parseISO, isBefore, isToday, addMonth
 import { ChevronLeft, ChevronRight, ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
@@ -81,12 +81,12 @@ export default function ContasFixas() {
 
   return (
     <AppLayout>
-      <div className="px-6 py-6 max-w-6xl mx-auto">
-        <PageToolbar
+      <div className="px-6 py-6 max-w-6xl mx-auto animate-fade-in">
+        <PagePanel
           title="Contas Fixas"
           subtitle={<>Despesas recorrentes do periodo. Marque uma conta como fixa em <Link to="/contas-pagar" style={{ color: '#059669', textDecoration: 'underline' }}>Contas a Pagar</Link>.</>}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <button
               onClick={() => setRefMes(subMonths(refMes, 1))}
               className="p-2 rounded-[8px] hover:bg-[rgba(26,46,74,0.05)] transition"
@@ -105,7 +105,6 @@ export default function ContasFixas() {
               <ChevronRight size={16} color="#1D2939" />
             </button>
           </div>
-        </PageToolbar>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
           <KpiCard label="Total estimado" value={totals.total} count={totals.count} accent="#1D2939" />
@@ -165,6 +164,7 @@ export default function ContasFixas() {
             </table>
           </div>
         )}
+        </PagePanel>
       </div>
     </AppLayout>
   )
@@ -174,7 +174,7 @@ function KpiCard({ label, value, count, accent }: { label: string; value: number
   return (
     <div className="rounded-[10px] p-4" style={{ backgroundColor: '#fff', border: '1px solid rgba(26,46,74,0.10)' }}>
       <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#667085' }}>{label}</p>
-      <p className="font-bold mt-1" style={{ fontSize: 20, color: accent, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
+      <p className="font-bold mt-1" style={{ fontSize: 20, color: accent, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
         {formatBRL(value)}
       </p>
       <p className="text-[11px] mt-1" style={{ color: '#667085' }}>{count} {count === 1 ? 'conta' : 'contas'}</p>

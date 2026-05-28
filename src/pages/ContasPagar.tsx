@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData, toTitleCase } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
 import { PendenciasBanner } from '@/modules/finance/presentation/components/PendenciasBanner'
@@ -1315,7 +1315,7 @@ export default function ContasPagar() {
     return (
       <span
         className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold px-2.5 py-1 rounded-full"
-        style={{ color: c.text, backgroundColor: c.bg, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+        style={{ color: c.text, backgroundColor: c.bg, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
       >
         <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: c.dot, flexShrink: 0 }} />
         {c.label}
@@ -1609,11 +1609,11 @@ export default function ContasPagar() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Contas a Pagar">
-      <div className="max-w-[1400px] mx-auto space-y-4">
-
-        <PageToolbar title="Contas a Pagar" />
+      <div className="max-w-[1400px] mx-auto">
 
         <PendenciasBanner variant="full" filter="debito" />
+        <PagePanel title="Contas a Pagar" subtitle="Pagamentos previstos e realizados por fornecedor">
+
         {/* KPIs */}
         <KpiCardGrid>
           <KpiCard
@@ -2088,10 +2088,10 @@ export default function ContasPagar() {
                     className="w-full flex items-center justify-between px-3 py-2.5 mb-2 transition hover:opacity-80 rounded-[6px]"
                     style={{ borderBottom: '1px solid rgba(26,46,74,0.10)', backgroundColor: 'rgba(26,46,74,0.03)' }}
                   >
-                    <span className="font-bold uppercase tracking-wider" style={{ fontSize: '12px', color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', letterSpacing: '0.06em' }}>
+                    <span className="font-bold uppercase tracking-wider" style={{ fontSize: '12px', color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)', letterSpacing: '0.06em' }}>
                       {config.label}
                     </span>
-                    <span className="font-bold" style={{ fontSize: '12px', color: '#1D2939', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span className="font-bold" style={{ fontSize: '12px', color: '#1D2939', fontFamily: 'var(--font-display, "Inter", sans-serif)', fontVariantNumeric: 'tabular-nums' }}>
                       {formatBRL(groupTotal)} · {allItems.length} titulo{allItems.length !== 1 ? 's' : ''}
                     </span>
                   </button>
@@ -2121,13 +2121,13 @@ export default function ContasPagar() {
                                 style={{ borderColor: 'rgba(26,46,74,0.18)' }}
                               />
                             </th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{group === 'pagos' ? 'Pagamento' : 'Vencimento'}</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Descrição</th>
-                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Categoria contábil</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Status</th>
-                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Acoes</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{group === 'pagos' ? 'Pagamento' : 'Vencimento'}</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Descrição</th>
+                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Valor</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Categoria</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Categoria contábil</th>
+                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Status</th>
+                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Acoes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2160,15 +2160,15 @@ export default function ContasPagar() {
                                 {/* Vencimento (ou Pagamento, em Pagos) */}
                                 <td className="py-1 px-2.5" style={{ fontSize: 13 }}>
                                   {group === 'pagos' ? (
-                                    <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_pagamento || cp.data_vencimento)}</span>
+                                    <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{formatData(cp.data_pagamento || cp.data_vencimento)}</span>
                                   ) : isHoje ? (
                                     <span className="font-bold" style={{ color: '#E53E3E' }}>Hoje</span>
                                   ) : (
-                                    <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
+                                    <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{formatData(cp.data_vencimento)}</span>
                                   )}
                                 </td>
                                 {/* Descri\u00e7\u00e3o (credor abaixo, menor) */}
-                                <td className="py-1 px-2.5" style={{ fontSize: 13, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                                <td className="py-1 px-2.5" style={{ fontSize: 13, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                                   <div className="font-semibold" style={{ color: '#1D2939' }}>{cp.descricao || cp.credor_nome}</div>
                                   {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
                                     <div style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
@@ -2179,7 +2179,7 @@ export default function ContasPagar() {
                                 </td>
                                 {/* Valor (em Pagos, mostra valor pago; demais grupos, saldo a pagar) */}
                                 <td className="py-1 px-2.5 text-right">
-                                  <div className="font-semibold" style={{ color: '#1D2939', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
+                                  <div className="font-semibold" style={{ color: '#1D2939', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
                                     {formatBRL(group === 'pagos' ? Number(cp.valor_pago || cp.valor || 0) : saldo(cp))}
                                   </div>
                                   {group !== 'pagos' && cp.valor_pago > 0 && (
@@ -2195,7 +2195,7 @@ export default function ContasPagar() {
                                   </span>
                                 </td>
                                 {/* Categoria cont\u00e1bil (plano de contas) */}
-                                <td className="py-1 px-2.5" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
+                                <td className="py-1 px-2.5" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
                                   <div className="truncate">{contaContabilLabel}</div>
                                 </td>
                                 <td className="py-1 px-2.5">
@@ -2224,7 +2224,7 @@ export default function ContasPagar() {
                                       <button
                                         onClick={() => openPayModal(cp)}
                                         className="text-xs font-semibold px-3 py-1.5 rounded-[6px] transition"
-                                        style={{ border: '1px solid #059669', color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                        style={{ border: '1px solid #059669', color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#059669'; (e.currentTarget as HTMLElement).style.color = '#ffffff' }}
                                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; (e.currentTarget as HTMLElement).style.color = '#059669' }}
                                       >
@@ -2260,7 +2260,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => openEditModal(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2269,7 +2269,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleArquivar(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2278,7 +2278,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleRenegociar(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2287,7 +2287,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleCancelar(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2296,7 +2296,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => handleDividir(cp)}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.03)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2305,7 +2305,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => { setDropdownOpen(null); abrirComprovanteWhatsApp(cp) }}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(16,185,129,0.08)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2315,7 +2315,7 @@ export default function ContasPagar() {
                                           <button
                                             onClick={() => { setDropdownOpen(null); abrirComprovanteEmail(cp) }}
                                             className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                            style={{ color: '#1E3A8A', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(30,58,138,0.08)' }}
                                             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                           >
@@ -2348,7 +2348,7 @@ export default function ContasPagar() {
                                                 }
                                               }}
                                               className="w-full text-left px-3 py-2 text-xs transition flex items-center gap-2"
-                                              style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}
+                                              style={{ color: '#E53E3E', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                                               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(139,0,0,0.05)' }}
                                               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                                             >
@@ -2399,6 +2399,7 @@ export default function ContasPagar() {
             })()}
           </div>
         </div>
+        </PagePanel>
 
         {/* ─── Modal: Pagar CP ──────────────────────────────────────── */}
         {showPayModal && payingCp && (
@@ -2406,8 +2407,8 @@ export default function ContasPagar() {
             <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
-                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Pagar Conta</h3>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Registrar pagamento</p>
+                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>Pagar Conta</h3>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>Registrar pagamento</p>
                 </div>
                 <button onClick={() => setShowPayModal(false)} className="text-white/50 hover:text-white transition">
                   <X size={18} />
@@ -2415,15 +2416,15 @@ export default function ContasPagar() {
               </div>
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>{payingCp.credor_nome}</p>
-                  <p style={{ fontSize: 12, color: '#667085', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>{payingCp.credor_nome}</p>
+                  <p style={{ fontSize: 12, color: '#667085', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>
                     Saldo: {formatBRL(saldo(payingCp))} | Venc: {formatData(payingCp.data_vencimento)}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Valor pago *</label>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Valor pago *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -2434,7 +2435,7 @@ export default function ContasPagar() {
                     />
                   </div>
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Data pagamento *</label>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Data pagamento *</label>
                     <input
                       type="date"
                       value={payForm.dataPagamento}
@@ -2446,7 +2447,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Forma pagamento *</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Forma pagamento *</label>
                   <select
                     value={payForm.formaPagamento}
                     onChange={(e) => setPayForm({ ...payForm, formaPagamento: e.target.value })}
@@ -2460,7 +2461,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{payForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{payForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
                   <select
                     value={payForm.contaBancariaId}
                     onChange={(e) => setPayForm({ ...payForm, contaBancariaId: e.target.value })}
@@ -2478,7 +2479,7 @@ export default function ContasPagar() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Juros / Multa</label>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Juros / Multa</label>
                     <input
                       type="number"
                       step="0.01"
@@ -2489,7 +2490,7 @@ export default function ContasPagar() {
                     />
                   </div>
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Desconto</label>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Desconto</label>
                     <input
                       type="number"
                       step="0.01"
@@ -2503,7 +2504,7 @@ export default function ContasPagar() {
 
                 {payForm.credorTipo === 'funcionario' ? (
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Chave PIX</label>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Chave PIX</label>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -2518,7 +2519,7 @@ export default function ContasPagar() {
                         onClick={handleCopyPix}
                         disabled={!payForm.observacao}
                         className="px-3 text-[12px] font-semibold rounded-[8px] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                        style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                        style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                       >
                         <Copy size={13} /> Copiar
                       </button>
@@ -2526,7 +2527,7 @@ export default function ContasPagar() {
                   </div>
                 ) : (
                   <div>
-                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Codigo de Barras</label>
+                    <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Codigo de Barras</label>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -2541,7 +2542,7 @@ export default function ContasPagar() {
                         onClick={handleGerarBarcode}
                         disabled={!payForm.observacao}
                         className="px-3 text-[12px] font-semibold rounded-[8px] hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                        style={{ backgroundColor: '#059669', color: '#fff', height: 36, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                       >
                         Gerar
                       </button>
@@ -2561,7 +2562,7 @@ export default function ContasPagar() {
                     onClick={handlePay}
                     disabled={submitting || !payForm.contaBancariaId}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Confirmar pagamento
@@ -2578,8 +2579,8 @@ export default function ContasPagar() {
             <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
-                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Pagar em lote</h3>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Pagamento em massa</p>
+                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>Pagar em lote</h3>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>Pagamento em massa</p>
                 </div>
                 <button onClick={() => setShowBatchPayModal(false)} className="text-white/50 hover:text-white transition">
                   <X size={18} />
@@ -2587,14 +2588,14 @@ export default function ContasPagar() {
               </div>
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                     {selectedIds.size} titulo(s) selecionado(s)
                   </p>
-                  <p className="font-bold" style={{ fontSize: 18, color: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{formatBRL(selectedTotal)}</p>
+                  <p className="font-bold" style={{ fontSize: 18, color: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{formatBRL(selectedTotal)}</p>
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Data pagamento *</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Data pagamento *</label>
                   <input
                     type="date"
                     value={batchForm.dataPagamento}
@@ -2605,7 +2606,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Forma pagamento *</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Forma pagamento *</label>
                   <select
                     value={batchForm.formaPagamento}
                     onChange={(e) => setBatchForm({ ...batchForm, formaPagamento: e.target.value })}
@@ -2619,7 +2620,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>{batchForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{batchForm.formaPagamento === 'Cartao de credito' ? 'Cartao de credito *' : 'Conta bancaria *'}</label>
                   <select
                     value={batchForm.contaBancariaId}
                     onChange={(e) => setBatchForm({ ...batchForm, contaBancariaId: e.target.value })}
@@ -2647,7 +2648,7 @@ export default function ContasPagar() {
                     onClick={handleBatchPay}
                     disabled={submitting || !batchForm.contaBancariaId}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Pagar {selectedIds.size} titulo(s)
@@ -2664,8 +2665,8 @@ export default function ContasPagar() {
             <div className="w-full max-w-md mx-4" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
-                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>Categorizar em lote</h3>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>Reclassificacao contabil (inclui pagos)</p>
+                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>Categorizar em lote</h3>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>Reclassificacao contabil (inclui pagos)</p>
                 </div>
                 <button onClick={() => setShowBatchCategorizeModal(false)} className="text-white/50 hover:text-white transition">
                   <X size={18} />
@@ -2673,16 +2674,16 @@ export default function ContasPagar() {
               </div>
               <div className="p-5 space-y-4">
                 <div className="rounded-[8px] p-3" style={{ backgroundColor: 'rgba(26,46,74,0.04)', border: '1px solid rgba(26,46,74,0.10)' }}>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                     {selectedIds.size} titulo{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}
                   </p>
-                  <p style={{ fontSize: 11, color: '#98A2B3', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>
+                  <p style={{ fontSize: 11, color: '#98A2B3', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>
                     Os campos abaixo serao aplicados em todos. Campos financeiros (valor, vencimento, status) permanecem intactos.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Conta contabil</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Conta contabil</label>
                   <select
                     value={batchCategorize.contaContabilId}
                     onChange={(e) => setBatchCategorize({ ...batchCategorize, contaContabilId: e.target.value })}
@@ -2697,7 +2698,7 @@ export default function ContasPagar() {
                 </div>
 
                 <div>
-                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>Centro de custo</label>
+                  <label className="block font-medium" style={{ fontSize: 12, color: '#667085', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Centro de custo</label>
                   <select
                     value={batchCategorize.centroCustoId}
                     onChange={(e) => setBatchCategorize({ ...batchCategorize, centroCustoId: e.target.value })}
@@ -2723,7 +2724,7 @@ export default function ContasPagar() {
                     onClick={handleBatchCategorize}
                     disabled={submitting || (!batchCategorize.contaContabilId && !batchCategorize.centroCustoId)}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     Aplicar em {selectedIds.size} titulo(s)
@@ -2740,10 +2741,10 @@ export default function ContasPagar() {
             <div className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: '#ffffff', borderRadius: 10, boxShadow: '0 8px 32px rgba(15,30,51,0.18)' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10" style={{ backgroundColor: '#059669', borderRadius: '10px 10px 0 0' }}>
                 <div>
-                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
+                  <h3 className="font-bold text-white" style={{ fontSize: 15, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
                     {editingCpId ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar'}
                   </h3>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', marginTop: 2 }}>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', fontFamily: 'var(--font-body, "Inter", sans-serif)', marginTop: 2 }}>
                     {editingCpId ? 'Alterar dados da conta' : 'Cadastrar nova despesa'}
                   </p>
                 </div>
@@ -2754,7 +2755,7 @@ export default function ContasPagar() {
               <div className="p-5 space-y-4">
                 {/* Descrição */}
                 <div>
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Descricao *</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Descricao *</label>
                   <input
                     type="text"
                     value={newForm.descricao}
@@ -2768,7 +2769,7 @@ export default function ContasPagar() {
                 {/* Fornecedor / Funcionário / Cliente */}
                 <div>
                   <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-                    <label className="block" style={{ fontSize: 14, color: '#000', fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Credor</label>
+                    <label className="block" style={{ fontSize: 14, color: '#000', fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Credor</label>
                     {newForm.credorTipo === 'fornecedor' && (
                       <button
                         type="button"
@@ -2841,7 +2842,7 @@ export default function ContasPagar() {
                 {/* Valor + Vencimento */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Valor (R$) *</label>
+                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Valor (R$) *</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -2857,7 +2858,7 @@ export default function ContasPagar() {
                     />
                   </div>
                   <div>
-                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Vencimento *</label>
+                    <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Vencimento *</label>
                     <input
                       type="date"
                       value={newForm.dataVencimento}
@@ -2870,7 +2871,7 @@ export default function ContasPagar() {
 
                 {/* Competência */}
                 <div className="relative">
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Competencia (mes/ano)</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Competencia (mes/ano)</label>
                   <button
                     type="button"
                     onClick={() => setShowCompetenciaPicker(!showCompetenciaPicker)}
@@ -2886,7 +2887,7 @@ export default function ContasPagar() {
                     <div className="absolute z-20 mt-1 p-3 w-[280px]" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}>
                       <div className="flex items-center justify-between mb-3">
                         <button type="button" onClick={() => setCompetenciaYear(y => y - 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.05)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}>&lt;</button>
-                        <span className="text-sm font-semibold" style={{ color: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>{competenciaYear}</span>
+                        <span className="text-sm font-semibold" style={{ color: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>{competenciaYear}</span>
                         <button type="button" onClick={() => setCompetenciaYear(y => y + 1)} className="text-xs px-2 py-1 rounded-[6px] transition" style={{ color: '#667085' }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.05)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}>&gt;</button>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -2919,7 +2920,7 @@ export default function ContasPagar() {
 
                 {/* Conta contábil (digitável + dropdown) */}
                 <div ref={contaContabilRef} className="relative">
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Conta contabil</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Conta contabil</label>
                   <input
                     type="text"
                     value={contaContabilSearch}
@@ -2972,7 +2973,7 @@ export default function ContasPagar() {
 
                 {/* Centro de custo */}
                 <div>
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Centro de custo</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Centro de custo</label>
                   <select
                     value={newForm.centroCustoId}
                     onChange={(e) => setNewForm({ ...newForm, centroCustoId: e.target.value })}
@@ -2990,7 +2991,7 @@ export default function ContasPagar() {
                 {!editingCpId && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Recorrencia</label>
+                      <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Recorrencia</label>
                       <select
                         value={newForm.recorrencia}
                         onChange={(e) => setNewForm({ ...newForm, recorrencia: e.target.value as Recorrencia })}
@@ -3005,7 +3006,7 @@ export default function ContasPagar() {
                     </div>
                     {newForm.recorrencia !== 'sem' && (
                       <div>
-                        <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Num. parcelas</label>
+                        <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Num. parcelas</label>
                         <input
                           type="number"
                           min={2}
@@ -3022,7 +3023,7 @@ export default function ContasPagar() {
 
                 {!editingCpId && newForm.recorrencia !== 'sem' && (
                   <div className="rounded-[8px] p-3" style={{ backgroundColor: '#FFF0EB', border: '1px solid rgba(186,117,23,0.25)' }}>
-                    <p style={{ fontSize: 12, color: '#EA580C', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                    <p style={{ fontSize: 12, color: '#EA580C', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                       Serão geradas <strong>{newForm.numParcelas}</strong> parcelas de{' '}
                       <strong>{formatBRL(newForm.valor)}</strong> com vencimento{' '}
                       {newForm.recorrencia === 'mensal' ? 'mensal' : newForm.recorrencia === 'trimestral' ? 'trimestral' : 'anual'}.
@@ -3031,7 +3032,7 @@ export default function ContasPagar() {
                 )}
 
                 {/* Despesa fixa */}
-                <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                   <input
                     type="checkbox"
                     checked={!!newForm.isFixedCost}
@@ -3043,7 +3044,7 @@ export default function ContasPagar() {
 
                 {/* Código de Barras */}
                 <div>
-                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontWeight: 700 }}>Codigo de Barras</label>
+                  <label className="block" style={{ fontSize: 14, color: '#000', marginBottom: 6, fontFamily: 'var(--font-body, "Inter", sans-serif)', fontWeight: 700 }}>Codigo de Barras</label>
                   <input
                     type="text"
                     value={newForm.codigoBarras}
@@ -3086,7 +3087,7 @@ export default function ContasPagar() {
                         onClick={() => document.getElementById('file-upload-cp-auto')?.click()}
                         disabled={isUploading || isReadingBoleto}
                         className="w-full flex items-center justify-center gap-2 text-[13px] font-semibold text-white rounded-[8px] px-3 py-2.5 hover:opacity-90 transition disabled:opacity-50"
-                        style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                        style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                       >
                         {isReadingBoleto ? (
                           <><Loader2 size={14} className="animate-spin" /> Lendo boleto com IA...</>
@@ -3111,7 +3112,7 @@ export default function ContasPagar() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
                         <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                        <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[13px] hover:underline flex-1 truncate" style={{ color: '#059669', fontFamily: 'var(--font-body, "DM Sans", sans-serif)' }}>
+                        <a href={newForm.fileUrl} target="_blank" rel="noreferrer" className="text-[13px] hover:underline flex-1 truncate" style={{ color: '#059669', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
                           Arquivo anexado — clique para visualizar
                         </a>
                         <button
@@ -3161,7 +3162,7 @@ export default function ContasPagar() {
                     onClick={handleCreateCP}
                     disabled={submitting || !newForm.descricao || !newForm.valor || !newForm.dataVencimento}
                     className="px-4 py-2 text-white rounded-[8px] text-[13px] font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}
+                    style={{ backgroundColor: '#059669', fontFamily: 'var(--font-display, "Inter", sans-serif)' }}
                   >
                     {submitting && <Loader2 size={14} className="animate-spin" />}
                     {editingCpId

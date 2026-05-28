@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -656,12 +656,12 @@ ${empresaNome}`;
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-6">
         {/* Header */}
-        <PageToolbar
+        <PagePanel
           title="Área do Contador"
           subtitle="Relatórios prontos para enviar à contabilidade. Selecione o período e a conta para baixar o extrato já conciliado e a planilha de conciliações com categorias."
-        />
+        >
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-4 items-end">
@@ -982,6 +982,7 @@ ${empresaNome}`;
             </CardContent>
           </Card>
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );

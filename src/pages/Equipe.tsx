@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Loader2, UserPlus, Trash2, Shield, Eye, Wrench } from 'lucide-react';
 
 import { AppLayout } from '@/components/layout/AppLayout';
-import { PageToolbar } from '@/components/layout/PageToolbar';
+import { PagePanel } from '@/components/layout/PagePanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useRole, type Role } from '@/hooks/useRole';
@@ -207,9 +207,9 @@ export default function Equipe() {
 
   return (
     <AppLayout title="Equipe">
-      <div className="p-5 space-y-4">
-        <PageToolbar title={`Equipe — ${selectedCompany?.nome_fantasia ?? ""}`} subtitle="Gerencie quem tem acesso a esta empresa e o que cada um pode fazer.">
-          <div className="flex items-center gap-2">
+      <div className="p-5">
+        <PagePanel title={`Equipe — ${selectedCompany?.nome_fantasia ?? ""}`} subtitle="Gerencie quem tem acesso a esta empresa e o que cada um pode fazer.">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <ExportMenu
               rows={membros}
               baseName="equipe"
@@ -226,7 +226,6 @@ export default function Equipe() {
               Adicionar usuário
             </Button>
           </div>
-        </PageToolbar>
 
         {/* Legenda de roles */}
         <Card className="p-4">
@@ -355,6 +354,7 @@ export default function Equipe() {
             </table>
           )}
         </Card>
+        </PagePanel>
       </div>
 
       {/* Modal Adicionar Usuário */}

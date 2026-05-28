@@ -8,7 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData, formatDoc } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -310,9 +310,9 @@ export default function ImportacaoXML() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Importacao de XML">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
 
-        <PageToolbar title="Importação de XML" />
+        <PagePanel title="Importação de XML" subtitle="Importe XMLs de notas fiscais para o sistema">
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -445,6 +445,7 @@ export default function ImportacaoXML() {
             </div>
           )}
         </div>
+        </PagePanel>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -85,8 +85,8 @@ export default function PrevisaoReceitas() {
 
     return (
         <AppLayout title="Previsão de Receitas">
-            <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
-                <PageToolbar title="Previsão de Receitas" subtitle="Baseada nos últimos 6 meses + projeção 3 meses" />
+            <div className="animate-fade-in" style={{ fontFamily: "var(--font-base)" }}>
+                <PagePanel title="Previsão de Receitas" subtitle="Baseada nos últimos 6 meses + projeção 3 meses">
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
@@ -163,6 +163,7 @@ export default function PrevisaoReceitas() {
                         </TableBody>
                     </Table>
                 </Card>
+                </PagePanel>
             </div>
         </AppLayout>
     );

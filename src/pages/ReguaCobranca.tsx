@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TablePagination } from '@/components/ui/table-pagination'
@@ -548,19 +548,19 @@ export default function ReguaCobranca() {
 
   return (
     <AppLayout title="Regua de Cobranca">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col">
 
-        {/* ── Page Header ── */}
-        <PageToolbar title="Régua de Cobrança" subtitle="Configure réguas automáticas e acompanhe disparos de cobrança">
-          <button
-            onClick={processarRegua}
-            disabled={processing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#059669] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            <Play size={14} />
-            {processing ? 'Processando...' : 'Processar régua agora'}
-          </button>
-        </PageToolbar>
+        <PagePanel title="Régua de Cobrança" subtitle="Configure réguas automáticas e acompanhe disparos de cobrança">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <button
+              onClick={processarRegua}
+              disabled={processing}
+              className="flex items-center gap-2 px-4 py-2 bg-[#059669] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              <Play size={14} />
+              {processing ? 'Processando...' : 'Processar régua agora'}
+            </button>
+          </div>
 
         {/* ── KPI Cards ── */}
         <KpiCardGrid>
@@ -897,6 +897,8 @@ export default function ReguaCobranca() {
             )}
           </div>
         </div>
+
+        </PagePanel>
 
         {/* ================================================================
            MODAL: Nova/Editar Regua

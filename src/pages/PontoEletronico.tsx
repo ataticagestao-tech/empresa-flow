@@ -8,15 +8,15 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface Ponto {
   id: string
-  empresa_id: string
-  funcionario_id: string
+  company_id: string
+  employee_id: string
   data: string
   entrada: string | null
   saida_almoco: string | null
@@ -37,9 +37,11 @@ interface Funcionario {
   id: string
   nome_completo: string | null
   name: string | null
-  cargo: string | null
-  carga_horaria: number | null
+  role: string | null
 }
+
+// Carga horária diária padrão (CLT 44h/semana ≈ 8h/dia). employees não tem coluna própria.
+const CARGA_HORARIA_DIARIA = 8
 
 const TIPO_AUSENCIA_LABELS: Record<string, { label: string; color: string }> = {
   falta: { label: 'Falta', color: '#E53E3E' },
@@ -92,12 +94,12 @@ export default function PontoEletronico() {
     const [pontoRes, funcRes] = await Promise.all([
       db.from('ponto_eletronico')
         .select('*')
-        .eq('empresa_id', selectedCompany.id)
+        .eq('company_id', selectedCompany.id)
         .gte('data', inicioMes)
         .lte('data', fimMes)
         .order('data', { ascending: false }),
-      db.from('funcionarios')
-        .select('id, nome_completo, name, cargo, carga_horaria')
+      db.from('employees')
+        .select('id, nome_completo, name, role')
         .eq('company_id', selectedCompany.id)
         .eq('status', 'ativo')
         .order('nome_completo'),
@@ -140,11 +142,11 @@ export default function PontoEletronico() {
   const filteredPontos = useMemo(() => {
     let list = pontos
     if (funcFilter !== 'todos') {
-      list = list.filter(p => p.funcionario_id === funcFilter)
+      list = list.filter(p => p.employee_id === funcFilter)
     }
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase()
-      list = list.filter(p => getNomeFuncionario(p.funcionario_id).toLowerCase().includes(term))
+      list = list.filter(p => getNomeFuncionario(p.employee_id).toLowerCase().includes(term))
     }
     return list
   }, [pontos, funcFilter, searchTerm, funcionarios])
@@ -165,13 +167,13 @@ export default function PontoEletronico() {
         ? 0
         : calcularHoras(newForm.entrada, newForm.saida_almoco, newForm.retorno_almoco, newForm.saida)
 
-      const cargaHoraria = funcionarios.find(f => f.id === newForm.funcionario_id)?.carga_horaria || 8
+      const cargaHoraria = CARGA_HORARIA_DIARIA
       const he50 = horasTrabalhadas > cargaHoraria ? Math.min(horasTrabalhadas - cargaHoraria, 2) : 0
       const he100 = horasTrabalhadas > cargaHoraria + 2 ? horasTrabalhadas - cargaHoraria - 2 : 0
 
       const { error } = await db.from('ponto_eletronico').upsert({
-        empresa_id: selectedCompany.id,
-        funcionario_id: newForm.funcionario_id,
+        company_id: selectedCompany.id,
+        employee_id: newForm.funcionario_id,
         data: newForm.data,
         entrada: newForm.tipo_ausencia ? null : newForm.entrada,
         saida_almoco: newForm.tipo_ausencia ? null : newForm.saida_almoco,
@@ -183,7 +185,7 @@ export default function PontoEletronico() {
         justificativa: newForm.justificativa || null,
         tipo_ausencia: newForm.tipo_ausencia || null,
         origem: 'manual',
-      }, { onConflict: 'funcionario_id,data' })
+      }, { onConflict: 'employee_id,data' })
 
       if (error) throw error
 
@@ -224,9 +226,9 @@ export default function PontoEletronico() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Ponto Eletronico">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
 
-        <PageToolbar title="Ponto Eletrônico" />
+        <PagePanel title="Ponto Eletrônico" subtitle="Registro de jornada e banco de horas">
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -306,7 +308,7 @@ export default function PontoEletronico() {
               titulo="PONTO ELETRÔNICO"
               subtitulo={mesLabel}
               columns={[
-                { header: 'Funcionário', value: (p) => getNomeFuncionario(p.funcionario_id), pdfFlex: 20, excelWidth: 28 },
+                { header: 'Funcionário', value: (p) => getNomeFuncionario(p.employee_id), pdfFlex: 20, excelWidth: 28 },
                 { header: 'Data', value: (p) => formatData(p.data), align: 'center', pdfFlex: 9 },
                 { header: 'Entrada', value: (p) => p.entrada || '', align: 'center', pdfFlex: 7 },
                 { header: 'Saída alm.', value: (p) => p.saida_almoco || '', align: 'center', pdfFlex: 7 },
@@ -356,7 +358,7 @@ export default function PontoEletronico() {
 
                     return (
                       <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(p.funcionario_id)}</td>
+                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(p.employee_id)}</td>
                         <td className="px-4 py-3 text-gray-500">
                           {diaSemana} {formatData(p.data)}
                         </td>
@@ -409,6 +411,7 @@ export default function PontoEletronico() {
             </div>
           )}
         </div>
+        </PagePanel>
       </div>
 
       {/* ═══ MODAL: Registrar ponto ═══ */}

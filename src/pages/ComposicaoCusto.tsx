@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -97,9 +97,9 @@ export default function ComposicaoCusto() {
 
     return (
         <AppLayout title="Composição de Custo">
-            <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ fontFamily: FONT }} className="animate-fade-in">
 
-                <PageToolbar title="Composição de Custo" subtitle="Custo total, margem e markup por produto" />
+                <PagePanel title="Composição de Custo" subtitle="Custo total, margem e markup por produto">
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
@@ -182,6 +182,7 @@ export default function ComposicaoCusto() {
                         </TableBody>
                     </Table>
                 </Card>
+                </PagePanel>
             </div>
         </AppLayout>
     );

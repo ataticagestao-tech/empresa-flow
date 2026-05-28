@@ -8,7 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -205,9 +205,9 @@ export default function FeriasAfastamentos() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Ferias e Afastamentos">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
 
-        <PageToolbar title="Férias e Afastamentos" />
+        <PagePanel title="Férias e Afastamentos" subtitle="Controle de férias, afastamentos e licenças">
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -375,6 +375,7 @@ export default function FeriasAfastamentos() {
             </div>
           )}
         </div>
+        </PagePanel>
       </div>
 
       {/* ═══ MODAL: Novo registro ═══ */}

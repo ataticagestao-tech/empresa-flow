@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -91,19 +91,20 @@ export default function FluxoCaixaProjetado() {
 
     return (
         <AppLayout title="Fluxo de Caixa Projetado">
-            <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ fontFamily: "var(--font-base)" }}>
 
-                <PageToolbar title="Fluxo de Caixa Projetado" subtitle={`Próximos ${days} dias`}>
-                    <SegmentedControl<"30" | "60" | "90">
-                        value={String(days) as "30" | "60" | "90"}
-                        onChange={(v) => setDays(Number(v))}
-                        options={[
-                            { value: "30", label: "30 dias" },
-                            { value: "60", label: "60 dias" },
-                            { value: "90", label: "90 dias" },
-                        ]}
-                    />
-                </PageToolbar>
+                <PagePanel title="Fluxo de Caixa Projetado" subtitle={`Próximos ${days} dias`}>
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <SegmentedControl<"30" | "60" | "90">
+                            value={String(days) as "30" | "60" | "90"}
+                            onChange={(v) => setDays(Number(v))}
+                            options={[
+                                { value: "30", label: "30 dias" },
+                                { value: "60", label: "60 dias" },
+                                { value: "90", label: "90 dias" },
+                            ]}
+                        />
+                    </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
@@ -189,6 +190,7 @@ export default function FluxoCaixaProjetado() {
                         </TableBody>
                     </Table>
                 </Card>
+                </PagePanel>
             </div>
         </AppLayout>
     );

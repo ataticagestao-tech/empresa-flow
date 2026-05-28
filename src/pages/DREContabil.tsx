@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -114,11 +114,10 @@ export default function DREContabil() {
 
   return (
     <AppLayout title="DRE Contábil">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
-        {/* Header */}
-        <PageToolbar title="Demonstração do Resultado do Exercício" subtitle="Gerado automaticamente a partir dos lançamentos mapeados">
-          <div className="flex items-center gap-2 flex-wrap">
+        <PagePanel title="Demonstração do Resultado do Exercício" subtitle="Gerado automaticamente a partir dos lançamentos mapeados">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <Button variant="outline" size="sm" onClick={exportarExcel}>
               <Download className="h-3.5 w-3.5 mr-1" /> Excel
             </Button>
@@ -128,7 +127,6 @@ export default function DREContabil() {
               </Button>
             </Link>
           </div>
-        </PageToolbar>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -203,6 +201,7 @@ export default function DREContabil() {
             )}
           </CardContent>
         </Card>
+        </PagePanel>
       </div>
     </AppLayout>
   );

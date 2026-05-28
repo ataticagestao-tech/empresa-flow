@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
 import { Search, Mail, Download, FileText, ChevronRight, MessageCircle, Plus, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -1001,8 +1000,42 @@ export default function Recibos() {
 
   return (
     <AppLayout title="Recibos">
-      <div className="flex flex-col h-[calc(100vh-120px)]">
-        <PageToolbar title="Recibos" />
+      <div className="py-3 h-[calc(100vh-120px)]">
+        <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
+        {/* ═══ MENU SUPERIOR (header da página) ═══ */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
+          <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Recibos</h1>
+              <p className="text-[11px] text-white/80 mt-0.5">Emissão e envio de recibos de pagamento</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-white/60 font-medium">
+                {filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}
+              </span>
+              <ExportMenu
+                rows={filtrados}
+                baseName="recibos"
+                titulo="RECIBOS"
+                columns={[
+                  { header: 'Número', value: (r) => r.numero, pdfFlex: 8 },
+                  { header: 'Favorecido', value: (r) => r.favorecido, pdfFlex: 22, excelWidth: 30 },
+                  { header: 'Descrição', value: (r) => r.descricao, pdfFlex: 24, excelWidth: 36 },
+                  { header: 'Status', value: (r) => ({ enviado: 'Enviado', pendente: 'Pendente envio', erro: 'Erro' }[r.status_email] || r.status_email), align: 'center', pdfFlex: 11 },
+                  { header: 'Data', value: (r) => formatData(r.data_pagamento), align: 'center', pdfFlex: 10 },
+                  { header: 'Valor', value: (r) => formatBRL(r.valor), numericValue: (r) => Number(r.valor || 0), pdfFlex: 10 },
+                ]}
+              />
+              <button
+                onClick={() => setShowGerar(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Gerar Recibo
+              </button>
+            </div>
+          </div>
+        </div>
         <KpiCardGrid className="mb-4">
         <KpiCard
           label="Total de recibos"
@@ -1018,36 +1051,6 @@ export default function Recibos() {
         {/* ---- LEFT COLUMN: List ---- */}
         <div className="w-[420px] min-w-[360px] flex flex-col">
           <div className="border border-[#D1D5DB] rounded-lg overflow-hidden flex flex-col h-full">
-            {/* Card header */}
-            <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between shrink-0 gap-3">
-              <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Recibos</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] text-white/60 font-medium">
-                  {filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}
-                </span>
-                <ExportMenu
-                  rows={filtrados}
-                  baseName="recibos"
-                  titulo="RECIBOS"
-                  columns={[
-                    { header: 'Número', value: (r) => r.numero, pdfFlex: 8 },
-                    { header: 'Favorecido', value: (r) => r.favorecido, pdfFlex: 22, excelWidth: 30 },
-                    { header: 'Descrição', value: (r) => r.descricao, pdfFlex: 24, excelWidth: 36 },
-                    { header: 'Status', value: (r) => ({ enviado: 'Enviado', pendente: 'Pendente envio', erro: 'Erro' }[r.status_email] || r.status_email), align: 'center', pdfFlex: 11 },
-                    { header: 'Data', value: (r) => formatData(r.data_pagamento), align: 'center', pdfFlex: 10 },
-                    { header: 'Valor', value: (r) => formatBRL(r.valor), numericValue: (r) => Number(r.valor || 0), pdfFlex: 10 },
-                  ]}
-                />
-                <button
-                  onClick={() => setShowGerar(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                >
-                  <Plus className="w-3 h-3" />
-                  Gerar Recibo
-                </button>
-              </div>
-            </div>
-
             {/* Search + filter */}
             <div className="p-3 border-b border-[#E5E7EB] bg-white space-y-2 shrink-0">
               {/* Search + botão de filtro de data (suspenso) */}
@@ -1265,6 +1268,7 @@ export default function Recibos() {
           </div>
         </div>
 
+        </div>
         </div>
       </div>
 

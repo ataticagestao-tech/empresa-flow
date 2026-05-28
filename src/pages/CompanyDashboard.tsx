@@ -982,38 +982,42 @@ export default function CompanyDashboard() {
 
     return (
         <AppLayout title="Dashboard">
-            <div style={{ width: "100%", fontFamily: "var(--font-base)" }}>
+            <div className="py-6">
+            <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ width: "100%", fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
+                <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>
+                <div className="bg-[#2A2724]" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, padding: "12px 16px" }}>
                     <div>
                         <button
                             onClick={() => navigate("/dashboard")}
                             style={{
                                 display: "flex", alignItems: "center", gap: 8,
-                                padding: 0, marginBottom: 6,
+                                padding: 0, marginBottom: 2,
                                 border: "none", background: "transparent",
-                                fontSize: 30, fontWeight: 700, color: C.text1,
-                                letterSpacing: "-0.025em", lineHeight: 1.1,
+                                fontSize: 14, fontWeight: 700, color: "#fff",
+                                textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1.2,
                                 cursor: "pointer",
                             }}
                             title="Trocar empresa"
                         >
                             {companyName}
-                            <ChevronDown size={20} style={{ color: C.textMuted, marginTop: 4 }} strokeWidth={2} />
+                            <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.7)" }} strokeWidth={2} />
                         </button>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 12.5, color: C.textMuted, fontWeight: 500 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>
                             <span>
                                 {format(new Date(periodStart + "T00:00:00"), "dd 'de' MMM", { locale: ptBR })}
                                 {" — "}
                                 {format(effectivePeriodEnd, "dd 'de' MMM, yyyy", { locale: ptBR })}
                             </span>
-                            <span style={{ width: 3, height: 3, borderRadius: "50%", background: C.textMuted, opacity: 0.5 }} />
+                            <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#fff", opacity: 0.4 }} />
                             <span>Atualizado às {format(today, "HH:mm")}</span>
                         </div>
                     </div>
+                </div>
+                </div>
 
-                    {/* Regime + Period Filter (ao lado do título) */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                {/* Regime + Period Filter (abaixo da barra preta) */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginBottom: 24 }}>
                         {/* Regime toggle */}
                         <SegmentedControl<"caixa" | "competencia">
                             value={regime}
@@ -1127,7 +1131,6 @@ export default function CompanyDashboard() {
                         )}
                     </div>
                     </div>
-                </div>
 
                 {/* ── Alert Banner ── */}
                 {alertItems.length > 0 && (
@@ -1738,6 +1741,7 @@ export default function CompanyDashboard() {
                     </div>
                 </div>
 
+            </div>
             </div>
         </AppLayout>
     );

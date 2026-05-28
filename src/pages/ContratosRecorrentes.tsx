@@ -6,7 +6,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { ExportMenu } from '@/components/ExportMenu'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { useConfirm } from '@/components/ui/confirm-dialog'
@@ -405,7 +405,7 @@ export default function ContratosRecorrentes() {
 
   return (
     <AppLayout title="Contratos Recorrentes">
-      <div className="max-w-[1200px] mx-auto space-y-6">
+      <div className="max-w-[1200px] mx-auto animate-fade-in">
 
         {/* TOAST */}
         {toast && (
@@ -425,8 +425,8 @@ export default function ContratosRecorrentes() {
         )}
 
         {/* HEADER */}
-        <PageToolbar title="Contratos Recorrentes" subtitle="Gerencie contratos e gere contas a receber automaticamente.">
-          <div className="flex items-center gap-2">
+        <PagePanel title="Contratos Recorrentes" subtitle="Gerencie contratos e gere contas a receber automaticamente.">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <ExportMenu<Contrato>
               rows={() => filtered}
               titulo="CONTRATOS RECORRENTES"
@@ -449,7 +449,6 @@ export default function ContratosRecorrentes() {
               Novo contrato
             </button>
           </div>
-        </PageToolbar>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -632,6 +631,7 @@ export default function ContratosRecorrentes() {
             )}
           </div>
         </div>
+        </PagePanel>
 
         {/* MODAL */}
         {showModal && (

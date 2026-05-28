@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -744,19 +744,17 @@ export default function FluxoCaixa() {
 
   return (
     <AppLayout title="Fluxo de Caixa">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
         <PendenciasBanner variant="full" filter="all" />
-        {/* Header */}
-        <PageToolbar title="Fluxo de Caixa" subtitle="Demonstrativo e relatório de entradas e saídas">
-          <div className="flex items-center gap-2 flex-wrap">
+        <PagePanel title="Fluxo de Caixa" subtitle="Demonstrativo e relatório de entradas e saídas">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <Link to="/demonstrativos/mapeamento">
               <Button variant="outline" size="sm">
                 <Settings2 className="h-3.5 w-3.5 mr-1" /> Mapeamento
               </Button>
             </Link>
           </div>
-        </PageToolbar>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
         <div className="flex justify-end">
@@ -1221,6 +1219,7 @@ export default function FluxoCaixa() {
             </div>
           </TabsContent>
         </Tabs>
+        </PagePanel>
       </div>
 
       {/* Modal editar categoria */}

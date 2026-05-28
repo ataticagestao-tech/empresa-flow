@@ -5,7 +5,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -261,37 +260,41 @@ export default function CadastrosPendentes() {
 
     return (
         <AppLayout title="Cadastros Pendentes">
-            <div className="flex flex-col h-[calc(100vh-120px)]">
-                <PageToolbar title="Cadastros Pendentes" />
+            <div className="py-3 h-[calc(100vh-120px)]">
+                <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
+                {/* ═══ MENU SUPERIOR (header da página) ═══ */}
+                <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
+                  <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Cadastros Pendentes</h1>
+                      <p className="text-[11px] text-white/80 mt-0.5">Solicitações de cadastro recebidas via WhatsApp</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ExportMenu
+                        rows={filtradas}
+                        baseName="cadastros-pendentes"
+                        titulo="CADASTROS PENDENTES"
+                        columns={[
+                          { header: "Nome", value: (s) => s.nome_destinatario, pdfFlex: 24, excelWidth: 30 },
+                          { header: "Telefone", value: (s) => formatTel(s.telefone), pdfFlex: 16, excelWidth: 20 },
+                          { header: "Tipo", value: (s) => (s.tipo === "funcionario" ? "Funcionário" : "Fornecedor"), pdfFlex: 12 },
+                          { header: "Status", value: (s) => STATUS_INFO[s.status]?.label || s.status, pdfFlex: 14 },
+                          { header: "Criado em", value: (s) => formatDate(s.criado_em), align: "center", pdfFlex: 14 },
+                        ]}
+                      />
+                      <button
+                        onClick={() => queryClient.invalidateQueries({ queryKey: ["cadastros-pendentes"] })}
+                        className="text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1"
+                        title="Atualizar"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex gap-4 flex-1 min-h-0">
                 {/* LEFT: lista */}
                 <div className="w-[420px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-                    <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-white uppercase tracking-widest">
-                            Cadastros Pendentes
-                        </h3>
-                        <div className="flex items-center gap-2">
-                            <ExportMenu
-                                rows={filtradas}
-                                baseName="cadastros-pendentes"
-                                titulo="CADASTROS PENDENTES"
-                                columns={[
-                                    { header: "Nome", value: (s) => s.nome_destinatario, pdfFlex: 24, excelWidth: 30 },
-                                    { header: "Telefone", value: (s) => formatTel(s.telefone), pdfFlex: 16, excelWidth: 20 },
-                                    { header: "Tipo", value: (s) => (s.tipo === "funcionario" ? "Funcionário" : "Fornecedor"), pdfFlex: 12 },
-                                    { header: "Status", value: (s) => STATUS_INFO[s.status]?.label || s.status, pdfFlex: 14 },
-                                    { header: "Criado em", value: (s) => formatDate(s.criado_em), align: "center", pdfFlex: 14 },
-                                ]}
-                            />
-                            <button
-                                onClick={() => queryClient.invalidateQueries({ queryKey: ["cadastros-pendentes"] })}
-                                className="text-xs font-semibold text-white/80 hover:text-white flex items-center gap-1"
-                                title="Atualizar"
-                            >
-                                <RefreshCw className="w-3 h-3" />
-                            </button>
-                        </div>
-                    </div>
 
                     {/* Filtros */}
                     <div className="p-3 space-y-2 border-b border-[#eee]">
@@ -536,6 +539,7 @@ export default function CadastrosPendentes() {
                             )}
                         </>
                     )}
+                </div>
                 </div>
                 </div>
             </div>

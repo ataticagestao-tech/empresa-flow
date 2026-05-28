@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -125,16 +125,15 @@ export default function MarkupSimulador() {
 
     return (
         <AppLayout title="Markup / Simulador">
-            <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ fontFamily: FONT }} className="animate-fade-in">
 
-                <PageToolbar title="Markup / Simulador" subtitle="Calcule o preço ideal baseado no custo e margem desejada">
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <PagePanel title="Markup / Simulador" subtitle="Calcule o preço ideal baseado no custo e margem desejada">
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
                         <Label className="text-sm whitespace-nowrap">Margem alvo:</Label>
                         <Input type="number" value={targetMargin} onChange={e => setTargetMargin(e.target.value)}
                             className="h-9 w-20 text-sm text-center" min="0" max="99" />
                         <span className="text-sm text-muted-foreground">%</span>
                     </div>
-                </PageToolbar>
 
                 {/* KPIs */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
@@ -298,6 +297,7 @@ export default function MarkupSimulador() {
                         </TableBody>
                     </Table>
                 </Card>
+                </PagePanel>
             </div>
         </AppLayout>
     );

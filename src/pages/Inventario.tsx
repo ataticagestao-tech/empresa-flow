@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -259,10 +259,10 @@ export default function Inventario() {
 
   return (
     <AppLayout title="Inventário">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
-        <PageToolbar title="Inventário" subtitle="Contagem física e ajuste de estoque">
-          <div className="flex items-center gap-2">
+        <PagePanel title="Inventário" subtitle="Contagem física e ajuste de estoque">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <ExportMenu
               rows={filtered}
               baseName="inventario"
@@ -279,7 +279,6 @@ export default function Inventario() {
               <Plus className="h-4 w-4 mr-1" /> Novo Inventário
             </Button>
           </div>
-        </PageToolbar>
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -457,6 +456,7 @@ export default function Inventario() {
             </div>
           </SheetContent>
         </Sheet>
+        </PagePanel>
       </div>
     </AppLayout>
   );

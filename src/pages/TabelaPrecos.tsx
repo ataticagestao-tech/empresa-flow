@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -160,9 +160,9 @@ export default function TabelaPrecos() {
 
     return (
         <AppLayout title="Tabela de Preços">
-            <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
-                <PageToolbar title="Tabela de Preços" subtitle={`${lists.length} tabela${lists.length !== 1 ? "s" : ""} cadastrada${lists.length !== 1 ? "s" : ""}`}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontFamily: FONT }} className="animate-fade-in">
+                <PagePanel title="Tabela de Preços" subtitle={`${lists.length} tabela${lists.length !== 1 ? "s" : ""} cadastrada${lists.length !== 1 ? "s" : ""}`}>
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
                         <ExportMenu
                             rows={filteredProducts}
                             baseName="tabela-precos"
@@ -171,7 +171,6 @@ export default function TabelaPrecos() {
                         />
                         <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Tabela</Button>
                     </div>
-                </PageToolbar>
 
                 {/* Lists cards */}
                 {lists.length > 0 && (
@@ -305,6 +304,7 @@ export default function TabelaPrecos() {
                         </div>
                     </DialogContent>
                 </Dialog>
+                </PagePanel>
             </div>
         </AppLayout>
     );

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -118,13 +118,14 @@ export default function Orcamento() {
 
     return (
         <AppLayout title="Orçamento">
-            <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
-                <PageToolbar title="Orçamento" subtitle={format(monthStart, "MMMM yyyy", { locale: ptBR })}>
-                    <select value={currentMonth} onChange={e => setCurrentMonth(e.target.value)}
-                        style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #EAECF0", fontSize: 13 }}>
-                        {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                    </select>
-                </PageToolbar>
+            <div className="animate-fade-in" style={{ fontFamily: "var(--font-base)" }}>
+                <PagePanel title="Orçamento" subtitle={format(monthStart, "MMMM yyyy", { locale: ptBR })}>
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <select value={currentMonth} onChange={e => setCurrentMonth(e.target.value)}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #EAECF0", fontSize: 13 }}>
+                            {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                    </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[
@@ -205,6 +206,7 @@ export default function Orcamento() {
                         </TableBody>
                     </Table>
                 </Card>
+                </PagePanel>
 
                 <Dialog open={editDialog} onOpenChange={setEditDialog}>
                     <DialogContent className="max-w-sm">

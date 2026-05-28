@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -318,9 +318,9 @@ export default function OrdensCompra() {
 
   return (
     <AppLayout title="Ordens de Compra">
-      <div className="space-y-5 animate-fade-in">
-        <PageToolbar title="Ordens de Compra" subtitle="Gerencie pedidos de compra aos fornecedores">
-          <div className="flex items-center gap-2">
+      <div className="animate-fade-in">
+        <PagePanel title="Ordens de Compra" subtitle="Gerencie pedidos de compra aos fornecedores">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <ExportMenu
               rows={filtered}
               baseName="ordens-compra"
@@ -337,7 +337,6 @@ export default function OrdensCompra() {
             />
             <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova Ordem</Button>
           </div>
-        </PageToolbar>
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -559,6 +558,7 @@ export default function OrdensCompra() {
             </div>
           </SheetContent>
         </Sheet>
+        </PagePanel>
       </div>
     </AppLayout>
   );

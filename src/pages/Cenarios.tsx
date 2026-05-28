@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -95,12 +95,12 @@ export default function Cenarios() {
 
     return (
         <AppLayout title="Cenários Financeiros">
-            <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
+            <div className="animate-fade-in" style={{ fontFamily: "var(--font-base)" }}>
 
-                <PageToolbar
+                <PagePanel
                     title="Cenários Financeiros"
                     subtitle={`Base: Receita ${fmt(baseReceita)} | Despesa ${fmt(baseDespesa)} (${format(now, "MMMM/yyyy")})`}
-                />
+                >
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                     {results.map((r, i) => (
@@ -167,6 +167,7 @@ export default function Cenarios() {
                         </BarChart>
                     </ResponsiveContainer>
                 </Card>
+                </PagePanel>
             </div>
         </AppLayout>
     );

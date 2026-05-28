@@ -8,7 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -225,9 +225,9 @@ export default function AdmissoesDemissoes() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Admissoes e Demissoes">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
 
-        <PageToolbar title="Admissões e Demissões" />
+        <PagePanel title="Admissões e Demissões" subtitle="Controle de admissões, demissões e rescisões">
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -378,6 +378,7 @@ export default function AdmissoesDemissoes() {
             </div>
           )}
         </div>
+        </PagePanel>
       </div>
 
       {/* ═══ MODAL: Novo registro ═══ */}

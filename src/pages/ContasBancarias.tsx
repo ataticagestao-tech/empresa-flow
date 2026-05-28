@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -392,7 +392,7 @@ export default function ContasBancarias() {
 
   return (
     <AppLayout title="Contas Bancárias">
-      <div className="space-y-6">
+      <div className="animate-fade-in">
 
         {/* Consolidated Balance */}
         <div className="bg-[#ECFDF4] border border-[#059669] rounded-lg p-5 flex items-center justify-between">
@@ -404,8 +404,8 @@ export default function ContasBancarias() {
         </div>
 
         {/* Header */}
-        <PageToolbar title="Contas Bancárias">
-          <div className="flex items-center gap-2">
+        <PagePanel title="Contas Bancárias" subtitle="Contas, saldos e conciliação bancária">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <ExportMenu
               rows={accounts}
               baseName="contas-bancarias"
@@ -428,7 +428,6 @@ export default function ContasBancarias() {
               {showForm ? "Fechar" : "+ Nova Conta"}
             </button>
           </div>
-        </PageToolbar>
 
         {/* New Account Form */}
         {showForm && (
@@ -876,6 +875,7 @@ export default function ContasBancarias() {
             </div>
           )}
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );

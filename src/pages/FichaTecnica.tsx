@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -179,10 +179,10 @@ export default function FichaTecnica() {
 
     return (
         <AppLayout title="Ficha Técnica">
-            <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ fontFamily: FONT }} className="animate-fade-in">
 
-                <PageToolbar title="Ficha Técnica" subtitle="Composição de insumos por produto/serviço">
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <PagePanel title="Ficha Técnica" subtitle="Composição de insumos por produto/serviço">
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
                         <ExportMenu
                             rows={filtered}
                             baseName="ficha-tecnica"
@@ -198,7 +198,6 @@ export default function FichaTecnica() {
                         />
                         <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Ficha</Button>
                     </div>
-                </PageToolbar>
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>
@@ -362,6 +361,7 @@ export default function FichaTecnica() {
                         </div>
                     </DialogContent>
                 </Dialog>
+                </PagePanel>
             </div>
         </AppLayout>
     );

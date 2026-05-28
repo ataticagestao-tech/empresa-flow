@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -200,22 +201,19 @@ export default function Dashboard() {
 
   return (
     <AppLayout title={t('dashboard.title')}>
-      <div className="space-y-6 animate-fade-in">
+      <div className="animate-fade-in">
 
         <PendenciasBanner variant="full" filter="all" />
 
-        {/* Page Subheader */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-foreground tracking-tight">{t('dashboard.title')}</h2>
-            <p className="text-[12.5px] text-muted-foreground mt-0.5">{t("dashboard.subtitle")}</p>
-          </div>
-          <div className="flex gap-2">
+        <PagePanel
+          title={t('dashboard.title')}
+          subtitle={t("dashboard.subtitle")}
+          headerActions={
             <Button variant="secondary" onClick={() => navigate("/empresas?new=true")}>
               <Plus className="h-3.5 w-3.5" /> Nova Empresa
             </Button>
-          </div>
-        </div>
+          }
+        >
 
         {/* KPI Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -372,6 +370,7 @@ export default function Dashboard() {
             </Card>
           </div>
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );

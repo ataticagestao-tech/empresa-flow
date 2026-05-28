@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -346,11 +346,11 @@ export default function MapeamentoContabil() {
 
   return (
     <AppLayout title="Mapeamento Contábil">
-      <div className="space-y-5 animate-fade-in">
+      <div className="animate-fade-in">
 
         {/* Header */}
-        <PageToolbar title="Mapeamento Contábil" subtitle="Vincule contas do plano de contas às linhas dos demonstrativos">
-          <div className="flex items-center gap-2">
+        <PagePanel title="Mapeamento Contábil" subtitle="Vincule contas do plano de contas às linhas dos demonstrativos">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <Select value={demFiltro} onValueChange={setDemFiltro}>
               <SelectTrigger className="w-[140px] h-8 text-xs">
                 <SelectValue />
@@ -365,7 +365,6 @@ export default function MapeamentoContabil() {
               <Copy className="h-3.5 w-3.5 mr-1" /> Importar Template
             </Button>
           </div>
-        </PageToolbar>
 
         {/* Progress bar + actions */}
         <div className="flex items-center gap-4 flex-wrap">
@@ -637,6 +636,7 @@ export default function MapeamentoContabil() {
             </CardContent>
           </Card>
         )}
+        </PagePanel>
       </div>
     </AppLayout>
   );
