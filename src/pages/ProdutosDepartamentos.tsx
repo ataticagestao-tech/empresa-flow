@@ -176,7 +176,8 @@ export default function ProdutosDepartamentos() {
 
     return (
         <AppLayout title="Operacional">
-            <div className="space-y-3">
+            <div className="py-3">
+            <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 space-y-3 min-h-[calc(100vh-150px)]">
                 {/* Header + Tabs */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
                     <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
@@ -207,7 +208,7 @@ export default function ProdutosDepartamentos() {
 
                 {/* ════════════ PRODUTOS — split layout ════════════ */}
                 {activeTab === "products" && (
-                    <div className="flex gap-3 h-[calc(100vh-220px)] min-h-[500px]">
+                    <div className="flex gap-3 h-[calc(100vh-290px)] min-h-[460px]">
                         {/* LEFT */}
                         <div className="w-[380px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
                             <div className="bg-[#2A2724] px-3 py-2.5 flex items-center justify-between gap-2">
@@ -298,7 +299,7 @@ export default function ProdutosDepartamentos() {
 
                 {/* ════════════ DEPARTAMENTOS — split layout ════════════ */}
                 {activeTab === "departments" && (
-                    <div className="flex gap-3 h-[calc(100vh-220px)] min-h-[500px]">
+                    <div className="flex gap-3 h-[calc(100vh-290px)] min-h-[460px]">
                         {/* LEFT */}
                         <div className="w-[340px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
                             <div className="bg-[#2A2724] px-3 py-2.5 flex items-center justify-between gap-2">
@@ -406,6 +407,7 @@ export default function ProdutosDepartamentos() {
                         </div>
                     </div>
                 )}
+            </div>
             </div>
 
             <ProductSheet
