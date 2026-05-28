@@ -7,10 +7,9 @@ import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
 import { PeriodFilter } from '@/components/ui/period-filter'
-import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ExportMenu } from '@/components/ExportMenu'
+import { typography } from '@/styles/designSystem'
 import jsPDF from 'jspdf'
 import {
   format,
@@ -632,7 +631,7 @@ export default function Movimentacoes() {
   if (!companyId) {
     return (
       <AppLayout title="Movimentações">
-        <div className="flex items-center justify-center h-64 text-muted-foreground">
+        <div className="flex items-center justify-center h-64 text-[13px] text-[#9CA3AF]">
           Selecione uma empresa para visualizar movimentações.
         </div>
       </AppLayout>
@@ -643,7 +642,28 @@ export default function Movimentacoes() {
     <AppLayout title="Movimentações">
       <div className="animate-fade-in">
 
-        <PagePanel title="Movimentações financeiras" subtitle="Entradas e saídas consolidadas a partir de CR, CP, vendas e lançamentos manuais">
+        <PagePanel
+          title="Movimentações financeiras"
+          subtitle="Entradas e saídas consolidadas a partir de CR, CP, vendas e lançamentos manuais"
+          tabs={([
+            { value: 'todos', label: 'Todos' },
+            { value: 'entradas', label: 'Entradas' },
+            { value: 'saidas', label: 'Saídas' },
+            { value: 'transferencias', label: 'Transferências' },
+          ] as { value: TipoFilter; label: string }[]).map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTipoFilter(t.value)}
+              className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${
+                tipoFilter === t.value
+                  ? 'text-[#059669] border-[#059669]'
+                  : 'text-[#4B5563] border-transparent hover:text-[#0F172A]'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        >
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <Button variant="outline" size="sm" onClick={exportPDF} disabled={filtered.length === 0}>
               <FileText className="h-3.5 w-3.5 mr-1" /> PDF
@@ -673,20 +693,18 @@ export default function Movimentacoes() {
           </div>
 
         {/* ====== KPIs ====== */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Saldo atual', value: formatBRL(bankTotals.total), hint: 'Todas as contas', color: '#059669' },
             { label: 'Entradas do mês', value: formatBRL(entradasMes), hint: `${qtdEntradas} lançamento${qtdEntradas !== 1 ? 's' : ''}`, color: '#039855' },
             { label: 'Saídas do mês', value: formatBRL(saidasMes), hint: `${qtdSaidas} lançamento${qtdSaidas !== 1 ? 's' : ''}`, color: '#E53E3E' },
             { label: 'Resultado do mês', value: formatBRL(Math.abs(resultadoMes)), hint: resultadoMes >= 0 ? '▲ positivo' : '▼ negativo', color: resultadoMes >= 0 ? '#039855' : '#E53E3E' },
           ].map((kpi) => (
-            <Card key={kpi.label}>
-              <CardContent className="p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
-                <p className="text-lg font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{kpi.hint}</p>
-              </CardContent>
-            </Card>
+            <div key={kpi.label} className="bg-white border border-[#E5E7EB] rounded-lg p-4">
+              <p className={typography.label}>{kpi.label}</p>
+              <p className={`${typography.valueMedium} mt-1`} style={{ color: kpi.color }}>{kpi.value}</p>
+              <p className={`${typography.bodyTiny} mt-0.5`}>{kpi.hint}</p>
+            </div>
           ))}
         </div>
 
@@ -694,7 +712,7 @@ export default function Movimentacoes() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Busca */}
           <div ref={searchWrapRef} className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF] pointer-events-none" />
             <input
               type="text"
               placeholder="Buscar por descrição ou categoria..."
@@ -708,26 +726,26 @@ export default function Movimentacoes() {
                 if (e.key === 'Enter') { e.preventDefault(); commitSearch() }
                 else if (e.key === 'Escape') setShowSuggestions(false)
               }}
-              className="w-full h-9 border border-input rounded-md pl-9 pr-9 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full h-9 border border-[#D1D5DB] rounded-md pl-9 pr-9 text-[13px] text-[#0F172A] bg-white outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             />
             {(searchInput || searchTerm) && (
               <button
                 type="button"
                 onClick={clearSearch}
                 aria-label="Limpar busca"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#9CA3AF] hover:text-[#0F172A]"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
             {showSuggestions && filteredSuggestions.length > 0 && (
-              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-64 overflow-y-auto">
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-md shadow-lg max-h-64 overflow-y-auto">
                 {filteredSuggestions.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onMouseDown={(e) => { e.preventDefault(); commitSearch(s) }}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted border-b border-border/50 last:border-b-0"
+                    className="w-full text-left px-3 py-2 text-[12px] text-[#0F172A] hover:bg-[#F3F4F6] border-b border-[#F1F3F5] last:border-b-0"
                   >
                     {s}
                   </button>
@@ -738,32 +756,19 @@ export default function Movimentacoes() {
 
           {/* Conta bancária */}
           <div className="relative">
-            <Landmark className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Landmark className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF] pointer-events-none" />
             <select
               value={selectedBankId || ''}
               onChange={(e) => setSelectedBankId(e.target.value || null)}
-              className="appearance-none h-9 border border-input rounded-md pl-9 pr-8 text-sm bg-background min-w-[180px] focus:outline-none focus:ring-1 focus:ring-ring"
+              className="appearance-none h-9 border border-[#D1D5DB] rounded-md pl-9 pr-8 text-[13px] text-[#0F172A] bg-white min-w-[180px] outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
             >
               <option value="">Todas as contas</option>
               {bankAccounts.map((ba) => (
                 <option key={ba.id} value={ba.id}>{ba.name}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF] pointer-events-none" />
           </div>
-
-          {/* Tipo */}
-          <SegmentedControl<TipoFilter>
-            size="sm"
-            value={tipoFilter}
-            onChange={setTipoFilter}
-            options={[
-              { value: 'todos', label: 'Todos' },
-              { value: 'entradas', label: 'Entradas' },
-              { value: 'saidas', label: 'Saídas' },
-              { value: 'transferencias', label: 'Transf.' },
-            ]}
-          />
 
           {/* Período */}
           <PeriodFilter
@@ -774,64 +779,57 @@ export default function Movimentacoes() {
         </div>
 
         {activeSearchTerm && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border border-border rounded-md">
-            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <p className="text-[11.5px] text-muted-foreground">
-              Buscando "<strong className="text-foreground">{activeSearchTerm}</strong>" em todas as datas (período ignorado)
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#F9FAFB] border border-[#E5E7EB] rounded-md">
+            <Search className="w-3.5 h-3.5 text-[#9CA3AF] shrink-0" />
+            <p className={typography.bodyMuted}>
+              Buscando "<strong className="font-semibold text-[#0F172A]">{activeSearchTerm}</strong>" em todas as datas (período ignorado)
             </p>
           </div>
         )}
 
         {/* ====== CARD PRINCIPAL ====== */}
-        <Card>
-          <CardHeader className="border-b border-border" style={{ backgroundColor: '#059669' }}>
-            <CardTitle className="text-[13px] font-bold tracking-tight flex items-center gap-2 text-white">
-              <ArrowLeftRight className="h-4 w-4" /> Movimentações — extrato consolidado
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="text-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Carregando movimentações...</p>
-              </div>
-            ) : dayGroups.length === 0 ? (
-              <div className="text-center py-16">
-                <ArrowLeftRight className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-                <p className="text-muted-foreground text-sm">Nenhuma movimentação encontrada.</p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  Ajuste os filtros acima ou registre um lançamento manual.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[12.5px]">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left py-2.5 px-4 font-semibold w-[44px]"></th>
-                      <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
-                      <th className="text-left py-2.5 px-4 font-semibold w-[180px]">Categoria</th>
-                      <th className="text-left py-2.5 px-4 font-semibold w-[140px]">Conta</th>
-                      <th className="text-right py-2.5 px-4 font-semibold w-[140px]">Valor (R$)</th>
-                      <th className="text-right py-2.5 px-4 font-semibold w-[120px]">Saldo conta</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dayGroups.map((group) => (
-                      <DiaMovimentacoes
-                        key={group.date}
-                        group={group}
-                        bankNameMap={bankNameMap}
-                        bankRunningBalances={bankRunningBalances}
-                        TypeIcon={TypeIcon}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="bg-white border border-[#E5E7EB] rounded-lg overflow-hidden">
+          {loading ? (
+            <div className="text-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-[#059669] mx-auto mb-3" />
+              <p className="text-[13px] text-[#9CA3AF]">Carregando movimentações...</p>
+            </div>
+          ) : dayGroups.length === 0 ? (
+            <div className="text-center py-16">
+              <ArrowLeftRight className="h-10 w-10 text-[#9CA3AF] mx-auto mb-3 opacity-40" />
+              <p className="text-[13px] font-bold text-[#0F172A]">Nenhuma movimentação encontrada.</p>
+              <p className="text-[12px] text-[#9CA3AF] mt-1">
+                Ajuste os filtros acima ou registre um lançamento manual.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="bg-white border-b-2 border-[#D1D5DB] text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A]">
+                    <th className="text-left py-2.5 px-4 w-[44px]"></th>
+                    <th className="text-left py-2.5 px-4">Descrição</th>
+                    <th className="text-left py-2.5 px-4 w-[180px]">Categoria</th>
+                    <th className="text-left py-2.5 px-4 w-[140px]">Conta</th>
+                    <th className="text-right py-2.5 px-4 w-[140px]">Valor (R$)</th>
+                    <th className="text-right py-2.5 px-4 w-[120px]">Saldo conta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dayGroups.map((group) => (
+                    <DiaMovimentacoes
+                      key={group.date}
+                      group={group}
+                      bankNameMap={bankNameMap}
+                      bankRunningBalances={bankRunningBalances}
+                      TypeIcon={TypeIcon}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         </PagePanel>
       </div>
 
@@ -1058,8 +1056,8 @@ function DiaMovimentacoes({
 }) {
   return (
     <>
-      <tr className="bg-muted/40 border-y border-border">
-        <td colSpan={3} className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-foreground/80">
+      <tr className="bg-[#F3F4F6] border-y border-[#E5E7EB]">
+        <td colSpan={3} className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">
           {group.label}
         </td>
         <td className="px-4 py-2 text-right text-[11px] font-semibold text-[#039855] tabular-nums">
@@ -1077,40 +1075,40 @@ function DiaMovimentacoes({
         const bankBal = row.conta_bancaria_id ? bankRunningBalances.get(row.conta_bancaria_id) : null
 
         return (
-          <tr key={row.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+          <tr key={row.id} className="border-b border-[#F1F3F5] hover:bg-[#F3F4F6] transition-colors">
             <td className="px-4 py-2 align-middle">
               <TypeIcon tipo={row.tipo} />
             </td>
             <td className="px-4 py-2 align-middle">
-              <div className="font-medium text-foreground truncate max-w-[420px]">
+              <div className="text-[12px] font-medium text-[#0F172A] truncate max-w-[420px]">
                 {row.descricao || '(sem descrição)'}
               </div>
               <div className="mt-0.5">
-                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
                   row.origem === 'cr' || row.origem === 'conta_receber' ? 'bg-[#ECFDF3] text-[#039855]' :
                   row.origem === 'cp' || row.origem === 'conta_pagar' ? 'bg-[#FEE2E2] text-[#E53E3E]' :
                   row.origem === 'venda' ? 'bg-[#e8eaf6] text-[#283593]' :
-                  'bg-muted text-muted-foreground'
+                  'bg-[#F3F4F6] text-[#4B5563]'
                 }`}>
                   {(ORIGEM_LABELS[row.origem] || row.origem)}
                 </span>
               </div>
             </td>
-            <td className="px-4 py-2 align-middle text-muted-foreground text-[11.5px]">
+            <td className="px-4 py-2 align-middle text-[12px] text-[#4B5563]">
               {row.conta_contabil
                 ? <span><span className="font-mono">{row.conta_contabil.code}</span> — {row.conta_contabil.name}</span>
                 : <span className="italic">sem categoria</span>}
             </td>
-            <td className="px-4 py-2 align-middle text-muted-foreground text-[11.5px] truncate max-w-[140px]">
+            <td className="px-4 py-2 align-middle text-[12px] text-[#4B5563] truncate max-w-[140px]">
               {bankName || '—'}
             </td>
-            <td className={`px-4 py-2 align-middle text-right font-bold tabular-nums ${row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#E53E3E]'}`}>
+            <td className={`px-4 py-2 align-middle text-right text-[12px] font-bold tabular-nums ${row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#E53E3E]'}`}>
               {row.tipo === 'credito' ? '+' : '-'}{formatBRL(row.valor)}
             </td>
             <td className="px-4 py-2 align-middle text-right tabular-nums">
               {bankBal != null
-                ? <span className={`text-[11.5px] font-semibold ${bankBal >= 0 ? 'text-[#059669]' : 'text-[#E53E3E]'}`}>{formatBRL(bankBal)}</span>
-                : <span className="text-muted-foreground">—</span>}
+                ? <span className={`text-[12px] font-semibold ${bankBal >= 0 ? 'text-[#059669]' : 'text-[#E53E3E]'}`}>{formatBRL(bankBal)}</span>
+                : <span className="text-[#9CA3AF]">—</span>}
             </td>
           </tr>
         )
