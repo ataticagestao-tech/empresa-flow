@@ -6,11 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, ComposedChart, Area, Line, Cell, ReferenceLine, LabelList,
+    ResponsiveContainer, ComposedChart, Area, Cell, LabelList,
     AreaChart, PieChart, Pie,
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
@@ -1018,29 +1019,14 @@ export default function CompanyDashboard() {
                     {/* Regime + Period Filter (ao lado do título) */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         {/* Regime toggle */}
-                        <div style={{ display: "inline-flex", border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, overflow: "hidden" }}>
-                            {([
-                                { key: "caixa", label: "Caixa", title: "Regime de caixa: conta o que efetivamente entrou e saiu (recebimentos e pagamentos por data de pagamento)." },
-                                { key: "competencia", label: "Competência", title: "Regime de competência: conta o que foi vendido e o que foi devido no período (vendas por data de venda; despesas por data de vencimento), independente do pagamento." },
-                            ] as { key: "caixa" | "competencia"; label: string; title: string }[]).map((r) => (
-                                <button
-                                    key={r.key}
-                                    onClick={() => setRegime(r.key)}
-                                    title={r.title}
-                                    style={{
-                                        padding: "8px 14px",
-                                        border: "none",
-                                        background: regime === r.key ? C.goldBg : "transparent",
-                                        color: regime === r.key ? "#059669" : C.text2,
-                                        fontSize: 13,
-                                        fontWeight: regime === r.key ? 600 : 500,
-                                        cursor: "pointer",
-                                    }}
-                                >
-                                    {r.label}
-                                </button>
-                            ))}
-                        </div>
+                        <SegmentedControl<"caixa" | "competencia">
+                            value={regime}
+                            onChange={setRegime}
+                            options={[
+                                { value: "caixa", label: "Caixa", title: "Regime de caixa: conta o que efetivamente entrou e saiu (recebimentos e pagamentos por data de pagamento)." },
+                                { value: "competencia", label: "Competência", title: "Regime de competência: conta o que foi vendido e o que foi devido no período (vendas por data de venda; despesas por data de vencimento), independente do pagamento." },
+                            ]}
+                        />
 
                     <div ref={periodMenuRef} style={{ position: "relative" }}>
                         <button
@@ -1500,17 +1486,13 @@ export default function CompanyDashboard() {
                     {(() => {
                         const seriesRev = chartRevExp || [];
                         const seriesDesp = chartDespDiarias || [];
-                        let saldoAcc = 0;
                         const merged = seriesRev.map((r: any, i: number) => {
                             const receita = r.Receita || 0;
                             const despesa = (seriesDesp[i] && seriesDesp[i].despesa) || 0;
-                            saldoAcc += receita - despesa;
                             return {
                                 label: r.label,
                                 Receita: receita,
                                 Despesa: despesa,
-                                DespesaNeg: -despesa,
-                                Saldo: saldoAcc,
                             };
                         });
                         const totalReceita = merged.reduce((s: number, r: any) => s + (r.Receita || 0), 0);
@@ -1533,7 +1515,7 @@ export default function CompanyDashboard() {
                                 <div style={{ display: "flex", gap: 16, marginBottom: 14, paddingTop: 6 }}>
                                     {[
                                         { label: receitaLabel, value: totalReceita, color: "#039855" },
-                                        { label: despesaLabel, value: totalDespesa, color: "#E53E3E" },
+                                        { label: despesaLabel, value: totalDespesa, color: "#EF9F27" },
                                         { label: "Resultado", value: saldo, color: saldo >= 0 ? "#039855" : "#E53E3E" },
                                     ].map((s) => (
                                         <div key={s.label} style={{ flex: 1 }}>
@@ -1543,8 +1525,8 @@ export default function CompanyDashboard() {
                                     ))}
                                 </div>
 
-                                <ResponsiveContainer width="100%" height={320}>
-                                    <ComposedChart data={merged} margin={{ top: 28, right: 16, left: 8, bottom: 4 }} barCategoryGap={chartGranularity === "day" ? "18%" : "22%"} barGap={2} stackOffset="sign">
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <ComposedChart data={merged} margin={{ top: 28, right: 16, left: 8, bottom: 4 }} barCategoryGap={chartGranularity === "day" ? "14%" : "22%"} barGap={3}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
                                         <XAxis
                                             dataKey="label"
@@ -1558,32 +1540,19 @@ export default function CompanyDashboard() {
                                             tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }}
                                             axisLine={false}
                                             tickLine={false}
-                                            tickFormatter={(v) => {
-                                                const abs = Math.abs(v);
-                                                return abs >= 1000 ? `${(abs / 1000).toFixed(0)}k` : `${abs}`;
-                                            }}
+                                            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)}
                                             width={48}
                                         />
                                         <Tooltip
                                             contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
                                             itemStyle={{ color: C.text1, padding: "2px 0" }}
                                             labelStyle={{ color: C.text2, fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
-                                            formatter={(v: number, name: string) => [fmtFull(name === despesaLabel ? Math.abs(v) : v), name]}
+                                            formatter={(v: number, name: string) => [fmtFull(v), name]}
                                             labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
                                             cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
                                         />
-                                        <ReferenceLine y={0} stroke={C.text2} strokeWidth={1} />
-                                        <Bar dataKey="Receita" name={receitaLabel} fill="#039855" stackId="cashflow" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 56} />
-                                        <Bar dataKey="DespesaNeg" name={despesaLabel} fill="#E53E3E" stackId="cashflow" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 56} />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="Saldo"
-                                            name="Saldo acumulado"
-                                            stroke={C.text1}
-                                            strokeWidth={2.25}
-                                            dot={{ r: 2.5, fill: C.text1, stroke: "#fff", strokeWidth: 1.5 }}
-                                            activeDot={{ r: 4.5, fill: C.text1, stroke: "#fff", strokeWidth: 2 }}
-                                        />
+                                        <Bar dataKey="Receita" name={receitaLabel} fill="#039855" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 52} />
+                                        <Bar dataKey="Despesa" name={despesaLabel} fill="#EF9F27" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 52} />
                                     </ComposedChart>
                                 </ResponsiveContainer>
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
@@ -1592,12 +1561,8 @@ export default function CompanyDashboard() {
                                         {receitaLabel}
                                     </span>
                                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                        <span style={{ width: 10, height: 10, background: "#E53E3E", borderRadius: 2 }} />
+                                        <span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />
                                         {despesaLabel}
-                                    </span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                        <span style={{ width: 14, height: 2, background: C.text1, borderRadius: 1 }} />
-                                        Saldo acumulado
                                     </span>
                                 </div>
                             </>

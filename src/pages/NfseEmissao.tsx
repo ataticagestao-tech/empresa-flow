@@ -11,7 +11,8 @@ import {
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatBRL, formatData, formatDoc } from '@/lib/format'
+import { formatBRL, formatData, formatDoc, formatFormaPagamento } from '@/lib/format'
+import { MonthFilter } from '@/components/ui/month-filter'
 import { unmask } from '@/utils/masks'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { toast } from 'sonner'
@@ -551,7 +552,7 @@ export default function NfseEmissao() {
         <td className="px-4 py-2 font-medium whitespace-nowrap">{v.cliente_nome || '—'}</td>
         <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
         <td className="px-4 py-2 text-right font-medium whitespace-nowrap">{formatBRL(v.valor_total)}</td>
-        <td className="px-4 py-2 text-gray-600 capitalize whitespace-nowrap">{v.forma_pagamento || '—'}</td>
+        <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{formatFormaPagamento(v.forma_pagamento)}</td>
         <td className="px-4 py-2 text-center">
           <button
             onClick={() => toggleNfEmitida(v)}
@@ -674,7 +675,7 @@ export default function NfseEmissao() {
         v.cliente_nome || '',
         formatDoc(v.cliente_cpf_cnpj) || '',
         (v.valor_total || 0).toFixed(2).replace('.', ','),
-        v.forma_pagamento || '',
+        formatFormaPagamento(v.forma_pagamento),
         v.nf_emitida ? 'Sim' : 'Nao',
       ]),
     ]
@@ -1079,12 +1080,7 @@ export default function NfseEmissao() {
               />
             </div>
 
-            <input
-              type="month"
-              value={mesAno}
-              onChange={e => setMesAno(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+            <MonthFilter value={mesAno} onChange={setMesAno} />
 
             <select
               value={statusFilter}
@@ -1130,12 +1126,7 @@ export default function NfseEmissao() {
               />
             </div>
 
-            <input
-              type="month"
-              value={mesAno}
-              onChange={e => setMesAno(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+            <MonthFilter value={mesAno} onChange={setMesAno} />
 
             <button onClick={loadVendas} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Atualizar">
               <RefreshCw size={16} className="text-gray-500" />

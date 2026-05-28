@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays } from 'date-fns'
@@ -290,6 +291,19 @@ export default function ReguaCobranca() {
     )
   }, [crsWithRegua, searchCr])
 
+  /* ── KPIs ── */
+  const kpis = useMemo(() => {
+    const vencidas = crsWithRegua.filter(cr => cr.realStatus === 'vencido')
+    const clientesInadimplentes = new Set(
+      vencidas.map(cr => cr.pagador_cpf_cnpj || cr.pagador_nome)
+    ).size
+    const valorAtraso = vencidas.reduce((s, cr) => s + Number(cr.valor || 0), 0)
+    const reguasAtivas = Object.values(reguasGrouped).filter(g => g[0]?.ativo).length
+    const mesAtual = new Date().toISOString().slice(0, 7)
+    const disparosMes = logs.filter(l => (l.enviado_em || '').slice(0, 7) === mesAtual).length
+    return { clientesInadimplentes, totalVencidas: vencidas.length, valorAtraso, reguasAtivas, disparosMes }
+  }, [crsWithRegua, reguasGrouped, logs])
+
   /* ── Modal: open new/edit ── */
   function openModal(reguaNomeKey?: string) {
     if (reguaNomeKey && reguasGrouped[reguaNomeKey]) {
@@ -508,6 +522,33 @@ export default function ReguaCobranca() {
             {processing ? 'Processando...' : 'Processar regua agora'}
           </button>
         </div>
+
+        {/* ── KPI Cards ── */}
+        <KpiCardGrid>
+          <KpiCard
+            label="Clientes inadimplentes"
+            value={kpis.clientesInadimplentes}
+            valueColor="#7F1D1D"
+            sub={`${kpis.totalVencidas} título${kpis.totalVencidas !== 1 ? 's' : ''} vencido${kpis.totalVencidas !== 1 ? 's' : ''}`}
+          />
+          <KpiCard
+            label="Valor em atraso"
+            value={formatBRL(kpis.valorAtraso)}
+            valueColor="#E53E3E"
+            sub="total vencido em aberto"
+          />
+          <KpiCard
+            label="Réguas ativas"
+            value={kpis.reguasAtivas}
+            valueColor="#039855"
+            sub={`${Object.keys(reguasGrouped).length} régua${Object.keys(reguasGrouped).length !== 1 ? 's' : ''} cadastrada${Object.keys(reguasGrouped).length !== 1 ? 's' : ''}`}
+          />
+          <KpiCard
+            label="Disparos no mês"
+            value={kpis.disparosMes}
+            sub="cobranças enviadas"
+          />
+        </KpiCardGrid>
 
         {/* ================================================================
            SECTION 1: Reguas de Cobranca

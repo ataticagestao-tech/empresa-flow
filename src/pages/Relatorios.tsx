@@ -11,6 +11,7 @@ import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Check, Landmark, Search,
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
+import { PeriodFilter } from "@/components/ui/period-filter";
 import { cn } from "@/lib/utils";
 import { maskCNPJ, maskCPF, unmask } from "@/utils/masks";
 
@@ -656,18 +657,19 @@ export default function Relatorios() {
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <h2 className="text-lg font-bold tracking-tight">Relatórios</h2>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                            type="date"
-                            value={dateRange.start}
-                            onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
-                            className="h-9 w-40"
-                        />
-                        <span className="text-muted-foreground">a</span>
-                        <Input
-                            type="date"
-                            value={dateRange.end}
-                            onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
-                            className="h-9 w-40"
+                        <PeriodFilter
+                            from={dateRange.start}
+                            to={dateRange.end}
+                            onApply={(from, to) => {
+                                if (from && to) {
+                                    setDateRange({ start: from, end: to });
+                                } else {
+                                    setDateRange({
+                                        start: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                                        end: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+                                    });
+                                }
+                            }}
                         />
                     </div>
                 </div>

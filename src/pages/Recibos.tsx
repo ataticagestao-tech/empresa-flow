@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,6 +16,7 @@ import { sendWhatsApp } from '@/lib/whatsapp/send-whatsapp'
 import { sendReciboEmail } from '@/lib/recibos/send-recibo-email'
 import { gerarReciboPDF, downloadBlob } from '@/lib/recibos/gerar-pdf'
 import { ExportMenu } from '@/components/ExportMenu'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -424,6 +425,15 @@ export default function Recibos() {
     )
     return haystack.includes(needle)
   })
+
+  // KPIs (sobre todos os recibos da empresa, independente do filtro)
+  const kpis = useMemo(() => {
+    const enviados = recibos.filter((r) => r.status_email === 'enviado').length
+    const pendentes = recibos.filter((r) => r.status_email === 'pendente').length
+    const erros = recibos.filter((r) => r.status_email === 'erro').length
+    const valorTotal = recibos.reduce((s, r) => s + Number(r.valor || 0), 0)
+    return { total: recibos.length, enviados, pendentes, erros, valorTotal }
+  }, [recibos])
 
   // Actions
   const buildEmailTemplate = (r: Recibo): { subject: string; body: string } => {
@@ -967,7 +977,17 @@ export default function Recibos() {
 
   return (
     <AppLayout title="Recibos">
-      <div className="flex gap-4 h-[calc(100vh-120px)]">
+      <KpiCardGrid className="mb-4">
+        <KpiCard
+          label="Total de recibos"
+          value={kpis.total}
+          sub={`${formatBRL(kpis.valorTotal)} emitido`}
+        />
+        <KpiCard label="Enviados" value={kpis.enviados} valueColor="#039855" sub="entregues por e-mail/WhatsApp" />
+        <KpiCard label="Pendentes" value={kpis.pendentes} valueColor="#EA580C" sub="aguardando envio" />
+        <KpiCard label="Erros" value={kpis.erros} valueColor="#E53E3E" sub="falha no envio" />
+      </KpiCardGrid>
+      <div className="flex gap-4 h-[calc(100vh-210px)]">
 
         {/* ---- LEFT COLUMN: List ---- */}
         <div className="w-[420px] min-w-[360px] flex flex-col">

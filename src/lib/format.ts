@@ -25,6 +25,28 @@ export const formatData = (data: string | null | undefined): string => {
 export const formatPercentual = (value: number) =>
   `${value.toFixed(1)}%`
 
+export const LABEL_FORMA_PAGAMENTO: Record<string, string> = {
+  pix: 'PIX/TED',
+  dinheiro: 'Dinheiro',
+  cartao_credito: 'Cartão crédito',
+  cartao_debito: 'Cartão débito',
+  boleto: 'Boleto',
+  parcelado: 'Parcelado',
+  pendente: 'Em aberto',
+  multiplo: 'Múltiplo',
+}
+
+export const formatFormaPagamento = (forma: string | null | undefined): string => {
+  if (!forma) return '—'
+  const key = forma.toLowerCase().trim()
+  if (LABEL_FORMA_PAGAMENTO[key]) return LABEL_FORMA_PAGAMENTO[key]
+  return key
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ')
+}
+
 export const toTitleCase = (str: string | null | undefined): string => {
   if (!str || str.trim() === '') return ''
 
