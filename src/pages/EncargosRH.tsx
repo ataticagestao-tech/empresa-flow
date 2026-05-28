@@ -8,14 +8,14 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { PageToolbar } from '@/components/layout/PageToolbar'
+import { PagePanel } from '@/components/layout/PagePanel'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface Encargo {
   id: string
-  empresa_id: string
+  company_id: string
   competencia: string
   fgts_total: number
   fgts_multa: number
@@ -68,7 +68,7 @@ export default function EncargosRH() {
 
     const { data } = await db.from('encargos')
       .select('*')
-      .eq('empresa_id', selectedCompany.id)
+      .eq('company_id', selectedCompany.id)
       .gte('competencia', `${selectedAno}-01`)
       .lte('competencia', `${selectedAno}-12`)
       .order('competencia', { ascending: true })
@@ -98,7 +98,7 @@ export default function EncargosRH() {
       // Buscar folhas do mes
       const { data: folhas } = await db.from('folha_pagamento')
         .select('total_proventos, inss_funcionario, irrf, fgts_mes, inss_patronal')
-        .eq('empresa_id', selectedCompany.id)
+        .eq('company_id', selectedCompany.id)
         .eq('competencia', competencia)
         .eq('tipo', 'mensal')
 
@@ -124,7 +124,7 @@ export default function EncargosRH() {
       const dataVencIrrf = format(new Date(proxMes.getFullYear(), proxMes.getMonth(), 20), 'yyyy-MM-dd')
 
       const payload = {
-        empresa_id: selectedCompany.id,
+        company_id: selectedCompany.id,
         competencia,
         fgts_total: Math.round(fgtsTotal * 100) / 100,
         inss_patronal: Math.round(inssPatronal * 100) / 100,
@@ -140,7 +140,7 @@ export default function EncargosRH() {
       // Upsert
       const { data: existing } = await db.from('encargos')
         .select('id')
-        .eq('empresa_id', selectedCompany.id)
+        .eq('company_id', selectedCompany.id)
         .eq('competencia', competencia)
         .maybeSingle()
 
@@ -200,9 +200,9 @@ export default function EncargosRH() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Encargos Trabalhistas">
-      <div className="p-6 space-y-6">
+      <div className="p-6">
 
-        <PageToolbar title="Encargos Trabalhistas" />
+        <PagePanel title="Encargos Trabalhistas" subtitle="Encargos trabalhistas e provisões sobre a folha">
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -363,6 +363,7 @@ export default function EncargosRH() {
             })}
           </div>
         )}
+        </PagePanel>
       </div>
     </AppLayout>
   )
