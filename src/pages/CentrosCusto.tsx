@@ -123,11 +123,6 @@ export default function CentrosCusto() {
       <div>
 
         <PagePanel title="Setores / Centros de Custo" subtitle="Setores para classificar receitas e despesas por área">
-        {/* Alert */}
-        <div className="bg-[#FFF0EB] border border-[#e6c200] border-l-4 border-l-[#EA580C] rounded-md px-4 py-2.5 text-sm font-semibold text-[#EA580C]">
-          Os setores abaixo foram criados pela Tática como padrão para esta empresa. O cliente pode renomear ou adicionar novos setores, mas não pode excluir os padrões.
-        </div>
-
           <div className="flex items-center gap-2 justify-end">
             <ExportMenu
               rows={centros}
