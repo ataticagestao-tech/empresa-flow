@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -564,21 +563,30 @@ export default function PlanoContas() {
 
   return (
     <AppLayout title="Plano de Contas">
-      <div className="space-y-2 px-4 pt-3 pb-4">
-        <PageToolbar title="Plano de Contas" />
+      <div className="py-3">
+        <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 space-y-2 min-h-[calc(100vh-150px)]">
+        {/* Cabeçalho estilo header escuro + abas (como Operacional) */}
+        <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
+          <div className="bg-[#2A2724] px-4 py-3">
+            <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Plano de Contas</h1>
+            <p className="text-[11px] text-white/80 mt-0.5">Estrutura de contas contábeis para classificar receitas, custos e despesas</p>
+          </div>
+          <div className="flex px-4 border-b border-[#EAECF0] overflow-x-auto">
+            {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas"].map(f => (
+              <button key={f} onClick={() => setFilterType(f)}
+                className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${
+                  filterType === f ? "text-[#059669] border-[#059669]" : "text-[#555] border-transparent hover:text-[#1D2939]"
+                }`}>
+                {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : "Analíticas"}
+              </button>
+            ))}
+          </div>
+        </div>
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
           <input type="text" placeholder="Buscar por nome ou código..." value={search}
             onChange={e => setSearch(e.target.value)}
             className="border border-[#D0D5DD] rounded px-3 py-1.5 text-[13px] text-black bg-white focus:border-black focus:outline-none flex-1 min-w-[200px]" />
-          {["todas", "receitas", "custos", "despesas", "patrimoniais", "analiticas"].map(f => (
-            <button key={f} onClick={() => setFilterType(f)}
-              className={`text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1.5 rounded border transition-colors ${
-                filterType === f ? "bg-black text-white border-black" : "bg-white text-[#667085] border-[#D0D5DD] hover:border-black hover:text-black"
-              }`}>
-              {f === "todas" ? "Todas" : f === "receitas" ? "Receitas" : f === "custos" ? "Custos" : f === "despesas" ? "Despesas" : f === "patrimoniais" ? "Patrimoniais" : "Analíticas"}
-            </button>
-          ))}
           <button onClick={expandAll} className="text-[11px] font-semibold text-black px-2 py-1.5 hover:underline">Expandir</button>
           <button onClick={collapseAll} className="text-[11px] font-semibold text-[#667085] px-2 py-1.5 hover:underline">Recolher</button>
           <button onClick={() => setShowModeloPopup(true)}
@@ -762,7 +770,7 @@ export default function PlanoContas() {
             <p className="text-xs text-[#555]">Cadastre uma empresa e aplique o plano de contas template.</p>
           </div>
         ) : (
-          <div className="border border-[#D0D5DD] rounded bg-white overflow-hidden max-w-5xl mx-auto">
+          <div className="border border-[#D0D5DD] rounded bg-white overflow-hidden">
             {/* Cabeçalho tipo planilha */}
             <div className="bg-white border-b-2 border-[#D0D5DD] px-3 py-3.5 flex items-center gap-6 text-[13px] font-bold uppercase tracking-wider text-black">
               <span className="w-4" />
@@ -832,6 +840,7 @@ export default function PlanoContas() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* ─── Popup: Escolher modo de aplicação ─── */}
