@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { RHTabs } from '@/components/layout/RHTabs'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -202,7 +203,7 @@ export default function EncargosRH() {
     <AppLayout title="Encargos Trabalhistas">
       <div className="p-6">
 
-        <PagePanel title="Encargos Trabalhistas" subtitle="Encargos trabalhistas e provisões sobre a folha">
+        <PagePanel title="Encargos Trabalhistas" subtitle="Encargos trabalhistas e provisões sobre a folha" tabs={<RHTabs />}>
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

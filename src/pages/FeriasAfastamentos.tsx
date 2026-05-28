@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { RHTabs } from '@/components/layout/RHTabs'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -209,7 +210,7 @@ export default function FeriasAfastamentos() {
     <AppLayout title="Ferias e Afastamentos">
       <div className="p-6">
 
-        <PagePanel title="Férias e Afastamentos" subtitle="Controle de férias, afastamentos e licenças">
+        <PagePanel title="Férias e Afastamentos" subtitle="Controle de férias, afastamentos e licenças" tabs={<RHTabs />}>
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
