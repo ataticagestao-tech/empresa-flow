@@ -57,6 +57,7 @@ interface Funcionario {
   salario_base?: number | null
   hire_date?: string | null
   status: string
+  tipo_contrato?: string | null
 }
 
 interface FaixaINSS {
@@ -88,6 +89,22 @@ const TIPO_LABELS: Record<string, string> = {
   '13_segundo': '13o 2a parcela',
   adiantamento: 'Adiantamento',
 }
+
+// Tipos de contrato (mesma nomenclatura do cadastro de Funcionarios)
+const TIPO_CONTRATO_LABELS: Record<string, string> = {
+  clt: 'CLT',
+  temporario: 'Temporário',
+  estagio: 'Estágio',
+  pj: 'PJ',
+  autonomo: 'Autônomo',
+}
+
+// REGRA DO SISTEMA: PJ e autônomo são pagos via NF/RPA e NUNCA entram na folha CLT.
+// Apenas estes tipos podem ser calculados na folha de pagamento.
+const TIPOS_CONTRATO_FOLHA = ['clt', 'temporario', 'estagio']
+
+// tipo_contrato nulo no cadastro tem default 'clt'
+const normalizaTipoContrato = (t?: string | null) => (t || 'clt').toLowerCase()
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
@@ -189,6 +206,7 @@ export default function FolhaPagamentoPage() {
     tipo: 'mensal',
     funcionarioIds: [] as string[],
     selectAll: true,
+    tiposContrato: ['clt'] as string[],
   })
 
   // ─── Data Loading ───────────────────────────────────────────────
@@ -234,6 +252,24 @@ export default function FolhaPagamentoPage() {
   const funcionariosAtivos = useMemo(() =>
     funcionarios.filter(f => (f.status || '').toLowerCase() === 'ativo'), [funcionarios])
 
+  // Contagem de ativos por tipo de contrato (para o modal)
+  const contratoCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    funcionariosAtivos.forEach(f => {
+      const t = normalizaTipoContrato(f.tipo_contrato)
+      counts[t] = (counts[t] || 0) + 1
+    })
+    return counts
+  }, [funcionariosAtivos])
+
+  // Ativos cujo tipo de contrato pode entrar na folha (regra do sistema) E foi selecionado
+  const funcionariosElegiveis = useMemo(() =>
+    funcionariosAtivos.filter(f => {
+      const t = normalizaTipoContrato(f.tipo_contrato)
+      return TIPOS_CONTRATO_FOLHA.includes(t) && calcForm.tiposContrato.includes(t)
+    }),
+    [funcionariosAtivos, calcForm.tiposContrato])
+
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const totalProventos = folhas.reduce((s, f) => s + (f.total_proventos || 0), 0)
@@ -270,12 +306,18 @@ export default function FolhaPagamentoPage() {
     const db = activeClient as any
 
     try {
+      if (calcForm.tiposContrato.length === 0) {
+        toast.error('Selecione ao menos um tipo de contrato')
+        setCalculating(false)
+        return
+      }
+
       const funcsParaCalc = calcForm.selectAll
-        ? funcionariosAtivos
-        : funcionariosAtivos.filter(f => calcForm.funcionarioIds.includes(f.id))
+        ? funcionariosElegiveis
+        : funcionariosElegiveis.filter(f => calcForm.funcionarioIds.includes(f.id))
 
       if (funcsParaCalc.length === 0) {
-        toast.error('Nenhum funcionario selecionado')
+        toast.error('Nenhum funcionario elegivel para os tipos de contrato selecionados')
         setCalculating(false)
         return
       }
@@ -662,15 +704,41 @@ export default function FolhaPagamentoPage() {
                 </select>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={calcForm.selectAll}
-                    onChange={e => setCalcForm(prev => ({ ...prev, selectAll: e.target.checked }))}
-                    className="rounded border-gray-300"
-                  />
-                  Todos os funcionarios ativos ({funcionariosAtivos.length})
-                </label>
+                <label className="block text-xs text-gray-500 mb-2">Tipos de contrato na folha</label>
+                <div className="space-y-1.5">
+                  {Object.entries(TIPO_CONTRATO_LABELS).map(([key, label]) => {
+                    const count = contratoCounts[key] || 0
+                    const elegivel = TIPOS_CONTRATO_FOLHA.includes(key)
+                    const checked = calcForm.tiposContrato.includes(key)
+                    return (
+                      <label
+                        key={key}
+                        className={`flex items-center justify-between gap-2 text-sm ${elegivel ? 'text-gray-600 cursor-pointer' : 'text-gray-400 cursor-not-allowed'}`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={elegivel && checked}
+                            disabled={!elegivel}
+                            onChange={e => setCalcForm(prev => ({
+                              ...prev,
+                              tiposContrato: e.target.checked
+                                ? [...prev.tiposContrato, key]
+                                : prev.tiposContrato.filter(t => t !== key),
+                            }))}
+                            className="rounded border-gray-300 disabled:opacity-50"
+                          />
+                          {label}
+                          {!elegivel && <span className="text-[11px] text-gray-400">— fora da folha (NF/RPA)</span>}
+                        </span>
+                        <span className="text-xs text-gray-400">{count} ativo(s)</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Serão calculados <strong>{funcionariosElegiveis.length}</strong> funcionário(s) ativo(s) dos tipos selecionados.
+                </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1">
                 <p>INSS: tabela progressiva {new Date().getFullYear()}</p>
