@@ -1084,9 +1084,17 @@ export default function Recibos() {
                   ))}
                 </div>
               ) : filtrados.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-xs text-[#9CA3AF]">
+                <div className="flex flex-col items-center justify-center h-40 px-4 text-center text-xs text-[#9CA3AF]">
                   <FileText className="w-8 h-8 text-[#D1D5DB] mb-2" />
-                  {busca ? 'Nenhum recibo encontrado.' : 'Nenhum recibo gerado ainda.'}
+                  <p className="mb-3">{busca ? 'Nenhum recibo encontrado.' : 'Nenhum recibo gerado ainda.'}</p>
+                  {!busca && (
+                    <button
+                      onClick={() => setShowGerar(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" /> Gerar primeiro recibo
+                    </button>
+                  )}
                 </div>
               ) : (
                 filtrados.map((r) => (

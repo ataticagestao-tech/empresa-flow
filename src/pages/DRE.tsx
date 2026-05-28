@@ -374,7 +374,7 @@ export default function DRE() {
                 <BarChart data={dadosGrafico}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#EAECF0" />
                   <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tick={{ fontSize: 11 }} width={58} tickFormatter={(v) => (Math.abs(v) >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : `R$ ${v}`)} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="Receita" fill="#039855" radius={[4, 4, 0, 0]} />

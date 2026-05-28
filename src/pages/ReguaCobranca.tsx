@@ -619,8 +619,14 @@ export default function ReguaCobranca() {
             ) : reguas.length === 0 ? (
               <div className="text-center py-10">
                 <Bell size={36} className="mx-auto text-[#ccc] mb-3" />
-                <p className="text-[13px] text-[#555]">Nenhuma regua configurada.</p>
-                <p className="text-[11px] text-[#999] mt-1">Crie sua primeira regua de cobranca clicando em "+ Nova Regua".</p>
+                <p className="text-[13px] text-[#555]">Nenhuma régua configurada.</p>
+                <p className="text-[11px] text-[#999] mt-1 mb-4">Crie sua primeira régua para automatizar lembretes e avisos de vencimento.</p>
+                <button
+                  onClick={() => openModal()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#059669] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  <Plus size={14} /> Nova Régua
+                </button>
               </div>
             ) : (
               <div className="flex flex-col gap-3">

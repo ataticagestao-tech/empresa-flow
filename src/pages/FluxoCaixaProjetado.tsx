@@ -5,8 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -94,13 +94,15 @@ export default function FluxoCaixaProjetado() {
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
 
                 <PageToolbar title="Fluxo de Caixa Projetado" subtitle={`Próximos ${days} dias`}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        {[30, 60, 90].map(d => (
-                            <Button key={d} variant={days === d ? "default" : "outline"} size="sm" onClick={() => setDays(d)}>
-                                {d} dias
-                            </Button>
-                        ))}
-                    </div>
+                    <SegmentedControl<"30" | "60" | "90">
+                        value={String(days) as "30" | "60" | "90"}
+                        onChange={(v) => setDays(Number(v))}
+                        options={[
+                            { value: "30", label: "30 dias" },
+                            { value: "60", label: "60 dias" },
+                            { value: "90", label: "90 dias" },
+                        ]}
+                    />
                 </PageToolbar>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
