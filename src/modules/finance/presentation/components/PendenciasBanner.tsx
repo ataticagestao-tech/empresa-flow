@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, X } from "lucide-react";
 
 import { usePendenciasReclassificacao } from "../hooks/usePendenciasReclassificacao";
 import { PendenciasReclassificacaoDialog } from "./PendenciasReclassificacaoDialog";
@@ -14,6 +14,10 @@ interface Props {
 export function PendenciasBanner({ variant = "full", filter = "all", className = "" }: Props) {
     const { data } = usePendenciasReclassificacao();
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [dismissedCount, setDismissedCount] = useState<number | null>(() => {
+        const v = localStorage.getItem("pendencias_reclass_dismissed");
+        return v != null ? Number(v) : null;
+    });
 
     if (!data) return null;
 
@@ -62,6 +66,13 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
         );
     }
 
+    if (dismissedCount === count) return null;
+
+    const dismiss = () => {
+        localStorage.setItem("pendencias_reclass_dismissed", String(count));
+        setDismissedCount(count);
+    };
+
     return (
         <>
             <div className={`flex items-start gap-3 px-4 py-3 rounded-md border border-[#fbbf24] bg-[#FFF0EB] ${className}`}>
@@ -80,6 +91,15 @@ export function PendenciasBanner({ variant = "full", filter = "all", className =
                     className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#059669] hover:underline whitespace-nowrap flex-shrink-0 cursor-pointer"
                 >
                     Reclassificar <ArrowRight className="h-3 w-3" />
+                </button>
+                <button
+                    type="button"
+                    onClick={dismiss}
+                    aria-label="Dispensar aviso"
+                    title="Dispensar"
+                    className="flex-shrink-0 -mt-0.5 -mr-1 p-1 rounded text-[#9a6e00] hover:bg-[#fde68a] transition-colors cursor-pointer"
+                >
+                    <X className="h-3.5 w-3.5" />
                 </button>
             </div>
             <PendenciasReclassificacaoDialog

@@ -5,8 +5,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
@@ -163,6 +165,11 @@ export default function ReguaCobranca() {
   // ── Search ──
   const [searchCr, setSearchCr] = useState('')
 
+  // ── Pagination ──
+  const PAGE_SIZE = 15
+  const [crPage, setCrPage] = useState(0)
+  const [logPage, setLogPage] = useState(0)
+
   /* ── Fetch reguas ── */
   async function fetchReguas() {
     if (!companyId) return
@@ -243,6 +250,9 @@ export default function ReguaCobranca() {
     fetchCrs()
     fetchLogs()
   }, [companyId])
+
+  useEffect(() => { setCrPage(0) }, [searchCr, companyId])
+  useEffect(() => { setLogPage(0) }, [companyId])
 
   /* ── Derived: CRs with regua info ── */
   const crsWithRegua = useMemo(() => {
@@ -508,20 +518,16 @@ export default function ReguaCobranca() {
       <div className="flex flex-col gap-6">
 
         {/* ── Page Header ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-[18px] font-bold text-[#1D2939]">Regua de Cobranca</h2>
-            <p className="text-[12px] text-[#555] mt-0.5">Configure reguas automaticas e acompanhe disparos de cobranca</p>
-          </div>
+        <PageToolbar title="Régua de Cobrança" subtitle="Configure réguas automáticas e acompanhe disparos de cobrança">
           <button
             onClick={processarRegua}
             disabled={processing}
             className="flex items-center gap-2 px-4 py-2 bg-[#059669] text-white text-[12px] font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Play size={14} />
-            {processing ? 'Processando...' : 'Processar regua agora'}
+            {processing ? 'Processando...' : 'Processar régua agora'}
           </button>
-        </div>
+        </PageToolbar>
 
         {/* ── KPI Cards ── */}
         <KpiCardGrid>
@@ -663,6 +669,7 @@ export default function ReguaCobranca() {
             ) : filteredCrs.length === 0 ? (
               <p className="text-[13px] text-[#555] text-center py-6">Nenhuma conta a receber em aberto ou vencida.</p>
             ) : (
+              <>
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-[#e5e5e5]">
@@ -676,7 +683,7 @@ export default function ReguaCobranca() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCrs.map(cr => {
+                  {filteredCrs.slice(crPage * PAGE_SIZE, (crPage + 1) * PAGE_SIZE).map(cr => {
                     const badge = statusBadge(cr.realStatus)
                     return (
                       <tr key={cr.id} className="border-b border-[#EAECF0] hover:bg-[#F6F2EB]">
@@ -738,6 +745,13 @@ export default function ReguaCobranca() {
                   })}
                 </tbody>
               </table>
+              <TablePagination
+                page={crPage}
+                pageSize={PAGE_SIZE}
+                total={filteredCrs.length}
+                onPageChange={setCrPage}
+              />
+              </>
             )}
           </div>
         </div>
@@ -770,6 +784,7 @@ export default function ReguaCobranca() {
             ) : logs.length === 0 ? (
               <p className="text-[13px] text-[#555] text-center py-6">Nenhum disparo registrado.</p>
             ) : (
+              <>
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-[#e5e5e5]">
@@ -781,7 +796,7 @@ export default function ReguaCobranca() {
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.map(log => {
+                  {logs.slice(logPage * PAGE_SIZE, (logPage + 1) * PAGE_SIZE).map(log => {
                     const tipoBadge = tipoBadgeColors(log.tipo_acao)
                     const stBadge = logStatusBadge(log.status)
                     return (
@@ -817,6 +832,13 @@ export default function ReguaCobranca() {
                   })}
                 </tbody>
               </table>
+              <TablePagination
+                page={logPage}
+                pageSize={PAGE_SIZE}
+                total={logs.length}
+                onPageChange={setLogPage}
+              />
+              </>
             )}
           </div>
         </div>

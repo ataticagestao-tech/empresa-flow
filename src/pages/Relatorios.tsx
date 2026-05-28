@@ -12,6 +12,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { PeriodFilter } from "@/components/ui/period-filter";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { cn } from "@/lib/utils";
 import { maskCNPJ, maskCPF, unmask } from "@/utils/masks";
 
@@ -654,25 +655,22 @@ export default function Relatorios() {
     return (
         <AppLayout title="Relatórios">
             <div className="space-y-6 animate-fade-in">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                    <h2 className="text-lg font-bold tracking-tight">Relatórios</h2>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <PeriodFilter
-                            from={dateRange.start}
-                            to={dateRange.end}
-                            onApply={(from, to) => {
-                                if (from && to) {
-                                    setDateRange({ start: from, end: to });
-                                } else {
-                                    setDateRange({
-                                        start: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-                                        end: format(endOfMonth(new Date()), "yyyy-MM-dd"),
-                                    });
-                                }
-                            }}
-                        />
-                    </div>
-                </div>
+                <PageToolbar title="Relatórios" subtitle="Análise de movimentações e fluxo do período">
+                    <PeriodFilter
+                        from={dateRange.start}
+                        to={dateRange.end}
+                        onApply={(from, to) => {
+                            if (from && to) {
+                                setDateRange({ start: from, end: to });
+                            } else {
+                                setDateRange({
+                                    start: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                                    end: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+                                });
+                            }
+                        }}
+                    />
+                </PageToolbar>
 
                 <Card>
                     <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
