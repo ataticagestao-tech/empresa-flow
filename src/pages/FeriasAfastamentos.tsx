@@ -15,8 +15,8 @@ import { toast } from 'sonner'
 // ─── Types ──────────────────────────────────────────────────────────
 interface FeriaAfastamento {
   id: string
-  empresa_id: string
-  funcionario_id: string
+  company_id: string
+  employee_id: string
   tipo: string
   periodo_aquisitivo_inicio: string | null
   periodo_aquisitivo_fim: string | null
@@ -39,9 +39,10 @@ interface Funcionario {
   id: string
   nome_completo: string | null
   name: string | null
-  cargo: string | null
-  data_admissao: string | null
-  salario: number | null
+  role: string | null
+  hire_date: string | null
+  salary: number | null
+  salario_base: number | null
 }
 
 const TIPO_LABELS: Record<string, { label: string; color: string; icon: any }> = {
@@ -100,12 +101,12 @@ export default function FeriasAfastamentos() {
     const [regRes, funcRes] = await Promise.all([
       db.from('ferias_afastamentos')
         .select('*')
-        .eq('empresa_id', selectedCompany.id)
+        .eq('company_id', selectedCompany.id)
         .gte('data_inicio', `${anoFilter}-01-01`)
         .lte('data_inicio', `${anoFilter}-12-31`)
         .order('data_inicio', { ascending: false }),
-      db.from('funcionarios')
-        .select('id, nome_completo, name, cargo, data_admissao, salario')
+      db.from('employees')
+        .select('id, nome_completo, name, role, hire_date, salary, salario_base')
         .eq('company_id', selectedCompany.id)
         .eq('status', 'ativo')
         .order('nome_completo'),
@@ -144,7 +145,7 @@ export default function FeriasAfastamentos() {
     let list = registros
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase()
-      list = list.filter(r => getNomeFuncionario(r.funcionario_id).toLowerCase().includes(term))
+      list = list.filter(r => getNomeFuncionario(r.employee_id).toLowerCase().includes(term))
     }
     if (tipoFilter !== 'todos') list = list.filter(r => r.tipo === tipoFilter)
     if (statusFilter !== 'todos') list = list.filter(r => r.status === statusFilter)
@@ -162,21 +163,22 @@ export default function FeriasAfastamentos() {
 
     try {
       const func = funcionarios.find(f => f.id === newForm.funcionario_id)
+      const salario = func?.salario_base ?? func?.salary ?? 0
       let valorFerias: number | null = null
       let valorAbono: number | null = null
 
-      if (newForm.tipo === 'ferias' && func?.salario) {
+      if (newForm.tipo === 'ferias' && salario > 0) {
         const dias = differenceInDays(parseISO(newForm.data_fim), parseISO(newForm.data_inicio)) + 1
-        const salarioDia = func.salario / 30
-        valorFerias = Math.round((salarioDia * dias + func.salario / 3) * 100) / 100  // ferias + 1/3
+        const salarioDia = salario / 30
+        valorFerias = Math.round((salarioDia * dias + salario / 3) * 100) / 100  // ferias + 1/3
         if (newForm.dias_abono > 0) {
           valorAbono = Math.round(salarioDia * newForm.dias_abono * 100) / 100
         }
       }
 
       const { error } = await db.from('ferias_afastamentos').insert({
-        empresa_id: selectedCompany.id,
-        funcionario_id: newForm.funcionario_id,
+        company_id: selectedCompany.id,
+        employee_id: newForm.funcionario_id,
         tipo: newForm.tipo,
         data_inicio: newForm.data_inicio,
         data_fim: newForm.data_fim,
@@ -300,7 +302,7 @@ export default function FeriasAfastamentos() {
               titulo="FÉRIAS E AFASTAMENTOS"
               subtitulo={String(anoFilter)}
               columns={[
-                { header: 'Funcionário', value: (r) => getNomeFuncionario(r.funcionario_id), pdfFlex: 22, excelWidth: 28 },
+                { header: 'Funcionário', value: (r) => getNomeFuncionario(r.employee_id), pdfFlex: 22, excelWidth: 28 },
                 { header: 'Tipo', value: (r) => (TIPO_LABELS[r.tipo] || TIPO_LABELS.outros).label, pdfFlex: 14, excelWidth: 20 },
                 { header: 'Início', value: (r) => formatData(r.data_inicio), align: 'center', pdfFlex: 9 },
                 { header: 'Fim', value: (r) => formatData(r.data_fim), align: 'center', pdfFlex: 9 },
@@ -343,7 +345,7 @@ export default function FeriasAfastamentos() {
 
                     return (
                       <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(r.funcionario_id)}</td>
+                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(r.employee_id)}</td>
                         <td className="px-4 py-3">
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
