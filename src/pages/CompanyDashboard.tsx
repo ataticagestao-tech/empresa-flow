@@ -994,14 +994,13 @@ export default function CompanyDashboard() {
                                 display: "flex", alignItems: "center", gap: 8,
                                 padding: 0, marginBottom: 2,
                                 border: "none", background: "transparent",
-                                fontSize: 14, fontWeight: 700, color: "#fff",
-                                textTransform: "uppercase", letterSpacing: "0.05em", lineHeight: 1.2,
+                                fontSize: 28, fontWeight: 700, color: "#fff",
+                                textTransform: "uppercase", letterSpacing: "0.03em", lineHeight: 1.15,
                                 cursor: "pointer",
                             }}
                             title="Trocar empresa"
                         >
                             {companyName}
-                            <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.7)" }} strokeWidth={2} />
                         </button>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>
                             <span>
@@ -1280,7 +1279,7 @@ export default function CompanyDashboard() {
                                 { label: "Melhor dia", value: heatmap.bestDay && heatmap.bestDay.value > 0 ? `${format(heatmap.bestDay.date, "dd/MM")} · ${fmt(heatmap.bestDay.value)}` : "—" },
                                 { label: "Dias com vendas", value: `${heatmap.daysWithSales} / ${heatmap.days.length}` },
                             ].map((s, i, arr) => (
-                                <div key={s.label} style={{ flex: 1, padding: "14px 20px", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
+                                <div key={s.label} style={{ flex: 1, padding: "8px 20px", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500, marginBottom: 3 }}>{s.label}</div>
                                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
                                 </div>
