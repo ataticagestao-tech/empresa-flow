@@ -70,7 +70,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await activeClient
         .from("user_companies")
-        .select("is_default, company:companies(id, cnpj, razao_social, nome_fantasia, is_active, endereco_cidade, endereco_estado, activity_profile, enable_nfse, enable_nfe, enable_nfce)")
+        .select("is_default, company:companies(id, cnpj, razao_social, nome_fantasia, logo_url, is_active, endereco_cidade, endereco_estado, activity_profile, enable_nfse, enable_nfe, enable_nfce)")
         .eq("user_id", user.id)
         .order("is_default", { ascending: false });
 
@@ -98,7 +98,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       const { data: companiesData, error: companiesError } = await activeClient
         .from("companies")
-        .select("id, cnpj, razao_social, nome_fantasia, is_active, endereco_cidade, endereco_estado, activity_profile, enable_nfse, enable_nfe, enable_nfce")
+        .select("id, cnpj, razao_social, nome_fantasia, logo_url, is_active, endereco_cidade, endereco_estado, activity_profile, enable_nfse, enable_nfe, enable_nfce")
         .eq("is_active", true)
         .order("razao_social");
 
