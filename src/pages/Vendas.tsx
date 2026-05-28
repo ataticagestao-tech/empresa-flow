@@ -2009,9 +2009,7 @@ export default function Vendas() {
      ================================================================ */
   return (
     <AppLayout title="Vendas">
-      <PagePanel title="Vendas" subtitle="Registre vendas e acompanhe recebimentos">
-      <div className="max-w-[1400px] mx-auto space-y-5">
-
+      <div className="max-w-[1400px] mx-auto pt-3">
         {/* ─── Banner customizado (upload de imagem por empresa) ── */}
         <div className="relative h-[140px] rounded-xl overflow-hidden border border-[#EAECF0] bg-white group">
           {bannerUrl ? (
@@ -2069,6 +2067,10 @@ export default function Vendas() {
             onChange={handleBannerUpload}
           />
         </div>
+      </div>
+
+      <PagePanel title="Vendas" subtitle="Registre vendas e acompanhe recebimentos">
+      <div className="max-w-[1400px] mx-auto space-y-5">
 
         {/* ─── Filtro de data (suspenso, canto superior à direita) ── */}
         <div className="flex justify-end -mt-2">
