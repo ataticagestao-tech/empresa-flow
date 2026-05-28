@@ -1005,32 +1005,24 @@ export default function ContasReceber() {
             label="Total em aberto"
             value={formatBRL(kpis.totalAberto)}
             valueColor="#1D2939"
-            icon={<DollarSign size={18} />}
-            iconColor={{ bg: '#EFF4FF', fg: '#1E3A8A' }}
             sub={`${kpis.countAberto} título${kpis.countAberto !== 1 ? 's' : ''} em aberto`}
           />
           <KpiCard
             label="Vencendo em 7 dias"
             value={formatBRL(kpis.vencendo7d)}
             valueColor="#EA580C"
-            icon={<Clock size={18} />}
-            iconColor={{ bg: '#FFF7ED', fg: '#EA580C' }}
             sub={`${kpis.countVencendo} título${kpis.countVencendo !== 1 ? 's' : ''} a vencer`}
           />
           <KpiCard
             label="Vencidos"
             value={formatBRL(kpis.totalVencido)}
             valueColor="#E53E3E"
-            icon={<AlertTriangle size={18} />}
-            iconColor={{ bg: '#FEF2F2', fg: '#B91C1C' }}
             sub={`${kpis.countVencido} título${kpis.countVencido !== 1 ? 's' : ''} em atraso`}
           />
           <KpiCard
             label="Recebido no período"
             value={formatBRL(kpis.recebidoMes)}
             valueColor="#039855"
-            icon={<CheckCircle2 size={18} />}
-            iconColor={{ bg: '#ECFDF5', fg: '#059669' }}
             sub={`${kpis.countRecebido} recebimento${kpis.countRecebido !== 1 ? 's' : ''} no período`}
           />
         </KpiCardGrid>

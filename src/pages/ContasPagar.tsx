@@ -1617,39 +1617,31 @@ export default function ContasPagar() {
         {/* KPIs */}
         <KpiCardGrid>
           <KpiCard
-            label="Total a pagar"
+            label={"Total a pagar"}
             value={formatBRL(kpis.totalPagar)}
             valueColor="#1D2939"
-            icon={<DollarSign size={18} />}
-            iconColor={{ bg: '#EFF4FF', fg: '#1E3A8A' }}
-            info="Soma de todas as contas a pagar ainda em aberto (n\u00e3o pagas) dentro do per\u00edodo."
+            info={"Soma de todas as contas a pagar ainda em aberto (n\u00e3o pagas) dentro do per\u00edodo."}
             sub={`${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto no per\u00edodo`}
           />
           <KpiCard
-            label="Vence hoje"
+            label={"Vence hoje"}
             value={formatBRL(kpis.venceHoje)}
             valueColor="#E53E3E"
-            icon={<AlertTriangle size={18} />}
-            iconColor={{ bg: '#FEF2F2', fg: '#B91C1C' }}
-            info="Contas cujo vencimento \u00e9 hoje \u2014 pague para n\u00e3o atrasar."
+            info={"Contas cujo vencimento \u00e9 hoje \u2014 pague para n\u00e3o atrasar."}
             sub={`${kpis.hojeCount} t\u00edtulo${kpis.hojeCount !== 1 ? 's' : ''} vencendo`}
           />
           <KpiCard
-            label="Pr\u00f3ximos 7 dias"
+            label={"Pr\u00f3ximos 7 dias"}
             value={formatBRL(kpis.prox7)}
             valueColor="#EA580C"
-            icon={<CalendarClock size={18} />}
-            iconColor={{ bg: '#FFF7ED', fg: '#EA580C' }}
-            info="Contas que vencem nos pr\u00f3ximos 7 dias \u2014 o que vai sair do caixa em breve."
+            info={"Contas que vencem nos pr\u00f3ximos 7 dias \u2014 o que vai sair do caixa em breve."}
             sub={`${kpis.prox7Count} t\u00edtulo${kpis.prox7Count !== 1 ? 's' : ''} a vencer`}
           />
           <KpiCard
-            label="Pago no per\u00edodo"
+            label={"Pago no per\u00edodo"}
             value={formatBRL(kpis.pagoPeriodo)}
             valueColor="#039855"
-            icon={<CheckCircle2 size={18} />}
-            iconColor={{ bg: '#ECFDF5', fg: '#059669' }}
-            info="Total efetivamente pago (contas quitadas) dentro do per\u00edodo selecionado."
+            info={"Total efetivamente pago (contas quitadas) dentro do per\u00edodo selecionado."}
             sub={`${kpis.pagoPeriodoCount} t\u00edtulo${kpis.pagoPeriodoCount !== 1 ? 's' : ''} quitado${kpis.pagoPeriodoCount !== 1 ? 's' : ''}`}
           />
         </KpiCardGrid>
