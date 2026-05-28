@@ -7,7 +7,7 @@ import { useBankReconciliation, SystemTransaction } from "@/modules/finance/pres
 import { useConciliationEngine, MatchSuggestion, RuleConflict } from "@/modules/finance/presentation/hooks/useConciliationEngine";
 import { useDefaultConciliationRules } from "@/modules/finance/presentation/hooks/useDefaultConciliationRules";
 import { useSearchParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -308,6 +308,31 @@ export default function Conciliacao() {
         },
         enabled: !!selectedAccountId,
         staleTime: 2 * 60 * 1000, // cache 2 min
+    });
+
+    // Data/hora da última conciliação de CADA conta (maior reconciled_at por conta).
+    // Mostrado já na entrada da página, detalhado conta a conta.
+    const accountIdsKey = (accounts || []).map((a: any) => a.id).join(",");
+    const { data: ultimaConciliacaoPorConta } = useQuery({
+        queryKey: ["ultima_conciliacao_por_conta", accountIdsKey],
+        queryFn: async () => {
+            const list = accounts || [];
+            if (!list.length) return {} as Record<string, string | null>;
+            const entries = await Promise.all(list.map(async (acc: any) => {
+                const { data } = await (activeClient as any)
+                    .from("bank_transactions")
+                    .select("reconciled_at")
+                    .eq("bank_account_id", acc.id)
+                    .not("reconciled_at", "is", null)
+                    .order("reconciled_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                return [acc.id, (data?.reconciled_at as string) || null] as const;
+            }));
+            return Object.fromEntries(entries) as Record<string, string | null>;
+        },
+        enabled: !!accounts && accounts.length > 0,
+        staleTime: 30 * 1000,
     });
 
     // Query: fetch full details of a batch when expanded
@@ -730,6 +755,7 @@ export default function Conciliacao() {
             queryClient.invalidateQueries({ queryKey: ["batch_details", expandedBatchKey] });
             queryClient.invalidateQueries({ queryKey: ["bank_transactions_pending"] });
             queryClient.invalidateQueries({ queryKey: ["reconciled_transactions"] });
+            queryClient.invalidateQueries({ queryKey: ["ultima_conciliacao_por_conta"] });
             queryClient.invalidateQueries({ queryKey: ["bp_contabil"] });
             queryClient.invalidateQueries({ queryKey: ["dashboard_dre"] });
         } catch (err: any) {
@@ -1390,6 +1416,67 @@ export default function Conciliacao() {
                         )}
                     </div>
                 </div>
+
+                {/* Última conciliação por conta — detalhado, visível já na entrada */}
+                {accounts && accounts.length > 0 && (
+                    <Card className="border-[#EAECF0]">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#1D2939]">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                Última conciliação por conta
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="divide-y divide-[#F2F4F7]">
+                                {accounts.map((acc: any) => {
+                                    const when = ultimaConciliacaoPorConta?.[acc.id] || null;
+                                    const isSel = acc.id === selectedAccountId;
+                                    const dias = when ? differenceInCalendarDays(new Date(), parseISO(when)) : null;
+                                    const diasLabel = dias === null ? ""
+                                        : dias <= 0 ? "conciliada hoje"
+                                        : `${dias} ${dias === 1 ? "dia" : "dias"} sem conciliar`;
+                                    const diasClass = dias === null ? ""
+                                        : dias <= 3 ? "bg-emerald-100 text-emerald-700"
+                                        : dias <= 7 ? "bg-amber-100 text-amber-700"
+                                        : "bg-rose-100 text-rose-700";
+                                    return (
+                                        <button
+                                            key={acc.id}
+                                            type="button"
+                                            onClick={() => handleAccountChange(acc.id || "")}
+                                            className={`w-full flex items-center justify-between gap-3 py-2 px-2 text-left transition-colors hover:bg-[#F9FAFB] ${isSel ? 'bg-emerald-50/50 rounded-md' : ''}`}
+                                        >
+                                            <span className="flex items-center gap-2 min-w-0">
+                                                <span className="text-sm font-medium text-[#1D2939] truncate">
+                                                    {acc.type === 'credit_card' ? '💳 ' : ''}{acc.name}
+                                                </span>
+                                                {acc.banco && (
+                                                    <span className="text-xs text-muted-foreground truncate">· {acc.banco}</span>
+                                                )}
+                                            </span>
+                                            {when ? (
+                                                <span className="flex items-center gap-2 whitespace-nowrap">
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#475467]">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {format(parseISO(when), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                                    </span>
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${diasClass}`}>
+                                                        {diasLabel}
+                                                    </span>
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 whitespace-nowrap">
+                                                    <HelpCircle className="h-3 w-3" />
+                                                    Nunca conciliada
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {!selectedAccountId ? (
                     <div className="flex flex-col items-center justify-center p-16 bg-[#F6F2EB] rounded-xl border border-dashed border-[#EAECF0] text-center">

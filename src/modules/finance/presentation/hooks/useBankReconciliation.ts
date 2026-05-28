@@ -551,6 +551,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             queryClient.refetchQueries({ queryKey: ['system_pending_transactions'] });
             queryClient.refetchQueries({ queryKey: ['conciliation_rules'] });
             queryClient.invalidateQueries({ queryKey: ['reconciled_transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['ultima_conciliacao_por_conta'] });
             // Refresh MVs para alimentar DRE, Fluxo de Caixa, Multiempresas
             (activeClient as any).rpc('refresh_mvs_financeiras').then(() => {
                 queryClient.invalidateQueries({ queryKey: ['dashboard_accounts_balance'] });
