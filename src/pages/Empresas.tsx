@@ -218,9 +218,17 @@ export default function Empresas() {
   if (mode === "create") {
     return (
       <AppLayout title={editingId ? "Editar Empresa" : "Nova Empresa"}>
-        <div className="max-w-3xl mx-auto py-6">
+        <div className="max-w-3xl mx-auto bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 mt-3">
           <button onClick={() => { setMode("list"); setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); }}
-            className="text-sm text-[#555] mb-6 hover:text-[#1D2939]">&larr; Voltar para lista</button>
+            className="text-sm text-[#555] mb-4 hover:text-[#1D2939]">&larr; Voltar para lista</button>
+
+          {/* ═══ MENU SUPERIOR (header da página) ═══ */}
+          <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white mb-6">
+            <div className="bg-[#2A2724] px-4 py-3">
+              <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">{editingId ? "Editar Empresa" : "Nova Empresa"}</h1>
+              <p className="text-[11px] text-white/80 mt-0.5">Cadastro da empresa em etapas</p>
+            </div>
+          </div>
 
           {/* Stepper */}
           <div className="flex items-center justify-center mb-8">
