@@ -461,6 +461,8 @@ export default function Funcionarios() {
       const payload: RelatorioFuncionarioData = {
         empresa_nome: selectedCompany.nome_fantasia || selectedCompany.razao_social || "Empresa",
         empresa_cnpj: selectedCompany.cnpj ?? null,
+        empresa_razao: selectedCompany.razao_social ?? null,
+        logo_url: (selectedCompany as any).logo_url ?? null,
         funcionario: {
           nome: getName(selected),
           cpf: selected.cpf,

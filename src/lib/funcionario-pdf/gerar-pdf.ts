@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { desenharCabecalhoFicha, desenharRodapeFichas, carregarLogoFicha } from "@/lib/pdf/ficha-base";
 
 export interface RelatorioPagamento {
     competencia: string;
@@ -23,6 +24,8 @@ export interface RelatorioBeneficioMes {
 export interface RelatorioFuncionarioData {
     empresa_nome: string;
     empresa_cnpj?: string | null;
+    empresa_razao?: string | null;
+    logo_url?: string | null;
     funcionario: {
         nome: string;
         cpf: string | null;
@@ -129,33 +132,29 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
     const margin = 18;
     const contentW = W - margin * 2;
     let y = 0;
+    let bodyTop = 40;
+    const logo = await carregarLogoFicha(data.logo_url);
+
+    const drawHeader = () => {
+        bodyTop = desenharCabecalhoFicha(doc, {
+            W, margin, cor: [cr, cg, cb],
+            empresaNome: data.empresa_nome,
+            empresaRazao: data.empresa_razao,
+            empresaCnpj: data.empresa_cnpj,
+            titulo: "RELATÓRIO DO FUNCIONÁRIO",
+            codigoPrefixo: "REL-FUNC",
+            logo_base64: logo?.dataUrl ?? null,
+            logo_w: logo?.w,
+            logo_h: logo?.h,
+        });
+    };
 
     const ensureSpace = (needed: number) => {
         if (y + needed > H - 18) {
             doc.addPage();
-            y = margin;
+            drawHeader();
+            y = bodyTop;
         }
-    };
-
-    const drawHeader = () => {
-        doc.setFillColor(cr, cg, cb);
-        doc.rect(0, 0, W, 30, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(16);
-        doc.setTextColor(255, 255, 255);
-        doc.text(data.empresa_nome, margin, 14);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(220, 230, 240);
-        if (data.empresa_cnpj) doc.text(`CNPJ: ${data.empresa_cnpj}`, margin, 20);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(255, 255, 255);
-        doc.text("RELATÓRIO DO FUNCIONÁRIO", W - margin, 14, { align: "right" });
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(220, 230, 240);
-        doc.text(`Emitido em ${new Date().toLocaleDateString("pt-BR")}`, W - margin, 20, { align: "right" });
     };
 
     const drawSectionTitle = (title: string) => {
@@ -216,7 +215,7 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
 
     /* ── Header ─────────────────────────── */
     drawHeader();
-    y = 40;
+    y = bodyTop;
 
     // Nome em destaque
     doc.setFont("helvetica", "bold");
@@ -314,21 +313,7 @@ export async function gerarRelatorioFuncionarioPDF(data: RelatorioFuncionarioDat
     desenharTabelaPagamentos(data.comissoes, "Nenhuma comissão registrada.");
 
     /* ── Footer em todas as páginas ─────────────────────────── */
-    const pageCount = (doc.internal as any).getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
-        doc.setPage(p);
-        const fy = H - 10;
-        doc.setDrawColor(229, 231, 235);
-        doc.setLineWidth(0.3);
-        doc.line(margin, fy - 3, margin + contentW, fy - 3);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(156, 163, 175);
-        doc.text(`Documento gerado pelo sistema Tatica Gestão.`, margin, fy);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(cr, cg, cb);
-        doc.text(`Página ${p} de ${pageCount}`, W - margin, fy, { align: "right" });
-    }
+    desenharRodapeFichas(doc, { W, H, margin, cor: [cr, cg, cb] });
 
     return doc.output("blob");
 

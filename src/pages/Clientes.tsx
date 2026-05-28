@@ -803,6 +803,8 @@ export default function Clientes() {
             const blob = await gerarFichaClientePDF({
                 empresa_nome: selectedCompany?.razao_social || selectedCompany?.nome_fantasia || "Empresa",
                 empresa_cnpj: selectedCompany?.cnpj || undefined,
+                empresa_razao: selectedCompany?.nome_fantasia || null,
+                logo_url: (selectedCompany as any)?.logo_url || null,
                 paciente_nome: toTitleCase(selectedClient.razao_social || ""),
                 paciente_cpf_cnpj: selectedClient.cpf_cnpj ? formatDoc(selectedClient.cpf_cnpj) : null,
                 paciente_email: selectedClient.email || null,

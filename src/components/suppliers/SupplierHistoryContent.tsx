@@ -125,6 +125,8 @@ export function SupplierHistoryContent({ supplier, showPDFButton = true }: Props
             const payload: RelatorioFornecedorData = {
                 empresa_nome: selectedCompany.nome_fantasia || selectedCompany.razao_social || "Empresa",
                 empresa_cnpj: selectedCompany.cnpj ?? null,
+                empresa_razao: selectedCompany.razao_social ?? null,
+                logo_url: (selectedCompany as any).logo_url ?? null,
                 fornecedor: {
                     razao_social: supplier.razao_social,
                     nome_fantasia: supplier.nome_fantasia ?? null,
