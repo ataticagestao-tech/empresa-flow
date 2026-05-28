@@ -581,10 +581,10 @@ export default function ContasBancarias() {
                 <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-white uppercase tracking-widest">{acc.banco || "Sem banco"}</h3>
-                    <p className="text-[10px] text-[#BFDBFE]">{tipoLabels[acc.type] || acc.type}</p>
+                    <p className="text-[10px] text-white/70">{tipoLabels[acc.type] || acc.type}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => handleEdit(acc)} className="text-[#BFDBFE] hover:text-white text-xs px-1">✎</button>
+                    <button onClick={() => handleEdit(acc)} className="text-white/70 hover:text-white text-xs px-1">✎</button>
                     <button onClick={() => handleDelete(acc)} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>
                   </div>
                 </div>
@@ -668,12 +668,12 @@ export default function ContasBancarias() {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <p className="text-white text-sm font-bold">{c.nome}</p>
-                          <p className="text-[#BFDBFE] text-xs">{c.bandeira} · **** {c.final}</p>
+                          <p className="text-white/70 text-xs">{c.bandeira} · **** {c.final}</p>
                         </div>
                         <span className="text-white text-xs font-bold">{c.bandeira}</span>
                       </div>
                       <div className="mb-2">
-                        <div className="flex justify-between text-xs text-[#BFDBFE] mb-1">
+                        <div className="flex justify-between text-xs text-white/70 mb-1">
                           <span>Utilizado: {formatBRL(c.utilizado)}</span>
                           <span>Limite: {formatBRL(c.limite)}</span>
                         </div>
@@ -681,7 +681,7 @@ export default function ContasBancarias() {
                           <div className={`h-2 rounded-full transition-all ${pct > 80 ? "bg-[#ff6b6b]" : "bg-white"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
                       </div>
-                      <div className="flex gap-4 text-[10px] text-[#BFDBFE]">
+                      <div className="flex gap-4 text-[10px] text-white/70">
                         <span>Fecha dia {c.dia_fechamento}</span>
                         <span>Vence dia {c.dia_vencimento}</span>
                       </div>
@@ -735,7 +735,7 @@ export default function ContasBancarias() {
                               {MEIO_LABEL[t.meio_pagamento] || t.meio_pagamento}
                             </span>
                             <div className="flex gap-1">
-                              <button onClick={() => handleEditTaxa(t)} className="text-[#BFDBFE] hover:text-white text-xs px-1">✎</button>
+                              <button onClick={() => handleEditTaxa(t)} className="text-white/70 hover:text-white text-xs px-1">✎</button>
                               <button onClick={() => handleDeleteTaxa(t.id!)} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>
                             </div>
                           </div>

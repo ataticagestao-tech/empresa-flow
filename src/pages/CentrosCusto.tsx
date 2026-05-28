@@ -201,10 +201,10 @@ export default function CentrosCusto() {
                   <div className={`px-4 py-2.5 flex items-center justify-between ${isPadrao ? "bg-[#059669]" : "bg-[#555]"}`}>
                     <div>
                       <h3 className="text-xs font-bold text-white uppercase tracking-widest">{c.descricao}</h3>
-                      {c.codigo && <p className="text-[10px] text-[#BFDBFE]">{c.codigo}</p>}
+                      {c.codigo && <p className="text-[10px] text-white/70">{c.codigo}</p>}
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={e => { e.stopPropagation(); handleEdit(c); }} className="text-[#BFDBFE] hover:text-white text-xs px-1">✎</button>
+                      <button onClick={e => { e.stopPropagation(); handleEdit(c); }} className="text-white/70 hover:text-white text-xs px-1">✎</button>
                       {!isPadrao && <button onClick={e => { e.stopPropagation(); handleDelete(c); }} className="text-[#ff9999] hover:text-white text-xs px-1">✕</button>}
                     </div>
                   </div>

@@ -9,6 +9,7 @@ import { PageToolbar } from '@/components/layout/PageToolbar'
 import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TablePagination } from '@/components/ui/table-pagination'
+import { ExportMenu, type ExportColumn } from '@/components/ExportMenu'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
@@ -166,7 +167,7 @@ export default function ReguaCobranca() {
   const [searchCr, setSearchCr] = useState('')
 
   // ── Pagination ──
-  const PAGE_SIZE = 15
+  const PAGE_SIZE = 10
   const [crPage, setCrPage] = useState(0)
   const [logPage, setLogPage] = useState(0)
 
@@ -300,6 +301,38 @@ export default function ReguaCobranca() {
       cr.pagador_cpf_cnpj?.toLowerCase().includes(q)
     )
   }, [crsWithRegua, searchCr])
+
+  /* ── Colunas do relatório de cobrança ── */
+  type CrRow = (typeof crsWithRegua)[number]
+  const reportColumns: ExportColumn<CrRow>[] = [
+    { header: 'Cliente', value: r => r.pagador_nome, pdfFlex: 18, excelWidth: 28 },
+    { header: 'CPF/CNPJ', value: r => r.pagador_cpf_cnpj || '', pdfFlex: 11, excelWidth: 18 },
+    { header: 'Valor', value: r => formatBRL(r.valor), numericValue: r => Number(r.valor || 0), pdfFlex: 9, excelWidth: 14 },
+    { header: 'Vencimento', value: r => formatData(r.data_vencimento), pdfFlex: 8, excelWidth: 12 },
+    { header: 'Status', value: r => statusBadge(r.realStatus).label, pdfFlex: 7, excelWidth: 12 },
+    {
+      header: 'Última ação',
+      value: r => r.lastLog
+        ? `${tipoLabel(r.lastLog.tipo_acao)}${r.lastLog.enviado_em ? ' · ' + format(parseISO(r.lastLog.enviado_em), 'dd/MM HH:mm') : ''}`
+        : '-',
+      pdfFlex: 12, excelWidth: 18,
+    },
+    {
+      header: 'Próxima ação',
+      value: r => r.nextAction ? `${r.nextAction.tipo} · ${r.nextAction.diasLabel}` : '-',
+      pdfFlex: 12, excelWidth: 20,
+    },
+    { header: 'Régua', value: r => r.activeRegua?.nome || '-', pdfFlex: 10, excelWidth: 18 },
+  ]
+
+  /* ── Colunas do relatório de log de disparos ── */
+  const logColumns: ExportColumn<LogEntry>[] = [
+    { header: 'Data/hora', value: l => l.enviado_em ? format(parseISO(l.enviado_em), 'dd/MM/yy HH:mm') : '-', pdfFlex: 9, excelWidth: 16 },
+    { header: 'Cliente', value: l => l.cliente_nome || '-', pdfFlex: 18, excelWidth: 28 },
+    { header: 'Tipo', value: l => tipoLabel(l.tipo_acao), pdfFlex: 8, excelWidth: 12 },
+    { header: 'Status', value: l => logStatusBadge(l.status).label, pdfFlex: 8, excelWidth: 12 },
+    { header: 'Régua', value: l => l.regua_nome || '-', pdfFlex: 12, excelWidth: 20 },
+  ]
 
   /* ── KPIs ── */
   const kpis = useMemo(() => {
@@ -564,7 +597,7 @@ export default function ReguaCobranca() {
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Reguas de Cobranca</h3>
             <button
               onClick={() => openModal()}
-              className="flex items-center gap-1 text-[11px] font-semibold text-[#BFDBFE] hover:text-white transition-colors"
+              className="flex items-center gap-1 text-[11px] font-semibold text-white/70 hover:text-white transition-colors"
             >
               <Plus size={13} /> Nova Regua
             </button>
@@ -643,15 +676,22 @@ export default function ReguaCobranca() {
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Contas a Receber com Cobranca</h3>
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-white/10 rounded px-2 py-1">
-                <Search size={12} className="text-[#BFDBFE]" />
+                <Search size={12} className="text-white/60" />
                 <input
                   type="text"
                   value={searchCr}
                   onChange={e => setSearchCr(e.target.value)}
                   placeholder="Buscar cliente..."
-                  className="bg-transparent border-none outline-none text-[11px] text-white placeholder-[#BFDBFE] ml-1.5 w-[140px]"
+                  className="bg-transparent border-none outline-none text-[11px] text-white placeholder-white/50 ml-1.5 w-[140px]"
                 />
               </div>
+              <ExportMenu
+                rows={filteredCrs}
+                columns={reportColumns}
+                titulo="RELATÓRIO DE COBRANÇA"
+                baseName="relatorio-cobranca"
+                disabled={loadingCrs || filteredCrs.length === 0}
+              />
             </div>
           </div>
           <div className="bg-white overflow-x-auto">
@@ -762,12 +802,21 @@ export default function ReguaCobranca() {
         <div className="border border-[#ccc] rounded-lg overflow-hidden mb-4">
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Log de Cobrancas</h3>
-            <button
-              onClick={fetchLogs}
-              className="text-[11px] font-semibold text-[#BFDBFE] hover:text-white transition-colors"
-            >
-              Atualizar
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLogs}
+                className="text-[11px] font-semibold text-white/70 hover:text-white transition-colors"
+              >
+                Atualizar
+              </button>
+              <ExportMenu
+                rows={logs}
+                columns={logColumns}
+                titulo="LOG DE COBRANÇAS"
+                baseName="log-cobranca"
+                disabled={loadingLogs || logs.length === 0}
+              />
+            </div>
           </div>
           <div className="bg-white overflow-x-auto">
             {loadingLogs ? (
@@ -854,7 +903,7 @@ export default function ReguaCobranca() {
                 <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">
                   {editingRegua ? 'Editar Regua' : 'Nova Regua de Cobranca'}
                 </h3>
-                <button onClick={() => setModalOpen(false)} className="text-[#BFDBFE] hover:text-white text-[18px] leading-none">
+                <button onClick={() => setModalOpen(false)} className="text-white/70 hover:text-white text-[18px] leading-none">
                   &times;
                 </button>
               </div>

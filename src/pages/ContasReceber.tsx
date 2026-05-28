@@ -1993,7 +1993,7 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   return (
     <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-xl">
       <h3 className="text-[12px] font-bold text-white uppercase tracking-widest">{title}</h3>
-      <button onClick={onClose} className="text-[#BFDBFE] hover:text-white transition-colors">
+      <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
         <X size={18} />
       </button>
     </div>

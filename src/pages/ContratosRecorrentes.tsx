@@ -470,7 +470,7 @@ export default function ContratosRecorrentes() {
             <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
             <button
               onClick={() => { setSearch(''); setStatusFilter('todos'); setPeriodicidadeFilter('todos') }}
-              className="text-[11px] font-semibold text-[#BFDBFE] hover:text-white transition-colors"
+              className="text-[11px] font-semibold text-white/70 hover:text-white transition-colors"
             >
               Limpar
             </button>
@@ -525,7 +525,7 @@ export default function ContratosRecorrentes() {
             </h3>
             <button
               onClick={fetchContratos}
-              className="text-[11px] font-semibold text-[#BFDBFE] hover:text-white transition-colors flex items-center gap-1"
+              className="text-[11px] font-semibold text-white/70 hover:text-white transition-colors flex items-center gap-1"
             >
               <RefreshCw size={12} />
               Atualizar
@@ -771,7 +771,7 @@ function ContratoModal({ contrato, companyId, activeClient, chartAccounts, centr
           <h2 className="text-[12px] font-bold text-white uppercase tracking-widest">
             {isEdit ? 'Editar contrato' : 'Novo contrato'}
           </h2>
-          <button onClick={onClose} className="text-[#BFDBFE] hover:text-white transition-colors">
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>

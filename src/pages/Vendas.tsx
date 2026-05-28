@@ -2817,7 +2817,7 @@ export default function Vendas() {
             {/* Header */}
             <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">{editandoVenda ? 'Editar Venda' : 'Nova Venda'}</h2>
-              <button onClick={() => { setModalAberto(false); setEditandoVenda(null) }} className="text-[#BFDBFE] hover:text-white transition-colors">
+              <button onClick={() => { setModalAberto(false); setEditandoVenda(null) }} className="text-white/70 hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -3324,7 +3324,7 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Novo Cliente</h2>
-              <button onClick={() => setModalNovoCliente(false)} className="text-[#BFDBFE] hover:text-white transition-colors">
+              <button onClick={() => setModalNovoCliente(false)} className="text-white/70 hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -3387,7 +3387,7 @@ export default function Vendas() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 my-auto">
             <div className="bg-[#2A2724] px-5 py-3 flex items-center justify-between rounded-t-lg">
               <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Detalhes da Venda</h2>
-              <button onClick={() => setModalDetalhes(null)} className="text-[#BFDBFE] hover:text-white transition-colors">
+              <button onClick={() => setModalDetalhes(null)} className="text-white/70 hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </div>

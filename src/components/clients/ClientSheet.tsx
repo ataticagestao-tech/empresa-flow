@@ -19,7 +19,7 @@ export function ClientSheet({ isOpen, onClose, clientToEdit }: ClientSheetProps)
                     <h2 className="text-[15px] font-bold text-white">
                         {clientToEdit ? "Editar Cliente" : "Novo Cliente"}
                     </h2>
-                    <p className="text-[11px] text-[#BFDBFE] mt-0.5">
+                    <p className="text-[11px] text-white/70 mt-0.5">
                         {clientToEdit
                             ? "Edite os dados do cliente abaixo."
                             : "Preencha os dados para cadastrar um novo cliente."}

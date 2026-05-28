@@ -861,7 +861,7 @@ export default function Clientes() {
                                 </button>
                             )}
                             <ExportMenu rows={clientsExportRows} columns={clientsExportColumns} titulo="CLIENTES" baseName="clientes" orientacao="landscape" corPrimaria="#2563EB" size="sm" disabled={!(clients || []).length} />
-                            <button onClick={handleNew} className="text-[11px] font-bold text-[#BFDBFE] hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
+                            <button onClick={handleNew} className="text-[11px] font-bold text-white/70 hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
                         </div>
                     </div>
 
