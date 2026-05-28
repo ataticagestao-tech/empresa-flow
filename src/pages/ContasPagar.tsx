@@ -1733,17 +1733,17 @@ export default function ContasPagar() {
           </CollapsibleCard>
 
           {/* Contas a vencer (painel lateral) */}
-          <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAECF0]">
+          <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
               <div>
-                <div className="text-[20px] font-extrabold text-[#1D2939] tracking-[-0.02em]">
+                <div className="text-[20px] font-extrabold text-[#0F172A] tracking-[-0.02em]">
                   {selectedAgendaDate && selectedAgendaDate === format(new Date(), 'yyyy-MM-dd')
                     ? 'Contas a pagar hoje'
                     : selectedAgendaDate
                       ? 'Contas a pagar'
                       : 'Contas a vencer'}
                 </div>
-                <div className="text-[12px] text-[#98A2B3] mt-1">
+                <div className="text-[12px] text-[#9CA3AF] mt-1">
                   {selectedAgendaDate
                     ? `${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')} · agrupado por plano de contas`
                     : 'Próximos 30 dias · agrupado por plano de contas'}
@@ -1753,8 +1753,8 @@ export default function ContasPagar() {
                 <span
                   className="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wide"
                   style={{
-                    background: selectedAgendaDate ? '#1D2939' : '#E5E7EB',
-                    color: selectedAgendaDate ? '#fff' : '#1D2939',
+                    background: selectedAgendaDate ? '#0F172A' : '#E5E7EB',
+                    color: selectedAgendaDate ? '#fff' : '#0F172A',
                   }}
                 >
                   {selectedAgendaDate ? format(parseISO(selectedAgendaDate), 'dd/MM') : 'Todas'}
@@ -1788,14 +1788,14 @@ export default function ContasPagar() {
                     }
                   }}
                   title="Copiar lista agrupada por plano de contas para WhatsApp"
-                  className="flex items-center gap-1 text-[11px] font-semibold text-[#667085] hover:text-black px-2 h-7 border border-[#D0D5DD] rounded"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-[#4B5563] hover:text-[#0F172A] px-2 h-7 border border-[#D1D5DB] rounded"
                 >
                   <Copy size={11} /> Copiar
                 </button>
                 {selectedAgendaDate && (
                   <button
                     onClick={() => setSelectedAgendaDate(null)}
-                    className="text-[11px] font-semibold text-[#667085] hover:text-black"
+                    className="text-[11px] font-semibold text-[#4B5563] hover:text-[#0F172A]"
                   >
                     Limpar
                   </button>
@@ -1804,19 +1804,19 @@ export default function ContasPagar() {
             </div>
 
             <div className="flex-1 p-3" style={{ minHeight: 0 }}>
-              <div className="border border-[#EAECF0] rounded-lg overflow-auto bg-white" style={{ maxHeight: 336 }}>
+              <div className="border border-[#E5E7EB] rounded-lg overflow-auto bg-white" style={{ maxHeight: 336 }}>
               {agendaDiaLista.length === 0 ? (
-                <div className="px-5 py-10 text-center text-[13px] text-[#98A2B3]">
+                <div className="px-5 py-10 text-center text-[13px] text-[#9CA3AF]">
                   Nenhuma conta a vencer {selectedAgendaDate ? 'nesta data' : 'nos pr\u00f3ximos 30 dias'}.
                 </div>
               ) : (
                 // Agrupado por plano de contas: cada plano é uma seção (cabeçalho +
                 // subtotal) com sua própria tabela (estilo planilha, sem repetir cabeçalho).
-                <div className="divide-y divide-[#F2F4F7]">
+                <div className="divide-y divide-[#F1F3F5]">
                   {agendaAgrupadoPorPlano.map(g => (
                     <div key={g.plano}>
                       <div className="px-3 py-2 bg-[#F9FAFB] flex items-center justify-between sticky top-0 z-[1]">
-                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#1D2939] truncate" style={{ maxWidth: 280 }} title={g.plano}>
+                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#0F172A] truncate" style={{ maxWidth: 280 }} title={g.plano}>
                           {g.plano}
                         </span>
                         <span className="text-[11px] font-bold text-[#E53E3E] tabular-nums">
@@ -1828,8 +1828,8 @@ export default function ContasPagar() {
                         rowKey={(cp: any) => cp.id}
                         showHeader={false}
                         resetKey={`${selectedAgendaDate ?? 'all'}|${g.plano}`}
-                        className="text-[12.5px]"
-                        cellClassName="border-[#F2F4F7]"
+                        className="text-[12px]"
+                        cellClassName="border-[#F1F3F5]"
                         columns={[
                           {
                             id: 'nome',
@@ -1837,12 +1837,12 @@ export default function ContasPagar() {
                             truncate: false,
                             header: 'Conta',
                             title: (cp: any) => cp.descricao || cp.credor_nome || '',
-                            cellClassName: 'text-[#1D2939]',
+                            cellClassName: 'text-[#0F172A]',
                             render: (cp: any) => (
                               <>
                                 <div className="font-medium truncate">{cp.descricao || cp.credor_nome}</div>
                                 {!selectedAgendaDate && (
-                                  <div className="text-[10.5px] text-[#98A2B3]">
+                                  <div className="text-[10.5px] text-[#9CA3AF]">
                                     {format(parseISO(cp.data_vencimento), 'dd/MM')}
                                   </div>
                                 )}
@@ -1854,7 +1854,7 @@ export default function ContasPagar() {
                             weight: 10,
                             numeric: true,
                             header: 'Valor',
-                            cellClassName: 'font-semibold text-[#1D2939]',
+                            cellClassName: 'font-semibold text-[#0F172A]',
                             render: (cp: any) => formatBRL(cp._pendente),
                           },
                         ]}
@@ -1866,8 +1866,8 @@ export default function ContasPagar() {
               </div>
             </div>
 
-            <div className="px-5 py-3 border-t border-[#EAECF0] bg-[#F9FAFB] flex items-center justify-between">
-              <span className="text-[11.5px] font-bold uppercase tracking-wide text-[#1D2939]">Total a pagar</span>
+            <div className="px-5 py-3 border-t border-[#E5E7EB] bg-[#F9FAFB] flex items-center justify-between">
+              <span className="text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A]">Total a pagar</span>
               <span className="text-[18px] font-extrabold text-[#E53E3E] tracking-[-0.01em] tabular-nums">
                 {formatBRL(agendaDiaTotal)}
               </span>
