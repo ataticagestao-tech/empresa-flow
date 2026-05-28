@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, startOfMonth, endOfMonth } from 'date-fns'
 import {
   Clock, Loader2, Plus, X, Search, RefreshCw,
-  Check, AlertTriangle, ChevronLeft, ChevronRight, Users
+  Check, AlertTriangle, ChevronLeft, ChevronRight, Users,
+  Camera, Trash2, Upload
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -38,6 +39,16 @@ interface Funcionario {
   nome_completo: string | null
   name: string | null
   role: string | null
+}
+
+interface DiaImport {
+  dia: number
+  entrada: string | null
+  saida_almoco: string | null
+  retorno_almoco: string | null
+  saida: string | null
+  tipo_ausencia: string | null
+  obs: string | null
 }
 
 // Carga horária diária padrão (CLT 44h/semana ≈ 8h/dia). employees não tem coluna própria.
@@ -81,6 +92,15 @@ export default function PontoEletronico() {
     justificativa: '',
     tipo_ausencia: '' as string,
   })
+
+  // Import por foto
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFuncId, setImportFuncId] = useState('')
+  const [importMesAno, setImportMesAno] = useState(() => format(new Date(), 'yyyy-MM'))
+  const [importFileName, setImportFileName] = useState('')
+  const [reading, setReading] = useState(false)
+  const [savingImport, setSavingImport] = useState(false)
+  const [preview, setPreview] = useState<DiaImport[]>([])
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -213,6 +233,126 @@ export default function PontoEletronico() {
     }
   }
 
+  // ─── Import por foto ──────────────────────────────────────────────
+  const openImportModal = () => {
+    setImportFuncId(funcFilter !== 'todos' ? funcFilter : '')
+    setImportMesAno(mesAno)
+    setImportFileName('')
+    setPreview([])
+    setShowImportModal(true)
+  }
+
+  const handleLerFolha = async (file: File) => {
+    setReading(true)
+    setImportFileName(file.name)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      const [ano, mes] = importMesAno.split('-')
+      const { data, error } = await (activeClient as any).functions.invoke('ler-folha-ponto', {
+        body: { fileBase64: base64, mimeType: file.type || 'image/jpeg', ano, mes },
+      })
+
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+
+      const dias: DiaImport[] = data?.dias || []
+      if (dias.length === 0) {
+        toast.warning('Nenhum dia foi identificado na foto. Tente uma foto mais nítida.')
+      } else {
+        toast.success(`${dias.length} dias lidos. Confira antes de salvar.`)
+      }
+      setPreview(dias)
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao ler a folha de ponto')
+    } finally {
+      setReading(false)
+    }
+  }
+
+  const updatePreviewRow = (idx: number, field: keyof DiaImport, value: string) => {
+    setPreview(prev => prev.map((r, i) => {
+      if (i !== idx) return r
+      if (field === 'tipo_ausencia') {
+        // Ao marcar ausencia, limpa horarios; ao desmarcar, mantem
+        return value
+          ? { ...r, tipo_ausencia: value, entrada: null, saida_almoco: null, retorno_almoco: null, saida: null }
+          : { ...r, tipo_ausencia: null }
+      }
+      return { ...r, [field]: value || null }
+    }))
+  }
+
+  const removePreviewRow = (idx: number) => {
+    setPreview(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleSalvarImport = async () => {
+    if (!selectedCompany) return
+    if (!importFuncId) {
+      toast.error('Selecione a funcionária')
+      return
+    }
+    if (preview.length === 0) {
+      toast.error('Nada para salvar')
+      return
+    }
+
+    setSavingImport(true)
+    const db = activeClient as any
+    const [ano, mes] = importMesAno.split('-')
+
+    try {
+      const cargaHoraria = CARGA_HORARIA_DIARIA
+      const records = preview
+        .filter(r => r.dia >= 1 && r.dia <= 31)
+        .map(r => {
+          const data = `${ano}-${mes}-${String(r.dia).padStart(2, '0')}`
+          const temTodos = !!(r.entrada && r.saida_almoco && r.retorno_almoco && r.saida)
+          const horas = r.tipo_ausencia
+            ? 0
+            : (temTodos ? calcularHoras(r.entrada!, r.saida_almoco!, r.retorno_almoco!, r.saida!) : null)
+          const he50 = horas && horas > cargaHoraria ? Math.min(horas - cargaHoraria, 2) : 0
+          const he100 = horas && horas > cargaHoraria + 2 ? horas - cargaHoraria - 2 : 0
+          return {
+            company_id: selectedCompany.id,
+            employee_id: importFuncId,
+            data,
+            entrada: r.tipo_ausencia ? null : r.entrada,
+            saida_almoco: r.tipo_ausencia ? null : r.saida_almoco,
+            retorno_almoco: r.tipo_ausencia ? null : r.retorno_almoco,
+            saida: r.tipo_ausencia ? null : r.saida,
+            horas_trabalhadas: horas,
+            horas_extras_50: he50,
+            horas_extras_100: he100,
+            justificativa: r.obs || null,
+            tipo_ausencia: r.tipo_ausencia || null,
+            origem: 'importado',
+          }
+        })
+
+      const { error } = await db.from('ponto_eletronico')
+        .upsert(records, { onConflict: 'employee_id,data' })
+
+      if (error) throw error
+
+      toast.success(`${records.length} registros importados`)
+      setShowImportModal(false)
+      setPreview([])
+      setMesAno(importMesAno)
+      loadData()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar importação')
+    } finally {
+      setSavingImport(false)
+    }
+  }
+
   const MESES = [
     'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -266,6 +406,14 @@ export default function PontoEletronico() {
             style={{ backgroundColor: '#059669' }}
           >
             <Plus size={16} /> Registrar ponto
+          </button>
+
+          <button
+            onClick={openImportModal}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border"
+            style={{ borderColor: '#059669', color: '#059669' }}
+          >
+            <Camera size={16} /> Importar foto da folha
           </button>
 
           <input
@@ -531,6 +679,175 @@ export default function PontoEletronico() {
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Clock size={16} />}
                 Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL: Importar foto da folha ═══ */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Camera size={18} style={{ color: '#059669' }} /> Importar foto da folha de ponto
+              </h2>
+              <button onClick={() => setShowImportModal(false)} className="p-1 rounded hover:bg-gray-100">
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto">
+              {/* Seleção funcionária + mês */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Funcionária *</label>
+                  <select
+                    value={importFuncId}
+                    onChange={e => setImportFuncId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Selecione...</option>
+                    {funcionarios.map(f => (
+                      <option key={f.id} value={f.id}>{f.nome_completo || f.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Mês de referência *</label>
+                  <input
+                    type="month"
+                    value={importMesAno}
+                    onChange={e => setImportMesAno(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              {/* Upload */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Foto da folha</label>
+                <label className="flex items-center justify-center gap-2 px-4 py-6 rounded-lg border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                  {reading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin text-gray-400" />
+                      <span className="text-sm text-gray-500">Lendo a folha...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} className="text-gray-400" />
+                      <span className="text-sm text-gray-500">
+                        {importFileName || 'Tirar foto ou selecionar imagem'}
+                      </span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    capture="environment"
+                    className="hidden"
+                    disabled={reading}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleLerFolha(file)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                <p className="text-xs text-gray-400 mt-1">
+                  A leitura é automática. Por ser letra manuscrita, confira os horários abaixo antes de salvar.
+                </p>
+              </div>
+
+              {/* Preview editável */}
+              {preview.length > 0 && (
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto max-h-[40vh]">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr className="text-left text-xs text-gray-500 uppercase">
+                          <th className="px-2 py-2 w-12">Dia</th>
+                          <th className="px-2 py-2">Entrada</th>
+                          <th className="px-2 py-2">Saída alm.</th>
+                          <th className="px-2 py-2">Retorno</th>
+                          <th className="px-2 py-2">Saída</th>
+                          <th className="px-2 py-2">Ausência</th>
+                          <th className="px-2 py-2 w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.map((r, idx) => (
+                          <tr key={idx} className="border-t border-gray-50">
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="number" min={1} max={31}
+                                value={r.dia}
+                                onChange={e => updatePreviewRow(idx, 'dia', e.target.value)}
+                                className="w-12 px-1 py-1 rounded border border-gray-200 text-sm text-center"
+                              />
+                            </td>
+                            {(['entrada', 'saida_almoco', 'retorno_almoco', 'saida'] as const).map(campo => (
+                              <td key={campo} className="px-2 py-1.5">
+                                <input
+                                  type="time"
+                                  value={r[campo] || ''}
+                                  disabled={!!r.tipo_ausencia}
+                                  onChange={e => updatePreviewRow(idx, campo, e.target.value)}
+                                  className="w-full px-1 py-1 rounded border border-gray-200 text-sm font-mono disabled:bg-gray-50 disabled:text-gray-300"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-2 py-1.5">
+                              <select
+                                value={r.tipo_ausencia || ''}
+                                onChange={e => updatePreviewRow(idx, 'tipo_ausencia', e.target.value)}
+                                className="w-full px-1 py-1 rounded border border-gray-200 text-sm"
+                              >
+                                <option value="">—</option>
+                                <option value="falta">Falta</option>
+                                <option value="atraso">Atraso</option>
+                                <option value="atestado">Atestado</option>
+                                <option value="folga">Folga</option>
+                                <option value="feriado">Feriado</option>
+                                <option value="outros">Outros</option>
+                              </select>
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              <button
+                                onClick={() => removePreviewRow(idx)}
+                                className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-3 py-2 bg-gray-50 text-xs text-gray-500 border-t border-gray-100">
+                    {preview.length} dias. Edite o que estiver errado, remova linhas indevidas, depois salve.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarImport}
+                disabled={savingImport || preview.length === 0 || !importFuncId}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: '#059669' }}
+              >
+                {savingImport ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                Salvar {preview.length > 0 ? `${preview.length} dias` : ''}
               </button>
             </div>
           </div>
