@@ -181,7 +181,7 @@ export default function ProdutosDepartamentos() {
                 <PageToolbar title="Operacional" />
                 {/* Header + Tabs */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
-                    <div className="bg-[#1D2939] px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
                         <div>
                             <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Operacional</h1>
                             <p className="text-[11px] text-white/80 mt-0.5">Catálogo de produtos, departamentos e classificação contábil</p>
@@ -212,7 +212,7 @@ export default function ProdutosDepartamentos() {
                     <div className="flex gap-3 h-[calc(100vh-220px)] min-h-[500px]">
                         {/* LEFT */}
                         <div className="w-[380px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-                            <div className="bg-[#1D2939] px-3 py-2.5 flex items-center justify-between gap-2">
+                            <div className="bg-[#2A2724] px-3 py-2.5 flex items-center justify-between gap-2">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-white">Catálogo</span>
                                 <div className="flex items-center gap-1.5">
                                     <button onClick={() => setIsCopyModalOpen(true)}
@@ -303,7 +303,7 @@ export default function ProdutosDepartamentos() {
                     <div className="flex gap-3 h-[calc(100vh-220px)] min-h-[500px]">
                         {/* LEFT */}
                         <div className="w-[340px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-                            <div className="bg-[#1D2939] px-3 py-2.5 flex items-center justify-between gap-2">
+                            <div className="bg-[#2A2724] px-3 py-2.5 flex items-center justify-between gap-2">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-white">Departamentos</span>
                                 <button onClick={startNewDept}
                                     className="text-[10px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1">
@@ -423,7 +423,7 @@ export default function ProdutosDepartamentos() {
             {isCopyModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                     <div className="bg-white rounded-lg w-full max-w-md shadow-xl overflow-hidden">
-                        <div className="bg-[#1D2939] px-4 py-3">
+                        <div className="bg-[#2A2724] px-4 py-3">
                             <h3 className="text-[12px] font-bold uppercase tracking-wider text-white">Copiar produtos de outra loja</h3>
                         </div>
                         <div className="p-5 space-y-4">

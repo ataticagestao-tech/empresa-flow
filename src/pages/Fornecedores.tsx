@@ -352,7 +352,7 @@ export default function Fornecedores() {
                 <div className="flex gap-3 flex-1 min-h-0">
                 {/* LEFT: List */}
                 <div className="w-[340px] shrink-0 border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-                    <div className="bg-[#1D2939] px-4 py-3 flex items-center justify-between gap-2">
+                    <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-2">
                         <span className="text-[12px] font-bold uppercase tracking-wider text-white">Fornecedores</span>
                         <div className="flex items-center gap-1">
                             <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
