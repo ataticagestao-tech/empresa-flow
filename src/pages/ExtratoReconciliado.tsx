@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -370,9 +370,10 @@ export default function ExtratoReconciliado() {
   /* --- render ----------------------------------------------------- */
   return (
     <AppLayout>
-      <div className="space-y-6 p-6">
+      <div className="p-6">
 
-        <PageToolbar title="Extrato Reconciliado">
+        <PagePanel title="Extrato Reconciliado">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
           <Button
             variant="outline"
             className="gap-2 border-[#ccc] text-[#1D2939] hover:bg-gray-50"
@@ -382,7 +383,7 @@ export default function ExtratoReconciliado() {
             <Download size={16} />
             Exportar Excel
           </Button>
-        </PageToolbar>
+          </div>
 
         {/* Account + Month selectors */}
         <div className="flex flex-wrap gap-4 items-end">
@@ -570,6 +571,7 @@ export default function ExtratoReconciliado() {
             </div>
           )}
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );

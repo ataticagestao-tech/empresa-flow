@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1505,12 +1505,11 @@ export default function PainelGerencial() {
         </div>
 
         {/* ── HEADER + FILTRO ─────────────────────────────────── */}
-        <PageToolbar
-          className="mt-6"
+        <PagePanel
           title="Painel Gerencial"
           subtitle={<>Cockpit financeiro consolidado &mdash; {format(realToday, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</>}
         >
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             {/* Toggle Regime: Competência (vendas) vs Caixa (CR recebido) */}
             <div
               className="flex border border-[#EAECF0] rounded-lg overflow-hidden"
@@ -1556,7 +1555,6 @@ export default function PainelGerencial() {
               </div>
             )}
           </div>
-        </PageToolbar>
 
         {/* ── TOP KPIs ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1893,6 +1891,7 @@ export default function PainelGerencial() {
             })}
           </div>
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );

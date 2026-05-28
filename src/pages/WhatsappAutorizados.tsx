@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -190,8 +190,8 @@ export default function WhatsappAutorizados() {
 
   return (
     <AppLayout title="WhatsApp Autorizados">
-      <div className="space-y-4">
-        <PageToolbar title="WhatsApp Autorizados" />
+      <div>
+        <PagePanel title="WhatsApp Autorizados">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -309,6 +309,7 @@ export default function WhatsappAutorizados() {
             )}
           </CardContent>
         </Card>
+        </PagePanel>
       </div>
     </AppLayout>
   );

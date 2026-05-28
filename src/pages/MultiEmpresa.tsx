@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,9 +122,9 @@ export default function MultiEmpresa() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div>
 
-        <PageToolbar title="Multi-empresa" />
+        <PagePanel title="Multi-empresa">
 
         <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
           {[
@@ -147,6 +147,7 @@ export default function MultiEmpresa() {
         {tab === "consolidado" && <ConsolidadoTab userId={user?.id} />}
         {tab === "transferencias" && <TransferenciasTab userId={user?.id} />}
         {tab === "relatorios" && <RelatoriosTab userId={user?.id} />}
+        </PagePanel>
       </div>
     </AppLayout>
   );

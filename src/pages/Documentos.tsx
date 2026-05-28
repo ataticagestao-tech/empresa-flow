@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { ExportMenu } from "@/components/ExportMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -295,10 +295,10 @@ export default function Documentos() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div>
 
-        <PageToolbar title="Documentos">
-          <div className="flex gap-2 items-center">
+        <PagePanel title="Documentos">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             {tab === "explorador" && (
               <>
                 <ExportMenu<Documento>
@@ -343,7 +343,6 @@ export default function Documentos() {
               </>
             )}
           </div>
-        </PageToolbar>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">
@@ -562,6 +561,7 @@ export default function Documentos() {
             </Card>
           </>
         )}
+        </PagePanel>
       </div>
 
       {/* ── Upload Sheet ── */}

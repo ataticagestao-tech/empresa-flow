@@ -52,10 +52,13 @@ export default function CRM() {
 
     return (
         <AppLayout title="CRM - Gestão de Oportunidades">
-            <div className="h-full flex flex-col space-y-4 animate-in fade-in">
-
-                <div className="px-6 pt-4">
-                  <PageToolbar title="Pipeline de Vendas" subtitle="Gerencie suas negociações e acompanhe o progresso.">
+            <div className="h-full py-3 animate-in fade-in">
+              <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm h-full flex flex-col overflow-hidden">
+                <div className="bg-[#2A2724] px-4 py-3 flex items-start justify-between gap-3 shrink-0">
+                  <div className="min-w-0">
+                    <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Pipeline de Vendas</h1>
+                    <p className="text-[11px] text-white/80 mt-0.5">Gerencie suas negociações e acompanhe o progresso.</p>
+                  </div>
                     <div className="flex items-center gap-2">
                     <ExportMenu<Opportunity>
                         rows={() => opportunities || []}
@@ -122,11 +125,10 @@ export default function CRM() {
                         </DialogContent>
                     </Dialog>
                     </div>
-                  </PageToolbar>
                 </div>
 
                 {/* Kanban Board */}
-                <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-6">
+                <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
                     <div className="flex h-full gap-4 min-w-[1200px]"> {/* Min width to ensure scroll horizontal */}
                         {stages?.map((stage) => {
                             const stageOpps = opportunities?.filter(o => o.stage_id === stage.id) || [];
@@ -213,6 +215,7 @@ export default function CRM() {
                         })}
                     </div>
                 </div>
+              </div>
             </div>
         </AppLayout>
     );

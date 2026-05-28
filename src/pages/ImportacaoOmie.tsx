@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -253,9 +253,9 @@ export default function ImportacaoOmie() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div>
 
-        <PageToolbar title="Importação Omie" />
+        <PagePanel title="Importação Omie">
 
         {!selectedCompany && (
           <Alert variant="destructive">
@@ -452,6 +452,7 @@ export default function ImportacaoOmie() {
             </CardContent>
           </Card>
         )}
+        </PagePanel>
       </div>
     </AppLayout>
   );
