@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Download, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -83,15 +84,33 @@ export function ExportMenu<T>({
   const { selectedCompany } = useCompany()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null)
 
   useEffect(() => {
     if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const close = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return
+      setOpen(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const onScrollResize = () => setOpen(false)
+    document.addEventListener('mousedown', close)
+    window.addEventListener('scroll', onScrollResize, true)
+    window.addEventListener('resize', onScrollResize)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      window.removeEventListener('scroll', onScrollResize, true)
+      window.removeEventListener('resize', onScrollResize)
+    }
   }, [open])
+
+  const toggleMenu = () => {
+    if (open) { setOpen(false); return }
+    const rect = ref.current?.getBoundingClientRect()
+    if (rect) setCoords({ top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) })
+    setOpen(true)
+  }
 
   const getRows = (): T[] => (typeof rows === 'function' ? (rows as () => T[])() : rows)
 
@@ -194,7 +213,7 @@ export function ExportMenu<T>({
     <div className={`relative ${className || ''}`} ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggleMenu}
         disabled={disabled}
         title="Exportar (Excel ou PDF)"
         className={btnBase}
@@ -202,8 +221,12 @@ export function ExportMenu<T>({
         <Download size={iconSz} /> Exportar
         <ChevronDown size={iconSz} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white border border-[#D0D5DD] rounded-md shadow-lg overflow-hidden">
+      {open && coords && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: coords.top, right: coords.right, zIndex: 1000 }}
+          className="w-44 bg-white border border-[#D0D5DD] rounded-md shadow-lg overflow-hidden"
+        >
           <div className="px-3 py-1.5 text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wide border-b border-[#F1F3F5]">
             {count} {count === 1 ? 'registro' : 'registros'}
           </div>
@@ -221,7 +244,8 @@ export function ExportMenu<T>({
           >
             <FileText size={14} className="text-[#D92D20]" /> PDF
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
