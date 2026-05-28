@@ -1,13 +1,10 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle2, Circle, ChevronRight, X, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY_DISMISSED = "onboarding_checklist_dismissed";
 
-type Step = {
+export type OnboardingStep = {
   key: string;
   title: string;
   desc: string;
@@ -16,19 +13,20 @@ type Step = {
   done: boolean;
 };
 
-interface OnboardingChecklistProps {
-  companyId: string;
-}
-
-export function OnboardingChecklist({ companyId }: OnboardingChecklistProps) {
+// Status de onboarding da empresa, consumido pelo sino de notificações no header.
+// Antes era um card grande no dashboard; agora é uma notificação discreta.
+export function useOnboarding(companyId?: string) {
   const { activeClient } = useAuth();
-  const navigate = useNavigate();
   const db = activeClient as any;
 
-  const dismissedKey = `${STORAGE_KEY_DISMISSED}_${companyId}`;
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(dismissedKey) === "true"; } catch { return false; }
-  });
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(`${STORAGE_KEY_DISMISSED}_${companyId ?? ""}`) === "true");
+    } catch {
+      setDismissed(false);
+    }
+  }, [companyId]);
 
   const { data: status, isLoading } = useQuery({
     queryKey: ["onboarding_checklist", companyId],
@@ -57,7 +55,7 @@ export function OnboardingChecklist({ companyId }: OnboardingChecklistProps) {
     },
   });
 
-  const steps: Step[] = useMemo(() => {
+  const steps: OnboardingStep[] = useMemo(() => {
     const s = status ?? {
       chartOfAccounts: false, bankAccount: false, cadastros: false,
       primeiraVenda: false, primeiroLancamento: false, primeiraConciliacao: false,
@@ -114,152 +112,18 @@ export function OnboardingChecklist({ companyId }: OnboardingChecklistProps) {
     ];
   }, [status]);
 
-  const doneCount = steps.filter(s => s.done).length;
+  const doneCount = steps.filter((s) => s.done).length;
   const total = steps.length;
   const pct = Math.round((doneCount / total) * 100);
   const allDone = doneCount === total;
 
-  if (isLoading || !status) return null;
-  if (allDone && dismissed) return null;
-  if (dismissed) return null;
+  // Há onboarding pendente para mostrar no sino?
+  const pending = !!companyId && !isLoading && !!status && !allDone && !dismissed;
 
-  return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #EAECF0",
-        borderRadius: 16,
-        boxShadow: "0 2px 8px rgba(15, 23, 42, 0.06)",
-        padding: 20,
-        marginBottom: 20,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-          <div
-            style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: allDone ? "#ECFDF3" : "#ECFDF4",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Sparkles size={20} style={{ color: allDone ? "#039855" : "#059669" }} />
-          </div>
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1D2939", margin: 0, marginBottom: 2 }}>
-              {allDone ? "Setup completo!" : "Comece por aqui"}
-            </h3>
-            <p style={{ fontSize: 13, color: "#667085", margin: 0 }}>
-              {allDone
-                ? "Você configurou tudo. Pode fechar este card."
-                : `${doneCount} de ${total} passos concluídos — siga a ordem para ter o sistema rodando.`}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            try { localStorage.setItem(dismissedKey, "true"); } catch {}
-            setDismissed(true);
-          }}
-          title="Ocultar"
-          style={{
-            background: "transparent", border: "none", cursor: "pointer",
-            padding: 4, color: "#98A2B3", display: "flex",
-          }}
-        >
-          <X size={16} />
-        </button>
-      </div>
+  const dismiss = () => {
+    try { localStorage.setItem(`${STORAGE_KEY_DISMISSED}_${companyId ?? ""}`, "true"); } catch { /* ignore */ }
+    setDismissed(true);
+  };
 
-      {/* Progress bar */}
-      <div style={{ height: 6, background: "#F2F4F7", borderRadius: 999, overflow: "hidden", marginBottom: 16 }}>
-        <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            background: allDone ? "#039855" : "#059669",
-            transition: "width 0.3s ease",
-          }}
-        />
-      </div>
-
-      {/* Steps */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {steps.map((step, idx) => (
-          <button
-            key={step.key}
-            onClick={() => navigate(step.route)}
-            disabled={step.done && idx === 0}
-            style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "12px 8px",
-              background: "transparent",
-              border: "none",
-              borderRadius: 8,
-              cursor: step.done && idx === 0 ? "default" : "pointer",
-              textAlign: "left",
-              width: "100%",
-              transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (!(step.done && idx === 0)) e.currentTarget.style.background = "#F9FAFB";
-            }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-          >
-            {step.done ? (
-              <CheckCircle2 size={20} style={{ color: "#039855", flexShrink: 0 }} />
-            ) : (
-              <Circle size={20} style={{ color: "#D0D5DD", flexShrink: 0 }} strokeWidth={1.5} />
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: step.done ? "#98A2B3" : "#1D2939",
-                  textDecoration: step.done ? "line-through" : "none",
-                  marginBottom: 2,
-                }}
-              >
-                {step.title}
-              </div>
-              <div style={{ fontSize: 12, color: "#667085", lineHeight: 1.4 }}>
-                {step.desc}
-              </div>
-            </div>
-            {!step.done && (
-              <div
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  fontSize: 12, fontWeight: 600, color: "#059669",
-                  flexShrink: 0,
-                }}
-              >
-                {step.cta}
-                <ChevronRight size={14} />
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {!allDone && (
-        <div
-          style={{
-            marginTop: 14, padding: "10px 12px",
-            background: "#F9FAFB",
-            borderRadius: 8,
-            fontSize: 12, color: "#667085",
-            display: "flex", gap: 8, alignItems: "center",
-          }}
-        >
-          <span style={{ fontWeight: 600, color: "#1D2939" }}>Dica:</span>
-          Cada passo abre a tela certa. Em dúvida, consulte a <a href="/ajuda" style={{ color: "#059669", fontWeight: 600 }}>Central de Ajuda</a>.
-        </div>
-      )}
-    </div>
-  );
+  return { steps, doneCount, total, pct, allDone, dismissed, dismiss, isLoading, pending };
 }
-
-export default OnboardingChecklist;

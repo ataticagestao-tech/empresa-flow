@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useOnboarding } from "@/components/onboarding/OnboardingChecklist";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Bell, FileText, Clock, ShieldCheck, ShieldAlert, ExternalLink, ChevronLeft, ChevronRight, CheckCheck } from "lucide-react";
+import { Bell, FileText, Clock, ShieldCheck, ShieldAlert, ExternalLink, ChevronLeft, ChevronRight, CheckCheck, Sparkles, CheckCircle2, Circle, X } from "lucide-react";
 
 const POR_PAGINA = 3;
 const STORAGE_LIDAS_KEY = "notificacoes:ids_lidas";
@@ -63,7 +65,9 @@ function tempoRelativo(iso: string): string {
 
 export function NotificationBell() {
   const { user, activeClient } = useAuth();
+  const { selectedCompany } = useCompany();
   const navigate = useNavigate();
+  const onboarding = useOnboarding(selectedCompany?.id);
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [idsLidas, setIdsLidas] = useState<Set<string>>(() => carregarIdsLidas());
   const [open, setOpen] = useState(false);
@@ -77,6 +81,7 @@ export function NotificationBell() {
   };
 
   const naoLidas = notificacoes.filter((n) => !idsLidas.has(keyDe(n))).length;
+  const badgeCount = naoLidas + (onboarding.pending ? 1 : 0);
 
   const marcarUmaComoLida = (n: Notificacao) => {
     const nova = new Set(idsLidas);
@@ -124,9 +129,9 @@ export function NotificationBell() {
           aria-label="Notificações"
         >
           <Bell className="h-4 w-4" />
-          {naoLidas > 0 && (
+          {badgeCount > 0 && (
             <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-              {naoLidas > 9 ? "9+" : naoLidas}
+              {badgeCount > 9 ? "9+" : badgeCount}
             </span>
           )}
         </button>
@@ -153,6 +158,55 @@ export function NotificationBell() {
           )}
         </div>
         <DropdownMenuSeparator />
+
+        {onboarding.pending && (
+          <>
+            <div className="px-3 py-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-[12px] font-semibold text-[#1D2939]">Comece por aqui</span>
+                  <span className="text-[11px] text-[#667085]">{onboarding.doneCount}/{onboarding.total}</span>
+                </div>
+                <button
+                  onClick={(e) => { e.preventDefault(); onboarding.dismiss(); }}
+                  className="text-[#98A2B3] hover:text-[#475467]"
+                  title="Ocultar"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="h-1.5 bg-[#F2F4F7] rounded-full overflow-hidden mb-2">
+                <div className="h-full bg-emerald-600 transition-all" style={{ width: `${onboarding.pct}%` }} />
+              </div>
+              <div className="space-y-0">
+                {onboarding.steps.map((step) => (
+                  <button
+                    key={step.key}
+                    onClick={() => { setOpen(false); navigate(step.route); }}
+                    disabled={step.done}
+                    className={`w-full flex items-center gap-2 px-1.5 py-1.5 rounded text-left ${
+                      step.done ? "cursor-default" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    {step.done ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-3.5 w-3.5 text-[#D0D5DD] flex-shrink-0" strokeWidth={1.5} />
+                    )}
+                    <span className={`flex-1 text-[12px] truncate ${
+                      step.done ? "line-through text-[#98A2B3]" : "text-[#1D2939] font-medium"
+                    }`}>
+                      {step.title}
+                    </span>
+                    {!step.done && <ChevronRight className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
 
         {notificacoes.length === 0 ? (
           <div className="px-3 py-6 text-center text-[12px] text-[#667085]">
