@@ -139,6 +139,7 @@ export default function Movimentacoes() {
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>('todos')
   const [dateStart, setDateStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [dateEnd, setDateEnd] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -377,6 +378,44 @@ export default function Movimentacoes() {
     }
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date))
   }, [withRunningBalance])
+
+  // ---- Paginação (20 movimentações por página) ----
+  const PAGE_SIZE = 20
+  const orderedRows = useMemo(() => dayGroups.flatMap((g) => g.rows), [dayGroups])
+  const totalRows = orderedRows.length
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE))
+  const page = Math.min(currentPage, totalPages)
+
+  // Reset para a 1ª página quando o conjunto filtrado muda
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, tipoFilter, selectedBankId, dateStart, dateEnd, activeSearchTerm])
+
+  const pageDayGroups = useMemo(() => {
+    const pageRows = orderedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    const map = new Map<string, DayGroup>()
+    const order: string[] = []
+    for (const row of pageRows) {
+      if (!map.has(row.data)) {
+        order.push(row.data)
+        const orig = dayGroups.find((g) => g.date === row.data)
+        map.set(row.data, {
+          date: row.data,
+          label: orig?.label ?? row.data,
+          entradas: 0,
+          saidas: 0,
+          saldo: 0,
+          rows: [],
+        })
+      }
+      const group = map.get(row.data)!
+      if (row.tipo === 'credito') group.entradas += row.valor
+      else group.saidas += row.valor
+      group.saldo = group.entradas - group.saidas
+      group.rows.push(row)
+    }
+    return order.map((d) => map.get(d)!)
+  }, [orderedRows, dayGroups, page])
 
   const bankTotals = useMemo(() => {
     const map = new Map<string, number>()
@@ -803,31 +842,65 @@ export default function Movimentacoes() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12px]">
-                <thead>
-                  <tr className="bg-white border-b-2 border-[#D1D5DB] text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A]">
-                    <th className="text-left py-2.5 px-4 w-[44px]"></th>
-                    <th className="text-left py-2.5 px-4">Descrição</th>
-                    <th className="text-left py-2.5 px-4 w-[180px]">Categoria</th>
-                    <th className="text-left py-2.5 px-4 w-[140px]">Conta</th>
-                    <th className="text-right py-2.5 px-4 w-[140px]">Valor (R$)</th>
-                    <th className="text-right py-2.5 px-4 w-[120px]">Saldo conta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dayGroups.map((group) => (
-                    <DiaMovimentacoes
-                      key={group.date}
-                      group={group}
-                      bankNameMap={bankNameMap}
-                      bankRunningBalances={bankRunningBalances}
-                      TypeIcon={TypeIcon}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="bg-white border-b-2 border-[#D1D5DB] text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A]">
+                      <th className="text-left py-2.5 px-4 w-[44px]"></th>
+                      <th className="text-left py-2.5 px-4">Descrição</th>
+                      <th className="text-left py-2.5 px-4 w-[180px]">Categoria</th>
+                      <th className="text-left py-2.5 px-4 w-[140px]">Conta</th>
+                      <th className="text-right py-2.5 px-4 w-[140px]">Valor (R$)</th>
+                      <th className="text-right py-2.5 px-4 w-[120px]">Saldo conta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageDayGroups.map((group) => (
+                      <DiaMovimentacoes
+                        key={group.date}
+                        group={group}
+                        bankNameMap={bankNameMap}
+                        bankRunningBalances={bankRunningBalances}
+                        TypeIcon={TypeIcon}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ====== PAGINAÇÃO ====== */}
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-[#E5E7EB] bg-white">
+                <span className="text-[12px] text-[#4B5563]">
+                  Mostrando{' '}
+                  <strong className="font-semibold text-[#0F172A]">
+                    {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalRows)}
+                  </strong>{' '}
+                  de <strong className="font-semibold text-[#0F172A]">{totalRows}</strong> movimentações
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-md border border-[#D1D5DB] bg-white text-[#0F172A] hover:bg-[#F9FAFB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="text-[12px] font-semibold text-[#0F172A] tabular-nums">
+                    Página {page} de {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="text-[12px] font-semibold px-3 py-1.5 rounded-md border border-[#D1D5DB] bg-white text-[#0F172A] hover:bg-[#F9FAFB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Próxima →
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
         </PagePanel>
