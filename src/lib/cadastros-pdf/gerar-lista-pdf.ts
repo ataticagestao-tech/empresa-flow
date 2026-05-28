@@ -25,6 +25,8 @@ export interface RelatorioListaData {
     cor_primaria?: string;
     /** Orientação da página. Padrão: retrato ("portrait"). */
     orientacao?: "portrait" | "landscape";
+    /** Logo da empresa em dataURL/base64 (PNG/JPG). Se ausente, usa monograma com a inicial. */
+    logo_base64?: string | null;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -84,11 +86,32 @@ export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
         doc.setFillColor(cr, cg, cb);
         doc.rect(0, 0, W, headerBandH, "F");
 
+        /* ── Logo da empresa ou monograma (canto esquerdo) ── */
+        const logoSize = 16;
+        const logoY = (headerBandH - logoSize) / 2;
+        if (data.logo_base64) {
+            try {
+                doc.addImage(data.logo_base64, "PNG", margin, logoY, logoSize, logoSize);
+            } catch {
+                /* imagem inválida — ignora e segue sem logo */
+            }
+        } else {
+            const inicial = (data.empresa_nome || "?").trim().charAt(0).toUpperCase() || "?";
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(margin, logoY, logoSize, logoSize, 3, 3, "F");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(17);
+            doc.setTextColor(cr, cg, cb);
+            doc.text(inicial, margin + logoSize / 2, logoY + logoSize / 2 + 2.2, { align: "center" });
+        }
+        const textX = margin + logoSize + 5;
+        const leftMaxW = W - margin - 72 - textX; // reserva ~72mm p/ o bloco da direita
+
         /* ── Lado esquerdo: dados da empresa ── */
         doc.setFont("helvetica", "bold");
         doc.setFontSize(15);
         doc.setTextColor(255, 255, 255);
-        doc.text(data.empresa_nome, margin, 13);
+        doc.text(doc.splitTextToSize(data.empresa_nome, leftMaxW)[0] || data.empresa_nome, textX, 13);
 
         let ly = 19;
         doc.setFont("helvetica", "normal");
@@ -96,14 +119,14 @@ export function gerarRelatorioListaPDF(data: RelatorioListaData): Blob {
         doc.setTextColor(225, 235, 240);
         const razao = data.empresa_razao_social?.trim();
         if (razao && razao.toLowerCase() !== data.empresa_nome.trim().toLowerCase()) {
-            doc.text(doc.splitTextToSize(razao, contentW * 0.6)[0], margin, ly);
+            doc.text(doc.splitTextToSize(razao, leftMaxW)[0], textX, ly);
             ly += 5;
         }
         const infoParts = [
             data.empresa_cnpj ? `CNPJ: ${data.empresa_cnpj}` : null,
             data.empresa_local || null,
         ].filter(Boolean);
-        if (infoParts.length) doc.text(infoParts.join("   ·   "), margin, ly);
+        if (infoParts.length) doc.text(infoParts.join("   ·   "), textX, ly);
 
         /* ── Lado direito: título e datas ── */
         doc.setFont("helvetica", "bold");
