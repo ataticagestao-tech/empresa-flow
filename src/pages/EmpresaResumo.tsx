@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
+import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
@@ -568,19 +568,15 @@ export default function EmpresaResumo() {
 
   return (
     <AppLayout title={company.razao_social || "Empresa"}>
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div>
 
-        {/* Voltar + cabeçalho da página — ações fora do "documento" */}
-        <div className="mb-3">
-          <button onClick={() => navigate("/empresas")}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#667085] hover:text-black transition-colors">
-            ← Voltar para empresas
-          </button>
-        </div>
-        <PageToolbar title={company.razao_social || "Empresa"}>
-          <div className="flex items-center gap-2">
+        <PagePanel
+          title={company.razao_social || "Empresa"}
+          subtitle="Ficha cadastral da empresa"
+          headerActions={
+            <>
             <button onClick={() => navigate(`/dashboard/${id}`)}
-              className="flex items-center gap-1.5 bg-[#1D2939] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#111827] transition-colors">
+              className="flex items-center gap-1.5 bg-white text-[#1D2939] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
               <BarChart3 size={14} /> Dashboard
             </button>
             {editing ? (
@@ -612,8 +608,9 @@ export default function EmpresaResumo() {
                 </button>
               </>
             )}
-          </div>
-        </PageToolbar>
+            </>
+          }
+        >
 
         {deleteOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -867,6 +864,7 @@ export default function EmpresaResumo() {
             </Section>
           </div>
         </div>
+        </PagePanel>
       </div>
     </AppLayout>
   );
