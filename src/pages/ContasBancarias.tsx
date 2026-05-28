@@ -394,15 +394,6 @@ export default function ContasBancarias() {
     <AppLayout title="Contas Bancárias">
       <div className="animate-fade-in">
 
-        {/* Consolidated Balance */}
-        <div className="bg-[#ECFDF4] border border-[#059669] rounded-lg p-5 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#059669]">Saldo Total Consolidado</p>
-            <p className="text-xs text-[#555] mt-0.5">{activeAccounts.length} conta(s) ativa(s)</p>
-          </div>
-          <p className="text-2xl font-bold text-[#059669]">{formatBRL(totalBalance)}</p>
-        </div>
-
         {/* Header */}
         <PagePanel title="Contas Bancárias" subtitle="Contas, saldos e conciliação bancária">
           <div className="flex flex-wrap items-center gap-2 justify-end">
@@ -428,6 +419,15 @@ export default function ContasBancarias() {
               {showForm ? "Fechar" : "+ Nova Conta"}
             </button>
           </div>
+
+        {/* Consolidated Balance */}
+        <div className="bg-[#ECFDF4] border border-[#059669] rounded-lg p-5 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#059669]">Saldo Total Consolidado</p>
+            <p className="text-xs text-[#555] mt-0.5">{activeAccounts.length} conta(s) ativa(s)</p>
+          </div>
+          <p className="text-2xl font-bold text-[#059669]">{formatBRL(totalBalance)}</p>
+        </div>
 
         {/* New Account Form */}
         {showForm && (
