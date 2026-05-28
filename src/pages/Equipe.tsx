@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Loader2, UserPlus, Trash2, Shield, Eye, Wrench } from 'lucide-react';
 
 import { AppLayout } from '@/components/layout/AppLayout';
+import { PageToolbar } from '@/components/layout/PageToolbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useRole, type Role } from '@/hooks/useRole';
@@ -207,13 +208,7 @@ export default function Equipe() {
   return (
     <AppLayout title="Equipe">
       <div className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-[#1D2939]">Equipe — {selectedCompany?.nome_fantasia}</h2>
-            <p className="text-sm text-[#667085] mt-1">
-              Gerencie quem tem acesso a esta empresa e o que cada um pode fazer.
-            </p>
-          </div>
+        <PageToolbar title={`Equipe — ${selectedCompany?.nome_fantasia ?? ""}`} subtitle="Gerencie quem tem acesso a esta empresa e o que cada um pode fazer.">
           <div className="flex items-center gap-2">
             <ExportMenu
               rows={membros}
@@ -231,7 +226,7 @@ export default function Equipe() {
               Adicionar usuário
             </Button>
           </div>
-        </div>
+        </PageToolbar>
 
         {/* Legenda de roles */}
         <Card className="p-4">

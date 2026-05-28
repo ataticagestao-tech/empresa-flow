@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Layers, Search, TrendingUp, DollarSign, Percent } from "lucide-react";
+import { Search, TrendingUp, DollarSign, Percent } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useState } from "react";
 
@@ -98,15 +99,7 @@ export default function ComposicaoCusto() {
         <AppLayout title="Composição de Custo">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
-                        <Layers size={22} color={T.primary} />
-                    </div>
-                    <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Composição de Custo</h2>
-                        <p style={{ fontSize: 12, color: T.text3 }}>Custo total, margem e markup por produto</p>
-                    </div>
-                </div>
+                <PageToolbar title="Composição de Custo" subtitle="Custo total, margem e markup por produto" />
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[

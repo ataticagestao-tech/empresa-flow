@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet, Receipt, Mail, FileText } from "lucide-react";
+import { Download, FileSpreadsheet, Mail, FileText } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -657,17 +658,10 @@ ${empresaNome}`;
     <AppLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <header className="space-y-1">
-          <div className="flex items-center gap-2 text-[#1D2939]">
-            <Receipt size={20} />
-            <h1 className="text-xl font-semibold">Área do Contador</h1>
-          </div>
-          <p className="text-sm text-gray-500 max-w-2xl">
-            Relatórios prontos para enviar à contabilidade. Selecione o
-            período e a conta para baixar o extrato já conciliado e a
-            planilha de conciliações com categorias.
-          </p>
-        </header>
+        <PageToolbar
+          title="Área do Contador"
+          subtitle="Relatórios prontos para enviar à contabilidade. Selecione o período e a conta para baixar o extrato já conciliado e a planilha de conciliações com categorias."
+        />
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-4 items-end">

@@ -1,12 +1,13 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrendingUp, TrendingDown, DollarSign, GitBranch } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
@@ -96,14 +97,10 @@ export default function Cenarios() {
         <AppLayout title="Cenários Financeiros">
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
 
-                <div>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                        <GitBranch size={24} color="#059669" /> Cenários Financeiros
-                    </h2>
-                    <p style={{ fontSize: 13, color: "#98A2B3" }}>
-                        Base: Receita {fmt(baseReceita)} | Despesa {fmt(baseDespesa)} ({format(now, "MMMM/yyyy")})
-                    </p>
-                </div>
+                <PageToolbar
+                    title="Cenários Financeiros"
+                    subtitle={`Base: Receita ${fmt(baseReceita)} | Despesa ${fmt(baseDespesa)} (${format(now, "MMMM/yyyy")})`}
+                />
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                     {results.map((r, i) => (

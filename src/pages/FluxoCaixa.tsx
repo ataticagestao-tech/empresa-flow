@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -747,15 +748,7 @@ export default function FluxoCaixa() {
 
         <PendenciasBanner variant="full" filter="all" />
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h2 className="text-lg font-bold text-foreground tracking-tight">
-              Fluxo de Caixa
-            </h2>
-            <p className="text-[12.5px] text-muted-foreground mt-0.5">
-              Demonstrativo e relatório de entradas e saídas
-            </p>
-          </div>
+        <PageToolbar title="Fluxo de Caixa" subtitle="Demonstrativo e relatório de entradas e saídas">
           <div className="flex items-center gap-2 flex-wrap">
             <Link to="/demonstrativos/mapeamento">
               <Button variant="outline" size="sm">
@@ -763,7 +756,7 @@ export default function FluxoCaixa() {
               </Button>
             </Link>
           </div>
-        </div>
+        </PageToolbar>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
         <div className="flex justify-end">

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -92,11 +93,7 @@ export default function FluxoCaixaProjetado() {
         <AppLayout title="Fluxo de Caixa Projetado">
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Fluxo de Caixa Projetado</h2>
-                        <p style={{ fontSize: 13, color: "#98A2B3" }}>Próximos {days} dias</p>
-                    </div>
+                <PageToolbar title="Fluxo de Caixa Projetado" subtitle={`Próximos ${days} dias`}>
                     <div style={{ display: "flex", gap: 8 }}>
                         {[30, 60, 90].map(d => (
                             <Button key={d} variant={days === d ? "default" : "outline"} size="sm" onClick={() => setDays(d)}>
@@ -104,7 +101,7 @@ export default function FluxoCaixaProjetado() {
                             </Button>
                         ))}
                     </div>
-                </div>
+                </PageToolbar>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>

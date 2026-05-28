@@ -3,6 +3,7 @@ import { Settings, Loader2, Check, AlertTriangle, Shield } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { toast } from 'sonner'
 
 interface NfseConfig {
@@ -167,6 +168,8 @@ export default function NfseConfiguracoes() {
   return (
     <AppLayout title="Configuracoes NFSe">
       <div className="p-6 max-w-3xl space-y-6">
+
+        <PageToolbar title="Configurações NFSe" />
 
         {/* Ambiente badge */}
         <div className="flex items-center gap-3">

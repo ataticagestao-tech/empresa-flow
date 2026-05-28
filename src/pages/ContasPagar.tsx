@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData, toTitleCase } from '@/lib/format'
 import { quitarCP, calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { CollapsibleCard } from '@/components/ui/collapsible-card'
 import { PendenciasBanner } from '@/modules/finance/presentation/components/PendenciasBanner'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
@@ -1607,6 +1608,8 @@ export default function ContasPagar() {
   return (
     <AppLayout title="Contas a Pagar">
       <div className="max-w-[1400px] mx-auto space-y-6 p-6" style={{ backgroundColor: '#F6F2EB', minHeight: '100%' }}>
+
+        <PageToolbar title="Contas a Pagar" />
 
         <PendenciasBanner variant="full" filter="debito" />
         {/* KPIs */}

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, Tag } from "lucide-react";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
     Table,
@@ -99,11 +100,7 @@ export default function Categorias() {
         <AppLayout title="Categorias">
             <div className="space-y-6 animate-fade-in">
 
-                <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
-                        <Tag className="h-8 w-8 text-primary" />
-                        Categorias
-                    </h2>
+                <PageToolbar title="Categorias">
                     <div className="flex items-center gap-2">
                         <ExportMenu
                             rows={filteredCategories ?? []}
@@ -121,7 +118,7 @@ export default function Categorias() {
                             Nova Categoria
                         </Button>
                     </div>
-                </div>
+                </PageToolbar>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">

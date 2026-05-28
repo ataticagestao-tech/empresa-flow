@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -14,7 +15,7 @@ import {
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Percent, Search, Pencil, Save } from "lucide-react";
+import { Search, Pencil, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const T = {
@@ -142,19 +143,7 @@ export default function MargensDesconto() {
         <AppLayout title="Margens de Desconto">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ background: T.amberLt, borderRadius: 12, padding: 10 }}>
-                            <Percent size={22} color={T.amber} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 20, fontWeight: 700 }}>Margens de Desconto</h2>
-                            <p style={{ fontSize: 12, color: T.text3 }}>
-                                {configuredCount} de {products.length} produtos configurados
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <PageToolbar title="Margens de Desconto" subtitle={`${configuredCount} de ${products.length} produtos configurados`} />
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>

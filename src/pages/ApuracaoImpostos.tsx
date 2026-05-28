@@ -9,6 +9,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -271,6 +272,8 @@ export default function ApuracaoImpostos() {
   return (
     <AppLayout title="Apuracao de Impostos">
       <div className="p-6 space-y-6">
+
+        <PageToolbar title="Apuração de Impostos" />
 
         {/* ── Header ── */}
         <div className="flex flex-wrap items-center justify-between gap-4">

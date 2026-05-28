@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useCompanies } from "@/hooks/useCompanies";
 import { Company } from "@/types/company";
 import { maskCNPJ } from "@/utils/masks";
@@ -460,11 +461,7 @@ export default function Empresas() {
     <AppLayout title="Empresas">
       <div className="space-y-6">
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-[#1D2939]">Empresas</h2>
-            <p className="text-sm text-[#555]">Gerencie suas unidades de negócio</p>
-          </div>
+        <PageToolbar title="Empresas" subtitle="Gerencie suas unidades de negócio">
           <div className="flex items-center gap-2">
             <ExportMenu
               rows={filtered}
@@ -481,7 +478,7 @@ export default function Empresas() {
             <button onClick={() => { setEditingId(null); setForm(emptyForm); setAutoFilled(new Set()); setStep(0); setMode("create"); }}
               className="bg-[#059669] text-white text-sm font-bold px-4 py-2 rounded-md">+ Nova Empresa</button>
           </div>
-        </div>
+        </PageToolbar>
 
         {!selectedCompany && (
           <div className="flex flex-wrap items-center gap-3">

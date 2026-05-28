@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -116,6 +117,8 @@ export default function AdminUsuarios() {
   return (
     <AppLayout title="Gerenciar Usuários">
       <div className="space-y-6">
+
+        <PageToolbar title="Gerenciar Usuários" />
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-3">

@@ -6,6 +6,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData } from '@/lib/format'
 import { calcularProximoVencimento } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { ExportMenu } from '@/components/ExportMenu'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { useConfirm } from '@/components/ui/confirm-dialog'
@@ -424,13 +425,7 @@ export default function ContratosRecorrentes() {
         )}
 
         {/* HEADER */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-[#1D2939]">Contratos Recorrentes</h1>
-            <p className="text-[13px] text-[#555] mt-0.5">
-              Gerencie contratos e gere contas a receber automaticamente.
-            </p>
-          </div>
+        <PageToolbar title="Contratos Recorrentes" subtitle="Gerencie contratos e gere contas a receber automaticamente.">
           <div className="flex items-center gap-2">
             <ExportMenu<Contrato>
               rows={() => filtered}
@@ -454,7 +449,7 @@ export default function ContratosRecorrentes() {
               Novo contrato
             </button>
           </div>
-        </div>
+        </PageToolbar>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

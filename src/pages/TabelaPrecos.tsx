@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -15,7 +16,7 @@ import {
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { TableProperties, Plus, Trash2, Search, Pencil } from "lucide-react";
+import { Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 
@@ -160,16 +161,7 @@ export default function TabelaPrecos() {
     return (
         <AppLayout title="Tabela de Preços">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
-                            <TableProperties size={22} color={T.primary} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 20, fontWeight: 700 }}>Tabela de Preços</h2>
-                            <p style={{ fontSize: 12, color: T.text3 }}>{lists.length} tabela{lists.length !== 1 ? "s" : ""} cadastrada{lists.length !== 1 ? "s" : ""}</p>
-                        </div>
-                    </div>
+                <PageToolbar title="Tabela de Preços" subtitle={`${lists.length} tabela${lists.length !== 1 ? "s" : ""} cadastrada${lists.length !== 1 ? "s" : ""}`}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <ExportMenu
                             rows={filteredProducts}
@@ -179,7 +171,7 @@ export default function TabelaPrecos() {
                         />
                         <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Tabela</Button>
                     </div>
-                </div>
+                </PageToolbar>
 
                 {/* Lists cards */}
                 {lists.length > 0 && (

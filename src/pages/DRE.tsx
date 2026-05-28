@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -317,11 +318,7 @@ export default function DRE() {
 
         <PendenciasBanner variant="full" filter="credito" />
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h2 className="text-lg font-bold text-foreground tracking-tight">Demonstrativo de Resultados</h2>
-            <p className="text-[12.5px] text-muted-foreground mt-0.5">Orçado vs Realizado por conta contábil</p>
-          </div>
+        <PageToolbar title="Demonstrativo de Resultados" subtitle="Orçado vs Realizado por conta contábil">
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={centroCustoId} onValueChange={setCentroCustoId}>
               <SelectTrigger className="w-[180px] h-8 text-xs">
@@ -338,7 +335,7 @@ export default function DRE() {
               <Download className="h-3.5 w-3.5 mr-1" /> Excel
             </Button>
           </div>
-        </div>
+        </PageToolbar>
 
         {/* ── Filtro de periodo (padrao do sistema) ── */}
         <div className="flex justify-end">

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,7 +20,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-    AlertTriangle, Trash2, History, Settings, Shield, Plus,
+    AlertTriangle, Trash2, History, Shield, Plus,
     Pencil, Search, Plug, CheckCircle2, XCircle, Clock,
     Download, Eye, EyeOff, ChevronDown, ChevronUp,
     Moon, FileText, Loader2, Send, MessageCircle, X,
@@ -93,10 +94,7 @@ export default function Configuracoes() {
     return (
         <AppLayout title="Configurações">
             <div className="space-y-6 animate-fade-in">
-                <div className="flex items-center gap-2">
-                    <Settings className="h-8 w-8 text-muted-foreground" />
-                    <h2 className="text-lg font-bold tracking-tight text-foreground">Configurações</h2>
-                </div>
+                <PageToolbar title="Configurações" />
 
                 <Tabs defaultValue="geral" className="w-full">
                     <TabsList className="flex w-full max-w-2xl mb-6 overflow-x-auto">

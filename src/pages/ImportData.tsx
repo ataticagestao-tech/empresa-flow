@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import jsonCompanies from "@/data/companies_import.json";
 import { Loader2, AlertCircle, Copy, RefreshCw } from "lucide-react";
 
@@ -129,6 +130,8 @@ export default function ImportData() {
     return (
         <AppLayout title="Importar Dados">
             <div className="p-8 max-w-4xl mx-auto">
+
+                <PageToolbar title="Importar Dados" />
 
                 <Card className="mb-6">
                     <CardHeader className="pb-2">

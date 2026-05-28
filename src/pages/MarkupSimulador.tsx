@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -13,7 +14,7 @@ import {
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Target, Search, DollarSign, TrendingUp, Percent, AlertTriangle } from "lucide-react";
+import { Search, DollarSign, TrendingUp, Percent, AlertTriangle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const T = {
@@ -126,23 +127,14 @@ export default function MarkupSimulador() {
         <AppLayout title="Markup / Simulador">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
-                            <Target size={22} color={T.primary} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 20, fontWeight: 700 }}>Markup / Simulador</h2>
-                            <p style={{ fontSize: 12, color: T.text3 }}>Calcule o preço ideal baseado no custo e margem desejada</p>
-                        </div>
-                    </div>
+                <PageToolbar title="Markup / Simulador" subtitle="Calcule o preço ideal baseado no custo e margem desejada">
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Label className="text-sm whitespace-nowrap">Margem alvo:</Label>
                         <Input type="number" value={targetMargin} onChange={e => setTargetMargin(e.target.value)}
                             className="h-9 w-20 text-sm text-center" min="0" max="99" />
                         <span className="text-sm text-muted-foreground">%</span>
                     </div>
-                </div>
+                </PageToolbar>
 
                 {/* KPIs */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>

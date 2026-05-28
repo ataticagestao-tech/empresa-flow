@@ -12,6 +12,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatDoc } from '@/lib/format'
 import { unmask } from '@/utils/masks'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -420,6 +421,8 @@ export default function NotasFiscais() {
   return (
     <AppLayout title="Notas Fiscais">
       <div className="p-6 space-y-6">
+
+        <PageToolbar title="Notas Fiscais" />
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

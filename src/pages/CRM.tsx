@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { useCRM, Opportunity } from "@/modules/crm/hooks/useCRM";
 import { Button } from "@/components/ui/button";
@@ -53,11 +54,8 @@ export default function CRM() {
         <AppLayout title="CRM - Gestão de Oportunidades">
             <div className="h-full flex flex-col space-y-4 animate-in fade-in">
 
-                <div className="flex justify-between items-center px-6 pt-4">
-                    <div>
-                        <h2 className="text-2xl font-bold tracking-tight text-foreground">Pipeline de Vendas</h2>
-                        <p className="text-muted-foreground">Gerencie suas negociações e acompanhe o progresso.</p>
-                    </div>
+                <div className="px-6 pt-4">
+                  <PageToolbar title="Pipeline de Vendas" subtitle="Gerencie suas negociações e acompanhe o progresso.">
                     <div className="flex items-center gap-2">
                     <ExportMenu<Opportunity>
                         rows={() => opportunities || []}
@@ -124,6 +122,7 @@ export default function CRM() {
                         </DialogContent>
                     </Dialog>
                     </div>
+                  </PageToolbar>
                 </div>
 
                 {/* Kanban Board */}

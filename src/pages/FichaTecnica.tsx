@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -17,7 +18,7 @@ import {
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ClipboardList, Plus, Trash2, Search, Pencil } from "lucide-react";
+import { Plus, Trash2, Search, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExportMenu } from "@/components/ExportMenu";
 
@@ -180,16 +181,7 @@ export default function FichaTecnica() {
         <AppLayout title="Ficha Técnica">
             <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 20 }}>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ background: T.primaryLt, borderRadius: 12, padding: 10 }}>
-                            <ClipboardList size={22} color={T.primary} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: 20, fontWeight: 700 }}>Ficha Técnica</h2>
-                            <p style={{ fontSize: 12, color: T.text3 }}>Composição de insumos por produto/serviço</p>
-                        </div>
-                    </div>
+                <PageToolbar title="Ficha Técnica" subtitle="Composição de insumos por produto/serviço">
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <ExportMenu
                             rows={filtered}
@@ -206,7 +198,7 @@ export default function FichaTecnica() {
                         />
                         <Button size="sm" onClick={openNew} style={{ gap: 6 }}><Plus size={16} /> Nova Ficha</Button>
                     </div>
-                </div>
+                </PageToolbar>
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>

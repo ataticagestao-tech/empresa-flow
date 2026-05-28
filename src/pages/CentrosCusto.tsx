@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -127,8 +128,7 @@ export default function CentrosCusto() {
         </div>
 
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold text-[#1D2939]">Setores / Centros de Custo</h2>
+        <PageToolbar title="Setores / Centros de Custo">
           <div className="flex items-center gap-2">
             <ExportMenu
               rows={centros}
@@ -149,7 +149,7 @@ export default function CentrosCusto() {
               {showForm ? "Fechar" : "+ Adicionar Setor"}
             </button>
           </div>
-        </div>
+        </PageToolbar>
 
         {/* New Sector Form */}
         {showForm && (

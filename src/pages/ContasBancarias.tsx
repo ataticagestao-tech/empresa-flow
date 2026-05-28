@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -403,8 +404,7 @@ export default function ContasBancarias() {
         </div>
 
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold text-[#1D2939]">Contas Bancárias</h2>
+        <PageToolbar title="Contas Bancárias">
           <div className="flex items-center gap-2">
             <ExportMenu
               rows={accounts}
@@ -428,7 +428,7 @@ export default function ContasBancarias() {
               {showForm ? "Fechar" : "+ Nova Conta"}
             </button>
           </div>
-        </div>
+        </PageToolbar>
 
         {/* New Account Form */}
         {showForm && (

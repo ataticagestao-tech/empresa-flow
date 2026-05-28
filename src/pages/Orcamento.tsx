@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -118,16 +119,12 @@ export default function Orcamento() {
     return (
         <AppLayout title="Orçamento">
             <div style={{ fontFamily: "var(--font-base)", display: "flex", flexDirection: "column", gap: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Orçamento</h2>
-                        <p style={{ fontSize: 13, color: "#98A2B3" }}>{format(monthStart, "MMMM yyyy", { locale: ptBR })}</p>
-                    </div>
+                <PageToolbar title="Orçamento" subtitle={format(monthStart, "MMMM yyyy", { locale: ptBR })}>
                     <select value={currentMonth} onChange={e => setCurrentMonth(e.target.value)}
                         style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #EAECF0", fontSize: 13 }}>
                         {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                     </select>
-                </div>
+                </PageToolbar>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
                     {[

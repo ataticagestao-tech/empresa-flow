@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,7 +111,7 @@ export default function Financeiro() {
         <AppLayout title="Finanças">
             <div className="space-y-6 animate-fade-in p-4 bg-[#F6F2EB] min-h-screen">
 
-                <h2 className="text-xl font-semibold text-green-700 mb-6">Finanças</h2>
+                <PageToolbar title="Finanças" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
                     {cardGroups.map((group, index) => (

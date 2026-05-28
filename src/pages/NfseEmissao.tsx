@@ -15,6 +15,7 @@ import { formatBRL, formatData, formatDoc, formatFormaPagamento } from '@/lib/fo
 import { MonthFilter } from '@/components/ui/month-filter'
 import { unmask } from '@/utils/masks'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -1008,6 +1009,8 @@ export default function NfseEmissao() {
   return (
     <AppLayout title="NFSe - Emissao">
       <div className="p-6 space-y-6">
+
+        <PageToolbar title="NFSe - Emissão" />
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

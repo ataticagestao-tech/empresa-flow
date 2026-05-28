@@ -8,6 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -200,6 +201,8 @@ export default function EncargosRH() {
   return (
     <AppLayout title="Encargos Trabalhistas">
       <div className="p-6 space-y-6">
+
+        <PageToolbar title="Encargos Trabalhistas" />
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

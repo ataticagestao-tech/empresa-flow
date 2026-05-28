@@ -8,6 +8,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData, formatDoc } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -310,6 +311,8 @@ export default function ImportacaoXML() {
   return (
     <AppLayout title="Importacao de XML">
       <div className="p-6 space-y-6">
+
+        <PageToolbar title="Importação de XML" />
 
         {/* ── KPIs ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

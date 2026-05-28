@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageToolbar } from "@/components/layout/PageToolbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -564,6 +565,7 @@ export default function PlanoContas() {
   return (
     <AppLayout title="Plano de Contas">
       <div className="space-y-2 px-4 pt-3 pb-4">
+        <PageToolbar title="Plano de Contas" />
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
           <input type="text" placeholder="Buscar por nome ou código..." value={search}

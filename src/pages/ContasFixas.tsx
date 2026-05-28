@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { format, startOfMonth, endOfMonth, parseISO, isBefore, isToday, addMonths, subMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight, Pin, ExternalLink, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
@@ -81,17 +82,10 @@ export default function ContasFixas() {
   return (
     <AppLayout>
       <div className="px-6 py-6 max-w-6xl mx-auto">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-bold" style={{ fontSize: 22, color: '#1D2939', fontFamily: 'var(--font-display, "Plus Jakarta Sans", sans-serif)' }}>
-              <Pin size={18} style={{ display: 'inline', marginRight: 6, color: '#059669' }} />
-              Contas Fixas
-            </h1>
-            <p style={{ fontSize: 13, color: '#667085', marginTop: 4 }}>
-              Despesas recorrentes do periodo. Marque uma conta como fixa em <Link to="/contas-pagar" style={{ color: '#059669', textDecoration: 'underline' }}>Contas a Pagar</Link>.
-            </p>
-          </div>
-
+        <PageToolbar
+          title="Contas Fixas"
+          subtitle={<>Despesas recorrentes do periodo. Marque uma conta como fixa em <Link to="/contas-pagar" style={{ color: '#059669', textDecoration: 'underline' }}>Contas a Pagar</Link>.</>}
+        >
           <div className="flex items-center gap-2">
             <button
               onClick={() => setRefMes(subMonths(refMes, 1))}
@@ -111,7 +105,7 @@ export default function ContasFixas() {
               <ChevronRight size={16} color="#1D2939" />
             </button>
           </div>
-        </div>
+        </PageToolbar>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
           <KpiCard label="Total estimado" value={totals.total} count={totals.count} accent="#1D2939" />

@@ -13,6 +13,7 @@ import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCPF, formatCNPJ, toTitleCase } from '@/lib/format'
 import { quitarCR } from '@/lib/financeiro/transacao'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { PageToolbar } from '@/components/layout/PageToolbar'
 import { TableSkeleton } from '@/components/ui/page-skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TablePagination } from '@/components/ui/table-pagination'
@@ -976,6 +977,7 @@ export default function ContasReceber() {
     <AppLayout title="Contas a Receber">
       <div className="max-w-[1400px] mx-auto space-y-4">
 
+        <PageToolbar title="Contas a Receber" />
 
         {/* ── KPI Cards (padrão Vendas) ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
