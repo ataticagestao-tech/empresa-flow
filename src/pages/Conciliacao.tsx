@@ -1,6 +1,7 @@
 
 import { useState, useRef, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ModuleTabs } from "@/components/layout/ModuleTabs";
 import { useBankAccounts } from "@/modules/finance/presentation/hooks/useBankAccounts";
 import { useBankReconciliation, SystemTransaction } from "@/modules/finance/presentation/hooks/useBankReconciliation";
 import { useConciliationEngine, MatchSuggestion, RuleConflict } from "@/modules/finance/presentation/hooks/useConciliationEngine";
@@ -1317,6 +1318,7 @@ export default function Conciliacao() {
                         <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Conciliação Bancária</h1>
                         <p className="text-[11px] text-white/80 mt-0.5">Importe extratos e concilie com seus lançamentos</p>
                     </div>
+                    <ModuleTabs />
                 </div>
 
                 {/* Header */}
