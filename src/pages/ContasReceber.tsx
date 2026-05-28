@@ -1007,7 +1007,6 @@ export default function ContasReceber() {
             valueColor="#1D2939"
             icon={<DollarSign size={18} />}
             iconColor={{ bg: '#EFF4FF', fg: '#1E3A8A' }}
-            info="Soma de todos os títulos a receber ainda não pagos (aberto, parcial e vencido) no período."
             sub={`${kpis.countAberto} título${kpis.countAberto !== 1 ? 's' : ''} em aberto`}
           />
           <KpiCard
@@ -1016,7 +1015,6 @@ export default function ContasReceber() {
             valueColor="#EA580C"
             icon={<Clock size={18} />}
             iconColor={{ bg: '#FFF7ED', fg: '#EA580C' }}
-            info="Títulos a receber cujo vencimento cai nos próximos 7 dias — o que entra no caixa em breve."
             sub={`${kpis.countVencendo} título${kpis.countVencendo !== 1 ? 's' : ''} a vencer`}
           />
           <KpiCard
@@ -1025,7 +1023,6 @@ export default function ContasReceber() {
             valueColor="#E53E3E"
             icon={<AlertTriangle size={18} />}
             iconColor={{ bg: '#FEF2F2', fg: '#B91C1C' }}
-            info="Títulos a receber que passaram do vencimento e ainda não foram pagos — inadimplência a cobrar."
             sub={`${kpis.countVencido} título${kpis.countVencido !== 1 ? 's' : ''} em atraso`}
           />
           <KpiCard
@@ -1034,7 +1031,6 @@ export default function ContasReceber() {
             valueColor="#039855"
             icon={<CheckCircle2 size={18} />}
             iconColor={{ bg: '#ECFDF5', fg: '#059669' }}
-            info="Total efetivamente recebido (títulos quitados) dentro do período selecionado."
             sub={`${kpis.countRecebido} recebimento${kpis.countRecebido !== 1 ? 's' : ''} no período`}
           />
         </KpiCardGrid>
