@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { safeQuery } from '@/lib/supabaseQuery'
 import { formatBRL, formatData, formatCNPJ } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ModuleTabs } from '@/components/layout/ModuleTabs'
 import { Search, Mail, Download, FileText, ChevronRight, MessageCircle, Plus, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -1035,6 +1036,7 @@ export default function Recibos() {
               </button>
             </div>
           </div>
+          <ModuleTabs />
         </div>
         <KpiCardGrid className="mb-4">
         <KpiCard
