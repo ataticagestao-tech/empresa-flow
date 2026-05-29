@@ -69,6 +69,10 @@ const IRRF_2025 = [
   { min: 4664.69, max: Infinity, aliq: 0.275, ded: 896.00 },
 ];
 const DEDUCAO_DEPENDENTE = 189.59;
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
 
 const calcularINSS = (salario: number) => {
   let total = 0;
@@ -134,11 +138,14 @@ export default function Funcionarios() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState("dados");
   const [search, setSearch] = useState("");
+  const [showInativos, setShowInativos] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [calcSalario, setCalcSalario] = useState(0);
   const [calcDependentes, setCalcDependentes] = useState(0);
+  const [calcCompetencia, setCalcCompetencia] = useState(() => new Date().toISOString().slice(0, 7));
+  const [lancandoCp, setLancandoCp] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [isDupOpen, setIsDupOpen] = useState(false);
   const [solicitarOpen, setSolicitarOpen] = useState(false);
@@ -169,12 +176,19 @@ export default function Funcionarios() {
     enabled: !!selectedCompany?.id,
   });
 
+  const isInativo = (s: string) => {
+    const v = (s || "").toLowerCase();
+    return v === "inativo" || v === "inactive" || v === "demitido";
+  };
+
   const filtered = employees.filter(e => {
+    if (!showInativos && isInativo(e.status)) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const n = getName(e).toLowerCase();
     return n.includes(q) || (e.role || "").toLowerCase().includes(q) || (e.cpf || "").includes(q);
   });
+  const inativosCount = employees.filter(e => isInativo(e.status)).length;
 
   const selected = employees.find(e => e.id === selectedId) || null;
   const set = (k: string, v: string) => {
@@ -669,6 +683,40 @@ export default function Funcionarios() {
   const inssPatronal = Math.round(calcSalario * 0.20 * 100) / 100;
   const custoTotal = Math.round((calcSalario + fgts + inssPatronal) * 100) / 100;
 
+  const lancarSalarioCp = async () => {
+    if (!selected || !selectedCompany?.id) return;
+    if (liquido <= 0) { toast.error("Informe um salário válido antes de lançar."); return; }
+    const [ano, mes] = calcCompetencia.split("-");
+    const mesLabel = MESES[Number(mes) - 1] ?? mes;
+    const ok = await confirm({
+      title: "Lançar salário no Contas a Pagar?",
+      description: `Será criada uma conta a pagar de ${formatNumero(liquido)} (líquido) para ${toTitleCase(getName(selected))}, competência ${mesLabel}/${ano}, vencimento dia 05.`,
+      confirmLabel: "Sim, lançar",
+    });
+    if (!ok) return;
+    setLancandoCp(true);
+    try {
+      const cpf = onlyDigitsHelper(selected.cpf);
+      const { error } = await (activeClient as any).from("contas_pagar").insert({
+        company_id: selectedCompany.id,
+        credor_nome: getName(selected),
+        credor_cpf_cnpj: cpf || null,
+        descricao: `Salário ${mesLabel}/${ano}`,
+        valor: liquido,
+        data_vencimento: `${calcCompetencia}-05`,
+        status: "aberto",
+        competencia: calcCompetencia,
+      });
+      if (error) throw error;
+      toast.success("Salário lançado no Contas a Pagar.");
+      queryClient.invalidateQueries({ queryKey: ["pagamentos-funcionario", selected.id] });
+    } catch (err: any) {
+      toast.error("Erro ao lançar: " + (err.message || err.details || "desconhecido"));
+    } finally {
+      setLancandoCp(false);
+    }
+  };
+
   const initials = (name: string) => (name || "?").split(" ").filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
   const showDetail = selected || isCreating;
   const ic = (field: string) => errors[field] ? ICE : IC;
@@ -716,8 +764,14 @@ export default function Funcionarios() {
         <div className="flex gap-4 flex-1 min-h-0">
         {/* LEFT: List */}
         <div className="w-1/3 min-w-[280px] border border-[#ccc] rounded-lg overflow-hidden flex flex-col bg-white">
-          <div className="p-3 border-b border-[#eee]">
+          <div className="p-3 border-b border-[#eee] space-y-2">
             <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className={IC} />
+            {inativosCount > 0 && (
+              <label className="flex items-center gap-2 text-[11px] text-[#555] cursor-pointer select-none">
+                <input type="checkbox" checked={showInativos} onChange={e => setShowInativos(e.target.checked)} className="accent-[#059669]" />
+                Mostrar inativos / demitidos ({inativosCount})
+              </label>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {employeesError ? <p className="text-center py-8 text-sm text-[#E53E3E]">Erro: {(employeesError as any).message || "Erro ao carregar"}</p> :
@@ -1112,6 +1166,26 @@ export default function Funcionarios() {
                         </div>
                       </div>
                     </div>
+
+                    {selected && (
+                      <div className="border-t border-[#eee] pt-4 flex flex-wrap items-end justify-between gap-4">
+                        <div className="flex items-end gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className={LB}>Competência</label>
+                            <input type="month" value={calcCompetencia} onChange={e => setCalcCompetencia(e.target.value)} className={IC} style={{ width: 170 }} />
+                          </div>
+                          <p className="text-[11px] text-[#777] max-w-xs pb-1">
+                            Lança o <strong>líquido</strong> ({formatNumero(liquido)}) como conta a pagar em aberto, vencimento dia 05.
+                          </p>
+                        </div>
+                        <button
+                          onClick={lancarSalarioCp}
+                          disabled={liquido <= 0 || lancandoCp}
+                          className="bg-[#039855] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#07401f] disabled:opacity-50 transition-all">
+                          {lancandoCp ? "Lançando..." : "Lançar no Contas a Pagar →"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
