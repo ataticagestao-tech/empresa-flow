@@ -199,6 +199,8 @@ async function handlePost(req: Request): Promise<Response> {
         });
     }
 
+    const tasks: Promise<void>[] = [];
+
     for (const entry of payload.entry ?? []) {
         for (const change of entry.changes ?? []) {
             const value = change.value as CloudValue;
@@ -209,8 +211,10 @@ async function handlePost(req: Request): Promise<Response> {
                 for (const msg of value.messages) {
                     const contact = value.contacts?.find((c) => c.wa_id === msg.from);
                     const evolutionLike = toEvolutionPayload(msg, contact, phoneNumberId);
-                    // fire-and-forget (nao bloqueia ack do webhook)
-                    forwardToAgente(evolutionLike);
+                    // Nao bloqueia o ack do webhook, mas registra a tarefa pra
+                    // manter o isolate vivo via EdgeRuntime.waitUntil (senao o
+                    // runtime do Supabase mata o forward antes de chegar no agente).
+                    tasks.push(forwardToAgente(evolutionLike));
                 }
             }
 
@@ -230,6 +234,17 @@ async function handlePost(req: Request): Promise<Response> {
                     JSON.stringify(value),
                 );
             }
+        }
+    }
+
+    if (tasks.length) {
+        const pending = Promise.all(tasks);
+        const edgeWaitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+        if (typeof edgeWaitUntil === "function") {
+            edgeWaitUntil(pending);
+        } else {
+            // ambiente sem EdgeRuntime: aguarda pra nao perder a tarefa
+            await pending;
         }
     }
 

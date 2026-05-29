@@ -12,6 +12,7 @@ import { DuplicatesDialog } from "@/components/suppliers/DuplicatesDialog";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 import { SupplierHistoryContent } from "@/components/suppliers/SupplierHistoryContent";
+import { InteracoesCadastro } from "@/components/interacoes/InteracoesCadastro";
 import { toTitleCase } from "@/lib/format";
 import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { toast } from "sonner";
@@ -109,7 +110,7 @@ export default function Fornecedores() {
     const confirm = useConfirm();
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [tab, setTab] = useState<"dados" | "historico">("dados");
+    const [tab, setTab] = useState<"dados" | "historico" | "interacoes">("dados");
     const [search, setSearch] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [formData, setFormData] = useState(emptyForm);
@@ -418,6 +419,7 @@ export default function Fornecedores() {
                                 {[
                                     { id: "dados" as const, label: "Dados Cadastrais" },
                                     { id: "historico" as const, label: "Histórico de Pagamentos" },
+                                    { id: "interacoes" as const, label: "Interações" },
                                 ].map(t => (
                                     <button key={t.id} onClick={() => setTab(t.id)} disabled={isCreating && t.id === "historico"}
                                         className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
@@ -596,6 +598,10 @@ export default function Fornecedores() {
 
                                 {tab === "historico" && selected && (
                                     <SupplierHistoryContent supplier={selected} />
+                                )}
+
+                                {tab === "interacoes" && selected && (
+                                    <InteracoesCadastro tipo="fornecedor" id={selected.id} />
                                 )}
                             </div>
                         </>

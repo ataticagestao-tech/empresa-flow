@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatBRL, toTitleCase } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
+import { InteracoesCadastro } from "@/components/interacoes/InteracoesCadastro";
 import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDialog";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -754,7 +755,8 @@ export default function Funcionarios() {
             <>
               <div className="bg-[#059669] px-3 py-2 flex items-center gap-1 overflow-x-auto">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Salários" },
-                  { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" }].map(t => (
+                  { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" },
+                  { id: "interacoes", label: "Interações" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
                     className={`shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
                       tab === t.id ? "bg-white text-[#064E3B]" : "text-white/90 hover:bg-white/20"
@@ -1111,6 +1113,10 @@ export default function Funcionarios() {
                     salarioBase={Number(selected.salario_base ?? selected.salary ?? 0)}
                     usuarioId={user?.id ?? ""}
                   />
+                )}
+
+                {tab === "interacoes" && selected && (
+                  <InteracoesCadastro tipo="funcionario" id={selected.id} />
                 )}
               </div>
             </>

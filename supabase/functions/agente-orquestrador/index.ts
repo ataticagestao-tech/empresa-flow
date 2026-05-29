@@ -11,6 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { getCloudConfig, isCloudEnabled, sendCloudText } from "../_shared/whatsapp-cloud.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -21,7 +22,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const ANTHROPIC_MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-opus-4-7";
+const ANTHROPIC_MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-6";
 const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL") ?? "https://api.ataticagestao.com";
 const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY")!;
 const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_INSTANCE") ?? "financeiro";
@@ -53,7 +54,32 @@ REGRAS DE NEGÓCIO:
 - Faturamento usa competência por padrão; caixa quando empresário falar "que entrou", "recebi de fato"
 - Excluir extrato apaga em cascata — confirmar 2x
 
+OVERNIGHT (relatório financeiro diário):
+- O Overnight é um resumo financeiro do dia/mês em PDF enviado automaticamente pelo WhatsApp num horário configurável (padrão 18h). Contém: Faturamento do mês (pelas vendas), Despesas do mês (contas a pagar pagas), Resultado do mês, e o Consolidado de Entradas/Saídas do dia e do mês.
+- Se o empresário pedir o overnight/relatório do dia/fechamento na hora ("me manda o overnight", "quero o relatório de hoje agora"), use a tool enviar_overnight — ela manda o PDF pros números já cadastrados. Não precisa confirmar (não é ação destrutiva), mas avise que vai pros números configurados.
+- Horário, números de destino e ativar/desativar o envio se mexe em Configurações > Overnight no sistema (não dá pra mudar pelo chat). Se a tool disser que não está ativado, oriente o empresário a ativar lá.
+
 ESTILO: português brasileiro coloquial, frases curtas, emoji com moderação (✅💰⚠️🚀). NUNCA "estou aqui pra ajudar", "espero ter ajudado", "foi um prazer".
+
+FORMATAÇÃO WHATSAPP (CRÍTICO — a resposta vai pro WhatsApp, que NÃO renderiza Markdown):
+- Negrito é com UM asterisco só: *assim*. NUNCA use **dois asteriscos** (aparece literal no WhatsApp).
+- PROIBIDO: tabelas (nada de | ou |---|), títulos com # ou ##, e listas com markdown complexo. Tudo isso aparece quebrado/ilegível no celular.
+- Pra listar várias contas/itens, use o formato ESPAÇADO (2 linhas por item + LINHA EM BRANCO entre os itens):
+  linha 1: *Credor* — descrição curta
+  linha 2: R$ valor · venceu/vence DD/MM (emoji de alerta se vencida)
+  (linha em branco)
+  Exemplo de um bloco:
+  "🔴 *Vencidas*
+
+  *Sefaz MG* — ICMS
+  R$ 10.477,21 · venceu 30/04 ⚠️
+
+  *Carpintaria S. Vicente* — Serviço
+  R$ 1.850,00 · venceu 28/05"
+- Agrupe por seção com um cabeçalho em *negrito* + emoji (🔴 vencidas, 🟡 a vencer). NÃO numere os itens.
+- SEMPRE deixe uma linha em branco entre um item e o outro — é isso que deixa legível no celular.
+- Listas longas: mostre os principais (uns 8-10), diga quantos faltam e ofereça filtrar. Não despeje 30 linhas.
+- Valores sempre R$ com vírgula decimal (R$ 1.850,00).
 
 FLUXO DE LANÇAR CP ("paguei X de Y", "lança CP de Z", "salário do João"):
 1. Identifique do texto: valor, descrição/o-que-é, data (vencimento — default hoje se ele disse "paguei")
@@ -69,8 +95,45 @@ FLUXO DE LANÇAR CP ("paguei X de Y", "lança CP de Z", "salário do João"):
 6. Se ele responder SIM/confirma/pode/ok → chame lancar_cp com credor_id, credor_nome E credor_tipo
 7. Avise que ficou EM ABERTO: "Lancei a CP em aberto. Pra dar baixa quando pagar, manda 'paguei a conta da [credor]'."
 
+FLUXO DE BAIXA / PAGAMENTO ("paguei a conta da X", "quitei o aluguel", "paguei o salário do João", "dei baixa na luz"):
+1. Chame listar_cp_abertas com termo = credor/descrição do que ele falou
+2. Se achou 1 CP → use ela. Se achou 2+ → liste pro empresário (credor, valor, vencimento) e pergunte qual. Se 0 → avise que não tem conta em aberto com esse nome (talvez não foi lançada ainda; ofereça lançar com lancar_cp)
+3. Pergunte de qual conta bancária saiu o pagamento (chame listar_contas_bancarias; se ele só tem uma, use direto). Data: default hoje, a menos que ele diga outra
+4. CONFIRME: "Dar baixa de R$ [saldo] da [credor] pela conta [nome], hoje? Confirma?"
+5. Se SIM → chame baixar_cp com cp_id, conta_bancaria_id (e valor_pago só se for pagamento parcial)
+6. Avise o resultado: "Quitei ✅" ou, se parcial, que ainda resta saldo
+
+RECEBER (Contas a Receber) — espelha o de pagar:
+- "Recebi do cliente X", "caiu o pagamento da Maria", "dei baixa no recebimento" → MESMO fluxo da baixa, mas com listar_cr_abertas (achar) + baixar_cr (em qual conta caiu o dinheiro). É entrada, não saída.
+- "Fulano vai me pagar R$ X dia Y", "lança a receber" → lancar_cr (fica em aberto). Categoria é de RECEITA (listar_categorias tipo=receita).
+
+DETALHAR VENDAS:
+- consultar_faturamento dá só o TOTAL. Quando ele quer ver venda a venda ("quais vendas fiz hoje", "detalha as vendas de ontem", "vendas do cliente X"), use listar_vendas. Mostre cliente, valor, data e forma.
+
+EDITAR FORNECEDOR:
+- "muda o telefone do fornecedor X", "corrige o CNPJ da Equatorial" → buscar_fornecedor (pega o id) → confirme a mudança → editar_fornecedor com só os campos que mudaram.
+
+CONFIG DO OVERNIGHT:
+- "muda o overnight pras 19h", "adiciona/troca o número que recebe o overnight", "liga/desliga o overnight" → atualizar_config_overnight (confirme antes). Mudar destinos SUBSTITUI a lista — se for adicionar, primeiro descubra os números atuais. Se a empresa nunca configurou, a tool avisa pra fazer a 1ª config na tela Configurações.
+
+CADASTRAR FUNCIONÁRIO:
+- "cadastra o funcionário João", "novo funcionário Maria salário 2000" → criar_funcionario. SÓ CLT/temporário/estágio. Se for PJ/autônomo, é criar_fornecedor. Peça o nome (e CPF/salário se ele tiver). Confirme antes.
+
+EXCLUIR / EDITAR LANÇAMENTO:
+- "apaga a conta que lancei errado", "exclui aquele lançamento" → ache com listar_cp_abertas/listar_cr_abertas, CONFIRME (SIM/NÃO), chame excluir_lancamento. Só funciona em aberto; se já foi pago, avise que precisa estorno no sistema.
+- "corrige o valor/vencimento/descrição daquela conta" → ache o id, confirme, chame editar_lancamento (só em aberto).
+
+DRE / FLUXO DE CAIXA:
+- "me mostra o DRE", "qual o resultado do mês" → gerar_dre. Resuma no chat as linhas principais: *Receita Líquida*, *Lucro Bruto*, *Resultado Operacional*, *Resultado Líquido* (uma por linha, formato WhatsApp).
+- "me mostra o fluxo de caixa", "como tá o caixa" → gerar_fluxo_caixa. Resuma entradas/saídas por atividade e o resultado.
+- Período default é o mês corrente; se ele pedir outro ("do trimestre", "de abril"), resolva as datas antes.
+- (Por enquanto é resumo no chat, não PDF.)
+
+REENVIAR OVERNIGHT DE DIA ANTERIOR:
+- "me reenvia o overnight de ontem", "manda o fechamento do dia 25" → reenviar_overnight com a data (resolva pra YYYY-MM-DD). Vai pro SEU WhatsApp (de quem pediu). Diferente de enviar_overnight, que é o de HOJE pros números configurados.
+
 IMPORTANTE:
-- CP é lançada SEMPRE em aberto, mesmo se ele disse "paguei". Baixa é em mensagem separada.
+- CP é lançada SEMPRE em aberto, mesmo se ele disse "paguei". O lançamento e a baixa são coisas separadas: se ele manda "paguei a conta da X" e a CP JÁ existe em aberto, vá direto pro FLUXO DE BAIXA. Se NÃO existe, lance primeiro (lancar_cp) e depois pode dar baixa.
 - NÃO precisa perguntar conta bancária no lançamento (só na baixa)
 - Pra FOLHA DE PAGAMENTO formal (mês inteiro de vários funcionários), peça pra usar a tela de Folha no sistema, NÃO lance CP avulsa
 - Se ele já passou todas as infos numa única mensagem ("lança CP 500 luz Equatorial CNPJ 12.345.678/0001-90 vence amanhã"), pule perguntas e confirme tudo de uma vez
@@ -195,6 +258,221 @@ const TOOLS = [
                 observacao: { type: "string" },
             },
             required: ["empresa_id", "credor_nome", "descricao", "valor", "data_vencimento"],
+        },
+    },
+    {
+        name: "listar_cp_abertas",
+        description: "Lista as Contas a Pagar em aberto/parcial/vencidas da empresa. Use pra ACHAR a conta que o empresário quer dar baixa quando ele diz 'paguei a conta da Equatorial', 'quitei o aluguel', 'paguei o salário do João'. Filtra por credor ou descrição via 'termo'. Retorna cp_id, credor, descrição, saldo e vencimento.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                termo: { type: "string", description: "Filtra por nome do credor ou descrição (ex: 'Equatorial', 'aluguel', 'João'). Opcional." },
+            },
+            required: ["empresa_id"],
+        },
+    },
+    {
+        name: "baixar_cp",
+        description: "Dá baixa (registra o pagamento) de uma Conta a Pagar em aberto — marca como paga e cria a movimentação no extrato. Use depois de o empresário confirmar que pagou. SEMPRE ache a CP antes com listar_cp_abertas (pega o cp_id) e pergunte de qual conta bancária saiu o pagamento (use listar_contas_bancarias). CONFIRME com o empresário antes de chamar.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                cp_id: { type: "string", description: "UUID da CP a quitar (venho de listar_cp_abertas)." },
+                conta_bancaria_id: { type: "string", description: "UUID da conta bancária de onde saiu o pagamento (de listar_contas_bancarias)." },
+                data_pagamento: { type: "string", description: "YYYY-MM-DD. Opcional, default hoje." },
+                valor_pago: { type: "number", description: "Valor pago em reais. Opcional, default = saldo restante da CP (quita total)." },
+                forma_pagamento: { type: "string", description: "pix, dinheiro, transferencia, boleto, cartao. Opcional, default pix." },
+            },
+            required: ["empresa_id", "cp_id", "conta_bancaria_id"],
+        },
+    },
+    {
+        name: "listar_cr_abertas",
+        description: "Lista as Contas a Receber em aberto/parcial/vencidas. Use pra ACHAR o recebimento quando o empresário diz 'recebi do cliente X', 'caiu o pagamento da Maria'. Filtra por pagador ou descrição via 'termo'. Retorna cr_id, pagador, saldo e vencimento.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                termo: { type: "string", description: "Filtra por nome do pagador ou descrição. Opcional." },
+            },
+            required: ["empresa_id"],
+        },
+    },
+    {
+        name: "baixar_cr",
+        description: "Dá baixa (registra o recebimento) de uma Conta a Receber em aberto — marca recebida e lança a entrada no extrato. Use depois que o empresário confirmar que recebeu. SEMPRE ache a CR antes com listar_cr_abertas e pergunte em qual conta bancária o dinheiro caiu. CONFIRME antes de chamar.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                cr_id: { type: "string", description: "UUID da CR (de listar_cr_abertas)." },
+                conta_bancaria_id: { type: "string", description: "UUID da conta onde o dinheiro caiu (de listar_contas_bancarias)." },
+                data_pagamento: { type: "string", description: "YYYY-MM-DD. Opcional, default hoje." },
+                valor_pago: { type: "number", description: "Opcional, default = saldo restante (recebe total)." },
+                forma_recebimento: { type: "string", description: "pix, dinheiro, transferencia, boleto, cartao. Opcional, default pix." },
+            },
+            required: ["empresa_id", "cr_id", "conta_bancaria_id"],
+        },
+    },
+    {
+        name: "lancar_cr",
+        description: "Lança uma Conta a Receber EM ABERTO (alguém vai te pagar). Use pra 'fulano vai me pagar X dia Y', 'lança a receber de R$ Z do cliente'. Fica em aberto até dar baixa com baixar_cr. CONFIRME antes de chamar.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                pagador_nome: { type: "string", description: "Quem vai pagar (cliente/pessoa)." },
+                valor: { type: "number", description: "Valor em reais (1500.50)." },
+                data_vencimento: { type: "string", description: "YYYY-MM-DD." },
+                descricao: { type: "string", description: "Ex: 'Serviço de consultoria', 'Venda parcelada'." },
+                pagador_cpf_cnpj: { type: "string", description: "Opcional." },
+                categoria_id: { type: "string", description: "UUID da categoria de receita. Opcional (use listar_categorias com tipo=receita)." },
+            },
+            required: ["empresa_id", "pagador_nome", "valor", "data_vencimento"],
+        },
+    },
+    {
+        name: "listar_vendas",
+        description: "Lista as vendas individuais (detalhe venda a venda) de um período — complementa consultar_faturamento, que é só o total. Use pra 'quais vendas fiz hoje', 'detalha as vendas da semana', 'vendas do cliente X'. Read-only.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                data_inicio: { type: "string", description: "YYYY-MM-DD. Opcional, default 1º dia do mês." },
+                data_fim: { type: "string", description: "YYYY-MM-DD. Opcional, default hoje." },
+                termo: { type: "string", description: "Filtra por nome do cliente. Opcional." },
+            },
+            required: ["empresa_id"],
+        },
+    },
+    {
+        name: "editar_fornecedor",
+        description: "Edita campos de um fornecedor existente (razão social, nome fantasia, CPF/CNPJ, email, telefone). SEMPRE use buscar_fornecedor antes pra pegar o fornecedor_id. Só atualiza os campos informados. CONFIRME a alteração antes.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                fornecedor_id: { type: "string", description: "UUID do fornecedor (de buscar_fornecedor)." },
+                razao_social: { type: "string" },
+                nome_fantasia: { type: "string" },
+                cpf_cnpj: { type: "string" },
+                email: { type: "string" },
+                telefone: { type: "string" },
+            },
+            required: ["empresa_id", "fornecedor_id"],
+        },
+    },
+    {
+        name: "atualizar_config_overnight",
+        description: "Ajusta a configuração do Overnight da empresa: horário de envio, números que recebem e ligar/desligar o envio. Use pra 'muda o overnight pras 19h', 'adiciona o número X no overnight', 'desliga o overnight'. CONFIRME antes. (A 1ª configuração ainda precisa ser feita na tela Configurações.)",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                horario: { type: "string", description: "HH:MM (ex: 19:00). Opcional." },
+                destinos: { type: "array", items: { type: "string" }, description: "Lista de números (DDD+número). Substitui a lista atual. Opcional." },
+                whatsapp_ativo: { type: "boolean", description: "true liga, false desliga o envio. Opcional." },
+                mensagem: { type: "string", description: "Legenda opcional do envio." },
+            },
+            required: ["empresa_id"],
+        },
+    },
+    {
+        name: "criar_funcionario",
+        description: "Cadastra um funcionário novo (employees). SÓ CLT, temporário ou estágio — PJ/autônomo deve ser cadastrado como fornecedor (criar_fornecedor). Peça nome e, se possível, CPF e salário. CONFIRME antes de criar.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                nome: { type: "string" },
+                cpf: { type: "string", description: "Opcional, mas recomendável." },
+                cargo: { type: "string", description: "Opcional." },
+                salario: { type: "number", description: "Salário base em reais. Opcional." },
+                tipo_contrato: { type: "string", enum: ["clt", "temporario", "estagio"], description: "Default clt." },
+                data_admissao: { type: "string", description: "YYYY-MM-DD. Opcional." },
+            },
+            required: ["empresa_id", "nome"],
+        },
+    },
+    {
+        name: "excluir_lancamento",
+        description: "Exclui (soft-delete) uma Conta a Pagar ou a Receber que ainda está EM ABERTO. Use pra 'apaga aquela conta que lancei errado'. Pega o id com listar_cp_abertas/listar_cr_abertas. Lançamento JÁ PAGO não dá — precisa estorno no sistema. CONFIRME (SIM/NÃO) antes.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                tipo: { type: "string", enum: ["cp", "cr"], description: "cp = conta a pagar, cr = conta a receber." },
+                id: { type: "string", description: "UUID do lançamento (cp_id ou cr_id)." },
+            },
+            required: ["empresa_id", "tipo", "id"],
+        },
+    },
+    {
+        name: "editar_lancamento",
+        description: "Edita uma Conta a Pagar/Receber EM ABERTO (descrição, valor, vencimento, categoria). Use pra 'corrige o valor daquela conta', 'muda o vencimento'. Pega o id com listar_cp_abertas/listar_cr_abertas. Pago não dá. CONFIRME antes.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                tipo: { type: "string", enum: ["cp", "cr"] },
+                id: { type: "string" },
+                descricao: { type: "string" },
+                valor: { type: "number" },
+                data_vencimento: { type: "string", description: "YYYY-MM-DD" },
+                categoria_id: { type: "string", description: "UUID da categoria." },
+            },
+            required: ["empresa_id", "tipo", "id"],
+        },
+    },
+    {
+        name: "gerar_dre",
+        description: "Gera o DRE (Demonstração de Resultado: receita, custos, despesas, lucro) de um período. Use pra 'me mostra o DRE', 'qual o resultado do mês'. Retorna as linhas — resuma as principais no chat (Receita Líquida, Lucro Bruto, Resultado Operacional, Resultado Líquido).",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                data_inicio: { type: "string", description: "YYYY-MM-DD. Default 1º dia do mês." },
+                data_fim: { type: "string", description: "YYYY-MM-DD. Default hoje." },
+            },
+            required: ["empresa_id"],
+        },
+    },
+    {
+        name: "gerar_fluxo_caixa",
+        description: "Gera a DFC (Demonstração de Fluxo de Caixa: entradas/saídas por atividade) de um período. Use pra 'me mostra o fluxo de caixa', 'como ficou o caixa do mês'. Resuma as principais linhas no chat.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                data_inicio: { type: "string", description: "YYYY-MM-DD. Default 1º dia do mês." },
+                data_fim: { type: "string", description: "YYYY-MM-DD. Default hoje." },
+            },
+            required: ["empresa_id"],
+        },
+    },
+    {
+        name: "reenviar_overnight",
+        description: "Gera o Overnight de uma DATA específica (dia anterior) e manda o PDF pro WhatsApp de quem pediu. Use pra 'me reenvia o overnight de ontem', 'manda o fechamento do dia 25'. Resolva a data relativa antes (YYYY-MM-DD).",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+                data: { type: "string", description: "YYYY-MM-DD — o dia do overnight." },
+            },
+            required: ["empresa_id", "data"],
+        },
+    },
+    {
+        name: "enviar_overnight",
+        description: "Dispara AGORA o Overnight (relatório financeiro diário em PDF) por WhatsApp pros números já configurados da empresa. Use quando o empresário pedir 'me manda o overnight', 'manda o relatório do dia', 'quero o fechamento de hoje agora'. Não escolhe destinatário — envia pros destinos cadastrados em Configurações > Overnight. Se o WhatsApp do overnight não estiver ativado, a tool avisa.",
+        input_schema: {
+            type: "object",
+            properties: {
+                empresa_id: { type: "string" },
+            },
+            required: ["empresa_id"],
         },
     },
 ];
@@ -350,7 +628,24 @@ async function extrairDadosBoleto(base64: string, mimetype: string): Promise<any
 }
 
 async function enviarResposta(phone: string, text: string) {
-    // Chama Evolution direto (pula enviar-whatsapp pra evitar JWT entre edge functions).
+    // Cloud API (oficial Meta) quando a flag USE_WHATSAPP_CLOUD=true.
+    // Resposta a mensagem recebida = dentro da janela de 24h, entao texto livre e permitido.
+    if (isCloudEnabled()) {
+        const cfg = getCloudConfig();
+        if (!cfg) {
+            console.error("[orquestrador] USE_WHATSAPP_CLOUD=true mas credenciais Cloud ausentes");
+            return;
+        }
+        const res = await sendCloudText(cfg, { to: phone, text });
+        if (!res.ok) {
+            console.error("[orquestrador] enviar (cloud) falhou:", res.error);
+        } else {
+            console.log("[orquestrador] enviada (cloud) pra", phone, "—", text.slice(0, 50));
+        }
+        return;
+    }
+
+    // Fallback legado: Evolution direto (pula enviar-whatsapp pra evitar JWT entre edge functions).
     const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${EVOLUTION_INSTANCE}`;
     try {
         const resp = await fetch(url, {
@@ -443,8 +738,8 @@ async function executarTool(
 
     // Filtro de permissões por tool (write tools precisam de flag específica)
     const permissoes = empresaCtx?.permissoes || {};
-    const requerLancarCp = ["lancar_cp", "criar_fornecedor"];
-    const requerBaixarCp = ["baixar_cp"];
+    const requerLancarCp = ["lancar_cp", "criar_fornecedor", "lancar_cr", "editar_fornecedor", "atualizar_config_overnight", "criar_funcionario", "excluir_lancamento", "editar_lancamento"];
+    const requerBaixarCp = ["baixar_cp", "baixar_cr"];
     if (requerLancarCp.includes(name) && permissoes.lancar_cp !== true) {
         return { error: "Você não tem permissão pra lançar contas nessa empresa. Fale com o admin." };
     }
@@ -460,6 +755,7 @@ async function executarTool(
     };
     if (contexto.user_id) headers["x-agente-user-id"] = contexto.user_id;
     if (contexto.acesso_id) headers["x-agente-acesso-id"] = contexto.acesso_id;
+    if (contexto.phone) headers["x-agente-phone"] = contexto.phone;
 
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/agente-tool-${name}`, {
         method: "POST",
@@ -478,6 +774,15 @@ async function chamarClaude(messages: any[], tokensCacheable: boolean) {
         ? [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }]
         : [{ type: "text", text: SYSTEM_PROMPT }];
 
+    // Cacheia também o bloco de tools (cache_control na ÚLTIMA tool cobre todas).
+    // Sem isso, as ~24 definições eram cobradas preço cheio em CADA volta do loop.
+    // Não muda comportamento — só barateia as chamadas repetidas.
+    const tools = tokensCacheable
+        ? TOOLS.map((t, i) =>
+            i === TOOLS.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t
+          )
+        : TOOLS;
+
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -489,7 +794,7 @@ async function chamarClaude(messages: any[], tokensCacheable: boolean) {
             model: ANTHROPIC_MODEL,
             max_tokens: 1024,
             system: systemBlocks,
-            tools: TOOLS,
+            tools,
             messages,
         }),
     });

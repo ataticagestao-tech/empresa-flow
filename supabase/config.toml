@@ -5,3 +5,105 @@ verify_jwt = false
 
 [functions.whatsapp-cloud-webhook]
 verify_jwt = false
+
+# Chamadas server-side com a service key (formato novo sb_secret_*, que nao e
+# JWT). Precisam de verify_jwt=false senao o gateway rejeita com
+# UNAUTHORIZED_INVALID_JWT_FORMAT. Vale pro agente e pras tools dele.
+[functions.agente-orquestrador]
+verify_jwt = false
+
+[functions.agente-tool-enviar_overnight]
+verify_jwt = false
+
+# Cadeia do overnight + cadastro: chamadas servidor-a-servidor com a service
+# key sb_secret_* (cron/pg_net, agente, disparar→gerar→enviar). Sem
+# verify_jwt=false o gateway barra a chamada interna com 401.
+[functions.disparar-overnight-agendado]
+verify_jwt = false
+
+[functions.gerar-overnight-pdf]
+verify_jwt = false
+
+[functions.enviar-whatsapp]
+verify_jwt = false
+
+[functions.cadastro-processor]
+verify_jwt = false
+
+# Tools antigas do agente + ler-boleto: ja estao verify_jwt=false no servidor,
+# mas nao estavam declaradas aqui. Sem esta entrada, um redeploy futuro cairia
+# no default true e quebraria a chamada do agente (sb_secret nao e JWT).
+[functions.agente-tool-buscar_fornecedor]
+verify_jwt = false
+
+[functions.agente-tool-buscar_funcionario]
+verify_jwt = false
+
+[functions.agente-tool-buscar_socio]
+verify_jwt = false
+
+[functions.agente-tool-consultar_faturamento]
+verify_jwt = false
+
+[functions.agente-tool-consultar_saldo]
+verify_jwt = false
+
+[functions.agente-tool-criar_fornecedor]
+verify_jwt = false
+
+[functions.agente-tool-lancar_cp]
+verify_jwt = false
+
+[functions.agente-tool-listar_categorias]
+verify_jwt = false
+
+[functions.agente-tool-listar_contas_bancarias]
+verify_jwt = false
+
+[functions.ler-boleto]
+verify_jwt = false
+
+[functions.agente-tool-listar_cp_abertas]
+verify_jwt = false
+
+[functions.agente-tool-baixar_cp]
+verify_jwt = false
+
+[functions.agente-tool-listar_cr_abertas]
+verify_jwt = false
+
+[functions.agente-tool-baixar_cr]
+verify_jwt = false
+
+[functions.agente-tool-lancar_cr]
+verify_jwt = false
+
+[functions.agente-tool-listar_vendas]
+verify_jwt = false
+
+[functions.agente-tool-editar_fornecedor]
+verify_jwt = false
+
+[functions.agente-tool-atualizar_config_overnight]
+verify_jwt = false
+
+[functions.agente-tool-criar_funcionario]
+verify_jwt = false
+
+[functions.agente-tool-excluir_lancamento]
+verify_jwt = false
+
+[functions.agente-tool-editar_lancamento]
+verify_jwt = false
+
+[functions.agente-tool-reenviar_overnight]
+verify_jwt = false
+
+[functions.agente-tool-gerar_dre]
+verify_jwt = false
+
+[functions.agente-tool-gerar_fluxo_caixa]
+verify_jwt = false
+
+[functions.resumir-interacao]
+verify_jwt = false

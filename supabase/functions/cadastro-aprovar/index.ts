@@ -387,6 +387,47 @@ serve(async (req) => {
             }
         }
 
+        // ---- Anota a interação no cadastro da pessoa (resumo IA) ----
+        // Fire-and-forget protegido: se falhar, NÃO quebra a aprovação.
+        if (alvoId) {
+            try {
+                const { data: msgs } = await service
+                    .from("cadastro_mensagens")
+                    .select("conteudo, direcao, media_path")
+                    .eq("solicitacao_id", solicitacao_id);
+                const mensagens = (msgs ?? []).map((m: any) => ({
+                    autor: m.direcao === "enviada" ? "empresa" : "pessoa",
+                    texto: m.conteudo ?? "",
+                    tem_arquivo: !!m.media_path,
+                }));
+                if (mensagens.length > 0) {
+                    const arquivo = (msgs ?? []).filter((m: any) => m.media_path).pop()?.media_path ?? null;
+                    await fetch(`${SUPABASE_URL}/functions/v1/resumir-interacao`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${SERVICE_KEY}`,
+                            apikey: SERVICE_KEY,
+                        },
+                        body: JSON.stringify({
+                            company_id: solicitacao.company_id,
+                            alvo_tipo: solicitacao.tipo,
+                            alvo_id: alvoId,
+                            canal: "whatsapp",
+                            direcao: "mista",
+                            telefone: solicitacao.telefone,
+                            mensagens,
+                            teve_arquivo: !!arquivo,
+                            arquivo_path: arquivo,
+                            metadata: { origem: "cadastro_aprovado", solicitacao_id },
+                        }),
+                    });
+                }
+            } catch (e) {
+                console.error("[cadastro-aprovar] falha ao anotar interação:", e);
+            }
+        }
+
         return jsonResponse({
             ok: true,
             solicitacao_id,

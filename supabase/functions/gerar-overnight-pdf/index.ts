@@ -43,6 +43,7 @@ const HERO_HEIGHT = 100;
 interface OvernightRequest {
     empresa_id: string;
     origem?: "manual" | "agendado";
+    data?: string; // YYYY-MM-DD — data de referência (default hoje). Pra reenviar overnight de dias anteriores.
 }
 
 // ============================================================
@@ -81,7 +82,7 @@ serve(async (req: Request) => {
     const origem = body.origem ?? "manual";
 
     try {
-        const dados = await coletarDados(userClient, body.empresa_id);
+        const dados = await coletarDados(userClient, body.empresa_id, body.data);
         const pdfBytes = await renderizarPdf(dados);
 
         await serviceClient.from("overnight_logs").insert({
@@ -181,8 +182,12 @@ function formatIsoDate(d: Date): string {
     return d.toISOString().slice(0, 10);
 }
 
-async function coletarDados(client: SupabaseClient, companyId: string): Promise<OvernightDados> {
-    const hoje = hojeBRT();
+async function coletarDados(client: SupabaseClient, companyId: string, refDateIso?: string): Promise<OvernightDados> {
+    // refDateIso (YYYY-MM-DD) permite gerar o overnight de um dia anterior.
+    // Sem ele, comportamento idêntico ao diário (hoje BRT).
+    const hoje = (refDateIso && /^\d{4}-\d{2}-\d{2}$/.test(refDateIso))
+        ? new Date(`${refDateIso}T00:00:00Z`)
+        : hojeBRT();
     const hojeIso = formatIsoDate(hoje);
     const inicioMesIso = formatIsoDate(new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1)));
 

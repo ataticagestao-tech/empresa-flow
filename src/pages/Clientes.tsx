@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
+import { InteracoesCadastro } from "@/components/interacoes/InteracoesCadastro";
 import { SendEmailDialog } from "@/components/email/SendEmailDialog";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import { TabContracts } from "@/modules/clients/presentation/partials/TabContracts";
@@ -37,7 +38,7 @@ import {
 /* ─── Tipos de filtro ──────────────────────────────────────── */
 
 type FilterTab = "todos" | "ativos" | "inadimplentes" | "inativos";
-type DetailTab = "historico" | "dados" | "anotacoes" | "contratos";
+type DetailTab = "historico" | "dados" | "anotacoes" | "contratos" | "interacoes";
 
 /* ─── Interfaces ───────────────────────────────────────────── */
 
@@ -1175,6 +1176,7 @@ export default function Clientes() {
                                         ? [{ key: "contratos" as DetailTab, label: "Contratos" }]
                                         : []),
                                     { key: "anotacoes" as DetailTab, label: "Anotações" },
+                                    { key: "interacoes" as DetailTab, label: "Interações" },
                                 ]).map(tab => (
                                     <button
                                         key={tab.key}
@@ -1393,6 +1395,9 @@ export default function Clientes() {
                                             </p>
                                         </div>
                                     </div>
+                                )}
+                                {detailTab === "interacoes" && (
+                                    <InteracoesCadastro tipo="cliente" id={selectedClient?.id} />
                                 )}
                             </ScrollArea>
                         </>
