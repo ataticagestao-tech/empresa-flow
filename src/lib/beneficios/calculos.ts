@@ -101,6 +101,8 @@ export interface InputBeneficios {
   vtValorUnitario: number
   vaAtivo: boolean
   vaValorDia: number
+  /** Aplica o desconto da parte do funcionário (VT 6%). Default: true. */
+  descontarFunc?: boolean
 }
 
 export interface ResultadoBeneficios {
@@ -117,8 +119,9 @@ export interface ResultadoBeneficios {
 const arred = (v: number) => Math.round(v * 100) / 100
 
 export const calcularBeneficios = (i: InputBeneficios): ResultadoBeneficios => {
+  const aplicarDesconto = i.descontarFunc !== false
   const vtBruto = i.vtAtivo ? arred(i.diasConsiderados * i.vtValesPorDia * i.vtValorUnitario) : 0
-  const vtDescontoFunc = i.vtAtivo ? arred(Math.min(i.salarioBase * 0.06, vtBruto)) : 0
+  const vtDescontoFunc = (i.vtAtivo && aplicarDesconto) ? arred(Math.min(i.salarioBase * 0.06, vtBruto)) : 0
   const vtCustoEmpresa = arred(vtBruto - vtDescontoFunc)
   const vaTotal = i.vaAtivo ? arred(i.diasConsiderados * i.vaValorDia) : 0
 

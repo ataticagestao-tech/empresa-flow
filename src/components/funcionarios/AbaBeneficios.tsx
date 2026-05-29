@@ -69,6 +69,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
   const [diasManuais, setDiasManuais] = useState<Set<string>>(new Set());
   const [salvando, setSalvando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [descontarFunc, setDescontarFunc] = useState(true);
+  const [showAutorizar, setShowAutorizar] = useState(false);
 
   useEffect(() => {
     if (!cfgDb) return;
@@ -97,9 +99,15 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
         vtValorUnitario,
         vaAtivo,
         vaValorDia,
+        descontarFunc,
       }),
-    [salarioBase, diasConsiderados, vtAtivo, vtValesPorDia, vtValorUnitario, vaAtivo, vaValorDia]
+    [salarioBase, diasConsiderados, vtAtivo, vtValesPorDia, vtValorUnitario, vaAtivo, vaValorDia, descontarFunc]
   );
+
+  const vtPorDia = vtAtivo ? vtValesPorDia * vtValorUnitario : 0;
+  const vaPorDia = vaAtivo ? vaValorDia : 0;
+  const descontoFaltasVT = Math.round(faltas * vtPorDia * 100) / 100;
+  const descontoFaltasVA = Math.round(faltas * vaPorDia * 100) / 100;
 
   const competencia = `${ano}-${String(mes).padStart(2, "0")}`;
   const jaConfirmado = historico.some((h) => h.competencia === competencia && h.status === "confirmado");
@@ -114,14 +122,20 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
     else toast.error("Erro ao salvar configuração");
   };
 
-  const handleConfirmar = async () => {
+  const handleConfirmar = async (descontar: boolean) => {
+    setShowAutorizar(false);
+    setDescontarFunc(descontar);
     setConfirmando(true);
+    const resFinal = calcularBeneficios({
+      salarioBase, diasConsiderados, vtAtivo, vtValesPorDia, vtValorUnitario, vaAtivo, vaValorDia,
+      descontarFunc: descontar,
+    });
     const res = await confirmarBeneficiosMes({
       client: activeClient,
       companyId, employeeId, employeeNome,
       competencia, diasUteis, diasFaltas: faltas, diasConsiderados,
       config: { vtAtivo, vtValesPorDia, vtValorUnitario, vaAtivo, vaValorDia, regimeTrabalho: regime },
-      resultado, usuarioId,
+      resultado: resFinal, usuarioId,
     });
     setConfirmando(false);
     if (res.sucesso) {
@@ -130,6 +144,12 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
     } else {
       toast.error(res.erro || "Erro ao confirmar");
     }
+  };
+
+  // Abre o pop-up de autorização do desconto; se não há desconto, confirma direto.
+  const iniciarConfirmacao = () => {
+    if (resultado.totalDescontoFunc > 0) setShowAutorizar(true);
+    else handleConfirmar(descontarFunc);
   };
 
   const toggleDiaManual = (dataStr: string, tipoAtual: string) => {
@@ -216,11 +236,11 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className={LB}>Vales/dia</label>
-                  <input type="number" min={0} value={vtValesPorDia} onChange={(e) => setVtValesPorDia(Number(e.target.value))} className={IC_EDIT} />
+                  <input type="number" min={0} value={vtValesPorDia || ''} onChange={(e) => setVtValesPorDia(Number(e.target.value))} className={IC_EDIT} placeholder="0" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className={LB}>Valor unitário (R$)</label>
-                  <input type="number" min={0} step={0.01} value={vtValorUnitario} onChange={(e) => setVtValorUnitario(Number(e.target.value))} className={IC_EDIT} />
+                  <input type="number" min={0} step={0.01} value={vtValorUnitario || ''} onChange={(e) => setVtValorUnitario(Number(e.target.value))} className={IC_EDIT} placeholder="0,00" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -249,7 +269,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
           {vaAtivo && (
             <div className="flex flex-col gap-1">
               <label className={LB}>Valor/dia (R$)</label>
-              <input type="number" min={0} step={0.01} value={vaValorDia} onChange={(e) => setVaValorDia(Number(e.target.value))} className={IC_EDIT} />
+              <input type="number" min={0} step={0.01} value={vaValorDia || ''} onChange={(e) => setVaValorDia(Number(e.target.value))} className={IC_EDIT} placeholder="0,00" />
             </div>
           )}
         </div>
@@ -272,10 +292,15 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             <input readOnly value={diasUteis} className={IC_RO} />
           </div>
           <div className="flex flex-col gap-1">
-            <label className={LB}>Faltas</label>
-            <input type="number" min={0} max={diasUteis} value={faltas}
-              onChange={(e) => setFaltas(Math.min(diasUteis, Math.max(0, Number(e.target.value))))}
-              className={IC_EDIT} />
+            <label className={LB}>Faltas (0 a 10)</label>
+            <input type="number" min={0} max={Math.min(10, diasUteis)} value={faltas}
+              onChange={(e) => setFaltas(Math.min(10, diasUteis, Math.max(0, Number(e.target.value))))}
+              className={IC_EDIT} placeholder="0" />
+            {faltas > 0 && (
+              <span className="text-[11px] text-[#E53E3E]">
+                −{faltas} dia{faltas > 1 ? "s" : ""} de VT e VA
+              </span>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label className={LB}>Dias considerados</label>
@@ -292,6 +317,12 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             <div className="flex justify-between text-[#E53E3E]"><span>(-) Desc. VA func.</span><span>{formatBRL(resultado.vaDescontoFunc)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VT custo empresa</span><span className="font-bold">{formatBRL(resultado.vtCustoEmpresa)}</span></div>
             <div className="flex justify-between"><span className="text-[#555]">VA custo empresa</span><span className="font-bold">{formatBRL(resultado.vaCustoEmpresa)}</span></div>
+            {faltas > 0 && (
+              <>
+                <div className="flex justify-between text-[#E53E3E]"><span>(-) Faltas VT ({faltas} dia{faltas > 1 ? "s" : ""})</span><span>{formatBRL(descontoFaltasVT)}</span></div>
+                <div className="flex justify-between text-[#E53E3E]"><span>(-) Faltas VA ({faltas} dia{faltas > 1 ? "s" : ""})</span><span>{formatBRL(descontoFaltasVA)}</span></div>
+              </>
+            )}
           </div>
           <div className="border-t-2 border-[#059669] mt-4 pt-3 flex justify-between text-base">
             <span className="font-bold text-[#039855]">Total custo empresa</span>
@@ -324,7 +355,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
             Competência {competencia} já confirmada
           </span>
         ) : (
-          <button onClick={handleConfirmar}
+          <button onClick={iniciarConfirmacao}
             disabled={resultado.totalCustoEmpresa === 0 || confirmando}
             className="bg-[#039855] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#07401f] disabled:opacity-50 transition-all">
             {confirmando ? "Gerando CPs..." : "Confirmar e gerar CPs →"}
@@ -374,6 +405,39 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
           </div>
         )}
       </div>
+
+      {/* Pop-up: autorizar desconto do funcionário (padrão Sim, descontando) */}
+      {showAutorizar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowAutorizar(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4" style={{ backgroundColor: "#000000", borderRadius: "12px 12px 0 0" }}>
+              <h3 className="text-[14px] font-bold text-white uppercase tracking-wider">Desconto do funcionário</h3>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-[13px] text-[#1D2939]">
+                Deseja descontar a parte do funcionário (VT 6%) nesta competência <strong>{competencia}</strong>?
+              </p>
+              <div className="flex justify-between text-[13px] bg-[#FEE2E2] border border-[#E53E3E] rounded-md px-3 py-2 text-[#E53E3E] font-bold">
+                <span>Desconto do funcionário</span>
+                <span>{formatBRL(resultado.totalDescontoFunc)}</span>
+              </div>
+              <p className="text-[11px] text-[#555]">
+                Se escolher <strong>Não</strong>, a empresa arca com o valor cheio e nada é descontado do funcionário.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-[#eee]">
+              <button onClick={() => handleConfirmar(false)} disabled={confirmando}
+                className="text-[12px] font-bold uppercase tracking-wider px-4 py-2 rounded border border-[#D0D5DD] text-[#1D2939] hover:bg-[#F6F2EB] disabled:opacity-50">
+                Não descontar
+              </button>
+              <button onClick={() => handleConfirmar(true)} disabled={confirmando} autoFocus
+                className="text-[12px] font-bold uppercase tracking-wider px-4 py-2 rounded bg-[#039855] text-white hover:bg-[#07401f] disabled:opacity-50">
+                {confirmando ? "Gerando..." : "Sim, descontar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
