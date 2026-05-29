@@ -133,18 +133,18 @@ const CRStatusBadge = ({ status }: { status: string }) => {
 
 const HistoryIcon = ({ status }: { status: string }) => {
     if (status === "pago") return (
-        <div className="w-7 h-7 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
-            <DollarSign className="h-3.5 w-3.5 text-[#039855]" />
+        <div className="w-6 h-6 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
+            <DollarSign className="h-3 w-3 text-[#039855]" />
         </div>
     );
     if (status === "vencido") return (
-        <div className="w-7 h-7 rounded-full bg-[#FEE2E2] flex items-center justify-center flex-shrink-0">
-            <Receipt className="h-3.5 w-3.5 text-[#E53E3E]" />
+        <div className="w-6 h-6 rounded-full bg-[#FEE2E2] flex items-center justify-center flex-shrink-0">
+            <Receipt className="h-3 w-3 text-[#E53E3E]" />
         </div>
     );
     return (
-        <div className="w-7 h-7 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="h-3.5 w-3.5 text-[#059669]" />
+        <div className="w-6 h-6 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
+            <ShoppingCart className="h-3 w-3 text-[#059669]" />
         </div>
     );
 };
@@ -1296,7 +1296,7 @@ export default function Clientes() {
                                                                     className="p-1 rounded text-[#999] hover:text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors cursor-pointer"
                                                                     title="Excluir lançamento"
                                                                 >
-                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                    <Trash2 className="h-3 w-3" />
                                                                 </button>
                                                             </div>
                                                         </div>
