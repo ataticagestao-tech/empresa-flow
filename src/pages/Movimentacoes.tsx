@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Eye } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -140,6 +141,59 @@ export default function Movimentacoes() {
   const [dateStart, setDateStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
   const [dateEnd, setDateEnd] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
   const [currentPage, setCurrentPage] = useState(1)
+
+  // ---- Padrão de planilha: colunas ajustáveis + ocultáveis ----
+  const MOV_COL_ORDER = ['icone', 'descricao', 'categoria', 'conta', 'valor', 'saldo']
+  const COL_LABELS: Record<string, string> = {
+    icone: 'Tipo', descricao: 'Descrição', categoria: 'Categoria',
+    conta: 'Conta', valor: 'Valor (R$)', saldo: 'Saldo conta',
+  }
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    icone: 44, descricao: 360, categoria: 220, conta: 160, valor: 140, saldo: 130,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('movimentacoes_col_widths')
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => { localStorage.setItem('movimentacoes_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('movimentacoes_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('movimentacoes_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleMovCols = MOV_COL_ORDER.filter(isColVisible)
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -828,6 +882,43 @@ export default function Movimentacoes() {
 
         {/* ====== CARD PRINCIPAL ====== */}
         <div className="bg-white border border-[#E5E7EB] rounded-lg overflow-hidden">
+          <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#000000' }}>
+            <h3 className="font-bold text-white m-0 text-[14px] tracking-tight">Movimentações</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] text-white/70 font-medium">
+                {totalRows} registro{totalRows !== 1 ? 's' : ''}
+              </span>
+              <div className="relative">
+                <button
+                  onClick={() => setColMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={14} className="text-white/70" /> Colunas
+                  <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {colMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {MOV_COL_ORDER.map((k) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F3F4F6] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(k)}
+                            onChange={() => toggleColVisible(k)}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {COL_LABELS[k]}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
           {loading ? (
             <div className="text-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-[#059669] mx-auto mb-3" />
@@ -844,15 +935,37 @@ export default function Movimentacoes() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-[12px]">
+                <table className="text-[12px]" style={{ tableLayout: 'fixed', width: visibleMovCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                  <colgroup>
+                    {MOV_COL_ORDER.map((k) => (
+                      <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr className="bg-white border-b-2 border-[#D1D5DB] text-[11.5px] font-bold uppercase tracking-wider text-[#0F172A]">
-                      <th className="text-left py-2.5 px-4 w-[44px]"></th>
-                      <th className="text-left py-2.5 px-4">Descrição</th>
-                      <th className="text-left py-2.5 px-4 w-[180px]">Categoria</th>
-                      <th className="text-left py-2.5 px-4 w-[140px]">Conta</th>
-                      <th className="text-right py-2.5 px-4 w-[140px]">Valor (R$)</th>
-                      <th className="text-right py-2.5 px-4 w-[120px]">Saldo conta</th>
+                      <th className={`text-left py-2.5 px-4 relative border-r border-[#EAECF0] ${isColVisible('icone') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('icone')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      </th>
+                      <th className={`text-left py-2.5 px-4 relative border-r border-[#EAECF0] ${isColVisible('descricao') ? '' : 'hidden'}`}>
+                        Descrição
+                        <span onMouseDown={startResize('descricao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      </th>
+                      <th className={`text-left py-2.5 px-4 relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`}>
+                        Categoria
+                        <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      </th>
+                      <th className={`text-left py-2.5 px-4 relative border-r border-[#EAECF0] ${isColVisible('conta') ? '' : 'hidden'}`}>
+                        Conta
+                        <span onMouseDown={startResize('conta')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      </th>
+                      <th className={`text-right py-2.5 px-4 relative border-r border-[#EAECF0] ${isColVisible('valor') ? '' : 'hidden'}`}>
+                        Valor (R$)
+                        <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      </th>
+                      <th className={`text-right py-2.5 px-4 relative ${isColVisible('saldo') ? '' : 'hidden'}`}>
+                        Saldo conta
+                        <span onMouseDown={startResize('saldo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -863,6 +976,7 @@ export default function Movimentacoes() {
                         bankNameMap={bankNameMap}
                         bankRunningBalances={bankRunningBalances}
                         TypeIcon={TypeIcon}
+                        isColVisible={isColVisible}
                       />
                     ))}
                   </tbody>
@@ -1121,25 +1235,26 @@ function DiaMovimentacoes({
   bankNameMap,
   bankRunningBalances,
   TypeIcon,
+  isColVisible,
 }: {
   group: DayGroup
   bankNameMap: Map<string, string>
   bankRunningBalances: Map<string, number>
   TypeIcon: (props: { tipo: string }) => JSX.Element
+  isColVisible: (k: string) => boolean
 }) {
+  // colSpan da célula de rótulo do dia = nº de colunas visíveis antes de "valor"
+  const labelSpan = ['icone', 'descricao', 'categoria', 'conta'].filter(isColVisible).length || 1
   return (
     <>
       <tr className="bg-[#F3F4F6] border-y border-[#E5E7EB]">
-        <td colSpan={3} className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">
+        <td colSpan={labelSpan} className="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">
           {group.label}
         </td>
-        <td className="px-4 py-2 text-right text-[11px] font-semibold text-[#039855] tabular-nums">
+        <td className={`px-4 py-1 text-right text-[11px] font-semibold text-[#039855] tabular-nums border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>
           +{formatBRL(group.entradas)}
         </td>
-        <td className="px-4 py-2 text-right text-[11px] font-semibold text-[#E53E3E] tabular-nums">
-          -{formatBRL(group.saidas)}
-        </td>
-        <td className={`px-4 py-2 text-right text-[11px] font-bold tabular-nums ${group.saldo >= 0 ? 'text-[#039855]' : 'text-[#E53E3E]'}`}>
+        <td className={`px-4 py-1 text-right text-[11px] font-bold tabular-nums ${group.saldo >= 0 ? 'text-[#039855]' : 'text-[#E53E3E]'} ${isColVisible('saldo') ? '' : 'hidden'}`}>
           {group.saldo >= 0 ? '+' : ''}{formatBRL(group.saldo)}
         </td>
       </tr>
@@ -1149,11 +1264,11 @@ function DiaMovimentacoes({
 
         return (
           <tr key={row.id} className="border-b border-[#F1F3F5] hover:bg-[#F3F4F6] transition-colors">
-            <td className="px-4 py-2 align-middle">
+            <td className={`px-4 py-1 align-middle border-r border-[#F1F3F5] ${isColVisible('icone') ? '' : 'hidden'}`}>
               <TypeIcon tipo={row.tipo} />
             </td>
-            <td className="px-4 py-2 align-middle">
-              <div className="text-[12px] font-medium text-[#0F172A] truncate max-w-[420px]">
+            <td className={`px-4 py-1 align-middle border-r border-[#F1F3F5] ${isColVisible('descricao') ? '' : 'hidden'}`}>
+              <div className="text-[12px] font-medium text-[#0F172A] truncate" title={row.descricao || '(sem descrição)'}>
                 {row.descricao || '(sem descrição)'}
               </div>
               <div className="mt-0.5">
@@ -1167,18 +1282,19 @@ function DiaMovimentacoes({
                 </span>
               </div>
             </td>
-            <td className="px-4 py-2 align-middle text-[12px] text-[#4B5563]">
+            <td className={`px-4 py-1 align-middle text-[12px] text-[#4B5563] truncate border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`}
+                title={row.conta_contabil ? `${row.conta_contabil.code} — ${row.conta_contabil.name}` : 'sem categoria'}>
               {row.conta_contabil
                 ? <span><span className="font-mono">{row.conta_contabil.code}</span> — {row.conta_contabil.name}</span>
                 : <span className="italic">sem categoria</span>}
             </td>
-            <td className="px-4 py-2 align-middle text-[12px] text-[#4B5563] truncate max-w-[140px]">
+            <td className={`px-4 py-1 align-middle text-[12px] text-[#4B5563] truncate border-r border-[#F1F3F5] ${isColVisible('conta') ? '' : 'hidden'}`} title={bankName || '—'}>
               {bankName || '—'}
             </td>
-            <td className={`px-4 py-2 align-middle text-right text-[12px] font-bold tabular-nums ${row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#E53E3E]'}`}>
+            <td className={`px-4 py-1 align-middle text-right text-[12px] font-bold tabular-nums border-r border-[#F1F3F5] ${row.tipo === 'credito' ? 'text-[#039855]' : 'text-[#E53E3E]'} ${isColVisible('valor') ? '' : 'hidden'}`}>
               {row.tipo === 'credito' ? '+' : '-'}{formatBRL(row.valor)}
             </td>
-            <td className="px-4 py-2 align-middle text-right tabular-nums">
+            <td className={`px-4 py-1 align-middle text-right tabular-nums ${isColVisible('saldo') ? '' : 'hidden'}`}>
               {bankBal != null
                 ? <span className={`text-[12px] font-semibold ${bankBal >= 0 ? 'text-[#059669]' : 'text-[#E53E3E]'}`}>{formatBRL(bankBal)}</span>
                 : <span className="text-[#9CA3AF]">—</span>}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,12 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Search, DollarSign, TrendingUp, Percent, AlertTriangle } from "lucide-react";
+import { Search, DollarSign, TrendingUp, Percent, AlertTriangle, Eye, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 const T = {
@@ -49,6 +46,59 @@ export default function MarkupSimulador() {
     const [simImpostos, setSimImpostos] = useState("6");
     const [simComissao, setSimComissao] = useState("5");
     const [simDespesas, setSimDespesas] = useState("10");
+
+    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+    const MK_COL_ORDER = ['produto', 'custo', 'preco', 'margem', 'markup', 'ideal', 'ajuste', 'status'];
+    const COL_LABELS: Record<string, string> = {
+        produto: 'Produto', custo: 'Custo', preco: 'Preço Atual', margem: 'Margem',
+        markup: 'Markup', ideal: 'Preço Ideal', ajuste: 'Ajuste', status: 'Status',
+    };
+    const COL_WIDTHS_DEFAULT: Record<string, number> = {
+        produto: 240, custo: 110, preco: 120, margem: 100, markup: 100, ideal: 130, ajuste: 120, status: 110,
+    };
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        try {
+            const s = localStorage.getItem('markup_col_widths');
+            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+        } catch { /* ignore */ }
+        return COL_WIDTHS_DEFAULT;
+    });
+    useEffect(() => { localStorage.setItem('markup_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+        try {
+            const s = localStorage.getItem('markup_hidden_cols');
+            if (s) return new Set(JSON.parse(s) as string[]);
+        } catch { /* ignore */ }
+        return new Set();
+    });
+    useEffect(() => { localStorage.setItem('markup_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+    const [colMenuOpen, setColMenuOpen] = useState(false);
+    const isColVisible = (k: string) => !hiddenCols.has(k);
+    const toggleColVisible = (k: string) => setHiddenCols(prev => {
+        const n = new Set(prev);
+        if (n.has(k)) n.delete(k); else n.add(k);
+        return n;
+    });
+    const visibleMkCols = MK_COL_ORDER.filter(isColVisible);
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+    const startResize = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+        const onMove = (ev: MouseEvent) => {
+            const r = resizingRef.current;
+            if (!r) return;
+            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+            setColWidths(prev => ({ ...prev, [r.key]: newW }));
+        };
+        const onUp = () => {
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const { data: products = [] } = useQuery({
         queryKey: ["mk_products", selectedCompany?.id],
@@ -241,7 +291,47 @@ export default function MarkupSimulador() {
                 </div>
 
                 {/* Full table */}
-                <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+                <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden">
+                    {/* Cabecalho do container — titulo preto + menu de colunas */}
+                    <div className="px-5 py-4 flex items-baseline justify-between" style={{ backgroundColor: '#000000' }}>
+                        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+                            Produtos
+                        </h3>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[13px] text-white/70 font-medium">
+                                {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+                            </span>
+                            <div className="relative self-center">
+                                <button
+                                    onClick={() => setColMenuOpen(o => !o)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                                    title="Mostrar/ocultar colunas"
+                                >
+                                    <Eye size={14} className="text-white/70" /> Colunas
+                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {colMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            {Object.entries(COL_LABELS).map(([k, label]) => (
+                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isColVisible(k)}
+                                                        onChange={() => toggleColVisible(k)}
+                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                                                    />
+                                                    {label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>
                         <div style={{ position: "relative", maxWidth: 300 }}>
                             <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
@@ -249,54 +339,84 @@ export default function MarkupSimulador() {
                                 className="h-9 pl-8 text-sm" />
                         </div>
                     </div>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Produto</TableHead>
-                                <TableHead className="text-right">Custo</TableHead>
-                                <TableHead className="text-right">Preço Atual</TableHead>
-                                <TableHead className="text-right">Margem</TableHead>
-                                <TableHead className="text-right">Markup</TableHead>
-                                <TableHead className="text-right">Preço Ideal ({target}%)</TableHead>
-                                <TableHead className="text-right">Ajuste</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filtered.length === 0 ? (
-                                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum produto encontrado.</TableCell></TableRow>
-                            ) : filtered.map((r: any) => (
-                                <TableRow key={r.id}>
-                                    <TableCell className="font-medium">
-                                        {r.description}
-                                        {r.temFicha && <span style={{ fontSize: 10, color: T.green, marginLeft: 6 }}>● Ficha</span>}
-                                    </TableCell>
-                                    <TableCell className="text-right">{r.custo > 0 ? fmt(r.custo) : <span style={{ color: T.text3 }}>—</span>}</TableCell>
-                                    <TableCell className="text-right">{fmt(Number(r.price))}</TableCell>
-                                    <TableCell className="text-right font-semibold" style={{ color: r.margem >= target ? T.green : r.margem >= 0 ? T.amber : T.red }}>
-                                        {r.custo > 0 ? `${r.margem.toFixed(1)}%` : "—"}
-                                    </TableCell>
-                                    <TableCell className="text-right" style={{ color: T.text3 }}>{r.custo > 0 ? `${r.markup.toFixed(1)}%` : "—"}</TableCell>
-                                    <TableCell className="text-right font-semibold" style={{ color: T.primary }}>
-                                        {r.custo > 0 ? fmt(r.precoIdeal) : "—"}
-                                    </TableCell>
-                                    <TableCell className="text-right" style={{ color: r.ajuste > 0 ? T.red : T.green }}>
-                                        {r.custo > 0 ? `${r.ajuste > 0 ? "+" : ""}${fmt(r.ajuste)}` : "—"}
-                                    </TableCell>
-                                    <TableCell>
-                                        {r.custo === 0 ? (
-                                            <Badge className="bg-gray-100 text-gray-500">Sem custo</Badge>
-                                        ) : r.margem >= target ? (
-                                            <Badge className="bg-green-100 text-green-700">OK</Badge>
-                                        ) : (
-                                            <Badge className="bg-red-100 text-red-700">Revisar</Badge>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </Card>
+                    <div className="bg-white overflow-x-auto">
+                        {filtered.length === 0 ? (
+                            <div className="text-center py-8 text-[#555] text-sm">Nenhum produto encontrado.</div>
+                        ) : (
+                            <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleMkCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                                <colgroup>
+                                    {MK_COL_ORDER.map(k => (
+                                        <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                                    ))}
+                                </colgroup>
+                                <thead>
+                                    <tr className="bg-white text-[15px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                                        <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('produto') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('produto')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Produto
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('custo') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('custo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Custo
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('preco') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('preco')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Preço Atual
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('margem') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('margem')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Margem
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('markup') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('markup')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Markup
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('ideal') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('ideal')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Preço Ideal ({target}%)
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('ajuste') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('ajuste')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Ajuste
+                                        </th>
+                                        <th className={`text-left px-3 py-3 relative ${isColVisible('status') ? '' : 'hidden'}`}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((r: any) => (
+                                        <tr key={r.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px]">
+                                            <td className={`px-3 py-1 font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('produto') ? '' : 'hidden'}`} title={r.description}>
+                                                {r.description}
+                                                {r.temFicha && <span style={{ fontSize: 10, color: T.green, marginLeft: 6 }}>● Ficha</span>}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('custo') ? '' : 'hidden'}`}>{r.custo > 0 ? fmt(r.custo) : <span style={{ color: T.text3 }}>—</span>}</td>
+                                            <td className={`px-3 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('preco') ? '' : 'hidden'}`}>{fmt(Number(r.price))}</td>
+                                            <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${isColVisible('margem') ? '' : 'hidden'}`} style={{ color: r.margem >= target ? T.green : r.margem >= 0 ? T.amber : T.red }}>
+                                                {r.custo > 0 ? `${r.margem.toFixed(1)}%` : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('markup') ? '' : 'hidden'}`} style={{ color: T.text3 }}>{r.custo > 0 ? `${r.markup.toFixed(1)}%` : "—"}</td>
+                                            <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${isColVisible('ideal') ? '' : 'hidden'}`} style={{ color: T.primary }}>
+                                                {r.custo > 0 ? fmt(r.precoIdeal) : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('ajuste') ? '' : 'hidden'}`} style={{ color: r.ajuste > 0 ? T.red : T.green }}>
+                                                {r.custo > 0 ? `${r.ajuste > 0 ? "+" : ""}${fmt(r.ajuste)}` : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-left ${isColVisible('status') ? '' : 'hidden'}`}>
+                                                {r.custo === 0 ? (
+                                                    <Badge className="bg-gray-100 text-gray-500">Sem custo</Badge>
+                                                ) : r.margem >= target ? (
+                                                    <Badge className="bg-green-100 text-green-700">OK</Badge>
+                                                ) : (
+                                                    <Badge className="bg-red-100 text-red-700">Revisar</Badge>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </div>
                 </PagePanel>
             </div>
         </AppLayout>

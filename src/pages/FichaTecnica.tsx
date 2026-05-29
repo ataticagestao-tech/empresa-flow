@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,15 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Search, Pencil } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, Eye, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExportMenu } from "@/components/ExportMenu";
 
@@ -65,6 +62,59 @@ export default function FichaTecnica() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingIdx, setEditingIdx] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+
+    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+    const FT_COL_ORDER = ['produto', 'insumos', 'custoInsumos', 'maoObra', 'custoTotal', 'tempo', 'acoes'];
+    const COL_LABELS: Record<string, string> = {
+        produto: 'Produto/Serviço', insumos: 'Insumos', custoInsumos: 'Custo Insumos',
+        maoObra: 'Mão de Obra', custoTotal: 'Custo Total', tempo: 'Tempo (min)', acoes: 'Ações',
+    };
+    const COL_WIDTHS_DEFAULT: Record<string, number> = {
+        produto: 240, insumos: 90, custoInsumos: 130, maoObra: 130, custoTotal: 130, tempo: 100, acoes: 90,
+    };
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        try {
+            const s = localStorage.getItem('fichatecnica_col_widths');
+            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+        } catch { /* ignore */ }
+        return COL_WIDTHS_DEFAULT;
+    });
+    useEffect(() => { localStorage.setItem('fichatecnica_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+        try {
+            const s = localStorage.getItem('fichatecnica_hidden_cols');
+            if (s) return new Set(JSON.parse(s) as string[]);
+        } catch { /* ignore */ }
+        return new Set();
+    });
+    useEffect(() => { localStorage.setItem('fichatecnica_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+    const [colMenuOpen, setColMenuOpen] = useState(false);
+    const isColVisible = (k: string) => !hiddenCols.has(k);
+    const toggleColVisible = (k: string) => setHiddenCols(prev => {
+        const n = new Set(prev);
+        if (n.has(k)) n.delete(k); else n.add(k);
+        return n;
+    });
+    const visibleFtCols = FT_COL_ORDER.filter(isColVisible);
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+    const startResize = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+        const onMove = (ev: MouseEvent) => {
+            const r = resizingRef.current;
+            if (!r) return;
+            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+            setColWidths(prev => ({ ...prev, [r.key]: newW }));
+        };
+        const onUp = () => {
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     // Current ficha being edited
     const [selectedProduct, setSelectedProduct] = useState("");
@@ -200,6 +250,46 @@ export default function FichaTecnica() {
                     </div>
 
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+                    {/* Cabeçalho do container — preto puro */}
+                    <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: "#000000" }}>
+                        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+                            Fichas Técnicas
+                        </h3>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[13px] text-white/70 font-medium">
+                                {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
+                            </span>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setColMenuOpen(o => !o)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                                    title="Mostrar/ocultar colunas"
+                                >
+                                    <Eye size={14} className="text-white/70" /> Colunas
+                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? "rotate-180" : ""}`} />
+                                </button>
+                                {colMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            {Object.entries(COL_LABELS).map(([k, label]) => (
+                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isColVisible(k)}
+                                                        onChange={() => toggleColVisible(k)}
+                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                                                    />
+                                                    {label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>
                         <div style={{ position: "relative", maxWidth: 300 }}>
                             <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
@@ -207,47 +297,75 @@ export default function FichaTecnica() {
                                 className="h-9 pl-8 text-sm" />
                         </div>
                     </div>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Produto/Serviço</TableHead>
-                                <TableHead className="text-center">Insumos</TableHead>
-                                <TableHead className="text-right">Custo Insumos</TableHead>
-                                <TableHead className="text-right">Mão de Obra</TableHead>
-                                <TableHead className="text-right">Custo Total</TableHead>
-                                <TableHead className="text-center">Tempo (min)</TableHead>
-                                <TableHead className="w-[80px]" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filtered.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma ficha técnica cadastrada.</TableCell></TableRow>
-                            ) : filtered.map((f, i) => {
-                                const ci = f.items.reduce((s, it) => s + it.quantidade * it.custo_unitario, 0);
-                                const ct = ci + f.mao_de_obra;
-                                return (
-                                    <TableRow key={i}>
-                                        <TableCell className="font-medium">{f.product_name}</TableCell>
-                                        <TableCell className="text-center">{f.items.length}</TableCell>
-                                        <TableCell className="text-right">{fmt(ci)}</TableCell>
-                                        <TableCell className="text-right">{fmt(f.mao_de_obra)}</TableCell>
-                                        <TableCell className="text-right font-semibold" style={{ color: T.primary }}>{fmt(ct)}</TableCell>
-                                        <TableCell className="text-center">{f.tempo_minutos}</TableCell>
-                                        <TableCell>
-                                            <div style={{ display: "flex", gap: 4 }}>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(i)}>
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(i)}>
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                        <table className="text-sm" style={{ tableLayout: "fixed", width: visibleFtCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: "100%" }}>
+                            <colgroup>
+                                {FT_COL_ORDER.map(k => (
+                                    <col key={k} className={isColVisible(k) ? "" : "hidden"} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                                ))}
+                            </colgroup>
+                            <thead>
+                                <tr className="bg-white text-[11px] font-bold text-black uppercase tracking-wider border-b border-[#EAECF0]">
+                                    <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('produto') ? '' : 'hidden'}`}>
+                                        Produto/Serviço
+                                        <span onMouseDown={startResize('produto')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-center px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('insumos') ? '' : 'hidden'}`}>
+                                        Insumos
+                                        <span onMouseDown={startResize('insumos')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-right px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('custoInsumos') ? '' : 'hidden'}`}>
+                                        Custo Insumos
+                                        <span onMouseDown={startResize('custoInsumos')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-right px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('maoObra') ? '' : 'hidden'}`}>
+                                        Mão de Obra
+                                        <span onMouseDown={startResize('maoObra')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-right px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('custoTotal') ? '' : 'hidden'}`}>
+                                        Custo Total
+                                        <span onMouseDown={startResize('custoTotal')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-center px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('tempo') ? '' : 'hidden'}`}>
+                                        Tempo (min)
+                                        <span onMouseDown={startResize('tempo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-center px-3 py-2 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                                        Ações
+                                        <span onMouseDown={startResize('acoes')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.length === 0 ? (
+                                    <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma ficha técnica cadastrada.</td></tr>
+                                ) : filtered.map((f, i) => {
+                                    const ci = f.items.reduce((s, it) => s + it.quantidade * it.custo_unitario, 0);
+                                    const ct = ci + f.mao_de_obra;
+                                    return (
+                                        <tr key={i} className="border-b border-[#F1F3F5] hover:bg-[#F9FAFB]">
+                                            <td className={`px-3 py-1 text-left font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('produto') ? '' : 'hidden'}`} title={f.product_name}>{f.product_name}</td>
+                                            <td className={`px-3 py-1 text-center text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('insumos') ? '' : 'hidden'}`}>{f.items.length}</td>
+                                            <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('custoInsumos') ? '' : 'hidden'}`}>{fmt(ci)}</td>
+                                            <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('maoObra') ? '' : 'hidden'}`}>{fmt(f.mao_de_obra)}</td>
+                                            <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${isColVisible('custoTotal') ? '' : 'hidden'}`} style={{ color: T.primary }}>{fmt(ct)}</td>
+                                            <td className={`px-3 py-1 text-center text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('tempo') ? '' : 'hidden'}`}>{f.tempo_minutos}</td>
+                                            <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                                                <div className="flex items-center justify-center gap-0.5">
+                                                    <button onClick={() => handleEdit(i)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Editar">
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(i)} className="p-1 rounded hover:bg-[#FEE2E2] text-[#E53E3E] transition-colors" title="Excluir">
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </Card>
 
                 {/* Dialog */}

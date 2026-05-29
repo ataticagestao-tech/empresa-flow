@@ -1,21 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Pencil, Save } from "lucide-react";
+import { Search, Pencil, Save, Eye, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const T = {
@@ -58,6 +54,59 @@ export default function MargensDesconto() {
     const [minPrice, setMinPrice] = useState("");
     const [requiresApproval, setRequiresApproval] = useState(false);
     const [notes, setNotes] = useState("");
+
+    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+    const COL_ORDER = ['produto', 'preco', 'desc', 'precomin', 'margem', 'aprovacao', 'acoes'];
+    const COL_LABELS: Record<string, string> = {
+        produto: 'Produto/Serviço', preco: 'Preço Cheio', desc: 'Desc. Máx.',
+        precomin: 'Preço Mínimo', margem: 'Margem Mín.', aprovacao: 'Aprovação', acoes: 'Ações',
+    };
+    const COL_WIDTHS_DEFAULT: Record<string, number> = {
+        produto: 280, preco: 130, desc: 110, precomin: 140, margem: 120, aprovacao: 110, acoes: 70,
+    };
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        try {
+            const s = localStorage.getItem('margensdesconto_col_widths');
+            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+        } catch { /* ignore */ }
+        return COL_WIDTHS_DEFAULT;
+    });
+    useEffect(() => { localStorage.setItem('margensdesconto_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+        try {
+            const s = localStorage.getItem('margensdesconto_hidden_cols');
+            if (s) return new Set(JSON.parse(s) as string[]);
+        } catch { /* ignore */ }
+        return new Set();
+    });
+    useEffect(() => { localStorage.setItem('margensdesconto_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+    const [colMenuOpen, setColMenuOpen] = useState(false);
+    const isColVisible = (k: string) => !hiddenCols.has(k);
+    const toggleColVisible = (k: string) => setHiddenCols(prev => {
+        const n = new Set(prev);
+        if (n.has(k)) n.delete(k); else n.add(k);
+        return n;
+    });
+    const visibleCols = COL_ORDER.filter(isColVisible);
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+    const startResize = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+        const onMove = (ev: MouseEvent) => {
+            const r = resizingRef.current;
+            if (!r) return;
+            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+            setColWidths(prev => ({ ...prev, [r.key]: newW }));
+        };
+        const onUp = () => {
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const { data: products = [] } = useQuery({
         queryKey: ["desc_products", selectedCompany?.id],
@@ -145,7 +194,48 @@ export default function MargensDesconto() {
 
                 <PagePanel title="Margens de Desconto" subtitle={`${configuredCount} de ${products.length} produtos configurados`}>
 
-                <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+                <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden min-w-0" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+                    {/* Cabecalho do container — titulo */}
+                    <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
+                        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+                            Margens de Desconto
+                        </h3>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[13px] text-white/70 font-medium">
+                                {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+                            </span>
+                            <div className="relative self-center">
+                                <button
+                                    onClick={() => setColMenuOpen(o => !o)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                                    title="Mostrar/ocultar colunas"
+                                >
+                                    <Eye size={14} className="text-white/70" /> Colunas
+                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {colMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            {Object.entries(COL_LABELS).map(([k, label]) => (
+                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isColVisible(k)}
+                                                        onChange={() => toggleColVisible(k)}
+                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                                                    />
+                                                    {label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}` }}>
                         <div style={{ position: "relative", maxWidth: 300 }}>
                             <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
@@ -153,54 +243,83 @@ export default function MargensDesconto() {
                                 className="h-9 pl-8 text-sm" />
                         </div>
                     </div>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Produto/Serviço</TableHead>
-                                <TableHead className="text-right">Preço Cheio</TableHead>
-                                <TableHead className="text-center">Desc. Máx.</TableHead>
-                                <TableHead className="text-right">Preço Mínimo</TableHead>
-                                <TableHead className="text-right">Margem Mín.</TableHead>
-                                <TableHead className="text-center">Aprovação</TableHead>
-                                <TableHead className="w-[60px]" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filtered.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum produto encontrado.</TableCell></TableRow>
-                            ) : filtered.map((r: any) => (
-                                <TableRow key={r.id}>
-                                    <TableCell className="font-medium">
-                                        {r.code ? `${r.code} - ` : ""}{r.description}
-                                        {!r.configured && <span style={{ fontSize: 10, color: T.text3, marginLeft: 6 }}>Não configurado</span>}
-                                    </TableCell>
-                                    <TableCell className="text-right">{fmt(Number(r.price))}</TableCell>
-                                    <TableCell className="text-center">
-                                        {r.configured ? (
-                                            <Badge className={r.max_discount > 20 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}>
-                                                {r.max_discount}%
-                                            </Badge>
-                                        ) : "—"}
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold" style={{ color: T.primary }}>
-                                        {r.configured ? fmt(r.min_price) : "—"}
-                                    </TableCell>
-                                    <TableCell className="text-right" style={{ color: r.margem_minima >= 20 ? T.green : T.red }}>
-                                        {r.configured ? `${r.margem_minima.toFixed(1)}%` : "—"}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        {r.requires_approval ? <Badge className="bg-red-100 text-red-700">Sim</Badge> : "—"}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>
-                                            <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </Card>
+
+                    <div className="bg-white overflow-x-auto">
+                        {filtered.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground text-sm">Nenhum produto encontrado.</div>
+                        ) : (
+                            <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                                <colgroup>
+                                    {COL_ORDER.map(k => (
+                                        <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                                    ))}
+                                </colgroup>
+                                <thead>
+                                    <tr className="bg-white text-[15px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                                        <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('produto') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('produto')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Produto/Serviço
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('preco') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('preco')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Preço Cheio
+                                        </th>
+                                        <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('desc') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('desc')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Desc. Máx.
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('precomin') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('precomin')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Preço Mínimo
+                                        </th>
+                                        <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('margem') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('margem')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Margem Mín.
+                                        </th>
+                                        <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('aprovacao') ? '' : 'hidden'}`}>
+                                            <span onMouseDown={startResize('aprovacao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                            Aprovação
+                                        </th>
+                                        <th className={`text-center px-3 py-3 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((r: any) => (
+                                        <tr key={r.id} className="border-b border-[#F1F3F5] hover:bg-[#F9FAFB]">
+                                            <td className={`px-3 py-1 font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('produto') ? '' : 'hidden'}`}
+                                                title={`${r.code ? `${r.code} - ` : ""}${r.description}`}>
+                                                {r.code ? `${r.code} - ` : ""}{r.description}
+                                                {!r.configured && <span style={{ fontSize: 10, color: T.text3, marginLeft: 6 }}>Não configurado</span>}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('preco') ? '' : 'hidden'}`}>{fmt(Number(r.price))}</td>
+                                            <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible('desc') ? '' : 'hidden'}`}>
+                                                {r.configured ? (
+                                                    <Badge className={r.max_discount > 20 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}>
+                                                        {r.max_discount}%
+                                                    </Badge>
+                                                ) : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${isColVisible('precomin') ? '' : 'hidden'}`} style={{ color: T.primary }}>
+                                                {r.configured ? fmt(r.min_price) : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('margem') ? '' : 'hidden'}`} style={{ color: r.margem_minima >= 20 ? T.green : T.red }}>
+                                                {r.configured ? `${r.margem_minima.toFixed(1)}%` : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible('aprovacao') ? '' : 'hidden'}`}>
+                                                {r.requires_approval ? <Badge className="bg-red-100 text-red-700">Sim</Badge> : "—"}
+                                            </td>
+                                            <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </div>
 
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogContent className="max-w-md">

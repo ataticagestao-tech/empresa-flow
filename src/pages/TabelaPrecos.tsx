@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,12 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Search, Pencil } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, Eye, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 
@@ -60,6 +57,57 @@ export default function TabelaPrecos() {
     const [listDesc, setListDesc] = useState("");
     const [prices, setPrices] = useState<Record<string, string>>({});
     const [selectedList, setSelectedList] = useState<number | null>(null);
+
+    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+    const TP_COL_ORDER = ['produto', 'padrao', 'tabela', 'diferenca'];
+    const COL_LABELS: Record<string, string> = {
+        produto: 'Produto', padrao: 'Preço Padrão', tabela: 'Preço Tabela', diferenca: 'Diferença',
+    };
+    const COL_WIDTHS_DEFAULT: Record<string, number> = {
+        produto: 360, padrao: 140, tabela: 160, diferenca: 140,
+    };
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        try {
+            const s = localStorage.getItem('tabelaprecos_col_widths');
+            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+        } catch { /* ignore */ }
+        return COL_WIDTHS_DEFAULT;
+    });
+    useEffect(() => { localStorage.setItem('tabelaprecos_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+        try {
+            const s = localStorage.getItem('tabelaprecos_hidden_cols');
+            if (s) return new Set(JSON.parse(s) as string[]);
+        } catch { /* ignore */ }
+        return new Set();
+    });
+    useEffect(() => { localStorage.setItem('tabelaprecos_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+    const [colMenuOpen, setColMenuOpen] = useState(false);
+    const isColVisible = (k: string) => !hiddenCols.has(k);
+    const toggleColVisible = (k: string) => setHiddenCols(prev => {
+        const n = new Set(prev);
+        if (n.has(k)) n.delete(k); else n.add(k);
+        return n;
+    });
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+    const startResize = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+        const onMove = (ev: MouseEvent) => {
+            const r = resizingRef.current;
+            if (!r) return;
+            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+            setColWidths(prev => ({ ...prev, [r.key]: newW }));
+        };
+        const onUp = () => {
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const { data: products = [] } = useQuery({
         queryKey: ["tp_products", selectedCompany?.id],
@@ -205,51 +253,106 @@ export default function TabelaPrecos() {
                 )}
 
                 {/* Price comparison table */}
+                {(() => {
+                    // tabela/diferenca só existem quando há lista selecionada para comparar
+                    const colVisible = (k: string) => {
+                        if ((k === 'tabela' || k === 'diferenca') && !viewList) return false;
+                        return isColVisible(k);
+                    };
+                    const visibleCols = TP_COL_ORDER.filter(colVisible);
+                    const tableWidth = visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0);
+                    const colLabelsForMenu = Object.entries(COL_LABELS).filter(([k]) => viewList || (k !== 'tabela' && k !== 'diferenca'));
+                    return (
                 <Card style={{ borderRadius: 14, border: `1px solid ${T.border}`, overflow: "hidden" }}>
-                    <div style={{ padding: "12px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ position: "relative", maxWidth: 300 }}>
-                            <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
+                    <div style={{ backgroundColor: "#000000", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                        <div style={{ position: "relative", maxWidth: 300, flex: "1 1 auto" }}>
+                            <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.5)" }} />
                             <Input placeholder="Buscar produto..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                                className="h-9 pl-8 text-sm" />
+                                className="h-9 pl-8 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/40" />
                         </div>
-                        {viewList && <Badge className="bg-blue-100 text-blue-700">Comparando: {viewList.name}</Badge>}
+                        <div className="flex items-center gap-2">
+                            {viewList && <Badge className="bg-blue-100 text-blue-700">Comparando: {viewList.name}</Badge>}
+                            <div className="relative self-center">
+                                <button
+                                    onClick={() => setColMenuOpen(o => !o)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                                    title="Mostrar/ocultar colunas"
+                                >
+                                    <Eye size={14} className="text-white/70" /> Colunas
+                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {colMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            {colLabelsForMenu.map(([k, label]) => (
+                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isColVisible(k)}
+                                                        onChange={() => toggleColVisible(k)}
+                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                                                    />
+                                                    {label}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Produto</TableHead>
-                                <TableHead className="text-right">Preço Padrão</TableHead>
-                                {viewList && <TableHead className="text-right">{viewList.name}</TableHead>}
-                                {viewList && <TableHead className="text-right">Diferença</TableHead>}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredProducts.length === 0 ? (
-                                <TableRow><TableCell colSpan={viewList ? 4 : 2} className="text-center py-8 text-muted-foreground">Nenhum produto encontrado.</TableCell></TableRow>
-                            ) : filteredProducts.map((p: any) => {
-                                const stdPrice = Number(p.price || 0);
-                                const listPrice = viewList ? (viewList.prices[p.id] ?? stdPrice) : null;
-                                const diff = listPrice !== null ? listPrice - stdPrice : 0;
-                                return (
-                                    <TableRow key={p.id}>
-                                        <TableCell className="font-medium">{p.code ? `${p.code} - ` : ""}{p.description}</TableCell>
-                                        <TableCell className="text-right">{fmt(stdPrice)}</TableCell>
-                                        {viewList && (
-                                            <TableCell className="text-right font-semibold" style={{ color: T.primary }}>
-                                                {fmt(listPrice!)}
-                                            </TableCell>
-                                        )}
-                                        {viewList && (
-                                            <TableCell className="text-right" style={{ color: diff < 0 ? T.red : diff > 0 ? T.green : T.text3 }}>
-                                                {diff !== 0 ? `${diff > 0 ? "+" : ""}${fmt(diff)}` : "—"}
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                        <table className="text-sm" style={{ tableLayout: 'fixed', width: tableWidth, minWidth: '100%' }}>
+                            <colgroup>
+                                {TP_COL_ORDER.map(k => (
+                                    <col key={k} className={colVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                                ))}
+                            </colgroup>
+                            <thead>
+                                <tr className="bg-white text-[12px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                                    <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${colVisible('produto') ? '' : 'hidden'}`}>
+                                        Produto
+                                        <span onMouseDown={startResize('produto')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-right px-3 py-2 relative border-r border-[#EAECF0] ${colVisible('padrao') ? '' : 'hidden'}`}>
+                                        Preço Padrão
+                                        <span onMouseDown={startResize('padrao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-right px-3 py-2 relative border-r border-[#EAECF0] ${colVisible('tabela') ? '' : 'hidden'}`}>
+                                        {viewList ? viewList.name : 'Preço Tabela'}
+                                        <span onMouseDown={startResize('tabela')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                    <th className={`text-right px-3 py-2 relative ${colVisible('diferenca') ? '' : 'hidden'}`}>
+                                        Diferença
+                                        <span onMouseDown={startResize('diferenca')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredProducts.length === 0 ? (
+                                    <tr><td colSpan={visibleCols.length || 1} className="text-center py-8 text-muted-foreground">Nenhum produto encontrado.</td></tr>
+                                ) : filteredProducts.map((p: any) => {
+                                    const stdPrice = Number(p.price || 0);
+                                    const listPrice = viewList ? (viewList.prices[p.id] ?? stdPrice) : null;
+                                    const diff = listPrice !== null ? listPrice - stdPrice : 0;
+                                    const prodLabel = `${p.code ? `${p.code} - ` : ""}${p.description}`;
+                                    return (
+                                        <tr key={p.id} className="border-b border-[#F1F3F5] hover:bg-[#F9FAFB]">
+                                            <td className={`px-3 py-1 font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${colVisible('produto') ? '' : 'hidden'}`} title={prodLabel}>{prodLabel}</td>
+                                            <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${colVisible('padrao') ? '' : 'hidden'}`}>{fmt(stdPrice)}</td>
+                                            <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${colVisible('tabela') ? '' : 'hidden'}`} style={{ color: T.primary }}>{listPrice !== null ? fmt(listPrice) : '—'}</td>
+                                            <td className={`px-3 py-1 text-right truncate ${colVisible('diferenca') ? '' : 'hidden'}`} style={{ color: diff < 0 ? T.red : diff > 0 ? T.green : T.text3 }}>{listPrice !== null && diff !== 0 ? `${diff > 0 ? "+" : ""}${fmt(diff)}` : "—"}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </Card>
+                    );
+                })()}
 
                 {/* Dialog */}
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
