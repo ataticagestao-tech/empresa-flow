@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { Plus, X } from "lucide-react";
+import { Plus, Minus, X } from "lucide-react";
 
 /**
  * Botões flutuantes de ação rápida no canto superior direito, presentes em
@@ -18,6 +18,7 @@ import { Plus, X } from "lucide-react";
 
 interface FabButtonProps {
   label: string;
+  icon: typeof Plus;
   color: string;
   shadow: string;
   shadowHover: string;
@@ -26,7 +27,7 @@ interface FabButtonProps {
   onDismiss: () => void;
 }
 
-function FabButton({ label, color, shadow, shadowHover, iconColor, onClick, onDismiss }: FabButtonProps) {
+function FabButton({ label, icon: Icon, color, shadow, shadowHover, iconColor, onClick, onDismiss }: FabButtonProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -79,7 +80,7 @@ function FabButton({ label, color, shadow, shadowHover, iconColor, onClick, onDi
         onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = shadowHover; }}
         onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = shadow; }}
       >
-        <Plus size={24} strokeWidth={2.75} style={{ flexShrink: 0 }} />
+        <Icon size={24} strokeWidth={2.75} style={{ flexShrink: 0 }} />
         {hover && <span>{label}</span>}
       </button>
     </div>
@@ -132,6 +133,7 @@ export function NovaVendaFab() {
       {!vendaHidden && (
         <FabButton
           label="Nova Venda"
+          icon={Plus}
           color="#039855"
           iconColor="#FFFFFF"
           shadow="0 8px 20px rgba(3, 152, 85, 0.32)"
@@ -143,6 +145,7 @@ export function NovaVendaFab() {
       {!cpHidden && (
         <FabButton
           label="Lançar CP"
+          icon={Minus}
           color="#F97066"
           iconColor="#FFFFFF"
           shadow="0 8px 20px rgba(240, 68, 56, 0.30)"
