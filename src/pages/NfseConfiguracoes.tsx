@@ -100,7 +100,11 @@ export default function NfseConfiguracoes() {
       setIsNew(true)
     }
     setLoading(false)
-  }, [selectedCompany, activeClient])
+    // Depende do id (primitivo estável), não do objeto selectedCompany:
+    // o objeto troca de referência em refresh de token / re-fetch de empresas
+    // mesmo sem mudar de empresa, e isso re-disparava o load (spinner piscando).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, activeClient])
 
   useEffect(() => { loadConfig() }, [loadConfig])
 

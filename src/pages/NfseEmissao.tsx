@@ -473,7 +473,8 @@ export default function NfseEmissao() {
     setApuracao(apRes.data || null)
     setRegimeEmpresa(normalizarRegime(compRes.data?.regime_tributario))
     setLoading(false)
-  }, [selectedCompany, activeClient, mesAno])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, activeClient, mesAno])
 
   const calcularPrevisaoImposto = async () => {
     if (!selectedCompany) return
@@ -538,7 +539,8 @@ export default function NfseEmissao() {
     } finally {
       setLoadingVendas(false)
     }
-  }, [selectedCompany, activeClient, mesAno])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, activeClient, mesAno])
 
   const loadClients = useCallback(async () => {
     if (!selectedCompany) return
@@ -548,7 +550,8 @@ export default function NfseEmissao() {
       .eq('company_id', selectedCompany.id)
       .order('razao_social')
     setClients(data || [])
-  }, [selectedCompany, activeClient])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, activeClient])
 
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { loadVendas() }, [loadVendas])
