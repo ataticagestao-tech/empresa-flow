@@ -1720,7 +1720,7 @@ export default function ContasPagar() {
             title="Agenda de Pagamentos"
             subtitle={`${agendaMes.mesRotulo} · ${agendaMes.diasComSaida} dia${agendaMes.diasComSaida !== 1 ? 's' : ''} com saída · clique em um dia`}
             rightSlot={
-              <div className="flex items-center gap-1.5 text-[10.5px] text-[#98A2B3]">
+              <div className="flex items-center gap-1.5 text-[10.5px] text-white/70">
                 <span>Menos</span>
                 {['#F3F4F6', '#FECACA', '#FCA5A5', '#E53E3E', '#B91C1C'].map((c) => (
                   <span key={c} style={{ width: 12, height: 12, background: c, borderRadius: 3, border: c === '#F3F4F6' ? '1px solid #EAECF0' : 'none' }} />
@@ -1791,16 +1791,16 @@ export default function ContasPagar() {
 
           {/* Contas a vencer (painel lateral) */}
           <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
               <div>
-                <div className="text-[20px] font-extrabold text-[#0F172A] tracking-[-0.02em]">
+                <div className="text-[14px] font-bold uppercase tracking-wider text-white">
                   {selectedAgendaDate && selectedAgendaDate === format(new Date(), 'yyyy-MM-dd')
                     ? 'Contas a pagar hoje'
                     : selectedAgendaDate
                       ? 'Contas a pagar'
                       : 'Contas a vencer'}
                 </div>
-                <div className="text-[12px] text-[#9CA3AF] mt-1">
+                <div className="text-[11px] text-white/80 mt-0.5">
                   {selectedAgendaDate
                     ? `${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')} · agrupado por plano de contas`
                     : 'Próximos 30 dias · agrupado por plano de contas'}
@@ -1845,14 +1845,14 @@ export default function ContasPagar() {
                     }
                   }}
                   title="Copiar lista agrupada por plano de contas para WhatsApp"
-                  className="flex items-center gap-1 text-[11px] font-semibold text-[#4B5563] hover:text-[#0F172A] px-2 h-7 border border-[#D1D5DB] rounded"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-white hover:bg-white/20 px-2 h-7 border border-white/40 rounded"
                 >
                   <Copy size={11} /> Copiar
                 </button>
                 {selectedAgendaDate && (
                   <button
                     onClick={() => setSelectedAgendaDate(null)}
-                    className="text-[11px] font-semibold text-[#4B5563] hover:text-[#0F172A]"
+                    className="text-[11px] font-semibold text-white/80 hover:text-white"
                   >
                     Limpar
                   </button>

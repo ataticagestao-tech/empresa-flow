@@ -42,10 +42,10 @@ export function CollapsibleCard({
       className={`bg-white border border-[#EAECF0] rounded-xl overflow-hidden ${className}`}
       style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
     >
-      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#EAECF0]">
+      <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#2A2724]">
         <div className="min-w-0">
-          <div className="text-[15px] font-bold uppercase tracking-[0.04em] text-black truncate">{title}</div>
-          {subtitle && <div className="text-[12px] text-[#98A2B3] mt-0.5 truncate">{subtitle}</div>}
+          <div className="text-[14px] font-bold uppercase tracking-wider text-white truncate">{title}</div>
+          {subtitle && <div className="text-[11px] text-white/80 mt-0.5 truncate">{subtitle}</div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {rightSlot}
@@ -54,7 +54,7 @@ export function CollapsibleCard({
             onClick={() => setCollapsed(v => !v)}
             title={collapsed ? 'Expandir' : 'Minimizar'}
             aria-label={collapsed ? 'Expandir' : 'Minimizar'}
-            className="w-7 h-7 flex items-center justify-center rounded border border-[#D0D5DD] text-[#667085] hover:text-black hover:bg-[#F6F2EB] transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded border border-white/40 text-white hover:bg-white/20 transition-colors"
           >
             {collapsed ? <Plus size={14} /> : <Minus size={14} />}
           </button>

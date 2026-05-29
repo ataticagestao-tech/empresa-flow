@@ -1095,18 +1095,18 @@ export default function ContasReceber() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Agenda heatmap */}
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#EAECF0]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
               <div>
-                <div className="text-[14px] font-bold text-[#1D2939] tracking-tight">Agenda de recebimentos</div>
-                <div className="text-[11.5px] text-[#98A2B3] mt-0.5">
+                <div className="text-[14px] font-bold uppercase tracking-wider text-white">Agenda de recebimentos</div>
+                <div className="text-[11px] text-white/80 mt-0.5">
                   {(dateFrom || dateTo) ? 'Período filtrado' : 'Próximos 30 dias'} &middot; {agenda30.totalDays} dia{agenda30.totalDays !== 1 ? 's' : ''} &middot; {agenda30.diasComEntrada} com entrada
                   {agenda30.diasVencidos > 0 && (
-                    <span className="text-[#C2410C] font-semibold"> &middot; {agenda30.diasVencidos} em atraso</span>
+                    <span className="text-[#FB923C] font-semibold"> &middot; {agenda30.diasVencidos} em atraso</span>
                   )}
                   &middot; clique em um dia
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-[10.5px] text-[#98A2B3]">
+              <div className="flex items-center gap-3 text-[10.5px] text-white/70">
                 <div className="flex items-center gap-1">
                   <span style={{ width: 10, height: 10, background: '#22C55E', borderRadius: 2 }} />
                   A receber
@@ -1190,10 +1190,10 @@ export default function ContasReceber() {
 
           {/* Contas a receber (painel lateral) */}
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#EAECF0]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
               <div>
-                <div className="text-[14px] font-bold text-[#1D2939] tracking-tight">Contas a receber</div>
-                <div className="text-[11.5px] text-[#98A2B3] mt-0.5">
+                <div className="text-[14px] font-bold uppercase tracking-wider text-white">Contas a receber</div>
+                <div className="text-[11px] text-white/80 mt-0.5">
                   {selectedAgendaDate
                     ? `Vencimento em ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}`
                     : (dateFrom || dateTo)
@@ -1235,14 +1235,14 @@ export default function ContasReceber() {
                     }
                   }}
                   title="Copiar lista para WhatsApp"
-                  className="flex items-center gap-1 text-[11px] font-semibold text-[#667085] hover:text-black px-2 h-7 border border-[#D0D5DD] rounded"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-white hover:bg-white/20 px-2 h-7 border border-white/40 rounded"
                 >
                   <Copy size={11} /> Copiar
                 </button>
                 {selectedAgendaDate && (
                   <button
                     onClick={() => setSelectedAgendaDate(null)}
-                    className="text-[11px] font-semibold text-[#667085] hover:text-black"
+                    className="text-[11px] font-semibold text-white/80 hover:text-white"
                   >
                     Limpar
                   </button>
