@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard as KpiCardBase } from '@/components/ui/kpi-card'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
@@ -172,12 +173,11 @@ export default function ContasFixas() {
 
 function KpiCard({ label, value, count, accent }: { label: string; value: number; count: number; accent: string }) {
   return (
-    <div className="rounded-[10px] p-4" style={{ backgroundColor: '#fff', border: '1px solid rgba(26,46,74,0.10)' }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#667085' }}>{label}</p>
-      <p className="font-bold mt-1" style={{ fontSize: 20, color: accent, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
-        {formatBRL(value)}
-      </p>
-      <p className="text-[11px] mt-1" style={{ color: '#667085' }}>{count} {count === 1 ? 'conta' : 'contas'}</p>
-    </div>
+    <KpiCardBase
+      label={label}
+      value={formatBRL(value)}
+      valueColor={accent}
+      sub={`${count} ${count === 1 ? 'conta' : 'contas'}`}
+    />
   )
 }

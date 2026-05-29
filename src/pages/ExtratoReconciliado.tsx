@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { KpiCard as KpiCardBase } from "@/components/ui/kpi-card";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -84,20 +85,7 @@ function KpiCard({
   value: string;
   color?: string;
 }) {
-  return (
-    <div className="border border-[#ccc] rounded-lg overflow-hidden">
-      <div className="bg-[#059669] px-4 py-2">
-        <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
-          {label}
-        </h3>
-      </div>
-      <div className="p-4 bg-white">
-        <p className="text-xl font-bold" style={{ color }}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
+  return <KpiCardBase label={label} value={value} valueColor={color} />;
 }
 
 /* ------------------------------------------------------------------ */

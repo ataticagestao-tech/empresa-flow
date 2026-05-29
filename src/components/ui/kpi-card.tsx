@@ -41,14 +41,14 @@ export function KpiCard({
   const hasDelta = delta !== undefined && delta !== null && Number.isFinite(delta)
   return (
     <div
-      className={cn("flex min-w-0 flex-col gap-2.5 rounded-xl border border-[#EAECF0] bg-white px-5 py-5 shadow-sm", className)}
+      className={cn("flex min-w-0 flex-col gap-1.5 rounded-xl border border-[#EAECF0] bg-white px-4 py-3.5 shadow-sm", className)}
       style={{ boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)" }}
     >
       {(icon || info) && (
         <div className="flex items-start justify-between gap-2">
           {icon ? (
             <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
               style={{ background: iconColor?.bg ?? "#EFF4FF", color: iconColor?.fg ?? "#1E3A8A" }}
             >
               {icon}
@@ -58,22 +58,22 @@ export function KpiCard({
           )}
           {info && (
             <span title={info} className="inline-flex shrink-0 cursor-help text-[#98A2B3]">
-              <HelpCircle size={15} />
+              <HelpCircle size={14} />
             </span>
           )}
         </div>
       )}
-      <p className="m-0 truncate font-bold text-black" style={{ fontSize: 22, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+      <p className="m-0 truncate font-bold text-black" style={{ fontSize: 14, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
         {label}
       </p>
       <p
         className="truncate font-extrabold"
-        style={{ fontSize: "clamp(26px, 2.4vw, 34px)", color: valueColor, letterSpacing: "-0.03em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
+        style={{ fontSize: "clamp(20px, 1.8vw, 26px)", color: valueColor, letterSpacing: "-0.02em", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}
       >
         {value}
       </p>
       {(hasDelta || sub != null) && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           {hasDelta && (
             <div className="flex items-center gap-1.5">
               <span
@@ -85,10 +85,10 @@ export function KpiCard({
               >
                 {delta! > 0 ? "▲" : delta! < 0 ? "▼" : "—"} {Math.abs(delta!).toFixed(1)}%
               </span>
-              <span className="text-[13px] text-[#667085]">{deltaLabel || "vs mês anterior"}</span>
+              <span className="text-[12px] text-[#667085]">{deltaLabel || "vs mês anterior"}</span>
             </div>
           )}
-          {sub != null && <p className="m-0 truncate text-[13px] text-[#667085]">{sub}</p>}
+          {sub != null && <p className="m-0 truncate text-[12px] text-[#667085]">{sub}</p>}
         </div>
       )}
     </div>

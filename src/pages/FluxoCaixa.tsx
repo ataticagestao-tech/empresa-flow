@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { PeriodFilter } from "@/components/ui/period-filter";
+import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -783,26 +784,14 @@ export default function FluxoCaixa() {
             <div className="space-y-4">
               {/* KPIs Relatório */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Total Entradas</p>
-                    <p className="text-lg font-bold mt-1 text-emerald-600">{fmt(relatorio.totalEntradas)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Total Saídas</p>
-                    <p className="text-lg font-bold mt-1 text-red-600">{fmt(relatorio.totalSaidas)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="col-span-2 md:col-span-1">
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Saldo</p>
-                    <p className="text-lg font-bold mt-1" style={{ color: relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#E53E3E" }}>
-                      {fmt(relatorio.totalEntradas - relatorio.totalSaidas)}
-                    </p>
-                  </CardContent>
-                </Card>
+                <KpiCard label="Total Entradas" value={fmt(relatorio.totalEntradas)} valueColor="#059669" />
+                <KpiCard label="Total Saídas" value={fmt(relatorio.totalSaidas)} valueColor="#E53E3E" />
+                <KpiCard
+                  className="col-span-2 md:col-span-1"
+                  label="Saldo"
+                  value={fmt(relatorio.totalEntradas - relatorio.totalSaidas)}
+                  valueColor={relatorio.totalEntradas - relatorio.totalSaidas >= 0 ? "#059669" : "#E53E3E"}
+                />
               </div>
 
               {isLoadingRelatorio ? (
@@ -920,21 +909,16 @@ export default function FluxoCaixa() {
           <TabsContent value="dfc">
             <div className="space-y-4">
               {/* KPIs DFC */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <KpiCardGrid>
                 {[
                   { label: "Caixa Operacional", value: fmt(caixaOperacional), color: CORES_ATIVIDADE.operacional },
                   { label: "Caixa Investimento", value: fmt(caixaInvestimento), color: CORES_ATIVIDADE.investimento },
                   { label: "Caixa Financiamento", value: fmt(caixaFinanciamento), color: CORES_ATIVIDADE.financiamento },
                   { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#039855" : "#E53E3E" },
                 ].map((kpi) => (
-                  <Card key={kpi.label}>
-                    <CardContent className="p-4">
-                      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
-                      <p className="text-lg font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
-                    </CardContent>
-                  </Card>
+                  <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
                 ))}
-              </div>
+              </KpiCardGrid>
 
               {/* Tabela DFC */}
               <Card>
@@ -1021,37 +1005,17 @@ export default function FluxoCaixa() {
           <TabsContent value="diagnostico">
             <div className="space-y-4">
               {/* KPIs Diagnóstico */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Transações</p>
-                    <p className="text-lg font-bold mt-1 text-foreground">{diagnostico.rows.length}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Receitas</p>
-                    <p className="text-lg font-bold mt-1 text-emerald-600">{fmt(diagnostico.totalReceita)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Despesas</p>
-                    <p className="text-lg font-bold mt-1 text-red-600">{fmt(diagnostico.totalDespesa)}</p>
-                  </CardContent>
-                </Card>
-                <Card className={diagnostico.semCategoria.length > 0 ? "border-amber-300" : ""}>
-                  <CardContent className="p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-                      {diagnostico.semCategoria.length > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
-                      Sem categoria
-                    </p>
-                    <p className="text-lg font-bold mt-1" style={{ color: diagnostico.semCategoria.length > 0 ? "#EA580C" : "#059669" }}>
-                      {diagnostico.semCategoria.length}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+              <KpiCardGrid>
+                <KpiCard label="Transações" value={diagnostico.rows.length} valueColor="#0F172A" />
+                <KpiCard label="Receitas" value={fmt(diagnostico.totalReceita)} valueColor="#059669" />
+                <KpiCard label="Despesas" value={fmt(diagnostico.totalDespesa)} valueColor="#E53E3E" />
+                <KpiCard
+                  className={diagnostico.semCategoria.length > 0 ? "border-amber-300" : ""}
+                  label="Sem categoria"
+                  value={diagnostico.semCategoria.length}
+                  valueColor={diagnostico.semCategoria.length > 0 ? "#EA580C" : "#059669"}
+                />
+              </KpiCardGrid>
 
               {isLoadingDiagnostico ? (
                 <div className="text-center py-16">

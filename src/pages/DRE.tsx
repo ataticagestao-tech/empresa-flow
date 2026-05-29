@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { PendenciasBanner } from "@/modules/finance/presentation/components/PendenciasBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PeriodFilter } from "@/components/ui/period-filter";
@@ -345,21 +346,16 @@ export default function DRE() {
         </div>
 
         {/* KPIs resumo */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCardGrid>
           {[
             { label: "Receita Bruta", value: fmt(receitaTotal), color: "#039855" },
             { label: "Despesas", value: fmt(despesaTotal), color: "#E53E3E" },
             { label: "Resultado Líquido", value: fmt(resultado), color: resultado >= 0 ? "#039855" : "#E53E3E" },
             { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#E53E3E" },
           ].map((kpi) => (
-            <Card key={kpi.label}>
-              <CardContent className="p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
-                <p className="text-lg font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
-              </CardContent>
-            </Card>
+            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* Gráfico DRE mensal */}
         {dadosGrafico.length > 1 && (

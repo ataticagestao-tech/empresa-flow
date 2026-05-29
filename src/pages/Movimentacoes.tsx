@@ -8,6 +8,7 @@ import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
 import { PeriodFilter } from '@/components/ui/period-filter'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { Button } from '@/components/ui/button'
 import { ExportMenu } from '@/components/ExportMenu'
 import { typography } from '@/styles/designSystem'
@@ -786,20 +787,16 @@ export default function Movimentacoes() {
           </div>
 
         {/* ====== KPIs ====== */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCardGrid>
           {[
             { label: 'Saldo atual', value: formatBRL(bankTotals.total), hint: 'Todas as contas', color: '#059669' },
             { label: 'Entradas do mês', value: formatBRL(entradasMes), hint: `${qtdEntradas} lançamento${qtdEntradas !== 1 ? 's' : ''}`, color: '#039855' },
             { label: 'Saídas do mês', value: formatBRL(saidasMes), hint: `${qtdSaidas} lançamento${qtdSaidas !== 1 ? 's' : ''}`, color: '#E53E3E' },
             { label: 'Resultado do mês', value: formatBRL(Math.abs(resultadoMes)), hint: resultadoMes >= 0 ? '▲ positivo' : '▼ negativo', color: resultadoMes >= 0 ? '#039855' : '#E53E3E' },
           ].map((kpi) => (
-            <div key={kpi.label} className="bg-white border border-[#E5E7EB] rounded-lg p-4">
-              <p className={typography.label}>{kpi.label}</p>
-              <p className={`${typography.valueMedium} mt-1`} style={{ color: kpi.color }}>{kpi.value}</p>
-              <p className={`${typography.bodyTiny} mt-0.5`}>{kpi.hint}</p>
-            </div>
+            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} valueColor={kpi.color} sub={kpi.hint} />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* ====== FILTROS (linha única) ====== */}
         <div className="flex flex-wrap items-center gap-2">

@@ -33,6 +33,7 @@ import {
 } from "recharts";
 import { AlertTriangle, Calendar, HelpCircle, TrendingUp, TrendingDown, Wallet, Repeat, ArrowLeftRight, Landmark } from "lucide-react";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { KpiCard as KpiCardBase } from "@/components/ui/kpi-card";
 
 /* ── Design Tokens ──────────────────────────────────────────── */
 const C = {
@@ -81,56 +82,18 @@ function KpiCard({
   /** Cores do chip do ícone. Default: navy institucional. */
   accent?: { bg: string; fg: string };
 }) {
-  const hasDelta = delta !== undefined && delta !== null && isFinite(delta);
   return (
-    <div
-      className="flex flex-col rounded-xl border border-[#EAECF0] bg-white p-4 transition-shadow duration-200 hover:shadow-md"
-      style={{ boxShadow: "0 1px 3px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04)" }}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#667085]">
-          <span className="truncate">{label}</span>
-          {info && (
-            <span title={info} className="inline-flex shrink-0 cursor-help text-[#98A2B3]">
-              <HelpCircle size={12.5} />
-            </span>
-          )}
-        </span>
-        {icon && (
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-            style={{ background: accent?.bg ?? "#EFF4FF", color: accent?.fg ?? "#1E3A8A" }}
-          >
-            {icon}
-          </span>
-        )}
-      </div>
-      <p
-        className="mt-2.5 truncate font-bold leading-none tabular-nums"
-        style={{ color, fontSize: "clamp(23px, 2.1vw, 29px)", letterSpacing: "-0.02em" }}
-      >
-        {value}
-      </p>
-      {(hasDelta || subtitle) && (
-        <div className="mt-2.5 flex flex-col gap-1">
-          {hasDelta && (
-            <div className="flex items-center gap-1.5">
-              <span
-                className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                style={{
-                  backgroundColor: delta > 0 ? "#ECFDF4" : delta < 0 ? "#FEE2E2" : "#F1F3F5",
-                  color: delta > 0 ? C.green : delta < 0 ? C.red : C.textMuted,
-                }}
-              >
-                {delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} {Math.abs(delta).toFixed(1)}%
-              </span>
-              <span className="text-[11px] text-[#98A2B3]">{deltaLabel || "vs mês anterior"}</span>
-            </div>
-          )}
-          {subtitle && <p className="truncate text-[11.5px] text-[#667085]">{subtitle}</p>}
-        </div>
-      )}
-    </div>
+    <KpiCardBase
+      label={label}
+      value={value}
+      valueColor={color}
+      sub={subtitle}
+      info={info}
+      icon={icon}
+      iconColor={accent}
+      delta={delta}
+      deltaLabel={deltaLabel}
+    />
   );
 }
 
