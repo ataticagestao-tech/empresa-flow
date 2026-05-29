@@ -102,7 +102,7 @@ export function StartHereButton() {
         <div
           style={{
             position: "fixed",
-            bottom: 84, right: 20,
+            bottom: 152, right: 20,
             width: 320,
             background: "#FFFFFF",
             border: "1px solid #EAECF0",
@@ -221,7 +221,7 @@ export function StartHereButton() {
         title="Comece por aqui"
         style={{
           position: "fixed",
-          bottom: 20, right: 20,
+          bottom: 88, right: 20,
           height: 48, paddingLeft: 16, paddingRight: 18,
           borderRadius: 999,
           background: "#039855",

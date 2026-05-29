@@ -10,6 +10,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { AgenteBanner } from "@/components/AgenteBanner";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { StartHereButton } from "@/components/onboarding/StartHereButton";
+import { NovaVendaFab } from "@/components/NovaVendaFab";
 import { menuGroups } from "@/config/menuConfig";
 import { Home, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -92,6 +93,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       <AgenteBanner />
       <WelcomeModal />
       <StartHereButton />
+      <NovaVendaFab />
     </SidebarProvider>
   );
 }
