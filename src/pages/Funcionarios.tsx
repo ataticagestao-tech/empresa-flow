@@ -313,7 +313,7 @@ export default function Funcionarios() {
       });
       return all;
     },
-    enabled: !!selected?.id && !!selectedCompany?.id && (tab === "salarios" || tab === "comissoes"),
+    enabled: !!selected?.id && !!selectedCompany?.id && (tab === "salarios" || tab === "comissoes" || tab === "beneficios_pagos"),
   });
 
   const totalPagoFunc = useMemo(
@@ -328,6 +328,15 @@ export default function Funcionarios() {
   const totalComissoesPago = useMemo(
     () => comissoes.filter((p: any) => p.status === "pago").reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0),
     [comissoes]
+  );
+
+  const beneficiosPagos = useMemo(
+    () => pagamentos.filter((p: any) => p.source === "beneficio"),
+    [pagamentos]
+  );
+  const totalBeneficiosPago = useMemo(
+    () => beneficiosPagos.filter((p: any) => p.status === "pago").reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0),
+    [beneficiosPagos]
   );
 
   const [gerandoPDF, setGerandoPDF] = useState(false);
@@ -755,7 +764,8 @@ export default function Funcionarios() {
             <>
               <div className="bg-[#059669] px-3 py-2 flex items-center gap-1 overflow-x-auto">
                 {[{ id: "dados", label: "Dados Cadastrais" }, { id: "salarios", label: "Salários" },
-                  { id: "comissoes", label: "Comissões" }, { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Benefícios" },
+                  { id: "comissoes", label: "Comissões" }, { id: "beneficios_pagos", label: "Benefícios" },
+                  { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Calc. Benefícios" },
                   { id: "interacoes", label: "Interações" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
                     className={`shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
@@ -1101,6 +1111,65 @@ export default function Funcionarios() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {tab === "beneficios_pagos" && (
+                  <div className="space-y-4">
+                    <div className="border border-[#ccc] rounded-lg overflow-hidden">
+                      <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-white">Benefícios pagos (VT / VA)</span>
+                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalBeneficiosPago)}</span>
+                      </div>
+                      {loadingPagamentos ? (
+                        <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
+                      ) : beneficiosPagos.length === 0 ? (
+                        <div className="p-6 text-center text-[#555] text-xs">
+                          Nenhum benefício lançado para este funcionário.
+                          <div className="mt-1 text-[10px]">VT e VA aparecem aqui após confirmar a competência na calculadora abaixo.</div>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-[#eee]">
+                          {beneficiosPagos.map((p: any) => {
+                            const compLabel = p.competencia && /^\d{4}-\d{2}/.test(p.competencia)
+                              ? p.competencia.slice(2, 7).split("-").reverse().join("/")
+                              : (p.competencia || "—");
+                            const statusBadge =
+                              p.status === "pago"   ? "bg-[#ECFDF4] text-[#059669]" :
+                              p.status === "parcial"? "bg-[#FEF3C7] text-[#92400E]" :
+                              p.status === "vencido"? "bg-[#FEE2E2] text-[#991B1B]" :
+                              p.status === "cancelado" ? "bg-[#EAECF0] text-[#555]" :
+                                                      "bg-[#F6F2EB] text-[#555]";
+                            const statusLabel =
+                              p.status === "pago" ? "Pago" :
+                              p.status === "parcial" ? "Parcial" :
+                              p.status === "vencido" ? "Vencido" :
+                              p.status === "cancelado" ? "Cancelado" :
+                              "Em aberto";
+                            const dataPagoLabel = p.data_pagamento ? new Date(p.data_pagamento + "T12:00:00").toLocaleDateString("pt-BR") : null;
+                            return (
+                              <div key={p.id} className="px-3 py-2 hover:bg-[#FAFAF7]">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-2 h-2 rounded-full shrink-0 bg-[#9D174D]" title="Benefício"></span>
+                                    <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
+                                    <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
+                                  </div>
+                                  <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatNumero(p.valor)}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2 mt-1 pl-4">
+                                  <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
+                                    <span className={`font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span>
+                                    {dataPagoLabel && <span className="whitespace-nowrap">Pago {dataPagoLabel}</span>}
+                                    {p.conta && <span className="truncate">· {p.conta}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
