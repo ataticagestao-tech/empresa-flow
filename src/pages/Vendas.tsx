@@ -23,7 +23,7 @@ import { parseVendasSpreadsheet, type VendaImportRow } from '@/lib/parsers/venda
 import { gerarRelatorioListaPDF, downloadListaPDF } from '@/lib/cadastros-pdf/gerar-lista-pdf'
 import * as XLSX from 'xlsx'
 import { format, startOfMonth, endOfMonth, parseISO, addMonths, addDays } from 'date-fns'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, CartesianGrid } from 'recharts'
 
 // `db` agora é definido dentro do componente como alias do activeClient
 // (antes era `const db = supabase as any` no top-level, o que ignorava o
@@ -2303,8 +2303,8 @@ export default function Vendas() {
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
         <div
-          className="bg-white border border-[#EAECF0] rounded-xl pt-5 px-5 pb-3 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
+          className="border border-[#EAECF0] rounded-xl pt-5 px-5 pb-3 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          style={{ backgroundColor: '#FBF8F1', boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
           <div className="flex items-baseline justify-between mb-2 flex-shrink-0">
             <h3 className="font-extrabold text-black m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
@@ -2322,8 +2322,9 @@ export default function Vendas() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={produtosRanking}
-                margin={{ top: 14, right: 12, left: 0, bottom: 36 }}
+                margin={{ top: 28, right: 12, left: 0, bottom: 4 }}
               >
+                <CartesianGrid vertical={false} stroke="#E4DDCD" strokeDasharray="3 3" />
                 <XAxis
                   dataKey="descricao"
                   interval={0}
@@ -2358,15 +2359,17 @@ export default function Vendas() {
                     if (out.length > 2 && visible[1]) {
                       visible[1] = visible[1].slice(0, maxPerLine - 1) + '…'
                     }
-                    const qtdY = y + 11 + visible.length * 11 + 4
+                    // Quantidade sempre na mesma altura (abaixo de 2 linhas de nome),
+                    // independente do nome ter 1 ou 2 linhas — mantém a linha "un" alinhada
+                    const qtdY = y + 13 + 2 * 13 + 5
                     return (
                       <g>
                         {visible.map((line, i) => (
                           <text
                             key={i}
-                            x={x} y={y + 11 + i * 11}
+                            x={x} y={y + 13 + i * 13}
                             textAnchor="middle"
-                            fontSize={10}
+                            fontSize={12}
                             fontWeight={500}
                             fill="#1D2939"
                           >
@@ -2376,7 +2379,7 @@ export default function Vendas() {
                         <text
                           x={x} y={qtdY}
                           textAnchor="middle"
-                          fontSize={10}
+                          fontSize={12}
                           fontWeight={700}
                           fill="#039855"
                         >
@@ -2387,9 +2390,9 @@ export default function Vendas() {
                   }}
                   axisLine={{ stroke: '#1D2939', strokeWidth: 1 }}
                   tickLine={false}
-                  height={36}
+                  height={48}
                 />
-                <YAxis type="number" hide domain={[0, 'dataMax']} />
+                <YAxis type="number" hide domain={[0, (dataMax: number) => dataMax * 1.18]} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1D2939', color: '#fff', borderRadius: 8, border: 'none', padding: '8px 14px', fontSize: 12 }}
                   itemStyle={{ color: '#fff' }}
@@ -2404,7 +2407,7 @@ export default function Vendas() {
                   <LabelList
                     dataKey="total"
                     position="top"
-                    fontSize={10}
+                    fontSize={12}
                     fontWeight={600}
                     fill="#1D2939"
                     formatter={(v: number) => formatBRL(v)}
