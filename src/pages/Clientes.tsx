@@ -1008,7 +1008,7 @@ export default function Clientes() {
                                             <h3 className="text-[15px] font-bold text-[#1D2939]">
                                                 {toTitleCase(selectedClient.razao_social)}
                                             </h3>
-                                            <div className="text-[12px] text-[#888] mt-0.5 space-y-0.5">
+                                            <div className="text-[11px] text-[#888] space-y-0">
                                                 <div>
                                                     {formatDoc(selectedClient.cpf_cnpj).length > 14 ? "CNPJ: " : "CPF: "}
                                                     {formatDoc(selectedClient.cpf_cnpj)}
@@ -1022,25 +1022,25 @@ export default function Clientes() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={handleExportPDF}
                                             disabled={pdfLoading || detailLoading || !detailFinancial}
-                                            className="text-[12px] border-[#ddd]"
+                                            className="h-7 px-2 text-[11px] border-[#ddd]"
                                             title="Exportar ficha completa em PDF"
                                         >
-                                            <FileDown className="h-3 w-3 mr-1.5" />
-                                            {pdfLoading ? "Gerando..." : "Exportar PDF"}
+                                            <FileDown className="h-3 w-3 mr-1" />
+                                            {pdfLoading ? "Gerando..." : "PDF"}
                                         </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={() => handleEdit(selectedClient)}
-                                            className="text-[12px] border-[#ddd]"
+                                            className="h-7 px-2 text-[11px] border-[#ddd]"
                                         >
-                                            <Pencil className="h-3 w-3 mr-1.5" />
+                                            <Pencil className="h-3 w-3 mr-1" />
                                             Editar
                                         </Button>
                                         {(selectedClient.celular || selectedClient.telefone) && (
@@ -1048,10 +1048,10 @@ export default function Clientes() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => setWhatsClienteOpen(true)}
-                                                className="text-[12px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                                className="h-7 px-2 text-[11px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                                title="Enviar mensagem no WhatsApp"
                                             >
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
-                                                WhatsApp
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
                                             </Button>
                                         )}
                                         <Button
@@ -1065,29 +1065,29 @@ export default function Clientes() {
                                                 });
                                                 setSolicitarOpen(true);
                                             }}
-                                            className="text-[12px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                            className="h-7 px-2 text-[11px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                                             title="Solicitar dados cadastrais via WhatsApp"
                                         >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="mr-1.5"><path fill="#25D366" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/><path fill="#fff" d="M9.36 7.32c-.18-.4-.36-.41-.53-.42h-.45c-.16 0-.41.06-.63.3-.22.24-.83.81-.83 1.98 0 1.17.85 2.3.97 2.46.12.16 1.65 2.64 4.08 3.6 2.02.8 2.43.64 2.87.6.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.64-1.19-1.42-1.33-1.66-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.53-1.31-.74-1.79z"/></svg>
-                                            Solicitar dados
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="mr-1"><path fill="#25D366" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/><path fill="#fff" d="M9.36 7.32c-.18-.4-.36-.41-.53-.42h-.45c-.16 0-.41.06-.63.3-.22.24-.83.81-.83 1.98 0 1.17.85 2.3.97 2.46.12.16 1.65 2.64 4.08 3.6 2.02.8 2.43.64 2.87.6.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.64-1.19-1.42-1.33-1.66-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.53-1.31-.74-1.79z"/></svg>
+                                            Solicitar
                                         </Button>
                                         {selectedClient.email && (
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => setEmailClienteOpen(true)}
-                                                className="text-[12px] border-blue-300 text-blue-700 hover:bg-blue-50"
+                                                className="h-7 px-2 text-[11px] border-blue-300 text-blue-700 hover:bg-blue-50"
+                                                title="Enviar e-mail"
                                             >
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
-                                                E-mail
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
                                             </Button>
                                         )}
                                         <Button
                                             size="sm"
                                             onClick={() => navigate(`/vendas?cliente=${selectedClient.id}`)}
-                                            className="text-[12px] bg-[#059669] hover:bg-[#243d5f]"
+                                            className="h-7 px-2 text-[11px] bg-[#059669] hover:bg-[#243d5f]"
                                         >
-                                            <Plus className="h-3 w-3 mr-1.5" />
+                                            <Plus className="h-3 w-3 mr-1" />
                                             Nova venda
                                         </Button>
                                     </div>
@@ -1103,7 +1103,7 @@ export default function Clientes() {
                                         <span className="text-[8px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
                                     </div>
                                     <div className="px-2.5 py-1 bg-white">
-                                        <div className="text-[12px] font-bold text-[#1D2939]">
+                                        <div className="text-[11px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
                                         </div>
                                         <div className="text-[9px] text-[#888]">
@@ -1116,7 +1116,7 @@ export default function Clientes() {
                                         <span className="text-[8px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
                                     <div className="px-2.5 py-1 bg-white">
-                                        <div className={`text-[12px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
+                                        <div className={`text-[11px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
                                         </div>
                                         <div className="text-[9px] text-[#888]">
@@ -1132,7 +1132,7 @@ export default function Clientes() {
                                         <span className="text-[8px] font-bold text-white uppercase tracking-widest">Última Compra</span>
                                     </div>
                                     <div className="px-2.5 py-1 bg-white">
-                                        <div className="text-[12px] font-bold text-[#1D2939]">
+                                        <div className="text-[11px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : detailFinancial?.ultimaCompra ? formatData(detailFinancial.ultimaCompra) : "—"}
                                         </div>
                                         <div className="text-[9px] text-[#888]">
@@ -1145,7 +1145,7 @@ export default function Clientes() {
                                         <span className="text-[8px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
                                     </div>
                                     <div className="px-2.5 py-1 bg-white">
-                                        <div className={`text-[12px] font-bold ${
+                                        <div className={`text-[11px] font-bold ${
                                             pontualidade === null ? "text-[#888]"
                                             : pontualidade >= 80 ? "text-[#039855]"
                                             : pontualidade >= 50 ? "text-[#EA580C]"
@@ -1179,7 +1179,7 @@ export default function Clientes() {
                                     <button
                                         key={tab.key}
                                         onClick={() => setDetailTab(tab.key)}
-                                        className={`px-4 py-2.5 text-[13px] font-medium border-b-2 transition-all ${
+                                        className={`px-3 py-2 text-[12px] font-medium border-b-2 transition-all ${
                                             detailTab === tab.key
                                                 ? "border-[#059669] text-[#059669]"
                                                 : "border-transparent text-[#888] hover:text-[#555]"
@@ -1217,10 +1217,10 @@ export default function Clientes() {
                                                         >
                                                             <HistoryIcon status={displayStatus} />
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="text-[12px] font-semibold text-[#1D2939] truncate">
+                                                                <div className="text-[11px] font-semibold text-[#1D2939] truncate">
                                                                     {crDescription(cr)}
                                                                 </div>
-                                                                <div className="text-[11px] text-[#888]">
+                                                                <div className="text-[10px] text-[#888]">
                                                                     {crSubtext(cr)}
                                                                 </div>
                                                             </div>
@@ -1234,7 +1234,7 @@ export default function Clientes() {
                                                                     />
                                                                 )}
                                                                 <CRStatusBadge status={displayStatus} />
-                                                                <span className="text-[12px] font-semibold text-[#1D2939] min-w-[80px] text-right">
+                                                                <span className="text-[11px] font-semibold text-[#1D2939] min-w-[80px] text-right">
                                                                     {formatBRL(Number(cr.valor ?? 0))}
                                                                 </span>
                                                                 <button
@@ -1296,7 +1296,7 @@ export default function Clientes() {
                                                                     className="p-1 rounded text-[#999] hover:text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors cursor-pointer"
                                                                     title="Excluir lançamento"
                                                                 >
-                                                                    <Trash2 className="h-3 w-3" />
+                                                                    <Trash2 className="h-3.5 w-3.5" />
                                                                 </button>
                                                             </div>
                                                         </div>
