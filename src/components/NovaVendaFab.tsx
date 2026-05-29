@@ -132,7 +132,7 @@ export function NovaVendaFab() {
     >
       {!vendaHidden && (
         <FabButton
-          label="Nova Venda"
+          label="Lançar Vendas"
           icon={Plus}
           color="#039855"
           iconColor="#FFFFFF"
@@ -144,7 +144,7 @@ export function NovaVendaFab() {
       )}
       {!cpHidden && (
         <FabButton
-          label="Lançar CP"
+          label="Lançar Contas a Pagar"
           icon={Minus}
           color="#F97066"
           iconColor="#FFFFFF"
