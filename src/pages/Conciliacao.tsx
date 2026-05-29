@@ -21,7 +21,7 @@ import {
     Calendar, ChevronDown, ChevronUp, Plus, Brain, CheckCircle2,
     Eye, HelpCircle, Zap, BookOpen, Trash2, CheckSquare, Sparkles,
     DollarSign, Bot, CreditCard, FileSpreadsheet, X,
-    ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, TrendingUp, Wallet
+    ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, TrendingUp, Wallet, AlertCircle
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategorySuggestion, ExternalSuggestion } from "@/modules/finance/presentation/hooks/useCategorySuggestion";
 import { CategorySuggestions } from "@/modules/finance/presentation/components/CategorySuggestions";
 import { OpeningCheckDialog } from "@/modules/finance/presentation/components/OpeningCheckDialog";
+import { StatementSecurityDialog } from "@/modules/finance/presentation/components/StatementSecurityDialog";
+import type { StatementSource, StatementSecurityReport } from "@/modules/finance/application/statementSecurity";
 import { SupplierSheet } from "@/components/suppliers/SupplierSheet";
 import { ClientSheet } from "@/components/clients/ClientSheet";
 import type { OFXSummary } from "@/lib/parsers/ofx";
@@ -105,6 +107,8 @@ export default function Conciliacao() {
     const [searchTerm, setSearchTerm] = useState("");
     const [showImportHistory, setShowImportHistory] = useState(false);
     const [openingCheck, setOpeningCheck] = useState<{ summary: OFXSummary; systemBalanceAtClose: number | null } | null>(null);
+    const [securityCheck, setSecurityCheck] = useState<{ source: StatementSource; file: File; report: StatementSecurityReport } | null>(null);
+    const [securityChecking, setSecurityChecking] = useState(false);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showRulesPanel, setShowRulesPanel] = useState(false);
     const [newEntry, setNewEntry] = useState({
@@ -252,6 +256,7 @@ export default function Conciliacao() {
         bankTransactions,
         systemTransactions,
         importHistory,
+        prepareStatement,
         uploadOFX,
         uploadPDF,
         uploadExcel,
@@ -677,34 +682,69 @@ export default function Conciliacao() {
     const pdfFileInputRef = useRef<HTMLInputElement>(null);
     const excelFileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
+    // Executa o lançamento de fato (após passar / confirmar a verificação de segurança).
+    const commitStatement = (source: StatementSource, file: File) => {
+        if (source === 'ofx') {
             uploadOFX.mutateAsync(file).then(result => {
                 if (result?.summary) {
                     setOpeningCheck({ summary: result.summary, systemBalanceAtClose: result.systemBalanceAtClose ?? null });
                 }
             }).catch(() => { /* erro ja tratado pelo onError do mutation */ });
+        } else if (source === 'pdf') {
+            uploadPDF.mutate(file);
+        } else if (source === 'excel') {
+            uploadExcel.mutate(file);
+        } else {
+            uploadCreditCardPDF.mutate(file);
         }
+    };
+
+    // Gate de segurança: verifica ANTES de lançar. Se houver pontos de atenção,
+    // abre o diálogo; se estiver tudo limpo, lança direto.
+    const gateAndUpload = async (source: StatementSource, file: File) => {
+        setSecurityChecking(true);
+        try {
+            const prep = await prepareStatement(file, source);
+            if (prep.report.needsReview) {
+                setSecurityCheck(prep);
+            } else {
+                commitStatement(source, file);
+            }
+        } catch (err: any) {
+            toast({ title: "Erro ao verificar extrato", description: err.message || String(err), variant: "destructive" });
+        } finally {
+            setSecurityChecking(false);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) gateAndUpload('ofx', file);
         if (e.target) e.target.value = "";
     };
 
     const handleCCFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) uploadCreditCardPDF.mutate(file);
+        if (file) gateAndUpload('credit_card_pdf', file);
         if (e.target) e.target.value = "";
     };
 
     const handlePDFFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) uploadPDF.mutate(file);
+        if (file) gateAndUpload('pdf', file);
         if (e.target) e.target.value = "";
     };
 
     const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) uploadExcel.mutate(file);
+        if (file) gateAndUpload('excel', file);
         if (e.target) e.target.value = "";
+    };
+
+    const handleConfirmSecurity = () => {
+        if (!securityCheck) return;
+        commitStatement(securityCheck.source, securityCheck.file);
+        setSecurityCheck(null);
     };
 
     // Desfazer conciliação de uma transação já conciliada
@@ -1379,37 +1419,31 @@ export default function Conciliacao() {
                         <input type="file" accept=".xlsx,.xls,.csv" className="hidden" ref={excelFileInputRef}
                             onChange={handleExcelFileChange} />
 
-                        <Button variant="outline" className="border-[#EAECF0]"
-                            onClick={() => setShowRulesPanel(!showRulesPanel)}>
-                            <Brain className="mr-2 h-4 w-4" />
-                            Regras ({rules.length})
-                        </Button>
-
                         {isCreditCard ? (
                             <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                 onClick={() => ccFileInputRef.current?.click()}
-                                disabled={!selectedAccountId || uploadCreditCardPDF.isPending}>
-                                {uploadCreditCardPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                disabled={!selectedAccountId || uploadCreditCardPDF.isPending || securityChecking}>
+                                {uploadCreditCardPDF.isPending || securityChecking ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
                                 Importar Fatura (PDF)
                             </Button>
                         ) : (
                             <>
                                 <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => fileInputRef.current?.click()}
-                                    disabled={!selectedAccountId || uploadOFX.isPending}>
-                                    {uploadOFX.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                    disabled={!selectedAccountId || uploadOFX.isPending || securityChecking}>
+                                    {uploadOFX.isPending || securityChecking ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                                     OFX
                                 </Button>
                                 <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => pdfFileInputRef.current?.click()}
-                                    disabled={!selectedAccountId || uploadPDF.isPending}>
-                                    {uploadPDF.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                                    disabled={!selectedAccountId || uploadPDF.isPending || securityChecking}>
+                                    {uploadPDF.isPending || securityChecking ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                                     PDF
                                 </Button>
                                 <Button variant="outline" className="border-[#EAECF0] text-muted-foreground"
                                     onClick={() => excelFileInputRef.current?.click()}
-                                    disabled={!selectedAccountId || uploadExcel.isPending}>
-                                    {uploadExcel.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
+                                    disabled={!selectedAccountId || uploadExcel.isPending || securityChecking}>
+                                    {uploadExcel.isPending || securityChecking ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
                                     Excel
                                 </Button>
                             </>
@@ -1689,6 +1723,20 @@ export default function Conciliacao() {
                                                             <div className="text-right">
                                                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Qtd</p>
                                                                 <p className="text-sm font-bold">{imp.count}</p>
+                                                            </div>
+                                                            <div className="text-right min-w-[112px]">
+                                                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Status</p>
+                                                                {(() => {
+                                                                    const pend = imp.pending ?? 0;
+                                                                    const rec = imp.reconciled ?? 0;
+                                                                    if (pend === 0 && rec > 0) {
+                                                                        return <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Conciliado</span>;
+                                                                    }
+                                                                    if (rec === 0) {
+                                                                        return <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><AlertCircle className="h-3.5 w-3.5" /> {pend} sem lançar</span>;
+                                                                    }
+                                                                    return <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><AlertCircle className="h-3.5 w-3.5" /> {rec}/{imp.count} · {pend} pend.</span>;
+                                                                })()}
                                                             </div>
                                                             {deleteImportBatch.isPending && deleteProgress ? (
                                                                 <div className="text-right min-w-[90px]">
@@ -3049,6 +3097,15 @@ export default function Conciliacao() {
                 systemBalanceAtClose={openingCheck?.systemBalanceAtClose ?? null}
                 bankAccountName={selectedAccount?.name}
                 bankAccountId={selectedAccountId}
+            />
+
+            <StatementSecurityDialog
+                open={!!securityCheck}
+                onClose={() => setSecurityCheck(null)}
+                report={securityCheck?.report ?? null}
+                source={securityCheck?.source ?? null}
+                bankAccountName={selectedAccount?.name}
+                onConfirm={handleConfirmSecurity}
             />
 
             <SupplierSheet

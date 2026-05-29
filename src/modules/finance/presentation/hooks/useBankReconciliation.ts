@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { parseBankStatementPdf } from "@/lib/parsers/bankStatementPdf";
 import { parseCreditCardPdf } from "@/lib/parsers/creditCardPdf";
 import { parseBankStatementExcel } from "@/lib/parsers/bankStatementExcel";
+import { checkStatement, type StatementSource, type NormalizedTx, type StatementSecurityReport } from "../../application/statementSecurity";
 
 // Interface unificada para transações do sistema (Pagar e Receber)
 export interface SystemTransaction {
@@ -349,7 +350,9 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             const parsed = await parseBankStatementPdf(file);
 
             const toInsert = parsed.map((tx, index) => {
-                const fitBase = `${statementRow.id}:${tx.date}:${tx.amount}:${tx.description}:${index}`;
+                // fit_id baseado em conteúdo (NÃO no id do arquivo) — senão reimportar o
+                // mesmo PDF gera fit_ids novos e duplica todas as transações.
+                const fitBase = `pdf_${bankAccountId}:${tx.date}:${tx.amount}:${tx.description}:${index}`;
                 const fitId = `pdf_${hashString(fitBase)}`;
                 return {
                     company_id: companyId,
@@ -578,7 +581,7 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
             while (true) {
                 const { data, error: txError } = await (activeClient as any)
                     .from('bank_transactions')
-                    .select('id, date, created_at, fit_id')
+                    .select('id, date, created_at, fit_id, status')
                     .eq('bank_account_id', bankAccountId)
                     .order('created_at', { ascending: false })
                     .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -599,6 +602,9 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 min_date: string;
                 max_date: string;
                 count: number;
+                reconciled: number;
+                pending: number;
+                ignored: number;
                 tx_ids: string[];
             }>();
 
@@ -610,10 +616,16 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                 // Detectar source pelo fit_id: pdf_ prefix = PDF, senão OFX
                 const source = tx.fit_id?.startsWith('pdf_') ? 'pdf' : 'ofx';
 
+                const isReconciled = tx.status === 'reconciled';
+                const isPending = tx.status === 'pending';
+
                 const existing = groups.get(groupKey);
                 if (existing) {
                     existing.count++;
                     existing.tx_ids.push(tx.id);
+                    if (isReconciled) existing.reconciled++;
+                    else if (isPending) existing.pending++;
+                    else existing.ignored++;
                     if (tx.date < existing.min_date) existing.min_date = tx.date;
                     if (tx.date > existing.max_date) existing.max_date = tx.date;
                 } else {
@@ -624,6 +636,9 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
                         min_date: tx.date,
                         max_date: tx.date,
                         count: 1,
+                        reconciled: isReconciled ? 1 : 0,
+                        pending: isPending ? 1 : 0,
+                        ignored: isReconciled || isPending ? 0 : 1,
                         tx_ids: [tx.id],
                     });
                 }
@@ -1027,12 +1042,65 @@ export function useBankReconciliation(bankAccountId?: string, companyIdOverride?
         onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" })
     });
 
+    // Verificação de segurança: parseia o arquivo e roda os checks ANTES de lançar.
+    // Não insere nada — só devolve o relatório pra UI decidir (bloquear / confirmar).
+    const prepareStatement = async (
+        file: File,
+        source: StatementSource,
+    ): Promise<{ source: StatementSource; file: File; report: StatementSecurityReport }> => {
+        if (!bankAccountId || !companyId) throw new Error("Dados incompletos");
+
+        const { data: bankAcc } = await (activeClient as any)
+            .from('bank_accounts')
+            .select('id, name, initial_balance, ofx_acctid')
+            .eq('id', bankAccountId)
+            .maybeSingle();
+
+        let txs: NormalizedTx[] = [];
+        let summary: any = null;
+
+        if (source === 'ofx') {
+            const r = await parseOFXFull(file);
+            summary = r.summary;
+            if (!r.transactions.length) throw new Error("Arquivo vazio ou inválido");
+            txs = r.transactions.map(t => ({
+                date: format(t.date, 'yyyy-MM-dd'),
+                amount: t.type === 'debit' ? -Math.abs(t.amount) : Math.abs(t.amount),
+            }));
+        } else if (source === 'excel') {
+            const parsed = await parseBankStatementExcel(file);
+            if (!parsed.length) throw new Error("Nenhuma transação encontrada na planilha");
+            txs = parsed.map(tx => ({ date: tx.date, amount: tx.amount }));
+        } else if (source === 'pdf') {
+            const parsed = await parseBankStatementPdf(file);
+            if (!parsed.length) throw new Error("Nenhuma transação encontrada no PDF");
+            txs = parsed.map(tx => ({ date: tx.date, amount: tx.amount }));
+        } else {
+            const statement = await parseCreditCardPdf(file);
+            if (!statement.transactions.length) throw new Error("Nenhuma transação encontrada na fatura");
+            txs = statement.transactions.map(tx => ({ date: tx.date, amount: -Math.abs(tx.amount) }));
+        }
+
+        const report = await checkStatement({
+            activeClient,
+            companyId,
+            bankAccountId,
+            source,
+            txs,
+            summary,
+            bankAcc: bankAcc ?? null,
+        });
+
+        return { source, file, report };
+    };
+
     return {
         bankTransactions,
         statementFiles,
         systemTransactions,
         importHistory,
         isLoading: isLoadingBankTx || isLoadingSystemTx,
+        prepareStatement,
         uploadOFX,
         uploadPDF,
         uploadExcel,
