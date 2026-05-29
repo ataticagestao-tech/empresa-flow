@@ -109,9 +109,9 @@ export const menuGroups: MenuGroup[] = [
     items: [
       { titleKey: 'Area do Contador', icon: Briefcase, url: '/area-contador', isHardcoded: true },
       { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
-      { titleKey: 'Notas Fiscais', icon: FileText, url: '/notas-fiscais', isHardcoded: true },
-      { titleKey: 'Importacao XML', icon: Upload, url: '/importacao-xml', isHardcoded: true },
       { titleKey: 'Config NFSe', icon: Settings, url: '/configuracoes/nfse', isHardcoded: true },
+      { titleKey: 'Previsao de Impostos', icon: Calculator, url: '/previsao-impostos', isHardcoded: true },
+      { titleKey: 'Importacao XML', icon: Upload, url: '/importacao-xml', isHardcoded: true },
     ]
   },
   {
@@ -119,12 +119,13 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'RH & Folha',
     icon: Briefcase,
     isHardcodedLabel: true,
+    // Ordem segue o fluxo de lançamento: vínculos → ponto → ausências → folha → encargos
     items: [
-      { titleKey: 'Folha de Pagamento', icon: Briefcase, url: '/folha-pagamento', isHardcoded: true },
+      { titleKey: 'Admissoes e Demissoes', icon: UserPlus, url: '/admissoes-demissoes', isHardcoded: true },
       { titleKey: 'Ponto Eletronico', icon: Clock, url: '/ponto-eletronico', isHardcoded: true },
       { titleKey: 'Ferias e Afastamentos', icon: Palmtree, url: '/ferias-afastamentos', isHardcoded: true },
+      { titleKey: 'Folha de Pagamento', icon: Briefcase, url: '/folha-pagamento', isHardcoded: true },
       { titleKey: 'Encargos', icon: Calculator, url: '/encargos', isHardcoded: true },
-      { titleKey: 'Admissoes e Demissoes', icon: UserPlus, url: '/admissoes-demissoes', isHardcoded: true },
     ]
   },
   {

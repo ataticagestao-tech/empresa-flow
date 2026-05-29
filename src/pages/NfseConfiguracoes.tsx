@@ -167,7 +167,7 @@ export default function NfseConfiguracoes() {
 
   return (
     <AppLayout title="Configuracoes NFSe">
-      <div className="p-6 max-w-3xl">
+      <div className="animate-fade-in">
 
         <PagePanel title="Configurações NFSe" subtitle="Parâmetros de emissão de NFS-e">
 
