@@ -13,6 +13,7 @@ import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData, formatDoc, formatFormaPagamento } from '@/lib/format'
 import { MonthFilter } from '@/components/ui/month-filter'
+import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
 import { unmask } from '@/utils/masks'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
@@ -413,7 +414,7 @@ export default function NfseEmissao() {
 
   // Dropdown
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
-  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<DropdownCoords | null>(null)
 
   useEffect(() => {
     if (!dropdownOpen) return
@@ -1557,7 +1558,7 @@ export default function NfseEmissao() {
                                 setDropdownCoords(null)
                               } else {
                                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                setDropdownCoords(computeDropdownCoords(rect))
                                 setDropdownOpen(em.id)
                               }
                             }}
@@ -1567,7 +1568,7 @@ export default function NfseEmissao() {
                           </button>
 
                           {dropdownOpen === em.id && dropdownCoords && createPortal(
-                            <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
+                            <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]" style={{ ...dropdownPositionStyle(dropdownCoords), zIndex: 100 }} onClick={e => e.stopPropagation()}>
                               <button
                                 onClick={() => openDetail(em)}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-left"

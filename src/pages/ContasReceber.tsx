@@ -21,6 +21,7 @@ import { TablePagination } from '@/components/ui/table-pagination'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { PeriodFilter } from '@/components/ui/period-filter'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
+import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
 import { RoleGate } from '@/components/auth/RoleGate'
 import { ExportMenu } from '@/components/ExportMenu'
 import { SpreadsheetTable, type SpreadsheetColumn } from '@/components/SpreadsheetTable'
@@ -214,7 +215,7 @@ export default function ContasReceber() {
   const [editarModal, setEditarModal] = useState<CR | null>(null)
   const [renegociarModal, setRenegociarModal] = useState<CR | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
-  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<DropdownCoords | null>(null)
   const [whatsCobrancaModal, setWhatsCobrancaModal] = useState<{ cr: CR; phone: string; text: string } | null>(null)
   const [emailCobrancaModal, setEmailCobrancaModal] = useState<{ cr: CR; email: string; assunto: string; corpo: string } | null>(null)
   const [enviandoLote, setEnviandoLote] = useState(false)
@@ -1651,7 +1652,7 @@ export default function ContasReceber() {
                                     setDropdownCoords(null)
                                   } else {
                                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                    setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                    setDropdownCoords(computeDropdownCoords(rect))
                                     setDropdownOpen(cr.id)
                                   }
                                 }}
@@ -1660,7 +1661,7 @@ export default function ContasReceber() {
                                 <MoreHorizontal size={14} className="text-[#555]" />
                               </button>
                               {dropdownOpen === cr.id && dropdownCoords && createPortal(
-                                <div className="fixed w-48 bg-white border border-[#ccc] rounded-lg shadow-lg" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
+                                <div className="fixed w-48 bg-white border border-[#ccc] rounded-lg shadow-lg" style={{ ...dropdownPositionStyle(dropdownCoords), zIndex: 100 }} onClick={e => e.stopPropagation()}>
                                   <button
                                     onClick={() => { setEditarModal(cr); setDropdownOpen(null) }}
                                     className="w-full px-4 py-2.5 text-left text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] transition-colors first:rounded-t-lg flex items-center gap-2"

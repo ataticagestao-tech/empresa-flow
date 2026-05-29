@@ -28,6 +28,7 @@ import { PeriodFilter } from '@/components/ui/period-filter'
 import { SupplierSheet } from '@/components/suppliers/SupplierSheet'
 import { RoleGate } from '@/components/auth/RoleGate'
 import { softDeleteWithUndo } from '@/lib/softDeleteWithUndo'
+import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
 import { SendWhatsAppDialog } from '@/components/whatsapp/SendWhatsAppDialog'
 import { SendEmailDialog } from '@/components/email/SendEmailDialog'
 import { ExportMenu } from '@/components/ExportMenu'
@@ -209,7 +210,7 @@ export default function ContasPagar() {
   const [batchCategorize, setBatchCategorize] = useState<{ contaContabilId: string; centroCustoId: string }>({ contaContabilId: '', centroCustoId: '' })
   const [payingCp, setPayingCp] = useState<ContaPagar | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
-  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<DropdownCoords | null>(null)
   const [whatsComprovanteModal, setWhatsComprovanteModal] = useState<{ cp: ContaPagar; phone: string; text: string } | null>(null)
   const [emailComprovanteModal, setEmailComprovanteModal] = useState<{ cp: ContaPagar; email: string; assunto: string; corpo: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -2350,7 +2351,7 @@ export default function ContasPagar() {
                                             setDropdownCoords(null)
                                           } else {
                                             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                            setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                            setDropdownCoords(computeDropdownCoords(rect))
                                             setDropdownOpen(cp.id)
                                           }
                                         }}
@@ -2364,7 +2365,7 @@ export default function ContasPagar() {
                                       {dropdownOpen === cp.id && dropdownCoords && createPortal(
                                         <div
                                           className="fixed py-1 min-w-[180px]"
-                                          style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100, backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}
+                                          style={{ ...dropdownPositionStyle(dropdownCoords), zIndex: 100, backgroundColor: '#ffffff', border: '1px solid rgba(26,46,74,0.10)', borderRadius: 8, boxShadow: '0 4px 16px rgba(26,46,74,0.10)' }}
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <button

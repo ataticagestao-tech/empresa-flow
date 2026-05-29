@@ -14,6 +14,7 @@ import { unmask } from '@/utils/masks'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
 import { toast } from 'sonner'
+import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface NotaFiscal {
@@ -138,7 +139,7 @@ export default function NotasFiscais() {
   const [motivoCancelamento, setMotivoCancelamento] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
-  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<DropdownCoords | null>(null)
 
   // Larguras de coluna ajustáveis (persistidas no navegador)
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
@@ -678,7 +679,7 @@ export default function NotasFiscais() {
                                   setDropdownCoords(null)
                                 } else {
                                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                  setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                  setDropdownCoords(computeDropdownCoords(rect))
                                   setDropdownOpen(nf.id)
                                 }
                               }}
@@ -687,7 +688,7 @@ export default function NotasFiscais() {
                               <MoreHorizontal size={14} />
                             </button>
                             {dropdownOpen === nf.id && dropdownCoords && createPortal(
-                              <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
+                              <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]" style={{ ...dropdownPositionStyle(dropdownCoords), zIndex: 100 }} onClick={e => e.stopPropagation()}>
                                 {nf.status === 'autorizada' && (
                                   <>
                                     <button
