@@ -331,6 +331,13 @@ export default function ContasPagar() {
   })
   useEffect(() => { localStorage.setItem('contaspagar_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
   const [colMenuOpen, setColMenuOpen] = useState(false)
+  const colBtnRef = useRef<HTMLButtonElement>(null)
+  const [colMenuPos, setColMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const openColMenu = () => {
+    const r = colBtnRef.current?.getBoundingClientRect()
+    if (r) setColMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    setColMenuOpen(o => !o)
+  }
   const isColVisible = (k: string) => !hiddenCols.has(k)
   const toggleColVisible = (k: string) => setHiddenCols(prev => {
     const n = new Set(prev)
@@ -1677,28 +1684,24 @@ export default function ContasPagar() {
             label={"Total a pagar"}
             value={formatBRL(kpis.totalPagar)}
             valueColor="#1D2939"
-            info={"Soma de todas as contas a pagar ainda em aberto (n\u00e3o pagas) dentro do per\u00edodo."}
             sub={`${kpis.totalCount} t\u00edtulo${kpis.totalCount !== 1 ? 's' : ''} em aberto no per\u00edodo`}
           />
           <KpiCard
             label={"Vence hoje"}
             value={formatBRL(kpis.venceHoje)}
             valueColor="#E53E3E"
-            info={"Contas cujo vencimento \u00e9 hoje \u2014 pague para n\u00e3o atrasar."}
             sub={`${kpis.hojeCount} t\u00edtulo${kpis.hojeCount !== 1 ? 's' : ''} vencendo`}
           />
           <KpiCard
             label={"Pr\u00f3ximos 7 dias"}
             value={formatBRL(kpis.prox7)}
             valueColor="#EA580C"
-            info={"Contas que vencem nos pr\u00f3ximos 7 dias \u2014 o que vai sair do caixa em breve."}
             sub={`${kpis.prox7Count} t\u00edtulo${kpis.prox7Count !== 1 ? 's' : ''} a vencer`}
           />
           <KpiCard
             label={"Pago no per\u00edodo"}
             value={formatBRL(kpis.pagoPeriodo)}
             valueColor="#039855"
-            info={"Total efetivamente pago (contas quitadas) dentro do per\u00edodo selecionado."}
             sub={`${kpis.pagoPeriodoCount} t\u00edtulo${kpis.pagoPeriodoCount !== 1 ? 's' : ''} quitado${kpis.pagoPeriodoCount !== 1 ? 's' : ''}`}
           />
         </KpiCardGrid>
@@ -2084,17 +2087,21 @@ export default function ContasPagar() {
               {/* Colunas — mostrar/ocultar */}
               <div className="relative">
                 <button
-                  onClick={() => setColMenuOpen(o => !o)}
+                  ref={colBtnRef}
+                  onClick={openColMenu}
                   className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black border border-[#D0D5DD] rounded bg-white hover:bg-[#F6F2EB] transition-colors"
                   title="Mostrar/ocultar colunas"
                 >
                   <Eye size={12} className="text-[#667085]" /> Colunas
                   <ChevronDown size={12} className={`text-[#98A2B3] transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {colMenuOpen && (
+                {colMenuOpen && colMenuPos && createPortal(
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
-                    <div className="absolute right-0 mt-1 z-50 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                    <div className="fixed inset-0 z-[1000]" onClick={() => setColMenuOpen(false)} />
+                    <div
+                      className="fixed z-[1001] bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px] max-h-[70vh] overflow-y-auto"
+                      style={{ top: colMenuPos.top, right: colMenuPos.right }}
+                    >
                       <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
                       {Object.entries(CP_COL_LABELS).map(([k, label]) => (
                         <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
@@ -2108,7 +2115,8 @@ export default function ContasPagar() {
                         </label>
                       ))}
                     </div>
-                  </>
+                  </>,
+                  document.body
                 )}
               </div>
               <button
