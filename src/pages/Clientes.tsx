@@ -1095,31 +1095,31 @@ export default function Clientes() {
                             </div>
 
                             {/* KPIs do cliente */}
-                            <div className={`grid gap-2 px-6 py-2.5 bg-white border-b border-[#EAECF0] ${
+                            <div className={`grid gap-1.5 px-6 py-2 bg-white border-b border-[#EAECF0] ${
                                 hasContratosByCompany(selectedCompany) ? "grid-cols-5" : "grid-cols-4"
                             }`}>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1">
-                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
+                                    <div className="bg-[#059669] px-2.5 py-0.5">
+                                        <span className="text-[8px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
                                     </div>
-                                    <div className="px-3 py-1.5 bg-white">
-                                        <div className="text-[15px] font-bold text-[#1D2939]">
+                                    <div className="px-2.5 py-1 bg-white">
+                                        <div className="text-[12px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
                                         </div>
-                                        <div className="text-[10px] text-[#888]">
+                                        <div className="text-[9px] text-[#888]">
                                             {detailLoading ? "" : `${detailFinancial?.totalCompras ?? 0} compras`}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1">
-                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
+                                    <div className="bg-[#059669] px-2.5 py-0.5">
+                                        <span className="text-[8px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
-                                    <div className="px-3 py-1.5 bg-white">
-                                        <div className={`text-[15px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
+                                    <div className="px-2.5 py-1 bg-white">
+                                        <div className={`text-[12px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
                                         </div>
-                                        <div className="text-[10px] text-[#888]">
+                                        <div className="text-[9px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.vencido && detailFinancial.vencido > 0
                                                 ? `${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length} título${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""} vencido${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""}`
                                                 : "em dia"
@@ -1128,24 +1128,24 @@ export default function Clientes() {
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1">
-                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Última Compra</span>
+                                    <div className="bg-[#059669] px-2.5 py-0.5">
+                                        <span className="text-[8px] font-bold text-white uppercase tracking-widest">Última Compra</span>
                                     </div>
-                                    <div className="px-3 py-1.5 bg-white">
-                                        <div className="text-[15px] font-bold text-[#1D2939]">
+                                    <div className="px-2.5 py-1 bg-white">
+                                        <div className="text-[12px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : detailFinancial?.ultimaCompra ? formatData(detailFinancial.ultimaCompra) : "—"}
                                         </div>
-                                        <div className="text-[10px] text-[#888]">
+                                        <div className="text-[9px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.ultimaCompra ? diasAtras(detailFinancial.ultimaCompra) : ""}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1">
-                                        <span className="text-[9px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
+                                    <div className="bg-[#059669] px-2.5 py-0.5">
+                                        <span className="text-[8px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
                                     </div>
-                                    <div className="px-3 py-1.5 bg-white">
-                                        <div className={`text-[15px] font-bold ${
+                                    <div className="px-2.5 py-1 bg-white">
+                                        <div className={`text-[12px] font-bold ${
                                             pontualidade === null ? "text-[#888]"
                                             : pontualidade >= 80 ? "text-[#039855]"
                                             : pontualidade >= 50 ? "text-[#EA580C]"
@@ -1153,7 +1153,7 @@ export default function Clientes() {
                                         }`}>
                                             {detailLoading ? "..." : pontualidade !== null ? `${pontualidade}%` : "—"}
                                         </div>
-                                        <div className="text-[10px] text-[#888]">
+                                        <div className="text-[9px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial ? `${detailFinancial.pagosNoPrazo} de ${detailFinancial.totalPagos}` : ""}
                                         </div>
                                     </div>
