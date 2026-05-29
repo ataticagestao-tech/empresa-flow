@@ -23,6 +23,36 @@ export const confirmarBeneficiosMes = async ({
   const vencimento = new Date(ano, mes, 0).toISOString().split('T')[0]
 
   try {
+    // Lançamento existente desta competência — usado para evitar CPs duplicadas
+    // ao reconfirmar (duplo clique, histórico desatualizado, 2 sessões, etc.).
+    const { data: existente } = await (client as any)
+      .from('employee_benefits_lancamentos')
+      .select('id, cp_vt_id, cp_va_id, cp_vt:cp_vt_id(id,status,deleted_at), cp_va:cp_va_id(id,status,deleted_at)')
+      .eq('company_id', companyId)
+      .eq('employee_id', employeeId)
+      .eq('competencia', competencia)
+      .maybeSingle()
+
+    // Bloqueio: se já há CP de benefício paga/parcial nesta competência, não recria nada.
+    const temPagamento = (cp: any) =>
+      cp && !cp.deleted_at && (cp.status === 'pago' || cp.status === 'parcial')
+    if (temPagamento(existente?.cp_vt) || temPagamento(existente?.cp_va)) {
+      return {
+        sucesso: false,
+        erro: 'Já existe benefício pago/parcial nesta competência. Cancele o pagamento antes de reconfirmar.',
+      }
+    }
+
+    // Soft-delete das CPs antigas em aberto — serão recriadas com os valores atuais.
+    const idsAntigos = [existente?.cp_vt_id, existente?.cp_va_id].filter(Boolean) as string[]
+    if (idsAntigos.length) {
+      await (client as any)
+        .from('contas_pagar')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', idsAntigos)
+        .is('deleted_at', null)
+    }
+
     let cpVtId: string | null = null
     if (resultado.vtCustoEmpresa > 0) {
       const { data, error } = await (client as any)
