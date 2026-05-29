@@ -32,8 +32,7 @@ const IC_NEG = "border border-[#E53E3E] rounded-md px-3 py-2 text-[13px] bg-[#FE
 
 const REGIMES: { value: RegimeTrabalho; label: string }[] = [
   { value: "seg_sex", label: "Seg–Sex" },
-  { value: "seg_sab", label: "Seg–Sáb" },
-  { value: "escala_6x1", label: "Escala 6×1" },
+  { value: "seg_sab", label: "6x1" },
   { value: "manual", label: "Manual" },
 ];
 
@@ -78,7 +77,8 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
     setVtValorUnitario(cfgDb.vtValorUnitario);
     setVaAtivo(cfgDb.vaAtivo);
     setVaValorDia(cfgDb.vaValorDia);
-    setRegime(cfgDb.regimeTrabalho);
+    // "escala_6x1" foi descontinuado; mapeia pro 6x1 atual (seg–sáb, folga só domingo)
+    setRegime((cfgDb.regimeTrabalho as string) === "escala_6x1" ? "seg_sab" : cfgDb.regimeTrabalho);
   }, [cfgDb]);
 
   const { diasUteis, diasDetalhados } = useMemo(

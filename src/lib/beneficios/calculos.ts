@@ -57,7 +57,7 @@ export interface DiaMes {
   tipo: TipoDia
 }
 
-export type RegimeTrabalho = 'seg_sex' | 'seg_sab' | 'escala_6x1' | 'manual'
+export type RegimeTrabalho = 'seg_sex' | 'seg_sab' | 'manual'
 
 export const calcularDiasUteis = (
   ano: number,
