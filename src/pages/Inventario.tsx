@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
-  Plus, Search, ClipboardCheck, CheckCircle, Eye, AlertTriangle
+  Plus, Search, ClipboardCheck, CheckCircle, Eye, AlertTriangle, ChevronDown
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -69,6 +69,58 @@ export default function Inventario() {
 
   // Contagem fields
   const [contagemItens, setContagemItens] = useState<InventarioItem[]>([]);
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const INV_COL_ORDER = ['descricao', 'data', 'status', 'acoes'];
+  const COL_LABELS: Record<string, string> = {
+    descricao: 'Descrição', data: 'Data Início', status: 'Status', acoes: 'Ações',
+  };
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    descricao: 320, data: 130, status: 120, acoes: 100,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('inventario_col_widths');
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT;
+  });
+  useEffect(() => { localStorage.setItem('inventario_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('inventario_hidden_cols');
+      if (s) return new Set(JSON.parse(s) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  useEffect(() => { localStorage.setItem('inventario_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const isColVisible = (k: string) => !hiddenCols.has(k);
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+  const visibleInvCols = INV_COL_ORDER.filter(isColVisible);
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r) return;
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+      setColWidths(prev => ({ ...prev, [r.key]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const { data: inventarios = [], isLoading } = useQuery({
     queryKey: ["inventarios", selectedCompany?.id],
@@ -299,52 +351,107 @@ export default function Inventario() {
         </div>
 
         {/* Tabela */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
+            {/* Barra de título escura + menu Colunas */}
+            <div className="flex items-center justify-between px-4 py-2.5" style={{ background: '#000000' }}>
+              <h3 className="font-bold text-white m-0 text-[15px]">Inventários</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-[13px] text-white/70 font-medium">
+                  {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+                </span>
+                <div className="relative self-center">
+                  <button
+                    onClick={() => setColMenuOpen(o => !o)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                    title="Mostrar/ocultar colunas"
+                  >
+                    <Eye size={14} className="text-white/70" /> Colunas
+                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {colMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                      <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                        <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                        {Object.entries(COL_LABELS).map(([k, label]) => (
+                          <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isColVisible(k)}
+                              onChange={() => toggleColVisible(k)}
+                              className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {isLoading ? (
               <div className="text-center py-16">
                 <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Data Início</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(inv => {
-                    const st = statusMap[inv.status] || statusMap.aberto;
-                    return (
-                      <TableRow key={inv.id}>
-                        <TableCell className="font-medium">{inv.descricao || "Sem descrição"}</TableCell>
-                        <TableCell>{fmtDate(inv.data_inicio)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={st.color}>{st.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button variant="ghost" size="sm" onClick={() => openContagem(inv)} title={inv.status === "aberto" ? "Contagem" : "Visualizar"}>
-                              {inv.status === "aberto" ? <ClipboardCheck className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                        <ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        Nenhum inventário encontrado
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleInvCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                  <colgroup>
+                    {INV_COL_ORDER.map(k => (
+                      <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                    ))}
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-white text-[13px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('descricao') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('descricao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Descrição
+                      </th>
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('data') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('data')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Data Início
+                      </th>
+                      <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('status') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Status
+                      </th>
+                      <th className={`text-center px-3 py-3 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(inv => {
+                      const st = statusMap[inv.status] || statusMap.aberto;
+                      return (
+                        <tr key={inv.id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
+                          <td className={`px-3 py-1 font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('descricao') ? '' : 'hidden'}`} title={inv.descricao || "Sem descrição"}>{inv.descricao || "Sem descrição"}</td>
+                          <td className={`px-3 py-1 text-left text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('data') ? '' : 'hidden'}`} title={fmtDate(inv.data_inicio)}>{fmtDate(inv.data_inicio)}</td>
+                          <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
+                            <Badge variant={st.color}>{st.label}</Badge>
+                          </td>
+                          <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                            <div className="flex gap-1 justify-center">
+                              <Button variant="ghost" size="sm" onClick={() => openContagem(inv)} title={inv.status === "aberto" ? "Contagem" : "Visualizar"}>
+                                {inv.status === "aberto" ? <ClipboardCheck className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={visibleInvCols.length || 1} className="text-center py-12 text-muted-foreground">
+                          <ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                          Nenhum inventário encontrado
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>

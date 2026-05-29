@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,8 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Eye, ChevronDown } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,6 +18,58 @@ export default function FluxoCaixaProjetado() {
     const { activeClient } = useAuth();
     const { selectedCompany } = useCompany();
     const [days, setDays] = useState(90);
+
+    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+    const COL_ORDER = ['data', 'descricao', 'tipo', 'valor', 'saldo'];
+    const COL_LABELS: Record<string, string> = {
+        data: 'Data', descricao: 'Descrição', tipo: 'Tipo', valor: 'Valor', saldo: 'Saldo Acumulado',
+    };
+    const COL_WIDTHS_DEFAULT: Record<string, number> = {
+        data: 120, descricao: 280, tipo: 110, valor: 140, saldo: 160,
+    };
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        try {
+            const s = localStorage.getItem('fluxoprojetado_col_widths');
+            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+        } catch { /* ignore */ }
+        return COL_WIDTHS_DEFAULT;
+    });
+    useEffect(() => { localStorage.setItem('fluxoprojetado_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+        try {
+            const s = localStorage.getItem('fluxoprojetado_hidden_cols');
+            if (s) return new Set(JSON.parse(s) as string[]);
+        } catch { /* ignore */ }
+        return new Set();
+    });
+    useEffect(() => { localStorage.setItem('fluxoprojetado_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+    const [colMenuOpen, setColMenuOpen] = useState(false);
+    const isColVisible = (k: string) => !hiddenCols.has(k);
+    const toggleColVisible = (k: string) => setHiddenCols(prev => {
+        const n = new Set(prev);
+        if (n.has(k)) n.delete(k); else n.add(k);
+        return n;
+    });
+    const visibleCols = COL_ORDER.filter(isColVisible);
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+    const startResize = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+        const onMove = (ev: MouseEvent) => {
+            const r = resizingRef.current;
+            if (!r) return;
+            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+            setColWidths(prev => ({ ...prev, [r.key]: newW }));
+        };
+        const onUp = () => {
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const today = new Date();
     const endDate = addDays(today, days);
@@ -156,39 +207,99 @@ export default function FluxoCaixaProjetado() {
                     </Card>
                 )}
 
-                <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden" }}>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Descrição</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                                <TableHead className="text-right">Saldo Acumulado</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {allItems.length === 0 ? (
-                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum lançamento futuro encontrado.</TableCell></TableRow>
-                            ) : allItems.map((item, i) => (
-                                <TableRow key={i}>
-                                    <TableCell>{item.due_date ? format(parseISO(item.due_date), "dd/MM/yyyy") : "—"}</TableCell>
-                                    <TableCell>{item.description || "—"}</TableCell>
-                                    <TableCell>
-                                        <Badge className={item.tipo === "entrada" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
-                                            {item.tipo === "entrada" ? "Entrada" : "Saída"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right" style={{ color: item.tipo === "entrada" ? "#039855" : "#E53E3E" }}>
-                                        {fmt(Number(item.amount))}
-                                    </TableCell>
-                                    <TableCell className="text-right" style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#059669" : "#E53E3E" }}>
-                                        {fmt(item.saldo_acumulado)}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden", padding: 0 }}>
+                    <div className="flex items-center justify-between px-4 py-3" style={{ background: "#000000" }}>
+                        <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+                            Lançamentos Projetados
+                        </h3>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[13px] text-white/70 font-medium">
+                                {allItems.length} registro{allItems.length !== 1 ? "s" : ""}
+                            </span>
+                            <div className="relative self-center">
+                                <button
+                                    onClick={() => setColMenuOpen(o => !o)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                                    title="Mostrar/ocultar colunas"
+                                >
+                                    <Eye size={14} className="text-white/70" /> Colunas
+                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? "rotate-180" : ""}`} />
+                                </button>
+                                {colMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            {COL_ORDER.map(k => (
+                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isColVisible(k)}
+                                                        onChange={() => toggleColVisible(k)}
+                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                                                    />
+                                                    {COL_LABELS[k]}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white overflow-x-auto">
+                        <table className="text-sm" style={{ tableLayout: "fixed", width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: "100%" }}>
+                            <colgroup>
+                                {COL_ORDER.map(k => (
+                                    <col key={k} className={isColVisible(k) ? "" : "hidden"} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                                ))}
+                            </colgroup>
+                            <thead>
+                                <tr className="bg-white text-[15px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("data") ? "" : "hidden"}`}>
+                                        <span onMouseDown={startResize("data")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Data
+                                    </th>
+                                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("descricao") ? "" : "hidden"}`}>
+                                        <span onMouseDown={startResize("descricao")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Descrição
+                                    </th>
+                                    <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("tipo") ? "" : "hidden"}`}>
+                                        <span onMouseDown={startResize("tipo")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Tipo
+                                    </th>
+                                    <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible("valor") ? "" : "hidden"}`}>
+                                        <span onMouseDown={startResize("valor")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Valor
+                                    </th>
+                                    <th className={`text-right px-3 py-3 relative ${isColVisible("saldo") ? "" : "hidden"}`}>
+                                        Saldo Acumulado
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allItems.length === 0 ? (
+                                    <tr><td colSpan={visibleCols.length} className="text-center py-8 text-[#667085]">Nenhum lançamento futuro encontrado.</td></tr>
+                                ) : allItems.map((item, i) => (
+                                    <tr key={i} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
+                                        <td className={`px-3 py-1 text-left text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible("data") ? "" : "hidden"}`}>{item.due_date ? format(parseISO(item.due_date), "dd/MM/yyyy") : "—"}</td>
+                                        <td className={`px-3 py-1 text-left text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible("descricao") ? "" : "hidden"}`} title={item.description || ""}>{item.description || "—"}</td>
+                                        <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible("tipo") ? "" : "hidden"}`}>
+                                            <Badge className={item.tipo === "entrada" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                                                {item.tipo === "entrada" ? "Entrada" : "Saída"}
+                                            </Badge>
+                                        </td>
+                                        <td className={`px-3 py-1 text-right border-r border-[#F1F3F5] ${isColVisible("valor") ? "" : "hidden"}`} style={{ color: item.tipo === "entrada" ? "#039855" : "#E53E3E" }}>
+                                            {fmt(Number(item.amount))}
+                                        </td>
+                                        <td className={`px-3 py-1 text-right ${isColVisible("saldo") ? "" : "hidden"}`} style={{ fontWeight: 600, color: item.saldo_acumulado >= 0 ? "#059669" : "#E53E3E" }}>
+                                            {fmt(item.saldo_acumulado)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </Card>
                 </PagePanel>
             </div>

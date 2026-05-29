@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,10 +8,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Calculator, Pencil, DollarSign, PieChart, CheckCircle2 } from "lucide-react";
+import { Calculator, Pencil, DollarSign, PieChart, CheckCircle2, Eye, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -29,6 +28,59 @@ export default function Orcamento() {
     const [editDialog, setEditDialog] = useState(false);
     const [editCategory, setEditCategory] = useState<{ id: string; name: string; code: string } | null>(null);
     const [editValue, setEditValue] = useState("");
+
+    // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+    const ORC_COL_ORDER = ['categoria', 'orcado', 'realizado', 'disponivel', 'pct', 'acoes'];
+    const COL_LABELS: Record<string, string> = {
+        categoria: 'Categoria', orcado: 'Orçado', realizado: 'Realizado',
+        disponivel: 'Disponível', pct: '% Utilizado', acoes: 'Ações',
+    };
+    const COL_WIDTHS_DEFAULT: Record<string, number> = {
+        categoria: 280, orcado: 130, realizado: 130, disponivel: 130, pct: 220, acoes: 70,
+    };
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        try {
+            const s = localStorage.getItem('orcamento_col_widths');
+            if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+        } catch { /* ignore */ }
+        return COL_WIDTHS_DEFAULT;
+    });
+    useEffect(() => { localStorage.setItem('orcamento_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+    const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+        try {
+            const s = localStorage.getItem('orcamento_hidden_cols');
+            if (s) return new Set(JSON.parse(s) as string[]);
+        } catch { /* ignore */ }
+        return new Set();
+    });
+    useEffect(() => { localStorage.setItem('orcamento_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+    const [colMenuOpen, setColMenuOpen] = useState(false);
+    const isColVisible = (k: string) => !hiddenCols.has(k);
+    const toggleColVisible = (k: string) => setHiddenCols(prev => {
+        const n = new Set(prev);
+        if (n.has(k)) n.delete(k); else n.add(k);
+        return n;
+    });
+    const visibleOrcCols = ORC_COL_ORDER.filter(isColVisible);
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+    const startResize = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+        const onMove = (ev: MouseEvent) => {
+            const r = resizingRef.current;
+            if (!r) return;
+            const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+            setColWidths(prev => ({ ...prev, [r.key]: newW }));
+        };
+        const onUp = () => {
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const monthStart = startOfMonth(new Date(currentMonth + "-01T00:00:00"));
     const monthEnd = endOfMonth(monthStart);
@@ -164,47 +216,100 @@ export default function Orcamento() {
                 )}
 
                 <Card style={{ borderRadius: 14, border: "1px solid #EAECF0", overflow: "hidden" }}>
-                    <div style={{ padding: "16px 20px", borderBottom: "1px solid #EAECF0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <p style={{ fontWeight: 700, fontSize: 14 }}>Detalhamento por Categoria</p>
-                        <Button size="sm" variant="outline" onClick={() => { setEditCategory(null); setEditValue(""); setEditDialog(true); }}>
-                            Definir Orçamento
-                        </Button>
-                    </div>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Categoria</TableHead>
-                                <TableHead className="text-right">Orçado</TableHead>
-                                <TableHead className="text-right">Realizado</TableHead>
-                                <TableHead className="text-right">Disponível</TableHead>
-                                <TableHead style={{ width: 200 }}>% Utilizado</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {rows.length === 0 ? (
-                                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Defina orçamentos para suas categorias de despesa.</TableCell></TableRow>
-                            ) : rows.map((r: any) => (
-                                <TableRow key={r.id}>
-                                    <TableCell className="font-medium">{r.code} - {r.name}</TableCell>
-                                    <TableCell className="text-right">{fmt(r.orcado)}</TableCell>
-                                    <TableCell className="text-right" style={{ color: "#E53E3E" }}>{fmt(r.realizado)}</TableCell>
-                                    <TableCell className="text-right" style={{ color: r.disponivel >= 0 ? "#039855" : "#E53E3E" }}>{fmt(r.disponivel)}</TableCell>
-                                    <TableCell>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <Progress value={Math.min(r.pct, 100)} className="h-2" />
-                                            <span style={{ fontSize: 12, color: r.pct > 100 ? "#E53E3E" : "#667085", minWidth: 40 }}>{r.pct.toFixed(0)}%</span>
+                    <div style={{ padding: "16px 20px", background: "#000000", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                        <p style={{ fontWeight: 700, fontSize: 14, color: "#FFFFFF" }}>Detalhamento por Categoria</p>
+                        <div className="flex items-center gap-2">
+                            <div className="relative self-center">
+                                <button
+                                    onClick={() => setColMenuOpen(o => !o)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                                    title="Mostrar/ocultar colunas"
+                                >
+                                    <Eye size={14} className="text-white/70" /> Colunas
+                                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {colMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            {Object.entries(COL_LABELS).map(([k, label]) => (
+                                                <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isColVisible(k)}
+                                                        onChange={() => toggleColVisible(k)}
+                                                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                                                    />
+                                                    {label}
+                                                </label>
+                                            ))}
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>
-                                            <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                                    </>
+                                )}
+                            </div>
+                            <Button size="sm" variant="outline" className="bg-white" onClick={() => { setEditCategory(null); setEditValue(""); setEditDialog(true); }}>
+                                Definir Orçamento
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleOrcCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                            <colgroup>
+                                {ORC_COL_ORDER.map(k => (
+                                    <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                                ))}
+                            </colgroup>
+                            <thead>
+                                <tr className="bg-white text-[12px] font-bold text-[#1D2939] uppercase tracking-wider border-b-2 border-[#EAECF0] whitespace-nowrap">
+                                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`}>
+                                        <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Categoria
+                                    </th>
+                                    <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('orcado') ? '' : 'hidden'}`}>
+                                        <span onMouseDown={startResize('orcado')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Orçado
+                                    </th>
+                                    <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('realizado') ? '' : 'hidden'}`}>
+                                        <span onMouseDown={startResize('realizado')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Realizado
+                                    </th>
+                                    <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('disponivel') ? '' : 'hidden'}`}>
+                                        <span onMouseDown={startResize('disponivel')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        Disponível
+                                    </th>
+                                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('pct') ? '' : 'hidden'}`}>
+                                        <span onMouseDown={startResize('pct')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                                        % Utilizado
+                                    </th>
+                                    <th className={`text-center px-3 py-3 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.length === 0 ? (
+                                    <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Defina orçamentos para suas categorias de despesa.</td></tr>
+                                ) : rows.map((r: any) => (
+                                    <tr key={r.id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
+                                        <td className={`px-3 py-1 font-medium truncate border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`} title={`${r.code} - ${r.name}`}>{r.code} - {r.name}</td>
+                                        <td className={`px-3 py-1 text-right border-r border-[#F1F3F5] ${isColVisible('orcado') ? '' : 'hidden'}`}>{fmt(r.orcado)}</td>
+                                        <td className={`px-3 py-1 text-right border-r border-[#F1F3F5] ${isColVisible('realizado') ? '' : 'hidden'}`} style={{ color: "#E53E3E" }}>{fmt(r.realizado)}</td>
+                                        <td className={`px-3 py-1 text-right border-r border-[#F1F3F5] ${isColVisible('disponivel') ? '' : 'hidden'}`} style={{ color: r.disponivel >= 0 ? "#039855" : "#E53E3E" }}>{fmt(r.disponivel)}</td>
+                                        <td className={`px-3 py-1 border-r border-[#F1F3F5] ${isColVisible('pct') ? '' : 'hidden'}`}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <Progress value={Math.min(r.pct, 100)} className="h-2" />
+                                                <span style={{ fontSize: 12, color: r.pct > 100 ? "#E53E3E" : "#667085", minWidth: 40 }}>{r.pct.toFixed(0)}%</span>
+                                            </div>
+                                        </td>
+                                        <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>
+                                                <Pencil className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </Card>
                 </PagePanel>
 
