@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,9 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  Plus, Search, ShoppingCart, Pencil, CheckCircle, Trash2, Eye
+  Plus, Search, ShoppingCart, Pencil, CheckCircle, Trash2, Eye, ChevronDown
 } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { ExportMenu } from "@/components/ExportMenu";
 
@@ -142,6 +141,59 @@ export default function OrdensCompra() {
     if (filterStatus !== "all") list = list.filter(o => o.status === filterStatus);
     return list;
   }, [ordens, search, filterStatus, fornecedorMap]);
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const OC_COL_ORDER = ['numero', 'fornecedor', 'emissao', 'previsao', 'valor', 'status', 'acoes'];
+  const COL_LABELS: Record<string, string> = {
+    numero: 'Número', fornecedor: 'Fornecedor', emissao: 'Emissão', previsao: 'Previsão',
+    valor: 'Valor', status: 'Status', acoes: 'Ações',
+  };
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    numero: 110, fornecedor: 240, emissao: 110, previsao: 110, valor: 130, status: 120, acoes: 110,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('ordenscompra_col_widths');
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT;
+  });
+  useEffect(() => { localStorage.setItem('ordenscompra_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('ordenscompra_hidden_cols');
+      if (s) return new Set(JSON.parse(s) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  useEffect(() => { localStorage.setItem('ordenscompra_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const isColVisible = (k: string) => !hiddenCols.has(k);
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+  const visibleOcCols = OC_COL_ORDER.filter(isColVisible);
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r) return;
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+      setColWidths(prev => ({ ...prev, [r.key]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   function openNew() {
     setEditingOC(null);
@@ -376,61 +428,123 @@ export default function OrdensCompra() {
         {/* Tabela */}
         <Card>
           <CardContent className="p-0">
+            {/* Barra de título preta */}
+            <div className="flex items-center justify-between px-4 py-3 rounded-t-lg" style={{ background: '#000000' }}>
+              <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+                Ordens de Compra
+              </h3>
+              <div className="flex items-center gap-3">
+                <span className="text-[13px] text-white/70 font-medium">
+                  {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+                </span>
+                <div className="relative self-center">
+                  <button
+                    onClick={() => setColMenuOpen(o => !o)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                    title="Mostrar/ocultar colunas"
+                  >
+                    <Eye size={14} className="text-white/70" /> Colunas
+                    <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {colMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                      <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                        <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                        {Object.entries(COL_LABELS).map(([k, label]) => (
+                          <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isColVisible(k)}
+                              onChange={() => toggleColVisible(k)}
+                              className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
             {isLoading ? (
               <div className="text-center py-16">
                 <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
               </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                Nenhuma ordem de compra encontrada
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Emissão</TableHead>
-                    <TableHead>Previsão</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(oc => {
-                    const st = statusMap[oc.status] || statusMap.rascunho;
-                    return (
-                      <TableRow key={oc.id}>
-                        <TableCell className="font-mono text-[12px]">{oc.numero}</TableCell>
-                        <TableCell>{fornecedorMap[oc.fornecedor_id] || "—"}</TableCell>
-                        <TableCell>{fmtDate(oc.data_emissao)}</TableCell>
-                        <TableCell>{fmtDate(oc.data_prevista)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmt(oc.valor_total)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={st.color}>{st.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(oc)} title="Editar">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            {!["recebida", "cancelada"].includes(oc.status) && (
-                              <Button variant="ghost" size="sm" onClick={() => openReceber(oc)} title="Receber">
-                                <CheckCircle className="h-3.5 w-3.5" />
+              <div className="bg-white overflow-x-auto rounded-b-lg">
+                <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleOcCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                  <colgroup>
+                    {OC_COL_ORDER.map(k => (
+                      <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                    ))}
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-white text-[13px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('numero') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('numero')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Número
+                      </th>
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('fornecedor') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('fornecedor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Fornecedor
+                      </th>
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('emissao') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('emissao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Emissão
+                      </th>
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('previsao') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('previsao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Previsão
+                      </th>
+                      <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('valor') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Valor
+                      </th>
+                      <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('status') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Status
+                      </th>
+                      <th className={`text-center px-3 py-3 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(oc => {
+                      const st = statusMap[oc.status] || statusMap.rascunho;
+                      return (
+                        <tr key={oc.id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
+                          <td className={`px-3 py-1 font-mono text-[12px] truncate border-r border-[#F1F3F5] ${isColVisible('numero') ? '' : 'hidden'}`} title={oc.numero}>{oc.numero}</td>
+                          <td className={`px-3 py-1 truncate border-r border-[#F1F3F5] ${isColVisible('fornecedor') ? '' : 'hidden'}`} title={fornecedorMap[oc.fornecedor_id] || "—"}>{fornecedorMap[oc.fornecedor_id] || "—"}</td>
+                          <td className={`px-3 py-1 truncate border-r border-[#F1F3F5] ${isColVisible('emissao') ? '' : 'hidden'}`}>{fmtDate(oc.data_emissao)}</td>
+                          <td className={`px-3 py-1 truncate border-r border-[#F1F3F5] ${isColVisible('previsao') ? '' : 'hidden'}`}>{fmtDate(oc.data_prevista)}</td>
+                          <td className={`px-3 py-1 text-right tabular-nums truncate border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>{fmt(oc.valor_total)}</td>
+                          <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
+                            <Badge variant={st.color}>{st.label}</Badge>
+                          </td>
+                          <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                            <div className="flex gap-1 justify-center">
+                              <Button variant="ghost" size="sm" onClick={() => openEdit(oc)} title="Editar">
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                        <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        Nenhuma ordem de compra encontrada
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                              {!["recebida", "cancelada"].includes(oc.status) && (
+                                <Button variant="ghost" size="sm" onClick={() => openReceber(oc)} title="Receber">
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>

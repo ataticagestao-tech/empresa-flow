@@ -313,6 +313,65 @@ export default function NfseEmissao() {
   })
   const visibleVendasCols = VENDAS_COL_ORDER.filter(isColVisible)
 
+  // ─── Tabela "NFSe emitidas" (estado independente) ──────────────────
+  const EMITIDAS_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    numero: 140, data: 110, tomador: 240, servico: 280, valor: 130, status: 140, acoes: 130,
+  }
+  const EMITIDAS_COL_ORDER = ['numero', 'data', 'tomador', 'servico', 'valor', 'status', 'acoes']
+  const EMITIDAS_COL_LABELS: Record<string, string> = {
+    numero: 'Numero', data: 'Data', tomador: 'Tomador', servico: 'Servico',
+    valor: 'Valor', status: 'Status', acoes: 'Ações',
+  }
+  const [emitidasColWidths, setEmitidasColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nfse_emitidas_col_widths')
+      if (saved) return { ...EMITIDAS_COL_WIDTHS_DEFAULT, ...JSON.parse(saved) }
+    } catch { /* ignore */ }
+    return EMITIDAS_COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => {
+    localStorage.setItem('nfse_emitidas_col_widths', JSON.stringify(emitidasColWidths))
+  }, [emitidasColWidths])
+
+  const emitidasResizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResizeEmitidas = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    emitidasResizingRef.current = { key, startX: e.clientX, startW: emitidasColWidths[key] ?? EMITIDAS_COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = emitidasResizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setEmitidasColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      emitidasResizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const [emitidasHiddenCols, setEmitidasHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('nfse_emitidas_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => {
+    localStorage.setItem('nfse_emitidas_hidden_cols', JSON.stringify([...emitidasHiddenCols]))
+  }, [emitidasHiddenCols])
+  const [emitidasColMenuOpen, setEmitidasColMenuOpen] = useState(false)
+  const isEmitidasColVisible = (k: string) => !emitidasHiddenCols.has(k)
+  const toggleEmitidasColVisible = (k: string) => setEmitidasHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleEmitidasCols = EMITIDAS_COL_ORDER.filter(isEmitidasColVisible)
+
   // Paginacao
   const PAGE_SIZE = 10
   const [page, setPage] = useState(1)
@@ -1171,6 +1230,36 @@ export default function NfseEmissao() {
             <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Atualizar">
               <RefreshCw size={16} className="text-gray-500" />
             </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setEmitidasColMenuOpen(o => !o)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50"
+                title="Mostrar/ocultar colunas"
+              >
+                <Eye size={15} className="text-gray-500" /> Colunas
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${emitidasColMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {emitidasColMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setEmitidasColMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px]">
+                    <p className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Exibir colunas</p>
+                    {Object.entries(EMITIDAS_COL_LABELS).map(([k, label]) => (
+                      <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isEmitidasColVisible(k)}
+                          onChange={() => toggleEmitidasColVisible(k)}
+                          className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
@@ -1403,39 +1492,40 @@ export default function NfseEmissao() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleEmitidasCols.reduce((a, k) => a + (emitidasColWidths[k] ?? EMITIDAS_COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {visibleEmitidasCols.map(k => (
+                    <col key={k} style={{ width: emitidasColWidths[k] ?? EMITIDAS_COL_WIDTHS_DEFAULT[k] }} />
+                  ))}
+                </colgroup>
                 <thead>
-                  <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-xs text-white uppercase tracking-wider">
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Numero</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Data</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Tomador</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Servico</th>
-                    <th className="px-4 py-3 font-semibold text-right whitespace-nowrap">Valor</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Status</th>
-                    <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Acoes</th>
+                  <tr style={{ backgroundColor: '#000000' }} className="text-left text-xs text-white uppercase tracking-wider">
+                    {isEmitidasColVisible('numero')  && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Numero<span onMouseDown={startResizeEmitidas('numero')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
+                    {isEmitidasColVisible('data')    && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Data<span onMouseDown={startResizeEmitidas('data')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
+                    {isEmitidasColVisible('tomador') && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Tomador<span onMouseDown={startResizeEmitidas('tomador')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
+                    {isEmitidasColVisible('servico') && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Servico<span onMouseDown={startResizeEmitidas('servico')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
+                    {isEmitidasColVisible('valor')   && <th className="px-4 py-3 font-semibold text-right whitespace-nowrap relative border-r border-white/10">Valor<span onMouseDown={startResizeEmitidas('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
+                    {isEmitidasColVisible('status')  && <th className="px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10">Status<span onMouseDown={startResizeEmitidas('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" /></th>}
+                    {isEmitidasColVisible('acoes')   && <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Acoes</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map(em => (
                     <tr key={em.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 font-medium">
+                      {isEmitidasColVisible('numero') && <td className="px-4 py-1 font-medium truncate border-r border-[#F1F3F5]" title={em.numero_nfse || em.referencia}>
                         {em.numero_nfse || <span className="text-gray-400">{em.referencia}</span>}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">{formatData(em.data_emissao)}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{em.tomador_razao_social || '\u2014'}</div>
-                        <div className="text-xs text-gray-400">{formatDoc(em.tomador_documento)}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate" title={em.discriminacao || ''}>
-                        {em.discriminacao
-                          ? em.discriminacao.length > 50
-                            ? em.discriminacao.slice(0, 50) + '...'
-                            : em.discriminacao
-                          : '\u2014'}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium">{formatBRL(em.valor_servicos)}</td>
-                      <td className="px-4 py-3">{renderStatusBadge(em.status)}</td>
-                      <td className="px-4 py-3">
+                      </td>}
+                      {isEmitidasColVisible('data') && <td className="px-4 py-1 text-gray-500 truncate border-r border-[#F1F3F5]">{formatData(em.data_emissao)}</td>}
+                      {isEmitidasColVisible('tomador') && <td className="px-4 py-1 border-r border-[#F1F3F5]">
+                        <div className="font-medium truncate" title={em.tomador_razao_social || ''}>{em.tomador_razao_social || '\u2014'}</div>
+                        <div className="text-xs text-gray-400 truncate">{formatDoc(em.tomador_documento)}</div>
+                      </td>}
+                      {isEmitidasColVisible('servico') && <td className="px-4 py-1 text-gray-500 truncate border-r border-[#F1F3F5]" title={em.discriminacao || ''}>
+                        {em.discriminacao || '\u2014'}
+                      </td>}
+                      {isEmitidasColVisible('valor') && <td className="px-4 py-1 text-right font-medium truncate border-r border-[#F1F3F5]">{formatBRL(em.valor_servicos)}</td>}
+                      {isEmitidasColVisible('status') && <td className="px-4 py-1 border-r border-[#F1F3F5]">{renderStatusBadge(em.status)}</td>}
+                      {isEmitidasColVisible('acoes') && <td className="px-4 py-1">
                         <div className="flex items-center justify-center gap-1 relative">
                           {em.pdf_url && (
                             <a
@@ -1546,7 +1636,7 @@ export default function NfseEmissao() {
                             document.body
                           )}
                         </div>
-                      </td>
+                      </td>}
                     </tr>
                   ))}
                 </tbody>

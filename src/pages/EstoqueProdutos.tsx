@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +14,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Plus, Search, Package, AlertTriangle, ArrowDownCircle, ArrowUpCircle,
-  Pencil, Archive, ChevronRight
+  Pencil, Archive, ChevronRight, Eye, ChevronDown
 } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExportMenu } from "@/components/ExportMenu";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -68,6 +67,59 @@ export default function EstoqueProdutos() {
   const [fLocalizacao, setFLocalizacao] = useState("");
   const [fValidade, setFValidade] = useState(false);
   const [fLote, setFLote] = useState(false);
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const COL_ORDER = ['code', 'description', 'estoque', 'minimo', 'custo', 'status', 'acoes'];
+  const COL_LABELS: Record<string, string> = {
+    code: 'Código', description: 'Descrição', estoque: 'Estoque', minimo: 'Mín.',
+    custo: 'Custo Médio', status: 'Status', acoes: 'Ações',
+  };
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    code: 110, description: 280, estoque: 120, minimo: 100, custo: 130, status: 100, acoes: 110,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('estoque_col_widths');
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT;
+  });
+  useEffect(() => { localStorage.setItem('estoque_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('estoque_hidden_cols');
+      if (s) return new Set(JSON.parse(s) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  useEffect(() => { localStorage.setItem('estoque_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const isColVisible = (k: string) => !hiddenCols.has(k);
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+  const visibleCols = COL_ORDER.filter(isColVisible);
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r) return;
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+      setColWidths(prev => ({ ...prev, [r.key]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const { data: produtos = [], isLoading } = useQuery({
     queryKey: ["estoque_produtos", selectedCompany?.id],
@@ -262,61 +314,122 @@ export default function EstoqueProdutos() {
         </div>
 
         {/* Tabela */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
+            {/* Barra de título preta + menu Colunas */}
+            <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: '#000000' }}>
+              <div className="flex items-center gap-3">
+                <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>Produtos</h3>
+                <span className="text-[13px] text-white/70 font-medium">
+                  {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="relative self-center">
+                <button
+                  onClick={() => setColMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={14} className="text-white/70" /> Colunas
+                  <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {colMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {Object.entries(COL_LABELS).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(k)}
+                            onChange={() => toggleColVisible(k)}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             {isLoading ? (
               <div className="text-center py-16">
                 <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
               </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                Nenhum produto encontrado
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Estoque</TableHead>
-                    <TableHead className="text-right">Mín.</TableHead>
-                    <TableHead className="text-right">Custo Médio</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(p => {
-                    const st = getStatus(p);
-                    return (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-[12px]">{p.code || "—"}</TableCell>
-                        <TableCell className="font-medium">{p.description}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtQty(p.estoque_atual, p.unidade_medida)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{fmtQty(p.estoque_minimo, p.unidade_medida)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmt(p.custo_medio || 0)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={st.color}>{st.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(p)} title="Editar">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => { setSaidaProduto(p); setSaidaOpen(true); }} title="Registrar Saída">
-                              <ArrowDownCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                        <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        Nenhum produto encontrado
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                  <colgroup>
+                    {COL_ORDER.map(k => (
+                      <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                    ))}
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-white text-[13px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('code') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('code')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Código
+                      </th>
+                      <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('description') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('description')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Descrição
+                      </th>
+                      <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('estoque') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('estoque')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Estoque
+                      </th>
+                      <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('minimo') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('minimo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Mín.
+                      </th>
+                      <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('custo') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('custo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Custo Médio
+                      </th>
+                      <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('status') ? '' : 'hidden'}`}>
+                        <span onMouseDown={startResize('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                        Status
+                      </th>
+                      <th className={`text-center px-3 py-3 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(p => {
+                      const st = getStatus(p);
+                      return (
+                        <tr key={p.id} className="border-b border-[#F1F3F5] hover:bg-[#F9FAFB]">
+                          <td className={`px-3 py-1 font-mono text-[12px] truncate border-r border-[#F1F3F5] ${isColVisible('code') ? '' : 'hidden'}`} title={p.code || ''}>{p.code || "—"}</td>
+                          <td className={`px-3 py-1 font-medium truncate border-r border-[#F1F3F5] ${isColVisible('description') ? '' : 'hidden'}`} title={p.description}>{p.description}</td>
+                          <td className={`px-3 py-1 text-right tabular-nums truncate border-r border-[#F1F3F5] ${isColVisible('estoque') ? '' : 'hidden'}`}>{fmtQty(p.estoque_atual, p.unidade_medida)}</td>
+                          <td className={`px-3 py-1 text-right tabular-nums text-muted-foreground truncate border-r border-[#F1F3F5] ${isColVisible('minimo') ? '' : 'hidden'}`}>{fmtQty(p.estoque_minimo, p.unidade_medida)}</td>
+                          <td className={`px-3 py-1 text-right tabular-nums truncate border-r border-[#F1F3F5] ${isColVisible('custo') ? '' : 'hidden'}`}>{fmt(p.custo_medio || 0)}</td>
+                          <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
+                            <Badge variant={st.color}>{st.label}</Badge>
+                          </td>
+                          <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
+                            <div className="flex gap-1 justify-center">
+                              <Button variant="ghost" size="sm" onClick={() => openEdit(p)} title="Editar">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => { setSaidaProduto(p); setSaidaOpen(true); }} title="Registrar Saída">
+                                <ArrowDownCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>

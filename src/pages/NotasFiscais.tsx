@@ -4,7 +4,7 @@ import { format, startOfMonth, endOfMonth, addMonths, parseISO } from 'date-fns'
 import {
   FileText, Plus, Search, Loader2, X, Download,
   Mail, MoreHorizontal, AlertTriangle, Check, Ban,
-  Trash2, ChevronDown, RefreshCw
+  Trash2, ChevronDown, RefreshCw, Eye
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -151,6 +151,26 @@ export default function NotasFiscais() {
   useEffect(() => {
     localStorage.setItem('nf_col_widths', JSON.stringify(colWidths))
   }, [colWidths])
+
+  // Colunas ocultáveis (persistidas no navegador)
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('notasfiscais_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => {
+    localStorage.setItem('notasfiscais_hidden_cols', JSON.stringify([...hiddenCols]))
+  }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleCols = COLUNAS.filter(c => isColVisible(c.key))
 
   const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
   const startResize = (key: string, e: React.MouseEvent) => {
@@ -533,10 +553,41 @@ export default function NotasFiscais() {
           <button onClick={loadData} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <RefreshCw size={16} className="text-gray-500" />
           </button>
+
+          {/* Menu Colunas (ocultar/exibir) */}
+          <div className="relative">
+            <button
+              onClick={() => setColMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+              title="Mostrar/ocultar colunas"
+            >
+              <Eye size={15} className="text-gray-400" /> Colunas
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {colMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                  <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                  {COLUNAS.map(c => (
+                    <label key={c.key} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isColVisible(c.key)}
+                        onChange={() => toggleColVisible(c.key)}
+                        className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* ── Table ── */}
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="animate-spin text-gray-400" size={24} />
@@ -547,23 +598,23 @@ export default function NotasFiscais() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="text-sm" style={{ tableLayout: 'fixed', width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
+              <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleCols.reduce((a, c) => a + (colWidths[c.key] ?? COL_WIDTHS_DEFAULT[c.key]), 0), minWidth: '100%' }}>
                 <colgroup>
                   {COLUNAS.map(c => (
-                    <col key={c.key} style={{ width: colWidths[c.key] ?? COL_WIDTHS_DEFAULT[c.key] }} />
+                    <col key={c.key} className={isColVisible(c.key) ? '' : 'hidden'} style={{ width: colWidths[c.key] ?? COL_WIDTHS_DEFAULT[c.key] }} />
                   ))}
                 </colgroup>
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
+                  <tr className="text-left text-xs text-white uppercase" style={{ backgroundColor: '#000000' }}>
                     {COLUNAS.map(c => (
                       <th
                         key={c.key}
-                        className={`px-4 py-3 relative select-none ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}
+                        className={`px-4 py-3 relative select-none border-r border-white/10 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${isColVisible(c.key) ? '' : 'hidden'}`}
                       >
                         {c.label}
                         <span
                           onMouseDown={e => startResize(c.key, e)}
-                          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-gray-300 active:bg-gray-400"
+                          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 active:bg-white/30"
                           title="Arraste para ajustar a largura"
                         />
                       </th>
@@ -575,16 +626,16 @@ export default function NotasFiscais() {
                     const st = STATUS_CONFIG[nf.status] || STATUS_CONFIG.rascunho
                     return (
                       <tr key={nf.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium truncate">
+                        <td className={`px-4 py-1 font-medium truncate border-r border-[#F1F3F5] ${isColVisible('numero') ? '' : 'hidden'}`}>
                           {nf.numero ? `${nf.numero}/${nf.serie || '1'}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-gray-500 truncate">{formatData(nf.data_emissao)}</td>
-                        <td className="px-4 py-3">
+                        <td className={`px-4 py-1 text-gray-500 truncate border-r border-[#F1F3F5] ${isColVisible('data') ? '' : 'hidden'}`}>{formatData(nf.data_emissao)}</td>
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible('tomador') ? '' : 'hidden'}`}>
                           <div className="truncate">{nf.tomador_nome || '—'}</div>
                           <div className="text-xs text-gray-400 truncate">{formatDoc(nf.tomador_cpf_cnpj)}</div>
                         </td>
-                        <td className="px-4 py-3 text-right font-medium truncate">{formatBRL(nf.valor_total)}</td>
-                        <td className="px-4 py-3">
+                        <td className={`px-4 py-1 text-right font-medium truncate border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>{formatBRL(nf.valor_total)}</td>
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                             style={{ color: st.color, backgroundColor: st.bg }}
@@ -595,7 +646,7 @@ export default function NotasFiscais() {
                             {st.label}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={`px-4 py-1 ${isColVisible('acoes') ? '' : 'hidden'}`}>
                           <div className="flex items-center justify-center gap-1 relative">
                             {nf.danfe_url && (
                               <a
