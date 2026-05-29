@@ -1275,6 +1275,7 @@ export default function CompanyDashboard() {
                         <div style={{ display: "flex", gap: 0, padding: "0 20px", background: "#059669" }}>
                             {[
                                 { label: "Total", value: fmt(heatmap.total) },
+                                { label: "Ticket médio", value: (monthlySales?.totalVendas ?? 0) > 0 ? fmt((monthlySales?.totalFaturamento ?? 0) / (monthlySales?.totalVendas ?? 1)) : "—" },
                                 { label: "Média diária", value: fmt(heatmap.avg) },
                                 { label: "Melhor dia", value: heatmap.bestDay && heatmap.bestDay.value > 0 ? `${format(heatmap.bestDay.date, "dd/MM")} · ${fmt(heatmap.bestDay.value)}` : "—" },
                                 { label: "Dias com vendas", value: `${heatmap.daysWithSales} / ${heatmap.days.length}` },
@@ -1349,27 +1350,29 @@ export default function CompanyDashboard() {
                                     const pageItems = monthlySales.productBreakdown.slice(startIdx, startIdx + PRODUCTS_PER_PAGE);
                                     return (
                                         <>
-                                            <div style={{ flex: 1, overflowY: "auto" }}>
-                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                            <div style={{ flex: 1, padding: 12, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                                              <div style={{ flex: 1, overflowY: "auto", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF" }}>
+                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                                     <thead style={{ position: "sticky", top: 0, background: "#F9FAFB", zIndex: 1 }}>
                                                         <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                            <th style={{ textAlign: "left", padding: "8px 16px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Produto</th>
-                                                            <th style={{ textAlign: "right", padding: "8px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Vendas</th>
-                                                            <th style={{ textAlign: "right", padding: "8px 10px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Faturamento</th>
-                                                            <th style={{ textAlign: "right", padding: "8px 16px", fontSize: 10.5, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>%</th>
+                                                            <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>Produto</th>
+                                                            <th style={{ textAlign: "right", padding: "8px 8px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>Vendas</th>
+                                                            <th style={{ textAlign: "right", padding: "8px 8px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>Faturamento</th>
+                                                            <th style={{ textAlign: "right", padding: "8px 12px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>%</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {pageItems.map((p, idx) => (
-                                                            <tr key={p.descricao + (startIdx + idx)} style={{ borderBottom: idx === pageItems.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "transparent" }}>
-                                                                <td style={{ padding: "10px 16px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }} title={p.descricao}>{p.descricao}</td>
-                                                                <td style={{ padding: "10px 10px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
-                                                                <td style={{ padding: "10px 10px", textAlign: "right", color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(p.faturamento)}</td>
-                                                                <td style={{ padding: "10px 16px", textAlign: "right", color: C.textMuted, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{p.percentual.toFixed(1)}%</td>
+                                                            <tr key={p.descricao + (startIdx + idx)} style={{ borderBottom: idx === pageItems.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "#FFFFFF" }}>
+                                                                <td style={{ padding: "7px 12px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }} title={p.descricao}>{p.descricao}</td>
+                                                                <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
+                                                                <td style={{ padding: "7px 8px", textAlign: "right", color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(p.faturamento)}</td>
+                                                                <td style={{ padding: "7px 12px", textAlign: "right", color: C.textMuted, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{p.percentual.toFixed(1)}%</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
                                                 </table>
+                                              </div>
                                             </div>
                                             {totalPages > 1 && (
                                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderTop: `1px solid ${C.border}`, background: "#F9FAFB" }}>
