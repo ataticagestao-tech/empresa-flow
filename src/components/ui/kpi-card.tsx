@@ -19,12 +19,17 @@ export interface KpiCardProps {
   delta?: number | null
   /** Rótulo ao lado da variação (default "vs mês anterior"). */
   deltaLabel?: string
+  /**
+   * Tamanho/visual: "md" (padrão) = label preto bold, alto contraste.
+   * "sm" = label cinza pequeno em maiúsculas + valor médio (mais leve/compacto).
+   */
+  size?: "md" | "sm"
   className?: string
 }
 
 /**
  * Card de KPI padrão do sistema (rico):
- * chip de ícone + "?" → título 22px → valor grande → variação/subtexto.
+ * chip de ícone + "?" → título → valor → variação/subtexto.
  */
 export function KpiCard({
   label,
@@ -36,12 +41,18 @@ export function KpiCard({
   valueColor = "#0F172A",
   delta,
   deltaLabel,
+  size = "md",
   className,
 }: KpiCardProps) {
   const hasDelta = delta !== undefined && delta !== null && Number.isFinite(delta)
+  const sm = size === "sm"
   return (
     <div
-      className={cn("flex min-w-0 flex-col gap-1.5 rounded-xl border border-[#EAECF0] bg-white px-4 py-3.5 shadow-sm", className)}
+      className={cn(
+        "flex min-w-0 flex-col rounded-xl border border-[#EAECF0] bg-white shadow-sm",
+        sm ? "gap-1 px-4 py-3" : "gap-1.5 px-4 py-3.5",
+        className,
+      )}
       style={{ boxShadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)" }}
     >
       {(icon || info) && (
@@ -63,12 +74,18 @@ export function KpiCard({
           )}
         </div>
       )}
-      <p className="m-0 truncate font-bold text-black" style={{ fontSize: 14, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
-        {label}
-      </p>
+      {sm ? (
+        <p className="m-0 truncate font-bold uppercase tracking-wide text-[#667085]" style={{ fontSize: 11 }}>
+          {label}
+        </p>
+      ) : (
+        <p className="m-0 truncate font-bold text-black" style={{ fontSize: 14, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
+          {label}
+        </p>
+      )}
       <p
         className="truncate font-extrabold"
-        style={{ fontSize: "clamp(20px, 1.8vw, 26px)", color: valueColor, letterSpacing: "-0.02em", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}
+        style={{ fontSize: sm ? "clamp(17px, 1.4vw, 21px)" : "clamp(20px, 1.8vw, 26px)", color: valueColor, letterSpacing: "-0.02em", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}
       >
         {value}
       </p>
