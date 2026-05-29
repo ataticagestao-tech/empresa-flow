@@ -109,7 +109,17 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
   const descontoFaltasVA = Math.round(faltas * vaPorDia * 100) / 100;
 
   const competencia = `${ano}-${String(mes).padStart(2, "0")}`;
-  const jaConfirmado = historico.some((h) => h.competencia === competencia && h.status === "confirmado");
+  // Uma CP ligada está "faltando" se foi excluída (soft-delete) ou sumiu.
+  const cpFaltando = (h: any) => {
+    const vtFalta = h.cp_vt_id && (!h.cp_vt || h.cp_vt.deleted_at);
+    const vaFalta = h.cp_va_id && (!h.cp_va || h.cp_va.deleted_at);
+    return !!(vtFalta || vaFalta);
+  };
+  // Só trava como confirmado se TODAS as CPs do lançamento ainda existem.
+  // Se alguma foi excluída em Contas a Pagar, libera o relançamento (recria VT+VA).
+  const jaConfirmado = historico.some(
+    (h) => h.competencia === competencia && h.status === "confirmado" && !cpFaltando(h)
+  );
 
   const handleSalvarConfig = async () => {
     setSalvando(true);
@@ -375,7 +385,10 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
                 </tr>
               </thead>
               <tbody>
-                {historico.map((h) => (
+                {historico.map((h) => {
+                  const cpExcluida = h.status === "confirmado" && cpFaltando(h);
+                  const statusLabel = cpExcluida ? "CP excluída" : h.status;
+                  return (
                   <tr key={h.id} className="border-b border-[#eee] hover:bg-[#f8f8f8]">
                     <td className="py-2 px-2 font-semibold">{h.competencia}</td>
                     <td className="py-2 px-2 text-right">{h.dias_considerados}</td>
@@ -385,11 +398,12 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
                     <td className="py-2 px-2 text-right text-[#E53E3E]">{formatBRL(Number(h.total_desconto_func))}</td>
                     <td className="py-2 px-2 text-center">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEE2E2] text-[#E53E3E]" : "bg-[#F6F2EB] text-[#555]"
-                      }`}>{h.status}</span>
+                        cpExcluida ? "bg-[#FEE2E2] text-[#E53E3E]" : h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEE2E2] text-[#E53E3E]" : "bg-[#F6F2EB] text-[#555]"
+                      }`}>{statusLabel}</span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

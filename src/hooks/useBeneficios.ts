@@ -85,7 +85,7 @@ export const useBeneficiosHistorico = (
     setLoading(true)
     ;(client as any)
       .from('employee_benefits_lancamentos')
-      .select('*')
+      .select('*, cp_vt:cp_vt_id(id,deleted_at), cp_va:cp_va_id(id,deleted_at)')
       .eq('company_id', companyId)
       .eq('employee_id', employeeId)
       .order('competencia', { ascending: false })
