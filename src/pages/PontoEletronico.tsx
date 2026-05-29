@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO, startOfMonth, endOfMonth } from 'date-fns'
 import {
   Clock, Loader2, Plus, X, Search, RefreshCw,
-  Check, AlertTriangle, ChevronLeft, ChevronRight, Users,
+  Check, ChevronLeft, ChevronRight,
   Camera, Trash2, Upload
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -371,25 +372,17 @@ export default function PontoEletronico() {
         <PagePanel title="Ponto Eletrônico" subtitle="Registro de jornada e banco de horas">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <KpiCardGrid className="lg:grid-cols-5">
           {[
-            { label: 'Registros', value: kpis.totalRegistros, icon: Clock, color: '#059669' },
-            { label: 'Horas trabalhadas', value: `${kpis.totalHoras}h`, icon: Clock, color: '#059669' },
-            { label: 'Horas extras', value: `${kpis.totalHE}h`, icon: Clock, color: '#EA580C' },
-            { label: 'Faltas', value: kpis.faltas, icon: AlertTriangle, color: '#E53E3E' },
-            { label: 'Pendentes aprovacao', value: kpis.pendentes, icon: Clock, color: '#667085' },
+            { label: 'Registros', value: kpis.totalRegistros, color: '#059669' },
+            { label: 'Horas trabalhadas', value: `${kpis.totalHoras}h`, color: '#059669' },
+            { label: 'Horas extras', value: `${kpis.totalHE}h`, color: '#EA580C' },
+            { label: 'Faltas', value: kpis.faltas, color: '#E53E3E' },
+            { label: 'Pendentes aprovacao', value: kpis.pendentes, color: '#667085' },
           ].map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={18} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-base font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-3">

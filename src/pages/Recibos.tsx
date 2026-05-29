@@ -1040,14 +1040,13 @@ export default function Recibos() {
         </div>
         <KpiCardGrid className="mb-4">
         <KpiCard
-          size="sm"
           label="Total de recibos"
           value={kpis.total}
           sub={`${formatBRL(kpis.valorTotal)} emitido`}
         />
-        <KpiCard size="sm" label="Enviados" value={kpis.enviados} valueColor="#039855" sub="entregues por e-mail/WhatsApp" />
-        <KpiCard size="sm" label="Pendentes" value={kpis.pendentes} valueColor="#EA580C" sub="aguardando envio" />
-        <KpiCard size="sm" label="Erros" value={kpis.erros} valueColor="#E53E3E" sub="falha no envio" />
+        <KpiCard label="Enviados" value={kpis.enviados} valueColor="#039855" sub="entregues por e-mail/WhatsApp" />
+        <KpiCard label="Pendentes" value={kpis.pendentes} valueColor="#EA580C" sub="aguardando envio" />
+        <KpiCard label="Erros" value={kpis.erros} valueColor="#E53E3E" sub="falha no envio" />
       </KpiCardGrid>
         <div className="flex gap-4 flex-1 min-h-0">
 

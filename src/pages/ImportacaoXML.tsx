@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData, formatDoc } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -315,24 +316,21 @@ export default function ImportacaoXML() {
         <PagePanel title="Importação de XML" subtitle="Importe XMLs de notas fiscais para o sistema">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCardGrid>
           {[
             { label: 'Total importados', value: kpis.total, icon: FileText, color: '#059669' },
             { label: 'Processados', value: kpis.processados, icon: Check, color: '#059669' },
             { label: 'Valor total', value: formatBRL(kpis.totalValor), icon: FileText, color: '#059669' },
             { label: 'Erros', value: kpis.erros, icon: AlertTriangle, color: '#E53E3E' },
           ].map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={20} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-lg font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard
+              key={i}
+              label={kpi.label}
+              value={kpi.value}
+              valueColor={kpi.color}
+            />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* ── Upload area ── */}
         <div

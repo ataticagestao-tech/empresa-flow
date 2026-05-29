@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { format } from 'date-fns'
 import {
   UserPlus, UserMinus, Loader2, Plus, X, Search,
-  RefreshCw, Check, FileText, Users
+  RefreshCw, Check, FileText
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -230,24 +231,16 @@ export default function AdmissoesDemissoes() {
         <PagePanel title="Admissões e Demissões" subtitle="Controle de admissões, demissões e rescisões">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCardGrid>
           {[
-            { label: 'Total registros', value: kpis.total, icon: Users, color: '#059669' },
-            { label: 'Admissoes', value: kpis.admissoes, icon: UserPlus, color: '#059669' },
-            { label: 'Demissoes', value: kpis.demissoes, icon: UserMinus, color: '#E53E3E' },
-            { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), icon: FileText, color: '#EA580C' },
+            { label: 'Total registros', value: kpis.total, color: '#059669' },
+            { label: 'Admissoes', value: kpis.admissoes, color: '#059669' },
+            { label: 'Demissoes', value: kpis.demissoes, color: '#E53E3E' },
+            { label: 'Total rescisoes', value: formatBRL(kpis.totalRescisao), color: '#EA580C' },
           ].map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={18} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-base font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-3">

@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
   Palmtree, Loader2, Plus, X, Search, RefreshCw,
-  Check, AlertTriangle, Calendar, Users, FileText, Eye, ChevronDown
+  Check, AlertTriangle, Users, FileText, Eye, ChevronDown
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -265,24 +266,16 @@ export default function FeriasAfastamentos() {
         <PagePanel title="Férias e Afastamentos" subtitle="Controle de férias, afastamentos e licenças">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCardGrid>
           {[
-            { label: 'Total registros', value: kpis.total, icon: Calendar, color: '#059669' },
-            { label: 'Ferias', value: kpis.ferias, icon: Palmtree, color: '#059669' },
-            { label: 'Em curso', value: kpis.emCurso, icon: Calendar, color: '#EA580C' },
-            { label: 'Programados', value: kpis.programados, icon: Calendar, color: '#059669' },
+            { label: 'Total registros', value: kpis.total, color: '#059669' },
+            { label: 'Ferias', value: kpis.ferias, color: '#059669' },
+            { label: 'Em curso', value: kpis.emCurso, color: '#EA580C' },
+            { label: 'Programados', value: kpis.programados, color: '#059669' },
           ].map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={18} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-base font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-3">

@@ -353,7 +353,7 @@ export default function DRE() {
             { label: "Resultado Líquido", value: fmt(resultado), color: resultado >= 0 ? "#039855" : "#E53E3E" },
             { label: "Margem Líquida", value: `${margemLiquida.toFixed(1)}%`, color: margemLiquida >= 0 ? "#039855" : "#E53E3E" },
           ].map((kpi) => (
-            <KpiCard key={kpi.label} size="sm" label={kpi.label} value={kpi.value} valueColor={kpi.color} />
+            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
         </KpiCardGrid>
 

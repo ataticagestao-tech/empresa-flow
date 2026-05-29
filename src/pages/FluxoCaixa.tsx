@@ -784,10 +784,9 @@ export default function FluxoCaixa() {
             <div className="space-y-4">
               {/* KPIs Relatório */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <KpiCard size="sm" label="Total Entradas" value={fmt(relatorio.totalEntradas)} valueColor="#059669" />
-                <KpiCard size="sm" label="Total Saídas" value={fmt(relatorio.totalSaidas)} valueColor="#E53E3E" />
+                <KpiCard label="Total Entradas" value={fmt(relatorio.totalEntradas)} valueColor="#059669" />
+                <KpiCard label="Total Saídas" value={fmt(relatorio.totalSaidas)} valueColor="#E53E3E" />
                 <KpiCard
-                  size="sm"
                   className="col-span-2 md:col-span-1"
                   label="Saldo"
                   value={fmt(relatorio.totalEntradas - relatorio.totalSaidas)}
@@ -917,7 +916,7 @@ export default function FluxoCaixa() {
                   { label: "Caixa Financiamento", value: fmt(caixaFinanciamento), color: CORES_ATIVIDADE.financiamento },
                   { label: "Variação Líquida", value: fmt(variacaoLiquida), color: variacaoLiquida >= 0 ? "#039855" : "#E53E3E" },
                 ].map((kpi) => (
-                  <KpiCard key={kpi.label} size="sm" label={kpi.label} value={kpi.value} valueColor={kpi.color} />
+                  <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
                 ))}
               </KpiCardGrid>
 
@@ -1007,11 +1006,10 @@ export default function FluxoCaixa() {
             <div className="space-y-4">
               {/* KPIs Diagnóstico */}
               <KpiCardGrid>
-                <KpiCard size="sm" label="Transações" value={diagnostico.rows.length} valueColor="#0F172A" />
-                <KpiCard size="sm" label="Receitas" value={fmt(diagnostico.totalReceita)} valueColor="#059669" />
-                <KpiCard size="sm" label="Despesas" value={fmt(diagnostico.totalDespesa)} valueColor="#E53E3E" />
+                <KpiCard label="Transações" value={diagnostico.rows.length} valueColor="#0F172A" />
+                <KpiCard label="Receitas" value={fmt(diagnostico.totalReceita)} valueColor="#059669" />
+                <KpiCard label="Despesas" value={fmt(diagnostico.totalDespesa)} valueColor="#E53E3E" />
                 <KpiCard
-                  size="sm"
                   className={diagnostico.semCategoria.length > 0 ? "border-amber-300" : ""}
                   label="Sem categoria"
                   value={diagnostico.semCategoria.length}

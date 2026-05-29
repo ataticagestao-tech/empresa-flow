@@ -794,7 +794,7 @@ export default function Movimentacoes() {
             { label: 'Saídas do mês', value: formatBRL(saidasMes), hint: `${qtdSaidas} lançamento${qtdSaidas !== 1 ? 's' : ''}`, color: '#E53E3E' },
             { label: 'Resultado do mês', value: formatBRL(Math.abs(resultadoMes)), hint: resultadoMes >= 0 ? '▲ positivo' : '▼ negativo', color: resultadoMes >= 0 ? '#039855' : '#E53E3E' },
           ].map((kpi) => (
-            <KpiCard key={kpi.label} size="sm" label={kpi.label} value={kpi.value} valueColor={kpi.color} sub={kpi.hint} />
+            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} valueColor={kpi.color} sub={kpi.hint} />
           ))}
         </KpiCardGrid>
 
