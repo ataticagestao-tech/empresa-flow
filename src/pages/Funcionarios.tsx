@@ -14,6 +14,7 @@ import { gerarRelatorioFuncionarioPDF, type RelatorioFuncionarioData } from "@/l
 import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
+import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
 
 interface Employee {
   id: string; company_id: string;
@@ -141,6 +142,7 @@ export default function Funcionarios() {
   const [isDupOpen, setIsDupOpen] = useState(false);
   const [solicitarOpen, setSolicitarOpen] = useState(false);
   const [solicitarTarget, setSolicitarTarget] = useState<{ id?: string; nome?: string; tel?: string }>({});
+  const [whatsOpen, setWhatsOpen] = useState(false);
 
   const { data: centrosCusto = [] } = useQuery({
     queryKey: ["centros_custo", selectedCompany?.id],
@@ -758,7 +760,9 @@ export default function Funcionarios() {
                       tab === t.id ? "bg-white text-[#064E3B]" : "text-white/90 hover:bg-white/20"
                     }`}>{t.label}</button>
                 ))}
-                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="shrink-0 whitespace-nowrap ml-auto text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
+                {selected && <div className="ml-auto" />}
+                {selected?.phone && <button onClick={() => setWhatsOpen(true)} title="Enviar mensagem no WhatsApp" className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>WhatsApp</button>}
+                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
                 {selected && <button onClick={() => handleDelete(selected)} className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white/90 hover:bg-[#991B1B] hover:text-white rounded px-2.5 py-1 transition-colors">Excluir</button>}
               </div>
 
@@ -1129,6 +1133,17 @@ export default function Funcionarios() {
         targetId={solicitarTarget.id}
         nomeInicial={solicitarTarget.nome ?? ""}
         telefoneInicial={solicitarTarget.tel ?? ""}
+      />
+
+      <SendWhatsAppDialog
+        open={whatsOpen}
+        onClose={() => setWhatsOpen(false)}
+        title="Enviar mensagem WhatsApp"
+        subtitle={selected && (
+          <p className="font-semibold text-[#1D2939]">{toTitleCase(getName(selected))}</p>
+        )}
+        defaultPhone={selected?.phone || ""}
+        defaultText={selected ? `Olá ${toTitleCase(getName(selected))}!\n\n` : ""}
       />
     </AppLayout>
   );
