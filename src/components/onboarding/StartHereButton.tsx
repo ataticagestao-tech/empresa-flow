@@ -80,6 +80,12 @@ export function StartHereButton() {
   const allDone = doneCount === total;
   const remaining = total - doneCount;
 
+  const hideFab = () => {
+    if (hiddenKey) { try { localStorage.setItem(hiddenKey, "true"); } catch {} }
+    setHidden(true);
+    setPopOpen(false);
+  };
+
   // Hidden routes (auth, blocked account, etc) — keep FAB out of context
   const hiddenRoute =
     location.pathname.startsWith("/auth") ||
@@ -198,11 +204,7 @@ export function StartHereButton() {
               Ver no dashboard →
             </button>
             <button
-              onClick={() => {
-                if (hiddenKey) { try { localStorage.setItem(hiddenKey, "true"); } catch {} }
-                setHidden(true);
-                setPopOpen(false);
-              }}
+              onClick={hideFab}
               style={{
                 background: "transparent", border: "none", padding: 0,
                 fontSize: 11, color: "#98A2B3", cursor: "pointer",
@@ -252,6 +254,30 @@ export function StartHereButton() {
         >
           {remaining}
         </span>
+      </button>
+
+      {/* X para ocultar o FAB da tela */}
+      <button
+        onClick={hideFab}
+        title="Ocultar"
+        style={{
+          position: "fixed",
+          bottom: 124, right: 16,
+          width: 20, height: 20,
+          borderRadius: 999,
+          background: "#FFFFFF",
+          color: "#667085",
+          border: "1px solid #EAECF0",
+          boxShadow: "0 2px 6px rgba(15, 23, 42, 0.18)",
+          cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 0,
+          zIndex: 56,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#F2F4F7"; e.currentTarget.style.color = "#1D2939"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.color = "#667085"; }}
+      >
+        <X size={12} strokeWidth={2.5} />
       </button>
     </>
   );
