@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { TrendingUp, TrendingDown, DollarSign, Eye, ChevronDown } from "lucide-react";
+import { Eye, ChevronDown } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -157,40 +158,26 @@ export default function FluxoCaixaProjetado() {
                         />
                     </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: "#ECFDF3", borderRadius: 10, padding: 10 }}><TrendingUp size={20} color="#039855" /></div>
-                            <div>
-                                <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>ENTRADAS PREVISTAS</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: "#039855" }}>{fmt(totalEntradas)}</p>
-                                <p style={{ fontSize: 11, color: "#98A2B3" }}>{receivables.length} recebíveis</p>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: "#FEE2E2", borderRadius: 10, padding: 10 }}><TrendingDown size={20} color="#E53E3E" /></div>
-                            <div>
-                                <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SAÍDAS PREVISTAS</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: "#E53E3E" }}>{fmt(totalSaidas)}</p>
-                                <p style={{ fontSize: 11, color: "#98A2B3" }}>{payables.length} contas a pagar</p>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ background: saldoProjetado >= 0 ? "#ECFDF4" : "#FEE2E2", borderRadius: 10, padding: 10 }}>
-                                <DollarSign size={20} color={saldoProjetado >= 0 ? "#059669" : "#E53E3E"} />
-                            </div>
-                            <div>
-                                <p style={{ fontSize: 12, color: "#98A2B3", fontWeight: 600 }}>SALDO PROJETADO</p>
-                                <p style={{ fontSize: 22, fontWeight: 800, color: saldoProjetado >= 0 ? "#059669" : "#E53E3E" }}>{fmt(saldoProjetado)}</p>
-                                <p style={{ fontSize: 11, color: "#98A2B3" }}>Entradas - Saídas</p>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
+                <KpiCardGrid className="lg:grid-cols-3">
+                    <KpiCard
+                        label="Entradas previstas"
+                        value={fmt(totalEntradas)}
+                        valueColor="#039855"
+                        sub={`${receivables.length} recebíveis`}
+                    />
+                    <KpiCard
+                        label="Saídas previstas"
+                        value={fmt(totalSaidas)}
+                        valueColor="#E53E3E"
+                        sub={`${payables.length} contas a pagar`}
+                    />
+                    <KpiCard
+                        label="Saldo projetado"
+                        value={fmt(saldoProjetado)}
+                        valueColor={saldoProjetado >= 0 ? "#059669" : "#E53E3E"}
+                        sub="Entradas - Saídas"
+                    />
+                </KpiCardGrid>
 
                 {chartData.length > 0 && (
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>

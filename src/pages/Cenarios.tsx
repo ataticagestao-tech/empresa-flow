@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
@@ -101,6 +101,33 @@ export default function Cenarios() {
                     title="Cenários Financeiros"
                     subtitle={`Base: Receita ${fmt(baseReceita)} | Despesa ${fmt(baseDespesa)} (${format(now, "MMMM/yyyy")})`}
                 >
+
+                <KpiCardGrid>
+                    <KpiCard
+                        label="Resultado pessimista"
+                        value={fmt(results[0].resultado)}
+                        valueColor="#E53E3E"
+                        sub={`margem ${results[0].margem.toFixed(1)}%`}
+                    />
+                    <KpiCard
+                        label="Resultado realista"
+                        value={fmt(results[1].resultado)}
+                        valueColor="#1E3A8A"
+                        sub={`margem ${results[1].margem.toFixed(1)}%`}
+                    />
+                    <KpiCard
+                        label="Resultado otimista"
+                        value={fmt(results[2].resultado)}
+                        valueColor="#059669"
+                        sub={`margem ${results[2].margem.toFixed(1)}%`}
+                    />
+                    <KpiCard
+                        label="Amplitude"
+                        value={fmt(results[2].resultado - results[0].resultado)}
+                        valueColor="#1D2939"
+                        sub="otimista − pessimista"
+                    />
+                </KpiCardGrid>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
                     {results.map((r, i) => (

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Calculator, Pencil, DollarSign, PieChart, CheckCircle2, Eye, ChevronDown } from "lucide-react";
+import { Pencil, Eye, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -179,24 +180,16 @@ export default function Orcamento() {
                         </select>
                     </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+                <KpiCardGrid>
                     {[
-                        { label: "ORÇAMENTO TOTAL", value: fmt(totalOrcado), icon: Calculator, color: "#059669", bg: "#ECFDF4" },
-                        { label: "REALIZADO", value: fmt(totalRealizado), icon: DollarSign, color: "#E53E3E", bg: "#FEE2E2" },
-                        { label: "DISPONÍVEL", value: fmt(totalDisponivel), icon: CheckCircle2, color: "#039855", bg: "#ECFDF3" },
-                        { label: "% UTILIZADO", value: `${totalPct.toFixed(1)}%`, icon: PieChart, color: totalPct > 100 ? "#E53E3E" : "#f57f17", bg: totalPct > 100 ? "#FEE2E2" : "#fff8e1" },
+                        { label: "Orçamento total", value: fmt(totalOrcado), color: "#059669" },
+                        { label: "Realizado", value: fmt(totalRealizado), color: "#E53E3E" },
+                        { label: "Disponível", value: fmt(totalDisponivel), color: "#039855" },
+                        { label: "% utilizado", value: `${totalPct.toFixed(1)}%`, color: totalPct > 100 ? "#E53E3E" : "#f57f17" },
                     ].map((kpi, i) => (
-                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ background: kpi.bg, borderRadius: 10, padding: 10 }}><kpi.icon size={20} color={kpi.color} /></div>
-                                <div>
-                                    <p style={{ fontSize: 11, color: "#98A2B3", fontWeight: 600 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 20, fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
-                                </div>
-                            </div>
-                        </Card>
+                        <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
                     ))}
-                </div>
+                </KpiCardGrid>
 
                 {chartData.length > 0 && (
                     <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>

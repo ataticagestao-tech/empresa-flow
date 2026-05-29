@@ -1,12 +1,13 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
+import { KpiCard, KpiCardGrid } from "@/components/ui/kpi-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, DollarSign, Target, Eye, ChevronDown } from "lucide-react";
+import { Eye, ChevronDown } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -139,24 +140,16 @@ export default function PrevisaoReceitas() {
             <div className="animate-fade-in" style={{ fontFamily: "var(--font-base)" }}>
                 <PagePanel title="Previsão de Receitas" subtitle="Baseada nos últimos 6 meses + projeção 3 meses">
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+                <KpiCardGrid>
                     {[
-                        { label: "RECEITA MÉDIA MENSAL", value: fmt(mediamensal), icon: DollarSign, color: "#059669", bg: "#ECFDF4" },
-                        { label: "TENDÊNCIA", value: `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`, icon: trend >= 0 ? TrendingUp : TrendingDown, color: trend >= 0 ? "#039855" : "#E53E3E", bg: trend >= 0 ? "#ECFDF3" : "#FEE2E2" },
-                        { label: "PREVISÃO PRÓXIMO MÊS", value: fmt(avgLast3), icon: Target, color: "#059669", bg: "#ECFDF4" },
-                        { label: "PREVISÃO TRIMESTRE", value: fmt(previsaoTrimestre), icon: TrendingUp, color: "#039855", bg: "#ECFDF3" },
+                        { label: "Receita média mensal", value: fmt(mediamensal), color: "#059669" },
+                        { label: "Tendência", value: `${trend >= 0 ? "+" : ""}${trend.toFixed(1)}%`, color: trend >= 0 ? "#039855" : "#E53E3E" },
+                        { label: "Previsão próximo mês", value: fmt(avgLast3), color: "#059669" },
+                        { label: "Previsão trimestre", value: fmt(previsaoTrimestre), color: "#039855" },
                     ].map((kpi, i) => (
-                        <Card key={i} style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ background: kpi.bg, borderRadius: 10, padding: 10 }}><kpi.icon size={20} color={kpi.color} /></div>
-                                <div>
-                                    <p style={{ fontSize: 11, color: "#98A2B3", fontWeight: 600 }}>{kpi.label}</p>
-                                    <p style={{ fontSize: 20, fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
-                                </div>
-                            </div>
-                        </Card>
+                        <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
                     ))}
-                </div>
+                </KpiCardGrid>
 
                 <Card style={{ padding: 20, borderRadius: 14, border: "1px solid #EAECF0" }}>
                     <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Histórico + Projeção</p>
