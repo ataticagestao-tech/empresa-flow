@@ -133,18 +133,18 @@ const CRStatusBadge = ({ status }: { status: string }) => {
 
 const HistoryIcon = ({ status }: { status: string }) => {
     if (status === "pago") return (
-        <div className="w-9 h-9 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
-            <DollarSign className="h-4 w-4 text-[#039855]" />
+        <div className="w-7 h-7 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
+            <DollarSign className="h-3.5 w-3.5 text-[#039855]" />
         </div>
     );
     if (status === "vencido") return (
-        <div className="w-9 h-9 rounded-full bg-[#FEE2E2] flex items-center justify-center flex-shrink-0">
-            <Receipt className="h-4 w-4 text-[#E53E3E]" />
+        <div className="w-7 h-7 rounded-full bg-[#FEE2E2] flex items-center justify-center flex-shrink-0">
+            <Receipt className="h-3.5 w-3.5 text-[#E53E3E]" />
         </div>
     );
     return (
-        <div className="w-9 h-9 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="h-4 w-4 text-[#059669]" />
+        <div className="w-7 h-7 rounded-full bg-[#ECFDF4] flex items-center justify-center flex-shrink-0">
+            <ShoppingCart className="h-3.5 w-3.5 text-[#059669]" />
         </div>
     );
 };
@@ -1193,7 +1193,7 @@ export default function Clientes() {
                             {/* Conteúdo das tabs */}
                             <ScrollArea className="flex-1">
                                 {detailTab === "historico" && (
-                                    <div className="p-6">
+                                    <div className="p-3">
                                         {detailLoading ? (
                                             <div className="space-y-2 p-2">
                                                 {Array.from({ length: 4 }).map((_, i) => (
@@ -1213,14 +1213,14 @@ export default function Clientes() {
                                                     return (
                                                         <div
                                                             key={cr.id}
-                                                            className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl hover:bg-white transition-all border border-transparent hover:border-[#EAECF0]"
+                                                            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-white transition-all border border-transparent hover:border-[#EAECF0]"
                                                         >
                                                             <HistoryIcon status={displayStatus} />
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="text-[13px] font-semibold text-[#1D2939] truncate">
+                                                                <div className="text-[12px] font-semibold text-[#1D2939] truncate">
                                                                     {crDescription(cr)}
                                                                 </div>
-                                                                <div className="text-[12px] text-[#888] mt-0.5">
+                                                                <div className="text-[11px] text-[#888]">
                                                                     {crSubtext(cr)}
                                                                 </div>
                                                             </div>
