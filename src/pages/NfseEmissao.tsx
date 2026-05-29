@@ -7,7 +7,7 @@ import {
   AlertTriangle, Eye, Send, XCircle, DollarSign, Activity,
   ShoppingCart, FileDown, ChevronDown, ArrowDownAZ, ArrowDownZA,
   ArrowDown01, ArrowDown10, Layers, RotateCcw, ChevronLeft,
-  ChevronRight as ChevronRightIcon, Filter
+  ChevronRight as ChevronRightIcon, Filter, Calculator
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -17,7 +17,13 @@ import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } fro
 import { unmask } from '@/utils/masks'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { toast } from 'sonner'
+import { apurarImpostoCompetencia, normalizarRegime, type RegimeNorm } from '@/lib/fiscal/apuracao'
+
+const REGIME_LABEL: Record<string, string> = {
+  simples: 'Simples Nacional', presumido: 'Lucro Presumido', real: 'Lucro Real', mei: 'MEI',
+}
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface NfseEmissao {
@@ -230,6 +236,11 @@ export default function NfseEmissao() {
   const [config, setConfig] = useState<NfseConfig | null>(null)
   const [clients, setClients] = useState<Client[]>([])
 
+  // Previsão de imposto do mês (apuração)
+  const [apuracao, setApuracao] = useState<any | null>(null)
+  const [regimeEmpresa, setRegimeEmpresa] = useState<RegimeNorm>(null)
+  const [apurando, setApurando] = useState(false)
+
   // Tabs
   const [activeTab, setActiveTab] = useState<'vendas' | 'emissoes'>('vendas')
 
@@ -438,7 +449,7 @@ export default function NfseEmissao() {
     const inicioMes = `${mesAno}-01`
     const fimMes = format(endOfMonth(parseISO(inicioMes)), 'yyyy-MM-dd')
 
-    const [emRes, cfgRes] = await Promise.all([
+    const [emRes, cfgRes, apRes, compRes] = await Promise.all([
       db.from('nfse_emissoes')
         .select('*')
         .eq('company_id', selectedCompany.id)
@@ -449,12 +460,40 @@ export default function NfseEmissao() {
         .select('aliquota_padrao, item_lista_servico_padrao, codigo_cnae_padrao, discriminacao_padrao, natureza_operacao')
         .eq('company_id', selectedCompany.id)
         .maybeSingle(),
+      db.from('apuracao_impostos')
+        .select('*')
+        .eq('company_id', selectedCompany.id)
+        .eq('competencia', mesAno)
+        .maybeSingle(),
+      db.from('companies').select('regime_tributario').eq('id', selectedCompany.id).maybeSingle(),
     ])
 
     setEmissoes(emRes.data || [])
     if (cfgRes.data) setConfig(cfgRes.data)
+    setApuracao(apRes.data || null)
+    setRegimeEmpresa(normalizarRegime(compRes.data?.regime_tributario))
     setLoading(false)
   }, [selectedCompany, activeClient, mesAno])
+
+  const calcularPrevisaoImposto = async () => {
+    if (!selectedCompany) return
+    setApurando(true)
+    try {
+      const res = await apurarImpostoCompetencia({ client: activeClient as any, companyId: selectedCompany.id, competencia: mesAno })
+      if (res.sucesso) {
+        toast.success(`Previsão de imposto de ${mesAno} calculada: ${formatBRL(res.resultado?.totalImpostos ?? 0)}`)
+        loadData()
+      } else if (res.semRegime) {
+        toast.error('Defina o regime tributário no cadastro da empresa (aba Fiscal) antes de apurar.')
+      } else if (res.semReceita) {
+        toast.error('Nenhuma venda nesta competência para apurar.')
+      } else {
+        toast.error(res.erro || 'Erro ao calcular previsão de imposto')
+      }
+    } finally {
+      setApurando(false)
+    }
+  }
 
   const loadVendas = useCallback(async () => {
     if (!selectedCompany) return
@@ -1142,9 +1181,9 @@ export default function NfseEmissao() {
         <PagePanel title="NFSe - Emissão" subtitle="Emita NFS-e a partir das vendas e acompanhe as emissões">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCardGrid>
           {(activeTab === 'vendas' ? [
-            { label: 'Vendas no periodo', value: vendasKpis.total, icon: ShoppingCart, color: '#059669' },
+            { label: 'Vendas no período', value: vendasKpis.total, icon: ShoppingCart, color: '#059669' },
             { label: 'NF pendentes', value: vendasKpis.pendentes, icon: AlertTriangle, color: '#EA580C' },
             { label: 'NF emitidas', value: vendasKpis.emitidas, icon: Check, color: '#059669' },
             { label: 'Valor pendente', value: formatBRL(vendasKpis.valorPendente), icon: DollarSign, color: '#EA580C' },
@@ -1154,16 +1193,63 @@ export default function NfseEmissao() {
             { label: 'Valor emitido', value: formatBRL(kpis.totalEmitido), icon: DollarSign, color: '#059669' },
             { label: 'Processando', value: kpis.processando, icon: Activity, color: '#EA580C' },
           ]).map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={20} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-lg font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard
+              key={i}
+              label={kpi.label}
+              value={kpi.value}
+              valueColor={kpi.color}
+            />
           ))}
+        </KpiCardGrid>
+
+        {/* ── Previsão de imposto do mês ── */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Calculator size={15} className="text-[#059669]" /> Previsão de imposto — {mesAno.split('-').reverse().join('/')}
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Regime: <span className="font-medium text-gray-700">{REGIME_LABEL[regimeEmpresa || ''] || 'Não definido'}</span>
+                <span className="text-gray-400"> · estimativa sobre as vendas do mês · vence dia 20</span>
+              </p>
+            </div>
+            <button
+              onClick={calcularPrevisaoImposto}
+              disabled={apurando}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+              style={{ backgroundColor: '#059669' }}
+            >
+              {apurando ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
+              {apuracao ? 'Recalcular previsão' : 'Calcular previsão'}
+            </button>
+          </div>
+
+          {apuracao ? (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+              <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Receita (vendas)</p><p className="font-semibold">{formatBRL(apuracao.receita_bruta)}</p></div>
+              {regimeEmpresa === 'simples' || regimeEmpresa === 'mei' ? (
+                <>
+                  {apuracao.fator_r != null && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Fator R</p><p className="font-semibold">{Number(apuracao.fator_r).toFixed(1)}%</p></div>}
+                  {apuracao.faixa_simples && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Anexo / Faixa</p><p className="font-semibold">{Number(apuracao.fator_r) >= 28 ? 'III' : 'V'} · {apuracao.faixa_simples}</p></div>}
+                  {apuracao.aliquota_efetiva != null && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Alíq. efetiva</p><p className="font-semibold">{Number(apuracao.aliquota_efetiva).toFixed(2)}%</p></div>}
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">DAS</p><p className="font-semibold">{formatBRL(apuracao.valor_das)}</p></div>
+                </>
+              ) : (
+                <>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">IRPJ</p><p className="font-semibold">{formatBRL(apuracao.valor_irpj)}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">CSLL</p><p className="font-semibold">{formatBRL(apuracao.valor_csll)}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">PIS/COFINS</p><p className="font-semibold">{formatBRL(Number(apuracao.valor_pis) + Number(apuracao.valor_cofins))}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">ISS</p><p className="font-semibold">{formatBRL(apuracao.valor_iss)}</p></div>
+                </>
+              )}
+              <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Total previsto</p><p className="font-bold text-[#E53E3E]">{formatBRL(apuracao.total_impostos)}</p></div>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-gray-400">
+              Sem previsão calculada para este mês. Clique em <span className="font-medium text-gray-600">Calcular previsão</span> — vamos estimar o imposto (DAS ou DARF+ISS) e lançar como conta a pagar prevista no dia 20.
+            </p>
+          )}
         </div>
 
         {/* ── Tabs ── */}

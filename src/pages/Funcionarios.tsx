@@ -16,6 +16,7 @@ import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
+import { calcularINSS, calcularIRRF, DEDUCAO_DEPENDENTE, FAIXAS_INSS_2025, type FaixaINSS, type FaixaIRRF } from "@/lib/folha/calculo";
 
 interface Employee {
   id: string; company_id: string;
@@ -55,44 +56,10 @@ const BANCOS_BR = [
   "Neon", "Next", "Picpay", "Stone", "Outro",
 ];
 
-const INSS_2025 = [
-  { min: 0, max: 1518.00, aliq: 0.075 },
-  { min: 1518.01, max: 2793.88, aliq: 0.09 },
-  { min: 2793.89, max: 4190.83, aliq: 0.12 },
-  { min: 4190.84, max: 8157.41, aliq: 0.14 },
-];
-const IRRF_2025 = [
-  { min: 0, max: 2259.20, aliq: 0, ded: 0 },
-  { min: 2259.21, max: 2826.65, aliq: 0.075, ded: 169.44 },
-  { min: 2826.66, max: 3751.05, aliq: 0.15, ded: 381.44 },
-  { min: 3751.06, max: 4664.68, aliq: 0.225, ded: 662.77 },
-  { min: 4664.69, max: Infinity, aliq: 0.275, ded: 896.00 },
-];
-const DEDUCAO_DEPENDENTE = 189.59;
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
-
-const calcularINSS = (salario: number) => {
-  let total = 0;
-  for (const faixa of INSS_2025) {
-    if (salario <= faixa.min) break;
-    const base = Math.min(salario, faixa.max) - faixa.min;
-    total += base * faixa.aliq;
-    if (salario <= faixa.max) break;
-  }
-  return Math.round(total * 100) / 100;
-};
-
-const calcularIRRF = (salario: number, inss: number, dependentes: number) => {
-  const base = salario - inss - (dependentes * DEDUCAO_DEPENDENTE);
-  if (base <= 0) return 0;
-  for (const faixa of IRRF_2025) {
-    if (base <= faixa.max) return Math.max(0, Math.round((base * faixa.aliq - faixa.ded) * 100) / 100);
-  }
-  return 0;
-};
 
 // Formatters
 const titleCase = (str: string) =>
@@ -162,6 +129,24 @@ export default function Funcionarios() {
       return data as { id: string; codigo: string; descricao: string }[];
     },
     enabled: !!selectedCompany?.id,
+  });
+
+  // Mesmas faixas usadas pela Folha de Pagamento (fallback 2025 no módulo de cálculo)
+  const { data: faixasINSS = [] } = useQuery({
+    queryKey: ["config_tabela_inss", new Date().getFullYear()],
+    queryFn: async () => {
+      const { data } = await (activeClient as any)
+        .from("config_tabela_inss").select("faixa_min, faixa_max, aliquota").eq("ano", new Date().getFullYear()).order("faixa_min");
+      return (data ?? []) as FaixaINSS[];
+    },
+  });
+  const { data: faixasIRRF = [] } = useQuery({
+    queryKey: ["config_tabela_irrf", new Date().getFullYear()],
+    queryFn: async () => {
+      const { data } = await (activeClient as any)
+        .from("config_tabela_irrf").select("faixa_min, faixa_max, aliquota, deducao").eq("ano", new Date().getFullYear()).order("faixa_min");
+      return (data ?? []) as FaixaIRRF[];
+    },
   });
 
   const { data: employees = [], isLoading, error: employeesError } = useQuery({
@@ -676,40 +661,76 @@ export default function Funcionarios() {
     } catch (err: any) { toast.error("Erro: " + err.message); }
   };
 
-  const inssCalc = useMemo(() => calcularINSS(calcSalario), [calcSalario]);
-  const irrfCalc = useMemo(() => calcularIRRF(calcSalario, inssCalc, calcDependentes), [calcSalario, inssCalc, calcDependentes]);
+  const inssCalc = useMemo(() => calcularINSS(calcSalario, faixasINSS), [calcSalario, faixasINSS]);
+  const baseIRRF = Math.max(0, calcSalario - inssCalc - calcDependentes * DEDUCAO_DEPENDENTE);
+  const irrfCalc = useMemo(() => calcularIRRF(baseIRRF, faixasIRRF), [baseIRRF, faixasIRRF]);
   const fgts = Math.round(calcSalario * 0.08 * 100) / 100;
   const liquido = Math.round((calcSalario - inssCalc - irrfCalc) * 100) / 100;
   const inssPatronal = Math.round(calcSalario * 0.20 * 100) / 100;
   const custoTotal = Math.round((calcSalario + fgts + inssPatronal) * 100) / 100;
 
-  const lancarSalarioCp = async () => {
+  // Faixas usadas na exibição do detalhamento (DB ou fallback 2025)
+  const faixasInssExib = faixasINSS.length ? faixasINSS : FAIXAS_INSS_2025;
+
+  // Lança o salário como rascunho na Folha de Pagamento (NÃO cria CP direto —
+  // o CP nasce quando a folha é fechada na tela de Folha, fonte única da verdade).
+  const lancarNaFolha = async () => {
     if (!selected || !selectedCompany?.id) return;
     if (liquido <= 0) { toast.error("Informe um salário válido antes de lançar."); return; }
     const [ano, mes] = calcCompetencia.split("-");
     const mesLabel = MESES[Number(mes) - 1] ?? mes;
-    const ok = await confirm({
-      title: "Lançar salário no Contas a Pagar?",
-      description: `Será criada uma conta a pagar de ${formatNumero(liquido)} (líquido) para ${toTitleCase(getName(selected))}, competência ${mesLabel}/${ano}, vencimento dia 05.`,
-      confirmLabel: "Sim, lançar",
-    });
-    if (!ok) return;
+    const db = activeClient as any;
+
     setLancandoCp(true);
     try {
-      const cpf = onlyDigitsHelper(selected.cpf);
-      const { error } = await (activeClient as any).from("contas_pagar").insert({
-        company_id: selectedCompany.id,
-        credor_nome: getName(selected),
-        credor_cpf_cnpj: cpf || null,
-        descricao: `Salário ${mesLabel}/${ano}`,
-        valor: liquido,
-        data_vencimento: `${calcCompetencia}-05`,
-        status: "aberto",
-        competencia: calcCompetencia,
+      const { data: existing } = await db.from("folha_pagamento")
+        .select("id, status")
+        .eq("company_id", selectedCompany.id)
+        .eq("employee_id", selected.id)
+        .eq("competencia", calcCompetencia)
+        .eq("tipo", "mensal")
+        .maybeSingle();
+
+      if (existing && existing.status !== "rascunho") {
+        toast.error(`Já existe folha de ${mesLabel}/${ano} (${existing.status}) para este funcionário. Ajuste pela tela de Folha de Pagamento.`);
+        return;
+      }
+
+      const ok = await confirm({
+        title: existing ? "Atualizar rascunho na Folha?" : "Lançar salário na Folha?",
+        description: `${existing ? "O rascunho" : "Um rascunho"} de ${mesLabel}/${ano} para ${toTitleCase(getName(selected))} será ${existing ? "atualizado" : "criado"} com líquido ${formatNumero(liquido)}. O Contas a Pagar é gerado ao fechar a folha.`,
+        confirmLabel: existing ? "Sim, atualizar" : "Sim, lançar",
       });
+      if (!ok) return;
+
+      const row = {
+        company_id: selectedCompany.id,
+        employee_id: selected.id,
+        competencia: calcCompetencia,
+        tipo: "mensal",
+        salario_base: calcSalario,
+        horas_extras_50: 0,
+        horas_extras_100: 0,
+        valor_he_50: 0,
+        valor_he_100: 0,
+        total_proventos: calcSalario,
+        inss_funcionario: inssCalc,
+        irrf: irrfCalc,
+        vale_transporte: 0,
+        total_descontos: Math.round((inssCalc + irrfCalc) * 100) / 100,
+        valor_liquido: liquido,
+        fgts_mes: fgts,
+        inss_patronal: inssPatronal,
+        status: "rascunho",
+      };
+
+      const { error } = existing
+        ? await db.from("folha_pagamento").update(row).eq("id", existing.id)
+        : await db.from("folha_pagamento").insert(row);
       if (error) throw error;
-      toast.success("Salário lançado no Contas a Pagar.");
-      queryClient.invalidateQueries({ queryKey: ["pagamentos-funcionario", selected.id] });
+
+      toast.success(`Lançado na Folha de ${mesLabel}/${ano} (rascunho). Feche a folha para gerar o Contas a Pagar.`);
+      queryClient.invalidateQueries({ queryKey: ["pagamentos-funcionario"] });
     } catch (err: any) {
       toast.error("Erro ao lançar: " + (err.message || err.details || "desconhecido"));
     } finally {
@@ -1123,11 +1144,12 @@ export default function Funcionarios() {
                           <table className="w-full text-xs">
                             <thead className="bg-[#F6F2EB]"><tr><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[9px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
                             <tbody>
-                              {INSS_2025.map((f, i) => {
-                                if (calcSalario <= f.min) return null;
-                                const base = Math.min(calcSalario, f.max) - f.min;
-                                const val = Math.round(base * f.aliq * 100) / 100;
-                                return (<tr key={i} className="border-t border-[#eee]"><td className="px-3 py-1.5">Até {formatNumero(f.max)}</td><td className="px-3 py-1.5">{(f.aliq * 100).toFixed(1)}%</td><td className="px-3 py-1.5 text-right font-semibold">{formatNumero(val)}</td></tr>);
+                              {faixasInssExib.map((f, i) => {
+                                if (calcSalario <= f.faixa_min) return null;
+                                const teto = f.faixa_max ?? Infinity;
+                                const base = Math.min(calcSalario, teto) - f.faixa_min;
+                                const val = Math.round(base * (f.aliquota / 100) * 100) / 100;
+                                return (<tr key={i} className="border-t border-[#eee]"><td className="px-3 py-1.5">{f.faixa_max != null ? `Até ${formatNumero(f.faixa_max)}` : `Acima de ${formatNumero(f.faixa_min)}`}</td><td className="px-3 py-1.5">{f.aliquota.toFixed(1)}%</td><td className="px-3 py-1.5 text-right font-semibold">{formatNumero(val)}</td></tr>);
                               })}
                               <tr className="border-t-2 border-[#059669] font-bold"><td className="px-3 py-2" colSpan={2}>Total INSS</td><td className="px-3 py-2 text-right">{formatNumero(inssCalc)}</td></tr>
                             </tbody>
@@ -1136,7 +1158,7 @@ export default function Funcionarios() {
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
                           <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">IRRF</span></div>
                           <div className="p-3 text-xs space-y-1">
-                            <div className="flex justify-between"><span className="text-[#555]">Base de cálculo</span><span className="font-semibold">{formatNumero(Math.max(0, calcSalario - inssCalc - calcDependentes * DEDUCAO_DEPENDENTE))}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">Base de cálculo</span><span className="font-semibold">{formatNumero(baseIRRF)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">Dedução dependentes ({calcDependentes})</span><span className="font-semibold">{formatNumero(calcDependentes * DEDUCAO_DEPENDENTE)}</span></div>
                             <div className="flex justify-between border-t border-[#eee] pt-1 font-bold"><span>IRRF</span><span>{formatNumero(irrfCalc)}</span></div>
                           </div>
@@ -1175,14 +1197,14 @@ export default function Funcionarios() {
                             <input type="month" value={calcCompetencia} onChange={e => setCalcCompetencia(e.target.value)} className={IC} style={{ width: 170 }} />
                           </div>
                           <p className="text-[11px] text-[#777] max-w-xs pb-1">
-                            Lança o <strong>líquido</strong> ({formatNumero(liquido)}) como conta a pagar em aberto, vencimento dia 05.
+                            Lança como <strong>rascunho na Folha</strong> (líquido {formatNumero(liquido)}). O Contas a Pagar é gerado ao fechar a folha.
                           </p>
                         </div>
                         <button
-                          onClick={lancarSalarioCp}
+                          onClick={lancarNaFolha}
                           disabled={liquido <= 0 || lancandoCp}
                           className="bg-[#039855] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2 rounded hover:bg-[#07401f] disabled:opacity-50 transition-all">
-                          {lancandoCp ? "Lançando..." : "Lançar no Contas a Pagar →"}
+                          {lancandoCp ? "Lançando..." : "Lançar na Folha →"}
                         </button>
                       </div>
                     )}

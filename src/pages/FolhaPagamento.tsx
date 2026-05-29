@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format, addMonths } from 'date-fns'
 import {
-  DollarSign, Users, Calculator, Loader2, Plus, X,
+  Calculator, Loader2, Plus, X,
   Search, RefreshCw, Check, Lock, FileText, ChevronLeft,
   ChevronRight, MoreHorizontal, Download, AlertTriangle,
   Eye, ChevronDown
@@ -12,8 +12,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
+import { calcularINSS, calcularIRRF, type FaixaINSS, type FaixaIRRF } from '@/lib/folha/calculo'
+import { calcularEncargosCompetencia } from '@/lib/folha/encargos'
+import { computeDropdownCoords, dropdownPositionStyle, type DropdownCoords } from '@/lib/dropdownPosition'
 
 // ─── Types ──────────────────────────────────────────────────────────
 interface FolhaPagamento {
@@ -60,19 +64,6 @@ interface Funcionario {
   hire_date?: string | null
   status: string
   tipo_contrato?: string | null
-}
-
-interface FaixaINSS {
-  faixa_min: number
-  faixa_max: number | null
-  aliquota: number
-}
-
-interface FaixaIRRF {
-  faixa_min: number
-  faixa_max: number | null
-  aliquota: number
-  deducao: number
 }
 
 // ─── Status config ──────────────────────────────────────────────────
@@ -125,57 +116,6 @@ const MESES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ]
 
-// ─── Calculo INSS progressivo ───────────────────────────────────────
-function calcularINSS(salarioBruto: number, faixas: FaixaINSS[]): number {
-  if (faixas.length === 0) {
-    // Fallback 2025
-    const FAIXAS_DEFAULT: FaixaINSS[] = [
-      { faixa_min: 0, faixa_max: 1518.00, aliquota: 7.50 },
-      { faixa_min: 1518.01, faixa_max: 2793.88, aliquota: 9.00 },
-      { faixa_min: 2793.89, faixa_max: 4190.83, aliquota: 12.00 },
-      { faixa_min: 4190.84, faixa_max: 8157.41, aliquota: 14.00 },
-    ]
-    faixas = FAIXAS_DEFAULT
-  }
-
-  let inss = 0
-  let salarioRestante = salarioBruto
-
-  for (const faixa of faixas) {
-    if (salarioRestante <= 0) break
-    const teto = faixa.faixa_max || Infinity
-    const base = Math.min(salarioRestante, teto - faixa.faixa_min + 0.01)
-    if (base > 0) {
-      inss += base * (faixa.aliquota / 100)
-      salarioRestante -= base
-    }
-  }
-
-  return Math.round(inss * 100) / 100
-}
-
-// ─── Calculo IRRF ───────────────────────────────────────────────────
-function calcularIRRF(baseCalculo: number, faixas: FaixaIRRF[]): number {
-  if (faixas.length === 0) {
-    const FAIXAS_DEFAULT: FaixaIRRF[] = [
-      { faixa_min: 0, faixa_max: 2259.20, aliquota: 0, deducao: 0 },
-      { faixa_min: 2259.21, faixa_max: 2826.65, aliquota: 7.50, deducao: 169.44 },
-      { faixa_min: 2826.66, faixa_max: 3751.05, aliquota: 15.00, deducao: 381.44 },
-      { faixa_min: 3751.06, faixa_max: 4664.68, aliquota: 22.50, deducao: 662.77 },
-      { faixa_min: 4664.69, faixa_max: null, aliquota: 27.50, deducao: 896.00 },
-    ]
-    faixas = FAIXAS_DEFAULT
-  }
-
-  for (let i = faixas.length - 1; i >= 0; i--) {
-    if (baseCalculo >= faixas[i].faixa_min) {
-      const irrf = baseCalculo * (faixas[i].aliquota / 100) - faixas[i].deducao
-      return Math.max(0, Math.round(irrf * 100) / 100)
-    }
-  }
-  return 0
-}
-
 // ─── Component ──────────────────────────────────────────────────────
 export default function FolhaPagamentoPage() {
   const { selectedCompany } = useCompany()
@@ -201,7 +141,7 @@ export default function FolhaPagamentoPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedFolha, setSelectedFolha] = useState<FolhaPagamento | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
-  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+  const [dropdownCoords, setDropdownCoords] = useState<DropdownCoords | null>(null)
 
   useEffect(() => {
     if (!dropdownOpen) return
@@ -580,6 +520,10 @@ export default function FolhaPagamentoPage() {
 
       if (cpsCriados > 0) {
         toast.success(`Folha fechada: ${cpsCriados} conta(s) a pagar gerada(s)${erros > 0 ? ` — ${erros} com erro` : ''}`)
+        // Apura os encargos da competência automaticamente (FGTS/INSS/IRRF + CPs)
+        const enc = await calcularEncargosCompetencia({ client: db, companyId: selectedCompany.id, competencia })
+        if (enc.sucesso) toast.success(`Encargos de ${mesLabel}/${ano} apurados: ${formatBRL(enc.totalEncargos ?? 0)}`)
+        else if (!enc.semFolha) toast.error(enc.erro || 'Folha fechada, mas houve erro ao apurar encargos')
       } else {
         toast.error('Não foi possível fechar a folha')
       }
@@ -604,25 +548,17 @@ export default function FolhaPagamentoPage() {
         <PagePanel title="Folha de Pagamento" subtitle="Cálculo e fechamento da folha mensal">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <KpiCardGrid className="lg:grid-cols-5">
           {[
-            { label: 'Total proventos', value: formatBRL(kpis.totalProventos), icon: DollarSign, color: '#059669' },
-            { label: 'Total descontos', value: formatBRL(kpis.totalDescontos), icon: Calculator, color: '#E53E3E' },
-            { label: 'Liquido a pagar', value: formatBRL(kpis.totalLiquido), icon: DollarSign, color: '#059669' },
-            { label: 'Encargos patronais', value: formatBRL(kpis.totalEncargos), icon: Calculator, color: '#EA580C' },
-            { label: 'Funcionarios', value: kpis.qtd, icon: Users, color: '#059669' },
+            { label: 'Total proventos', value: formatBRL(kpis.totalProventos), color: '#059669' },
+            { label: 'Total descontos', value: formatBRL(kpis.totalDescontos), color: '#E53E3E' },
+            { label: 'Liquido a pagar', value: formatBRL(kpis.totalLiquido), color: '#059669' },
+            { label: 'Encargos patronais', value: formatBRL(kpis.totalEncargos), color: '#EA580C' },
+            { label: 'Funcionarios', value: kpis.qtd, color: '#059669' },
           ].map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={18} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-base font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
-        </div>
+        </KpiCardGrid>
 
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-3">
@@ -714,7 +650,7 @@ export default function FolhaPagamentoPage() {
         <div className="rounded-xl border border-gray-100 overflow-hidden flex flex-col">
           {/* Cabecalho do container — titulo */}
           <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
-            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 16, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
               Folha
             </h3>
             <div className="flex items-center gap-3">
@@ -840,7 +776,7 @@ export default function FolhaPagamentoPage() {
                                   setDropdownCoords(null)
                                 } else {
                                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                  setDropdownCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                  setDropdownCoords(computeDropdownCoords(rect))
                                   setDropdownOpen(f.id)
                                 }
                               }}
@@ -849,7 +785,7 @@ export default function FolhaPagamentoPage() {
                               <MoreHorizontal size={14} />
                             </button>
                             {dropdownOpen === f.id && dropdownCoords && createPortal(
-                              <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]" style={{ top: dropdownCoords.top, right: dropdownCoords.right, zIndex: 100 }} onClick={e => e.stopPropagation()}>
+                              <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]" style={{ ...dropdownPositionStyle(dropdownCoords), zIndex: 100 }} onClick={e => e.stopPropagation()}>
                                 {f.status === 'rascunho' && (
                                   <button
                                     onClick={async () => {

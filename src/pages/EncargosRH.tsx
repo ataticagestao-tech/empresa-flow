@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { format, addMonths } from 'date-fns'
+import { calcularEncargosCompetencia } from '@/lib/folha/encargos'
 import {
   Calculator, Loader2, RefreshCw, Check, AlertTriangle,
-  ChevronLeft, ChevronRight, DollarSign, FileText, ExternalLink
+  ChevronLeft, ChevronRight, FileText, ExternalLink
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatBRL, formatData } from '@/lib/format'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PagePanel } from '@/components/layout/PagePanel'
+import { KpiCard, KpiCardGrid } from '@/components/ui/kpi-card'
 import { ExportMenu } from '@/components/ExportMenu'
 import { toast } from 'sonner'
 
@@ -59,6 +60,7 @@ export default function EncargosRH() {
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
   const [selectedAno, setSelectedAno] = useState(new Date().getFullYear())
+  const [mesCalc, setMesCalc] = useState(new Date().getMonth() + 1)
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -92,97 +94,16 @@ export default function EncargosRH() {
   const calcularEncargos = async (competencia: string) => {
     if (!selectedCompany) return
     setCalculating(true)
-    const db = activeClient as any
-
     try {
-      // Buscar folhas do mes
-      const { data: folhas } = await db.from('folha_pagamento')
-        .select('total_proventos, inss_funcionario, irrf, fgts_mes, inss_patronal')
-        .eq('company_id', selectedCompany.id)
-        .eq('competencia', competencia)
-        .eq('tipo', 'mensal')
-
-      if (!folhas || folhas.length === 0) {
+      const res = await calcularEncargosCompetencia({ client: activeClient as any, companyId: selectedCompany.id, competencia })
+      if (res.sucesso) {
+        toast.success(`Encargos ${competencia} calculados: ${formatBRL(res.totalEncargos ?? 0)}`)
+        loadData()
+      } else if (res.semFolha) {
         toast.error('Nenhuma folha encontrada para esta competencia. Calcule a folha primeiro.')
-        setCalculating(false)
-        return
-      }
-
-      const fgtsTotal = folhas.reduce((s: number, f: any) => s + (f.fgts_mes || 0), 0)
-      const inssPatronal = folhas.reduce((s: number, f: any) => s + (f.inss_patronal || 0), 0)
-      const inssFuncionarios = folhas.reduce((s: number, f: any) => s + (f.inss_funcionario || 0), 0)
-      const irrfRetido = folhas.reduce((s: number, f: any) => s + (f.irrf || 0), 0)
-      const totalProventos = folhas.reduce((s: number, f: any) => s + (f.total_proventos || 0), 0)
-      const ratFap = Math.round(totalProventos * 0.02 * 100) / 100 // RAT 2% padrao
-      const totalEncargos = Math.round((fgtsTotal + inssPatronal + inssFuncionarios + irrfRetido + ratFap) * 100) / 100
-
-      // Vencimentos
-      const [ano, mes] = competencia.split('-').map(Number)
-      const proxMes = addMonths(new Date(ano, mes - 1, 1), 1)
-      const dataVencFgts = format(new Date(proxMes.getFullYear(), proxMes.getMonth(), 7), 'yyyy-MM-dd')
-      const dataVencInss = format(new Date(proxMes.getFullYear(), proxMes.getMonth(), 20), 'yyyy-MM-dd')
-      const dataVencIrrf = format(new Date(proxMes.getFullYear(), proxMes.getMonth(), 20), 'yyyy-MM-dd')
-
-      const payload = {
-        company_id: selectedCompany.id,
-        competencia,
-        fgts_total: Math.round(fgtsTotal * 100) / 100,
-        inss_patronal: Math.round(inssPatronal * 100) / 100,
-        inss_funcionarios: Math.round(inssFuncionarios * 100) / 100,
-        irrf_retido: Math.round(irrfRetido * 100) / 100,
-        rat_fap: ratFap,
-        total_encargos: totalEncargos,
-        data_venc_fgts: dataVencFgts,
-        data_venc_inss: dataVencInss,
-        data_venc_irrf: dataVencIrrf,
-      }
-
-      // Upsert
-      const { data: existing } = await db.from('encargos')
-        .select('id')
-        .eq('company_id', selectedCompany.id)
-        .eq('competencia', competencia)
-        .maybeSingle()
-
-      if (existing) {
-        await db.from('encargos').update(payload).eq('id', existing.id)
       } else {
-        await db.from('encargos').insert(payload)
+        toast.error(res.erro || 'Erro ao calcular encargos')
       }
-
-      // Gerar CPs
-      const cpItems = [
-        { nome: 'FGTS', valor: fgtsTotal, venc: dataVencFgts },
-        { nome: 'INSS', valor: inssPatronal + inssFuncionarios, venc: dataVencInss },
-        { nome: 'IRRF', valor: irrfRetido, venc: dataVencIrrf },
-      ]
-
-      for (const item of cpItems) {
-        if (item.valor <= 0) continue
-        const desc = `${item.nome} - ${competencia}`
-        const { data: cpExist } = await db.from('contas_pagar')
-          .select('id')
-          .eq('company_id', selectedCompany.id)
-          .eq('descricao', desc)
-          .maybeSingle()
-
-        if (!cpExist) {
-          await db.from('contas_pagar').insert({
-            company_id: selectedCompany.id,
-            credor_nome: item.nome === 'FGTS' ? 'Caixa Economica Federal' : 'Receita Federal',
-            descricao: desc,
-            valor: Math.round(item.valor * 100) / 100,
-            data_vencimento: item.venc,
-            status: 'aberto',
-            competencia,
-          })
-        }
-      }
-
-      toast.success(`Encargos ${competencia} calculados: ${formatBRL(totalEncargos)}`)
-      loadData()
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao calcular encargos')
     } finally {
       setCalculating(false)
     }
@@ -205,27 +126,19 @@ export default function EncargosRH() {
         <PagePanel title="Encargos Trabalhistas" subtitle="Encargos trabalhistas e provisões sobre a folha">
 
         {/* ── KPIs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCardGrid>
           {[
-            { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), icon: DollarSign, color: '#059669' },
-            { label: 'INSS total', value: formatBRL(kpis.totalINSS), icon: Calculator, color: '#EA580C' },
-            { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), icon: Calculator, color: '#E53E3E' },
-            { label: 'Total encargos', value: formatBRL(kpis.totalGeral), icon: DollarSign, color: '#059669' },
+            { label: 'FGTS total', value: formatBRL(kpis.totalFGTS), color: '#059669' },
+            { label: 'INSS total', value: formatBRL(kpis.totalINSS), color: '#EA580C' },
+            { label: 'IRRF retido', value: formatBRL(kpis.totalIRRF), color: '#E53E3E' },
+            { label: 'Total encargos', value: formatBRL(kpis.totalGeral), color: '#059669' },
           ].map((kpi, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: kpi.color + '12' }}>
-                <kpi.icon size={18} style={{ color: kpi.color }} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{kpi.label}</p>
-                <p className="text-base font-semibold" style={{ color: kpi.color }}>{kpi.value}</p>
-              </div>
-            </div>
+            <KpiCard key={i} label={kpi.label} value={kpi.value} valueColor={kpi.color} />
           ))}
-        </div>
+        </KpiCardGrid>
 
-        {/* ── Ano selector ── */}
-        <div className="flex items-center gap-2">
+        {/* ── Toolbar: ano + calcular mês + export ── */}
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setSelectedAno(a => a - 1)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <ChevronLeft size={16} className="text-gray-500" />
           </button>
@@ -233,6 +146,25 @@ export default function EncargosRH() {
           <button onClick={() => setSelectedAno(a => a + 1)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
             <ChevronRight size={16} className="text-gray-500" />
           </button>
+
+          <div className="flex items-center gap-2 ml-3 pl-3 border-l border-gray-200">
+            <select
+              value={mesCalc}
+              onChange={e => setMesCalc(Number(e.target.value))}
+              className="text-sm border border-gray-200 rounded-lg px-2 py-2 bg-white focus:outline-none focus:border-[#059669]"
+            >
+              {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+            <button
+              onClick={() => calcularEncargos(`${selectedAno}-${String(mesCalc).padStart(2, '0')}`)}
+              disabled={calculating}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+              style={{ backgroundColor: '#059669' }}
+            >
+              {calculating ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
+              {encargos.some(e => e.competencia === `${selectedAno}-${String(mesCalc).padStart(2, '0')}`) ? 'Recalcular' : 'Calcular'}
+            </button>
+          </div>
 
           <div className="ml-auto">
             <ExportMenu<Encargo>
@@ -246,6 +178,7 @@ export default function EncargosRH() {
                 { header: 'FGTS', value: e => formatBRL(e.fgts_total), numericValue: e => e.fgts_total || 0, excelWidth: 14 },
                 { header: 'INSS', value: e => formatBRL(e.inss_total ?? e.inss_patronal + e.inss_funcionarios), numericValue: e => e.inss_total ?? e.inss_patronal + e.inss_funcionarios, excelWidth: 14 },
                 { header: 'IRRF', value: e => formatBRL(e.irrf_retido), numericValue: e => e.irrf_retido || 0, excelWidth: 14 },
+                { header: 'RAT/FAP', value: e => formatBRL(e.rat_fap), numericValue: e => e.rat_fap || 0, excelWidth: 14 },
                 { header: 'Total', value: e => formatBRL(e.total_encargos), numericValue: e => e.total_encargos || 0, excelWidth: 14 },
                 { header: 'Status FGTS', value: e => STATUS_GUIA[e.status_fgts]?.label || e.status_fgts, align: 'center', excelWidth: 14 },
                 { header: 'Status INSS', value: e => STATUS_GUIA[e.status_inss]?.label || e.status_inss, align: 'center', excelWidth: 14 },
@@ -255,114 +188,72 @@ export default function EncargosRH() {
           </div>
         </div>
 
-        {/* ── Grid mensal ── */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin text-gray-400" size={24} />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {MESES.map((mes, idx) => {
-              const comp = `${selectedAno}-${String(idx + 1).padStart(2, '0')}`
-              const enc = encargos.find(e => e.competencia === comp)
-
-              return (
-                <div key={comp} className="bg-white rounded-xl border border-gray-100 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-gray-700">{mes} {selectedAno}</h3>
-                    {!enc && (
+        {/* ── Tabela (só meses calculados) ── */}
+        <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="animate-spin text-gray-400" size={24} />
+            </div>
+          ) : encargos.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">
+              Nenhum encargo calculado em {selectedAno}. Escolha um mês acima e clique em <span className="font-medium text-gray-600">Calcular</span>.
+              <div className="mt-1 text-xs">Os encargos são apurados a partir das folhas fechadas da competência.</div>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-white text-left text-xs font-bold text-[#1D2939] uppercase tracking-wider border-b-2 border-[#D0D5DD]">
+                  <th className="px-4 py-3 border-r border-[#EAECF0]">Competência</th>
+                  <th className="px-4 py-3 text-right border-r border-[#EAECF0]">FGTS</th>
+                  <th className="px-4 py-3 text-right border-r border-[#EAECF0]">INSS</th>
+                  <th className="px-4 py-3 text-right border-r border-[#EAECF0]">IRRF</th>
+                  <th className="px-4 py-3 text-right border-r border-[#EAECF0]">RAT/FAP</th>
+                  <th className="px-4 py-3 text-right border-r border-[#EAECF0]">Total</th>
+                  <th className="px-4 py-3">Guias</th>
+                </tr>
+              </thead>
+              <tbody>
+                {encargos.map(enc => {
+                  const idx = Number(enc.competencia.split('-')[1]) - 1
+                  const inssTotal = enc.inss_total ?? enc.inss_patronal + enc.inss_funcionarios
+                  const guia = (tipo: 'fgts' | 'inss' | 'irrf', label: string, status: string, venc: string | null) => {
+                    const st = STATUS_GUIA[status] || STATUS_GUIA.pendente
+                    const pendente = status === 'pendente'
+                    return (
                       <button
-                        onClick={() => calcularEncargos(comp)}
-                        disabled={calculating}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                        style={{ backgroundColor: '#059669' }}
+                        key={tipo}
+                        onClick={() => pendente && marcarRecolhido(enc.id, tipo)}
+                        disabled={!pendente}
+                        title={`${label} · ${st.label} · vence ${formatData(venc)}${pendente ? ' · clique para marcar recolhido' : ''}`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${pendente ? 'cursor-pointer hover:ring-1 hover:ring-current' : 'cursor-default'}`}
+                        style={{ color: st.color, backgroundColor: st.bg }}
                       >
-                        {calculating ? <Loader2 size={12} className="animate-spin" /> : <Calculator size={12} />}
-                        Calcular
+                        {!pendente && <Check size={10} />}{label}
                       </button>
-                    )}
-                  </div>
-
-                  {enc ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* FGTS */}
-                      <div className="border border-gray-50 rounded-lg p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-blue-700">FGTS</span>
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                            style={{ ...STATUS_GUIA[enc.status_fgts] && { color: STATUS_GUIA[enc.status_fgts].color, backgroundColor: STATUS_GUIA[enc.status_fgts].bg } }}
-                          >
-                            {STATUS_GUIA[enc.status_fgts]?.label || enc.status_fgts}
-                          </span>
+                    )
+                  }
+                  return (
+                    <tr key={enc.id} className="border-b border-[#F1F3F5] hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-2 font-medium border-r border-[#F1F3F5] whitespace-nowrap">{MESES[idx]} {selectedAno}</td>
+                      <td className="px-4 py-2 text-right tabular-nums border-r border-[#F1F3F5]">{formatBRL(enc.fgts_total)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums border-r border-[#F1F3F5]" title={`Patronal ${formatBRL(enc.inss_patronal)} · Func. ${formatBRL(enc.inss_funcionarios)}`}>{formatBRL(inssTotal)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums border-r border-[#F1F3F5]">{formatBRL(enc.irrf_retido)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums border-r border-[#F1F3F5]">{formatBRL(enc.rat_fap)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums font-semibold border-r border-[#F1F3F5]">{formatBRL(enc.total_encargos)}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {guia('fgts', 'FGTS', enc.status_fgts, enc.data_venc_fgts)}
+                          {guia('inss', 'INSS', enc.status_inss, enc.data_venc_inss)}
+                          {guia('irrf', 'IRRF', enc.status_irrf, enc.data_venc_irrf)}
                         </div>
-                        <p className="text-base font-semibold">{formatBRL(enc.fgts_total)}</p>
-                        <p className="text-xs text-gray-400">Venc: {formatData(enc.data_venc_fgts)}</p>
-                        {enc.status_fgts === 'pendente' && (
-                          <button
-                            onClick={() => marcarRecolhido(enc.id, 'fgts')}
-                            className="text-[10px] px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium"
-                          >
-                            Marcar recolhido
-                          </button>
-                        )}
-                      </div>
-
-                      {/* INSS */}
-                      <div className="border border-gray-50 rounded-lg p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-orange-700">INSS</span>
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                            style={{ ...STATUS_GUIA[enc.status_inss] && { color: STATUS_GUIA[enc.status_inss].color, backgroundColor: STATUS_GUIA[enc.status_inss].bg } }}
-                          >
-                            {STATUS_GUIA[enc.status_inss]?.label || enc.status_inss}
-                          </span>
-                        </div>
-                        <p className="text-base font-semibold">{formatBRL((enc.inss_total ?? enc.inss_patronal + enc.inss_funcionarios))}</p>
-                        <p className="text-[10px] text-gray-400">Patronal: {formatBRL(enc.inss_patronal)} | Func: {formatBRL(enc.inss_funcionarios)}</p>
-                        <p className="text-xs text-gray-400">Venc: {formatData(enc.data_venc_inss)}</p>
-                        {enc.status_inss === 'pendente' && (
-                          <button
-                            onClick={() => marcarRecolhido(enc.id, 'inss')}
-                            className="text-[10px] px-2 py-1 rounded bg-orange-50 text-orange-600 hover:bg-orange-100 font-medium"
-                          >
-                            Marcar recolhido
-                          </button>
-                        )}
-                      </div>
-
-                      {/* IRRF */}
-                      <div className="border border-gray-50 rounded-lg p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-red-700">IRRF</span>
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                            style={{ ...STATUS_GUIA[enc.status_irrf] && { color: STATUS_GUIA[enc.status_irrf].color, backgroundColor: STATUS_GUIA[enc.status_irrf].bg } }}
-                          >
-                            {STATUS_GUIA[enc.status_irrf]?.label || enc.status_irrf}
-                          </span>
-                        </div>
-                        <p className="text-base font-semibold">{formatBRL(enc.irrf_retido)}</p>
-                        <p className="text-xs text-gray-400">Venc: {formatData(enc.data_venc_irrf)}</p>
-                        {enc.status_irrf === 'pendente' && (
-                          <button
-                            onClick={() => marcarRecolhido(enc.id, 'irrf')}
-                            className="text-[10px] px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium"
-                          >
-                            Marcar recolhido
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 text-center py-2">Nao calculado</p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
         </PagePanel>
       </div>
     </AppLayout>

@@ -65,7 +65,6 @@ import Documentos from "./pages/Documentos";
 import MultiEmpresa from "./pages/MultiEmpresa";
 import ContratosRecorrentes from "./pages/ContratosRecorrentes";
 import EmpresaResumo from "./pages/EmpresaResumo";
-import NotasFiscais from "./pages/NotasFiscais";
 import ImportacaoXML from "./pages/ImportacaoXML";
 import FolhaPagamento from "./pages/FolhaPagamento";
 import PontoEletronico from "./pages/PontoEletronico";
@@ -76,6 +75,7 @@ import FluxoCaixa from "./pages/FluxoCaixa";
 import MapeamentoContabil from "./pages/MapeamentoContabil";
 import NfseEmissao from "./pages/NfseEmissao";
 import NfseConfiguracoes from "./pages/NfseConfiguracoes";
+import PrevisaoImpostos from "./pages/PrevisaoImpostos";
 import PainelGerencial from "./pages/PainelGerencial";
 import AreaContador from "./pages/AreaContador";
 import VendaSistema from "./pages/VendaSistema";
@@ -221,8 +221,8 @@ const App = () => (
                     <Route path="/documentos/*" element={<Documentos />} />
                     <Route path="/multiempresa" element={<MultiEmpresa />} />
                     <Route path="/multiempresa/*" element={<MultiEmpresa />} />
-                    <Route path="/notas-fiscais" element={<NotasFiscais />} />
                     <Route path="/nfse" element={<NfseEmissao />} />
+                    <Route path="/previsao-impostos" element={<PrevisaoImpostos />} />
                     <Route path="/configuracoes/nfse" element={<NfseConfiguracoes />} />
                     <Route path="/area-contador" element={<AreaContador />} />
                     <Route path="/importacao-xml" element={<ImportacaoXML />} />
