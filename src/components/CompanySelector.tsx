@@ -51,7 +51,7 @@ export function CompanySelector() {
         >
           <div className="flex items-center gap-1.5 truncate">
             <Building2 className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/60" />
-            <span className="truncate">
+            <span className="truncate uppercase tracking-wide font-semibold">
               {selectedCompany?.nome_fantasia || selectedCompany?.razao_social || "Selecione uma empresa"}
             </span>
           </div>
@@ -88,7 +88,7 @@ export function CompanySelector() {
                     )}
                   />
                   <div className="flex flex-col min-w-0 leading-[1.15]">
-                    <span className="text-[11px] font-medium truncate">
+                    <span className="text-[13px] font-semibold uppercase tracking-wide truncate">
                       {company.nome_fantasia || company.razao_social}
                     </span>
                     {company.cnpj && (
