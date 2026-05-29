@@ -781,14 +781,14 @@ ${empresaNome}`;
         </div>
 
         {/* Downloads — 3 relatórios */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-[#E5E7EB]">
-            <CardContent className="p-5 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+          <Card className="border-[#E5E7EB] h-full">
+            <CardContent className="p-5 flex flex-col h-full space-y-3">
               <div className="flex items-center gap-2 text-[#1D2939]">
                 <FileText size={18} />
                 <h2 className="font-semibold">Extrato do Mês</h2>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 flex-1">
                 Extrato bruto do banco — todas as transações (conciliadas e pendentes), com status e saldo acumulado.
               </p>
               <Button
@@ -802,13 +802,13 @@ ${empresaNome}`;
             </CardContent>
           </Card>
 
-          <Card className="border-[#E5E7EB]">
-            <CardContent className="p-5 space-y-3">
+          <Card className="border-[#E5E7EB] h-full">
+            <CardContent className="p-5 flex flex-col h-full space-y-3">
               <div className="flex items-center gap-2 text-[#1D2939]">
                 <FileSpreadsheet size={18} />
                 <h2 className="font-semibold">Extrato Conciliado</h2>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 flex-1">
                 Movimentação bancária do mês com pagador/credor identificado. Uma aba por conta.
               </p>
               <Button
@@ -822,13 +822,13 @@ ${empresaNome}`;
             </CardContent>
           </Card>
 
-          <Card className="border-[#E5E7EB]">
-            <CardContent className="p-5 space-y-3">
+          <Card className="border-[#E5E7EB] h-full">
+            <CardContent className="p-5 flex flex-col h-full space-y-3">
               <div className="flex items-center gap-2 text-[#1D2939]">
                 <FileSpreadsheet size={18} />
                 <h2 className="font-semibold">Conciliações + Categorias</h2>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 flex-1">
                 Planilha completa pra o contador: categoria do plano de contas + centro de custo.
               </p>
               <Button
