@@ -54,10 +54,10 @@ export function PagePanel({
               <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">{headerActions}</div>
             )}
           </div>
-          {tabs ? (
+          {/* Navegação do módulo (sempre) + abas próprias da página (se houver) */}
+          <ModuleTabs />
+          {tabs && (
             <div className="flex px-4 border-b border-[#EAECF0] overflow-x-auto">{tabs}</div>
-          ) : (
-            <ModuleTabs />
           )}
         </div>
 
