@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { formatBRL, toTitleCase } from "@/lib/format";
+import { formatNumero, toTitleCase } from "@/lib/format";
 import AbaBeneficios from "@/components/funcionarios/AbaBeneficios";
 import { InteracoesCadastro } from "@/components/interacoes/InteracoesCadastro";
 import { EmployeeDuplicatesDialog } from "@/components/funcionarios/DuplicatesDialog";
@@ -680,7 +680,7 @@ export default function Funcionarios() {
     { header: "Contrato", pdfFlex: 7, align: "center", value: (e) => tipoContratoLabels[e.tipo_contrato || ""] || "—" },
     { header: "Admissão", pdfFlex: 9, align: "center", value: (e) => (e.hire_date ? new Date(e.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—") },
     { header: "Cadastro", pdfFlex: 9, align: "center", value: (e) => fmtCadExport(e.created_at) },
-    { header: "Salário", pdfFlex: 11, align: "right", value: (e) => formatBRL(Number(e.salario_base || e.salary || 0)), numericValue: (e) => Number(e.salario_base || e.salary || 0) },
+    { header: "Salário", pdfFlex: 11, align: "right", value: (e) => formatNumero(Number(e.salario_base || e.salary || 0)), numericValue: (e) => Number(e.salario_base || e.salary || 0) },
     { header: "Telefone", pdfFlex: 11, value: (e) => (e.phone ? formatPhone(e.phone) : "—") },
     { header: "Status", pdfFlex: 7, align: "center", value: (e) => (isActive(e.status) ? "Ativo" : "Inativo") },
   ];
@@ -737,7 +737,7 @@ export default function Funcionarios() {
                   <p className="text-[11px] text-[#555] truncate">{emp.role || "Sem cargo"} · {tipoContratoLabels[emp.tipo_contrato || ""] || "—"}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs font-bold text-[#1D2939]">{formatBRL(emp.salario_base || emp.salary || 0)}</p>
+                  <p className="text-xs font-bold text-[#1D2939]">{formatNumero(emp.salario_base || emp.salary || 0)}</p>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                     isActive(emp.status) ? "bg-[#ECFDF3] text-[#039855]" : "bg-[#EAECF0] text-[#555]"
                   }`}>{statusLabel(emp.status)}</span>
@@ -888,7 +888,7 @@ export default function Funcionarios() {
                           {selected ? (
                             <tr className="border-t border-[#eee] font-semibold">
                               <td className="px-2.5 py-1.5">{selected.hire_date ? new Date(selected.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
-                              <td className="px-2.5 py-1.5">{formatBRL(selected.salario_base || selected.salary || 0)}</td>
+                              <td className="px-2.5 py-1.5">{formatNumero(selected.salario_base || selected.salary || 0)}</td>
                               <td className="px-2.5 py-1.5"><span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ECFDF4] text-[#059669]">Atual</span></td>
                               <td className="px-2.5 py-1.5 text-[#555]">Admissão</td>
                             </tr>
@@ -900,7 +900,7 @@ export default function Funcionarios() {
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
                         <span className="text-[9px] font-bold uppercase tracking-wider text-white">Pagamentos</span>
-                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatBRL(totalPagoFunc)}</span>
+                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalPagoFunc)}</span>
                       </div>
                       {loadingPagamentos ? (
                         <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
@@ -945,7 +945,7 @@ export default function Funcionarios() {
                                     <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
                                     <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
                                   </div>
-                                  <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatBRL(p.valor)}</span>
+                                  <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatNumero(p.valor)}</span>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-1 pl-4">
                                   <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
@@ -976,7 +976,7 @@ export default function Funcionarios() {
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
                         <span className="text-[9px] font-bold uppercase tracking-wider text-white">Comissões pagas</span>
-                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatBRL(totalComissoesPago)}</span>
+                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalComissoesPago)}</span>
                       </div>
                       {loadingPagamentos ? (
                         <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
@@ -1021,7 +1021,7 @@ export default function Funcionarios() {
                                     <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
                                     <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
                                   </div>
-                                  <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatBRL(p.valor)}</span>
+                                  <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatNumero(p.valor)}</span>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-1 pl-4">
                                   <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
@@ -1063,18 +1063,18 @@ export default function Funcionarios() {
                                 if (calcSalario <= f.min) return null;
                                 const base = Math.min(calcSalario, f.max) - f.min;
                                 const val = Math.round(base * f.aliq * 100) / 100;
-                                return (<tr key={i} className="border-t border-[#eee]"><td className="px-3 py-1.5">Até {formatBRL(f.max)}</td><td className="px-3 py-1.5">{(f.aliq * 100).toFixed(1)}%</td><td className="px-3 py-1.5 text-right font-semibold">{formatBRL(val)}</td></tr>);
+                                return (<tr key={i} className="border-t border-[#eee]"><td className="px-3 py-1.5">Até {formatNumero(f.max)}</td><td className="px-3 py-1.5">{(f.aliq * 100).toFixed(1)}%</td><td className="px-3 py-1.5 text-right font-semibold">{formatNumero(val)}</td></tr>);
                               })}
-                              <tr className="border-t-2 border-[#059669] font-bold"><td className="px-3 py-2" colSpan={2}>Total INSS</td><td className="px-3 py-2 text-right">{formatBRL(inssCalc)}</td></tr>
+                              <tr className="border-t-2 border-[#059669] font-bold"><td className="px-3 py-2" colSpan={2}>Total INSS</td><td className="px-3 py-2 text-right">{formatNumero(inssCalc)}</td></tr>
                             </tbody>
                           </table>
                         </div>
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
                           <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">IRRF</span></div>
                           <div className="p-3 text-xs space-y-1">
-                            <div className="flex justify-between"><span className="text-[#555]">Base de cálculo</span><span className="font-semibold">{formatBRL(Math.max(0, calcSalario - inssCalc - calcDependentes * DEDUCAO_DEPENDENTE))}</span></div>
-                            <div className="flex justify-between"><span className="text-[#555]">Dedução dependentes ({calcDependentes})</span><span className="font-semibold">{formatBRL(calcDependentes * DEDUCAO_DEPENDENTE)}</span></div>
-                            <div className="flex justify-between border-t border-[#eee] pt-1 font-bold"><span>IRRF</span><span>{formatBRL(irrfCalc)}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">Base de cálculo</span><span className="font-semibold">{formatNumero(Math.max(0, calcSalario - inssCalc - calcDependentes * DEDUCAO_DEPENDENTE))}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">Dedução dependentes ({calcDependentes})</span><span className="font-semibold">{formatNumero(calcDependentes * DEDUCAO_DEPENDENTE)}</span></div>
+                            <div className="flex justify-between border-t border-[#eee] pt-1 font-bold"><span>IRRF</span><span>{formatNumero(irrfCalc)}</span></div>
                           </div>
                         </div>
                       </div>
@@ -1082,22 +1082,22 @@ export default function Funcionarios() {
                         <div className="border-2 border-[#059669] rounded-lg p-5">
                           <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#059669] mb-4">Resumo do Colaborador</h4>
                           <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-[#555]">Salário Bruto</span><span className="font-bold">{formatBRL(calcSalario)}</span></div>
-                            <div className="flex justify-between text-[#E53E3E]"><span>(-) INSS</span><span>{formatBRL(inssCalc)}</span></div>
-                            <div className="flex justify-between text-[#E53E3E]"><span>(-) IRRF</span><span>{formatBRL(irrfCalc)}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">Salário Bruto</span><span className="font-bold">{formatNumero(calcSalario)}</span></div>
+                            <div className="flex justify-between text-[#E53E3E]"><span>(-) INSS</span><span>{formatNumero(inssCalc)}</span></div>
+                            <div className="flex justify-between text-[#E53E3E]"><span>(-) IRRF</span><span>{formatNumero(irrfCalc)}</span></div>
                             <div className="flex justify-between border-t-2 border-[#059669] pt-2 mt-2">
                               <span className="font-bold text-[#039855] text-base">Líquido</span>
-                              <span className="font-bold text-[#039855] text-base">{formatBRL(liquido)}</span>
+                              <span className="font-bold text-[#039855] text-base">{formatNumero(liquido)}</span>
                             </div>
                           </div>
                         </div>
                         <div className="border border-[#ccc] rounded-lg p-5">
                           <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#555] mb-4">Custo Empresa</h4>
                           <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-[#555]">Salário</span><span>{formatBRL(calcSalario)}</span></div>
-                            <div className="flex justify-between"><span className="text-[#555]">FGTS (8%)</span><span>{formatBRL(fgts)}</span></div>
-                            <div className="flex justify-between"><span className="text-[#555]">INSS Patronal (20%)</span><span>{formatBRL(inssPatronal)}</span></div>
-                            <div className="flex justify-between border-t border-[#eee] pt-2 font-bold"><span>Custo Total</span><span className="text-[#E53E3E]">{formatBRL(custoTotal)}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">Salário</span><span>{formatNumero(calcSalario)}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">FGTS (8%)</span><span>{formatNumero(fgts)}</span></div>
+                            <div className="flex justify-between"><span className="text-[#555]">INSS Patronal (20%)</span><span>{formatNumero(inssPatronal)}</span></div>
+                            <div className="flex justify-between border-t border-[#eee] pt-2 font-bold"><span>Custo Total</span><span className="text-[#E53E3E]">{formatNumero(custoTotal)}</span></div>
                           </div>
                         </div>
                       </div>

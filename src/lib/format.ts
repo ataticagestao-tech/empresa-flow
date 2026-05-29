@@ -4,6 +4,13 @@ export const formatBRL = (valor: number | null | undefined): string => {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+// Número no formato XX,XX (vírgula decimal, sem "R$")
+export const formatNumero = (valor: number | null | undefined): string => {
+  const v = Number(valor)
+  if (isNaN(v)) return '0,00'
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export const formatCPF = (v: string) =>
   v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
 
