@@ -176,7 +176,7 @@ export default function ProdutosDepartamentos() {
 
     return (
         <AppLayout title="Operacional">
-            <div className="py-3">
+            <div className="pt-0 pb-3">
             <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 space-y-3 min-h-[calc(100vh-150px)]">
                 {/* Header + Tabs */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">

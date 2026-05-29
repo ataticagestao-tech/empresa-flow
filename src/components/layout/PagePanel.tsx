@@ -35,7 +35,7 @@ export function PagePanel({
   className,
 }: PagePanelProps) {
   return (
-    <div className="py-3">
+    <div className="pt-0 pb-3">
       <div
         className={cn(
           "bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 space-y-2",

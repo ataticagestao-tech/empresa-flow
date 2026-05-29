@@ -563,7 +563,7 @@ export default function PlanoContas() {
 
   return (
     <AppLayout title="Plano de Contas">
-      <div className="py-3">
+      <div className="pt-0 pb-3">
         <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 space-y-2 min-h-[calc(100vh-150px)]">
         {/* Cabeçalho estilo header escuro + abas (como Operacional) */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">

@@ -983,7 +983,7 @@ export default function CompanyDashboard() {
 
     return (
         <AppLayout title="Dashboard">
-            <div className="py-6">
+            <div className="pt-0 pb-3">
             <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ width: "100%", fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>

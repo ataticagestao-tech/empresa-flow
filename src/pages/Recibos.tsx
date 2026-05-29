@@ -1000,7 +1000,7 @@ export default function Recibos() {
 
   return (
     <AppLayout title="Recibos">
-      <div className="py-3 h-[calc(100vh-120px)]">
+      <div className="pt-0 pb-3 h-[calc(100vh-120px)]">
         <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-4 h-full flex flex-col">
         {/* ═══ MENU SUPERIOR (header da página) ═══ */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">

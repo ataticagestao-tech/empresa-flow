@@ -40,7 +40,7 @@ function PageBreadcrumb({ title }: { title: string }) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex items-center gap-1.5 text-[12px] text-[#667085] mb-4 select-none"
+      className="flex items-center gap-1.5 text-[12px] text-[#667085] mb-2 select-none"
     >
       <Link
         to="/dashboard"
