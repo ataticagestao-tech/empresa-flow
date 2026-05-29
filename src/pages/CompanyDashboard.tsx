@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
+import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
@@ -957,7 +958,7 @@ export default function CompanyDashboard() {
     }, [dailyRevenue, periodStart, periodEnd]);
 
     const heatmapColor = (value: number, max: number) => {
-        if (value === 0 || max === 0) return "#F3F4F6";
+        if (value === 0 || max === 0) return "#FFFFFF";
         const r = value / max;
         if (r < 0.25) return "#A7F3D0";
         if (r < 0.5) return "#34D399";
@@ -1289,7 +1290,12 @@ export default function CompanyDashboard() {
                     )}
                     <div style={{ display: "flex", gap: 32, padding: 20, alignItems: "flex-start" }}>
                         {/* Heatmap grid */}
-                        <div style={{ display: "flex", gap: 8, background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", padding: 16 }}>
+                        <div style={{ display: "flex", flexDirection: "column", background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", overflow: "hidden" }}>
+                          <div style={{ padding: "14px 16px", background: C.text1 }}>
+                            <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendário</div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{regime === "competencia" ? "Faturamento por dia" : "Recebimentos por dia"}</div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, padding: 16 }}>
                             {/* Day-of-week labels */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.textMuted, paddingTop: 22 }}>
                                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
@@ -1334,13 +1340,15 @@ export default function CompanyDashboard() {
                                 ))}
                                 </div>
                             </div>
+                          </div>
                         </div>
                         {/* Stats */}
-                        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignSelf: "stretch" }}>
+                        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignSelf: "stretch" }}>
                             {/* Produtos vendidos - ranking */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
-                                    <div style={{ fontSize: 13, color: C.text1, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Produtos e serviços <span style={{ color: C.textMuted, fontWeight: 500 }}>· {monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</span></div>
+                                <div style={{ padding: "14px 16px", background: C.text1 }}>
+                                    <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Produtos e serviços</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</div>
                                 </div>
                                 {monthlySales?.productBreakdown && monthlySales.productBreakdown.length > 0 ? (() => {
                                     const totalItems = monthlySales.productBreakdown.length;
@@ -1348,30 +1356,40 @@ export default function CompanyDashboard() {
                                     const page = Math.min(productsPage, totalPages - 1);
                                     const startIdx = page * PRODUCTS_PER_PAGE;
                                     const pageItems = monthlySales.productBreakdown.slice(startIdx, startIdx + PRODUCTS_PER_PAGE);
+                                    // Mesma cor da fatia do donut "Distribuição": top 5 coloridos, resto cinza ("Outros")
+                                    const distPalette = ["#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#9CA3AF"];
+                                    const colorByProduto = new Map<string, string>();
+                                    [...monthlySales.productBreakdown]
+                                        .sort((a, b) => b.faturamento - a.faturamento)
+                                        .forEach((p, i) => colorByProduto.set(p.descricao, i < 5 ? distPalette[i] : distPalette[distPalette.length - 1]));
+                                    const productColumns: SpreadsheetColumn<any>[] = [
+                                        {
+                                            id: "produto", header: "Produto", weight: 32, title: (p) => p.descricao,
+                                            render: (p) => (
+                                                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                                                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorByProduto.get(p.descricao) || distPalette[distPalette.length - 1], flexShrink: 0 }} />
+                                                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.descricao}</span>
+                                                </span>
+                                            ),
+                                        },
+                                        { id: "vendas", header: "Vendas", numeric: true, weight: 13, render: (p) => p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR") },
+                                        { id: "faturamento", header: "Faturamento", numeric: true, weight: 18, render: (p) => fmtInt(p.faturamento), cellClassName: "font-bold" },
+                                        { id: "pct", header: "%", numeric: true, weight: 9, render: (p) => `${p.percentual.toFixed(0)}%` },
+                                    ];
                                     return (
                                         <>
                                             <div style={{ flex: 1, padding: 12, minHeight: 0, display: "flex", flexDirection: "column" }}>
                                               <div style={{ flex: 1, overflowY: "auto", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF" }}>
-                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                                    <thead style={{ position: "sticky", top: 0, background: "#F9FAFB", zIndex: 1 }}>
-                                                        <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                                                            <th style={{ textAlign: "left", padding: "8px 12px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>Produto</th>
-                                                            <th style={{ textAlign: "right", padding: "8px 8px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>Vendas</th>
-                                                            <th style={{ textAlign: "right", padding: "8px 8px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>Faturamento</th>
-                                                            <th style={{ textAlign: "right", padding: "8px 12px", fontSize: 11.5, fontWeight: 700, color: C.text1, textTransform: "uppercase", letterSpacing: 0.4 }}>%</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {pageItems.map((p, idx) => (
-                                                            <tr key={p.descricao + (startIdx + idx)} style={{ borderBottom: idx === pageItems.length - 1 ? "none" : `1px solid ${C.border}`, background: p.semProduto ? "#FFF0EB" : "#FFFFFF" }}>
-                                                                <td style={{ padding: "7px 12px", color: p.semProduto ? C.textMuted : C.text1, fontWeight: 500, fontStyle: p.semProduto ? "italic" : "normal", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }} title={p.descricao}>{p.descricao}</td>
-                                                                <td style={{ padding: "7px 8px", textAlign: "right", color: C.text2, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{p.semProduto ? "—" : p.vendas.toLocaleString("pt-BR")}</td>
-                                                                <td style={{ padding: "7px 8px", textAlign: "right", color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(p.faturamento)}</td>
-                                                                <td style={{ padding: "7px 12px", textAlign: "right", color: C.textMuted, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{p.percentual.toFixed(1)}%</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                <SpreadsheetTable
+                                                    columns={productColumns}
+                                                    rows={pageItems}
+                                                    rowKey={(p, i) => p.descricao + (startIdx + i)}
+                                                    resetKey={page}
+                                                    className="text-xs"
+                                                    headerClassName="bg-[#F9FAFB] text-[#1D2939] font-bold uppercase tracking-wide px-3 py-2"
+                                                    cellClassName="text-[#1D2939] px-3 py-[7px]"
+                                                    rowClassName={(p) => p.semProduto ? "bg-[#FFF0EB] text-muted-foreground italic" : "bg-white"}
+                                                />
                                               </div>
                                             </div>
                                             {totalPages > 1 && (
@@ -1407,9 +1425,9 @@ export default function CompanyDashboard() {
                             </div>
                             {/* Distribuição de produtos e serviços (pizza) */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}` }}>
-                                    <div style={{ fontSize: 13, color: C.text1, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Distribuição</div>
-                                    <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
+                                <div style={{ padding: "14px 16px", background: C.text1 }}>
+                                    <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Distribuição</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
                                 </div>
                                 {(() => {
                                     const items = monthlySales?.productBreakdown ?? [];
@@ -1420,7 +1438,7 @@ export default function CompanyDashboard() {
                                             </div>
                                         );
                                     }
-                                    const palette = ["#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#9CA3AF"];
+                                    const palette = ["#15803D", "#16A34A", "#22C55E", "#4ADE80", "#86EFAC", "#9CA3AF"];
                                     const TOP = 5;
                                     const sorted = [...items].sort((a, b) => b.faturamento - a.faturamento);
                                     const top = sorted.slice(0, TOP);
@@ -1433,9 +1451,10 @@ export default function CompanyDashboard() {
                                     ];
                                     const total = data.reduce((s, d) => s + d.value, 0);
                                     return (
-                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 12px 14px", minHeight: 0, gap: 10 }}>
-                                            {/* Donut */}
-                                            <div style={{ position: "relative", height: 140, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 12, minHeight: 0 }}>
+                                            {/* Pizza em moldura branca */}
+                                            <div style={{ flex: 1, minHeight: 320, display: "flex", flexDirection: "column", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
+                                                <div style={{ flex: 1, minHeight: 0, width: "100%" }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
@@ -1444,11 +1463,25 @@ export default function CompanyDashboard() {
                                                             nameKey="name"
                                                             cx="50%"
                                                             cy="50%"
-                                                            innerRadius={42}
-                                                            outerRadius={62}
-                                                            paddingAngle={1.5}
+                                                            innerRadius={0}
+                                                            outerRadius="85%"
+                                                            paddingAngle={1}
                                                             stroke="#fff"
                                                             strokeWidth={2}
+                                                            labelLine={false}
+                                                            label={({ cx, cy, midAngle, outerRadius, value }: any) => {
+                                                                const frac = (value || 0) / (total || 1);
+                                                                if (frac < 0.04) return null;
+                                                                const RAD = Math.PI / 180;
+                                                                const r = outerRadius * 0.6;
+                                                                const x = cx + r * Math.cos(-midAngle * RAD);
+                                                                const y = cy + r * Math.sin(-midAngle * RAD);
+                                                                return (
+                                                                    <text x={x} y={y} fill="#fff" fontSize={13} fontWeight={700} textAnchor="middle" dominantBaseline="central">
+                                                                        {`${Math.round(frac * 100)}%`}
+                                                                    </text>
+                                                                );
+                                                            }}
                                                         >
                                                             {data.map((d, i) => (<Cell key={i} fill={d.color} />))}
                                                         </Pie>
@@ -1459,20 +1492,11 @@ export default function CompanyDashboard() {
                                                         />
                                                     </PieChart>
                                                 </ResponsiveContainer>
-                                                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                                                    <div style={{ fontSize: 9.5, color: C.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Total</div>
-                                                    <div style={{ fontSize: 13, color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtShort(total) || fmt(total)}</div>
                                                 </div>
-                                            </div>
-                                            {/* Legenda */}
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, overflowY: "auto", maxHeight: 120 }}>
-                                                {data.map((d, i) => (
-                                                    <div key={i} title={`${d.name} · ${fmt(d.value)} · ${d.percent.toFixed(1)}%`} style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-                                                        <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-                                                        <span style={{ color: C.text1, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: d.semProduto ? "italic" : "normal", flex: 1 }}>{d.name}</span>
-                                                        <span style={{ color: C.text2, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{d.percent.toFixed(1)}%</span>
-                                                    </div>
-                                                ))}
+                                                <div style={{ flexShrink: 0, paddingTop: 8, textAlign: "center", borderTop: `1px solid ${C.border}`, marginTop: 4 }}>
+                                                    <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Total </span>
+                                                    <span style={{ fontSize: 16, color: C.text1, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtShort(total) || fmt(total)}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     );
