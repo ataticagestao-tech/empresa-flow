@@ -10,6 +10,7 @@ import { ReciboModalProvider } from "@/components/finance/BotaoPagarComRecibo";
 import { ThemeProvider } from "next-themes";
 import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { PersistentLayout } from "@/components/layout/PersistentLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
@@ -173,6 +174,7 @@ const App = () => (
                 <Route element={<RequireAuth />}>
                   <Route path="/conta-bloqueada" element={<ContaBloqueada />} />
                   <Route element={<RequireActiveAccount />}>
+                    <Route element={<PersistentLayout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/dashboard/:id" element={<CompanyDashboard />} />
                     <Route path="/financeiro" element={<Financeiro />} />
@@ -239,6 +241,7 @@ const App = () => (
                       <Route path="/admin/usuarios" element={<AdminUsuarios />} />
                       <Route path="/admin/whatsapp-autorizados" element={<WhatsappAutorizados />} />
                       <Route path="/admin/log-atividades" element={<LogAtividades />} />
+                    </Route>
                     </Route>
                   </Route>
                 </Route>
