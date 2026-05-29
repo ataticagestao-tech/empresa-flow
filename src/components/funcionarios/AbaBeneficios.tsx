@@ -232,11 +232,11 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className={LB}>Valor diário VT</label>
+                  <label className={`${LB} flex items-center h-5`}>Valor diário VT</label>
                   <input readOnly value={formatBRL(vtValesPorDia * vtValorUnitario)} className={IC_RO} />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className={`${LB} flex items-center gap-2 cursor-pointer`}>
+                  <label className={`${LB} flex items-center gap-2 h-5 cursor-pointer`}>
                     <input type="checkbox" checked={descontarFunc} onChange={(e) => setDescontarFunc(e.target.checked)} />
                     Desconto func. (6%)
                   </label>
