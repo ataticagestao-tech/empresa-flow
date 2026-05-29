@@ -98,6 +98,30 @@ function mapearParaSupplier(dados: Record<string, any>): Record<string, any> {
     return out;
 }
 
+function mapearParaCustomer(dados: Record<string, any>): Record<string, any> {
+    const out: Record<string, any> = {};
+    if (isValid(dados.cnpj) || isValid(dados.cpf)) {
+        out.cpf_cnpj = (dados.cnpj || dados.cpf);
+        out.tipo_pessoa = isValid(dados.cnpj) ? "PJ" : "PF";
+    }
+    if (isValid(dados.razao_social)) out.razao_social = dados.razao_social;
+    if (isValid(dados.nome_fantasia)) out.nome_fantasia = dados.nome_fantasia;
+    if (isValid(dados.email)) out.email = dados.email;
+    if (isValid(dados.telefone)) out.telefone = dados.telefone;
+
+    if (isValidObj(dados.endereco)) {
+        const e = dados.endereco;
+        if (e.cep) out.endereco_cep = String(e.cep).replace(/\D/g, "");
+        if (e.logradouro) out.endereco_logradouro = e.logradouro;
+        if (e.numero) out.endereco_numero = String(e.numero);
+        if (e.complemento) out.endereco_complemento = e.complemento;
+        if (e.bairro) out.endereco_bairro = e.bairro;
+        if (e.cidade) out.endereco_cidade = e.cidade;
+        if (e.uf) out.endereco_estado = e.uf;
+    }
+    return out;
+}
+
 function isValid(v: any): boolean {
     return v !== null && v !== undefined && v !== "" && v !== "__pulado__" && v !== "__falhou__";
 }
@@ -111,7 +135,7 @@ async function moverDocumentos(
     service: any,
     companyId: string,
     solicitacaoId: string,
-    tipoAlvo: "funcionarios" | "fornecedores",
+    tipoAlvo: "funcionarios" | "fornecedores" | "clientes",
     targetId: string,
 ): Promise<string[]> {
     const movedPaths: string[] = [];
@@ -204,10 +228,47 @@ serve(async (req) => {
         const dadosFinais = { ...(solicitacao.dados_extraidos ?? {}), ...(dados_editados ?? {}) };
 
         // ---- Decide INSERT vs UPDATE ----
-        let alvoId: string | null = solicitacao.employee_id ?? solicitacao.supplier_id ?? null;
+        let alvoId: string | null =
+            solicitacao.employee_id ?? solicitacao.supplier_id ?? solicitacao.customer_id ?? null;
         let acaoRealizada: "insert" | "update";
 
-        if (solicitacao.tipo === "funcionario") {
+        if (solicitacao.tipo === "cliente") {
+            const colunas = mapearParaCustomer(dadosFinais);
+            if (!colunas.cpf_cnpj && !solicitacao.customer_id) {
+                return jsonResponse({ error: "CPF/CNPJ obrigatorio para criar cliente" }, 400);
+            }
+
+            if (solicitacao.customer_id) {
+                const { error } = await service
+                    .from("clients")
+                    .update(colunas)
+                    .eq("id", solicitacao.customer_id)
+                    .eq("company_id", solicitacao.company_id);
+                if (error) return jsonResponse({ error: "Falha ao atualizar cliente", details: error.message }, 500);
+                acaoRealizada = "update";
+            } else {
+                if (!confirmar_criacao) {
+                    return jsonResponse({ error: "confirmar_criacao=true obrigatorio para criar cliente novo" }, 400);
+                }
+                const { data: novo, error } = await service
+                    .from("clients")
+                    .insert({
+                        company_id: solicitacao.company_id,
+                        razao_social: colunas.razao_social ?? solicitacao.nome_destinatario,
+                        ...colunas,
+                        is_active: true,
+                    })
+                    .select()
+                    .single();
+                if (error || !novo) return jsonResponse({ error: "Falha ao criar cliente", details: error?.message }, 500);
+                alvoId = novo.id;
+                acaoRealizada = "insert";
+            }
+
+            if (alvoId) {
+                await moverDocumentos(service, solicitacao.company_id, solicitacao_id, "clientes", alvoId);
+            }
+        } else if (solicitacao.tipo === "funcionario") {
             const colunas = mapearParaEmployee(dadosFinais);
             if (!colunas.cpf && !solicitacao.employee_id) {
                 return jsonResponse({ error: "CPF obrigatorio para criar funcionario" }, 400);
@@ -295,6 +356,9 @@ serve(async (req) => {
         }
         if (solicitacao.tipo === "fornecedor" && !solicitacao.supplier_id && alvoId) {
             updates.supplier_id = alvoId;
+        }
+        if (solicitacao.tipo === "cliente" && !solicitacao.customer_id && alvoId) {
+            updates.customer_id = alvoId;
         }
 
         await service.from("cadastro_solicitacoes").update(updates).eq("id", solicitacao_id);

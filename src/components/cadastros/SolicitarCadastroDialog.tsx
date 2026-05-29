@@ -14,7 +14,7 @@ import { Loader2, MessageCircle } from "lucide-react";
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    tipo: "funcionario" | "fornecedor";
+    tipo: "funcionario" | "fornecedor" | "cliente";
     /** Se passado, atualiza esse cadastro. Senão, cria novo */
     targetId?: string;
     /** Nome pré-preenchido (vindo do cadastro existente) */
@@ -70,6 +70,7 @@ export function SolicitarCadastroDialog({
             };
             if (targetId) {
                 if (tipo === "funcionario") payload.employee_id = targetId;
+                else if (tipo === "cliente") payload.customer_id = targetId;
                 else payload.supplier_id = targetId;
             }
 
@@ -78,7 +79,22 @@ export function SolicitarCadastroDialog({
             });
 
             if (error) {
-                const msg = (error as any)?.message || "Falha ao enviar";
+                let msg = (error as any)?.message || "Falha ao enviar";
+                const ctx = (error as any)?.context;
+                if (ctx && typeof ctx.json === "function") {
+                    try {
+                        const corpo = await ctx.json();
+                        if (corpo?.error) {
+                            msg = corpo.error;
+                            if (corpo?.details) {
+                                const det = typeof corpo.details === "string"
+                                    ? corpo.details
+                                    : JSON.stringify(corpo.details);
+                                msg += ` — ${det}`;
+                            }
+                        }
+                    } catch { /* corpo não é JSON, mantém msg genérica */ }
+                }
                 toast.error(msg);
                 setEnviando(false);
                 return;
@@ -101,7 +117,7 @@ export function SolicitarCadastroDialog({
         }
     };
 
-    const tituloTipo = tipo === "funcionario" ? "Funcionário" : "Fornecedor";
+    const tituloTipo = tipo === "funcionario" ? "Funcionário" : tipo === "cliente" ? "Cliente" : "Fornecedor";
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

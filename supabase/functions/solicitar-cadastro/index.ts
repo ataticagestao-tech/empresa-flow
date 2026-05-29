@@ -70,6 +70,11 @@ const LABELS_FORN: Record<string, string> = {
     email: "Email", telefone: "Telefone",
     pix: "Chave PIX", banco: "Banco / Agência / Conta",
 };
+const LABELS_CLI: Record<string, string> = {
+    cnpj: "CPF ou CNPJ", razao_social: "Nome / Razão social", nome_fantasia: "Nome fantasia",
+    endereco: "Endereço (rua, número, bairro, cidade, CEP)",
+    email: "Email", telefone: "Telefone",
+};
 
 function renderEvolutionTemplate(
     tipo: string,
@@ -78,9 +83,11 @@ function renderEvolutionTemplate(
     campos: string[],
     permiteSkip: boolean,
 ): string {
-    const labels = tipo === "funcionario" ? LABELS_FUNC : LABELS_FORN;
+    const labels = tipo === "funcionario"
+        ? LABELS_FUNC
+        : tipo === "cliente" ? LABELS_CLI : LABELS_FORN;
     const linhas = campos.map((c) => `${labels[c] ?? c}:`).join("\n");
-    const docObr = tipo === "funcionario" ? "CPF" : "CNPJ";
+    const docObr = tipo === "funcionario" ? "CPF" : tipo === "cliente" ? "CPF/CNPJ" : "CNPJ";
     const skipHint = permiteSkip
         ? `\n\n⚠️ Apenas o ${docObr} é obrigatório. Demais campos pode pular respondendo "não sei" ou "pular".`
         : `\n\n⚠️ Todos os campos são obrigatórios.`;
@@ -88,11 +95,15 @@ function renderEvolutionTemplate(
     if (tipo === "funcionario") {
         return `Olá ${nome}! 👋\nA *${empresa}* precisa atualizar seus dados cadastrais.\n\nVocê pode responder de 3 formas:\n📝 Texto: copie e preencha o formulário abaixo\n📸 Foto: envie foto do RG/CNH + comprovante de residência\n📄 PDF: envie PDF dos documentos\n\nSe preferir texto, copie e preencha:\n\n${linhas}${skipHint}\n\n_Esta solicitação expira em 7 dias._`;
     }
+    if (tipo === "cliente") {
+        return `Olá ${nome}! 👋\nA *${empresa}* precisa cadastrar/atualizar seus dados.\n\nVocê pode responder de 2 formas:\n📝 Texto: copie e preencha o formulário abaixo\n📸 Foto: envie foto do RG/CNH ou cartão CNPJ\n\nSe preferir texto, copie e preencha:\n\n${linhas}${skipHint}\n\n_Esta solicitação expira em 7 dias._`;
+    }
     return `Olá! A *${empresa}* precisa cadastrar/atualizar os dados de *${nome}*.\n\nVocê pode enviar:\n📸 Foto do cartão CNPJ (mais rápido)\n📝 Ou preencher abaixo:\n\n${linhas}${skipHint}\n\n_Esta solicitação expira em 7 dias._`;
 }
 
 const CAMPOS_FUNC = ["nome_completo", "cpf", "rg", "data_nascimento", "endereco", "pix", "banco"];
 const CAMPOS_FORN = ["cnpj", "razao_social", "nome_fantasia", "endereco", "email", "telefone", "pix", "banco"];
+const CAMPOS_CLI = ["cnpj", "razao_social", "nome_fantasia", "endereco", "email", "telefone"];
 
 interface EnvioResult {
     ok: boolean;
@@ -189,12 +200,12 @@ serve(async (req) => {
 
         const body = await req.json();
         const {
-            company_id, tipo, employee_id, supplier_id, nome, telefone,
+            company_id, tipo, employee_id, supplier_id, customer_id, nome, telefone,
             permite_skip = true,
         } = body;
 
         if (!company_id) return j({ error: "company_id obrigatorio" }, 400);
-        if (!tipo || !["funcionario", "fornecedor"].includes(tipo)) return j({ error: "tipo invalido" }, 400);
+        if (!tipo || !["funcionario", "fornecedor", "cliente"].includes(tipo)) return j({ error: "tipo invalido" }, 400);
         if (!nome?.trim()) return j({ error: "nome obrigatorio" }, 400);
         if (!telefone) return j({ error: "telefone obrigatorio" }, 400);
 
@@ -219,8 +230,11 @@ serve(async (req) => {
             (companyData as any)?.razao_social ||
             "sua empresa";
 
-        const camposParaPedir = tipo === "funcionario" ? CAMPOS_FUNC : CAMPOS_FORN;
-        const obrigatorios = tipo === "funcionario" ? ["cpf"] : ["cnpj"];
+        const camposParaPedir = tipo === "funcionario"
+            ? CAMPOS_FUNC
+            : tipo === "cliente" ? CAMPOS_CLI : CAMPOS_FORN;
+        // Cliente pode ser PF ou PJ; documento não é forçado (admin revisa antes de aplicar)
+        const obrigatorios = tipo === "funcionario" ? ["cpf"] : tipo === "cliente" ? [] : ["cnpj"];
 
         const { data: existente } = await service
             .from("cadastro_solicitacoes").select("id, status")
@@ -241,6 +255,7 @@ serve(async (req) => {
                 company_id, tipo,
                 employee_id: employee_id ?? null,
                 supplier_id: supplier_id ?? null,
+                customer_id: customer_id ?? null,
                 nome_destinatario: nome.trim(),
                 telefone: telefoneNormalizado,
                 status: "aguardando_envio",

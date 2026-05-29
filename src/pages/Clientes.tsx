@@ -15,6 +15,8 @@ import { TabContracts } from "@/modules/clients/presentation/partials/TabContrac
 import { LinkCRToContract } from "@/modules/clients/presentation/components/LinkCRToContract";
 import { ContratosKpiCard } from "@/modules/clients/presentation/components/ContratosKpiCard";
 import { MergeDuplicatesDialog } from "@/modules/clients/presentation/components/MergeDuplicatesDialog";
+import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
+import { MessageCircle } from "lucide-react";
 import { useClientContratos } from "@/modules/clients/presentation/hooks/useClientContratos";
 import { hasContratosByCompany } from "@/config/features";
 import { gerarFichaClientePDF, downloadFichaPDF } from "@/lib/ficha-cliente/gerar-pdf";
@@ -165,6 +167,8 @@ export default function Clientes() {
     const [pdfLoading, setPdfLoading] = useState(false);
     const [whatsClienteOpen, setWhatsClienteOpen] = useState(false);
     const [emailClienteOpen, setEmailClienteOpen] = useState(false);
+    const [solicitarOpen, setSolicitarOpen] = useState(false);
+    const [solicitarTarget, setSolicitarTarget] = useState<{ id?: string; nome?: string; tel?: string }>({});
     const { toast } = useToast();
     const confirm = useConfirm();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -863,6 +867,7 @@ export default function Clientes() {
                           <Copy className="h-4 w-4" />
                         </button>
                       )}
+                      <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
                       <ExportMenu rows={clientsExportRows} columns={clientsExportColumns} titulo="CLIENTES" baseName="clientes" orientacao="landscape" corPrimaria="#2563EB" size="sm" disabled={!(clients || []).length} />
                       <button onClick={handleNew} className="text-[11px] font-bold text-white/70 hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
                     </div>
@@ -1050,6 +1055,23 @@ export default function Clientes() {
                                                 WhatsApp
                                             </Button>
                                         )}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                setSolicitarTarget({
+                                                    id: selectedClient.id,
+                                                    nome: selectedClient.razao_social || "",
+                                                    tel: selectedClient.celular || selectedClient.telefone || "",
+                                                });
+                                                setSolicitarOpen(true);
+                                            }}
+                                            className="text-[12px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                            title="Solicitar dados cadastrais via WhatsApp"
+                                        >
+                                            <MessageCircle className="h-3 w-3 mr-1.5" />
+                                            Solicitar dados
+                                        </Button>
                                         {selectedClient.email && (
                                             <Button
                                                 variant="outline"
@@ -1424,6 +1446,15 @@ export default function Clientes() {
                     defaultTo={selectedClient?.email || ""}
                     defaultSubject="Mensagem da Tatica Gestão"
                     defaultBody={selectedClient ? `Olá ${toTitleCase(selectedClient.razao_social || "")}!\n\n` : ""}
+                />
+
+                <SolicitarCadastroDialog
+                    open={solicitarOpen}
+                    onOpenChange={setSolicitarOpen}
+                    tipo="cliente"
+                    targetId={solicitarTarget.id}
+                    nomeInicial={solicitarTarget.nome ?? ""}
+                    telefoneInicial={solicitarTarget.tel ?? ""}
                 />
                 </div>
                 </div>
