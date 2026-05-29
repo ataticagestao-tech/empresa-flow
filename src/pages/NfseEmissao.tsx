@@ -154,9 +154,10 @@ interface ColHeaderProps {
   groupBy: SortKey | null
   onSort: (key: SortKey, dir: 'asc' | 'desc') => void
   onGroup: (key: SortKey) => void
+  onResizeStart?: (e: React.MouseEvent) => void
 }
 
-function ColHeader({ col, label, type, align, menuCol, setMenuCol, sort, groupBy, onSort, onGroup }: ColHeaderProps) {
+function ColHeader({ col, label, type, align, menuCol, setMenuCol, sort, groupBy, onSort, onGroup, onResizeStart }: ColHeaderProps) {
   const isOpen = menuCol === col
   const isActiveSort = sort?.key === col
   const isActiveGroup = groupBy === col
@@ -166,7 +167,7 @@ function ColHeader({ col, label, type, align, menuCol, setMenuCol, sort, groupBy
   const descLabel = type === 'num' ? 'Maior → Menor' : type === 'date' ? 'Mais recente primeiro' : type === 'bool' ? 'Emitidas primeiro' : 'Z → A'
 
   return (
-    <th className={`px-4 py-3 font-semibold whitespace-nowrap relative ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}`}>
+    <th className={`px-4 py-3 font-semibold whitespace-nowrap relative border-r border-white/10 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}`}>
       <button
         onClick={e => { e.stopPropagation(); setMenuCol(isOpen ? null : col) }}
         className={`inline-flex items-center gap-1.5 ${alignClass} w-full hover:text-gray-200 transition-colors ${(isActiveSort || isActiveGroup) ? 'text-emerald-300' : ''}`}
@@ -205,6 +206,14 @@ function ColHeader({ col, label, type, align, menuCol, setMenuCol, sort, groupBy
           </button>
         </div>
       )}
+      {onResizeStart && (
+        <span
+          onMouseDown={onResizeStart}
+          onClick={e => e.stopPropagation()}
+          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50"
+          title="Arraste para ajustar a largura"
+        />
+      )}
     </th>
   )
 }
@@ -242,6 +251,67 @@ export default function NfseEmissao() {
 
   // Selecao de vendas para emissao (calculo de imposto em tempo real)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // Larguras de coluna ajustáveis (planilha "Vendas a faturar"), persistidas no navegador
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    sel: 44, data: 110, item: 280, nome: 200, doc: 150, valor: 120, forma: 180, nf: 110, acoes: 130,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nfse_vendas_col_widths')
+      if (saved) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(saved) }
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => {
+    localStorage.setItem('nfse_vendas_col_widths', JSON.stringify(colWidths))
+  }, [colWidths])
+
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const min = r.key === 'sel' ? 36 : 60
+      const newW = Math.max(min, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+  const VENDAS_COL_ORDER = ['sel', 'data', 'item', 'nome', 'doc', 'valor', 'forma', 'nf', 'acoes']
+
+  // Colunas ocultáveis (sel sempre visível), persistidas no navegador
+  const COL_LABELS: Record<string, string> = {
+    data: 'Data', item: 'Item/s', nome: 'Nome', doc: 'CPF/CNPJ',
+    valor: 'Valor', forma: 'Forma de pagamento', nf: 'NF emitida', acoes: 'Ações',
+  }
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('nfse_vendas_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => {
+    localStorage.setItem('nfse_vendas_hidden_cols', JSON.stringify([...hiddenCols]))
+  }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleVendasCols = VENDAS_COL_ORDER.filter(isColVisible)
 
   // Paginacao
   const PAGE_SIZE = 10
@@ -538,7 +608,7 @@ export default function NfseEmissao() {
     const isSelected = selectedIds.has(v.id)
     return (
       <tr key={v.id} className={`border-b border-gray-200 hover:bg-gray-50/60 transition-colors ${isSelected ? 'bg-emerald-50/40' : ''}`}>
-        <td className="px-3 py-2 text-center">
+        <td className="px-3 py-0.5 text-center border-r border-gray-100">
           <input
             type="checkbox"
             checked={isSelected}
@@ -546,19 +616,19 @@ export default function NfseEmissao() {
             className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200 cursor-pointer"
           />
         </td>
-        <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{formatData(v.data_venda)}</td>
-        <td className="px-4 py-2 text-gray-600">
-          <div className="max-w-[260px] truncate" title={itensTxt}>{itensTxt}</div>
-        </td>
-        <td className="px-4 py-2 font-medium whitespace-nowrap">{v.cliente_nome || '—'}</td>
-        <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
-        <td className="px-4 py-2 text-right font-medium whitespace-nowrap">{formatBRL(v.valor_total)}</td>
-        <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{formatFormaPagamento(v.forma_pagamento)}</td>
-        <td className="px-4 py-2 text-center">
+        {isColVisible('data')  && <td className="px-4 py-0.5 text-gray-600 truncate border-r border-gray-100">{formatData(v.data_venda)}</td>}
+        {isColVisible('item')  && <td className="px-4 py-0.5 text-gray-600 border-r border-gray-100">
+          <div className="truncate" title={itensTxt}>{itensTxt}</div>
+        </td>}
+        {isColVisible('nome')  && <td className="px-4 py-0.5 font-medium truncate border-r border-gray-100" title={v.cliente_nome || ''}>{v.cliente_nome || '—'}</td>}
+        {isColVisible('doc')   && <td className="px-4 py-0.5 text-gray-500 truncate border-r border-gray-100">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>}
+        {isColVisible('valor') && <td className="px-4 py-0.5 text-right font-medium truncate border-r border-gray-100">{formatBRL(v.valor_total)}</td>}
+        {isColVisible('forma') && <td className="px-4 py-0.5 text-gray-600 truncate border-r border-gray-100">{formatFormaPagamento(v.forma_pagamento)}</td>}
+        {isColVisible('nf')    && <td className="px-4 py-0.5 text-center border-r border-gray-100">
           <button
             onClick={() => toggleNfEmitida(v)}
             disabled={togglingId === v.id}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
               v.nf_emitida
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                 : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
@@ -574,16 +644,16 @@ export default function NfseEmissao() {
             )}
             {v.nf_emitida ? 'Sim' : 'Nao'}
           </button>
-        </td>
-        <td className="px-4 py-2 text-center">
+        </td>}
+        {isColVisible('acoes') && <td className="px-4 py-0.5 text-center">
           <button
             onClick={() => emitirParaVenda(v)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-0.5 rounded-lg border border-emerald-200 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
             title="Abrir Nova NFSe com dados desta venda"
           >
             <Send size={12} /> Emitir NFSe
           </button>
-        </td>
+        </td>}
       </tr>
     )
   }
@@ -1142,11 +1212,42 @@ export default function NfseEmissao() {
             >
               <FileDown size={15} className="text-gray-500" /> Exportar CSV
             </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setColMenuOpen(o => !o)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50"
+                title="Mostrar/ocultar colunas"
+              >
+                <Eye size={15} className="text-gray-500" /> Colunas
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {colMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px]">
+                    <p className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Exibir colunas</p>
+                    {Object.entries(COL_LABELS).map(([k, label]) => (
+                      <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isColVisible(k)}
+                          onChange={() => toggleColVisible(k)}
+                          className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
         {/* ── Table: Vendas a faturar ── */}
         {activeTab === 'vendas' && (
+          <div className="bg-gray-400 rounded-xl p-px">
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
             {loadingVendas ? (
               <div className="flex items-center justify-center py-20">
@@ -1168,10 +1269,15 @@ export default function NfseEmissao() {
                 </div>
               )}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleVendasCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                  <colgroup>
+                    {visibleVendasCols.map(k => (
+                      <col key={k} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                    ))}
+                  </colgroup>
                   <thead>
-                    <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-xs text-white uppercase tracking-wider">
-                      <th className="px-3 py-3 text-center">
+                    <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-sm text-white uppercase tracking-wider">
+                      <th className="px-3 py-3 text-center relative border-r border-white/10">
                         <input
                           type="checkbox"
                           checked={(groupBy ? vendasFiltradas : vendasPaginadas).length > 0 && (groupBy ? vendasFiltradas : vendasPaginadas).every(v => selectedIds.has(v.id))}
@@ -1179,15 +1285,16 @@ export default function NfseEmissao() {
                           className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-200 cursor-pointer"
                           title="Selecionar todas desta pagina"
                         />
+                        <span onMouseDown={startResize('sel')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/30 active:bg-white/50" title="Arraste para ajustar a largura" />
                       </th>
-                      <ColHeader col="data"  label="Data"               type="date" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <ColHeader col="item"  label="Item/s"             type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <ColHeader col="nome"  label="Nome"               type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <ColHeader col="doc"   label="CPF/CNPJ"           type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <ColHeader col="valor" label="Valor"              type="num"  align="right"  menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <ColHeader col="forma" label="Forma de pagamento" type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <ColHeader col="nf"    label="NF emitida"         type="bool" align="center" menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} />
-                      <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Ações</th>
+                      {isColVisible('data')  && <ColHeader col="data"  label="Data"               type="date" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('data')} />}
+                      {isColVisible('item')  && <ColHeader col="item"  label="Item/s"             type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('item')} />}
+                      {isColVisible('nome')  && <ColHeader col="nome"  label="Nome"               type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('nome')} />}
+                      {isColVisible('doc')   && <ColHeader col="doc"   label="CPF/CNPJ"           type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('doc')} />}
+                      {isColVisible('valor') && <ColHeader col="valor" label="Valor"              type="num"  align="right"  menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('valor')} />}
+                      {isColVisible('forma') && <ColHeader col="forma" label="Forma de pagamento" type="text" align="left"   menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('forma')} />}
+                      {isColVisible('nf')    && <ColHeader col="nf"    label="NF emitida"         type="bool" align="center" menuCol={menuCol} setMenuCol={setMenuCol} sort={sort} groupBy={groupBy} onSort={aplicarSort} onGroup={aplicarGroup} onResizeStart={startResize('nf')} />}
+                      {isColVisible('acoes') && <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Ações</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1196,7 +1303,7 @@ export default function NfseEmissao() {
                         const total = rows.reduce((s, r) => s + (r.valor_total || 0), 0)
                         return [
                           <tr key={`group-${groupKey}`} className="bg-emerald-50/60 border-y border-emerald-100">
-                            <td colSpan={9} className="px-4 py-2 text-xs font-semibold text-emerald-900">
+                            <td colSpan={visibleVendasCols.length} className="px-4 py-2 text-xs font-semibold text-emerald-900">
                               {groupKey} <span className="ml-2 font-normal text-emerald-700">· {rows.length} venda(s) · {formatBRL(total)}</span>
                             </td>
                           </tr>,
@@ -1240,6 +1347,7 @@ export default function NfseEmissao() {
               )}
               </>
             )}
+          </div>
           </div>
         )}
 

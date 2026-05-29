@@ -1291,7 +1291,7 @@ export default function CompanyDashboard() {
                     <div style={{ display: "flex", gap: 32, padding: 20, alignItems: "flex-start" }}>
                         {/* Heatmap grid */}
                         <div style={{ display: "flex", flexDirection: "column", background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", overflow: "hidden" }}>
-                          <div style={{ padding: "14px 16px", background: C.text1 }}>
+                          <div style={{ padding: "14px 16px", background: "#000000" }}>
                             <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendário</div>
                             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{regime === "competencia" ? "Faturamento por dia" : "Recebimentos por dia"}</div>
                           </div>
@@ -1346,7 +1346,7 @@ export default function CompanyDashboard() {
                         <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignSelf: "stretch" }}>
                             {/* Produtos vendidos - ranking */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "14px 16px", background: C.text1 }}>
+                                <div style={{ padding: "14px 16px", background: "#000000" }}>
                                     <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Produtos e serviços</div>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</div>
                                 </div>
@@ -1425,7 +1425,7 @@ export default function CompanyDashboard() {
                             </div>
                             {/* Distribuição de produtos e serviços (pizza) */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "14px 16px", background: C.text1 }}>
+                                <div style={{ padding: "14px 16px", background: "#000000" }}>
                                     <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Distribuição</div>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
                                 </div>

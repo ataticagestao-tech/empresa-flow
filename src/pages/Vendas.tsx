@@ -284,6 +284,59 @@ export default function Vendas() {
   const [headerAnchor, setHeaderAnchor] = useState<HTMLElement | null>(null)
   const headerAnchorRef = useRef<HTMLElement | null>(null)
   useEffect(() => { headerAnchorRef.current = headerAnchor }, [headerAnchor])
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const VENDAS_COL_ORDER = ['codigo', 'data', 'cliente', 'produto', 'itens', 'forma', 'valor', 'cr', 'acoes']
+  const COL_LABELS: Record<string, string> = {
+    codigo: 'Código', data: 'Data', cliente: 'Cliente', produto: 'Produto',
+    itens: 'Itens', forma: 'Forma pgto', valor: 'Valor', cr: 'CR', acoes: 'Ações',
+  }
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    codigo: 90, data: 90, cliente: 200, produto: 180, itens: 70, forma: 130, valor: 120, cr: 90, acoes: 120,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('vendas_col_widths')
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => { localStorage.setItem('vendas_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('vendas_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('vendas_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleVendasCols = VENDAS_COL_ORDER.filter(isColVisible)
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
   // helper: abre/fecha dropdown de header capturando elemento âncora (pro portal)
   const toggleHeaderFiltro = (key: string) => (e: React.MouseEvent<HTMLButtonElement>) => {
     if (headerFiltroAberto === key) {
@@ -2303,15 +2356,16 @@ export default function Vendas() {
           ))}
         {/* Top 10 produtos mais vendidos — ocupa col 2 / rows 1-2 (acima da tabela) */}
         <div
-          className="border border-[#EAECF0] rounded-xl pt-5 px-5 pb-3 lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
+          className="border border-[#EAECF0] rounded-xl overflow-hidden lg:col-start-2 lg:row-start-1 lg:row-span-2 shadow-sm flex flex-col min-h-0"
           style={{ backgroundColor: '#FBF8F1', boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}
         >
-          <div className="flex items-baseline justify-between mb-2 flex-shrink-0">
-            <h3 className="font-extrabold text-black m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+          <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
               Top 10 produtos mais vendidos
             </h3>
-            <span className="text-[13px] text-[#667085] font-medium">Por faturamento</span>
+            <span className="text-[13px] text-white/70 font-medium">Por faturamento</span>
           </div>
+          <div className="px-5 pt-3 pb-3 flex-1 flex flex-col min-h-0">
           {produtosRanking.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-[12px] text-[#98A2B3]">
               Nenhum produto vendido no período
@@ -2418,16 +2472,48 @@ export default function Vendas() {
             </div>
             </div>
           )}
+          </div>
         </div>
         <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden min-w-0 lg:col-start-2 lg:row-start-3 lg:row-span-2 flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
           {/* Cabecalho do container — titulo */}
-          <div className="px-5 py-4 border-b border-[#EAECF0] flex items-baseline justify-between flex-shrink-0">
-            <h3 className="font-extrabold text-black m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+          <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
               Vendas
             </h3>
-            <span className="text-[13px] text-[#667085] font-medium">
-              {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] text-white/70 font-medium">
+                {vendasFiltradas.length} registro{vendasFiltradas.length !== 1 ? 's' : ''}
+              </span>
+              <div className="relative self-center">
+                <button
+                  onClick={() => setColMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={14} className="text-white/70" /> Colunas
+                  <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {colMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {Object.entries(COL_LABELS).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(k)}
+                            onChange={() => toggleColVisible(k)}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
           <div className="bg-white overflow-x-auto flex-1 min-h-0">
             {loading ? (
@@ -2460,10 +2546,16 @@ export default function Vendas() {
                 <div className="text-center py-12 text-[#555] text-sm">Nenhuma venda encontrada com os filtros aplicados.</div>
               )
             ) : (
-              <table className="w-full text-sm">
+              <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleVendasCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {VENDAS_COL_ORDER.map(k => (
+                    <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr className="bg-white text-[15px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
-                    <th className="text-left px-3 py-3 w-20 relative">
+                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('codigo') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('codigo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('codigo')}
                         className={`inline-flex items-center gap-1 ${filtroCodigo ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2491,7 +2583,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-center px-3 py-3 w-20 relative">
+                    <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('data') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('data')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('data')}
                         className={`inline-flex items-center gap-1 ${filtroData ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2521,7 +2614,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-left px-3 py-3 relative">
+                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('cliente') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('cliente')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={(e) => { setHeaderFiltroBusca(''); toggleHeaderFiltro('cliente')(e) }}
                         className={`inline-flex items-center gap-1 ${filtroCliente ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2566,7 +2660,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-left px-3 py-3 relative">
+                    <th className={`text-left px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('produto') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('produto')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('produto')}
                         className={`inline-flex items-center gap-1 ${filtroProduto ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2594,7 +2689,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-center px-3 py-3 w-12 relative">
+                    <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('itens') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('itens')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('itens')}
                         className={`inline-flex items-center gap-1 ${filtroItens !== '' ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2624,7 +2720,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-center px-3 py-3 w-24 relative">
+                    <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('forma') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('forma')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('forma')}
                         className={`inline-flex items-center gap-1 ${filtroForma ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2654,7 +2751,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-right px-3 py-3 w-24 relative">
+                    <th className={`text-right px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('valor') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('valor')}
                         className={`inline-flex items-center gap-1 ${(filtroValorMin !== '' || filtroValorMax !== '') ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2694,7 +2792,8 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-center px-3 py-3 w-16 relative">
+                    <th className={`text-center px-3 py-3 relative border-r border-[#EAECF0] ${isColVisible('cr') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('cr')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
                       <button
                         onClick={toggleHeaderFiltro('cr')}
                         className={`inline-flex items-center gap-1 ${filtroCR ? 'text-[#059669]' : 'text-black'} hover:text-[#059669]`}
@@ -2728,15 +2827,15 @@ export default function Vendas() {
                         </HeaderFilterDropdown>
                       )}
                     </th>
-                    <th className="text-center px-3 py-3 w-24">Ações</th>
+                    <th className={`text-center px-3 py-3 relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {vendasPaginadas.map(v => (
-                    <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px] whitespace-nowrap">
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#667085]">{vendaCodigoMap[v.id]}</td>
-                      <td className="px-3 py-2.5 text-center text-[#667085]">{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
-                      <td className="px-3 py-2.5 font-medium text-[#1D2939] truncate max-w-[140px] text-[11px]">
+                    <tr key={v.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB] transition-colors text-[12px]">
+                      <td className={`px-3 py-1 font-mono text-[11px] text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('codigo') ? '' : 'hidden'}`}>{vendaCodigoMap[v.id]}</td>
+                      <td className={`px-3 py-1 text-center text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('data') ? '' : 'hidden'}`}>{v.data_venda ? v.data_venda.slice(5, 10).split('-').reverse().join('/') : '—'}</td>
+                      <td className={`px-3 py-1 font-medium text-[#1D2939] truncate text-[11px] border-r border-[#F1F3F5] ${isColVisible('cliente') ? '' : 'hidden'}`}>
                         <Link
                           to={`/clientes?cliente=${encodeURIComponent(v.cliente_cpf_cnpj || v.cliente_nome)}`}
                           className="hover:text-[#059669] hover:underline"
@@ -2745,7 +2844,7 @@ export default function Vendas() {
                           {v.cliente_nome}
                         </Link>
                       </td>
-                      <td className="px-3 py-2.5 text-left text-[#1D2939] truncate max-w-[130px]">
+                      <td className={`px-3 py-1 text-left text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('produto') ? '' : 'hidden'}`}>
                         {v.vendas_itens && v.vendas_itens.length > 0
                           ? <>
                               {v.vendas_itens[0].descricao}
@@ -2753,11 +2852,11 @@ export default function Vendas() {
                             </>
                           : <span className="text-[#98A2B3] italic">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-center text-[#667085]">{v.vendas_itens?.length || 0}</td>
-                      <td className="px-3 py-2.5 text-center text-[#667085]">{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
-                      <td className="px-3 py-2.5 text-right font-semibold text-[#1D2939]">{formatBRL(v.valor_total)}</td>
-                      <td className="px-3 py-2.5 text-center"><CRBadge venda={v} /></td>
-                      <td className="px-3 py-2.5 text-center">
+                      <td className={`px-3 py-1 text-center text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('itens') ? '' : 'hidden'}`}>{v.vendas_itens?.length || 0}</td>
+                      <td className={`px-3 py-1 text-center text-[#667085] truncate border-r border-[#F1F3F5] ${isColVisible('forma') ? '' : 'hidden'}`}>{LABEL_FORMA[v.forma_pagamento] || v.forma_pagamento}</td>
+                      <td className={`px-3 py-1 text-right font-semibold text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>{formatBRL(v.valor_total)}</td>
+                      <td className={`px-3 py-1 text-center border-r border-[#F1F3F5] ${isColVisible('cr') ? '' : 'hidden'}`}><CRBadge venda={v} /></td>
+                      <td className={`px-3 py-1 text-center ${isColVisible('acoes') ? '' : 'hidden'}`}>
                         <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setModalDetalhes(v)} className="p-1 rounded hover:bg-[#ECFDF4] text-[#059669] transition-colors" title="Ver detalhes">
                             <Eye size={12} />

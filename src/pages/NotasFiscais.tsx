@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format, startOfMonth, endOfMonth, addMonths, parseISO } from 'date-fns'
 import {
@@ -68,6 +68,19 @@ interface Empresa {
   cidade: string | null
 }
 
+// ─── Colunas da planilha (largura ajustável) ────────────────────────
+const COLUNAS = [
+  { key: 'numero', label: 'Numero', align: 'left' as const },
+  { key: 'data', label: 'Data', align: 'left' as const },
+  { key: 'tomador', label: 'Tomador', align: 'left' as const },
+  { key: 'valor', label: 'Valor', align: 'right' as const },
+  { key: 'status', label: 'Status', align: 'left' as const },
+  { key: 'acoes', label: 'Acoes', align: 'center' as const },
+]
+const COL_WIDTHS_DEFAULT: Record<string, number> = {
+  numero: 120, data: 110, tomador: 300, valor: 140, status: 140, acoes: 130,
+}
+
 // ─── Status config ──────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   rascunho: { label: 'Rascunho', color: '#667085', bg: '#F3F4F6' },
@@ -126,6 +139,38 @@ export default function NotasFiscais() {
   const [submitting, setSubmitting] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const [dropdownCoords, setDropdownCoords] = useState<{ top: number; right: number } | null>(null)
+
+  // Larguras de coluna ajustáveis (persistidas no navegador)
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nf_col_widths')
+      if (saved) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(saved) }
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => {
+    localStorage.setItem('nf_col_widths', JSON.stringify(colWidths))
+  }, [colWidths])
+
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // Emissao form
   const emptyItem: ItemNFSe = { descricao: '', cnae: '', quantidade: 1, valor_unitario: 0, aliquota_iss: null }
@@ -502,15 +547,27 @@ export default function NotasFiscais() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="text-sm" style={{ tableLayout: 'fixed', width: Object.values(colWidths).reduce((a, b) => a + b, 0), minWidth: '100%' }}>
+                <colgroup>
+                  {COLUNAS.map(c => (
+                    <col key={c.key} style={{ width: colWidths[c.key] ?? COL_WIDTHS_DEFAULT[c.key] }} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
-                    <th className="px-4 py-3">Numero</th>
-                    <th className="px-4 py-3">Data</th>
-                    <th className="px-4 py-3">Tomador</th>
-                    <th className="px-4 py-3 text-right">Valor</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-center">Acoes</th>
+                    {COLUNAS.map(c => (
+                      <th
+                        key={c.key}
+                        className={`px-4 py-3 relative select-none ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}
+                      >
+                        {c.label}
+                        <span
+                          onMouseDown={e => startResize(c.key, e)}
+                          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-gray-300 active:bg-gray-400"
+                          title="Arraste para ajustar a largura"
+                        />
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -518,15 +575,15 @@ export default function NotasFiscais() {
                     const st = STATUS_CONFIG[nf.status] || STATUS_CONFIG.rascunho
                     return (
                       <tr key={nf.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">
+                        <td className="px-4 py-3 font-medium truncate">
                           {nf.numero ? `${nf.numero}/${nf.serie || '1'}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-gray-500">{formatData(nf.data_emissao)}</td>
+                        <td className="px-4 py-3 text-gray-500 truncate">{formatData(nf.data_emissao)}</td>
                         <td className="px-4 py-3">
-                          <div>{nf.tomador_nome || '—'}</div>
-                          <div className="text-xs text-gray-400">{formatDoc(nf.tomador_cpf_cnpj)}</div>
+                          <div className="truncate">{nf.tomador_nome || '—'}</div>
+                          <div className="text-xs text-gray-400 truncate">{formatDoc(nf.tomador_cpf_cnpj)}</div>
                         </td>
-                        <td className="px-4 py-3 text-right font-medium">{formatBRL(nf.valor_total)}</td>
+                        <td className="px-4 py-3 text-right font-medium truncate">{formatBRL(nf.valor_total)}</td>
                         <td className="px-4 py-3">
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
