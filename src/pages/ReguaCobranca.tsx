@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,7 +13,7 @@ import { ExportMenu, type ExportColumn } from '@/components/ExportMenu'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
-  Plus, Search, Trash2, Bell, Mail, MessageSquare, Play, Pause, Send,
+  Plus, Search, Trash2, Bell, Mail, MessageSquare, Play, Pause, Send, Eye, ChevronDown,
 } from 'lucide-react'
 
 /* ================================================================
@@ -170,6 +170,73 @@ export default function ReguaCobranca() {
   const PAGE_SIZE = 10
   const [crPage, setCrPage] = useState(0)
   const [logPage, setLogPage] = useState(0)
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  // Tabela de Contas a Receber com Cobrança
+  const CR_COL_ORDER = ['cliente', 'valor', 'vencimento', 'status', 'ultima', 'proxima', 'regua']
+  const CR_COL_LABELS: Record<string, string> = {
+    cliente: 'Cliente', valor: 'Valor', vencimento: 'Vencimento', status: 'Status',
+    ultima: 'Última ação', proxima: 'Próxima ação', regua: 'Régua',
+  }
+  const CR_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    'cr:cliente': 220, 'cr:valor': 120, 'cr:vencimento': 120, 'cr:status': 110,
+    'cr:ultima': 150, 'cr:proxima': 150, 'cr:regua': 150,
+  }
+  // Tabela de Log de Cobranças
+  const LOG_COL_ORDER = ['datahora', 'cliente', 'tipo', 'status', 'regua']
+  const LOG_COL_LABELS: Record<string, string> = {
+    datahora: 'Data/hora', cliente: 'Cliente', tipo: 'Tipo', status: 'Status', regua: 'Régua',
+  }
+  const LOG_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    'log:datahora': 130, 'log:cliente': 220, 'log:tipo': 130, 'log:status': 110, 'log:regua': 160,
+  }
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('reguacobranca_col_widths')
+      if (s) return { ...CR_COL_WIDTHS_DEFAULT, ...LOG_COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return { ...CR_COL_WIDTHS_DEFAULT, ...LOG_COL_WIDTHS_DEFAULT }
+  })
+  useEffect(() => { localStorage.setItem('reguacobranca_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('reguacobranca_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('reguacobranca_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [crColMenuOpen, setCrColMenuOpen] = useState(false)
+  const [logColMenuOpen, setLogColMenuOpen] = useState(false)
+  const colKey = (table: string, k: string) => `${table}:${k}`
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleCrCols = CR_COL_ORDER.filter(k => isColVisible(colKey('cr', k)))
+  const visibleLogCols = LOG_COL_ORDER.filter(k => isColVisible(colKey('log', k)))
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? 120 }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   /* ── Fetch reguas ── */
   async function fetchReguas() {
@@ -691,6 +758,35 @@ export default function ReguaCobranca() {
                   className="bg-transparent border-none outline-none text-[11px] text-white placeholder-white/50 ml-1.5 w-[140px]"
                 />
               </div>
+              <div className="relative self-center">
+                <button
+                  onClick={() => setCrColMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/20 text-[11px] text-white hover:bg-white/10"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={13} className="text-white/70" /> Colunas
+                  <ChevronDown size={12} className={`text-white/60 transition-transform ${crColMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {crColMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setCrColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {Object.entries(CR_COL_LABELS).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(colKey('cr', k))}
+                            onChange={() => toggleColVisible(colKey('cr', k))}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <ExportMenu
                 rows={filteredCrs}
                 columns={reportColumns}
@@ -716,36 +812,61 @@ export default function ReguaCobranca() {
               <p className="text-[13px] text-[#555] text-center py-6">Nenhuma conta a receber em aberto ou vencida.</p>
             ) : (
               <>
-              <table className="w-full text-left">
+              <table className="text-left" style={{ tableLayout: 'fixed', width: visibleCrCols.reduce((a, k) => a + (colWidths[colKey('cr', k)] ?? CR_COL_WIDTHS_DEFAULT[colKey('cr', k)]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {CR_COL_ORDER.map(k => (
+                    <col key={k} className={isColVisible(colKey('cr', k)) ? '' : 'hidden'} style={{ width: colWidths[colKey('cr', k)] ?? CR_COL_WIDTHS_DEFAULT[colKey('cr', k)] }} />
+                  ))}
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-[#e5e5e5]">
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Cliente</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Valor</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Vencimento</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Status</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Ultima acao</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Proxima acao</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Regua</th>
+                  <tr style={{ backgroundColor: '#000000' }}>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('cr', 'cliente')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('cr', 'cliente'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Cliente
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('cr', 'valor')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('cr', 'valor'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Valor
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('cr', 'vencimento')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('cr', 'vencimento'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Vencimento
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('cr', 'status')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('cr', 'status'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Status
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('cr', 'ultima')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('cr', 'ultima'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Ultima acao
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('cr', 'proxima')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('cr', 'proxima'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Proxima acao
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative ${isColVisible(colKey('cr', 'regua')) ? '' : 'hidden'}`}>
+                      Regua
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCrs.slice(crPage * PAGE_SIZE, (crPage + 1) * PAGE_SIZE).map(cr => {
                     const badge = statusBadge(cr.realStatus)
                     return (
-                      <tr key={cr.id} className="border-b border-[#EAECF0] hover:bg-[#F6F2EB]">
-                        <td className="px-4 py-2.5">
-                          <p className="text-[13px] font-medium text-[#1D2939]">{cr.pagador_nome}</p>
+                      <tr key={cr.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB]">
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible(colKey('cr', 'cliente')) ? '' : 'hidden'}`}>
+                          <p className="text-[13px] font-medium text-[#1D2939] truncate" title={cr.pagador_nome}>{cr.pagador_nome}</p>
                           {cr.pagador_cpf_cnpj && (
-                            <p className="text-[10px] text-[#999]">{cr.pagador_cpf_cnpj}</p>
+                            <p className="text-[10px] text-[#999] truncate">{cr.pagador_cpf_cnpj}</p>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-[13px] font-semibold text-[#1D2939]">
+                        <td className={`px-4 py-1 text-[13px] font-semibold text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible(colKey('cr', 'valor')) ? '' : 'hidden'}`}>
                           {formatBRL(cr.valor)}
                         </td>
-                        <td className="px-4 py-2.5 text-[12px] text-[#555]">
+                        <td className={`px-4 py-1 text-[12px] text-[#555] truncate border-r border-[#F1F3F5] ${isColVisible(colKey('cr', 'vencimento')) ? '' : 'hidden'}`}>
                           {formatData(cr.data_vencimento)}
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible(colKey('cr', 'status')) ? '' : 'hidden'}`}>
                           <span
                             className="text-[10px] font-semibold px-2 py-0.5 rounded border"
                             style={{ color: badge.text, backgroundColor: badge.bg, borderColor: badge.border }}
@@ -753,7 +874,7 @@ export default function ReguaCobranca() {
                             {badge.label}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible(colKey('cr', 'ultima')) ? '' : 'hidden'}`}>
                           {cr.lastLog ? (
                             <div>
                               <span
@@ -765,7 +886,7 @@ export default function ReguaCobranca() {
                               >
                                 {tipoLabel(cr.lastLog.tipo_acao)}
                               </span>
-                              <p className="text-[10px] text-[#999] mt-0.5">
+                              <p className="text-[10px] text-[#999] mt-0.5 truncate">
                                 {cr.lastLog.enviado_em ? format(parseISO(cr.lastLog.enviado_em), 'dd/MM HH:mm') : '-'}
                               </p>
                             </div>
@@ -773,17 +894,17 @@ export default function ReguaCobranca() {
                             <span className="text-[11px] text-[#999]">-</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible(colKey('cr', 'proxima')) ? '' : 'hidden'}`}>
                           {cr.nextAction ? (
                             <div>
-                              <p className="text-[11px] font-medium text-[#059669]">{cr.nextAction.tipo}</p>
-                              <p className="text-[10px] text-[#999]">{cr.nextAction.diasLabel}</p>
+                              <p className="text-[11px] font-medium text-[#059669] truncate">{cr.nextAction.tipo}</p>
+                              <p className="text-[10px] text-[#999] truncate">{cr.nextAction.diasLabel}</p>
                             </div>
                           ) : (
                             <span className="text-[11px] text-[#999]">-</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-[11px] text-[#555]">
+                        <td className={`px-4 py-1 text-[11px] text-[#555] truncate ${isColVisible(colKey('cr', 'regua')) ? '' : 'hidden'}`} title={cr.activeRegua?.nome || '-'}>
                           {cr.activeRegua?.nome || '-'}
                         </td>
                       </tr>
@@ -815,6 +936,35 @@ export default function ReguaCobranca() {
               >
                 Atualizar
               </button>
+              <div className="relative self-center">
+                <button
+                  onClick={() => setLogColMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/20 text-[11px] text-white hover:bg-white/10"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={13} className="text-white/70" /> Colunas
+                  <ChevronDown size={12} className={`text-white/60 transition-transform ${logColMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {logColMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setLogColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {Object.entries(LOG_COL_LABELS).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(colKey('log', k))}
+                            onChange={() => toggleColVisible(colKey('log', k))}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <ExportMenu
                 rows={logs}
                 columns={logColumns}
@@ -840,14 +990,33 @@ export default function ReguaCobranca() {
               <p className="text-[13px] text-[#555] text-center py-6">Nenhum disparo registrado.</p>
             ) : (
               <>
-              <table className="w-full text-left">
+              <table className="text-left" style={{ tableLayout: 'fixed', width: visibleLogCols.reduce((a, k) => a + (colWidths[colKey('log', k)] ?? LOG_COL_WIDTHS_DEFAULT[colKey('log', k)]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {LOG_COL_ORDER.map(k => (
+                    <col key={k} className={isColVisible(colKey('log', k)) ? '' : 'hidden'} style={{ width: colWidths[colKey('log', k)] ?? LOG_COL_WIDTHS_DEFAULT[colKey('log', k)] }} />
+                  ))}
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-[#e5e5e5]">
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Data/hora</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Cliente</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Tipo</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Status</th>
-                    <th className="text-[10px] font-bold text-[#555] uppercase tracking-wider px-4 py-2.5">Regua</th>
+                  <tr style={{ backgroundColor: '#000000' }}>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('log', 'datahora')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('log', 'datahora'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Data/hora
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('log', 'cliente')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('log', 'cliente'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Cliente
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('log', 'tipo')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('log', 'tipo'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Tipo
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative border-r border-white/10 ${isColVisible(colKey('log', 'status')) ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize(colKey('log', 'status'))} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                      Status
+                    </th>
+                    <th className={`text-[10px] font-bold text-white uppercase tracking-wider px-4 py-2.5 relative ${isColVisible(colKey('log', 'regua')) ? '' : 'hidden'}`}>
+                      Regua
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -855,14 +1024,14 @@ export default function ReguaCobranca() {
                     const tipoBadge = tipoBadgeColors(log.tipo_acao)
                     const stBadge = logStatusBadge(log.status)
                     return (
-                      <tr key={log.id} className="border-b border-[#EAECF0] hover:bg-[#F6F2EB]">
-                        <td className="px-4 py-2.5 text-[12px] text-[#555]">
+                      <tr key={log.id} className="border-b border-[#F1F3F5] hover:bg-[#F6F2EB]">
+                        <td className={`px-4 py-1 text-[12px] text-[#555] truncate border-r border-[#F1F3F5] ${isColVisible(colKey('log', 'datahora')) ? '' : 'hidden'}`}>
                           {log.enviado_em ? format(parseISO(log.enviado_em), 'dd/MM/yy HH:mm') : '-'}
                         </td>
-                        <td className="px-4 py-2.5 text-[13px] font-medium text-[#1D2939]">
+                        <td className={`px-4 py-1 text-[13px] font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible(colKey('log', 'cliente')) ? '' : 'hidden'}`} title={log.cliente_nome}>
                           {log.cliente_nome}
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible(colKey('log', 'tipo')) ? '' : 'hidden'}`}>
                           <span
                             className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border"
                             style={{ color: tipoBadge.text, backgroundColor: tipoBadge.bg, borderColor: tipoBadge.border }}
@@ -871,7 +1040,7 @@ export default function ReguaCobranca() {
                             {tipoLabel(log.tipo_acao)}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible(colKey('log', 'status')) ? '' : 'hidden'}`}>
                           <span
                             className="text-[10px] font-semibold px-2 py-0.5 rounded border"
                             style={{ color: stBadge.text, backgroundColor: stBadge.bg, borderColor: stBadge.border }}
@@ -879,7 +1048,7 @@ export default function ReguaCobranca() {
                             {stBadge.label}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-[11px] text-[#555]">
+                        <td className={`px-4 py-1 text-[11px] text-[#555] truncate ${isColVisible(colKey('log', 'regua')) ? '' : 'hidden'}`} title={log.regua_nome}>
                           {log.regua_nome}
                         </td>
                       </tr>

@@ -7,7 +7,7 @@ import { linhaDigitavelToBarcode } from '@/utils/boleto-barcode'
 import { format, addDays, addMonths, startOfMonth, endOfMonth, isToday, isBefore, isAfter, parseISO } from 'date-fns'
 import {
   DollarSign, CalendarClock, CalendarDays, CheckCircle2, Plus, X,
-  MoreHorizontal, Search, ChevronDown, ChevronUp,
+  MoreHorizontal, Search, ChevronDown, ChevronUp, Eye,
   AlertTriangle, Loader2, FileText, Trash2, SplitSquareVertical,
   RefreshCw, Download, Paperclip, Archive, Pencil, ScanLine, Copy
 } from 'lucide-react'
@@ -301,6 +301,62 @@ export default function ContasPagar() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<UrgencyGroup>>(new Set())
   const [globalPage, setGlobalPage] = useState(0)
   const PAGE_SIZE = 10
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  // Compartilhado por TODAS as tabelas de grupo (colunas iguais).
+  // 'sel' (checkbox de seleção) NÃO é ocultável.
+  const CP_COL_ORDER = ['sel', 'venc', 'descricao', 'valor', 'categoria', 'contabil', 'status', 'acoes']
+  const CP_COL_LABELS: Record<string, string> = {
+    venc: 'Vencimento', descricao: 'Descrição', valor: 'Valor',
+    categoria: 'Categoria', contabil: 'Categoria contábil', status: 'Status', acoes: 'Ações',
+  }
+  const CP_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    sel: 44, venc: 110, descricao: 280, valor: 130, categoria: 140, contabil: 200, status: 120, acoes: 130,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('contaspagar_col_widths')
+      if (s) return { ...CP_COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return CP_COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => { localStorage.setItem('contaspagar_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('contaspagar_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('contaspagar_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleCpCols = CP_COL_ORDER.filter(isColVisible)
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? CP_COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const min = r.key === 'sel' ? 36 : 60
+      const newW = Math.max(min, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   useEffect(() => { setGlobalPage(0) }, [searchTerm, statusFilter, sectorFilter, dateFrom, dateTo])
 
@@ -2024,6 +2080,36 @@ export default function ContasPagar() {
                  isUploading ? <><Loader2 size={11} className="animate-spin" /> Enviando...</> :
                  <><ScanLine size={11} /> Importar boleto/fatura</>}
               </button>
+              {/* Colunas — mostrar/ocultar */}
+              <div className="relative">
+                <button
+                  onClick={() => setColMenuOpen(o => !o)}
+                  className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-black border border-[#D0D5DD] rounded bg-white hover:bg-[#F6F2EB] transition-colors"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={12} className="text-[#667085]" /> Colunas
+                  <ChevronDown size={12} className={`text-[#98A2B3] transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {colMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {Object.entries(CP_COL_LABELS).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(k)}
+                            onChange={() => toggleColVisible(k)}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <button
                 onClick={openNewModal}
                 className="flex items-center gap-1 px-2.5 h-7 text-[11.5px] font-semibold text-white bg-black rounded hover:bg-[#1D2939] transition-colors"
@@ -2099,10 +2185,16 @@ export default function ContasPagar() {
                   {/* Table — mesmo layout completo para todos os grupos, inclusive Pagos */}
                   {!isCollapsed && (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleCpCols.reduce((a, k) => a + (colWidths[k] ?? CP_COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                        <colgroup>
+                          {CP_COL_ORDER.map(k => (
+                            <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? CP_COL_WIDTHS_DEFAULT[k] }} />
+                          ))}
+                        </colgroup>
                         <thead>
-                          <tr style={{ backgroundColor: 'rgba(26,46,74,0.03)' }}>
-                            <th className="py-1.5 px-2.5 text-left w-8">
+                          <tr style={{ backgroundColor: '#000000' }}>
+                            <th className="py-1.5 px-2.5 text-left relative border-r border-[#EAECF0]">
+                              <span onMouseDown={startResize('sel')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
                               <input
                                 type="checkbox"
                                 checked={items.every((cp) => selectedIds.has(cp.id))}
@@ -2118,16 +2210,34 @@ export default function ContasPagar() {
                                   })
                                 }}
                                 className="rounded"
-                                style={{ borderColor: 'rgba(26,46,74,0.18)' }}
+                                style={{ borderColor: 'rgba(255,255,255,0.30)' }}
                               />
                             </th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{group === 'pagos' ? 'Pagamento' : 'Vencimento'}</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Descrição</th>
-                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Valor</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Categoria</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Categoria contábil</th>
-                            <th className="py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Status</th>
-                            <th className="py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider" style={{ fontSize: '12px', color: '#98A2B3', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Acoes</th>
+                            <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('venc') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                              <span onMouseDown={startResize('venc')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                              {group === 'pagos' ? 'Pagamento' : 'Vencimento'}
+                            </th>
+                            <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('descricao') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                              <span onMouseDown={startResize('descricao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                              Descrição
+                            </th>
+                            <th className={`py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('valor') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                              <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                              Valor
+                            </th>
+                            <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                              <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                              Categoria
+                            </th>
+                            <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('contabil') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                              <span onMouseDown={startResize('contabil')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                              Categoria contábil
+                            </th>
+                            <th className={`py-1.5 px-2.5 text-left font-semibold uppercase tracking-wider relative border-r border-[#EAECF0] ${isColVisible('status') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
+                              <span onMouseDown={startResize('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                              Status
+                            </th>
+                            <th className={`py-1.5 px-2.5 text-right font-semibold uppercase tracking-wider relative ${isColVisible('acoes') ? '' : 'hidden'}`} style={{ fontSize: '12px', color: '#fff', letterSpacing: '0.06em', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>Acoes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2148,7 +2258,7 @@ export default function ContasPagar() {
                                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(26,46,74,0.02)' }}
                                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = '' }}
                               >
-                                <td className="py-1 px-2.5">
+                                <td className="py-1 px-2.5 border-r border-[#F1F3F5]">
                                   <input
                                     type="checkbox"
                                     checked={selectedIds.has(cp.id)}
@@ -2158,7 +2268,7 @@ export default function ContasPagar() {
                                   />
                                 </td>
                                 {/* Vencimento (ou Pagamento, em Pagos) */}
-                                <td className="py-1 px-2.5" style={{ fontSize: 13 }}>
+                                <td className={`py-1 px-2.5 truncate border-r border-[#F1F3F5] ${isColVisible('venc') ? '' : 'hidden'}`} style={{ fontSize: 13 }}>
                                   {group === 'pagos' ? (
                                     <span style={{ color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>{formatData(cp.data_pagamento || cp.data_vencimento)}</span>
                                   ) : isHoje ? (
@@ -2168,17 +2278,17 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 {/* Descri\u00e7\u00e3o (credor abaixo, menor) */}
-                                <td className="py-1 px-2.5" style={{ fontSize: 13, fontFamily: 'var(--font-body, "Inter", sans-serif)' }}>
-                                  <div className="font-semibold" style={{ color: '#1D2939' }}>{cp.descricao || cp.credor_nome}</div>
+                                <td className={`py-1 px-2.5 border-r border-[#F1F3F5] ${isColVisible('descricao') ? '' : 'hidden'}`} style={{ fontSize: 13, fontFamily: 'var(--font-body, "Inter", sans-serif)' }} title={cp.descricao || cp.credor_nome || ''}>
+                                  <div className="font-semibold truncate" style={{ color: '#1D2939' }}>{cp.descricao || cp.credor_nome}</div>
                                   {cp.descricao && cp.credor_nome && cp.descricao !== cp.credor_nome && (
-                                    <div style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
+                                    <div className="truncate" style={{ fontSize: 11, color: '#667085', marginTop: 1 }}>{cp.credor_nome}</div>
                                   )}
                                   {cp.credor_cpf_cnpj && (
-                                    <div style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
+                                    <div className="truncate" style={{ fontSize: 11, color: '#98A2B3', marginTop: 2 }}>{cp.credor_cpf_cnpj}</div>
                                   )}
                                 </td>
                                 {/* Valor (em Pagos, mostra valor pago; demais grupos, saldo a pagar) */}
-                                <td className="py-1 px-2.5 text-right">
+                                <td className={`py-1 px-2.5 text-right truncate border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>
                                   <div className="font-semibold" style={{ color: '#1D2939', fontVariantNumeric: 'tabular-nums', fontSize: 13, fontFamily: 'var(--font-display, "Inter", sans-serif)' }}>
                                     {formatBRL(group === 'pagos' ? Number(cp.valor_pago || cp.valor || 0) : saldo(cp))}
                                   </div>
@@ -2189,16 +2299,16 @@ export default function ContasPagar() {
                                   )}
                                 </td>
                                 {/* Categoria (badge) */}
-                                <td className="py-1 px-2.5">
+                                <td className={`py-1 px-2.5 truncate border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`} title={categoria}>
                                   <span className="font-medium px-2.5 py-0.5 rounded-full" style={{ fontSize: '12px', backgroundColor: 'rgba(26,46,74,0.05)', color: '#1D2939', border: '1px solid rgba(26,46,74,0.08)' }}>
                                     {categoria}
                                   </span>
                                 </td>
                                 {/* Categoria cont\u00e1bil (plano de contas) */}
-                                <td className="py-1 px-2.5" style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)', maxWidth: 220 }} title={contaContabilLabel}>
+                                <td className={`py-1 px-2.5 truncate border-r border-[#F1F3F5] ${isColVisible('contabil') ? '' : 'hidden'}`} style={{ fontSize: 13, color: '#1D2939', fontFamily: 'var(--font-body, "Inter", sans-serif)' }} title={contaContabilLabel}>
                                   <div className="truncate">{contaContabilLabel}</div>
                                 </td>
-                                <td className="py-1 px-2.5">
+                                <td className={`py-1 px-2.5 border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
                                   {(() => {
                                     const statusConf: Record<string, { dot: string; text: string; bg: string; label: string }> = {
                                       aberto: { dot: '#EA580C', text: '#EA580C', bg: '#FFF0EB', label: 'Em aberto' },
@@ -2218,7 +2328,7 @@ export default function ContasPagar() {
                                     )
                                   })()}
                                 </td>
-                                <td className="py-1 px-2.5 text-right">
+                                <td className={`py-1 px-2.5 text-right ${isColVisible('acoes') ? '' : 'hidden'}`}>
                                   <div className="flex items-center justify-end gap-1">
                                     {cp.status !== 'pago' && (
                                       <button

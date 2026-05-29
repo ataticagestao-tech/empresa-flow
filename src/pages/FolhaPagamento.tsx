@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format, addMonths } from 'date-fns'
 import {
   DollarSign, Users, Calculator, Loader2, Plus, X,
   Search, RefreshCw, Check, Lock, FileText, ChevronLeft,
-  ChevronRight, MoreHorizontal, Download, AlertTriangle
+  ChevronRight, MoreHorizontal, Download, AlertTriangle,
+  Eye, ChevronDown
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -215,6 +216,59 @@ export default function FolhaPagamentoPage() {
     }
   }, [dropdownOpen])
   const [submitting, setSubmitting] = useState(false)
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const FOLHA_COL_ORDER = ['funcionario', 'tipo', 'salario', 'proventos', 'descontos', 'liquido', 'status', 'acoes']
+  const COL_LABELS: Record<string, string> = {
+    funcionario: 'Funcionário', tipo: 'Tipo', salario: 'Salário base', proventos: 'Proventos',
+    descontos: 'Descontos', liquido: 'Líquido', status: 'Status', acoes: 'Ações',
+  }
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    funcionario: 220, tipo: 110, salario: 120, proventos: 120, descontos: 120, liquido: 120, status: 110, acoes: 90,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('folha_col_widths')
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => { localStorage.setItem('folha_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('folha_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('folha_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleFolhaCols = FOLHA_COL_ORDER.filter(isColVisible)
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // Calc form
   const [calcForm, setCalcForm] = useState({
@@ -657,7 +711,48 @@ export default function FolhaPagamentoPage() {
         </div>
 
         {/* ── Table ── */}
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="rounded-xl border border-gray-100 overflow-hidden flex flex-col">
+          {/* Cabecalho do container — titulo */}
+          <div className="px-5 py-4 flex items-baseline justify-between flex-shrink-0" style={{ backgroundColor: '#000000' }}>
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 22, letterSpacing: '-0.015em', lineHeight: 1.15 }}>
+              Folha
+            </h3>
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] text-white/70 font-medium">
+                {filteredFolhas.length} registro{filteredFolhas.length !== 1 ? 's' : ''}
+              </span>
+              <div className="relative self-center">
+                <button
+                  onClick={() => setColMenuOpen(o => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                  title="Mostrar/ocultar colunas"
+                >
+                  <Eye size={14} className="text-white/70" /> Colunas
+                  <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {colMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      {Object.entries(COL_LABELS).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isColVisible(k)}
+                            onChange={() => toggleColVisible(k)}
+                            className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="bg-white overflow-x-auto">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="animate-spin text-gray-400" size={24} />
@@ -667,32 +762,58 @@ export default function FolhaPagamentoPage() {
               Nenhuma folha para {compLabel}. Clique em "Calcular folha" para gerar.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleFolhaCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {FOLHA_COL_ORDER.map(k => (
+                    <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                  ))}
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
-                    <th className="px-4 py-3">Funcionario</th>
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3 text-right">Salario base</th>
-                    <th className="px-4 py-3 text-right">Proventos</th>
-                    <th className="px-4 py-3 text-right">Descontos</th>
-                    <th className="px-4 py-3 text-right">Liquido</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-center">Acoes</th>
+                  <tr className="bg-white text-left text-xs font-bold text-[#1D2939] uppercase tracking-wider border-b-2 border-[#D0D5DD]">
+                    <th className={`px-4 py-3 relative border-r border-[#EAECF0] ${isColVisible('funcionario') ? '' : 'hidden'}`}>
+                      Funcionário
+                      <span onMouseDown={startResize('funcionario')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 relative border-r border-[#EAECF0] ${isColVisible('tipo') ? '' : 'hidden'}`}>
+                      Tipo
+                      <span onMouseDown={startResize('tipo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-right relative border-r border-[#EAECF0] ${isColVisible('salario') ? '' : 'hidden'}`}>
+                      Salário base
+                      <span onMouseDown={startResize('salario')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-right relative border-r border-[#EAECF0] ${isColVisible('proventos') ? '' : 'hidden'}`}>
+                      Proventos
+                      <span onMouseDown={startResize('proventos')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-right relative border-r border-[#EAECF0] ${isColVisible('descontos') ? '' : 'hidden'}`}>
+                      Descontos
+                      <span onMouseDown={startResize('descontos')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-right relative border-r border-[#EAECF0] ${isColVisible('liquido') ? '' : 'hidden'}`}>
+                      Líquido
+                      <span onMouseDown={startResize('liquido')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 relative border-r border-[#EAECF0] ${isColVisible('status') ? '' : 'hidden'}`}>
+                      Status
+                      <span onMouseDown={startResize('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-center relative ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredFolhas.map(f => {
                     const st = STATUS_CONFIG[f.status] || STATUS_CONFIG.rascunho
+                    const nomeFunc = getNomeFuncionario(f.employee_id)
                     return (
-                      <tr key={f.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(f.employee_id)}</td>
-                        <td className="px-4 py-3 text-gray-500">{TIPO_LABELS[f.tipo] || f.tipo}</td>
-                        <td className="px-4 py-3 text-right">{formatBRL(f.salario_base)}</td>
-                        <td className="px-4 py-3 text-right text-green-700">{formatBRL(f.total_proventos)}</td>
-                        <td className="px-4 py-3 text-right text-red-600">{formatBRL(f.total_descontos)}</td>
-                        <td className="px-4 py-3 text-right font-semibold">{formatBRL(f.valor_liquido)}</td>
-                        <td className="px-4 py-3">
+                      <tr key={f.id} className="border-b border-[#F1F3F5] hover:bg-gray-50/50 transition-colors">
+                        <td className={`px-4 py-1 font-medium truncate border-r border-[#F1F3F5] ${isColVisible('funcionario') ? '' : 'hidden'}`} title={nomeFunc}>{nomeFunc}</td>
+                        <td className={`px-4 py-1 text-gray-500 truncate border-r border-[#F1F3F5] ${isColVisible('tipo') ? '' : 'hidden'}`} title={TIPO_LABELS[f.tipo] || f.tipo}>{TIPO_LABELS[f.tipo] || f.tipo}</td>
+                        <td className={`px-4 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('salario') ? '' : 'hidden'}`}>{formatBRL(f.salario_base)}</td>
+                        <td className={`px-4 py-1 text-right text-green-700 truncate border-r border-[#F1F3F5] ${isColVisible('proventos') ? '' : 'hidden'}`}>{formatBRL(f.total_proventos)}</td>
+                        <td className={`px-4 py-1 text-right text-red-600 truncate border-r border-[#F1F3F5] ${isColVisible('descontos') ? '' : 'hidden'}`}>{formatBRL(f.total_descontos)}</td>
+                        <td className={`px-4 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${isColVisible('liquido') ? '' : 'hidden'}`}>{formatBRL(f.valor_liquido)}</td>
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                             style={{ color: st.color, backgroundColor: st.bg }}
@@ -702,7 +823,7 @@ export default function FolhaPagamentoPage() {
                             {st.label}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={`px-4 py-1 ${isColVisible('acoes') ? '' : 'hidden'}`}>
                           <div className="flex items-center justify-center gap-1 relative">
                             <button
                               onClick={() => { setSelectedFolha(f); setShowDetailModal(true) }}
@@ -764,16 +885,19 @@ export default function FolhaPagamentoPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-gray-200 bg-gray-50 font-semibold text-sm">
-                    <td className="px-4 py-3" colSpan={3}>Total ({filteredFolhas.length} funcionarios)</td>
-                    <td className="px-4 py-3 text-right text-green-700">{formatBRL(kpis.totalProventos)}</td>
-                    <td className="px-4 py-3 text-right text-red-600">{formatBRL(kpis.totalDescontos)}</td>
-                    <td className="px-4 py-3 text-right">{formatBRL(kpis.totalLiquido)}</td>
-                    <td colSpan={2}></td>
+                    <td className={`px-4 py-3 truncate ${isColVisible('funcionario') ? '' : 'hidden'}`}>Total ({filteredFolhas.length} funcionarios)</td>
+                    <td className={`px-4 py-3 ${isColVisible('tipo') ? '' : 'hidden'}`}></td>
+                    <td className={`px-4 py-3 ${isColVisible('salario') ? '' : 'hidden'}`}></td>
+                    <td className={`px-4 py-3 text-right text-green-700 ${isColVisible('proventos') ? '' : 'hidden'}`}>{formatBRL(kpis.totalProventos)}</td>
+                    <td className={`px-4 py-3 text-right text-red-600 ${isColVisible('descontos') ? '' : 'hidden'}`}>{formatBRL(kpis.totalDescontos)}</td>
+                    <td className={`px-4 py-3 text-right ${isColVisible('liquido') ? '' : 'hidden'}`}>{formatBRL(kpis.totalLiquido)}</td>
+                    <td className={`px-4 py-3 ${isColVisible('status') ? '' : 'hidden'}`}></td>
+                    <td className={`px-4 py-3 ${isColVisible('acoes') ? '' : 'hidden'}`}></td>
                   </tr>
                 </tfoot>
               </table>
-            </div>
           )}
+          </div>
         </div>
         </PagePanel>
       </div>

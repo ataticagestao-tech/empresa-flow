@@ -29,7 +29,7 @@ import {
 } from 'date-fns'
 import {
   Search, Plus, DollarSign, Clock, AlertTriangle, CheckCircle2,
-  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download, Trash2,
+  MoreHorizontal, X, ChevronDown, ChevronUp, Loader2, UserPlus, Copy, Pencil, Download, Trash2, Eye,
 } from 'lucide-react'
 
 // Cast for GESTAP tables not in generated types
@@ -145,6 +145,60 @@ export default function ContasReceber() {
   // ── Pagination ──
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 10
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  // 'sel' = coluna do checkbox de seleção (NÃO ocultável).
+  const CR_COL_ORDER = ['sel', 'pagador', 'categoria', 'vencimento', 'valor', 'pago', 'saldo', 'status', 'acoes']
+  const CR_COL_LABELS: Record<string, string> = {
+    pagador: 'Pagador', categoria: 'Categoria', vencimento: 'Vencimento',
+    valor: 'Valor', pago: 'Pago', saldo: 'Saldo', status: 'Status', acoes: 'Ações',
+  }
+  const CR_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    sel: 44, pagador: 220, categoria: 200, vencimento: 130, valor: 110, pago: 110, saldo: 110, status: 110, acoes: 130,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('contasreceber_col_widths')
+      if (s) return { ...CR_COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return CR_COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => { localStorage.setItem('contasreceber_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('contasreceber_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('contasreceber_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleCRCols = CR_COL_ORDER.filter(isColVisible)
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? CR_COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // ── Filters ──
   const [search, setSearch] = useState('')
@@ -1324,7 +1378,7 @@ export default function ContasReceber() {
 
         {/* ── Table ── */}
         <div className="border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
-          <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#059669' }}>
+          <div className="px-4 py-2.5 flex items-center justify-between" style={{ backgroundColor: '#000000' }}>
             <h3 className="text-[13px] font-bold text-white tracking-tight">
               Títulos · {filtered.length}
             </h3>
@@ -1362,6 +1416,35 @@ export default function ContasReceber() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
+                <div className="relative self-center">
+                  <button
+                    onClick={() => setColMenuOpen(o => !o)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-white/20 text-[11px] text-white hover:bg-white/10"
+                    title="Mostrar/ocultar colunas"
+                  >
+                    <Eye size={13} className="text-white/70" /> Colunas
+                    <ChevronDown size={12} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {colMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                      <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                        <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                        {Object.entries(CR_COL_LABELS).map(([k, label]) => (
+                          <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isColVisible(k)}
+                              onChange={() => toggleColVisible(k)}
+                              className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button
                   onClick={exportarPrevistasPDF}
                   title="Exportar contas previstas em PDF"
@@ -1397,10 +1480,15 @@ export default function ContasReceber() {
                 description="Ajuste os filtros ou o periodo para ver resultados."
               />
             ) : (<>
-              <table className="w-full text-[12.5px]">
+              <table className="text-[12.5px]" style={{ tableLayout: 'fixed', width: visibleCRCols.reduce((a, k) => a + (colWidths[k] ?? CR_COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {CR_COL_ORDER.map(k => (
+                    <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? CR_COL_WIDTHS_DEFAULT[k] }} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr className="bg-[#F9FAFB] border-b border-[#EAECF0]">
-                    <th className="px-3 py-2 w-9">
+                    <th className="px-3 py-2 relative border-r border-[#EAECF0]">
                       <input
                         type="checkbox"
                         checked={allSelectableSelected}
@@ -1408,14 +1496,35 @@ export default function ContasReceber() {
                         className="w-4 h-4 rounded border-[#ccc] text-[#059669] focus:ring-[#059669] cursor-pointer"
                       />
                     </th>
-                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Pagador</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Categoria</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Vencimento</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085]">Valor</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085]">Pago</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085]">Saldo</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-[#667085]">Status</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#667085] w-[120px]">Ações</th>
+                    <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('pagador') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('pagador')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Pagador
+                    </th>
+                    <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Categoria
+                    </th>
+                    <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('vencimento') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('vencimento')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Vencimento
+                    </th>
+                    <th className={`px-3 py-2 text-right text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('valor') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Valor
+                    </th>
+                    <th className={`px-3 py-2 text-right text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('pago') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('pago')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Pago
+                    </th>
+                    <th className={`px-3 py-2 text-right text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('saldo') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('saldo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Saldo
+                    </th>
+                    <th className={`px-3 py-2 text-left text-[11px] font-semibold text-[#667085] relative border-r border-[#EAECF0] ${isColVisible('status') ? '' : 'hidden'}`}>
+                      <span onMouseDown={startResize('status')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                      Status
+                    </th>
+                    <th className={`px-3 py-2 text-right text-[11px] font-semibold text-[#667085] ${isColVisible('acoes') ? '' : 'hidden'}`}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1434,7 +1543,7 @@ export default function ContasReceber() {
                         style={{ height: 44 }}
                       >
                         {/* Checkbox */}
-                        <td className="px-3 py-1.5 w-10 align-middle whitespace-nowrap">
+                        <td className="px-3 py-1 align-middle border-r border-[#F1F3F5]">
                           {isSelectable && (
                             <input
                               type="checkbox"
@@ -1445,30 +1554,29 @@ export default function ContasReceber() {
                           )}
                         </td>
                         {/* Pagador */}
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
+                        <td className={`px-3 py-1 align-middle border-r border-[#F1F3F5] ${isColVisible('pagador') ? '' : 'hidden'}`}>
                           <button
                             type="button"
                             onClick={() => setEditarModal(cr)}
                             title={cr._itensVenda ? `${cr.pagador_nome} — ${cr._itensVenda}` : `Abrir titulo de ${cr.pagador_nome}`}
-                            className="font-semibold text-[12px] text-[#1D2939] truncate text-left hover:text-[#059669] hover:underline transition-colors cursor-pointer focus:outline-none focus:text-[#059669]"
-                            style={{ maxWidth: 200, display: 'block' }}
+                            className="font-semibold text-[12px] text-[#1D2939] truncate text-left hover:text-[#059669] hover:underline transition-colors cursor-pointer focus:outline-none focus:text-[#059669] block w-full"
                           >
                             {cr.pagador_nome}
                           </button>
                           {cr._itensVenda ? (
-                            <div className="text-[10px] text-[#555] leading-tight truncate" style={{ maxWidth: 200 }} title={cr._itensVenda}>{cr._itensVenda}</div>
+                            <div className="text-[10px] text-[#555] leading-tight truncate" title={cr._itensVenda}>{cr._itensVenda}</div>
                           ) : cr.pagador_cpf_cnpj && (
-                            <div className="text-[10px] text-[#999] leading-tight">{cr.pagador_cpf_cnpj}</div>
+                            <div className="text-[10px] text-[#999] leading-tight truncate">{cr.pagador_cpf_cnpj}</div>
                           )}
                         </td>
                         {/* Categoria */}
-                        <td className="px-3 py-1.5 text-[11.5px] text-[#555] align-middle">
-                          <div className="truncate" style={{ maxWidth: 200 }} title={cr.conta_contabil_id ? categoryMap[cr.conta_contabil_id] : ''}>
+                        <td className={`px-3 py-1 text-[11.5px] text-[#555] align-middle border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`}>
+                          <div className="truncate" title={cr.conta_contabil_id ? categoryMap[cr.conta_contabil_id] : ''}>
                             {cr.conta_contabil_id ? (categoryMap[cr.conta_contabil_id] || '—') : '—'}
                           </div>
                         </td>
                         {/* Vencimento (ou Pago em, se ja pago) */}
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px]">
+                        <td className={`px-3 py-1 align-middle text-[12px] border-r border-[#F1F3F5] ${isColVisible('vencimento') ? '' : 'hidden'}`}>
                           {cr._status === 'pago' && cr.data_pagamento ? (
                             <>
                               <span className="text-[#039855] font-semibold">
@@ -1492,19 +1600,19 @@ export default function ContasReceber() {
                           )}
                         </td>
                         {/* Valor */}
-                        <td className="px-3 py-1.5 font-medium text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums text-right">
+                        <td className={`px-3 py-1 font-medium text-[12px] text-[#1D2939] align-middle tabular-nums text-right truncate border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>
                           {formatBRL(cr.valor)}
                         </td>
                         {/* Pago */}
-                        <td className="px-3 py-1.5 text-[12px] text-[#039855] font-medium align-middle whitespace-nowrap tabular-nums text-right">
+                        <td className={`px-3 py-1 text-[12px] text-[#039855] font-medium align-middle tabular-nums text-right truncate border-r border-[#F1F3F5] ${isColVisible('pago') ? '' : 'hidden'}`}>
                           {formatBRL(cr.valor_pago || 0)}
                         </td>
                         {/* Saldo */}
-                        <td className="px-3 py-1.5 font-semibold text-[12px] text-[#1D2939] align-middle whitespace-nowrap tabular-nums text-right">
+                        <td className={`px-3 py-1 font-semibold text-[12px] text-[#1D2939] align-middle tabular-nums text-right truncate border-r border-[#F1F3F5] ${isColVisible('saldo') ? '' : 'hidden'}`}>
                           {formatBRL(saldo)}
                         </td>
                         {/* Status */}
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap">
+                        <td className={`px-3 py-1 align-middle border-r border-[#F1F3F5] ${isColVisible('status') ? '' : 'hidden'}`}>
                           <span
                             className="inline-block px-2 py-0.5 text-[10.5px] font-semibold rounded border"
                             style={{ color: st.text, backgroundColor: st.bg, borderColor: st.border }}
@@ -1513,7 +1621,7 @@ export default function ContasReceber() {
                           </span>
                         </td>
                         {/* Acoes */}
-                        <td className="px-3 py-1.5 align-middle whitespace-nowrap text-right">
+                        <td className={`px-3 py-1 align-middle text-right ${isColVisible('acoes') ? '' : 'hidden'}`}>
                           <div className="flex items-center justify-end gap-1.5">
                             {cr._status !== 'pago' && cr._status !== 'cancelado' && (
                               <button

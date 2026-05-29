@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import {
   Palmtree, Loader2, Plus, X, Search, RefreshCw,
-  Check, AlertTriangle, Calendar, Users, FileText
+  Check, AlertTriangle, Calendar, Users, FileText, Eye, ChevronDown
 } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -91,6 +91,59 @@ export default function FeriasAfastamentos() {
     cid: '',
     documento_url: '',
   })
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const COL_ORDER = ['funcionario', 'tipo', 'inicio', 'fim', 'dias', 'valor', 'status']
+  const COL_LABELS: Record<string, string> = {
+    funcionario: 'Funcionario', tipo: 'Tipo', inicio: 'Inicio', fim: 'Fim',
+    dias: 'Dias', valor: 'Valor', status: 'Status',
+  }
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    funcionario: 220, tipo: 170, inicio: 110, fim: 110, dias: 80, valor: 130, status: 130,
+  }
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('feriasafastamentos_col_widths')
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) }
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT
+  })
+  useEffect(() => { localStorage.setItem('feriasafastamentos_col_widths', JSON.stringify(colWidths)) }, [colWidths])
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('feriasafastamentos_hidden_cols')
+      if (s) return new Set(JSON.parse(s) as string[])
+    } catch { /* ignore */ }
+    return new Set()
+  })
+  useEffect(() => { localStorage.setItem('feriasafastamentos_hidden_cols', JSON.stringify([...hiddenCols])) }, [hiddenCols])
+  const [colMenuOpen, setColMenuOpen] = useState(false)
+  const isColVisible = (k: string) => !hiddenCols.has(k)
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev)
+    if (n.has(k)) n.delete(k); else n.add(k)
+    return n
+  })
+  const visibleCols = COL_ORDER.filter(isColVisible)
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null)
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] }
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current
+      if (!r) return
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX))
+      setColWidths(prev => ({ ...prev, [r.key]: newW }))
+    }
+    const onUp = () => {
+      resizingRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // ─── Data Loading ───────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -295,7 +348,36 @@ export default function FeriasAfastamentos() {
             <RefreshCw size={16} className="text-gray-500" />
           </button>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setColMenuOpen(o => !o)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                title="Mostrar/ocultar colunas"
+              >
+                <Eye size={14} className="text-gray-400" /> Colunas
+                <ChevronDown size={13} className={`text-gray-400 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {colMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                    <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                    {Object.entries(COL_LABELS).map(([k, label]) => (
+                      <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isColVisible(k)}
+                          onChange={() => toggleColVisible(k)}
+                          className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <ExportMenu
               rows={filteredRegistros}
               baseName="ferias-afastamentos"
@@ -326,27 +408,53 @@ export default function FeriasAfastamentos() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                <colgroup>
+                  {COL_ORDER.map(k => (
+                    <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                  ))}
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase">
-                    <th className="px-4 py-3">Funcionario</th>
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3">Inicio</th>
-                    <th className="px-4 py-3">Fim</th>
-                    <th className="px-4 py-3 text-center">Dias</th>
-                    <th className="px-4 py-3 text-right">Valor</th>
-                    <th className="px-4 py-3">Status</th>
+                  <tr className="text-left text-xs text-white uppercase" style={{ backgroundColor: '#000000' }}>
+                    <th className={`px-4 py-3 relative border-r border-white/10 ${isColVisible('funcionario') ? '' : 'hidden'}`}>
+                      Funcionario
+                      <span onMouseDown={startResize('funcionario')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 relative border-r border-white/10 ${isColVisible('tipo') ? '' : 'hidden'}`}>
+                      Tipo
+                      <span onMouseDown={startResize('tipo')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 relative border-r border-white/10 ${isColVisible('inicio') ? '' : 'hidden'}`}>
+                      Inicio
+                      <span onMouseDown={startResize('inicio')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 relative border-r border-white/10 ${isColVisible('fim') ? '' : 'hidden'}`}>
+                      Fim
+                      <span onMouseDown={startResize('fim')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-center relative border-r border-white/10 ${isColVisible('dias') ? '' : 'hidden'}`}>
+                      Dias
+                      <span onMouseDown={startResize('dias')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 text-right relative border-r border-white/10 ${isColVisible('valor') ? '' : 'hidden'}`}>
+                      Valor
+                      <span onMouseDown={startResize('valor')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-white/20 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`px-4 py-3 relative ${isColVisible('status') ? '' : 'hidden'}`}>
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRegistros.map(r => {
                     const tipo = TIPO_LABELS[r.tipo] || TIPO_LABELS.outros
                     const st = STATUS_CONFIG[r.status] || STATUS_CONFIG.programado
+                    const nome = getNomeFuncionario(r.employee_id)
 
                     return (
-                      <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 font-medium">{getNomeFuncionario(r.employee_id)}</td>
-                        <td className="px-4 py-3">
+                      <tr key={r.id} className="border-b border-[#F1F3F5] hover:bg-gray-50/50 transition-colors">
+                        <td className={`px-4 py-1 font-medium truncate border-r border-[#F1F3F5] ${isColVisible('funcionario') ? '' : 'hidden'}`} title={nome}>{nome}</td>
+                        <td className={`px-4 py-1 border-r border-[#F1F3F5] ${isColVisible('tipo') ? '' : 'hidden'}`}>
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                             style={{ color: tipo.color, backgroundColor: tipo.color + '15' }}
@@ -355,13 +463,13 @@ export default function FeriasAfastamentos() {
                             {tipo.label}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-500">{formatData(r.data_inicio)}</td>
-                        <td className="px-4 py-3 text-gray-500">{formatData(r.data_fim)}</td>
-                        <td className="px-4 py-3 text-center font-medium">{r.dias_corridos ?? '—'}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className={`px-4 py-1 text-gray-500 truncate border-r border-[#F1F3F5] ${isColVisible('inicio') ? '' : 'hidden'}`} title={formatData(r.data_inicio)}>{formatData(r.data_inicio)}</td>
+                        <td className={`px-4 py-1 text-gray-500 truncate border-r border-[#F1F3F5] ${isColVisible('fim') ? '' : 'hidden'}`} title={formatData(r.data_fim)}>{formatData(r.data_fim)}</td>
+                        <td className={`px-4 py-1 text-center font-medium truncate border-r border-[#F1F3F5] ${isColVisible('dias') ? '' : 'hidden'}`}>{r.dias_corridos ?? '—'}</td>
+                        <td className={`px-4 py-1 text-right truncate border-r border-[#F1F3F5] ${isColVisible('valor') ? '' : 'hidden'}`}>
                           {r.valor_ferias ? formatBRL(r.valor_ferias) : '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={`px-4 py-1 ${isColVisible('status') ? '' : 'hidden'}`}>
                           <span
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                             style={{ color: st.color, backgroundColor: st.bg }}

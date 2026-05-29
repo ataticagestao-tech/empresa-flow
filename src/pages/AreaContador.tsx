@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
@@ -8,20 +8,12 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { TableSkeleton } from "@/components/ui/page-skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet, Mail, FileText } from "lucide-react";
+import { Download, FileSpreadsheet, Mail, FileText, Eye, ChevronDown } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -121,6 +113,59 @@ export default function AreaContador() {
   const { activeClient: db } = useAuth();
   const { selectedCompany } = useCompany();
   const cId = selectedCompany?.id;
+
+  // ─── Padrão de planilha: colunas ajustáveis + ocultáveis ─────
+  const PREVIEW_COL_ORDER = ['data', 'conta', 'descricao', 'contraparte', 'categoria', 'valor'];
+  const COL_LABELS: Record<string, string> = {
+    data: 'Data', conta: 'Conta', descricao: 'Descrição',
+    contraparte: 'Pagador / Credor', categoria: 'Categoria', valor: 'Valor',
+  };
+  const COL_WIDTHS_DEFAULT: Record<string, number> = {
+    data: 100, conta: 160, descricao: 280, contraparte: 200, categoria: 240, valor: 130,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('areacontador_col_widths');
+      if (s) return { ...COL_WIDTHS_DEFAULT, ...JSON.parse(s) };
+    } catch { /* ignore */ }
+    return COL_WIDTHS_DEFAULT;
+  });
+  useEffect(() => { localStorage.setItem('areacontador_col_widths', JSON.stringify(colWidths)); }, [colWidths]);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem('areacontador_hidden_cols');
+      if (s) return new Set(JSON.parse(s) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  useEffect(() => { localStorage.setItem('areacontador_hidden_cols', JSON.stringify([...hiddenCols])); }, [hiddenCols]);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const isColVisible = (k: string) => !hiddenCols.has(k);
+  const toggleColVisible = (k: string) => setHiddenCols(prev => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+  const visiblePreviewCols = PREVIEW_COL_ORDER.filter(isColVisible);
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? COL_WIDTHS_DEFAULT[key] };
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r) return;
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+      setColWidths(prev => ({ ...prev, [r.key]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const monthOptions = useMemo(buildMonthOptions, []);
   const [selectedMonth, setSelectedMonth] = useState(
@@ -901,17 +946,49 @@ ${empresaNome}`;
 
         {/* Preview */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[#1D2939]">
-              Pré-visualização — {monthLabel}
-            </h3>
-            <div className="text-xs text-gray-500">
-              {rows.length} linha{rows.length === 1 ? "" : "s"}
-            </div>
-          </div>
-
-          <Card className="border-[#E5E7EB]">
+          <Card className="border-[#E5E7EB] overflow-hidden">
             <CardContent className="p-0">
+              {/* Barra de título escura */}
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#000000]">
+                <h3 className="text-sm font-semibold text-white m-0">
+                  Pré-visualização — {monthLabel}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-[13px] text-white/70 font-medium">
+                    {rows.length} linha{rows.length === 1 ? "" : "s"}
+                  </span>
+                  <div className="relative self-center">
+                    <button
+                      onClick={() => setColMenuOpen((o) => !o)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+                      title="Mostrar/ocultar colunas"
+                    >
+                      <Eye size={14} className="text-white/70" /> Colunas
+                      <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {colMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
+                        <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+                          <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                          {Object.entries(COL_LABELS).map(([k, label]) => (
+                            <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isColVisible(k)}
+                                onChange={() => toggleColVisible(k)}
+                                className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {loadingTx ? (
                 <div className="p-4">
                   <TableSkeleton rows={6} />
@@ -922,31 +999,56 @@ ${empresaNome}`;
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Conta</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Pagador / Credor</TableHead>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <table className="text-sm" style={{ tableLayout: 'fixed', width: visiblePreviewCols.reduce((a, k) => a + (colWidths[k] ?? COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+                    <colgroup>
+                      {PREVIEW_COL_ORDER.map((k) => (
+                        <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? COL_WIDTHS_DEFAULT[k] }} />
+                      ))}
+                    </colgroup>
+                    <thead>
+                      <tr className="bg-white text-[12px] font-bold text-[#1D2939] uppercase tracking-wider whitespace-nowrap border-b-2 border-[#D0D5DD]">
+                        <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('data') ? '' : 'hidden'}`}>
+                          <span onMouseDown={startResize('data')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                          Data
+                        </th>
+                        <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('conta') ? '' : 'hidden'}`}>
+                          <span onMouseDown={startResize('conta')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                          Conta
+                        </th>
+                        <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('descricao') ? '' : 'hidden'}`}>
+                          <span onMouseDown={startResize('descricao')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                          Descrição
+                        </th>
+                        <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('contraparte') ? '' : 'hidden'}`}>
+                          <span onMouseDown={startResize('contraparte')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                          Pagador / Credor
+                        </th>
+                        <th className={`text-left px-3 py-2 relative border-r border-[#EAECF0] ${isColVisible('categoria') ? '' : 'hidden'}`}>
+                          <span onMouseDown={startResize('categoria')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                          Categoria
+                        </th>
+                        <th className={`text-right px-3 py-2 relative ${isColVisible('valor') ? '' : 'hidden'}`}>
+                          <span onMouseDown={startResize('valor')} className="absolute top-0 left-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                          Valor
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {rows.slice(0, 50).map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="whitespace-nowrap">
+                        <tr key={i} className="border-b border-[#F1F3F5]">
+                          <td className={`px-3 py-1 text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('data') ? '' : 'hidden'}`} title={fmtDateBR(r.date)}>
                             {fmtDateBR(r.date)}
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-600">
+                          </td>
+                          <td className={`px-3 py-1 text-xs text-gray-600 truncate border-r border-[#F1F3F5] ${isColVisible('conta') ? '' : 'hidden'}`} title={r.accountName}>
                             {r.accountName}
-                          </TableCell>
-                          <TableCell className="max-w-[280px] truncate">
+                          </td>
+                          <td className={`px-3 py-1 text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('descricao') ? '' : 'hidden'}`} title={r.description}>
                             {r.description}
-                          </TableCell>
-                          <TableCell>{r.counterparty}</TableCell>
-                          <TableCell className="text-xs">
+                          </td>
+                          <td className={`px-3 py-1 text-[#1D2939] truncate border-r border-[#F1F3F5] ${isColVisible('contraparte') ? '' : 'hidden'}`} title={r.counterparty}>
+                            {r.counterparty}
+                          </td>
+                          <td className={`px-3 py-1 text-xs truncate border-r border-[#F1F3F5] ${isColVisible('categoria') ? '' : 'hidden'}`} title={r.categoryCode ? `${r.categoryCode} — ${r.categoryName}` : 'Sem categoria'}>
                             {r.categoryCode ? (
                               <span className="text-[#1D2939]">
                                 {r.categoryCode} — {r.categoryName}
@@ -956,21 +1058,22 @@ ${empresaNome}`;
                                 Sem categoria
                               </span>
                             )}
-                          </TableCell>
-                          <TableCell
+                          </td>
+                          <td
                             className={
-                              "text-right font-medium whitespace-nowrap " +
+                              "px-3 py-1 text-right font-medium truncate " +
                               (r.amount >= 0
                                 ? "text-[#059669]"
-                                : "text-[#DC2626]")
+                                : "text-[#DC2626]") +
+                              (isColVisible('valor') ? '' : ' hidden')
                             }
                           >
                             {fmtBRL(r.amount)}
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                   {rows.length > 50 && (
                     <div className="p-3 text-xs text-gray-500 text-center border-t border-gray-100">
                       Mostrando 50 de {rows.length} linhas — baixe o arquivo
