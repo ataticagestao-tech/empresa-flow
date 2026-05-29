@@ -16,7 +16,6 @@ import { LinkCRToContract } from "@/modules/clients/presentation/components/Link
 import { ContratosKpiCard } from "@/modules/clients/presentation/components/ContratosKpiCard";
 import { MergeDuplicatesDialog } from "@/modules/clients/presentation/components/MergeDuplicatesDialog";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
-import { MessageCircle } from "lucide-react";
 import { useClientContratos } from "@/modules/clients/presentation/hooks/useClientContratos";
 import { hasContratosByCompany } from "@/config/features";
 import { gerarFichaClientePDF, downloadFichaPDF } from "@/lib/ficha-cliente/gerar-pdf";
@@ -867,7 +866,7 @@ export default function Clientes() {
                           <Copy className="h-4 w-4" />
                         </button>
                       )}
-                      <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
+                      <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg></button>
                       <ExportMenu rows={clientsExportRows} columns={clientsExportColumns} titulo="CLIENTES" baseName="clientes" orientacao="landscape" corPrimaria="#2563EB" size="sm" disabled={!(clients || []).length} />
                       <button onClick={handleNew} className="text-[11px] font-bold text-white/70 hover:text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1 ml-1">+ Novo</button>
                     </div>
@@ -1069,7 +1068,7 @@ export default function Clientes() {
                                             className="text-[12px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                                             title="Solicitar dados cadastrais via WhatsApp"
                                         >
-                                            <MessageCircle className="h-3 w-3 mr-1.5" />
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
                                             Solicitar dados
                                         </Button>
                                         {selectedClient.email && (
