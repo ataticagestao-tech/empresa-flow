@@ -994,10 +994,10 @@ export default function Clientes() {
                     ) : (
                         <>
                             {/* Header do cliente */}
-                            <div className="bg-white border-b border-[#EAECF0] px-6 py-5">
+                            <div className="bg-white border-b border-[#EAECF0] px-6 py-3">
                                 <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-full text-[14px] font-bold flex items-center justify-center flex-shrink-0 ${
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full text-[13px] font-bold flex items-center justify-center flex-shrink-0 ${
                                             getClientStatus(selectedClient) === "inadimplente" ? "bg-[#E53E3E] text-white"
                                             : getClientStatus(selectedClient) === "inativo" ? "bg-[#999] text-white"
                                             : "bg-[#059669] text-[#064E3B]"
@@ -1005,7 +1005,7 @@ export default function Clientes() {
                                             {getIniciais(selectedClient.razao_social)}
                                         </div>
                                         <div>
-                                            <h3 className="text-[17px] font-bold text-[#1D2939]">
+                                            <h3 className="text-[15px] font-bold text-[#1D2939]">
                                                 {toTitleCase(selectedClient.razao_social)}
                                             </h3>
                                             <div className="text-[12px] text-[#888] mt-0.5 space-y-0.5">
@@ -1095,31 +1095,31 @@ export default function Clientes() {
                             </div>
 
                             {/* KPIs do cliente */}
-                            <div className={`grid gap-3 px-6 py-4 bg-white border-b border-[#EAECF0] ${
+                            <div className={`grid gap-2 px-6 py-2.5 bg-white border-b border-[#EAECF0] ${
                                 hasContratosByCompany(selectedCompany) ? "grid-cols-5" : "grid-cols-4"
                             }`}>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Total Comprado</span>
                                     </div>
-                                    <div className="px-3 py-2.5 bg-white">
-                                        <div className="text-[17px] font-bold text-[#1D2939]">
+                                    <div className="px-3 py-1.5 bg-white">
+                                        <div className="text-[15px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
                                         </div>
-                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : `${detailFinancial?.totalCompras ?? 0} compras`}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Em Aberto</span>
                                     </div>
-                                    <div className="px-3 py-2.5 bg-white">
-                                        <div className={`text-[17px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
+                                    <div className="px-3 py-1.5 bg-white">
+                                        <div className={`text-[15px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
                                         </div>
-                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.vencido && detailFinancial.vencido > 0
                                                 ? `${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length} título${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""} vencido${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""}`
                                                 : "em dia"
@@ -1128,24 +1128,24 @@ export default function Clientes() {
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Última Compra</span>
                                     </div>
-                                    <div className="px-3 py-2.5 bg-white">
-                                        <div className="text-[17px] font-bold text-[#1D2939]">
+                                    <div className="px-3 py-1.5 bg-white">
+                                        <div className="text-[15px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : detailFinancial?.ultimaCompra ? formatData(detailFinancial.ultimaCompra) : "—"}
                                         </div>
-                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.ultimaCompra ? diasAtras(detailFinancial.ultimaCompra) : ""}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="border border-[#EAECF0] rounded-lg overflow-hidden">
-                                    <div className="bg-[#059669] px-3 py-1.5">
+                                    <div className="bg-[#059669] px-3 py-1">
                                         <span className="text-[9px] font-bold text-white uppercase tracking-widest">Pontualidade</span>
                                     </div>
-                                    <div className="px-3 py-2.5 bg-white">
-                                        <div className={`text-[17px] font-bold ${
+                                    <div className="px-3 py-1.5 bg-white">
+                                        <div className={`text-[15px] font-bold ${
                                             pontualidade === null ? "text-[#888]"
                                             : pontualidade >= 80 ? "text-[#039855]"
                                             : pontualidade >= 50 ? "text-[#EA580C]"
@@ -1153,7 +1153,7 @@ export default function Clientes() {
                                         }`}>
                                             {detailLoading ? "..." : pontualidade !== null ? `${pontualidade}%` : "—"}
                                         </div>
-                                        <div className="text-[10px] text-[#888] mt-0.5">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial ? `${detailFinancial.pagosNoPrazo} de ${detailFinancial.totalPagos}` : ""}
                                         </div>
                                     </div>
@@ -1179,7 +1179,7 @@ export default function Clientes() {
                                     <button
                                         key={tab.key}
                                         onClick={() => setDetailTab(tab.key)}
-                                        className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-all ${
+                                        className={`px-4 py-2.5 text-[13px] font-medium border-b-2 transition-all ${
                                             detailTab === tab.key
                                                 ? "border-[#059669] text-[#059669]"
                                                 : "border-transparent text-[#888] hover:text-[#555]"
