@@ -399,15 +399,15 @@ export default function DRE() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-[12.5px]">
+                <table className="w-full text-[13px]">
                   <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left py-2.5 px-4 font-semibold">Conta</th>
-                      <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
-                      <th className="text-right py-2.5 px-4 font-semibold">Realizado</th>
-                      <th className="text-right py-2.5 px-4 font-semibold">Orçado</th>
-                      <th className="text-right py-2.5 px-4 font-semibold">Variação</th>
-                      <th className="text-right py-2.5 px-4 font-semibold">%</th>
+                    <tr className="bg-white border-b-2 border-[#D0D5DD] text-[11px] font-bold uppercase tracking-wider text-black">
+                      <th className="text-left py-2.5 px-4 border-r border-[#EAECF0]">Conta</th>
+                      <th className="text-left py-2.5 px-4 border-r border-[#EAECF0]">Descrição</th>
+                      <th className="text-right py-2.5 px-4 border-r border-[#EAECF0]">Realizado</th>
+                      <th className="text-right py-2.5 px-4 border-r border-[#EAECF0]">Orçado</th>
+                      <th className="text-right py-2.5 px-4 border-r border-[#EAECF0]">Variação</th>
+                      <th className="text-right py-2.5 px-4">%</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -426,14 +426,14 @@ export default function DRE() {
                       );
                     })}
                     {/* Resultado Final */}
-                    <tr className="border-t-2 border-foreground bg-muted/50 font-bold">
-                      <td className="py-3 px-4" colSpan={2}>RESULTADO LÍQUIDO</td>
-                      <td className="text-right py-3 px-4" style={{ color: resultado >= 0 ? "#039855" : "#E53E3E" }}>
+                    <tr className="border-t-2 border-black bg-[#1D2939] font-bold text-white">
+                      <td className="py-3 px-4 uppercase tracking-wider text-[12px]" colSpan={2}>RESULTADO LÍQUIDO</td>
+                      <td className="text-right py-3 px-4 tabular-nums text-[14px]" style={{ color: resultado >= 0 ? "#34D399" : "#FCA5A5" }}>
                         {fmt(resultado)}
                       </td>
-                      <td className="text-right py-3 px-4">—</td>
-                      <td className="text-right py-3 px-4">—</td>
-                      <td className="text-right py-3 px-4">{margemLiquida.toFixed(1)}%</td>
+                      <td className="text-right py-3 px-4 text-white/50">—</td>
+                      <td className="text-right py-3 px-4 text-white/50">—</td>
+                      <td className="text-right py-3 px-4 tabular-nums">{margemLiquida.toFixed(1)}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -460,35 +460,35 @@ function GrupoDRE({ nome, grupo, isOpen, onToggle }: {
     <>
       {/* Header do grupo */}
       <tr
-        className="border-b bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
+        className="border-b border-[#D0D5DD] bg-[#F2F4F7] cursor-pointer hover:bg-[#EAECF0] transition-colors"
         onClick={onToggle}
       >
-        <td className="py-2.5 px-4 font-bold" colSpan={2}>
+        <td className="py-2.5 px-4 font-bold text-[#1D2939] border-r border-[#EAECF0]" colSpan={2}>
           <div className="flex items-center gap-1.5">
             {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             {nome}
           </div>
         </td>
-        <td className="text-right py-2.5 px-4 font-bold">{fmt(grupo.totalRealizado)}</td>
-        <td className="text-right py-2.5 px-4 font-bold text-muted-foreground">{fmt(grupo.totalOrcado)}</td>
-        <td className="text-right py-2.5 px-4 font-bold" style={{ color: varTotal >= 0 ? "#039855" : "#E53E3E" }}>
+        <td className="text-right py-2.5 px-4 font-bold text-[#1D2939] tabular-nums border-r border-[#EAECF0]">{fmt(grupo.totalRealizado)}</td>
+        <td className="text-right py-2.5 px-4 font-bold text-[#667085] tabular-nums border-r border-[#EAECF0]">{fmt(grupo.totalOrcado)}</td>
+        <td className="text-right py-2.5 px-4 font-bold tabular-nums border-r border-[#EAECF0]" style={{ color: varTotal >= 0 ? "#039855" : "#E53E3E" }}>
           {fmt(varTotal)}
         </td>
-        <td className="text-right py-2.5 px-4 font-bold" style={{ color: (varPct ?? 0) >= 0 ? "#039855" : "#E53E3E" }}>
+        <td className="text-right py-2.5 px-4 font-bold tabular-nums" style={{ color: (varPct ?? 0) >= 0 ? "#039855" : "#E53E3E" }}>
           {fmtPct(varPct)}
         </td>
       </tr>
       {/* Linhas detalhadas */}
-      {isOpen && grupo.linhas.map((l) => (
-        <tr key={l.conta_contabil_id} className="border-b border-border/50 hover:bg-muted/10">
-          <td className="py-2 px-4 pl-8 text-muted-foreground font-mono">{l.codigo}</td>
-          <td className="py-2 px-4">{l.descricao}</td>
-          <td className="text-right py-2 px-4 tabular-nums">{fmt(l.realizado)}</td>
-          <td className="text-right py-2 px-4 tabular-nums text-muted-foreground">{fmt(l.orcado)}</td>
-          <td className="text-right py-2 px-4 tabular-nums" style={{ color: l.variacao >= 0 ? "#039855" : "#E53E3E" }}>
+      {isOpen && grupo.linhas.map((l, i) => (
+        <tr key={l.conta_contabil_id} className={`border-b border-[#EAECF0] hover:bg-[#ECFDF4] ${i % 2 === 1 ? "bg-[#FAFAFA]" : "bg-white"}`}>
+          <td className="py-2 px-4 pl-8 text-[#667085] font-mono border-r border-[#EAECF0]">{l.codigo}</td>
+          <td className="py-2 px-4 text-[#1D2939] border-r border-[#EAECF0]">{l.descricao}</td>
+          <td className="text-right py-2 px-4 tabular-nums text-[#1D2939] border-r border-[#EAECF0]">{fmt(l.realizado)}</td>
+          <td className="text-right py-2 px-4 tabular-nums text-[#667085] border-r border-[#EAECF0]">{fmt(l.orcado)}</td>
+          <td className="text-right py-2 px-4 tabular-nums border-r border-[#EAECF0]" style={{ color: l.variacao >= 0 ? "#039855" : "#E53E3E" }}>
             {fmt(l.variacao)}
           </td>
-          <td className="text-right py-2 px-4" style={{ color: (l.variacao_pct ?? 0) >= 0 ? "#039855" : "#E53E3E" }}>
+          <td className="text-right py-2 px-4 tabular-nums" style={{ color: (l.variacao_pct ?? 0) >= 0 ? "#039855" : "#E53E3E" }}>
             <div className="flex items-center justify-end gap-1">
               {l.variacao_pct != null && l.variacao_pct !== 0 && (
                 l.variacao_pct > 0

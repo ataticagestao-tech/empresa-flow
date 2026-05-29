@@ -835,7 +835,7 @@ export default function FluxoCaixa() {
                     </div>
                     {entradasAberto && (
                       <CardContent className="p-0">
-                        <table className="w-full text-[12.5px]">
+                        <table className="w-full text-[13px]">
                           <tbody>
                             {relatorio.entradas.map(([catId, cat]) => {
                               const isOpen = relExpandidos[`e_${catId}`] ?? false;
@@ -877,7 +877,7 @@ export default function FluxoCaixa() {
                     </div>
                     {saidasAberto && (
                       <CardContent className="p-0">
-                        <table className="w-full text-[12.5px]">
+                        <table className="w-full text-[13px]">
                           <tbody>
                             {relatorio.saidas.map(([catId, cat]) => {
                               const isOpen = relExpandidos[`s_${catId}`] ?? false;
@@ -963,12 +963,12 @@ export default function FluxoCaixa() {
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-[12.5px]">
+                      <table className="w-full text-[13px]">
                         <thead>
-                          <tr className="border-b bg-muted/30">
-                            <th className="text-left py-2.5 px-4 font-semibold w-[120px]">Código</th>
-                            <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
-                            <th className="text-right py-2.5 px-4 font-semibold w-[160px]">Valor (R$)</th>
+                          <tr className="bg-white border-b-2 border-[#D0D5DD] text-[11px] font-bold uppercase tracking-wider text-black">
+                            <th className="text-left py-2.5 px-4 border-r border-[#EAECF0] w-[120px]">Código</th>
+                            <th className="text-left py-2.5 px-4 border-r border-[#EAECF0]">Descrição</th>
+                            <th className="text-right py-2.5 px-4 w-[160px]">Valor (R$)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -988,12 +988,12 @@ export default function FluxoCaixa() {
                             );
                           })}
                           {variacaoLinha && (
-                            <tr className="border-t-2 border-foreground bg-muted/50 font-bold">
-                              <td className="py-3 px-4 font-mono text-[11px]">{variacaoLinha.codigo}</td>
-                              <td className="py-3 px-4">{variacaoLinha.nome}</td>
+                            <tr className="border-t-2 border-black bg-[#1D2939] font-bold text-white">
+                              <td className="py-3 px-4 font-mono text-[11px] border-r border-white/10">{variacaoLinha.codigo}</td>
+                              <td className="py-3 px-4 uppercase tracking-wider text-[12px] border-r border-white/10">{variacaoLinha.nome}</td>
                               <td
-                                className="text-right py-3 px-4 tabular-nums"
-                                style={{ color: variacaoLinha.valor >= 0 ? "#039855" : "#E53E3E" }}
+                                className="text-right py-3 px-4 tabular-nums text-[14px]"
+                                style={{ color: variacaoLinha.valor >= 0 ? "#34D399" : "#FCA5A5" }}
                               >
                                 {fmt(variacaoLinha.valor)}
                               </td>
@@ -1077,18 +1077,18 @@ export default function FluxoCaixa() {
                       </CardHeader>
                       <CardContent className="p-0">
                         <div className="overflow-x-auto">
-                          <table className="w-full text-[12.5px]">
+                          <table className="w-full text-[13px]">
                             <thead>
-                              <tr className="border-b bg-muted/30">
-                                <th className="text-left py-2.5 px-4 font-semibold w-[100px]">Código</th>
-                                <th className="text-left py-2.5 px-4 font-semibold">Categoria</th>
-                                <th className="text-right py-2.5 px-4 font-semibold w-[60px]">Qtd</th>
-                                <th className="text-right py-2.5 px-4 font-semibold w-[140px]">Total (R$)</th>
+                              <tr className="bg-white border-b-2 border-[#D0D5DD]">
+                                <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[100px]">Código</th>
+                                <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px]">Categoria</th>
+                                <th className="text-right py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[60px]">Qtd</th>
+                                <th className="text-right py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[140px]">Total (R$)</th>
                               </tr>
                             </thead>
                             <tbody>
                               {diagnostico.categoriasOrdenadas.map((cat) => (
-                                <tr key={cat.cod} className="border-b border-border/50 hover:bg-muted/10">
+                                <tr key={cat.cod} className="border-b border-[#EAECF0] hover:bg-[#ECFDF4]">
                                   <td className="py-2 px-4 font-mono text-muted-foreground text-[11px]">{cat.cod}</td>
                                   <td className="py-2 px-4">{cat.nome}</td>
                                   <td className="text-right py-2 px-4 text-muted-foreground">{cat.count}</td>
@@ -1114,19 +1114,19 @@ export default function FluxoCaixa() {
                       </CardHeader>
                       <CardContent className="p-0">
                         <div className="overflow-x-auto">
-                          <table className="w-full text-[12.5px]">
+                          <table className="w-full text-[13px]">
                             <thead>
-                              <tr className="border-b bg-muted/30">
-                                <th className="text-left py-2.5 px-4 font-semibold w-[100px]">Data</th>
-                                <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
-                                <th className="text-left py-2.5 px-4 font-semibold w-[80px]">Vínculo</th>
-                                <th className="text-left py-2.5 px-4 font-semibold">Beneficiário</th>
-                                <th className="text-right py-2.5 px-4 font-semibold w-[130px]">Valor (R$)</th>
+                              <tr className="bg-white border-b-2 border-[#D0D5DD]">
+                                <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[100px]">Data</th>
+                                <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px]">Descrição</th>
+                                <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[80px]">Vínculo</th>
+                                <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px]">Beneficiário</th>
+                                <th className="text-right py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[130px]">Valor (R$)</th>
                               </tr>
                             </thead>
                             <tbody>
                               {diagnostico.semCategoria.map((r: any) => (
-                                <tr key={r.bank_tx_id} className="border-b border-border/50 hover:bg-muted/10">
+                                <tr key={r.bank_tx_id} className="border-b border-[#EAECF0] hover:bg-[#ECFDF4]">
                                   <td className="py-2 px-4 text-muted-foreground text-[11px]">{r.data}</td>
                                   <td className="py-2 px-4">{r.descricao_banco}</td>
                                   <td className="py-2 px-4">
@@ -1158,21 +1158,21 @@ export default function FluxoCaixa() {
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-[12.5px]">
+                        <table className="w-full text-[13px]">
                           <thead>
-                            <tr className="border-b bg-muted/30">
-                              <th className="text-left py-2.5 px-4 font-semibold w-[100px]">Data</th>
-                              <th className="text-left py-2.5 px-4 font-semibold">Descrição</th>
-                              <th className="text-left py-2.5 px-4 font-semibold w-[70px]">Tipo</th>
-                              <th className="text-left py-2.5 px-4 font-semibold w-[80px]">Vínculo</th>
-                              <th className="text-left py-2.5 px-4 font-semibold">Beneficiário</th>
-                              <th className="text-left py-2.5 px-4 font-semibold">Categoria</th>
-                              <th className="text-right py-2.5 px-4 font-semibold w-[130px]">Valor (R$)</th>
+                            <tr className="bg-white border-b-2 border-[#D0D5DD]">
+                              <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[100px]">Data</th>
+                              <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px]">Descrição</th>
+                              <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[70px]">Tipo</th>
+                              <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[80px]">Vínculo</th>
+                              <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px]">Beneficiário</th>
+                              <th className="text-left py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px]">Categoria</th>
+                              <th className="text-right py-2.5 px-4 font-bold text-black uppercase tracking-wider text-[11px] w-[130px]">Valor (R$)</th>
                             </tr>
                           </thead>
                           <tbody>
                             {diagnostico.rows.map((r: any) => (
-                              <tr key={r.bank_tx_id} className="border-b border-border/50 hover:bg-muted/10">
+                              <tr key={r.bank_tx_id} className="border-b border-[#EAECF0] hover:bg-[#ECFDF4]">
                                 <td className="py-2 px-4 text-muted-foreground text-[11px]">{r.data}</td>
                                 <td className="py-2 px-4">{r.descricao_banco}</td>
                                 <td className="py-2 px-4">
@@ -1310,34 +1310,34 @@ function CategoriaExpandivel({
   return (
     <>
       <tr
-        className="border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
+        className="border-b border-[#EAECF0] bg-[#F2F4F7] cursor-pointer hover:bg-[#EAECF0] transition-colors"
         onClick={onToggle}
       >
-        <td className="py-2.5 px-4 pl-6">
+        <td className="py-2.5 px-4 pl-6 border-r border-[#EAECF0]">
           <div className="flex items-center gap-1.5">
-            {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-            <span className="font-medium">{nome}</span>
-            <span className="text-[11px] text-muted-foreground ml-1">({lancamentos.length})</span>
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-[#667085]" /> : <ChevronRight className="h-3.5 w-3.5 text-[#667085]" />}
+            <span className="font-semibold text-[#1D2939]">{nome}</span>
+            <span className="text-[11px] text-[#667085] ml-1">({lancamentos.length})</span>
           </div>
         </td>
-        <td className="text-right py-2.5 px-4 font-semibold tabular-nums" style={{ color: isTransf ? "#98A2B3" : cor }}>
+        <td className="text-right py-2.5 px-4 font-bold tabular-nums" style={{ color: isTransf ? "#98A2B3" : cor }}>
           {isTransf ? "—" : fmt(total)}
         </td>
       </tr>
       {isOpen &&
         lancamentos.map((l, i) => (
-          <tr key={`${catId}_${i}`} className="border-b border-border/20 hover:bg-muted/10">
-            <td className="py-1.5 px-4 pl-12 text-muted-foreground">
-              <span className="text-[11px]">{l.data}</span>
+          <tr key={`${catId}_${i}`} className={`border-b border-[#EAECF0] hover:bg-[#ECFDF4] ${i % 2 === 1 ? "bg-[#FAFAFA]" : "bg-white"}`}>
+            <td className="py-1.5 px-4 pl-12 border-r border-[#EAECF0]">
+              <span className="text-[11px] text-[#667085]">{l.data}</span>
               <button
                 onClick={() => onEditCategoria(l, contaContabilId)}
-                className="ml-3 text-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
+                className="ml-3 text-[#1D2939] hover:text-primary hover:underline inline-flex items-center gap-1"
               >
                 {l.descricao}
-                <Pencil className="h-3 w-3 text-muted-foreground" />
+                <Pencil className="h-3 w-3 text-[#667085]" />
               </button>
             </td>
-            <td className="text-right py-1.5 px-4 tabular-nums text-muted-foreground">
+            <td className="text-right py-1.5 px-4 tabular-nums text-[#1D2939]">
               {isTransf ? "—" : fmt(l.valor)}
             </td>
           </tr>
@@ -1364,11 +1364,11 @@ function AtividadeDFC({
   return (
     <>
       <tr
-        className="bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
+        className="border-b border-[#D0D5DD] bg-[#F2F4F7] cursor-pointer hover:bg-[#EAECF0] transition-colors"
         onClick={onToggle}
       >
-        <td className="py-2.5 px-4 font-mono text-muted-foreground text-[11px]">{header.codigo}</td>
-        <td className="py-2.5 px-4 font-bold">
+        <td className="py-2.5 px-4 font-mono text-[#667085] text-[11px] border-r border-[#EAECF0]">{header.codigo}</td>
+        <td className="py-2.5 px-4 font-bold text-[#1D2939] border-r border-[#EAECF0]">
           <div className="flex items-center gap-1.5">
             {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: corAtividade }} />
@@ -1381,10 +1381,10 @@ function AtividadeDFC({
       </tr>
       {isOpen && (
         <>
-          {filhos.map((f) => (
-            <tr key={f.codigo} className="border-b border-border/50 hover:bg-muted/10">
-              <td className="py-2 px-4 pl-8 font-mono text-muted-foreground text-[11px]">{f.codigo}</td>
-              <td className="py-2 px-4 pl-8">{f.nome}</td>
+          {filhos.map((f, i) => (
+            <tr key={f.codigo} className={`border-b border-[#EAECF0] hover:bg-[#ECFDF4] ${i % 2 === 1 ? "bg-[#FAFAFA]" : "bg-white"}`}>
+              <td className="py-2 px-4 pl-8 font-mono text-[#667085] text-[11px] border-r border-[#EAECF0]">{f.codigo}</td>
+              <td className="py-2 px-4 pl-8 text-[#1D2939] border-r border-[#EAECF0]">{f.nome}</td>
               <td
                 className="text-right py-2 px-4 tabular-nums"
                 style={{ color: f.valor >= 0 ? "#039855" : "#E53E3E" }}
@@ -1394,11 +1394,11 @@ function AtividadeDFC({
             </tr>
           ))}
           {total && (
-            <tr className="border-b border-foreground/20 bg-muted/30">
-              <td className="py-2 px-4 font-mono text-[11px]">{total.codigo}</td>
-              <td className="py-2 px-4 font-semibold italic">{total.nome}</td>
+            <tr className="border-b-2 border-[#D0D5DD] bg-[#EAECF0]">
+              <td className="py-2 px-4 font-mono text-[11px] text-[#1D2939] border-r border-[#D0D5DD]">{total.codigo}</td>
+              <td className="py-2 px-4 font-bold text-[#1D2939] border-r border-[#D0D5DD]">{total.nome}</td>
               <td
-                className="text-right py-2 px-4 font-semibold tabular-nums"
+                className="text-right py-2 px-4 font-bold tabular-nums"
                 style={{ color: total.valor >= 0 ? "#039855" : "#E53E3E" }}
               >
                 {fmt(total.valor)}
