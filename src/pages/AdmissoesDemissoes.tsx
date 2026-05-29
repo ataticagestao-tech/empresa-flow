@@ -225,7 +225,7 @@ export default function AdmissoesDemissoes() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Admissoes e Demissoes">
-      <div className="p-6">
+      <div>
 
         <PagePanel title="Admissões e Demissões" subtitle="Controle de admissões, demissões e rescisões">
 

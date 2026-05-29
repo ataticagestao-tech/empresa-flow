@@ -80,8 +80,8 @@ export default function ContasFixas() {
   }, [contas])
 
   return (
-    <AppLayout>
-      <div className="px-6 py-6 max-w-6xl mx-auto animate-fade-in">
+    <AppLayout title="Contas Fixas">
+      <div className="px-6 pt-0 pb-6 max-w-6xl mx-auto animate-fade-in">
         <PagePanel
           title="Contas Fixas"
           subtitle={<>Despesas recorrentes do periodo. Marque uma conta como fixa em <Link to="/contas-pagar" style={{ color: '#059669', textDecoration: 'underline' }}>Contas a Pagar</Link>.</>}

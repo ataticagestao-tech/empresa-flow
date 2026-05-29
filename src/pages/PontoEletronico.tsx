@@ -366,7 +366,7 @@ export default function PontoEletronico() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Ponto Eletronico">
-      <div className="p-6">
+      <div>
 
         <PagePanel title="Ponto Eletrônico" subtitle="Registro de jornada e banco de horas">
 

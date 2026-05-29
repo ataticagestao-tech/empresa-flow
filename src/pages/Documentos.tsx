@@ -294,7 +294,7 @@ export default function Documentos() {
   const criticoCount = validadesEnriched.filter((v) => v.nivel_alerta === "critico").length;
 
   return (
-    <AppLayout>
+    <AppLayout title="Documentos">
       <div>
 
         <PagePanel title="Documentos">

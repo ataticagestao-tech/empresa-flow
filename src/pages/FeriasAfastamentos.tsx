@@ -207,7 +207,7 @@ export default function FeriasAfastamentos() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Ferias e Afastamentos">
-      <div className="p-6">
+      <div>
 
         <PagePanel title="Férias e Afastamentos" subtitle="Controle de férias, afastamentos e licenças">
 

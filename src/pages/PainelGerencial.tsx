@@ -1498,9 +1498,9 @@ export default function PainelGerencial() {
   // ────────────────────────────────────────────────────────────
 
   return (
-    <AppLayout>
+    <AppLayout title="Painel Gerencial">
       <div className="max-w-7xl mx-auto px-4 pb-12">
-        <div className="pt-4">
+        <div className="pt-0">
           <PendenciasBanner variant="full" filter="all" />
         </div>
 

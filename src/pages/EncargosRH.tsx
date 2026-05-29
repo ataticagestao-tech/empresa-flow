@@ -200,7 +200,7 @@ export default function EncargosRH() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Encargos Trabalhistas">
-      <div className="p-6">
+      <div>
 
         <PagePanel title="Encargos Trabalhistas" subtitle="Encargos trabalhistas e provisões sobre a folha">
 

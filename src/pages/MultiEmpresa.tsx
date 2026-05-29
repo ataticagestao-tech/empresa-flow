@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PagePanel } from "@/components/layout/PagePanel";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -23,6 +22,7 @@ import {
 import {
   Building2, Plus, Trash2, Edit2, RefreshCw, ArrowRightLeft,
   Loader2, FileText, BarChart3, GitMerge, ArrowLeft, ChevronRight,
+  Eye, ChevronDown,
 } from "lucide-react";
 
 // ── Types ──
@@ -93,6 +93,111 @@ const statusCfg: Record<string, { label: string; variant: "default" | "secondary
   cancelada: { label: "Cancelada", variant: "destructive" },
 };
 
+// ── Padrão de planilha: colunas ajustáveis + ocultáveis (hook reutilizável) ──
+function useColunasAjustaveis(
+  order: string[],
+  defaults: Record<string, number>,
+  storageKey: string,
+) {
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem(`${storageKey}_col_widths`);
+      if (s) return { ...defaults, ...JSON.parse(s) };
+    } catch { /* ignore */ }
+    return defaults;
+  });
+  useEffect(() => { localStorage.setItem(`${storageKey}_col_widths`, JSON.stringify(colWidths)); }, [colWidths, storageKey]);
+
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem(`${storageKey}_hidden_cols`);
+      if (s) return new Set(JSON.parse(s) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
+  useEffect(() => { localStorage.setItem(`${storageKey}_hidden_cols`, JSON.stringify([...hiddenCols])); }, [hiddenCols, storageKey]);
+
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const isColVisible = (k: string) => !hiddenCols.has(k);
+  const toggleColVisible = (k: string) => setHiddenCols((prev) => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+  const visibleCols = order.filter(isColVisible);
+
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const startResize = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = { key, startX: e.clientX, startW: colWidths[key] ?? defaults[key] };
+    const onMove = (ev: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r) return;
+      const newW = Math.max(60, r.startW + (ev.clientX - r.startX));
+      setColWidths((prev) => ({ ...prev, [r.key]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const tableStyle = {
+    tableLayout: "fixed" as const,
+    width: visibleCols.reduce((a, k) => a + (colWidths[k] ?? defaults[k]), 0),
+    minWidth: "100%",
+  };
+
+  return { colWidths, defaults, colMenuOpen, setColMenuOpen, isColVisible, toggleColVisible, startResize, tableStyle };
+}
+
+// Botão "Colunas" + dropdown de checkboxes (cabeçalho escuro)
+function ColunasMenu({
+  labels, colMenuOpen, setColMenuOpen, isColVisible, toggleColVisible,
+}: {
+  labels: Record<string, string>;
+  colMenuOpen: boolean;
+  setColMenuOpen: (fn: (o: boolean) => boolean) => void;
+  isColVisible: (k: string) => boolean;
+  toggleColVisible: (k: string) => void;
+}) {
+  return (
+    <div className="relative self-center">
+      <button
+        onClick={() => setColMenuOpen((o) => !o)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/20 text-[12px] text-white hover:bg-white/10"
+        title="Mostrar/ocultar colunas"
+      >
+        <Eye size={14} className="text-white/70" /> Colunas
+        <ChevronDown size={13} className={`text-white/60 transition-transform ${colMenuOpen ? "rotate-180" : ""}`} />
+      </button>
+      {colMenuOpen && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(() => false)} />
+          <div className="absolute right-0 mt-1 z-30 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
+            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+            {Object.entries(labels).map(([k, label]) => (
+              <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isColVisible(k)}
+                  onChange={() => toggleColVisible(k)}
+                  className="w-4 h-4 rounded border-[#D0D5DD] text-[#059669] focus:ring-[#059669]/30"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function MultiEmpresa() {
   const { user } = useAuth();
   const location = useLocation();
@@ -121,7 +226,7 @@ export default function MultiEmpresa() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout title="Multi-empresa">
       <div>
 
         <PagePanel title="Multi-empresa">
@@ -293,6 +398,17 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
   const { toast } = useToast();
   const confirm = useConfirm();
   const db = activeClient as any;
+
+  // Padrão de planilha (tabela "Empresas do grupo")
+  const EMP_COL_ORDER = ["empresa", "faturamento", "despesas", "resultado", "caixa", "cr", "cp", "acoes"];
+  const EMP_COL_LABELS: Record<string, string> = {
+    empresa: "Empresa", faturamento: "Faturamento", despesas: "Despesas", resultado: "Resultado",
+    caixa: "Caixa", cr: "CR aberto", cp: "CP aberto", acoes: "Ações",
+  };
+  const EMP_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    empresa: 220, faturamento: 130, despesas: 130, resultado: 130, caixa: 130, cr: 120, cp: 120, acoes: 80,
+  };
+  const empCols = useColunasAjustaveis(EMP_COL_ORDER, EMP_COL_WIDTHS_DEFAULT, "multiempresa_empresas");
 
   const [periodo, setPeriodo] = useState<"mes" | "mes_anterior" | "ano" | "mes_especifico">("mes");
   const now = new Date();
@@ -469,56 +585,80 @@ function GrupoDashboard({ grupoId, userId, onBack }: { grupoId: string; userId?:
             </CardContent>
           </Card>
 
-          {/* Tabela por empresa */}
-          <Card>
-            <div className="flex items-center justify-between p-5 pb-0">
-              <h3 className="font-semibold">Empresas do grupo</h3>
-              <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
+          {/* Tabela por empresa — padrão de planilha */}
+          <Card className="overflow-hidden p-0">
+            <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#000000" }}>
+              <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>Empresas do grupo</h3>
+              <div className="flex items-center gap-3">
+                <Button size="sm" variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white" onClick={() => setAddOpen(true)}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button>
+                <ColunasMenu labels={EMP_COL_LABELS} colMenuOpen={empCols.colMenuOpen} setColMenuOpen={empCols.setColMenuOpen} isColVisible={empCols.isColVisible} toggleColVisible={empCols.toggleColVisible} />
+              </div>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead className="text-right">Faturamento</TableHead>
-                  <TableHead className="text-right">Despesas</TableHead>
-                  <TableHead className="text-right">Resultado</TableHead>
-                  <TableHead className="text-right">Caixa</TableHead>
-                  <TableHead className="text-right">CR aberto</TableHead>
-                  <TableHead className="text-right">CP aberto</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(metrics?.rows || []).map((r) => (
-                  <TableRow key={r.company_id}>
-                    <TableCell className="font-medium">{r.nome}</TableCell>
-                    <TableCell className="text-right">{fmt(r.faturamento)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.despesa)}</TableCell>
-                    <TableCell className={`text-right font-semibold ${r.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`}>{fmt(r.resultado)}</TableCell>
-                    <TableCell className="text-right">{fmt(r.caixa)}</TableCell>
-                    <TableCell className="text-right text-emerald-600">{fmt(r.cr_aberto)}</TableCell>
-                    <TableCell className="text-right text-amber-600">{fmt(r.cp_aberto)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(members.find((m) => m.company_id === r.company_id)!.id, r.nome)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {metrics && (
-                  <TableRow className="bg-muted/50 font-semibold">
-                    <TableCell>Total consolidado</TableCell>
-                    <TableCell className="text-right">{fmt(metrics.totals.faturamento)}</TableCell>
-                    <TableCell className="text-right">{fmt(metrics.totals.despesa)}</TableCell>
-                    <TableCell className={`text-right ${metrics.totals.resultado >= 0 ? "text-blue-600" : "text-orange-600"}`}>{fmt(metrics.totals.resultado)}</TableCell>
-                    <TableCell className="text-right">{fmt(metrics.totals.caixa)}</TableCell>
-                    <TableCell className="text-right text-emerald-600">{fmt(metrics.totals.cr_aberto)}</TableCell>
-                    <TableCell className="text-right text-amber-600">{fmt(metrics.totals.cp_aberto)}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <div className="bg-white overflow-x-auto">
+              <table className="text-sm w-full" style={empCols.tableStyle}>
+                <colgroup>
+                  {EMP_COL_ORDER.map((k) => (
+                    <col key={k} className={empCols.isColVisible(k) ? "" : "hidden"} style={{ width: empCols.colWidths[k] ?? EMP_COL_WIDTHS_DEFAULT[k] }} />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="bg-white text-[13px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                    <th className={`text-left px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("empresa") ? "" : "hidden"}`}>
+                      Empresa<span onMouseDown={empCols.startResize("empresa")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("faturamento") ? "" : "hidden"}`}>
+                      Faturamento<span onMouseDown={empCols.startResize("faturamento")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("despesas") ? "" : "hidden"}`}>
+                      Despesas<span onMouseDown={empCols.startResize("despesas")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("resultado") ? "" : "hidden"}`}>
+                      Resultado<span onMouseDown={empCols.startResize("resultado")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("caixa") ? "" : "hidden"}`}>
+                      Caixa<span onMouseDown={empCols.startResize("caixa")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("cr") ? "" : "hidden"}`}>
+                      CR aberto<span onMouseDown={empCols.startResize("cr")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${empCols.isColVisible("cp") ? "" : "hidden"}`}>
+                      CP aberto<span onMouseDown={empCols.startResize("cp")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                    </th>
+                    <th className={`text-center px-3 py-2.5 relative ${empCols.isColVisible("acoes") ? "" : "hidden"}`}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(metrics?.rows || []).map((r) => (
+                    <tr key={r.company_id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
+                      <td className={`px-3 py-1 font-medium text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("empresa") ? "" : "hidden"}`} title={r.nome}>{r.nome}</td>
+                      <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("faturamento") ? "" : "hidden"}`}>{fmt(r.faturamento)}</td>
+                      <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("despesas") ? "" : "hidden"}`}>{fmt(r.despesa)}</td>
+                      <td className={`px-3 py-1 text-right font-semibold truncate border-r border-[#F1F3F5] ${r.resultado >= 0 ? "text-blue-600" : "text-orange-600"} ${empCols.isColVisible("resultado") ? "" : "hidden"}`}>{fmt(r.resultado)}</td>
+                      <td className={`px-3 py-1 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("caixa") ? "" : "hidden"}`}>{fmt(r.caixa)}</td>
+                      <td className={`px-3 py-1 text-right text-emerald-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cr") ? "" : "hidden"}`}>{fmt(r.cr_aberto)}</td>
+                      <td className={`px-3 py-1 text-right text-amber-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cp") ? "" : "hidden"}`}>{fmt(r.cp_aberto)}</td>
+                      <td className={`px-3 py-1 text-center ${empCols.isColVisible("acoes") ? "" : "hidden"}`}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveMember(members.find((m) => m.company_id === r.company_id)!.id, r.nome)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {metrics && (
+                    <tr className="bg-[#F6F2EB] font-semibold border-t border-[#EAECF0]">
+                      <td className={`px-3 py-1.5 text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("empresa") ? "" : "hidden"}`}>Total consolidado</td>
+                      <td className={`px-3 py-1.5 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("faturamento") ? "" : "hidden"}`}>{fmt(metrics.totals.faturamento)}</td>
+                      <td className={`px-3 py-1.5 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("despesas") ? "" : "hidden"}`}>{fmt(metrics.totals.despesa)}</td>
+                      <td className={`px-3 py-1.5 text-right truncate border-r border-[#F1F3F5] ${metrics.totals.resultado >= 0 ? "text-blue-600" : "text-orange-600"} ${empCols.isColVisible("resultado") ? "" : "hidden"}`}>{fmt(metrics.totals.resultado)}</td>
+                      <td className={`px-3 py-1.5 text-right text-[#1D2939] truncate border-r border-[#F1F3F5] ${empCols.isColVisible("caixa") ? "" : "hidden"}`}>{fmt(metrics.totals.caixa)}</td>
+                      <td className={`px-3 py-1.5 text-right text-emerald-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cr") ? "" : "hidden"}`}>{fmt(metrics.totals.cr_aberto)}</td>
+                      <td className={`px-3 py-1.5 text-right text-amber-600 truncate border-r border-[#F1F3F5] ${empCols.isColVisible("cp") ? "" : "hidden"}`}>{fmt(metrics.totals.cp_aberto)}</td>
+                      <td className={`px-3 py-1.5 ${empCols.isColVisible("acoes") ? "" : "hidden"}`}></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </>
       )}
@@ -741,6 +881,16 @@ function ConsolidadoTab({ userId }: { userId?: string }) {
 
 function TransferenciasTab({ userId }: { userId?: string }) {
   const { toast } = useToast();
+  // Padrão de planilha (tabela de transferências)
+  const TR_COL_ORDER = ["data", "rota", "natureza", "valor", "status", "acoes"];
+  const TR_COL_LABELS: Record<string, string> = {
+    data: "Data", rota: "Origem → Destino", natureza: "Natureza", valor: "Valor", status: "Status", acoes: "Ações",
+  };
+  const TR_COL_WIDTHS_DEFAULT: Record<string, number> = {
+    data: 100, rota: 240, natureza: 130, valor: 130, status: 110, acoes: 160,
+  };
+  const trCols = useColunasAjustaveis(TR_COL_ORDER, TR_COL_WIDTHS_DEFAULT, "multiempresa_transferencias");
+
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -830,47 +980,71 @@ function TransferenciasTab({ userId }: { userId?: string }) {
           <p>Nenhuma transferência registrada</p>
         </CardContent></Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Origem → Destino</TableHead>
-                <TableHead>Natureza</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transferencias.map((t) => {
-                const sc = statusCfg[t.status] || statusCfg.pendente;
-                return (
-                  <TableRow key={t.id}>
-                    <TableCell>{fmtDate(t.data)}</TableCell>
-                    <TableCell>
-                      <span className="font-mono text-xs">{t.company_origem_id.slice(0, 8)}</span>
-                      <span className="mx-1 text-muted-foreground">→</span>
-                      <span className="font-mono text-xs">{t.company_destino_id.slice(0, 8)}</span>
-                      {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
-                    </TableCell>
-                    <TableCell><Badge variant="outline">{naturezaLabels[t.natureza] || t.natureza}</Badge></TableCell>
-                    <TableCell className="text-right font-semibold">{fmt(t.valor)}</TableCell>
-                    <TableCell><Badge variant={sc.variant}>{sc.label}</Badge></TableCell>
-                    <TableCell>
-                      {t.status === "pendente" && (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => handleAprovar(t.id, "aprovada")}>Aprovar</Button>
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleAprovar(t.id, "cancelada")}>Cancelar</Button>
-                        </div>
-                      )}
-                      {t.status === "aprovada" && <Button size="sm" variant="ghost" onClick={() => handleConcluir(t.id)}>Concluir</Button>}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+        <Card className="overflow-hidden p-0">
+          <div className="px-5 py-4 flex items-center justify-between flex-shrink-0" style={{ backgroundColor: "#000000" }}>
+            <h3 className="font-extrabold text-white m-0" style={{ fontSize: 18, letterSpacing: "-0.015em", lineHeight: 1.15 }}>Transferências</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] text-white/70 font-medium">{transferencias.length} registro{transferencias.length !== 1 ? "s" : ""}</span>
+              <ColunasMenu labels={TR_COL_LABELS} colMenuOpen={trCols.colMenuOpen} setColMenuOpen={trCols.setColMenuOpen} isColVisible={trCols.isColVisible} toggleColVisible={trCols.toggleColVisible} />
+            </div>
+          </div>
+          <div className="bg-white overflow-x-auto">
+            <table className="text-sm w-full" style={trCols.tableStyle}>
+              <colgroup>
+                {TR_COL_ORDER.map((k) => (
+                  <col key={k} className={trCols.isColVisible(k) ? "" : "hidden"} style={{ width: trCols.colWidths[k] ?? TR_COL_WIDTHS_DEFAULT[k] }} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr className="bg-white text-[13px] font-bold text-black uppercase tracking-wider border-b-2 border-[#D0D5DD] whitespace-nowrap">
+                  <th className={`text-left px-3 py-2.5 relative border-r border-[#EAECF0] ${trCols.isColVisible("data") ? "" : "hidden"}`}>
+                    Data<span onMouseDown={trCols.startResize("data")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                  </th>
+                  <th className={`text-left px-3 py-2.5 relative border-r border-[#EAECF0] ${trCols.isColVisible("rota") ? "" : "hidden"}`}>
+                    Origem → Destino<span onMouseDown={trCols.startResize("rota")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                  </th>
+                  <th className={`text-left px-3 py-2.5 relative border-r border-[#EAECF0] ${trCols.isColVisible("natureza") ? "" : "hidden"}`}>
+                    Natureza<span onMouseDown={trCols.startResize("natureza")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                  </th>
+                  <th className={`text-right px-3 py-2.5 relative border-r border-[#EAECF0] ${trCols.isColVisible("valor") ? "" : "hidden"}`}>
+                    Valor<span onMouseDown={trCols.startResize("valor")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                  </th>
+                  <th className={`text-left px-3 py-2.5 relative border-r border-[#EAECF0] ${trCols.isColVisible("status") ? "" : "hidden"}`}>
+                    Status<span onMouseDown={trCols.startResize("status")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-black/10 z-10" title="Arraste para ajustar a largura" />
+                  </th>
+                  <th className={`text-left px-3 py-2.5 relative ${trCols.isColVisible("acoes") ? "" : "hidden"}`}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transferencias.map((t) => {
+                  const sc = statusCfg[t.status] || statusCfg.pendente;
+                  return (
+                    <tr key={t.id} className="border-b border-[#F1F3F5] hover:bg-[#FAFAFA]">
+                      <td className={`px-3 py-1 text-[#1D2939] truncate border-r border-[#F1F3F5] ${trCols.isColVisible("data") ? "" : "hidden"}`}>{fmtDate(t.data)}</td>
+                      <td className={`px-3 py-1 truncate border-r border-[#F1F3F5] ${trCols.isColVisible("rota") ? "" : "hidden"}`} title={t.descricao || undefined}>
+                        <span className="font-mono text-xs">{t.company_origem_id.slice(0, 8)}</span>
+                        <span className="mx-1 text-muted-foreground">→</span>
+                        <span className="font-mono text-xs">{t.company_destino_id.slice(0, 8)}</span>
+                        {t.descricao && <span className="text-xs text-muted-foreground ml-2">{t.descricao}</span>}
+                      </td>
+                      <td className={`px-3 py-1 truncate border-r border-[#F1F3F5] ${trCols.isColVisible("natureza") ? "" : "hidden"}`}><Badge variant="outline">{naturezaLabels[t.natureza] || t.natureza}</Badge></td>
+                      <td className={`px-3 py-1 text-right font-semibold text-[#1D2939] truncate border-r border-[#F1F3F5] ${trCols.isColVisible("valor") ? "" : "hidden"}`}>{fmt(t.valor)}</td>
+                      <td className={`px-3 py-1 truncate border-r border-[#F1F3F5] ${trCols.isColVisible("status") ? "" : "hidden"}`}><Badge variant={sc.variant}>{sc.label}</Badge></td>
+                      <td className={`px-3 py-1 ${trCols.isColVisible("acoes") ? "" : "hidden"}`}>
+                        {t.status === "pendente" && (
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" className="h-7" onClick={() => handleAprovar(t.id, "aprovada")}>Aprovar</Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => handleAprovar(t.id, "cancelada")}>Cancelar</Button>
+                          </div>
+                        )}
+                        {t.status === "aprovada" && <Button size="sm" variant="ghost" className="h-7" onClick={() => handleConcluir(t.id)}>Concluir</Button>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 

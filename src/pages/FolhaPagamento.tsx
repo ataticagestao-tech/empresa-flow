@@ -546,7 +546,7 @@ export default function FolhaPagamentoPage() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <AppLayout title="Folha de Pagamento">
-      <div className="p-6">
+      <div>
         <PagePanel title="Folha de Pagamento" subtitle="Cálculo e fechamento da folha mensal">
 
         {/* ── KPIs ── */}

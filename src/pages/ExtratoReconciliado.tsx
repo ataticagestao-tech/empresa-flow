@@ -369,8 +369,8 @@ export default function ExtratoReconciliado() {
 
   /* --- render ----------------------------------------------------- */
   return (
-    <AppLayout>
-      <div className="p-6">
+    <AppLayout title="Extrato Reconciliado">
+      <div>
 
         <PagePanel title="Extrato Reconciliado">
           <div className="flex flex-wrap items-center gap-2 justify-end">

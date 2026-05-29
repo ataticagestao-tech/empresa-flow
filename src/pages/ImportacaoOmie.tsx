@@ -252,7 +252,7 @@ export default function ImportacaoOmie() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout title="Importação Omie">
       <div>
 
         <PagePanel title="Importação Omie">

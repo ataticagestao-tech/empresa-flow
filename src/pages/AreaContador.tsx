@@ -655,8 +655,8 @@ ${empresaNome}`;
   );
 
   return (
-    <AppLayout>
-      <div className="p-6">
+    <AppLayout title="Área do Contador">
+      <div>
         {/* Header */}
         <PagePanel
           title="Área do Contador"
