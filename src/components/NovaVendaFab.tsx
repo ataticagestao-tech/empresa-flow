@@ -4,57 +4,39 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Plus, X } from "lucide-react";
 
-const STORAGE_KEY_HIDDEN = "nova_venda_fab_hidden";
-
 /**
- * Botão flutuante "+ Nova Venda" — círculo verde fixo no canto inferior
- * direito, presente em qualquer página do sistema. Clicar leva a
- * /vendas?new=true, que abre o modal de nova venda automaticamente.
+ * Botões flutuantes de ação rápida no canto superior direito, presentes em
+ * qualquer página do sistema:
+ *   - Verde: "Nova Venda"  → /vendas?new=true
+ *   - Vermelho claro: "Lançar CP" → /contas-pagar?new=true
+ * Ambas as rotas abrem o respectivo modal automaticamente.
  *
- * Some quando:
- *   - Não há empresa selecionada / usuário deslogado
- *   - Já está na página de Vendas (botão dedicado lá)
- *   - Páginas públicas (/venda, /lp, /checkout) ou /auth, /conta-bloqueada
- *   - Usuário fechou via X (persiste no localStorage)
+ * Cada botão tem um X que o oculta individualmente (persiste no localStorage).
+ * Some em páginas públicas (/venda, /lp, /checkout), /auth e /conta-bloqueada,
+ * ou quando não há empresa selecionada / usuário deslogado.
  */
-export function NovaVendaFab() {
-  const { user } = useAuth();
-  const { selectedCompany } = useCompany();
-  const navigate = useNavigate();
-  const location = useLocation();
 
-  const [hidden, setHidden] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY_HIDDEN) === "true"; } catch { return false; }
-  });
+interface FabButtonProps {
+  label: string;
+  color: string;
+  shadow: string;
+  shadowHover: string;
+  iconColor: string;
+  onClick: () => void;
+  onDismiss: () => void;
+}
+
+function FabButton({ label, color, shadow, shadowHover, iconColor, onClick, onDismiss }: FabButtonProps) {
   const [hover, setHover] = useState(false);
-
-  const hiddenRoute =
-    location.pathname.startsWith("/auth") ||
-    location.pathname.startsWith("/conta-bloqueada") ||
-    location.pathname.startsWith("/lp") ||
-    location.pathname === "/venda" ||
-    location.pathname.startsWith("/checkout");
-
-  if (!user) return null;
-  if (!selectedCompany?.id) return null;
-  if (hidden) return null;
-  if (hiddenRoute) return null;
-
-  const dismiss = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try { localStorage.setItem(STORAGE_KEY_HIDDEN, "true"); } catch {}
-    setHidden(true);
-  };
 
   return (
     <div
-      style={{ position: "fixed", top: 76, right: 20, zIndex: 54 }}
+      style={{ position: "relative" }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* Botão fechar */}
       <button
-        onClick={dismiss}
+        onClick={(e) => { e.stopPropagation(); onDismiss(); }}
         title="Ocultar botão"
         style={{
           position: "absolute",
@@ -74,33 +56,101 @@ export function NovaVendaFab() {
         <X size={13} strokeWidth={2.5} />
       </button>
 
-      {/* FAB redondo */}
       <button
-        onClick={() => navigate("/vendas?new=true")}
-        title="Nova Venda"
-        aria-label="Nova Venda"
+        onClick={onClick}
+        title={label}
+        aria-label={label}
         style={{
           height: 56,
           width: hover ? "auto" : 56,
           paddingLeft: hover ? 18 : 0,
           paddingRight: hover ? 22 : 0,
           borderRadius: 999,
-          background: "#039855",
-          color: "#FFFFFF",
+          background: color,
+          color: iconColor,
           border: "none",
-          boxShadow: "0 8px 20px rgba(3, 152, 85, 0.32)",
+          boxShadow: shadow,
           cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           fontSize: 14, fontWeight: 700,
           whiteSpace: "nowrap",
           transition: "width 0.18s ease, padding 0.18s ease, transform 0.15s, box-shadow 0.15s",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 24px rgba(3, 152, 85, 0.4)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 8px 20px rgba(3, 152, 85, 0.32)"; }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = shadowHover; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = shadow; }}
       >
         <Plus size={24} strokeWidth={2.75} style={{ flexShrink: 0 }} />
-        {hover && <span>Nova Venda</span>}
+        {hover && <span>{label}</span>}
       </button>
+    </div>
+  );
+}
+
+export function NovaVendaFab() {
+  const { user } = useAuth();
+  const { selectedCompany } = useCompany();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [vendaHidden, setVendaHidden] = useState(() => {
+    try { return localStorage.getItem("nova_venda_fab_hidden") === "true"; } catch { return false; }
+  });
+  const [cpHidden, setCpHidden] = useState(() => {
+    try { return localStorage.getItem("lancar_cp_fab_hidden") === "true"; } catch { return false; }
+  });
+
+  const hiddenRoute =
+    location.pathname.startsWith("/auth") ||
+    location.pathname.startsWith("/conta-bloqueada") ||
+    location.pathname.startsWith("/lp") ||
+    location.pathname === "/venda" ||
+    location.pathname.startsWith("/checkout");
+
+  if (!user) return null;
+  if (!selectedCompany?.id) return null;
+  if (hiddenRoute) return null;
+  if (vendaHidden && cpHidden) return null;
+
+  const dismissVenda = () => {
+    try { localStorage.setItem("nova_venda_fab_hidden", "true"); } catch {}
+    setVendaHidden(true);
+  };
+  const dismissCp = () => {
+    try { localStorage.setItem("lancar_cp_fab_hidden", "true"); } catch {}
+    setCpHidden(true);
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 76, right: 20,
+        zIndex: 54,
+        display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 14,
+      }}
+    >
+      {!vendaHidden && (
+        <FabButton
+          label="Nova Venda"
+          color="#039855"
+          iconColor="#FFFFFF"
+          shadow="0 8px 20px rgba(3, 152, 85, 0.32)"
+          shadowHover="0 12px 24px rgba(3, 152, 85, 0.4)"
+          onClick={() => navigate("/vendas?new=true")}
+          onDismiss={dismissVenda}
+        />
+      )}
+      {!cpHidden && (
+        <FabButton
+          label="Lançar CP"
+          color="#F97066"
+          iconColor="#FFFFFF"
+          shadow="0 8px 20px rgba(240, 68, 56, 0.30)"
+          shadowHover="0 12px 24px rgba(240, 68, 56, 0.4)"
+          onClick={() => navigate("/contas-pagar?new=true")}
+          onDismiss={dismissCp}
+        />
+      )}
     </div>
   );
 }
