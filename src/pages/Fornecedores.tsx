@@ -14,7 +14,7 @@ import { SupplierHistoryContent } from "@/components/suppliers/SupplierHistoryCo
 import { toTitleCase } from "@/lib/format";
 import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { toast } from "sonner";
-import { Globe, MessageCircle, Copy } from "lucide-react";
+import { Globe, Copy } from "lucide-react";
 
 interface Supplier {
     id: string;
@@ -356,7 +356,7 @@ export default function Fornecedores() {
                       <p className="text-[11px] text-white/80 mt-0.5">Cadastro de fornecedores e dados de pagamento</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><MessageCircle className="h-4 w-4" /></button>
+                      <button onClick={() => { setSolicitarTarget({}); setSolicitarOpen(true); }} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Solicitar dados via WhatsApp"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg></button>
                       <button onClick={() => setIsDupOpen(true)} className="text-white/80 hover:text-white p-1.5 rounded hover:bg-white/10" title="Localizar duplicados"><Copy className="h-4 w-4" /></button>
                       <ExportMenu rows={suppliersExportRows} columns={suppliersExportColumns} titulo="FORNECEDORES" baseName="fornecedores" orientacao="landscape" size="sm" disabled={!suppliers.length} />
                       <button onClick={startNew} className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1 ml-1">+ Novo</button>
