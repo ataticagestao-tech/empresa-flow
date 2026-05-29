@@ -1242,8 +1242,8 @@ export default function NfseEmissao() {
               </button>
               {emitidasColMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setEmitidasColMenuOpen(false)} />
-                  <div className="absolute right-0 mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px]">
+                  <div className="fixed inset-0 z-40" onClick={() => setEmitidasColMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px]">
                     <p className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Exibir colunas</p>
                     {Object.entries(EMITIDAS_COL_LABELS).map(([k, label]) => (
                       <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
@@ -1313,8 +1313,8 @@ export default function NfseEmissao() {
               </button>
               {colMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setColMenuOpen(false)} />
-                  <div className="absolute right-0 mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px]">
+                  <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[200px]">
                     <p className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Exibir colunas</p>
                     {Object.entries(COL_LABELS).map(([k, label]) => (
                       <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
