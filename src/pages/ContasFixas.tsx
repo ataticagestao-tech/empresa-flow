@@ -174,6 +174,7 @@ export default function ContasFixas() {
 function KpiCard({ label, value, count, accent }: { label: string; value: number; count: number; accent: string }) {
   return (
     <KpiCardBase
+      size="sm"
       label={label}
       value={formatBRL(value)}
       valueColor={accent}

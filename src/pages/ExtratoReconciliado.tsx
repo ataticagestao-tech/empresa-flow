@@ -85,7 +85,7 @@ function KpiCard({
   value: string;
   color?: string;
 }) {
-  return <KpiCardBase label={label} value={value} valueColor={color} />;
+  return <KpiCardBase size="sm" label={label} value={value} valueColor={color} />;
 }
 
 /* ------------------------------------------------------------------ */

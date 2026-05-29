@@ -84,6 +84,7 @@ function KpiCard({
 }) {
   return (
     <KpiCardBase
+      size="sm"
       label={label}
       value={value}
       valueColor={color}
