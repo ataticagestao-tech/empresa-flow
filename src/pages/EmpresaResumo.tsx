@@ -4,7 +4,7 @@ import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, BarChart3, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search } from "lucide-react";
+import { Building2, MapPin, FileText, User, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { gerarFichaEmpresaPDF, carregarLogoEmpresa } from "@/lib/ficha-empresa/gerar-pdf";
@@ -469,10 +469,6 @@ export default function EmpresaResumo() {
           subtitle="Ficha cadastral da empresa"
           headerActions={
             <>
-            <button onClick={() => navigate(`/dashboard/${id}`)}
-              className="flex items-center gap-1.5 bg-white text-[#1D2939] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
-              <BarChart3 size={14} /> Dashboard
-            </button>
             {editing ? (
               <>
                 <button onClick={() => setEditing(false)} disabled={saving}
