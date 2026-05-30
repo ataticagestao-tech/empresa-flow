@@ -1,6 +1,5 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export interface SocioFicha {
   nome_socio?: string | null;
@@ -49,7 +48,7 @@ function maskCNPJ(v: string): string {
 
 /**
  * Carrega o logo da empresa (URL) → dataURL + dimensões em mm ajustadas à
- * proporção (cabe numa caixa ~18mm). Null se a imagem não carregar (CORS etc.).
+ * proporção (cabe numa caixa ~16mm). Null se a imagem não carregar (CORS etc.).
  */
 export async function carregarLogoEmpresa(
   url: string | null | undefined,
@@ -68,7 +67,7 @@ export async function carregarLogoEmpresa(
         ctx.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL("image/png");
         const ratio = img.naturalWidth / img.naturalHeight || 1;
-        const box = 18;
+        const box = 16;
         let w = box, h = box;
         if (ratio >= 1) { w = box; h = box / ratio; } else { h = box; w = box * ratio; }
         resolve({ dataUrl, w, h });
@@ -81,7 +80,7 @@ export async function carregarLogoEmpresa(
   });
 }
 
-/** Gera a ficha cadastral da empresa em PDF (A4 retrato, padrão visual do sistema). */
+/** Gera a ficha cadastral da empresa em PDF (A4 retrato, layout compacto). */
 export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
   const c = data.company || {};
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
@@ -89,10 +88,10 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
   const [cr, cg, cb] = hexToRgb(cor);
   const W = 210;
   const H = 297;
-  const margin = 14;
+  const margin = 12;
   const contentW = W - margin * 2;
-  const headerBandH = 36;
-  const bottomLimit = H - 14;
+  const headerBandH = 30;
+  const bottomLimit = H - 12;
 
   const nome = c.nome_fantasia || c.razao_social || "Empresa";
   const agora = new Date();
@@ -110,38 +109,38 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     doc.rect(0, 0, W, headerBandH, "F");
 
     // Logo numa caixa branca (qualquer logo aparece bem; senão monograma)
-    const boxSize = 22;
+    const boxSize = 19;
     const boxY = (headerBandH - boxSize) / 2;
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(margin, boxY, boxSize, boxSize, 3, 3, "F");
+    doc.roundedRect(margin, boxY, boxSize, boxSize, 2.5, 2.5, "F");
     if (data.logo_base64) {
-      const lw = data.logo_w && data.logo_w > 0 ? data.logo_w : 18;
-      const lh = data.logo_h && data.logo_h > 0 ? data.logo_h : 18;
+      const lw = data.logo_w && data.logo_w > 0 ? data.logo_w : 16;
+      const lh = data.logo_h && data.logo_h > 0 ? data.logo_h : 16;
       const fmt = /^data:image\/png/i.test(data.logo_base64) ? "PNG"
         : /^data:image\/jpe?g/i.test(data.logo_base64) ? "JPEG" : "PNG";
       try {
         doc.addImage(data.logo_base64, fmt, margin + (boxSize - lw) / 2, boxY + (boxSize - lh) / 2, lw, lh);
       } catch {
-        doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(cr, cg, cb);
-        doc.text(nome.charAt(0).toUpperCase(), margin + boxSize / 2, boxY + boxSize / 2 + 2.4, { align: "center" });
+        doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(cr, cg, cb);
+        doc.text(nome.charAt(0).toUpperCase(), margin + boxSize / 2, boxY + boxSize / 2 + 2.2, { align: "center" });
       }
     } else {
-      doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(cr, cg, cb);
-      doc.text(nome.charAt(0).toUpperCase(), margin + boxSize / 2, boxY + boxSize / 2 + 2.4, { align: "center" });
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(cr, cg, cb);
+      doc.text(nome.charAt(0).toUpperCase(), margin + boxSize / 2, boxY + boxSize / 2 + 2.2, { align: "center" });
     }
 
-    const tx = margin + boxSize + 6;
+    const tx = margin + boxSize + 5;
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text(doc.splitTextToSize(nome, contentW - boxSize - 6 - 70)[0] || nome, tx, 14);
+    doc.setFontSize(13);
+    doc.text(doc.splitTextToSize(nome, contentW - boxSize - 5 - 62)[0] || nome, tx, 12);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(235, 240, 245);
-    let ly = 20;
+    let ly = 17.5;
     if (c.razao_social && String(c.razao_social).toLowerCase() !== String(nome).toLowerCase()) {
-      doc.text(doc.splitTextToSize(String(c.razao_social), contentW - boxSize - 6 - 70)[0], tx, ly);
-      ly += 4.5;
+      doc.text(doc.splitTextToSize(String(c.razao_social), contentW - boxSize - 5 - 62)[0], tx, ly);
+      ly += 4;
     }
     const linhaInfo = [c.cnpj ? `CNPJ: ${maskCNPJ(c.cnpj)}` : null,
       [c.endereco_cidade, c.endereco_estado].filter(Boolean).join("/") || null].filter(Boolean).join("   ·   ");
@@ -150,31 +149,31 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     // Bloco direito
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("FICHA CADASTRAL", W - margin, 14, { align: "right" });
+    doc.setFontSize(10);
+    doc.text("FICHA CADASTRAL", W - margin, 12, { align: "right" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(235, 240, 245);
-    doc.text(`Emitido em ${emitidoEm}`, W - margin, 20, { align: "right" });
-    doc.setFontSize(7);
-    doc.text(`Cód.: ${codigoDoc}`, W - margin, 24.5, { align: "right" });
+    doc.text(`Emitido em ${emitidoEm}`, W - margin, 17.5, { align: "right" });
+    doc.setFontSize(6.5);
+    doc.text(`Cód.: ${codigoDoc}`, W - margin, 21.5, { align: "right" });
   };
 
-  let y = headerBandH + 10;
+  let y = headerBandH + 8;
 
-  const novaPagina = () => { doc.addPage(); drawHeader(); return headerBandH + 10; };
+  const novaPagina = () => { doc.addPage(); drawHeader(); return headerBandH + 8; };
   const garantir = (need: number) => { if (y + need > bottomLimit) y = novaPagina(); };
 
   /* ── Título de seção ── */
   const secaoTitulo = (txt: string) => {
-    garantir(12);
+    garantir(11);
     doc.setFillColor(cr, cg, cb);
-    doc.roundedRect(margin, y, 2.5, 5, 1, 1, "F");
+    doc.roundedRect(margin, y, 2.2, 4.5, 1, 1, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11.5);
+    doc.setFontSize(10);
     doc.setTextColor(30, 41, 57);
-    doc.text(txt, margin + 5, y + 4.3);
-    y += 9;
+    doc.text(txt, margin + 4.5, y + 3.9);
+    y += 7.5;
   };
 
   /* ── Grade de campos (2 colunas) ── */
@@ -182,22 +181,22 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     const colW = contentW / 2;
     for (let i = 0; i < pares.length; i += 2) {
       const rowPares = pares.slice(i, i + 2);
-      garantir(11);
+      garantir(9.5);
       rowPares.forEach(([rot, val], col) => {
         const x = margin + col * colW;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
+        doc.setFontSize(6.5);
         doc.setTextColor(150, 158, 170);
         doc.text(rot.toUpperCase(), x, y);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(10.5);
+        doc.setFontSize(9.5);
         doc.setTextColor(29, 41, 57);
         const linhas = doc.splitTextToSize(ou(val), colW - 4) as string[];
-        doc.text(linhas[0] || "—", x, y + 5);
+        doc.text(linhas[0] || "—", x, y + 4.5);
       });
-      y += 11;
+      y += 9.5;
     }
-    y += 3;
+    y += 2.5;
   };
 
   drawHeader();
@@ -209,6 +208,8 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     ["Nome fantasia", c.nome_fantasia],
     ["CNPJ", c.cnpj ? maskCNPJ(c.cnpj) : null],
     ["Data de abertura", fmtData(c.data_abertura)],
+    ["Natureza jurídica", c.natureza_juridica],
+    ["CNAE", c.cnae],
     ["Inscrição municipal", c.inscricao_municipal],
     ["Inscrição estadual", c.inscricao_estadual],
     ["Situação", c.is_active ? "Ativa" : "Inativa"],
@@ -217,6 +218,7 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
   // 2 Endereço e contato
   const enderecoFmt = [
     [c.endereco_logradouro, c.endereco_numero].filter(Boolean).join(", "),
+    c.endereco_complemento,
     c.endereco_bairro,
   ].filter(Boolean).join(" — ");
   secaoTitulo("Endereço e Contato");
@@ -226,6 +228,9 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     ["CEP", c.endereco_cep],
     ["E-mail", c.email],
     ["Telefone", c.telefone],
+    ["Celular", c.celular],
+    ["Site", c.site],
+    ["Contato", c.contato_nome],
   ]);
 
   // 3 Regime tributário
@@ -234,7 +239,22 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     ["Regime adotado", c.regime_tributario ? (data.regimeLabels?.[c.regime_tributario] || c.regime_tributario) : null],
   ]);
 
-  // 4 Responsável legal
+  // 4 Dados bancários
+  const temBanco = c.dados_bancarios_banco || c.dados_bancarios_agencia || c.dados_bancarios_conta
+    || c.dados_bancarios_pix || c.dados_bancarios_titular_nome || c.dados_bancarios_titular_cpf_cnpj;
+  if (temBanco) {
+    secaoTitulo("Dados Bancários");
+    campos([
+      ["Banco", c.dados_bancarios_banco],
+      ["Agência", c.dados_bancarios_agencia],
+      ["Conta", c.dados_bancarios_conta],
+      ["Chave PIX", c.dados_bancarios_pix],
+      ["Titular", c.dados_bancarios_titular_nome],
+      ["CPF/CNPJ titular", c.dados_bancarios_titular_cpf_cnpj],
+    ]);
+  }
+
+  // 5 Responsável legal
   secaoTitulo("Responsável Legal");
   campos([
     ["Nome", c.responsavel_nome],
@@ -243,16 +263,16 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     ["Telefone", c.responsavel_telefone],
   ]);
 
-  // 5 Quadro societário
+  // 6 Quadro societário
   secaoTitulo("Quadro Societário");
   const qsa = data.qsa || [];
   if (qsa.length === 0) {
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     doc.setTextColor(120, 128, 140);
-    garantir(8);
+    garantir(7);
     doc.text("Nenhum sócio localizado na base da Receita Federal para o CNPJ informado.", margin, y);
-    y += 8;
+    y += 7;
   } else {
     const cols = [
       { label: "Sócio", w: contentW * 0.52, align: "left" as const },
@@ -264,39 +284,39 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
     cols.forEach((cc) => { colX.push(ax); ax += cc.w; });
 
     const cabecalho = () => {
-      garantir(8);
+      garantir(7);
       doc.setFillColor(243, 244, 246);
-      doc.rect(margin, y, contentW, 7, "F");
+      doc.rect(margin, y, contentW, 6.5, "F");
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       doc.setTextColor(80, 88, 100);
-      cols.forEach((cc, i) => doc.text(cc.label.toUpperCase(), colX[i] + 2, y + 4.6));
-      y += 7;
+      cols.forEach((cc, i) => doc.text(cc.label.toUpperCase(), colX[i] + 2, y + 4.3));
+      y += 6.5;
     };
     cabecalho();
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     qsa.forEach((s, i) => {
       const nomeLn = doc.splitTextToSize(s.nome_socio || "—", cols[0].w - 4) as string[];
       const qualLn = doc.splitTextToSize(s.qualificacao_socio || "—", cols[1].w - 4) as string[];
       const linhasN = Math.max(nomeLn.length, qualLn.length, 1);
-      const rowH = Math.max(7, linhasN * 5 + 2);
-      if (y + rowH > bottomLimit) { y = novaPagina(); cabecalho(); doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); }
+      const rowH = Math.max(6.5, linhasN * 4.6 + 2);
+      if (y + rowH > bottomLimit) { y = novaPagina(); cabecalho(); doc.setFont("helvetica", "normal"); doc.setFontSize(9); }
       if (i % 2 === 0) { doc.setFillColor(250, 250, 251); doc.rect(margin, y, contentW, rowH, "F"); }
       doc.setTextColor(29, 41, 57);
-      nomeLn.forEach((ln, k) => doc.text(ln, colX[0] + 2, y + 5 + k * 5));
-      qualLn.forEach((ln, k) => doc.text(ln, colX[1] + 2, y + 5 + k * 5));
-      doc.text(fmtData(s.data_entrada_sociedade) || "—", colX[2] + 2, y + 5);
+      nomeLn.forEach((ln, k) => doc.text(ln, colX[0] + 2, y + 4.6 + k * 4.6));
+      qualLn.forEach((ln, k) => doc.text(ln, colX[1] + 2, y + 4.6 + k * 4.6));
+      doc.text(fmtData(s.data_entrada_sociedade) || "—", colX[2] + 2, y + 4.6);
       y += rowH;
       doc.setDrawColor(235, 237, 240);
       doc.setLineWidth(0.1);
       doc.line(margin, y, margin + contentW, y);
     });
-    y += 3;
+    y += 2.5;
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(150, 158, 170);
-    garantir(6);
+    garantir(5);
     doc.text(`Fonte: BrasilAPI / Receita Federal · consulta em ${format(agora, "dd/MM/yyyy HH:mm")}.`, margin, y);
   }
 
@@ -304,12 +324,12 @@ export function gerarFichaEmpresaPDF(data: FichaEmpresaData): Blob {
   const pageCount = (doc.internal as any).getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    const fy = H - 8;
+    const fy = H - 7;
     doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.3);
     doc.line(margin, fy - 3, margin + contentW, fy - 3);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
     doc.setTextColor(156, 163, 175);
     doc.text("Ficha cadastral gerada pelo sistema Tatica Gestão.", margin, fy);
     doc.setFont("helvetica", "bold");

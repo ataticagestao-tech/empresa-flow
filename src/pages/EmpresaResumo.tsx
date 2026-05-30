@@ -4,18 +4,14 @@ import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, ArrowLeft, BarChart3, Pencil, Users, Wallet, Receipt, UserCheck, Camera, Check, X, Trash2, FileDown } from "lucide-react";
+import { Building2, MapPin, FileText, User, BarChart3, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
 import { gerarFichaEmpresaPDF, carregarLogoEmpresa } from "@/lib/ficha-empresa/gerar-pdf";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useCompanies } from "@/hooks/useCompanies";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useCompany } from "@/contexts/CompanyContext";
-
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#555]";
 
 const regimeLabels: Record<string, string> = {
   simples_nacional: "Simples Nacional",
@@ -38,7 +34,9 @@ export default function EmpresaResumo() {
   const queryClient = useQueryClient();
   const db = activeClient as any;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const contratoInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [contratoUploading, setContratoUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -156,6 +154,74 @@ export default function EmpresaResumo() {
     staleTime: 1000 * 60 * 60,
   });
 
+  // Contrato social anexado (bucket company-documents). Sem coluna no banco:
+  // detecta o arquivo por path determinístico para evitar mudança de schema.
+  const { data: contratoUrl } = useQuery({
+    queryKey: ["empresa_contrato", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await db.storage.from("company-documents").list(id, { search: "contrato-social" });
+      if (error || !data?.length) return null;
+      const file = data.find((f: any) => f.name.startsWith("contrato-social"));
+      if (!file) return null;
+      // Bucket privado (RLS por user_companies) → URL assinada temporária.
+      const { data: signed } = await db.storage.from("company-documents").createSignedUrl(`${id}/${file.name}`, 3600);
+      return signed?.signedUrl ?? null;
+    },
+    enabled: !!id,
+  });
+
+  const handleContratoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+    if (file.type !== "application/pdf") {
+      toast.error("Selecione um arquivo PDF.");
+      return;
+    }
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Arquivo muito grande. Máximo 50MB.");
+      return;
+    }
+    setContratoUploading(true);
+    try {
+      const path = `${id}/contrato-social.pdf`;
+      const { error } = await db.storage
+        .from("company-documents")
+        .upload(path, file, { upsert: true, contentType: "application/pdf", cacheControl: "3600" });
+      if (error) {
+        const msg = String(error.message || "").toLowerCase();
+        if (msg.includes("bucket") && msg.includes("not found")) {
+          throw new Error("Bucket 'company-documents' não existe. Rode a migration de documentos.");
+        }
+        if (msg.includes("row-level security") || msg.includes("policy") || msg.includes("permission")) {
+          throw new Error("Sem permissão (RLS) para enviar o contrato.");
+        }
+        throw error;
+      }
+      queryClient.invalidateQueries({ queryKey: ["empresa_contrato", id] });
+      toast.success("Contrato social enviado!");
+    } catch (err: any) {
+      console.error("Contrato upload error:", err);
+      toast.error("Erro ao enviar contrato: " + (err.message || "Tente novamente."));
+    } finally {
+      setContratoUploading(false);
+      if (contratoInputRef.current) contratoInputRef.current.value = "";
+    }
+  };
+
+  const handleContratoDelete = async () => {
+    if (!id) return;
+    try {
+      const { error } = await db.storage.from("company-documents").remove([`${id}/contrato-social.pdf`]);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["empresa_contrato", id] });
+      toast.success("Contrato removido.");
+    } catch (err: any) {
+      toast.error("Erro ao remover: " + (err.message || "Tente novamente."));
+    }
+  };
+
   const { data: stats } = useQuery({
     queryKey: ["empresa_stats", id],
     queryFn: async () => {
@@ -183,17 +249,29 @@ export default function EmpresaResumo() {
         nome_fantasia: company.nome_fantasia || "",
         cnpj: company.cnpj || "",
         data_abertura: company.data_abertura || "",
+        natureza_juridica: company.natureza_juridica || "",
+        cnae: company.cnae || "",
         inscricao_municipal: company.inscricao_municipal || "",
         inscricao_estadual: company.inscricao_estadual || "",
         endereco_logradouro: company.endereco_logradouro || "",
         endereco_numero: company.endereco_numero || "",
+        endereco_complemento: company.endereco_complemento || "",
         endereco_bairro: company.endereco_bairro || "",
         endereco_cidade: company.endereco_cidade || "",
         endereco_estado: company.endereco_estado || "",
         endereco_cep: company.endereco_cep || "",
         email: company.email || "",
         telefone: company.telefone || "",
+        celular: company.celular || "",
+        site: company.site || "",
+        contato_nome: company.contato_nome || "",
         regime_tributario: company.regime_tributario || "",
+        dados_bancarios_banco: company.dados_bancarios_banco || "",
+        dados_bancarios_agencia: company.dados_bancarios_agencia || "",
+        dados_bancarios_conta: company.dados_bancarios_conta || "",
+        dados_bancarios_pix: company.dados_bancarios_pix || "",
+        dados_bancarios_titular_nome: company.dados_bancarios_titular_nome || "",
+        dados_bancarios_titular_cpf_cnpj: company.dados_bancarios_titular_cpf_cnpj || "",
         responsavel_nome: company.responsavel_nome || "",
         responsavel_cpf: company.responsavel_cpf || "",
         responsavel_email: company.responsavel_email || "",
@@ -211,17 +289,29 @@ export default function EmpresaResumo() {
         nome_fantasia: form.nome_fantasia || null,
         cnpj: form.cnpj?.replace(/\D/g, "") || null,
         data_abertura: form.data_abertura || null,
+        natureza_juridica: form.natureza_juridica || null,
+        cnae: form.cnae || null,
         inscricao_municipal: form.inscricao_municipal || null,
         inscricao_estadual: form.inscricao_estadual || null,
         endereco_logradouro: form.endereco_logradouro || null,
         endereco_numero: form.endereco_numero || null,
+        endereco_complemento: form.endereco_complemento || null,
         endereco_bairro: form.endereco_bairro || null,
         endereco_cidade: form.endereco_cidade || null,
         endereco_estado: form.endereco_estado || null,
         endereco_cep: form.endereco_cep || null,
         email: form.email || null,
         telefone: form.telefone || null,
+        celular: form.celular || null,
+        site: form.site || null,
+        contato_nome: form.contato_nome || null,
         regime_tributario: form.regime_tributario || null,
+        dados_bancarios_banco: form.dados_bancarios_banco || null,
+        dados_bancarios_agencia: form.dados_bancarios_agencia || null,
+        dados_bancarios_conta: form.dados_bancarios_conta || null,
+        dados_bancarios_pix: form.dados_bancarios_pix || null,
+        dados_bancarios_titular_nome: form.dados_bancarios_titular_nome || null,
+        dados_bancarios_titular_cpf_cnpj: form.dados_bancarios_titular_cpf_cnpj || null,
         responsavel_nome: form.responsavel_nome || null,
         responsavel_cpf: form.responsavel_cpf || null,
         responsavel_email: form.responsavel_email || null,
@@ -271,7 +361,7 @@ export default function EmpresaResumo() {
   };
 
   const enderecoFull = company
-    ? [company.endereco_logradouro, company.endereco_numero, company.endereco_bairro]
+    ? [company.endereco_logradouro, company.endereco_numero, company.endereco_complemento, company.endereco_bairro]
         .filter(Boolean)
         .join(", ")
     : "";
@@ -407,43 +497,32 @@ export default function EmpresaResumo() {
         {/* Ficha — papel/documento */}
         <div className="bg-white border border-[#EAECF0] rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(16,24,40,.06),0_8px_24px_-12px_rgba(16,24,40,.12)]">
 
-          {/* Letterhead: logo prominente centralizado + razão social */}
-          <div className="px-10 pt-12 pb-8 flex flex-col items-center text-center gap-5 border-b border-[#EAECF0]">
+          {/* Letterhead compacto: logo + razão social lado a lado */}
+          <div className="px-6 py-4 flex items-center gap-4 border-b border-[#EAECF0]">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="relative w-28 h-28 rounded-md bg-[#FAFAFA] flex items-center justify-center text-[#98A2B3] text-3xl font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
+              className="relative w-16 h-16 rounded-md bg-[#FAFAFA] flex items-center justify-center text-[#98A2B3] font-semibold overflow-hidden group shrink-0 border border-[#EAECF0]"
               title="Alterar logo"
             >
               {company.logo_url ? (
                 <img src={company.logo_url} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-[40px] font-light text-[#98A2B3]">{(company.razao_social || "E")[0]}</span>
+                <span className="text-[24px] font-light text-[#98A2B3]">{(company.razao_social || "E")[0]}</span>
               )}
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 {uploading ? (
-                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-white">
-                    <Camera size={20} />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider">Alterar logo</span>
-                  </div>
+                  <Camera size={18} className="text-white" />
                 )}
               </div>
             </button>
-            <button
-              type="button"
-              onClick={handleSearchLogo}
-              disabled={uploading}
-              className="text-[11px] font-semibold uppercase tracking-wider text-[#667085] hover:text-black underline-offset-4 hover:underline disabled:opacity-50 disabled:cursor-not-allowed -mt-2"
-            >
-              Buscar no Google Imagens
-            </button>
-            <div className="max-w-full">
-              <h1 className="text-[26px] font-bold text-black tracking-tight leading-tight">{company.razao_social}</h1>
-              <div className="flex items-center justify-center flex-wrap gap-x-2.5 gap-y-1 mt-2 text-[13px] text-[#667085]">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-[20px] font-bold text-black tracking-tight leading-tight truncate">{company.razao_social}</h1>
+              <div className="flex items-center flex-wrap gap-x-2.5 gap-y-0.5 mt-1 text-[12.5px] text-[#667085]">
                 {company.nome_fantasia && <span>{company.nome_fantasia}</span>}
                 {company.nome_fantasia && company.cnpj && <span className="text-[#D0D5DD]">·</span>}
                 {company.cnpj && <span className="tabular-nums">{maskCNPJ(company.cnpj)}</span>}
@@ -451,6 +530,11 @@ export default function EmpresaResumo() {
                 <span className={company.is_active ? "text-[#039855] font-semibold" : "text-[#98A2B3] font-semibold"}>
                   {company.is_active ? "Ativa" : "Inativa"}
                 </span>
+                <span className="text-[#D0D5DD]">·</span>
+                <button type="button" onClick={handleSearchLogo} disabled={uploading}
+                  className="text-[11px] font-semibold uppercase tracking-wider text-[#667085] hover:text-black underline-offset-4 hover:underline disabled:opacity-50">
+                  Buscar logo no Google
+                </button>
               </div>
             </div>
           </div>
@@ -464,8 +548,8 @@ export default function EmpresaResumo() {
               { label: "Plano de Contas", value: stats?.chartAccounts ?? "—", url: "/plano-contas" },
             ].map(s => (
               <button key={s.label} onClick={() => navigate(s.url)}
-                className="px-6 py-3 text-left hover:bg-gray-50 transition-colors">
-                <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-0.5">{s.label}</div>
+                className="px-5 py-2.5 text-left hover:bg-gray-50 transition-colors">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-0.5">{s.label}</div>
                 <div className="text-lg font-semibold text-black tabular-nums">{s.value}</div>
               </button>
             ))}
@@ -482,6 +566,8 @@ export default function EmpresaResumo() {
                   <EditRow label="Nome Fantasia" value={form.nome_fantasia} onChange={v => set("nome_fantasia", v)} />
                   <EditRow label="CNPJ" value={form.cnpj} onChange={v => set("cnpj", maskCNPJ(v))} />
                   <EditRow label="Data de Abertura" value={form.data_abertura} onChange={v => set("data_abertura", v)} type="date" />
+                  <EditRow label="Natureza Jurídica" value={form.natureza_juridica} onChange={v => set("natureza_juridica", v)} />
+                  <EditRow label="CNAE" value={form.cnae} onChange={v => set("cnae", v)} />
                   <EditRow label="Inscrição Municipal" value={form.inscricao_municipal} onChange={v => set("inscricao_municipal", v)} />
                   <EditRow label="Inscrição Estadual" value={form.inscricao_estadual} onChange={v => set("inscricao_estadual", v)} />
                 </FieldGrid>
@@ -491,24 +577,30 @@ export default function EmpresaResumo() {
                   <Field label="Nome Fantasia" value={company.nome_fantasia} />
                   <Field label="CNPJ" value={company.cnpj ? maskCNPJ(company.cnpj) : null} />
                   <Field label="Data de Abertura" value={company.data_abertura ? new Date(company.data_abertura + "T12:00:00").toLocaleDateString("pt-BR") : null} />
+                  <Field label="Natureza Jurídica" value={company.natureza_juridica} />
+                  <Field label="CNAE" value={company.cnae} />
                   <Field label="Inscrição Municipal" value={company.inscricao_municipal} />
                   <Field label="Inscrição Estadual" value={company.inscricao_estadual} />
                 </FieldGrid>
               )}
             </Section>
 
-            {/* Endereço */}
+            {/* Endereço & Contato */}
             <Section icon={MapPin} title="Endereço & Contato">
               {editing ? (
                 <FieldGrid>
                   <EditRow label="Logradouro" value={form.endereco_logradouro} onChange={v => set("endereco_logradouro", v)} />
                   <EditRow label="Número" value={form.endereco_numero} onChange={v => set("endereco_numero", v)} />
+                  <EditRow label="Complemento" value={form.endereco_complemento} onChange={v => set("endereco_complemento", v)} />
                   <EditRow label="Bairro" value={form.endereco_bairro} onChange={v => set("endereco_bairro", v)} />
                   <EditRow label="Cidade" value={form.endereco_cidade} onChange={v => set("endereco_cidade", v)} />
                   <EditRow label="UF" value={form.endereco_estado} onChange={v => set("endereco_estado", v)} />
                   <EditRow label="CEP" value={form.endereco_cep} onChange={v => set("endereco_cep", v)} />
                   <EditRow label="Email" value={form.email} onChange={v => set("email", v)} type="email" />
                   <EditRow label="Telefone" value={form.telefone} onChange={v => set("telefone", v)} />
+                  <EditRow label="Celular" value={form.celular} onChange={v => set("celular", v)} />
+                  <EditRow label="Site" value={form.site} onChange={v => set("site", v)} />
+                  <EditRow label="Contato" value={form.contato_nome} onChange={v => set("contato_nome", v)} />
                 </FieldGrid>
               ) : (
                 <FieldGrid>
@@ -517,6 +609,9 @@ export default function EmpresaResumo() {
                   <Field label="CEP" value={company.endereco_cep} />
                   <Field label="Email" value={company.email} />
                   <Field label="Telefone" value={company.telefone} />
+                  <Field label="Celular" value={company.celular} />
+                  <Field label="Site" value={company.site} />
+                  <Field label="Contato" value={company.contato_nome} />
                 </FieldGrid>
               )}
             </Section>
@@ -539,11 +634,34 @@ export default function EmpresaResumo() {
                   ))}
                 </div>
               ) : company.regime_tributario ? (
-                <span className="text-[15px] font-semibold text-black px-4 py-2 rounded-md border border-[#EAECF0] bg-white inline-block">
+                <span className="text-[14px] font-semibold text-black px-4 py-1.5 rounded-md border border-[#EAECF0] bg-white inline-block">
                   {regimeLabels[company.regime_tributario] || company.regime_tributario}
                 </span>
               ) : (
-                <p className="text-[15px] text-[#98A2B3]">Não configurado</p>
+                <p className="text-[14px] text-[#98A2B3]">Não configurado</p>
+              )}
+            </Section>
+
+            {/* Dados Bancários */}
+            <Section icon={Banknote} title="Dados Bancários">
+              {editing ? (
+                <FieldGrid>
+                  <EditRow label="Banco" value={form.dados_bancarios_banco} onChange={v => set("dados_bancarios_banco", v)} />
+                  <EditRow label="Agência" value={form.dados_bancarios_agencia} onChange={v => set("dados_bancarios_agencia", v)} />
+                  <EditRow label="Conta" value={form.dados_bancarios_conta} onChange={v => set("dados_bancarios_conta", v)} />
+                  <EditRow label="Chave PIX" value={form.dados_bancarios_pix} onChange={v => set("dados_bancarios_pix", v)} />
+                  <EditRow label="Titular" value={form.dados_bancarios_titular_nome} onChange={v => set("dados_bancarios_titular_nome", v)} />
+                  <EditRow label="CPF/CNPJ Titular" value={form.dados_bancarios_titular_cpf_cnpj} onChange={v => set("dados_bancarios_titular_cpf_cnpj", v)} />
+                </FieldGrid>
+              ) : (
+                <FieldGrid>
+                  <Field label="Banco" value={company.dados_bancarios_banco} />
+                  <Field label="Agência" value={company.dados_bancarios_agencia} />
+                  <Field label="Conta" value={company.dados_bancarios_conta} />
+                  <Field label="Chave PIX" value={company.dados_bancarios_pix} />
+                  <Field label="Titular" value={company.dados_bancarios_titular_nome} />
+                  <Field label="CPF/CNPJ Titular" value={company.dados_bancarios_titular_cpf_cnpj} />
+                </FieldGrid>
               )}
             </Section>
 
@@ -566,6 +684,35 @@ export default function EmpresaResumo() {
               )}
             </Section>
 
+            {/* Contrato Social */}
+            <Section icon={FileSignature} title="Contrato Social">
+              <input ref={contratoInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleContratoUpload} />
+              {contratoUrl ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <a href={contratoUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
+                    <Download size={14} /> Baixar Contrato Social (PDF)
+                  </a>
+                  <button onClick={() => contratoInputRef.current?.click()} disabled={contratoUploading}
+                    className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">
+                    <UploadCloud size={14} /> {contratoUploading ? "Enviando..." : "Substituir"}
+                  </button>
+                  <button onClick={handleContratoDelete}
+                    className="flex items-center gap-1.5 bg-white text-[#E53E3E] border border-[#FECDCA] text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#FEE2E2] transition-colors">
+                    <Trash2 size={14} /> Remover
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <button onClick={() => contratoInputRef.current?.click()} disabled={contratoUploading}
+                    className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">
+                    <UploadCloud size={14} /> {contratoUploading ? "Enviando..." : "Enviar Contrato Social (PDF)"}
+                  </button>
+                  <span className="text-[13px] text-[#98A2B3]">Nenhum contrato social anexado. PDF até 50MB.</span>
+                </div>
+              )}
+            </Section>
+
             {/* Quadro Societário */}
             <Section icon={UserCheck} title="Quadro Societário" subtitle="Receita Federal">
               {qsaLoading ? (
@@ -575,13 +722,13 @@ export default function EmpresaResumo() {
               ) : (
                 <div className="space-y-1">
                   {qsa.map((socio, i) => (
-                    <div key={i} className="flex items-center gap-3 py-3 border-b border-[#F1F3F5] last:border-b-0">
-                      <div className="w-9 h-9 rounded-full bg-white border border-[#EAECF0] flex items-center justify-center text-black text-[13px] font-semibold shrink-0">
+                    <div key={i} className="flex items-center gap-3 py-2 border-b border-[#F1F3F5] last:border-b-0">
+                      <div className="w-8 h-8 rounded-full bg-white border border-[#EAECF0] flex items-center justify-center text-black text-[12px] font-semibold shrink-0">
                         {(socio.nome_socio || "?")[0]}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-semibold text-black truncate">{socio.nome_socio}</p>
-                        <p className="text-[12.5px] text-[#667085]">{socio.qualificacao_socio || "Sócio"}</p>
+                        <p className="text-[14px] font-semibold text-black truncate">{socio.nome_socio}</p>
+                        <p className="text-[12px] text-[#667085]">{socio.qualificacao_socio || "Sócio"}</p>
                       </div>
                       {socio.data_entrada_sociedade && (
                         <span className="text-xs text-[#98A2B3] shrink-0">
@@ -608,10 +755,10 @@ function Section({ icon: Icon, title, subtitle, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="px-6 py-5">
-      <div className="flex items-center gap-2 mb-3">
-        <Icon size={17} className="text-black" />
-        <h3 className="text-[16px] font-bold text-black uppercase tracking-[0.06em]">{title}</h3>
+    <section className="px-6 py-3.5">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon size={15} className="text-black" />
+        <h3 className="text-[14px] font-bold text-black uppercase tracking-[0.06em]">{title}</h3>
         {subtitle && <span className="text-[12px] text-[#98A2B3]">· {subtitle}</span>}
       </div>
       {children}
@@ -620,7 +767,7 @@ function Section({ icon: Icon, title, subtitle, children }: {
 }
 
 function FieldGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-2 gap-x-8 gap-y-2">{children}</div>;
+  return <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">{children}</div>;
 }
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -628,15 +775,6 @@ function Field({ label, value }: { label: string; value: string | null | undefin
     <div className="flex items-baseline gap-2 min-w-0 py-1 border-b border-dotted border-[#EAECF0] last:border-b-0">
       <span className="text-[11px] font-semibold uppercase tracking-wider text-[#98A2B3] shrink-0 w-[130px]">{label}</span>
       <span className="text-[14px] text-black truncate flex-1">{value || <span className="text-[#98A2B3]">—</span>}</span>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="flex justify-between items-center py-1.5 border-b border-[#EAECF0] last:border-0">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#98A2B3]">{label}</span>
-      <span className="text-sm text-black">{value || "—"}</span>
     </div>
   );
 }
