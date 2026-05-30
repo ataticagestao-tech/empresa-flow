@@ -4,7 +4,7 @@ import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search } from "lucide-react";
+import { Building2, MapPin, FileText, User, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search, Briefcase } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { gerarFichaEmpresaPDF, carregarLogoEmpresa } from "@/lib/ficha-empresa/gerar-pdf";
@@ -144,19 +144,28 @@ export default function EmpresaResumo() {
     enabled: !!id,
   });
 
-  const { data: qsa = [], isLoading: qsaLoading } = useQuery({
-    queryKey: ["empresa_qsa", company?.cnpj],
+  // Consulta única à BrasilAPI: alimenta quadro societário (QSA) E os CNAEs.
+  const { data: cnpjInfo, isLoading: cnpjLoading } = useQuery({
+    queryKey: ["empresa_cnpj_info", company?.cnpj],
     queryFn: async () => {
       const cnpj = company.cnpj?.replace(/\D/g, "");
-      if (!cnpj || cnpj.length !== 14) return [];
+      if (!cnpj || cnpj.length !== 14) return null;
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if (!res.ok) return [];
-      const d = await res.json();
-      return (d.qsa || []) as { nome_socio: string; qualificacao_socio: string; data_entrada_sociedade?: string }[];
+      if (!res.ok) return null;
+      return await res.json();
     },
     enabled: !!company?.cnpj,
     staleTime: 1000 * 60 * 60,
   });
+
+  const qsa = (cnpjInfo?.qsa || []) as { nome_socio: string; qualificacao_socio: string; data_entrada_sociedade?: string }[];
+  const qsaLoading = cnpjLoading;
+  const cnaePrincipal = cnpjInfo?.cnae_fiscal
+    ? `${cnpjInfo.cnae_fiscal}${cnpjInfo.cnae_fiscal_descricao ? " - " + cnpjInfo.cnae_fiscal_descricao : ""}`
+    : (company?.cnae || null);
+  const cnaesSecundarios = (cnpjInfo?.cnaes_secundarios || []).filter(
+    (c: any) => c && c.codigo && Number(c.codigo) !== 0
+  ) as { codigo: number; descricao: string }[];
 
   // Contrato social anexado (bucket company-docs). Sem coluna no banco:
   // detecta o arquivo por path determinístico para evitar mudança de schema.
@@ -656,6 +665,46 @@ export default function EmpresaResumo() {
                   <Field label="Inscrição Municipal" value={company.inscricao_municipal} />
                   <Field label="Inscrição Estadual" value={company.inscricao_estadual} />
                 </FieldGrid>
+              )}
+            </Section>
+
+            {/* Atividades (CNAE) — Receita Federal */}
+            <Section icon={Briefcase} title="Atividades (CNAE)" subtitle="Receita Federal">
+              {cnpjLoading ? (
+                <p className="text-sm text-[#667085]">Consultando Receita Federal...</p>
+              ) : (
+                <div className="space-y-2.5">
+                  <div>
+                    <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-1">Atividade Principal</div>
+                    <div className="flex items-start gap-2 text-[14px] text-black">
+                      {cnaePrincipal ? (
+                        <>
+                          <span className="font-semibold tabular-nums shrink-0">{String(cnaePrincipal).split(" - ")[0]}</span>
+                          {String(cnaePrincipal).includes(" - ") && (
+                            <span className="text-[#475467]">{String(cnaePrincipal).split(" - ").slice(1).join(" - ")}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[#98A2B3]">—</span>
+                      )}
+                    </div>
+                  </div>
+                  {cnaesSecundarios.length > 0 && (
+                    <div>
+                      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-1">
+                        Atividades Secundárias ({cnaesSecundarios.length})
+                      </div>
+                      <div className="space-y-1">
+                        {cnaesSecundarios.map((c, i) => (
+                          <div key={i} className="flex items-start gap-2 text-[13.5px] text-black py-1 border-b border-dotted border-[#EAECF0] last:border-b-0">
+                            <span className="font-semibold tabular-nums shrink-0 text-[#475467]">{c.codigo}</span>
+                            <span className="text-[#475467]">{c.descricao}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </Section>
 
