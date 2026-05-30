@@ -154,18 +154,18 @@ export default function EmpresaResumo() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // Contrato social anexado (bucket company-documents). Sem coluna no banco:
+  // Contrato social anexado (bucket company-docs). Sem coluna no banco:
   // detecta o arquivo por path determinístico para evitar mudança de schema.
   const { data: contratoUrl } = useQuery({
     queryKey: ["empresa_contrato", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await db.storage.from("company-documents").list(id, { search: "contrato-social" });
+      const { data, error } = await db.storage.from("company-docs").list(id, { search: "contrato-social" });
       if (error || !data?.length) return null;
       const file = data.find((f: any) => f.name.startsWith("contrato-social"));
       if (!file) return null;
       // Bucket privado (RLS por user_companies) → URL assinada temporária.
-      const { data: signed } = await db.storage.from("company-documents").createSignedUrl(`${id}/${file.name}`, 3600);
+      const { data: signed } = await db.storage.from("company-docs").createSignedUrl(`${id}/${file.name}`, 3600);
       return signed?.signedUrl ?? null;
     },
     enabled: !!id,
@@ -187,12 +187,12 @@ export default function EmpresaResumo() {
     try {
       const path = `${id}/contrato-social.pdf`;
       const { error } = await db.storage
-        .from("company-documents")
+        .from("company-docs")
         .upload(path, file, { upsert: true, contentType: "application/pdf", cacheControl: "3600" });
       if (error) {
         const msg = String(error.message || "").toLowerCase();
         if (msg.includes("bucket") && msg.includes("not found")) {
-          throw new Error("Bucket 'company-documents' não existe. Rode a migration de documentos.");
+          throw new Error("Bucket 'company-docs' não existe. Rode a migration de documentos.");
         }
         if (msg.includes("row-level security") || msg.includes("policy") || msg.includes("permission")) {
           throw new Error("Sem permissão (RLS) para enviar o contrato.");
@@ -213,7 +213,7 @@ export default function EmpresaResumo() {
   const handleContratoDelete = async () => {
     if (!id) return;
     try {
-      const { error } = await db.storage.from("company-documents").remove([`${id}/contrato-social.pdf`]);
+      const { error } = await db.storage.from("company-docs").remove([`${id}/contrato-social.pdf`]);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["empresa_contrato", id] });
       toast.success("Contrato removido.");
@@ -521,8 +521,8 @@ export default function EmpresaResumo() {
               </div>
             </button>
             <div className="min-w-0 flex-1">
-              <h1 className="text-[20px] font-bold text-black tracking-tight leading-tight truncate">{company.razao_social}</h1>
-              <div className="flex items-center flex-wrap gap-x-2.5 gap-y-0.5 mt-1 text-[12.5px] text-[#667085]">
+              <h2 className="text-[20px] font-bold text-black tracking-tight leading-tight truncate">{company.razao_social}</h2>
+              <div className="flex items-center flex-wrap gap-x-2.5 gap-y-0.5 mt-1 text-[12px] text-[#667085]">
                 {company.nome_fantasia && <span>{company.nome_fantasia}</span>}
                 {company.nome_fantasia && company.cnpj && <span className="text-[#D0D5DD]">·</span>}
                 {company.cnpj && <span className="tabular-nums">{maskCNPJ(company.cnpj)}</span>}

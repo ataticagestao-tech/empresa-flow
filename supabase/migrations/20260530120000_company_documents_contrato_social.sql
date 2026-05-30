@@ -1,13 +1,11 @@
--- Contrato Social passa a usar o bucket existente 'company-documents'
--- (criado em 20251228000100_company_documents.sql, privado + RLS por user_companies).
+-- Contrato Social reusa o bucket de documentos da empresa que JÁ EXISTE em
+-- produção: 'company-docs' (público, path <company_id>/...), o mesmo do
+-- Cartão CNPJ / Certificado A1. Path do contrato: <company_id>/contrato-social.pdf
 --
--- NÃO mexemos em public nem em allowed_mime_types para não:
---   * expor documentos sensíveis (ex.: Certificado Digital A1) publicamente;
---   * quebrar uploads de .pfx/.p12 do certificado.
---
--- Apenas garantimos um limite de tamanho generoso (50MB) para caber
--- contratos sociais escaneados maiores (antes os uploads travavam menores).
+-- Em produção o bucket já está com 50MB; este UPDATE é idempotente e só
+-- garante o limite caso esta migration rode num ambiente novo. NÃO mexe em
+-- 'public' nem em allowed_mime_types para não alterar o comportamento atual.
 update storage.buckets
    set file_size_limit = 52428800 -- 50MB
- where id = 'company-documents'
+ where id = 'company-docs'
    and (file_size_limit is null or file_size_limit < 52428800);
