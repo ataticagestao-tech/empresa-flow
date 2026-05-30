@@ -758,7 +758,7 @@ function Section({ icon: Icon, title, subtitle, children }: {
     <section className="px-6 py-3.5">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={15} className="text-black" />
-        <h3 className="text-[14px] font-bold text-black uppercase tracking-[0.06em]">{title}</h3>
+        <h3 className="text-[13px] font-semibold text-[#667085] uppercase tracking-[0.06em]">{title}</h3>
         {subtitle && <span className="text-[12px] text-[#98A2B3]">· {subtitle}</span>}
       </div>
       {children}
