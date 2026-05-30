@@ -56,6 +56,7 @@ interface FinancialSummary {
 
 interface DetailFinancial {
     crs: any[];
+    compras: any[];
     aReceber: number;
     vencido: number;
     totalPago: number;
@@ -87,6 +88,53 @@ const diasAtraso = (data: string | null): string => {
 /* ─── Cartão = pago (cliente já quitou; operadora é quem repassa) ─── */
 const isCartaoQuitado = (formaRecebimento: string | null | undefined): boolean =>
     formaRecebimento === "cartao_credito" || formaRecebimento === "cartao_debito";
+
+/* ─── Agrupa parcelas da MESMA venda numa única compra (regime de competência) ───
+   O cliente quer ver a venda uma vez ("3x no cartão"), não cada parcela. CRs sem
+   venda_id ficam isoladas (uma compra cada). */
+const agruparCompras = (crs: any[]): any[] => {
+    const grupos = new Map<string, any[]>();
+    const ordem: string[] = [];
+    for (const cr of crs) {
+        const key = cr.venda_id ? `v:${cr.venda_id}` : `c:${cr.id}`;
+        if (!grupos.has(key)) { grupos.set(key, []); ordem.push(key); }
+        grupos.get(key)!.push(cr);
+    }
+    return ordem.map((key) => {
+        const itens = grupos.get(key)!;
+        // ordena parcelas por vencimento para pegar 1ª/última coerentes
+        const sorted = [...itens].sort((a, b) =>
+            (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "")
+        );
+        const ref = sorted[0];
+        const comItens = itens.find((cr) => cr.items && cr.items.length > 0) ?? ref;
+        const comBanco = itens.find((cr) => cr.bank_account_name) ?? ref;
+        const dataPagamento = sorted
+            .map((cr) => cr.data_pagamento)
+            .filter(Boolean)
+            .sort()
+            .pop() ?? null;
+        return {
+            id: ref.venda_id ?? ref.id,
+            venda_id: ref.venda_id ?? null,
+            crIds: itens.map((cr) => cr.id),
+            crs: itens,
+            parcelas: itens.length,
+            valor: itens.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0),
+            valor_pago: itens.reduce((acc, cr) => acc + Number(cr.valor_pago ?? 0), 0),
+            forma_recebimento: ref.forma_recebimento,
+            observacoes: ref.observacoes,
+            items: comItens.items ?? [],
+            categoria: ref.categoria,
+            bank_account_name: comBanco.bank_account_name ?? null,
+            // competência: data da venda; cai pro 1º vencimento se a venda não trouxer data
+            data_venda: ref.data_venda ?? sorted[0]?.data_vencimento ?? null,
+            data_pagamento: dataPagamento,
+            primeira_parcela: sorted[0]?.data_vencimento ?? null,
+            ultima_parcela: sorted[sorted.length - 1]?.data_vencimento ?? null,
+        };
+    });
+};
 
 /* ─── Badge de status ──────────────────────────────────────── */
 
@@ -368,7 +416,7 @@ export default function Clientes() {
 
         if (error) {
             console.error("[buscarFinanceiroCliente]", error.message);
-            setDetailFinancial({ crs: [], aReceber: 0, vencido: 0, totalPago: 0, pagosNoPrazo: 0, totalPagos: 0, ultimaCompra: null, totalComprado: 0, totalCompras: 0 });
+            setDetailFinancial({ crs: [], compras: [], aReceber: 0, vencido: 0, totalPago: 0, pagosNoPrazo: 0, totalPagos: 0, ultimaCompra: null, totalComprado: 0, totalCompras: 0 });
             setDetailLoading(false);
             return;
         }
@@ -391,17 +439,27 @@ export default function Clientes() {
             });
         }
 
-        // Itens da venda vinculada (o que o cliente comprou)
+        // Itens da venda vinculada (o que o cliente comprou) + data da venda (competência)
         const vendaIds = Array.from(new Set(lista.filter(cr => cr.venda_id).map(cr => cr.venda_id as string)));
         const itensByVenda: Record<string, { descricao: string; quantidade: number }[]> = {};
+        const dataVendaById: Record<string, string | null> = {};
         if (vendaIds.length > 0) {
-            const { data: itens } = await activeClient
-                .from("vendas_itens")
-                .select("venda_id, descricao, quantidade")
-                .in("venda_id", vendaIds);
+            const [{ data: itens }, { data: vendasInfo }] = await Promise.all([
+                activeClient
+                    .from("vendas_itens")
+                    .select("venda_id, descricao, quantidade")
+                    .in("venda_id", vendaIds),
+                activeClient
+                    .from("vendas")
+                    .select("id, data_venda")
+                    .in("id", vendaIds),
+            ]);
             (itens || []).forEach((it: any) => {
                 if (!itensByVenda[it.venda_id]) itensByVenda[it.venda_id] = [];
                 itensByVenda[it.venda_id].push({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1 });
+            });
+            (vendasInfo || []).forEach((v: any) => {
+                dataVendaById[v.id] = v.data_venda ?? null;
             });
         }
 
@@ -409,6 +467,7 @@ export default function Clientes() {
             ...cr,
             bank_account_name: bankByCr[cr.id] || null,
             items: cr.venda_id ? (itensByVenda[cr.venda_id] || []) : [],
+            data_venda: cr.venda_id ? (dataVendaById[cr.venda_id] ?? null) : null,
         }));
 
         // Cartão (crédito/débito): o cliente já pagou no ato. O recebível que resta
@@ -437,31 +496,44 @@ export default function Clientes() {
             0
         );
 
-        const pagosNoPrazo = pagos.filter(cr =>
+        const totalComprado = listaEnriquecida.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0);
+
+        // Agrupa por venda (competência): KPIs de "compra" contam vendas, não parcelas
+        const compras = agruparCompras(listaEnriquecida);
+
+        const isCompraPaga = (g: any) => {
+            const ativos = g.crs.filter((cr: any) => cr.status !== "cancelado");
+            return ativos.length > 0 && ativos.every((cr: any) =>
+                cr.status === "pago" || isCartaoQuitado(cr.forma_recebimento)
+            );
+        };
+        const isCompraNoPrazo = (g: any) => g.crs.every((cr: any) =>
             isCartaoQuitado(cr.forma_recebimento) || (
                 cr.data_pagamento != null &&
                 cr.data_vencimento != null &&
                 new Date(cr.data_pagamento + "T00:00:00") <= new Date(cr.data_vencimento + "T00:00:00")
             )
-        ).length;
-
-        const totalComprado = listaEnriquecida.reduce((acc, cr) => acc + Number(cr.valor ?? 0), 0);
-
-        const sortedByDate = [...listaEnriquecida].sort((a, b) =>
-            (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? "")
         );
-        const ultimaCompra = sortedByDate[0]?.data_vencimento ?? null;
+        const comprasPagas = compras.filter(isCompraPaga);
+        const pagosNoPrazo = comprasPagas.filter(isCompraNoPrazo).length;
+
+        const ultimaCompra = compras
+            .map((g) => g.data_venda)
+            .filter(Boolean)
+            .sort()
+            .pop() ?? null;
 
         setDetailFinancial({
             crs: listaEnriquecida,
+            compras,
             aReceber,
             vencido,
             totalPago,
             pagosNoPrazo,
-            totalPagos: pagos.length,
+            totalPagos: comprasPagas.length,
             ultimaCompra,
             totalComprado,
-            totalCompras: lista.length,
+            totalCompras: compras.length,
         });
         setDetailLoading(false);
     };
@@ -699,41 +771,6 @@ export default function Clientes() {
         return map[v] || v;
     };
 
-    const crSubtext = (cr: any) => {
-        const today = new Date();
-        const venc = cr.data_vencimento ? new Date(cr.data_vencimento + "T00:00:00") : null;
-        const cartaoPago = isCartaoQuitado(cr.forma_recebimento) && cr.status !== "cancelado";
-
-        const parts: string[] = [];
-
-        // Data (vencimento/pagamento com contexto)
-        if (cr.status === "pago" && cr.data_pagamento) {
-            parts.push(`Pago ${formatData(cr.data_pagamento)}`);
-        } else if (cartaoPago) {
-            // Cartão: cliente já quitou no ato; mostra a data como referência de cobrança da operadora
-            parts.push(`Pago no cartão · vence ${formatData(cr.data_vencimento)}`);
-        } else if (cr.status === "vencido" || (venc && venc < today && cr.status !== "pago" && cr.status !== "cancelado")) {
-            parts.push(`Venceu ${formatData(cr.data_vencimento)} · ${diasAtraso(cr.data_vencimento)}`);
-        } else if (cr.status === "parcial") {
-            parts.push(`Parcial · vence ${formatData(cr.data_vencimento)}`);
-        } else {
-            parts.push(`Vence ${formatData(cr.data_vencimento)}`);
-        }
-
-        // Forma de pagamento
-        const forma = formaPagamentoLabel(cr.forma_recebimento);
-        if (forma) parts.push(forma);
-
-        // Categoria (conta contábil)
-        const categoria = cr.categoria?.name;
-        if (categoria) parts.push(categoria);
-
-        // Conta bancária (se quitado via movimentacao)
-        if (cr.bank_account_name) parts.push(cr.bank_account_name);
-
-        return parts.join(" · ");
-    };
-
     const getCRDisplayStatus = (cr: any) => {
         const today = new Date();
         const venc = cr.data_vencimento ? new Date(cr.data_vencimento + "T00:00:00") : null;
@@ -743,6 +780,42 @@ export default function Clientes() {
         if (cr.status === "vencido" || (venc && venc < today)) return "vencido";
         if (cr.status === "parcial") return "em_andamento";
         return "aberto";
+    };
+
+    /* ─── Status/descrição da COMPRA agrupada (competência) ──── */
+
+    const getCompraDisplayStatus = (grupo: any) => {
+        const statuses = grupo.crs.map((cr: any) => getCRDisplayStatus(cr));
+        if (statuses.every((s: string) => s === "cancelado")) return "cancelado";
+        const ativos = statuses.filter((s: string) => s !== "cancelado");
+        if (ativos.some((s: string) => s === "vencido")) return "vencido";
+        if (ativos.every((s: string) => s === "pago")) return "pago";
+        // parcelas pagas + abertas misturadas → em andamento
+        if (ativos.some((s: string) => s === "pago" || s === "em_andamento")) return "em_andamento";
+        return "aberto";
+    };
+
+    // Subtexto em regime de competência: data da venda + como foi paga (ex.: "6x no cartão de crédito")
+    const compraSubtext = (grupo: any) => {
+        const parts: string[] = [];
+
+        if (grupo.data_venda) parts.push(`Compra ${formatData(grupo.data_venda)}`);
+
+        const forma = formaPagamentoLabel(grupo.forma_recebimento);
+        if (grupo.parcelas > 1) {
+            if (grupo.forma_recebimento === "cartao_credito") {
+                parts.push(`${grupo.parcelas}x no cartão de crédito`);
+            } else {
+                parts.push(`${grupo.parcelas}x ${forma ?? "parcelas"}`);
+            }
+        } else if (forma) {
+            parts.push(forma);
+        }
+
+        if (grupo.categoria?.name) parts.push(grupo.categoria.name);
+        if (grupo.bank_account_name) parts.push(grupo.bank_account_name);
+
+        return parts.join(" · ");
     };
 
     /* ─── Exportar todos os clientes em PDF (lista) ─────────── */
@@ -793,16 +866,33 @@ export default function Clientes() {
                 })),
             });
 
-            const historico = (detailFinancial.crs || []).map((cr: any) => ({
-                descricao: crDescription(cr),
-                data_vencimento: cr.data_vencimento,
-                data_pagamento: cr.data_pagamento,
-                valor: Number(cr.valor ?? 0),
-                valor_pago: Number(cr.valor_pago ?? 0),
-                status: cr.status,
-                forma_recebimento: cr.forma_recebimento,
-                categoria: cr.categoria?.name ?? null,
-            }));
+            // Histórico em regime de competência: uma linha por compra (parcelas agrupadas)
+            const historico = (detailFinancial.compras || []).map((grupo: any) => {
+                const ds = getCompraDisplayStatus(grupo);
+                const status = ds === "em_andamento" ? "parcial" : ds; // pago/vencido/aberto/cancelado/parcial
+                // Em compras quitadas, mostra a data da venda; em aberto, a próxima parcela a vencer
+                const proximaAberta = grupo.crs
+                    .filter((cr: any) => cr.status !== "pago" && cr.status !== "cancelado")
+                    .map((cr: any) => cr.data_vencimento)
+                    .filter(Boolean)
+                    .sort()[0] ?? null;
+                const dataExibida = (ds === "pago" || ds === "cancelado")
+                    ? grupo.data_venda
+                    : (proximaAberta ?? grupo.data_venda);
+                const descricaoParcelada = grupo.parcelas > 1
+                    ? `${crDescription(grupo)} · ${grupo.parcelas}x`
+                    : crDescription(grupo);
+                return {
+                    descricao: descricaoParcelada,
+                    data_vencimento: dataExibida,
+                    data_pagamento: grupo.data_pagamento,
+                    valor: Number(grupo.valor ?? 0),
+                    valor_pago: Number(grupo.valor_pago ?? 0),
+                    status,
+                    forma_recebimento: grupo.forma_recebimento,
+                    categoria: grupo.categoria?.name ?? null,
+                };
+            });
 
             const blob = await gerarFichaClientePDF({
                 empresa_nome: selectedCompany?.razao_social || selectedCompany?.nome_fantasia || "Empresa",
@@ -1108,7 +1198,7 @@ export default function Clientes() {
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
                                         </div>
                                         <div className="text-[10px] text-[#888]">
-                                            {detailLoading ? "" : `${detailFinancial?.totalCompras ?? 0} compras`}
+                                            {detailLoading ? "" : `${detailFinancial?.totalCompras ?? 0} ${(detailFinancial?.totalCompras ?? 0) === 1 ? "compra" : "compras"}`}
                                         </div>
                                     </div>
                                 </div>
@@ -1122,7 +1212,10 @@ export default function Clientes() {
                                         </div>
                                         <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.vencido && detailFinancial.vencido > 0
-                                                ? `${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length} título${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""} vencido${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""}`
+                                                ? (() => {
+                                                      const n = detailFinancial.compras.filter((g: any) => getCompraDisplayStatus(g) === "vencido").length;
+                                                      return `${n} compra${n > 1 ? "s" : ""} vencida${n > 1 ? "s" : ""}`;
+                                                  })()
                                                 : "em dia"
                                             }
                                         </div>
@@ -1208,53 +1301,59 @@ export default function Clientes() {
                                                     </div>
                                                 ))}
                                             </div>
-                                        ) : detailFinancial && detailFinancial.crs.length > 0 ? (
+                                        ) : detailFinancial && detailFinancial.compras.length > 0 ? (
                                             <div className="space-y-1">
-                                                {detailFinancial.crs.map((cr: any) => {
-                                                    const displayStatus = getCRDisplayStatus(cr);
+                                                {detailFinancial.compras.map((grupo: any) => {
+                                                    const displayStatus = getCompraDisplayStatus(grupo);
+                                                    const isParcelado = grupo.parcelas > 1;
                                                     return (
                                                         <div
-                                                            key={cr.id}
+                                                            key={grupo.id}
                                                             className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-white transition-all border border-transparent hover:border-[#EAECF0]"
                                                         >
                                                             <HistoryIcon status={displayStatus} />
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="text-[11px] font-semibold text-[#1D2939] truncate">
-                                                                    {crDescription(cr)}
+                                                                    {crDescription(grupo)}
                                                                 </div>
                                                                 <div className="text-[11px] text-[#888]">
-                                                                    {crSubtext(cr)}
+                                                                    {compraSubtext(grupo)}
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                                 {hasContratosByCompany(selectedCompany) && (
                                                                     <LinkCRToContract
-                                                                        crId={cr.id}
-                                                                        crVendaId={cr.venda_id ?? null}
+                                                                        crId={grupo.crs[0].id}
+                                                                        crVendaId={grupo.venda_id ?? null}
                                                                         clientCpfCnpj={selectedClient?.cpf_cnpj}
                                                                         onChanged={() => buscarFinanceiroCliente(selectedClient)}
                                                                     />
                                                                 )}
                                                                 <CRStatusBadge status={displayStatus} />
                                                                 <span className="text-[11px] font-semibold text-[#1D2939] min-w-[80px] text-right">
-                                                                    {formatBRL(Number(cr.valor ?? 0))}
+                                                                    {formatBRL(Number(grupo.valor ?? 0))}
                                                                 </span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={async () => {
-                                                                        const valorPago = Number(cr.valor_pago ?? 0);
-                                                                        const isPago = cr.status === "pago" || valorPago > 0;
+                                                                        const valorPago = Number(grupo.valor_pago ?? 0);
+                                                                        const isPago = grupo.crs.some((cr: any) =>
+                                                                            cr.status === "pago" || isCartaoQuitado(cr.forma_recebimento)
+                                                                        ) || valorPago > 0;
+                                                                        const parcelaInfo = isParcelado
+                                                                            ? `\n${grupo.parcelas} parcelas serão excluídas.`
+                                                                            : "";
 
                                                                         const okConfirm = isPago
                                                                             ? await confirm({
-                                                                                  title: "Excluir este lançamento PAGO?",
-                                                                                  description: `${crDescription(cr)}\nValor pago: ${formatBRL(valorPago)}\n\nO pagamento bancário continua registrado — mas volta como PENDENTE DE CONCILIAÇÃO. Reclassifique-o depois em Conciliação Bancária, vinculando ao cliente e categoria corretos.`,
+                                                                                  title: isParcelado ? "Excluir esta compra PAGA?" : "Excluir este lançamento PAGO?",
+                                                                                  description: `${crDescription(grupo)}\nValor: ${formatBRL(Number(grupo.valor ?? 0))}${parcelaInfo}\n\nO pagamento bancário continua registrado — mas volta como PENDENTE DE CONCILIAÇÃO. Reclassifique-o depois em Conciliação Bancária, vinculando ao cliente e categoria corretos.`,
                                                                                   confirmLabel: "Sim, excluir",
                                                                                   variant: "destructive",
                                                                               })
                                                                             : await confirm({
-                                                                                  title: "Excluir este lançamento?",
-                                                                                  description: `${crDescription(cr)}\nValor: ${formatBRL(Number(cr.valor ?? 0))}`,
+                                                                                  title: isParcelado ? "Excluir esta compra?" : "Excluir este lançamento?",
+                                                                                  description: `${crDescription(grupo)}\nValor: ${formatBRL(Number(grupo.valor ?? 0))}${parcelaInfo}`,
                                                                                   confirmLabel: "Sim, excluir",
                                                                                   variant: "destructive",
                                                                               });
@@ -1263,11 +1362,11 @@ export default function Clientes() {
 
                                                                         const ac = activeClient as any;
 
-                                                                        // 1. Soft-delete da CR
+                                                                        // 1. Soft-delete de todas as parcelas (CRs) da compra
                                                                         const { error: crErr } = await ac
                                                                             .from("contas_receber")
                                                                             .update({ deleted_at: new Date().toISOString() })
-                                                                            .eq("id", cr.id);
+                                                                            .in("id", grupo.crIds);
                                                                         if (crErr) {
                                                                             toast({ title: "Erro ao excluir", description: crErr.message, variant: "destructive" });
                                                                             return;
@@ -1281,14 +1380,14 @@ export default function Clientes() {
                                                                                     conta_receber_id: null,
                                                                                     status_conciliacao: "pendente",
                                                                                 })
-                                                                                .eq("conta_receber_id", cr.id);
+                                                                                .in("conta_receber_id", grupo.crIds);
                                                                             if (movErr) {
-                                                                                console.error("[excluir CR] erro ao orfanizar movimentacao:", movErr);
+                                                                                console.error("[excluir compra] erro ao orfanizar movimentacao:", movErr);
                                                                             }
                                                                         }
 
                                                                         toast({
-                                                                            title: "Lançamento excluído",
+                                                                            title: isParcelado ? "Compra excluída" : "Lançamento excluído",
                                                                             description: isPago
                                                                                 ? "Pagamento disponível em Conciliação Bancária para reclassificação"
                                                                                 : undefined,
@@ -1296,7 +1395,7 @@ export default function Clientes() {
                                                                         buscarFinanceiroCliente(selectedClient);
                                                                     }}
                                                                     className="p-1 rounded text-[#999] hover:text-[#E53E3E] hover:bg-[#FEE2E2] transition-colors cursor-pointer"
-                                                                    title="Excluir lançamento"
+                                                                    title={isParcelado ? "Excluir compra" : "Excluir lançamento"}
                                                                 >
                                                                     <Trash2 className="h-3.5 w-3.5" />
                                                                 </button>
