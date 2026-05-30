@@ -285,7 +285,7 @@ export default function TabelaPrecos() {
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
                                         <div className="absolute right-0 mt-1 z-50 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
-                                            <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                                            <p className="px-3 py-1.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
                                             {colLabelsForMenu.map(([k, label]) => (
                                                 <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
                                                     <input

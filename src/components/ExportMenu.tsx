@@ -265,7 +265,7 @@ export function ExportMenu<T>({
           style={{ position: 'fixed', top: coords.top, right: coords.right, zIndex: 1000 }}
           className="w-44 bg-white border border-[#D0D5DD] rounded-md shadow-lg overflow-hidden"
         >
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wide border-b border-[#F1F3F5]">
+          <div className="px-3 py-1.5 text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide border-b border-[#F1F3F5]">
             {count} {count === 1 ? 'registro' : 'registros'}
           </div>
           <button

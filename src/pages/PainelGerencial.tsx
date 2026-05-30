@@ -112,7 +112,7 @@ function SectionTitle({
         <span className="h-5 w-1 rounded-full bg-[#1E3A8A]" />
         <h2 className="text-[17px] font-bold tracking-tight text-[#1E3A8A]">{children}</h2>
       </div>
-      {subtitle && <p className="ml-[14px] mt-1 text-[12.5px] text-[#667085]">{subtitle}</p>}
+      {subtitle && <p className="ml-[14px] mt-1 text-[12px] text-[#667085]">{subtitle}</p>}
     </div>
   );
 }
@@ -1694,11 +1694,11 @@ export default function PainelGerencial() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest w-10">#</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Credor</th>
-                  <th className="text-right px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lançamentos</th>
-                  <th className="text-right px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total pago</th>
-                  <th className="text-right px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">% das despesas</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest w-10">#</th>
+                  <th className="text-left px-4 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Credor</th>
+                  <th className="text-right px-4 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Lançamentos</th>
+                  <th className="text-right px-4 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest">Total pago</th>
+                  <th className="text-right px-4 py-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest">% das despesas</th>
                 </tr>
               </thead>
               <tbody>
@@ -1804,29 +1804,29 @@ export default function PainelGerencial() {
             movPorBanco.map((b) => (
               <div key={b.id} className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
                 <div className="bg-[#059669] px-4 py-2">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest truncate">
+                  <h3 className="text-[11px] font-bold text-white uppercase tracking-widest truncate">
                     {b.nome}
                   </h3>
                 </div>
                 <div className="p-4 space-y-3">
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">Saldo atual</p>
+                    <p className="text-[11px] text-gray-400 uppercase tracking-wider">Saldo atual</p>
                     <p className="text-lg font-bold" style={{ color: b.saldo >= 0 ? C.text1 : C.red }}>
                       {fmt(b.saldo)}
                     </p>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-gray-100">
                     <div>
-                      <p className="text-[10px] text-gray-400 uppercase">Entradas</p>
+                      <p className="text-[11px] text-gray-400 uppercase">Entradas</p>
                       <p className="text-sm font-semibold" style={{ color: C.green }}>{fmt(b.entradas)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] text-gray-400 uppercase">Saídas</p>
+                      <p className="text-[11px] text-gray-400 uppercase">Saídas</p>
                       <p className="text-sm font-semibold" style={{ color: C.red }}>{fmt(b.saidas)}</p>
                     </div>
                   </div>
                   <div className="pt-2 border-t border-gray-100">
-                    <p className="text-[10px] text-gray-400 uppercase">Líquido do período</p>
+                    <p className="text-[11px] text-gray-400 uppercase">Líquido do período</p>
                     <p className="text-sm font-semibold" style={{ color: b.liquido >= 0 ? C.green : C.red }}>
                       {b.liquido >= 0 ? "+" : ""}{fmt(b.liquido)}
                     </p>

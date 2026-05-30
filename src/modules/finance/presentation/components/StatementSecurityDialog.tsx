@@ -87,7 +87,7 @@ export function StatementSecurityDialog({
                             : <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />}
                         <div className="min-w-0">
                             <p className={`text-[14px] font-bold ${verdict.tone === 'block' ? 'text-red-800' : 'text-amber-900'}`}>{verdict.title}</p>
-                            <p className={`text-[12.5px] leading-snug mt-0.5 ${verdict.tone === 'block' ? 'text-red-700' : 'text-amber-800'}`}>{verdict.sub}</p>
+                            <p className={`text-[12px] leading-snug mt-0.5 ${verdict.tone === 'block' ? 'text-red-700' : 'text-amber-800'}`}>{verdict.sub}</p>
                         </div>
                     </div>
 
@@ -102,7 +102,7 @@ export function StatementSecurityDialog({
                                 <div key={c.id} className={`px-3 py-2.5 flex items-start gap-2.5 ${c.status === 'block' ? 'bg-red-50' : 'bg-amber-50'}`}>
                                     <CheckIcon status={c.status} />
                                     <div className="min-w-0">
-                                        <div className="text-[12.5px] font-semibold text-[#1D2939]">{c.label}</div>
+                                        <div className="text-[12px] font-semibold text-[#1D2939]">{c.label}</div>
                                         <div className="text-[11.5px] text-[#555] leading-snug">{c.detail}</div>
                                     </div>
                                 </div>

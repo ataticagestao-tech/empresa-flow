@@ -228,7 +228,7 @@ export default function Empresas() {
           {/* ═══ MENU SUPERIOR (header da página) ═══ */}
           <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white mb-6">
             <div className="bg-[#2A2724] px-4 py-3">
-              <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">{editingId ? "Editar Empresa" : "Nova Empresa"}</h1>
+              <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">{editingId ? "Editar Empresa" : "Nova Empresa"}</h1>
               <p className="text-[11px] text-white/80 mt-0.5">Cadastro da empresa em etapas</p>
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function Empresas() {
                   }`}>
                   {i < step ? "\u2713" : i + 1}
                 </button>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ml-1 mr-3 hidden sm:inline ${
+                <span className={`text-[11px] font-bold uppercase tracking-wider ml-1 mr-3 hidden sm:inline ${
                   i <= step ? "text-[#059669]" : "text-[#ccc]"
                 }`}>{s}</span>
                 {i < STEPS.length - 1 && <div className={`w-8 h-0.5 mr-2 ${i < step ? "bg-[#059669]" : "bg-[#ccc]"}`} />}
@@ -268,7 +268,7 @@ export default function Empresas() {
                         <span className="text-white text-xs font-bold">1</span>
                       </div>
                       <span className="text-sm font-bold text-[#1D2939]">Com CNPJ</span>
-                      <span className="text-[10px] text-[#555] ml-1">— preenche dados automaticamente via Receita Federal</span>
+                      <span className="text-[11px] text-[#555] ml-1">— preenche dados automaticamente via Receita Federal</span>
                     </div>
                     <div className="flex gap-2">
                       <input value={form.cnpj} onChange={e => set("cnpj", maskCNPJ(e.target.value))} placeholder="00.000.000/0000-00" className={inputCls()} />
@@ -278,7 +278,7 @@ export default function Empresas() {
                       </button>
                     </div>
                     {autoFilled.size > 0 && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">
                         Preenchido automaticamente via Receita Federal
                       </span>
                     )}
@@ -311,64 +311,64 @@ export default function Empresas() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Razão Social <span className="text-[#E53E3E]">*</span></label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Razão Social <span className="text-[#E53E3E]">*</span></label>
                       <input value={form.razao_social} onChange={e => set("razao_social", e.target.value)} className={inputCls("razao_social")} />
-                      {autoFilled.has("razao_social") && <span className="text-[9px] text-[#039855]">✓ Via Receita Federal</span>}
+                      {autoFilled.has("razao_social") && <span className="text-[10px] text-[#039855]">✓ Via Receita Federal</span>}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Nome Fantasia</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Nome Fantasia</label>
                       <input value={form.nome_fantasia} onChange={e => set("nome_fantasia", e.target.value)} className={inputCls("nome_fantasia")} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Data de Abertura</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Data de Abertura</label>
                       <input type="date" value={form.data_abertura} onChange={e => set("data_abertura", e.target.value)} className={inputCls("data_abertura")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Email</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Email</label>
                       <input type="email" value={form.email} onChange={e => set("email", e.target.value)} className={inputCls()} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Telefone</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Telefone</label>
                       <input value={form.telefone} onChange={e => set("telefone", e.target.value)} className={inputCls()} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1 md:col-span-2">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Endereço</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Endereço</label>
                       <input value={form.endereco_logradouro} onChange={e => set("endereco_logradouro", e.target.value)} className={inputCls("endereco_logradouro")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Número</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Número</label>
                       <input value={form.endereco_numero} onChange={e => set("endereco_numero", e.target.value)} className={inputCls("endereco_numero")} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Bairro</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Bairro</label>
                       <input value={form.endereco_bairro} onChange={e => set("endereco_bairro", e.target.value)} className={inputCls("endereco_bairro")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Cidade</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Cidade</label>
                       <input value={form.endereco_cidade} onChange={e => set("endereco_cidade", e.target.value)} className={inputCls("endereco_cidade")} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Estado</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Estado</label>
                       <input value={form.endereco_estado} onChange={e => set("endereco_estado", e.target.value)} className={inputCls("endereco_estado")} maxLength={2} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">CEP</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">CEP</label>
                       <input value={form.endereco_cep} onChange={e => set("endereco_cep", e.target.value)} className={inputCls("endereco_cep")} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Inscrição Municipal</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Inscrição Municipal</label>
                       <input value={form.inscricao_municipal} onChange={e => set("inscricao_municipal", e.target.value)} className={inputCls()} placeholder="Preencher manualmente" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Inscrição Estadual</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Inscrição Estadual</label>
                       <input value={form.inscricao_estadual} onChange={e => set("inscricao_estadual", e.target.value)} className={inputCls()} placeholder="Preencher manualmente" />
                     </div>
                   </div>
@@ -398,21 +398,21 @@ export default function Empresas() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Nome do Responsável</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Nome do Responsável</label>
                       <input value={form.responsavel_nome} onChange={e => set("responsavel_nome", e.target.value)} className={inputCls()} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">CPF</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">CPF</label>
                       <input value={form.responsavel_cpf} onChange={e => set("responsavel_cpf", e.target.value)} className={inputCls()} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Email</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Email</label>
                       <input type="email" value={form.responsavel_email} onChange={e => set("responsavel_email", e.target.value)} className={inputCls()} />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939]">Telefone</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939]">Telefone</label>
                       <input value={form.responsavel_telefone} onChange={e => set("responsavel_telefone", e.target.value)} className={inputCls()} />
                     </div>
                   </div>
@@ -432,7 +432,7 @@ export default function Empresas() {
                     <SummaryRow label="Email" value={form.email} />
                   </div>
                   {!editingId && (
-                    <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">
+                    <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">
                       ✓ Plano de contas padrão Tática será aplicado automaticamente — 54 contas · 3 níveis
                     </span>
                   )}
@@ -494,8 +494,8 @@ export default function Empresas() {
           <div className="flex flex-wrap items-center gap-3">
             <input type="text" placeholder="Buscar empresa..." value={search} onChange={e => setSearch(e.target.value)}
               className="border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none flex-1 min-w-[200px]" />
-            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">{companies?.length || 0} empresas</span>
-            <span className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">{companiesWithCharts.size} configuradas</span>
+            <span className="text-[11px] font-bold px-3 py-1.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">{companies?.length || 0} empresas</span>
+            <span className="text-[11px] font-bold px-3 py-1.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">{companiesWithCharts.size} configuradas</span>
           </div>
         )}
 
@@ -527,8 +527,8 @@ export default function Empresas() {
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-sm font-bold text-[#1D2939] truncate">{company.razao_social}</h3>
                         {hasChart
-                          ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Configurado</span>
-                          : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">Pendente</span>}
+                          ? <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Configurado</span>
+                          : <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">Pendente</span>}
                       </div>
                       <div className="flex items-center gap-4 text-xs text-[#555]">
                         {company.cnpj && <span>{maskCNPJ(company.cnpj)}</span>}

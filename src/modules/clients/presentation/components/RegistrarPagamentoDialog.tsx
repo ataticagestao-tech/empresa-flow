@@ -166,7 +166,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                 <div className="px-7 py-5 space-y-4 bg-[#fafbfc]">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
+                            <Label className="text-[11px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Valor (R$)
                             </Label>
                             <Input
@@ -180,7 +180,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                             />
                         </div>
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
+                            <Label className="text-[11px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Data do pagamento
                             </Label>
                             <Input
@@ -194,7 +194,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
+                            <Label className="text-[11px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Forma de pagamento
                             </Label>
                             <Select value={forma} onValueChange={setForma}>
@@ -207,7 +207,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                             </Select>
                         </div>
                         <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
+                            <Label className="text-[11px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                                 Conta de recebimento
                             </Label>
                             <Select value={contaBancaria} onValueChange={setContaBancaria}>
@@ -226,7 +226,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                     </div>
 
                     <div>
-                        <Label className="text-[10px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
+                        <Label className="text-[11px] font-bold uppercase tracking-wide text-[#667085] mb-1.5 block">
                             Observações
                         </Label>
                         <Textarea
@@ -255,7 +255,7 @@ export function RegistrarPagamentoDialog({ contrato, clientName, clientCpfCnpj, 
                                 </span>
                             </div>
                             {saldoApos < -0.01 && (
-                                <p className="text-[10px] text-[#E53E3E] mt-1">
+                                <p className="text-[11px] text-[#E53E3E] mt-1">
                                     Pagamento excede o saldo em {formatBRL(Math.abs(saldoApos))}
                                 </p>
                             )}

@@ -172,7 +172,7 @@ export default function DREContabil() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-[12.5px]">
+                <table className="w-full text-[12px]">
                   <thead>
                     <tr className="border-b bg-muted/30">
                       <th className="text-left py-2.5 px-4 font-semibold w-[120px]">Código</th>

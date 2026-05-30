@@ -1097,7 +1097,7 @@ export default function ContasReceber() {
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
             <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
               <div>
-                <div className="text-[14px] font-bold uppercase tracking-wider text-white">Agenda de recebimentos</div>
+                <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Agenda de recebimentos</div>
                 <div className="text-[11px] text-white/80 mt-0.5">
                   {(dateFrom || dateTo) ? 'Período filtrado' : 'Próximos 30 dias'} &middot; {agenda30.totalDays} dia{agenda30.totalDays !== 1 ? 's' : ''} &middot; {agenda30.diasComEntrada} com entrada
                   {agenda30.diasVencidos > 0 && (
@@ -1192,7 +1192,7 @@ export default function ContasReceber() {
           <div className="bg-white border border-[#EAECF0] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
             <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
               <div>
-                <div className="text-[14px] font-bold uppercase tracking-wider text-white">Contas a receber</div>
+                <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Contas a receber</div>
                 <div className="text-[11px] text-white/80 mt-0.5">
                   {selectedAgendaDate
                     ? `Vencimento em ${format(parseISO(selectedAgendaDate), 'dd/MM/yyyy')}`
@@ -1273,7 +1273,7 @@ export default function ContasReceber() {
                         rowKey={(cr: any) => cr.id}
                         showHeader={false}
                         resetKey={`${selectedAgendaDate ?? 'all'}|${g.plano}`}
-                        className="text-[12.5px]"
+                        className="text-[12px]"
                         cellClassName="border-[#F2F4F7]"
                         columns={[
                           {
@@ -1430,7 +1430,7 @@ export default function ContasReceber() {
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
                       <div className="absolute right-0 mt-1 z-50 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
-                        <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                        <p className="px-3 py-1.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
                         {Object.entries(CR_COL_LABELS).map(([k, label]) => (
                           <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
                             <input
@@ -1481,7 +1481,7 @@ export default function ContasReceber() {
                 description="Ajuste os filtros ou o periodo para ver resultados."
               />
             ) : (<>
-              <table className="text-[12.5px]" style={{ tableLayout: 'fixed', width: visibleCRCols.reduce((a, k) => a + (colWidths[k] ?? CR_COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
+              <table className="text-[12px]" style={{ tableLayout: 'fixed', width: visibleCRCols.reduce((a, k) => a + (colWidths[k] ?? CR_COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
                 <colgroup>
                   {CR_COL_ORDER.map(k => (
                     <col key={k} className={isColVisible(k) ? '' : 'hidden'} style={{ width: colWidths[k] ?? CR_COL_WIDTHS_DEFAULT[k] }} />
@@ -1565,9 +1565,9 @@ export default function ContasReceber() {
                             {cr.pagador_nome}
                           </button>
                           {cr._itensVenda ? (
-                            <div className="text-[10px] text-[#555] leading-tight truncate" title={cr._itensVenda}>{cr._itensVenda}</div>
+                            <div className="text-[11px] text-[#555] leading-tight truncate" title={cr._itensVenda}>{cr._itensVenda}</div>
                           ) : cr.pagador_cpf_cnpj && (
-                            <div className="text-[10px] text-[#999] leading-tight truncate">{cr.pagador_cpf_cnpj}</div>
+                            <div className="text-[11px] text-[#999] leading-tight truncate">{cr.pagador_cpf_cnpj}</div>
                           )}
                         </td>
                         {/* Categoria */}
@@ -1583,7 +1583,7 @@ export default function ContasReceber() {
                               <span className="text-[#039855] font-semibold">
                                 {formatData(cr.data_pagamento)}
                               </span>
-                              <div className="text-[10px] text-[#999] leading-tight">
+                              <div className="text-[11px] text-[#999] leading-tight">
                                 venc. {formatData(cr.data_vencimento)}
                               </div>
                             </>
@@ -1593,7 +1593,7 @@ export default function ContasReceber() {
                                 {formatData(cr.data_vencimento)}
                               </span>
                               {isVencido && diasAtraso > 0 && (
-                                <div className="text-[10px] text-[#E53E3E] leading-tight">
+                                <div className="text-[11px] text-[#E53E3E] leading-tight">
                                   {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} em atraso
                                 </div>
                               )}
@@ -2167,7 +2167,7 @@ function ModalQuitarCR({
         >
           <DollarSign size={16} className="text-[#059669]" />
           <div>
-            <span className="text-[10px] font-bold text-[#059669] uppercase tracking-widest">Saldo devedor</span>
+            <span className="text-[11px] font-bold text-[#059669] uppercase tracking-widest">Saldo devedor</span>
             <p className="text-lg font-bold text-[#059669]">{formatBRL(saldo)}</p>
           </div>
         </div>

@@ -89,7 +89,7 @@ export function WhatsappValidatorButton({ phone, variant = "icon" }: Props) {
                 disabled={status === "validating" || !phone}
                 title={tooltip}
                 aria-label={tooltip}
-                className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50"
+                className="shrink-0 whitespace-nowrap text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50"
             >
                 {label}
             </button>

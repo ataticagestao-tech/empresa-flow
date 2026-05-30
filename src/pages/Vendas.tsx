@@ -2043,7 +2043,7 @@ export default function Vendas() {
       pago: 'Pago', aberto: 'Inadimplente', areceber: 'A receber', parcial: 'CR — parcial', avista: 'À vista',
     }
     return (
-      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${styles[st]}`}>
+      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${styles[st]}`}>
         {labels[st]}
       </span>
     )
@@ -2051,7 +2051,7 @@ export default function Vendas() {
 
   function TipoBadge({ tipo }: { tipo: string }) {
     return (
-      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold text-[#555] bg-[#F6F2EB] border border-[#ccc]">
+      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold text-[#555] bg-[#F6F2EB] border border-[#ccc]">
         {LABEL_TIPO[tipo] || tipo}
       </span>
     )
@@ -2155,7 +2155,7 @@ export default function Vendas() {
                   className="space-y-2"
                 >
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#98A2B3] mb-1 block">Data Inicial</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#98A2B3] mb-1 block">Data Inicial</label>
                     <input
                       type="date"
                       value={tempDateFrom}
@@ -2164,7 +2164,7 @@ export default function Vendas() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#98A2B3] mb-1 block">Data Final</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#98A2B3] mb-1 block">Data Final</label>
                     <input
                       type="date"
                       value={tempDateTo}
@@ -2270,7 +2270,7 @@ export default function Vendas() {
             </button>
             {exportMenuOpen && (
               <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-white border border-[#D0D5DD] rounded-md shadow-lg overflow-hidden">
-                <div className="px-3 py-1.5 text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wide border-b border-[#F1F3F5]">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide border-b border-[#F1F3F5]">
                   {vendasFiltradas.length} {vendasFiltradas.length === 1 ? 'venda' : 'vendas'}
                 </div>
                 <button
@@ -2497,7 +2497,7 @@ export default function Vendas() {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
                     <div className="absolute right-0 mt-1 z-50 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
-                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      <p className="px-3 py-1.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
                       {Object.entries(COL_LABELS).map(([k, label]) => (
                         <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
                           <input
@@ -2576,7 +2576,7 @@ export default function Vendas() {
                           />
                           <button
                             onClick={() => { setFiltroCodigo(''); setHeaderFiltroAberto(null); setHeaderAnchor(null) }}
-                            className="mt-2 text-[10px] text-[#667085] hover:text-black"
+                            className="mt-2 text-[11px] text-[#667085] hover:text-black"
                           >
                             Limpar
                           </button>
@@ -2608,7 +2608,7 @@ export default function Vendas() {
                               className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroData === d ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                             >
                               <span className="text-left">{d.slice(5, 10).split('-').reverse().join('/')}/{d.slice(2, 4)}</span>
-                              <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
+                              <span className="text-[11px] text-[#98A2B3] font-normal">{count}</span>
                             </button>
                           ))}
                         </HeaderFilterDropdown>
@@ -2653,7 +2653,7 @@ export default function Vendas() {
                                   title={c}
                                 >
                                   <span className="truncate flex-1 text-left">{c}</span>
-                                  <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
+                                  <span className="text-[11px] text-[#98A2B3] font-normal">{count}</span>
                                 </button>
                               ))}
                           </div>
@@ -2682,7 +2682,7 @@ export default function Vendas() {
                           />
                           <button
                             onClick={() => { setFiltroProduto(''); setHeaderFiltroAberto(null); setHeaderAnchor(null) }}
-                            className="mt-2 text-[10px] text-[#667085] hover:text-black"
+                            className="mt-2 text-[11px] text-[#667085] hover:text-black"
                           >
                             Limpar
                           </button>
@@ -2714,7 +2714,7 @@ export default function Vendas() {
                               className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroItens === n ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                             >
                               <span className="text-left">{n} {n === 1 ? 'item' : 'itens'}</span>
-                              <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
+                              <span className="text-[11px] text-[#98A2B3] font-normal">{count}</span>
                             </button>
                           ))}
                         </HeaderFilterDropdown>
@@ -2745,7 +2745,7 @@ export default function Vendas() {
                               className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroForma === f ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                             >
                               <span className="truncate text-left">{LABEL_FORMA[f] || f}</span>
-                              <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
+                              <span className="text-[11px] text-[#98A2B3] font-normal">{count}</span>
                             </button>
                           ))}
                         </HeaderFilterDropdown>
@@ -2763,7 +2763,7 @@ export default function Vendas() {
                       </button>
                       {headerFiltroAberto === 'valor' && (
                         <HeaderFilterDropdown anchor={headerAnchor} align="right" width={200} innerRef={headerFiltroRef} className="p-3">
-                          <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Mínimo (R$)</label>
+                          <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">Mínimo (R$)</label>
                           <input
                             type="number"
                             step={0.01}
@@ -2773,7 +2773,7 @@ export default function Vendas() {
                             placeholder="0,00"
                             className="w-full px-2 py-1 text-xs border border-[#D0D5DD] rounded focus:outline-none focus:border-[#059669] mb-2"
                           />
-                          <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Máximo (R$)</label>
+                          <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">Máximo (R$)</label>
                           <input
                             type="number"
                             step={0.01}
@@ -2785,7 +2785,7 @@ export default function Vendas() {
                           />
                           <button
                             onClick={() => { setFiltroValorMin(''); setFiltroValorMax(''); setHeaderFiltroAberto(null); setHeaderAnchor(null) }}
-                            className="mt-2 text-[10px] text-[#667085] hover:text-black"
+                            className="mt-2 text-[11px] text-[#667085] hover:text-black"
                           >
                             Limpar
                           </button>
@@ -2809,7 +2809,7 @@ export default function Vendas() {
                             className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${!filtroCR ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                           >
                             <span className="text-left">Todos</span>
-                            <span className="text-[10px] text-[#98A2B3] font-normal">{vendas.length}</span>
+                            <span className="text-[11px] text-[#98A2B3] font-normal">{vendas.length}</span>
                           </button>
                           {crStatusUnicos.map(([st, count]) => {
                             const label = st === 'pago' ? 'Pago' : st === 'aberto' ? 'Inadimplente' : st === 'parcial' ? 'Parcial' : 'À vista'
@@ -2820,7 +2820,7 @@ export default function Vendas() {
                                 className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs hover:bg-[#F6F2EB] ${filtroCR === st ? 'bg-[#ECFDF4] text-[#059669] font-semibold' : 'text-[#1D2939]'}`}
                               >
                                 <span className="text-left">{label}</span>
-                                <span className="text-[10px] text-[#98A2B3] font-normal">{count}</span>
+                                <span className="text-[11px] text-[#98A2B3] font-normal">{count}</span>
                               </button>
                             )
                           })}
@@ -2848,7 +2848,7 @@ export default function Vendas() {
                         {v.vendas_itens && v.vendas_itens.length > 0
                           ? <>
                               {v.vendas_itens[0].descricao}
-                              {v.vendas_itens.length > 1 && <span className="text-[#98A2B3] text-[10px] ml-1">+{v.vendas_itens.length - 1}</span>}
+                              {v.vendas_itens.length > 1 && <span className="text-[#98A2B3] text-[11px] ml-1">+{v.vendas_itens.length - 1}</span>}
                             </>
                           : <span className="text-[#98A2B3] italic">—</span>}
                       </td>
@@ -2878,7 +2878,7 @@ export default function Vendas() {
             )}
           </div>
           {/* Paginação — sempre visível no rodapé do container */}
-          <div className="bg-white border-t border-[#EAECF0] px-5 py-3 flex items-center justify-between text-[12.5px] text-[#667085] mt-auto flex-shrink-0">
+          <div className="bg-white border-t border-[#EAECF0] px-5 py-3 flex items-center justify-between text-[12px] text-[#667085] mt-auto flex-shrink-0">
             <span>
               {vendasFiltradas.length === 0 ? (
                 'Nenhum registro'
@@ -2932,7 +2932,7 @@ export default function Vendas() {
             <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
               {/* Tipo */}
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Tipo</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-2">Tipo</label>
                 <div className="grid grid-cols-4 gap-2">
                   {TIPOS_VENDA.map(t => {
                     const Icon = t.icon
@@ -2955,7 +2955,7 @@ export default function Vendas() {
 
               {/* Cliente — searchable dropdown */}
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Cliente</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">Cliente</label>
                 <div ref={clienteRef} className="relative">
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
@@ -3045,7 +3045,7 @@ export default function Vendas() {
                   <div className="flex items-start gap-2">
                     <AlertCircle size={16} className="text-[#D97706] mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12.5px] font-bold text-[#92400E]">
+                      <p className="text-[12px] font-bold text-[#92400E]">
                         {formCliente || 'Este cliente'} já tem {contratosAbertosCliente.length} {contratosAbertosCliente.length === 1 ? 'contrato/pacote' : 'contratos/pacotes'} em aberto
                       </p>
                       <p className="text-[11px] text-[#92400E]/85 mt-0.5">
@@ -3058,10 +3058,10 @@ export default function Vendas() {
                               <div className="min-w-0 flex-1">
                                 <div className="text-[12px] font-semibold text-[#1D2939] flex items-center gap-2 flex-wrap">
                                   <span className="truncate">{c.procedimento || (c.tipo === 'contrato' ? 'Contrato' : 'Pacote')}</span>
-                                  <span className="inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-wider rounded bg-[#F3F4F6] text-[#555]">
+                                  <span className="inline-block px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded bg-[#F3F4F6] text-[#555]">
                                     {c.tipo}
                                   </span>
-                                  <span className="text-[10px] text-[#888] font-normal">
+                                  <span className="text-[11px] text-[#888] font-normal">
                                     desde {formatData(c.data_venda)}
                                   </span>
                                 </div>
@@ -3112,7 +3112,7 @@ export default function Vendas() {
 
               {/* Data */}
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Data da venda</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">Data da venda</label>
                 <input
                   type="date"
                   value={formDataVenda}
@@ -3123,11 +3123,11 @@ export default function Vendas() {
 
               {/* Itens — with product selector */}
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">Itens</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-2">Itens</label>
                 <div className="border border-[#ccc] rounded-md overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-[#F6F2EB] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                      <tr className="bg-[#F6F2EB] text-[11px] font-bold text-[#555] uppercase tracking-wider">
                         <th className="text-left px-3 py-2">Descrição</th>
                         <th className="text-center px-3 py-2 w-20">Qtd</th>
                         <th className="text-center px-3 py-2 w-28">Valor unit.</th>
@@ -3195,7 +3195,7 @@ export default function Vendas() {
               {/* Formas de pagamento (múltiplas) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider">Formas de pagamento</label>
+                  <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider">Formas de pagamento</label>
                   <div className="text-[11px]">
                     {Math.abs(pendentePagamento) < 0.01 && totalVenda > 0 ? (
                       <span className="text-[#039855] font-semibold inline-flex items-center gap-1">
@@ -3235,7 +3235,7 @@ export default function Vendas() {
                       <div key={split.uid} className="border border-[#ccc] rounded-md p-3 bg-[#FAFAFA]">
                         <div className="grid grid-cols-12 gap-2 items-end">
                           <div className={`col-span-12 ${isOwner ? 'sm:col-span-4' : 'sm:col-span-6'}`}>
-                            <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Forma</label>
+                            <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Forma</label>
                             <select
                               value={split.forma}
                               onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, forma: e.target.value, parcelas: 1, taxa: null, conta_bancaria_id: '' } : p))}
@@ -3245,7 +3245,7 @@ export default function Vendas() {
                             </select>
                           </div>
                           <div className={`col-span-6 ${isOwner ? 'sm:col-span-3' : isParcl ? 'sm:col-span-4' : 'sm:col-span-5'}`}>
-                            <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Valor (R$)</label>
+                            <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Valor (R$)</label>
                             <input
                               type="number"
                               min={0}
@@ -3260,7 +3260,7 @@ export default function Vendas() {
                           </div>
                           {isOwner && !isPendente && (
                             <div className={`${isParcl ? 'col-span-12 sm:col-span-3' : 'col-span-6 sm:col-span-4'}`}>
-                              <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta destino</label>
+                              <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Conta destino</label>
                               <select
                                 value={split.conta_bancaria_id}
                                 onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, conta_bancaria_id: e.target.value, taxa: null } : p))}
@@ -3275,7 +3275,7 @@ export default function Vendas() {
                           )}
                           {isPendente && (
                             <div className="col-span-12 sm:col-span-5">
-                              <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Vencimento</label>
+                              <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Vencimento</label>
                               <input
                                 type="date"
                                 value={split.vencimento_pendente || format(addDays(parseISO(formDataVenda), 30), 'yyyy-MM-dd')}
@@ -3286,7 +3286,7 @@ export default function Vendas() {
                           )}
                           {isParcl && (
                             <div className="col-span-10 sm:col-span-1">
-                              <label className="block text-[9px] font-bold text-[#555] uppercase tracking-wider mb-1">Parc.</label>
+                              <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Parc.</label>
                               <select
                                 value={split.parcelas}
                                 onChange={e => setFormPagamentos(prev => prev.map((p, i) => i === idx ? { ...p, parcelas: parseInt(e.target.value) || 1 } : p))}
@@ -3398,7 +3398,7 @@ export default function Vendas() {
               {/* Total + actions */}
               <div className="flex items-center justify-between pt-2 border-t border-[#ccc]">
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Total: </span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider">Total: </span>
                   <span className="text-lg font-bold text-[#1D2939]">{formatBRL(totalVenda)}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3437,7 +3437,7 @@ export default function Vendas() {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">Nome / Razão Social *</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">Nome / Razão Social *</label>
                 <input
                   type="text"
                   value={novoClienteNome}
@@ -3446,7 +3446,7 @@ export default function Vendas() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">CPF/CNPJ</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">CPF/CNPJ</label>
                 <input
                   type="text"
                   value={novoClienteCpfCnpj}
@@ -3456,7 +3456,7 @@ export default function Vendas() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1">E-mail</label>
+                <label className="block text-[11px] font-bold text-[#555] uppercase tracking-wider mb-1">E-mail</label>
                 <input
                   type="email"
                   value={novoClienteEmail}
@@ -3501,30 +3501,30 @@ export default function Vendas() {
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Cliente</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block">Cliente</span>
                   <span className="text-[#1D2939] font-medium">{modalDetalhes.cliente_nome}</span>
                   {modalDetalhes.cliente_cpf_cnpj && (
                     <span className="block text-[11px] text-[#555]">{formatDoc(modalDetalhes.cliente_cpf_cnpj)}</span>
                   )}
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Data</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block">Data</span>
                   <span className="text-[#1D2939]">{formatData(modalDetalhes.data_venda)}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Tipo</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block">Tipo</span>
                   <TipoBadge tipo={modalDetalhes.tipo} />
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Forma pgto</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block">Forma pgto</span>
                   <span className="text-[#1D2939]">{LABEL_FORMA[modalDetalhes.forma_pagamento] || modalDetalhes.forma_pagamento}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">Valor total</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block">Valor total</span>
                   <span className="text-[#1D2939] font-bold">{formatBRL(modalDetalhes.valor_total)}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block">CR</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block">CR</span>
                   <CRBadge venda={modalDetalhes} />
                 </div>
               </div>
@@ -3532,11 +3532,11 @@ export default function Vendas() {
               {/* Itens */}
               {modalDetalhes.vendas_itens && modalDetalhes.vendas_itens.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Itens</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block mb-2">Itens</span>
                   <div className="border border-[#ccc] rounded-md overflow-hidden">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-[#F6F2EB] text-[10px] font-bold text-[#555] uppercase tracking-wider">
+                        <tr className="bg-[#F6F2EB] text-[11px] font-bold text-[#555] uppercase tracking-wider">
                           <th className="text-left px-3 py-2">Descrição</th>
                           <th className="text-center px-3 py-2 w-16">Qtd</th>
                           <th className="text-right px-3 py-2 w-24">Unit.</th>
@@ -3561,7 +3561,7 @@ export default function Vendas() {
               {/* CRs */}
               {modalDetalhes.contas_receber && modalDetalhes.contas_receber.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold text-[#555] uppercase tracking-wider block mb-2">Contas a Receber</span>
+                  <span className="text-[11px] font-bold text-[#555] uppercase tracking-wider block mb-2">Contas a Receber</span>
                   <div className="space-y-1.5">
                     {modalDetalhes.contas_receber.map((cr, idx) => {
                       const forma = cr.forma_recebimento || modalDetalhes.forma_pagamento
@@ -3570,12 +3570,12 @@ export default function Vendas() {
                           <span className="text-[#555]">
                             {modalDetalhes.contas_receber!.length > 1 ? `Parcela ${idx + 1}` : 'CR'} &mdash; venc. {formatData(cr.data_vencimento)}
                             {forma && (
-                              <span className="ml-2 text-[10px] text-[#667085]">· {LABEL_FORMA[forma] || forma}</span>
+                              <span className="ml-2 text-[11px] text-[#667085]">· {LABEL_FORMA[forma] || forma}</span>
                             )}
                           </span>
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-[#1D2939]">{formatBRL(cr.valor)}</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
                               cr.status === 'pago' ? 'text-[#039855] bg-[#ECFDF3]' :
                               cr.status === 'parcial' ? 'text-[#EA580C] bg-[#FFF0EB]' :
                               'text-[#059669] bg-[#ECFDF4]'
@@ -3716,7 +3716,7 @@ export default function Vendas() {
                   className="w-full pl-9 pr-3 py-2 text-sm border border-[#ccc] rounded-md bg-white text-[#1D2939] placeholder-[#999] focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669]"
                 />
               </div>
-              <p className="text-[10px] text-[#999] mt-1.5">{produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}</p>
+              <p className="text-[11px] text-[#999] mt-1.5">{produtosFiltrados.length} produto{produtosFiltrados.length !== 1 ? 's' : ''} encontrado{produtosFiltrados.length !== 1 ? 's' : ''}</p>
             </div>
 
             {/* Product list */}
@@ -3733,8 +3733,8 @@ export default function Vendas() {
                 <table className="w-full text-sm">
                   <thead className="bg-[#F6F2EB] sticky top-0">
                     <tr>
-                      <th className="text-left px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Nome</th>
-                      <th className="text-right px-4 py-2 text-[10px] font-bold text-[#555] uppercase">Preço</th>
+                      <th className="text-left px-4 py-2 text-[11px] font-bold text-[#555] uppercase">Nome</th>
+                      <th className="text-right px-4 py-2 text-[11px] font-bold text-[#555] uppercase">Preço</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#eee]">
@@ -3749,7 +3749,7 @@ export default function Vendas() {
                       >
                         <td className="px-4 py-3 font-medium text-[#1D2939]">
                           {p.description}
-                          {p.code && <span className="ml-2 text-[10px] text-[#999]">{p.code}</span>}
+                          {p.code && <span className="ml-2 text-[11px] text-[#999]">{p.code}</span>}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-[#039855] whitespace-nowrap">
                           {p.price != null && p.price > 0 ? formatBRL(p.price) : <span className="text-[#ccc]">—</span>}
@@ -3800,7 +3800,7 @@ export default function Vendas() {
 
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
                     <div className="bg-[#F6F2EB] px-4 py-2">
-                      <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas obrigatórias</h4>
+                      <h4 className="text-[11px] font-bold text-[#555] uppercase tracking-widest">Colunas obrigatórias</h4>
                     </div>
                     <div className="p-4">
                       <table className="w-full text-sm">
@@ -3833,7 +3833,7 @@ export default function Vendas() {
 
                   <div className="border border-[#ccc] rounded-lg overflow-hidden">
                     <div className="bg-[#F6F2EB] px-4 py-2">
-                      <h4 className="text-[10px] font-bold text-[#555] uppercase tracking-widest">Colunas opcionais</h4>
+                      <h4 className="text-[11px] font-bold text-[#555] uppercase tracking-widest">Colunas opcionais</h4>
                     </div>
                     <div className="p-4">
                       <table className="w-full text-sm">
@@ -3971,15 +3971,15 @@ export default function Vendas() {
                       <table className="w-full text-sm">
                         <thead className="bg-[#F6F2EB] sticky top-0">
                           <tr>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Linha</th>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Cliente</th>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Descrição</th>
-                            <th className="px-3 py-2 text-right text-[10px] font-bold text-[#555] uppercase">Qtd</th>
-                            <th className="px-3 py-2 text-right text-[10px] font-bold text-[#555] uppercase">Vlr Unit.</th>
-                            <th className="px-3 py-2 text-right text-[10px] font-bold text-[#555] uppercase">Total</th>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Data</th>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Pagamento</th>
-                            <th className="px-3 py-2 text-left text-[10px] font-bold text-[#555] uppercase">Status</th>
+                            <th className="px-3 py-2 text-left text-[11px] font-bold text-[#555] uppercase">Linha</th>
+                            <th className="px-3 py-2 text-left text-[11px] font-bold text-[#555] uppercase">Cliente</th>
+                            <th className="px-3 py-2 text-left text-[11px] font-bold text-[#555] uppercase">Descrição</th>
+                            <th className="px-3 py-2 text-right text-[11px] font-bold text-[#555] uppercase">Qtd</th>
+                            <th className="px-3 py-2 text-right text-[11px] font-bold text-[#555] uppercase">Vlr Unit.</th>
+                            <th className="px-3 py-2 text-right text-[11px] font-bold text-[#555] uppercase">Total</th>
+                            <th className="px-3 py-2 text-left text-[11px] font-bold text-[#555] uppercase">Data</th>
+                            <th className="px-3 py-2 text-left text-[11px] font-bold text-[#555] uppercase">Pagamento</th>
+                            <th className="px-3 py-2 text-left text-[11px] font-bold text-[#555] uppercase">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#eee]">
@@ -3991,7 +3991,7 @@ export default function Vendas() {
                                 <td className="px-3 py-2 font-medium text-[#1D2939]">
                                   {row.cliente_nome || '-'}
                                   {row.cliente_cpf_cnpj && (
-                                    <span className="block text-[10px] text-[#999]">{row.cliente_cpf_cnpj}</span>
+                                    <span className="block text-[11px] text-[#999]">{row.cliente_cpf_cnpj}</span>
                                   )}
                                 </td>
                                 <td className="px-3 py-2 text-[#333] max-w-[200px] truncate">{row.descricao || '-'}</td>
@@ -4049,7 +4049,7 @@ export default function Vendas() {
                     style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-[#888] mt-1">
+                <p className="text-[11px] text-[#888] mt-1">
                   Não feche esta janela enquanto a importação estiver em andamento
                 </p>
               </div>
@@ -4095,7 +4095,7 @@ export default function Vendas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(15,30,51,0.45)' }} onClick={() => setPosVenda(null)}>
           <div className="bg-white rounded-lg shadow-xl max-w-md w-[92%] p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold text-[#1D2939] mb-1">Compartilhar comprovante</h3>
-            <p className="text-[12.5px] text-[#667085] mb-4">
+            <p className="text-[12px] text-[#667085] mb-4">
               Venda de <strong>{formatBRL(posVenda.valor)}</strong> para <strong>{posVenda.cliente}</strong> registrada.
             </p>
             <div className="space-y-2">

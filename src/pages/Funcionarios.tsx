@@ -93,7 +93,7 @@ const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
 const ICE = "border border-[#c00] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-[#fff8f8] focus:border-[#c00] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 const REQ = <span className="text-[#E53E3E]">*</span>;
 
 export default function Funcionarios() {
@@ -771,7 +771,7 @@ export default function Funcionarios() {
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
           <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Funcionários</h1>
+              <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Funcionários</h1>
               <p className="text-[11px] text-white/80 mt-0.5">Cadastro de funcionários e dados trabalhistas</p>
             </div>
             <div className="flex items-center gap-1">
@@ -822,7 +822,7 @@ export default function Funcionarios() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-xs font-bold text-[#1D2939]">{formatNumero(emp.salario_base || emp.salary || 0)}</p>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                     isActive(emp.status) ? "bg-[#ECFDF3] text-[#039855]" : "bg-[#EAECF0] text-[#555]"
                   }`}>{statusLabel(emp.status)}</span>
                 </div>
@@ -843,14 +843,14 @@ export default function Funcionarios() {
                   { id: "calculadora", label: "Calculadora" }, { id: "beneficios", label: "Calc. Benefícios" },
                   { id: "interacoes", label: "Interações" }].map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
-                    className={`shrink-0 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
+                    className={`shrink-0 whitespace-nowrap text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
                       tab === t.id ? "bg-white text-[#064E3B]" : "text-white/90 hover:bg-white/20"
                     }`}>{t.label}</button>
                 ))}
                 {selected && <div className="ml-auto" />}
-                {selected?.phone && <button onClick={() => setWhatsOpen(true)} title="Enviar mensagem no WhatsApp" className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>WhatsApp</button>}
-                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
-                {selected && <button onClick={() => handleDelete(selected)} className="shrink-0 whitespace-nowrap text-[10px] font-bold text-white/90 hover:bg-[#991B1B] hover:text-white rounded px-2.5 py-1 transition-colors">Excluir</button>}
+                {selected?.phone && <button onClick={() => setWhatsOpen(true)} title="Enviar mensagem no WhatsApp" className="shrink-0 whitespace-nowrap text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>WhatsApp</button>}
+                {selected && <button onClick={gerarPDFFuncionario} disabled={gerandoPDF} className="shrink-0 whitespace-nowrap text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2.5 py-1 disabled:opacity-50">{gerandoPDF ? "Gerando…" : "PDF"}</button>}
+                {selected && <button onClick={() => handleDelete(selected)} className="shrink-0 whitespace-nowrap text-[11px] font-bold text-white/90 hover:bg-[#991B1B] hover:text-white rounded px-2.5 py-1 transition-colors">Excluir</button>}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5">
@@ -959,14 +959,14 @@ export default function Funcionarios() {
                 {tab === "salarios" && (
                   <div className="space-y-4">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                      <div className="bg-[#F6F2EB] px-3 py-1.5"><span className="text-[9px] font-bold uppercase tracking-wider text-[#555]">Salário Base Atual</span></div>
+                      <div className="bg-[#F6F2EB] px-3 py-1.5"><span className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Salário Base Atual</span></div>
                       <table className="w-full text-xs">
                         <thead className="bg-[#F6F2EB]">
                           <tr>
-                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Vigência</th>
-                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Salário</th>
-                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Var.</th>
-                            <th className="text-left px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#555]">Motivo</th>
+                            <th className="text-left px-2.5 py-1.5 text-[10px] font-bold uppercase text-[#555]">Vigência</th>
+                            <th className="text-left px-2.5 py-1.5 text-[10px] font-bold uppercase text-[#555]">Salário</th>
+                            <th className="text-left px-2.5 py-1.5 text-[10px] font-bold uppercase text-[#555]">Var.</th>
+                            <th className="text-left px-2.5 py-1.5 text-[10px] font-bold uppercase text-[#555]">Motivo</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -974,7 +974,7 @@ export default function Funcionarios() {
                             <tr className="border-t border-[#eee] font-semibold">
                               <td className="px-2.5 py-1.5">{selected.hire_date ? new Date(selected.hire_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</td>
                               <td className="px-2.5 py-1.5">{formatNumero(selected.salario_base || selected.salary || 0)}</td>
-                              <td className="px-2.5 py-1.5"><span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ECFDF4] text-[#059669]">Atual</span></td>
+                              <td className="px-2.5 py-1.5"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#ECFDF4] text-[#059669]">Atual</span></td>
                               <td className="px-2.5 py-1.5 text-[#555]">Admissão</td>
                             </tr>
                           ) : <tr><td colSpan={4} className="px-3 py-6 text-center text-[#555]">Selecione um funcionário</td></tr>}
@@ -984,15 +984,15 @@ export default function Funcionarios() {
 
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-white">Pagamentos</span>
-                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalPagoFunc)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Pagamentos</span>
+                        <span className="text-[10px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalPagoFunc)}</span>
                       </div>
                       {loadingPagamentos ? (
                         <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
                       ) : pagamentos.length === 0 ? (
                         <div className="p-6 text-center text-[#555] text-xs">
                           Nenhum lançamento encontrado.
-                          {!selected?.cpf && <div className="mt-1 text-[10px]">Cadastre o CPF para identificar CPs manuais.</div>}
+                          {!selected?.cpf && <div className="mt-1 text-[11px]">Cadastre o CPF para identificar CPs manuais.</div>}
                         </div>
                       ) : (
                         <div className="divide-y divide-[#eee]">
@@ -1027,19 +1027,19 @@ export default function Funcionarios() {
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className={`w-2 h-2 rounded-full shrink-0 ${sourceDot}`} title={sourceTitle}></span>
-                                    <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
+                                    <span className="text-[11px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
                                     <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
                                   </div>
                                   <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatNumero(p.valor)}</span>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-1 pl-4">
-                                  <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
+                                  <div className="flex items-center gap-2 text-[11px] text-[#777] min-w-0">
                                     <span className={`font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span>
                                     {dataPagoLabel && <span className="whitespace-nowrap">Pago {dataPagoLabel}</span>}
                                     {p.conta && <span className="truncate">· {p.conta}</span>}
                                   </div>
                                   {podeVincular && selected?.cpf ? (
-                                    <button onClick={() => vincularPagamento(p.cp_id)} title="Gravar CPF na conta a pagar" className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
+                                    <button onClick={() => vincularPagamento(p.cp_id)} title="Gravar CPF na conta a pagar" className="text-[11px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
                                   ) : null}
                                 </div>
                               </div>
@@ -1047,7 +1047,7 @@ export default function Funcionarios() {
                           })}
                         </div>
                       )}
-                      <div className="bg-[#F6F2EB] px-3 py-1.5 border-t border-[#eee] flex items-center gap-3 text-[9px] text-[#555]">
+                      <div className="bg-[#F6F2EB] px-3 py-1.5 border-t border-[#eee] flex items-center gap-3 text-[10px] text-[#555]">
                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#3730A3]"></span>Folha</span>
                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#9D174D]"></span>Benefício</span>
                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#aaa]"></span>Manual</span>
@@ -1060,15 +1060,15 @@ export default function Funcionarios() {
                   <div className="space-y-4">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-white">Comissões pagas</span>
-                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalComissoesPago)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Comissões pagas</span>
+                        <span className="text-[10px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalComissoesPago)}</span>
                       </div>
                       {loadingPagamentos ? (
                         <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
                       ) : comissoes.length === 0 ? (
                         <div className="p-6 text-center text-[#555] text-xs">
                           Nenhuma comissão encontrada para este funcionário.
-                          <div className="mt-1 text-[10px]">Lançamentos identificados pela palavra "comissão" na descrição, observação ou categoria contábil da CP.</div>
+                          <div className="mt-1 text-[11px]">Lançamentos identificados pela palavra "comissão" na descrição, observação ou categoria contábil da CP.</div>
                         </div>
                       ) : (
                         <div className="divide-y divide-[#eee]">
@@ -1103,19 +1103,19 @@ export default function Funcionarios() {
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className={`w-2 h-2 rounded-full shrink-0 ${sourceDot}`} title={sourceTitle}></span>
-                                    <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
+                                    <span className="text-[11px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
                                     <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
                                   </div>
                                   <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatNumero(p.valor)}</span>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-1 pl-4">
-                                  <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
+                                  <div className="flex items-center gap-2 text-[11px] text-[#777] min-w-0">
                                     <span className={`font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span>
                                     {dataPagoLabel && <span className="whitespace-nowrap">Pago {dataPagoLabel}</span>}
                                     {p.conta && <span className="truncate">· {p.conta}</span>}
                                   </div>
                                   {podeVincular && selected?.cpf ? (
-                                    <button onClick={() => vincularPagamento(p.cp_id)} title="Gravar CPF na conta a pagar" className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
+                                    <button onClick={() => vincularPagamento(p.cp_id)} title="Gravar CPF na conta a pagar" className="text-[11px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
                                   ) : null}
                                 </div>
                               </div>
@@ -1140,9 +1140,9 @@ export default function Funcionarios() {
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                          <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">INSS — Detalhamento por faixa</span></div>
+                          <div className="bg-[#059669] px-3 py-2"><span className="text-[11px] font-bold text-white uppercase tracking-wider">INSS — Detalhamento por faixa</span></div>
                           <table className="w-full text-xs">
-                            <thead className="bg-[#F6F2EB]"><tr><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[9px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[9px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
+                            <thead className="bg-[#F6F2EB]"><tr><th className="px-3 py-1.5 text-left text-[10px] font-bold uppercase text-[#555]">Faixa</th><th className="px-3 py-1.5 text-left text-[10px] font-bold uppercase text-[#555]">Alíq.</th><th className="px-3 py-1.5 text-right text-[10px] font-bold uppercase text-[#555]">Valor</th></tr></thead>
                             <tbody>
                               {faixasInssExib.map((f, i) => {
                                 if (calcSalario <= f.faixa_min) return null;
@@ -1156,7 +1156,7 @@ export default function Funcionarios() {
                           </table>
                         </div>
                         <div className="border border-[#ccc] rounded-lg overflow-hidden">
-                          <div className="bg-[#059669] px-3 py-2"><span className="text-[10px] font-bold text-white uppercase tracking-wider">IRRF</span></div>
+                          <div className="bg-[#059669] px-3 py-2"><span className="text-[11px] font-bold text-white uppercase tracking-wider">IRRF</span></div>
                           <div className="p-3 text-xs space-y-1">
                             <div className="flex justify-between"><span className="text-[#555]">Base de cálculo</span><span className="font-semibold">{formatNumero(baseIRRF)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">Dedução dependentes ({calcDependentes})</span><span className="font-semibold">{formatNumero(calcDependentes * DEDUCAO_DEPENDENTE)}</span></div>
@@ -1166,7 +1166,7 @@ export default function Funcionarios() {
                       </div>
                       <div className="space-y-4">
                         <div className="border-2 border-[#059669] rounded-lg p-5">
-                          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#059669] mb-4">Resumo do Colaborador</h4>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#059669] mb-4">Resumo do Colaborador</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between"><span className="text-[#555]">Salário Bruto</span><span className="font-bold">{formatNumero(calcSalario)}</span></div>
                             <div className="flex justify-between text-[#E53E3E]"><span>(-) INSS</span><span>{formatNumero(inssCalc)}</span></div>
@@ -1178,7 +1178,7 @@ export default function Funcionarios() {
                           </div>
                         </div>
                         <div className="border border-[#ccc] rounded-lg p-5">
-                          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#555] mb-4">Custo Empresa</h4>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#555] mb-4">Custo Empresa</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between"><span className="text-[#555]">Salário</span><span>{formatNumero(calcSalario)}</span></div>
                             <div className="flex justify-between"><span className="text-[#555]">FGTS (8%)</span><span>{formatNumero(fgts)}</span></div>
@@ -1215,15 +1215,15 @@ export default function Funcionarios() {
                   <div className="space-y-4">
                     <div className="border border-[#ccc] rounded-lg overflow-hidden">
                       <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-white">Benefícios pagos (VT / VA)</span>
-                        <span className="text-[9px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalBeneficiosPago)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white">Benefícios pagos (VT / VA)</span>
+                        <span className="text-[10px] font-bold text-white/90 whitespace-nowrap">Total: {formatNumero(totalBeneficiosPago)}</span>
                       </div>
                       {loadingPagamentos ? (
                         <div className="p-6 text-center text-[#555] text-xs">Carregando…</div>
                       ) : beneficiosPagos.length === 0 ? (
                         <div className="p-6 text-center text-[#555] text-xs">
                           Nenhum benefício lançado para este funcionário.
-                          <div className="mt-1 text-[10px]">VT e VA aparecem aqui após confirmar a competência na calculadora abaixo.</div>
+                          <div className="mt-1 text-[11px]">VT e VA aparecem aqui após confirmar a competência na calculadora abaixo.</div>
                         </div>
                       ) : (
                         <div className="divide-y divide-[#eee]">
@@ -1249,13 +1249,13 @@ export default function Funcionarios() {
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className="w-2 h-2 rounded-full shrink-0 bg-[#9D174D]" title="Benefício"></span>
-                                    <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
+                                    <span className="text-[11px] font-bold text-[#555] tabular-nums shrink-0">{compLabel}</span>
                                     <span className="text-[12px] text-[#1D2939] truncate" title={p.tipo}>{p.tipo}</span>
                                   </div>
                                   <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatNumero(p.valor)}</span>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-1 pl-4">
-                                  <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
+                                  <div className="flex items-center gap-2 text-[11px] text-[#777] min-w-0">
                                     <span className={`font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span>
                                     {dataPagoLabel && <span className="whitespace-nowrap">Pago {dataPagoLabel}</span>}
                                     {p.conta && <span className="truncate">· {p.conta}</span>}

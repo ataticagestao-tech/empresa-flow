@@ -65,7 +65,7 @@ export function ContratosKpiCard({ clientCpfCnpj, loading }: Props) {
                 <div className={`text-[11px] font-bold ${ativos.length === 0 ? "text-[#888]" : mainColor}`}>
                     {mainValue}
                 </div>
-                <div className={`text-[9px] ${subtitleClass}`}>{subtitle}</div>
+                <div className={`text-[10px] ${subtitleClass}`}>{subtitle}</div>
             </div>
         </div>
     );

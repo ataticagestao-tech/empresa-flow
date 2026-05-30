@@ -241,12 +241,12 @@ export function PendenciasReclassificacaoDialog({ open, onOpenChange, filter = "
                                             <div className={`text-sm font-bold tabular-nums ${isCredito ? "text-emerald-700" : "text-red-700"}`}>
                                                 {formatBRL(mov.valor)}
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground truncate">
+                                            <div className="text-[11px] text-muted-foreground truncate">
                                                 {mov.conta_bancaria?.name ?? "—"}
                                             </div>
                                         </div>
                                         <div className="col-span-4">
-                                            <label className="text-[10px] text-muted-foreground">Descrição</label>
+                                            <label className="text-[11px] text-muted-foreground">Descrição</label>
                                             <Input
                                                 value={edit.descricao}
                                                 onChange={e => setEdits(prev => ({
@@ -257,13 +257,13 @@ export function PendenciasReclassificacaoDialog({ open, onOpenChange, filter = "
                                                 className="h-8 text-xs"
                                             />
                                             {mov.origem && (
-                                                <Badge variant="outline" className="mt-1 text-[9px] uppercase">
+                                                <Badge variant="outline" className="mt-1 text-[10px] uppercase">
                                                     {mov.origem}
                                                 </Badge>
                                             )}
                                         </div>
                                         <div className="col-span-3">
-                                            <label className="text-[10px] text-muted-foreground">Categoria contábil</label>
+                                            <label className="text-[11px] text-muted-foreground">Categoria contábil</label>
                                             <Popover
                                                 open={openCategoryFor === mov.id}
                                                 onOpenChange={isOpen => setOpenCategoryFor(isOpen ? mov.id : null)}

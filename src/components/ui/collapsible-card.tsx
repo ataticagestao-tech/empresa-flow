@@ -44,7 +44,7 @@ export function CollapsibleCard({
     >
       <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#2A2724]">
         <div className="min-w-0">
-          <div className="text-[14px] font-bold uppercase tracking-wider text-white truncate">{title}</div>
+          <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white truncate">{title}</div>
           {subtitle && <div className="text-[11px] text-white/80 mt-0.5 truncate">{subtitle}</div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">

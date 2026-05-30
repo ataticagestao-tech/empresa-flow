@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { Outlet, useLocation, Link } from "react-router-dom";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
+import { AppTopNav } from "./AppTopNav";
 import { CommandPalette } from "@/components/CommandPalette";
 import { AgenteBanner } from "@/components/AgenteBanner";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
@@ -17,9 +16,10 @@ function PageBreadcrumb({ title }: { title: string }) {
   const location = useLocation();
   const { t } = useTranslation();
 
-  const matchedGroup = menuGroups.find((group) =>
-    group.items.some((item) => item.url && location.pathname.startsWith(item.url))
-  );
+  const itemMatchesPath = (item: { url?: string; children?: any[] }): boolean =>
+    (!!item.url && location.pathname.startsWith(item.url)) ||
+    (item.children?.some(itemMatchesPath) ?? false);
+  const matchedGroup = menuGroups.find((group) => group.items.some(itemMatchesPath));
 
   const sectionLabel =
     matchedGroup?.labelKey && matchedGroup.id !== "dashboard"
@@ -58,8 +58,8 @@ function LayoutMain() {
   const { title } = usePageTitle();
   const location = useLocation();
 
-  // Layout persiste entre navegações: precisamos resetar o scroll manualmente
-  // ao trocar de rota (antes o remount fazia isso sozinho).
+  // Layout persiste entre navegações: reseta o scroll ao trocar de rota
+  // (antes o remount fazia isso sozinho).
   useEffect(() => {
     const container = document.getElementById("app-scroll-container");
     if (container) container.scrollTo({ top: 0 });
@@ -68,34 +68,34 @@ function LayoutMain() {
   return (
     <main
       id="app-scroll-container"
-      className="flex-1 min-w-0 p-3 sm:p-5 md:px-8 md:py-7 overflow-auto overflow-x-hidden"
+      className="flex-1 min-w-0 py-4 sm:py-6 md:py-7 overflow-auto overflow-x-hidden"
     >
-      {title && <PageBreadcrumb title={title} />}
-      <Outlet />
+      <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-8 lg:px-12">
+        {title && <PageBreadcrumb title={title} />}
+        <Outlet />
+      </div>
     </main>
   );
 }
 
 /**
- * Moldura persistente do app: sidebar + header montam UMA vez e sobrevivem
- * às navegações. Só o miolo (Outlet) troca. Isso elimina a piscada e as
- * RPCs redundantes que disparavam a cada mudança de tela.
+ * Moldura persistente do app com NAVEGAÇÃO NO TOPO (menu horizontal).
+ * AppHeader (logo + empresa + ações) e AppTopNav (menu de grupos) montam
+ * UMA vez e sobrevivem às navegações; só o miolo (Outlet) troca.
  */
 export function PersistentLayout() {
   return (
     <PageTitleProvider>
-      <SidebarProvider className="!min-h-0 h-svh overflow-hidden">
-        <AppSidebar />
-        <SidebarInset className="!min-h-0 h-svh overflow-hidden">
-          <AppHeader />
-          <LayoutMain />
-        </SidebarInset>
-        <CommandPalette />
-        <AgenteBanner />
-        <WelcomeModal />
-        <StartHereButton />
-        <NovaVendaFab />
-      </SidebarProvider>
+      <div className="flex flex-col h-svh overflow-hidden bg-background">
+        <AppHeader />
+        <AppTopNav />
+        <LayoutMain />
+      </div>
+      <CommandPalette />
+      <AgenteBanner />
+      <WelcomeModal />
+      <StartHereButton />
+      <NovaVendaFab />
     </PageTitleProvider>
   );
 }

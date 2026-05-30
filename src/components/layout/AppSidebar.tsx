@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -90,7 +90,7 @@ export function AppSidebar() {
             <span className="text-[14px] font-semibold text-sidebar-foreground tracking-tight leading-tight truncate">
               Gestap System.
             </span>
-            <span className="text-[10px] font-medium text-sidebar-foreground/50 uppercase tracking-[0.08em] leading-tight mt-0.5">
+            <span className="text-[11px] font-medium text-sidebar-foreground/50 uppercase tracking-[0.08em] leading-tight mt-0.5">
               Gestão Empresarial
             </span>
           </div>
@@ -98,34 +98,45 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin px-2.5 py-2">
-        {visibleGroups.map((group) => {
+        {visibleGroups.map((group, idx) => {
           const visibleItems = group.items.filter(isItemVisible);
           const groupLabel = group.labelKey
             ? (group.isHardcodedLabel ? group.labelKey : t(group.labelKey))
             : "";
           const hasActiveChild = visibleItems.some((item) => isActive(item.url));
 
+          // Renderiza o título da seção apenas no primeiro grupo visível de cada seção
+          const prevSection = idx > 0 ? visibleGroups[idx - 1].section : undefined;
+          const sectionHeader = group.section && group.section !== prevSection ? (
+            <div className="px-2 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-sidebar-foreground/40 group-data-[collapsible=icon]:hidden">
+              {group.section}
+            </div>
+          ) : null;
+
           if (!group.labelKey) {
             return (
-              <SidebarGroup key={group.id}>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {visibleItems.map((item) => {
-                      const muted = item.ownerOnly ? " opacity-50" : "";
-                      return (
-                        <SidebarMenuItem key={item.titleKey}>
-                          <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                            <Link to={item.url!} className={`rounded-lg transition-colors duration-150${muted}`}>
-                              <item.icon className="h-4 w-4 text-sidebar-foreground/80" />
-                              <span className="text-[14px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
+              <Fragment key={group.id}>
+                {sectionHeader}
+                <SidebarGroup>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {visibleItems.map((item) => {
+                        const muted = item.ownerOnly ? " opacity-50" : "";
+                        return (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                              <Link to={item.url!} className={`rounded-lg transition-colors duration-150${muted}`}>
+                                <item.icon className="h-4 w-4 text-sidebar-foreground/80" />
+                                <span className="text-[14px]">{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </Fragment>
             );
           }
 
@@ -134,8 +145,9 @@ export function AppSidebar() {
           const isGroupOpen = userOverride ?? hasActiveChild;
 
           return (
+            <Fragment key={group.id}>
+            {sectionHeader}
             <Collapsible
-              key={group.id}
               open={isGroupOpen}
               onOpenChange={(open) => setGroupOpen(group.id, open)}
               className="group/collapsible"
@@ -164,7 +176,7 @@ export function AppSidebar() {
                                   asChild
                                   isActive={isActive(item.url)}
                                   size="sm"
-                                  className={`text-[12.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
+                                  className={`text-[12px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
                                 >
                                   <Link to={item.url} className="transition-colors duration-150">
                                     <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
@@ -175,7 +187,7 @@ export function AppSidebar() {
                                   asChild
                                   isActive={isActive(item.url)}
                                   size="sm"
-                                  className={`text-[12.5px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
+                                  className={`text-[12px] font-normal text-sidebar-foreground/75 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground${itemMuted}`}
                                 >
                                   <button type="button" onClick={() => handleMenuAction(item)} className="w-full text-left">
                                     <span>{item.isHardcoded ? item.titleKey : t(item.titleKey)}</span>
@@ -191,6 +203,7 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroup>
             </Collapsible>
+            </Fragment>
           );
         })}
       </SidebarContent>

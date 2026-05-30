@@ -72,34 +72,47 @@ export default function NfseConfiguracoes() {
   const [isNew, setIsNew] = useState(true)
 
   const loadConfig = useCallback(async () => {
-    if (!selectedCompany) return
+    // Sem empresa selecionada: nao trava no spinner, mostra o form.
+    if (!selectedCompany) { setLoading(false); return }
     setLoading(true)
     const db = activeClient as any
 
-    const { data } = await db.from('nfse_configuracoes')
-      .select('*')
-      .eq('company_id', selectedCompany.id)
-      .maybeSingle()
-
-    if (data) {
-      setConfig({ ...data, token_homologacao: data.token_homologacao || '', token_producao: data.token_producao || '' })
-      setIsNew(false)
-    } else {
-      // Pre-preencher CNPJ da empresa
-      const { data: emp } = await db.from('companies')
-        .select('cnpj, inscricao_municipal')
-        .eq('id', selectedCompany.id)
+    try {
+      const { data, error } = await db.from('nfse_configuracoes')
+        .select('*')
+        .eq('company_id', selectedCompany.id)
         .maybeSingle()
 
-      setConfig({
-        ...emptyConfig,
-        company_id: selectedCompany.id,
-        cnpj: emp?.cnpj || '',
-        inscricao_municipal: emp?.inscricao_municipal || '',
-      })
+      if (error) throw error
+
+      if (data) {
+        setConfig({ ...data, token_homologacao: data.token_homologacao || '', token_producao: data.token_producao || '' })
+        setIsNew(false)
+      } else {
+        // Pre-preencher CNPJ da empresa
+        const { data: emp } = await db.from('companies')
+          .select('cnpj, inscricao_municipal')
+          .eq('id', selectedCompany.id)
+          .maybeSingle()
+
+        setConfig({
+          ...emptyConfig,
+          company_id: selectedCompany.id,
+          cnpj: emp?.cnpj || '',
+          inscricao_municipal: emp?.inscricao_municipal || '',
+        })
+        setIsNew(true)
+      }
+    } catch (e: any) {
+      // Qualquer falha (RLS, rede, etc.) NUNCA deve travar no spinner:
+      // mostra o form pre-preenchido e revela o erro real.
+      console.error('[NfseConfig] erro ao carregar:', e)
+      toast.error('Erro ao carregar config NFSe: ' + (e?.message || e?.code || 'desconhecido'))
+      setConfig({ ...emptyConfig, company_id: selectedCompany.id })
       setIsNew(true)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
     // Depende do id (primitivo estável), não do objeto selectedCompany:
     // o objeto troca de referência em refresh de token / re-fetch de empresas
     // mesmo sem mudar de empresa, e isso re-disparava o load (spinner piscando).
@@ -159,21 +172,18 @@ export default function NfseConfiguracoes() {
     return '••••••••' + token.slice(-4)
   }
 
-  if (loading) {
-    return (
-      <AppLayout title="Configuracoes NFSe">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="animate-spin text-gray-400" size={24} />
-        </div>
-      </AppLayout>
-    )
-  }
-
   return (
     <AppLayout title="Configuracoes NFSe">
       <div className="animate-fade-in">
 
         <PagePanel title="Configurações NFSe" subtitle="Parâmetros de emissão de NFS-e">
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="animate-spin text-gray-400" size={24} />
+          </div>
+        ) : (
+        <>
 
         {/* Ambiente badge */}
         <div className="flex items-center gap-3">
@@ -379,6 +389,9 @@ export default function NfseConfiguracoes() {
             Salvar configuracoes
           </button>
         </div>
+
+        </>
+        )}
         </PagePanel>
       </div>
     </AppLayout>

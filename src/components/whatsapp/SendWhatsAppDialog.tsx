@@ -83,7 +83,7 @@ export function SendWhatsAppDialog({
                         </div>
                     )}
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                             Telefone do destinatário <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -92,10 +92,10 @@ export function SendWhatsAppDialog({
                             placeholder="11999999999 (com DDD)"
                             className="h-9"
                         />
-                        <p className="text-[10px] text-[#999]">Aceita formatos com ou sem DDI/parênteses/traços.</p>
+                        <p className="text-[11px] text-[#999]">Aceita formatos com ou sem DDI/parênteses/traços.</p>
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
                         <textarea
                             value={text}
                             onChange={(e) => setText(e.target.value)}

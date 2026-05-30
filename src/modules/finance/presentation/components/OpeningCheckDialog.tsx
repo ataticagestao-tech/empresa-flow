@@ -297,20 +297,20 @@ export function OpeningCheckDialog({ open, onClose, summary, systemBalanceAtClos
                         </div>
                         <div className="divide-y divide-[#EAECF0]">
                             <div className="px-3 py-2.5 flex items-center justify-between">
-                                <span className="text-[12.5px] text-[#555]">Extrato (banco)</span>
+                                <span className="text-[12px] text-[#555]">Extrato (banco)</span>
                                 <span className="text-[14px] font-semibold text-[#1D2939] tabular-nums">
                                     {fmtBRL(summary?.closingBalance)}
                                 </span>
                             </div>
                             <div className="px-3 py-2.5 flex items-center justify-between">
-                                <span className="text-[12.5px] text-[#555]">Sistema</span>
+                                <span className="text-[12px] text-[#555]">Sistema</span>
                                 <span className="text-[14px] font-semibold text-[#1D2939] tabular-nums">
                                     {fmtBRL(systemBalanceAtClose)}
                                 </span>
                             </div>
                             {!cannotCompare && (
                                 <div className={`px-3 py-2.5 flex items-center justify-between ${isAligned ? "bg-emerald-50" : "bg-amber-50"}`}>
-                                    <span className="text-[12.5px] font-semibold text-[#555]">Diferença</span>
+                                    <span className="text-[12px] font-semibold text-[#555]">Diferença</span>
                                     <span className={`text-[14px] font-bold tabular-nums ${isAligned ? "text-emerald-700" : "text-amber-700"}`}>
                                         {isAligned ? "R$ 0,00 — alinhado" : fmtBRL(diff)}
                                     </span>

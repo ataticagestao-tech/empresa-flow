@@ -248,7 +248,7 @@ export default function Dashboard() {
                       placeholder={t('dashboard.search_placeholder')}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-8 w-[180px] pl-8 text-[12.5px]"
+                      className="h-8 w-[180px] pl-8 text-[12px]"
                     />
                   </div>
                   <button
@@ -290,7 +290,7 @@ export default function Dashboard() {
                       >
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-semibold text-foreground text-[12.5px]">
+                            <span className="font-semibold text-foreground text-[12px]">
                               {company.razao_social}
                             </span>
                             {company.nome_fantasia && (
@@ -301,12 +301,12 @@ export default function Dashboard() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <span className="text-[12.5px] text-muted-foreground font-mono">
+                          <span className="text-[12px] text-muted-foreground font-mono">
                             {company.cnpj ? maskCNPJ(company.cnpj) : "-"}
                           </span>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          <span className="text-[12.5px] text-muted-foreground">
+                          <span className="text-[12px] text-muted-foreground">
                             {company.endereco_cidade ? `${company.endereco_cidade}/${company.endereco_estado || ""}` : company.endereco_estado || "-"}
                           </span>
                         </TableCell>
@@ -334,7 +334,7 @@ export default function Dashboard() {
                     <button
                       key={action.label}
                       onClick={() => navigate(action.route)}
-                      className={`flex items-center gap-2.5 py-2.5 text-[12.5px] text-foreground hover:text-primary transition-colors ${i < quickActions.length - 1 ? "border-b border-border-light" : ""}`}
+                      className={`flex items-center gap-2.5 py-2.5 text-[12px] text-foreground hover:text-primary transition-colors ${i < quickActions.length - 1 ? "border-b border-border-light" : ""}`}
                     >
                       <action.icon className="h-[15px] w-[15px] text-muted-foreground" />
                       {action.label}

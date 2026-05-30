@@ -18,7 +18,7 @@ const initials = (str: string) => {
     return parts.map(p => p[0]?.toUpperCase()).join("") || "?";
 };
 
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 export default function ProdutosDepartamentos() {
     const { selectedCompany } = useCompany();
@@ -182,7 +182,7 @@ export default function ProdutosDepartamentos() {
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
                     <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
                         <div>
-                            <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Operacional</h1>
+                            <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Operacional</h1>
                             <p className="text-[11px] text-white/80 mt-0.5">Catálogo de produtos, departamentos e classificação contábil</p>
                         </div>
                     </div>
@@ -215,11 +215,11 @@ export default function ProdutosDepartamentos() {
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-white">Catálogo</span>
                                 <div className="flex items-center gap-1.5">
                                     <button onClick={() => setIsCopyModalOpen(true)}
-                                        className="text-[10px] font-bold text-white/90 hover:text-white px-2 py-1">
+                                        className="text-[11px] font-bold text-white/90 hover:text-white px-2 py-1">
                                         Copiar de outra loja
                                     </button>
                                     <button onClick={handleNewProduct}
-                                        className="text-[10px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1">
+                                        className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1">
                                         + Novo
                                     </button>
                                 </div>
@@ -250,17 +250,17 @@ export default function ProdutosDepartamentos() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-[13px] font-semibold text-[#1D2939] truncate">{p.description}</p>
-                                                    <p className="text-[10px] text-[#555] truncate">
+                                                    <p className="text-[11px] text-[#555] truncate">
                                                         {p.code ? `${p.code} · ` : ""}{p.family || "Sem departamento"}
                                                     </p>
                                                 </div>
                                                 <div className="text-right shrink-0">
                                                     <p className="text-[12px] font-bold text-[#1D2939] tabular-nums">{formatBRL(Number(p.price || 0))}</p>
                                                     <div className="flex items-center justify-end gap-1 mt-0.5">
-                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                                                             p.activity === "servico" ? "bg-[#ECFDF4] text-[#059669]" : "bg-[#F6F2EB] text-[#555]"
                                                         }`}>{tipoLabel}</span>
-                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                                                             p.is_active ? "bg-[#ECFDF3] text-[#039855]" : "bg-[#EAECF0] text-[#555]"
                                                         }`}>{p.is_active ? "Ativo" : "Inativo"}</span>
                                                     </div>
@@ -305,7 +305,7 @@ export default function ProdutosDepartamentos() {
                             <div className="bg-[#2A2724] px-3 py-2.5 flex items-center justify-between gap-2">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-white">Departamentos</span>
                                 <button onClick={startNewDept}
-                                    className="text-[10px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1">
+                                    className="text-[11px] font-bold text-[#064E3B] bg-[#ECFDF4] hover:bg-white rounded px-2 py-1">
                                     + Novo
                                 </button>
                             </div>
@@ -335,7 +335,7 @@ export default function ProdutosDepartamentos() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-[13px] font-semibold text-[#1D2939] truncate">{d.name}</p>
-                                                    <p className="text-[10px] text-[#555]">{count} produto(s)</p>
+                                                    <p className="text-[11px] text-[#555]">{count} produto(s)</p>
                                                 </div>
                                             </div>
                                         );
@@ -362,7 +362,7 @@ export default function ProdutosDepartamentos() {
                                                     variant: "destructive",
                                                 });
                                                 if (ok) deleteDeptMutation.mutate(selectedDept.id);
-                                            }} className="text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">
+                                            }} className="text-[11px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">
                                                 Excluir
                                             </button>
                                         )}
@@ -473,10 +473,10 @@ function ProductDetailView({ product: p, onEdit, onDelete }: { product: Product;
     return (
         <>
             <div className="bg-[#059669] px-4 py-2 flex items-center gap-1">
-                <button onClick={onEdit} className="text-[10px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1">
+                <button onClick={onEdit} className="text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-2 py-1">
                     Editar
                 </button>
-                <button onClick={onDelete} className="ml-auto text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">
+                <button onClick={onDelete} className="ml-auto text-[11px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">
                     Excluir
                 </button>
             </div>
@@ -504,21 +504,21 @@ function ProductDetailView({ product: p, onEdit, onDelete }: { product: Product;
                 <Section title="Preços">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="border-2 border-[#059669] rounded-lg p-3">
-                            <p className="text-[10px] font-bold uppercase text-[#059669]">Preço de Venda</p>
+                            <p className="text-[11px] font-bold uppercase text-[#059669]">Preço de Venda</p>
                             <p className="text-xl font-bold text-[#1D2939] mt-1">{formatBRL(preco)}</p>
                         </div>
                         <div className="border border-[#ccc] rounded-lg p-3">
-                            <p className="text-[10px] font-bold uppercase text-[#555]">Custo</p>
+                            <p className="text-[11px] font-bold uppercase text-[#555]">Custo</p>
                             <p className="text-xl font-bold text-[#1D2939] mt-1">{formatBRL(custo)}</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-[#F6F2EB] rounded-md px-3 py-2">
-                            <span className="text-[10px] font-bold uppercase text-[#555]">Líquido</span>
+                            <span className="text-[11px] font-bold uppercase text-[#555]">Líquido</span>
                             <p className="text-base font-bold text-[#059669] mt-0.5 tabular-nums">{formatBRL(liquido)}</p>
                         </div>
                         <div className="bg-[#F6F2EB] rounded-md px-3 py-2">
-                            <span className="text-[10px] font-bold uppercase text-[#555]">Margem</span>
+                            <span className="text-[11px] font-bold uppercase text-[#555]">Margem</span>
                             <p className="text-base font-bold text-[#1D2939] mt-0.5 tabular-nums">{margem}{margem !== "—" ? "%" : ""}</p>
                         </div>
                     </div>

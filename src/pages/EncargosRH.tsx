@@ -225,7 +225,7 @@ export default function EncargosRH() {
                         onClick={() => pendente && marcarRecolhido(enc.id, tipo)}
                         disabled={!pendente}
                         title={`${label} · ${st.label} · vence ${formatData(venc)}${pendente ? ' · clique para marcar recolhido' : ''}`}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${pendente ? 'cursor-pointer hover:ring-1 hover:ring-current' : 'cursor-default'}`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${pendente ? 'cursor-pointer hover:ring-1 hover:ring-current' : 'cursor-default'}`}
                         style={{ color: st.color, backgroundColor: st.bg }}
                       >
                         {!pendente && <Check size={10} />}{label}

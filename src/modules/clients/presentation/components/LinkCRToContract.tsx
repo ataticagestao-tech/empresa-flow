@@ -48,7 +48,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                 {linkedTo ? (
                     <button
                         type="button"
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded border border-[#059669]/25 bg-[#059669]/5 text-[#059669] hover:bg-[#059669]/10 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border border-[#059669]/25 bg-[#059669]/5 text-[#059669] hover:bg-[#059669]/10 transition-colors cursor-pointer"
                         title="Vinculado — clique para gerenciar"
                     >
                         <Link2 className="h-3 w-3" />
@@ -57,7 +57,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                 ) : (
                     <button
                         type="button"
-                        className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border border-transparent text-[#888] hover:text-[#059669] hover:border-[#EAECF0] hover:bg-white transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded border border-transparent text-[#888] hover:text-[#059669] hover:border-[#EAECF0] hover:bg-white transition-colors cursor-pointer"
                         title="Vincular a um contrato"
                     >
                         <Link2 className="h-3 w-3" /> Vincular
@@ -70,7 +70,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                     <p className="text-[12px] font-bold text-[#059669]">
                         {linkedTo ? "Alterar vínculo" : "Vincular ao contrato"}
                     </p>
-                    <p className="text-[10px] text-[#888] mt-0.5">
+                    <p className="text-[11px] text-[#888] mt-0.5">
                         O pagamento deste lançamento será abatido do saldo do contrato selecionado.
                     </p>
                 </div>
@@ -105,12 +105,12 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                                             {c.procedimento || c.descricao}
                                         </span>
                                         {selected && (
-                                            <span className="text-[9px] font-bold uppercase text-[#039855]">
+                                            <span className="text-[10px] font-bold uppercase text-[#039855]">
                                                 Atual
                                             </span>
                                         )}
                                     </div>
-                                    <div className="text-[10px] text-[#666] mt-0.5 flex gap-3">
+                                    <div className="text-[11px] text-[#666] mt-0.5 flex gap-3">
                                         <span>Total: <strong>{formatBRL(c.valor_total)}</strong></span>
                                         <span className={c.saldo > 0 ? "text-[#E53E3E]" : "text-[#039855]"}>
                                             Saldo: <strong>{formatBRL(c.saldo)}</strong>
@@ -136,7 +136,7 @@ export function LinkCRToContract({ crId, crVendaId, clientCpfCnpj, onChanged }: 
                 )}
 
                 {mutation.isPending && (
-                    <div className="px-4 py-2 border-t border-[#eef0f3] bg-white flex items-center justify-center gap-1.5 text-[10px] text-[#888]">
+                    <div className="px-4 py-2 border-t border-[#eef0f3] bg-white flex items-center justify-center gap-1.5 text-[11px] text-[#888]">
                         <Loader2 className="h-3 w-3 animate-spin" /> Salvando...
                     </div>
                 )}

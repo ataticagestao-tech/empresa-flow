@@ -27,7 +27,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                 <div className="w-20 h-20 bg-[#059669] rounded-full flex items-center justify-center border-4 border-[#e0e0e0] shadow-sm overflow-hidden">
                     <User className="w-8 h-8 text-white" />
                 </div>
-                <button type="button" className="text-[10px] text-[#059669] font-bold uppercase tracking-wider hover:underline">
+                <button type="button" className="text-[11px] text-[#059669] font-bold uppercase tracking-wider hover:underline">
                     Alterar Logo
                 </button>
             </div>
@@ -42,7 +42,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                         name="razao_social"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[#555] text-[10px] font-bold uppercase tracking-wider">
+                                <FormLabel className="text-[#555] text-[11px] font-bold uppercase tracking-wider">
                                     Razão Social / Nome Completo
                                 </FormLabel>
                                 <FormControl>
@@ -70,7 +70,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                         name="tipo_pessoa"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[#555] text-[10px] font-bold uppercase tracking-wider">Tipo de Pessoa</FormLabel>
+                                <FormLabel className="text-[#555] text-[11px] font-bold uppercase tracking-wider">Tipo de Pessoa</FormLabel>
                                 <FormControl>
                                     <div className="flex items-center gap-4 h-10 px-3 bg-white border border-[#ccc] rounded-md">
                                         <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-[#059669]">
@@ -115,7 +115,7 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                         name="nome_fantasia"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[#555] text-[10px] font-bold uppercase tracking-wider">Nome Fantasia (Opcional)</FormLabel>
+                                <FormLabel className="text-[#555] text-[11px] font-bold uppercase tracking-wider">Nome Fantasia (Opcional)</FormLabel>
                                 <FormControl>
                                     <Input
                                         className="h-10 border-[#ccc] focus:border-[#059669] focus:ring-[#059669]/20"
@@ -145,13 +145,13 @@ export function ClientHeader({ form, isCnpjLoading, onCnpjLookup }: ClientHeader
                             return (
                                 <FormItem>
                                     <div className="flex justify-between items-center mb-1">
-                                        <FormLabel className="text-[#555] text-[10px] font-bold uppercase tracking-wider">
+                                        <FormLabel className="text-[#555] text-[11px] font-bold uppercase tracking-wider">
                                             {isPJ ? "CNPJ" : "CPF"}
                                         </FormLabel>
                                         {isPJ && (
                                             <button
                                                 type="button"
-                                                className="text-[10px] uppercase font-bold text-[#059669] flex items-center gap-1 hover:text-[#0f1f33] hover:bg-[#ECFDF4] px-2 rounded transition-colors"
+                                                className="text-[11px] uppercase font-bold text-[#059669] flex items-center gap-1 hover:text-[#0f1f33] hover:bg-[#ECFDF4] px-2 rounded transition-colors"
                                                 onClick={onCnpjLookup}
                                                 disabled={isCnpjLoading}
                                             >

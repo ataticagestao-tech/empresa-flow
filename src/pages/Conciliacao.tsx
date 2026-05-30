@@ -1381,7 +1381,7 @@ export default function Conciliacao() {
                 {/* ═══ MENU SUPERIOR (header da página) ═══ */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
                     <div className="bg-[#2A2724] px-4 py-3">
-                        <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Conciliação Bancária</h1>
+                        <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Conciliação Bancária</h1>
                         <p className="text-[11px] text-white/80 mt-0.5">Importe extratos e concilie com seus lançamentos</p>
                     </div>
                     <ModuleTabs />
@@ -1636,7 +1636,7 @@ export default function Conciliacao() {
                                                 <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border border-[#EAECF0] bg-[#F6F2EB] hover:bg-white transition-colors">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className={`text-[10px] ${rule.acao === "auto-conciliar" ? "border-emerald-200 text-emerald-600 bg-emerald-50" : "border-amber-200 text-amber-600 bg-amber-50"}`}>
+                                                            <Badge variant="outline" className={`text-[11px] ${rule.acao === "auto-conciliar" ? "border-emerald-200 text-emerald-600 bg-emerald-50" : "border-amber-200 text-amber-600 bg-amber-50"}`}>
                                                                 {rule.acao === "auto-conciliar" ? "Auto" : "Sugerir"}
                                                             </Badge>
                                                             <span className="font-medium text-sm truncate">{kws}</span>
@@ -1883,7 +1883,7 @@ export default function Conciliacao() {
                                                                                             {/* AI suggestions inline */}
                                                                                             {aiResult && aiResult.suggestions.length > 0 && (
                                                                                                 <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                                                                                                    <span className="flex items-center gap-0.5 text-[9px] font-semibold text-amber-600 uppercase tracking-wider">
+                                                                                                    <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 uppercase tracking-wider">
                                                                                                         <Sparkles className="h-2.5 w-2.5" />
                                                                                                         IA:
                                                                                                     </span>
@@ -1891,7 +1891,7 @@ export default function Conciliacao() {
                                                                                                         <Badge
                                                                                                             key={s.account.id}
                                                                                                             variant="outline"
-                                                                                                            className={`cursor-pointer text-[10px] font-medium transition-all hover:scale-105 ${
+                                                                                                            className={`cursor-pointer text-[11px] font-medium transition-all hover:scale-105 ${
                                                                                                                 tx.category_id === s.account.id
                                                                                                                     ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                                                                                                                     : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
@@ -1911,7 +1911,7 @@ export default function Conciliacao() {
                                                                                             {Number(tx.amount) < 0 ? "−" : "+"} R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                                                                         </TableCell>
                                                                                         <TableCell className="py-2">
-                                                                                            <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[10px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
+                                                                                            <Badge variant={isReconciled ? "default" : "secondary"} className={`text-[11px] ${isReconciled ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}`}>
                                                                                                 {isReconciled ? "Conciliado" : "Pendente"}
                                                                                             </Badge>
                                                                                         </TableCell>
@@ -2197,14 +2197,14 @@ export default function Conciliacao() {
                                                                         <Check className="h-3 w-3 mr-1" />
                                                                         {bestMatch.entity_name} - {bestMatch.description}
                                                                     </Badge>
-                                                                    <span className="text-[10px] text-muted-foreground">
+                                                                    <span className="text-[11px] text-muted-foreground">
                                                                         <span className="font-semibold text-foreground">{formatBRL(Number(bestMatch.amount || 0))}</span> • Venc: {format(parseISO(bestMatch.date), 'dd/MM')}
                                                                     </span>
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex flex-col gap-0.5 items-start">
                                                                     <span className="text-xs text-muted-foreground italic">Sem correspondência em CR/CP</span>
-                                                                    <span className="text-[10px] text-muted-foreground">Use Buscar ou Lançar para vincular</span>
+                                                                    <span className="text-[11px] text-muted-foreground">Use Buscar ou Lançar para vincular</span>
                                                                 </div>
                                                             )}
                                                         </TableCell>
@@ -2318,7 +2318,7 @@ export default function Conciliacao() {
                                         <span className={`text-lg font-bold whitespace-nowrap ${selectedBankTx.amount < 0 ? 'text-[#E53E3E]' : 'text-emerald-600'}`}>
                                             {formatBRL(selectedBankTx.amount)}
                                         </span>
-                                        <p className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 whitespace-nowrap">
                                             {selectedBankTx.amount < 0 ? "Saída → Conta a Pagar" : "Entrada → Conta a Receber"}
                                         </p>
                                     </div>
@@ -2336,19 +2336,19 @@ export default function Conciliacao() {
                                             {/* Filtros de data + busca */}
                                             <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_2fr_auto] gap-2 items-end min-w-0">
                                                 <div className="min-w-0">
-                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">De</Label>
+                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase">De</Label>
                                                     <Input type="date" value={filterDateFrom}
                                                         onChange={(e) => setFilterDateFrom(e.target.value)}
                                                         className="text-xs h-9 w-full min-w-0" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Até</Label>
+                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Até</Label>
                                                     <Input type="date" value={filterDateTo}
                                                         onChange={(e) => setFilterDateTo(e.target.value)}
                                                         className="text-xs h-9 w-full min-w-0" />
                                                 </div>
                                                 <div className="col-span-2 sm:col-span-1 min-w-0">
-                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">Buscar</Label>
+                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Buscar</Label>
                                                     <div className="relative">
                                                         <Search className="absolute left-3 top-2 h-4 w-4 text-muted-foreground" />
                                                         <Input placeholder="Nome, descrição ou valor..." className="pl-9 h-9 text-xs w-full"
@@ -2373,7 +2373,7 @@ export default function Conciliacao() {
                                                     <Search className="h-4 w-4 mr-1" /> Buscar
                                                 </Button>
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground">
+                                            <div className="text-[11px] text-muted-foreground">
                                                 {filteredSystemTransactions.length} lançamento{filteredSystemTransactions.length !== 1 ? 's' : ''} encontrado{filteredSystemTransactions.length !== 1 ? 's' : ''}
                                             </div>
                                             <ScrollArea className="h-[250px] border rounded-md p-2">
@@ -2414,12 +2414,12 @@ export default function Conciliacao() {
                                                                 />
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-2 min-w-0">
-                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[10px] px-1 flex-shrink-0">
+                                                                        <Badge variant={st.type === 'payable' ? 'destructive' : 'default'} className="h-5 text-[11px] px-1 flex-shrink-0">
                                                                             {st.type === 'payable' ? 'Pagar' : 'Receber'}
                                                                         </Badge>
                                                                         <span className="font-medium text-muted-foreground truncate min-w-0 flex-1" title={st.description}>{st.description}</span>
                                                                         {jaConciliado && (
-                                                                            <Badge variant="outline" className="h-5 text-[9px] px-1 text-muted-foreground flex-shrink-0">
+                                                                            <Badge variant="outline" className="h-5 text-[10px] px-1 text-muted-foreground flex-shrink-0">
                                                                                 já conciliado
                                                                             </Badge>
                                                                         )}
@@ -2557,7 +2557,7 @@ export default function Conciliacao() {
                                                                     Diferença de <strong>{formatBRL(diffAmount)}</strong> — registre como {diffLabel.toLowerCase()} ou ajuste a seleção.
                                                                 </p>
                                                                 <div>
-                                                                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase">
+                                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase">
                                                                         Categoria pra diferença
                                                                     </Label>
                                                                     <Select value={diferencaCategoryId} onValueChange={setDiferencaCategoryId}>
@@ -2635,13 +2635,13 @@ export default function Conciliacao() {
 
                                             {/* Secao: Identificacao */}
                                             <div className="space-y-2">
-                                                <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Identificação</h5>
+                                                <h5 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-1">Identificação</h5>
                                                 <div className="space-y-3 p-3 rounded-lg border border-[#EAECF0] bg-white">
                                                     {selectedBankTx.amount < 0 ? (
                                                         /* CP: pill buttons + select de fornecedor/funcionario/cliente, igual ao Contas a Pagar */
                                                         <div className="space-y-2">
                                                             <div className="flex items-center justify-between">
-                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                                                                     Credor <span className="text-red-500">*</span>
                                                                 </Label>
                                                                 {credorTipo === "fornecedor" && (
@@ -2703,7 +2703,7 @@ export default function Conciliacao() {
                                                         /* CR: select de clientes, igual ao Contas a Receber */
                                                         <div className="space-y-2">
                                                             <div className="flex items-center justify-between">
-                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                                                                     Pagador <span className="text-red-500">*</span>
                                                                 </Label>
                                                                 <button type="button"
@@ -2737,7 +2737,7 @@ export default function Conciliacao() {
                                                         </div>
                                                     )}
                                                     <div className="space-y-1">
-                                                        <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                        <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                                                             {selectedBankTx.amount < 0 ? "Descrição" : "Observação"}
                                                         </Label>
                                                         <Input value={newEntry.description}
@@ -2748,14 +2748,14 @@ export default function Conciliacao() {
                                                     {selectedBankTx.amount > 0 && (
                                                         <div className="grid grid-cols-2 gap-3">
                                                             <div className="space-y-1">
-                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">CPF/CNPJ</Label>
+                                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">CPF/CNPJ</Label>
                                                                 <Input value={newEntry.cpf_cnpj}
                                                                     onChange={(e) => setNewEntry({ ...newEntry, cpf_cnpj: e.target.value })}
                                                                     placeholder="Opcional"
                                                                     className="h-9" />
                                                             </div>
                                                             <div className="space-y-1">
-                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Email</Label>
+                                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Email</Label>
                                                                 <Input type="email" value={newEntry.email}
                                                                     onChange={(e) => setNewEntry({ ...newEntry, email: e.target.value })}
                                                                     placeholder="Opcional"
@@ -2768,29 +2768,29 @@ export default function Conciliacao() {
 
                                             {/* Secao: Valores e Detalhes */}
                                             <div className="space-y-2">
-                                                <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Valores</h5>
+                                                <h5 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-1">Valores</h5>
                                                 <div className="space-y-3 p-3 rounded-lg border border-[#EAECF0] bg-white">
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-1">
-                                                            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Valor</Label>
+                                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Valor</Label>
                                                             <Input value={formatBRL(Math.abs(selectedBankTx.amount))} disabled className="bg-muted font-bold h-9" />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Data Vencimento</Label>
+                                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Data Vencimento</Label>
                                                             <Input value={format(parseISO(selectedBankTx.date), 'dd/MM/yyyy')} disabled className="bg-muted h-9" />
                                                         </div>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-3">
                                                         {selectedBankTx.amount < 0 && (
                                                             <div className="space-y-1">
-                                                                <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Competência</Label>
+                                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Competência</Label>
                                                                 <Input type="month" value={newEntry.competencia}
                                                                     onChange={(e) => setNewEntry({ ...newEntry, competencia: e.target.value })}
                                                                     className="h-9" />
                                                             </div>
                                                         )}
                                                         <div className={`space-y-1 ${selectedBankTx.amount < 0 ? "" : "col-span-2"}`}>
-                                                            <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Centro de Custo</Label>
+                                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Centro de Custo</Label>
                                                             <Select value={newEntry.centro_custo_id || ""} onValueChange={(val) => setNewEntry({ ...newEntry, centro_custo_id: val === "none" ? "" : val })}>
                                                                 <SelectTrigger className="h-9">
                                                                     <SelectValue placeholder="Nenhum" />
@@ -2812,7 +2812,7 @@ export default function Conciliacao() {
                                             {/* Secao: Categoria */}
                                             <div className="space-y-2">
                                                 <div className="flex items-center justify-between px-1">
-                                                    <h5 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                    <h5 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                                                         Categoria contábil <span className="text-red-500">*</span>
                                                     </h5>
                                                     {!showNewCategory && (
@@ -2846,7 +2846,7 @@ export default function Conciliacao() {
                                                                 <Plus className="h-3 w-3" /> Nova Categoria
                                                             </p>
                                                             <div className="space-y-1.5">
-                                                                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Grupo (conta pai)</Label>
+                                                                <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Grupo (conta pai)</Label>
                                                                 <Select value={selectedParentId} onValueChange={setSelectedParentId}>
                                                                     <SelectTrigger className="h-8 text-xs">
                                                                         <SelectValue placeholder="Selecione o grupo..." />
@@ -2862,7 +2862,7 @@ export default function Conciliacao() {
                                                             </div>
                                                             {selectedParentId && (
                                                                 <div className="space-y-1.5">
-                                                                    <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                                    <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                                                                         Código (automático): <span className="text-primary font-bold">{nextCatCode}</span>
                                                                     </Label>
                                                                     <Input placeholder="Nome da nova categoria"

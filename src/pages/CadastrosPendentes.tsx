@@ -266,7 +266,7 @@ export default function CadastrosPendentes() {
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
                   <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Cadastros Pendentes</h1>
+                      <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Cadastros Pendentes</h1>
                       <p className="text-[11px] text-white/80 mt-0.5">Solicitações de cadastro recebidas via WhatsApp</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -390,7 +390,7 @@ export default function CadastrosPendentes() {
                                             </div>
                                             <div className="text-xs text-[#666] truncate">{formatTel(s.telefone)}</div>
                                             <div className="flex items-center gap-1.5 mt-1">
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 ${info.cor}`}>
+                                                <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 ${info.cor}`}>
                                                     <Icon className="w-2.5 h-2.5" />
                                                     {info.label}
                                                 </span>
@@ -498,7 +498,7 @@ export default function CadastrosPendentes() {
                                                             : "bg-white border border-[#eee]"
                                                     }`}
                                                 >
-                                                    <div className="text-[10px] opacity-60 mb-1">
+                                                    <div className="text-[11px] opacity-60 mb-1">
                                                         {m.direcao === "enviada" ? "→ enviada" : "← recebida"} ·{" "}
                                                         {formatDate(m.criado_em)}
                                                     </div>

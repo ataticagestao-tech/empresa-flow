@@ -89,7 +89,7 @@ export function SendEmailDialog({
                         </div>
                     )}
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                             E-mail destinatário <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -101,11 +101,11 @@ export function SendEmailDialog({
                         />
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Assunto</Label>
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">Assunto</Label>
                         <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-9" />
                     </div>
                     <div className="space-y-1">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
                         <textarea
                             value={body}
                             onChange={(e) => setBody(e.target.value)}

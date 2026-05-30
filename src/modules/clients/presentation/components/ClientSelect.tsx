@@ -96,7 +96,7 @@ export function ClientSelect({ value, onChange, placeholder = "Selecione um clie
                                         />
                                         <div className="flex flex-col">
                                             <span className="font-medium truncate">{client.razao_social}</span>
-                                            <span className="text-[10px] text-muted-foreground">{client.cnpj}</span>
+                                            <span className="text-[11px] text-muted-foreground">{client.cnpj}</span>
                                         </div>
                                     </CommandItem>
                                 ))}

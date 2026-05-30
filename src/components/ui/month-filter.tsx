@@ -50,7 +50,7 @@ export function MonthFilter({ value, onChange, className = '' }: MonthFilterProp
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#EAECF0] bg-white text-[12.5px] font-semibold text-[#1D2939] hover:bg-[#F9FAFB]"
+        className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#EAECF0] bg-white text-[12px] font-semibold text-[#1D2939] hover:bg-[#F9FAFB]"
       >
         <Calendar size={14} className="text-[#98A2B3]" />
         <span className="capitalize">{label}</span>
@@ -60,7 +60,7 @@ export function MonthFilter({ value, onChange, className = '' }: MonthFilterProp
         <div className="absolute right-0 top-[calc(100%+6px)] z-20 min-w-[220px] rounded-lg border border-[#EAECF0] bg-white p-2 shadow-lg">
           <div className="mb-1.5 flex items-center justify-between px-1">
             <button type="button" onClick={() => setViewYear(v => v - 1)} className="rounded px-2 py-0.5 text-[#475467] hover:bg-[#F9FAFB]">‹</button>
-            <span className="text-[12.5px] font-bold text-[#1D2939]">{viewYear}</span>
+            <span className="text-[12px] font-bold text-[#1D2939]">{viewYear}</span>
             <button type="button" onClick={() => setViewYear(v => v + 1)} className="rounded px-2 py-0.5 text-[#475467] hover:bg-[#F9FAFB]">›</button>
           </div>
           <div className="grid grid-cols-3 gap-1">

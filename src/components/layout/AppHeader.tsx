@@ -1,5 +1,5 @@
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { CompanySelector } from "@/components/CompanySelector";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,20 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 sm:h-16 items-center gap-1.5 sm:gap-3 border-b border-sidebar-border bg-sidebar px-2 sm:px-5 shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
-      <SidebarTrigger className="text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors flex-shrink-0" />
+    <header className="sticky top-0 z-10 h-16 sm:h-20 border-b border-sidebar-border bg-sidebar shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
+      <div className="h-full flex items-center gap-1.5 sm:gap-3 mx-auto w-full max-w-[1280px] px-4 sm:px-8 lg:px-12">
+      <Link
+        to="/dashboard"
+        className="flex items-center gap-2.5 flex-shrink-0 mr-1"
+        aria-label="Ir para o dashboard"
+        title="Dashboard"
+      >
+        <img src="/favicon.svg" alt="Gestap System" className="h-8 w-8 object-contain" />
+        <span className="hidden md:flex flex-col leading-tight min-w-0">
+          <span className="text-[13px] font-semibold text-sidebar-foreground tracking-tight">Gestap System.</span>
+          <span className="text-[10px] font-medium text-sidebar-foreground/50 uppercase tracking-[0.08em]">Gestão Empresarial</span>
+        </span>
+      </Link>
 
       {location.pathname !== "/" && (
         <Button
@@ -107,6 +119,7 @@ export function AppHeader() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
       </div>
     </header>
   );

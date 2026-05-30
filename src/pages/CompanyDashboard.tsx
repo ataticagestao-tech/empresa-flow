@@ -1163,7 +1163,7 @@ export default function CompanyDashboard() {
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingUp size={16} strokeWidth={2.25} />
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: C.textMuted, letterSpacing: "-0.005em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Faturamento" : "Recebimentos"}
                                 <span title={regime === "competencia"
                                     ? "Vendas confirmadas no período (regime de competência). Fonte: 'vendas.valor_liquido' por 'data_venda', status='confirmado'."
@@ -1194,7 +1194,7 @@ export default function CompanyDashboard() {
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingDown size={16} strokeWidth={2.25} />
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: C.textMuted, letterSpacing: "-0.005em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Despesas" : "Pagamentos"}
                                 <span title={regime === "competencia"
                                     ? "Despesas do período por regime de competência: soma do valor cheio de TODAS as contas a pagar (aberto, parcial, vencido, pago) com 'data_vencimento' no período. Exclui transferências."
@@ -1225,7 +1225,7 @@ export default function CompanyDashboard() {
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#ECFDF5" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#059669" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <Wallet size={16} strokeWidth={2.25} />
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: C.textMuted, letterSpacing: "-0.005em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Resultado Líquido" : "Resultado de Caixa"}
                                 <span title={regime === "competencia"
                                     ? "Resultado contábil do período (DRE): Faturamento − Despesas, ambos em regime de competência. Reflete o lucro do período independente do que entrou ou saiu de caixa."

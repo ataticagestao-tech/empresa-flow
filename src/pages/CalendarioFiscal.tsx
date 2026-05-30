@@ -291,7 +291,7 @@ export default function CalendarioFiscal() {
                             return (
                               <div
                                 key={i}
-                                className="truncate px-1 py-0.5 rounded text-[10px] font-medium"
+                                className="truncate px-1 py-0.5 rounded text-[11px] font-medium"
                                 style={{ backgroundColor: crit.color + '15', color: crit.color }}
                                 title={ev.descricao}
                               >
@@ -300,7 +300,7 @@ export default function CalendarioFiscal() {
                             )
                           })}
                           {evsDia.length > 2 && (
-                            <div className="text-[10px] text-gray-400 px-1">+{evsDia.length - 2}</div>
+                            <div className="text-[11px] text-gray-400 px-1">+{evsDia.length - 2}</div>
                           )}
                         </div>
                       </div>
@@ -344,7 +344,7 @@ export default function CalendarioFiscal() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
                           style={{ color: st.color, backgroundColor: st.bg }}
                         >
                           {st.label}
@@ -356,7 +356,7 @@ export default function CalendarioFiscal() {
                               setEntregarForm({ protocolo: '', arquivo_url: '' })
                               setShowEntregarModal(true)
                             }}
-                            className="text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium"
+                            className="text-[11px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium"
                           >
                             Entregar
                           </button>

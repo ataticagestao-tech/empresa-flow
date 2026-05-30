@@ -397,7 +397,7 @@ export default function AbaBeneficios({ companyId, employeeId, employeeNome, sal
                     <td className="py-2 px-2 text-right font-bold text-[#039855]">{formatBRL(Number(h.total_custo_empresa))}</td>
                     <td className="py-2 px-2 text-right text-[#E53E3E]">{formatBRL(Number(h.total_desconto_func))}</td>
                     <td className="py-2 px-2 text-center">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                         cpExcluida ? "bg-[#FEE2E2] text-[#E53E3E]" : h.status === "confirmado" ? "bg-[#ECFDF3] text-[#039855]" : h.status === "cancelado" ? "bg-[#FEE2E2] text-[#E53E3E]" : "bg-[#F6F2EB] text-[#555]"
                       }`}>{statusLabel}</span>
                     </td>

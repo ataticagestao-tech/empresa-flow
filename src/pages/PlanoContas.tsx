@@ -22,7 +22,7 @@ interface TreeNode extends Conta {
 }
 
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 const DRE_GROUPS = [
   { value: "receita_bruta", label: "Receita Bruta" },
@@ -504,7 +504,7 @@ export default function PlanoContas() {
     <div key={conta.id + "-edit"} className="bg-[#FFF0EB] border-b border-[#e6c200] px-4 py-3 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs font-mono text-[#555]">{conta.code}</span>
-        <span className="text-[10px] font-bold uppercase text-[#EA580C]">Editando</span>
+        <span className="text-[11px] font-bold uppercase text-[#EA580C]">Editando</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="flex flex-col gap-1">
@@ -568,7 +568,7 @@ export default function PlanoContas() {
         {/* Cabeçalho estilo header escuro + abas (como Operacional) */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
           <div className="bg-[#2A2724] px-4 py-3">
-            <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Plano de Contas</h1>
+            <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Plano de Contas</h1>
             <p className="text-[11px] text-white/80 mt-0.5">Estrutura de contas contábeis para classificar receitas, custos e despesas</p>
           </div>
           <div className="flex px-4 border-b border-[#EAECF0] overflow-x-auto">
@@ -620,7 +620,7 @@ export default function PlanoContas() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={addAllPatrimonial}
-                  className="flex items-center gap-1.5 bg-white text-[#EA580C] text-[10px] font-bold px-3 py-1.5 rounded-md hover:bg-[#FFF0EB] transition-colors">
+                  className="flex items-center gap-1.5 bg-white text-[#EA580C] text-[11px] font-bold px-3 py-1.5 rounded-md hover:bg-[#FFF0EB] transition-colors">
                   <Download size={12} /> Aplicar Modelo Completo
                 </button>
                 <button onClick={() => setShowModelo(false)} className="text-white/70 hover:text-white">
@@ -633,7 +633,7 @@ export default function PlanoContas() {
               <input type="text" placeholder="Buscar no modelo..." value={modeloSearch}
                 onChange={e => setModeloSearch(e.target.value)}
                 className="border border-[#e6c200] rounded-md px-3 py-1.5 text-sm bg-white focus:border-[#EA580C] focus:outline-none flex-1" />
-              <span className="text-[10px] font-bold text-[#EA580C] shrink-0">
+              <span className="text-[11px] font-bold text-[#EA580C] shrink-0">
                 {PLANO_PATRIMONIAL.length} contas no modelo · {PLANO_PATRIMONIAL.filter(c => existingCodes.has(c.code)).length} já adicionadas
               </span>
             </div>
@@ -652,14 +652,14 @@ export default function PlanoContas() {
                       </button>
                       <span className="text-xs font-bold w-6" style={{ color: grupoInfo?.color }}>{grupo.code}</span>
                       <span className="text-sm font-bold flex-1" style={{ color: grupoInfo?.color }}>{grupo.name}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ color: grupoInfo?.color, borderColor: grupoInfo?.color }}>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded border" style={{ color: grupoInfo?.color, borderColor: grupoInfo?.color }}>
                         {grupo.filhos.reduce((a, s) => a + s.filhos.length, 0) + grupo.filhos.length} contas
                       </span>
                       {grupoExists ? (
-                        <span className="text-[10px] font-bold text-[#039855] flex items-center gap-1"><Check size={12} /> Existe</span>
+                        <span className="text-[11px] font-bold text-[#039855] flex items-center gap-1"><Check size={12} /> Existe</span>
                       ) : (
                         <button onClick={() => addGrupoFromModelo(grupo.code)}
-                          className="flex items-center gap-1 text-[10px] font-bold text-[#059669] px-2 py-1 rounded border border-[#059669] hover:bg-[#ECFDF4] transition-colors">
+                          className="flex items-center gap-1 text-[11px] font-bold text-[#059669] px-2 py-1 rounded border border-[#059669] hover:bg-[#ECFDF4] transition-colors">
                           <Plus size={12} /> Grupo
                         </button>
                       )}
@@ -675,7 +675,7 @@ export default function PlanoContas() {
                           </span>
                           <span className="text-xs text-[#999] w-8">{sub.code}</span>
                           <span className="text-sm text-[#1D2939] flex-1">{sub.name}</span>
-                          <span className="text-[10px] text-[#555]">{sub.filhos.length}</span>
+                          <span className="text-[11px] text-[#555]">{sub.filhos.length}</span>
                           {existingCodes.has(sub.code) ? (
                             <Check size={12} className="text-[#039855]" />
                           ) : (
@@ -692,7 +692,7 @@ export default function PlanoContas() {
                             className="flex items-center gap-2 pl-14 pr-4 py-1.5 border-b border-[#f8f8f8] hover:bg-[#F6F2EB]">
                             <span className="text-xs text-[#999] font-mono w-12">{analitica.code}</span>
                             <span className="text-sm text-[#1D2939] flex-1">{analitica.name}</span>
-                            <span className="text-[10px] text-[#999]">{analitica.account_nature === "debit" ? "D" : "C"}</span>
+                            <span className="text-[11px] text-[#999]">{analitica.account_nature === "debit" ? "D" : "C"}</span>
                             {existingCodes.has(analitica.code) ? (
                               <Check size={12} className="text-[#039855]" />
                             ) : (
@@ -785,8 +785,8 @@ export default function PlanoContas() {
                 {/* Nível 1 — Grupo */}
                 <div onClick={() => toggle(grupo.code)}
                   className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-[#F6F2EB] border-b border-[#D0D5DD]">
-                  <span className="text-[10px] text-black w-4">{expandidos.has(grupo.code) ? "▼" : "▶"}</span>
-                  <span className="text-[12.5px] font-bold text-black w-20 font-mono">{grupo.code}</span>
+                  <span className="text-[11px] text-black w-4">{expandidos.has(grupo.code) ? "▼" : "▶"}</span>
+                  <span className="text-[12px] font-bold text-black w-20 font-mono">{grupo.code}</span>
                   <span className="text-[13px] font-bold text-black flex-1 min-w-0 uppercase tracking-wide truncate">{grupo.name}</span>
                   <span className="text-[11px] text-[#667085] w-16 text-right tabular-nums">
                     {grupo.filhos.reduce((acc, s) => acc + s.filhos.length, 0) + grupo.filhos.length}
@@ -809,8 +809,8 @@ export default function PlanoContas() {
                     {/* Nível 2 — Subgrupo */}
                     <div onClick={() => toggle(sub.code)}
                       className="bg-white px-3 py-1.5 flex items-center gap-6 cursor-pointer hover:bg-[#F6F2EB] border-b border-[#EAECF0]">
-                      <span className="text-[10px] text-[#667085] w-4 pl-4">{expandidos.has(sub.code) ? "▼" : "▶"}</span>
-                      <span className="text-[12.5px] text-black w-20 font-mono pl-4">{sub.code}</span>
+                      <span className="text-[11px] text-[#667085] w-4 pl-4">{expandidos.has(sub.code) ? "▼" : "▶"}</span>
+                      <span className="text-[12px] text-black w-20 font-mono pl-4">{sub.code}</span>
                       <span className="text-[13px] font-semibold text-black flex-1 min-w-0 pl-4 truncate">{sub.name}</span>
                       <span className="text-[11px] text-[#667085] w-16 text-right tabular-nums">{sub.filhos.length}</span>
                       <span className="w-28"></span>

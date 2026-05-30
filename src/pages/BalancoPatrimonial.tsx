@@ -293,7 +293,7 @@ function SecaoBP({
   const nivel1 = linhas.filter((l) => l.nivel === 1);
 
   return (
-    <table className="w-full text-[12.5px]">
+    <table className="w-full text-[12px]">
       <tbody>
         {nivel1.map((g) => {
           const isOpen = expandidos[g.codigo] ?? false;
@@ -327,10 +327,10 @@ function SecaoBP({
                   return (
                     <tr key={f.codigo} className="border-b border-border/50 hover:bg-muted/10">
                       <td className="py-2 px-4 pl-8">
-                        <span className="text-muted-foreground font-mono text-[10px] mr-2">{f.codigo}</span>
+                        <span className="text-muted-foreground font-mono text-[11px] mr-2">{f.codigo}</span>
                         {f.nome}
                         {f.origem === "manual" && (
-                          <span className="ml-1.5 text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">manual</span>
+                          <span className="ml-1.5 text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">manual</span>
                         )}
                       </td>
                       <td className="text-right py-2 px-4 tabular-nums w-[140px]">

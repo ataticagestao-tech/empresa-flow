@@ -476,13 +476,13 @@ export default function MapeamentoContabil() {
                         </span>
 
                         {/* Nome */}
-                        <span className={`flex-1 text-[12.5px] ${l.nivel === 2 ? "pl-2" : ""}`}>
+                        <span className={`flex-1 text-[12px] ${l.nivel === 2 ? "pl-2" : ""}`}>
                           {l.nome}
                         </span>
 
                         {/* Tipo */}
                         <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+                          className={`text-[11px] px-1.5 py-0.5 rounded flex-shrink-0 ${
                             l.tipo_calculo === "resultado"
                               ? "bg-blue-500/20 text-blue-400"
                               : l.tipo_calculo === "manual"
@@ -496,7 +496,7 @@ export default function MapeamentoContabil() {
                         {/* Badge de contas mapeadas */}
                         {isMappeable && (
                           <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-mono flex-shrink-0 ${
+                            className={`text-[11px] px-2 py-0.5 rounded-full font-mono flex-shrink-0 ${
                               lineMaps.length > 0
                                 ? "bg-green-500/20 text-green-400 border border-green-500/30"
                                 : "bg-muted/50 text-muted-foreground"
@@ -506,7 +506,7 @@ export default function MapeamentoContabil() {
                           </span>
                         )}
                         {!isMappeable && l.tipo_calculo !== "soma" && (
-                          <span className="text-muted-foreground text-[10px]">—</span>
+                          <span className="text-muted-foreground text-[11px]">—</span>
                         )}
                       </div>
 
@@ -534,7 +534,7 @@ export default function MapeamentoContabil() {
                                   e.stopPropagation();
                                   toggleFator(m.conta_operacional_id, l.id);
                                 }}
-                                className={`text-[10px] px-1.5 py-0.5 rounded font-mono cursor-pointer hover:opacity-80 ${
+                                className={`text-[11px] px-1.5 py-0.5 rounded font-mono cursor-pointer hover:opacity-80 ${
                                   m.fator === 1
                                     ? "bg-green-500/20 text-green-400"
                                     : "bg-red-500/20 text-red-400"
@@ -618,14 +618,14 @@ export default function MapeamentoContabil() {
                 {contasNaoMapeadas.slice(0, 30).map((c) => (
                   <span
                     key={c.id}
-                    className="text-[10px] px-2 py-1 rounded bg-muted/50 text-muted-foreground border border-border/50"
+                    className="text-[11px] px-2 py-1 rounded bg-muted/50 text-muted-foreground border border-border/50"
                     title={`${c.code} — ${c.name} (${c.dre_group || "sem grupo DRE"})`}
                   >
                     {c.code} {c.name}
                   </span>
                 ))}
                 {contasNaoMapeadas.length > 30 && (
-                  <span className="text-[10px] px-2 py-1 text-muted-foreground">
+                  <span className="text-[11px] px-2 py-1 text-muted-foreground">
                     +{contasNaoMapeadas.length - 30} mais...
                   </span>
                 )}

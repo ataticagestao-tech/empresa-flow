@@ -102,7 +102,7 @@ const StatusBadge = ({ status }: { status: string }) => {
         inativo:      "Inativo",
     };
     return (
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap flex-shrink-0 ${estilos[status] ?? estilos.inativo}`}>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap flex-shrink-0 ${estilos[status] ?? estilos.inativo}`}>
             {labels[status] ?? status}
         </span>
     );
@@ -124,7 +124,7 @@ const CRStatusBadge = ({ status }: { status: string }) => {
         aberto: "Aberto", em_andamento: "Em andamento", cancelado: "Cancelado",
     };
     return (
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${map[status] ?? map.aberto}`}>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded border border-[1.5px] whitespace-nowrap ${map[status] ?? map.aberto}`}>
             {labels[status] ?? status}
         </span>
     );
@@ -854,7 +854,7 @@ export default function Clientes() {
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
                   <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Clientes</h1>
+                      <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Clientes</h1>
                       <p className="text-[11px] text-white/80 mt-0.5">Cadastro de clientes e histórico financeiro</p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -1107,7 +1107,7 @@ export default function Clientes() {
                                         <div className="text-[11px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.totalComprado ?? 0)}
                                         </div>
-                                        <div className="text-[9px] text-[#888]">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : `${detailFinancial?.totalCompras ?? 0} compras`}
                                         </div>
                                     </div>
@@ -1120,7 +1120,7 @@ export default function Clientes() {
                                         <div className={`text-[11px] font-bold ${(detailFinancial?.aReceber ?? 0) > 0 ? "text-[#E53E3E]" : "text-[#039855]"}`}>
                                             {detailLoading ? "..." : formatBRL(detailFinancial?.aReceber ?? 0)}
                                         </div>
-                                        <div className="text-[9px] text-[#888]">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.vencido && detailFinancial.vencido > 0
                                                 ? `${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length} título${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""} vencido${detailFinancial.crs.filter((cr: any) => getCRDisplayStatus(cr) === "vencido").length > 1 ? "s" : ""}`
                                                 : "em dia"
@@ -1136,7 +1136,7 @@ export default function Clientes() {
                                         <div className="text-[11px] font-bold text-[#1D2939]">
                                             {detailLoading ? "..." : detailFinancial?.ultimaCompra ? formatData(detailFinancial.ultimaCompra) : "—"}
                                         </div>
-                                        <div className="text-[9px] text-[#888]">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial?.ultimaCompra ? diasAtras(detailFinancial.ultimaCompra) : ""}
                                         </div>
                                     </div>
@@ -1154,7 +1154,7 @@ export default function Clientes() {
                                         }`}>
                                             {detailLoading ? "..." : pontualidade !== null ? `${pontualidade}%` : "—"}
                                         </div>
-                                        <div className="text-[9px] text-[#888]">
+                                        <div className="text-[10px] text-[#888]">
                                             {detailLoading ? "" : detailFinancial ? `${detailFinancial.pagosNoPrazo} de ${detailFinancial.totalPagos}` : ""}
                                         </div>
                                     </div>
@@ -1222,7 +1222,7 @@ export default function Clientes() {
                                                                 <div className="text-[11px] font-semibold text-[#1D2939] truncate">
                                                                     {crDescription(cr)}
                                                                 </div>
-                                                                <div className="text-[10px] text-[#888]">
+                                                                <div className="text-[11px] text-[#888]">
                                                                     {crSubtext(cr)}
                                                                 </div>
                                                             </div>
@@ -1343,7 +1343,7 @@ export default function Clientes() {
                                                 { label: "Observações", value: selectedClient.observacoes },
                                             ]).map((item, i) => (
                                                 <div key={i} className="bg-white rounded-lg border border-[#EAECF0] p-3.5">
-                                                    <div className="text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1">
+                                                    <div className="text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1">
                                                         {item.label}
                                                     </div>
                                                     <div className="text-[13px] text-[#1D2939]">

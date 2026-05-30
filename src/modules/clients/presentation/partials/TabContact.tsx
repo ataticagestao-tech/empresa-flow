@@ -25,7 +25,7 @@ export function TabContact({ form }: TabContactProps) {
                         name="email"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-1">
+                                <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase flex items-center gap-1">
                                     <Mail className="w-3 h-3" /> Email Principal
                                 </FormLabel>
                                 <FormControl>
@@ -43,7 +43,7 @@ export function TabContact({ form }: TabContactProps) {
                     name="telefone"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-1">
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase flex items-center gap-1">
                                 <Phone className="w-3 h-3" /> Telefone Fixo
                             </FormLabel>
                             <FormControl>
@@ -64,7 +64,7 @@ export function TabContact({ form }: TabContactProps) {
                     name="celular"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-1">
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase flex items-center gap-1">
                                 <Phone className="w-3 h-3" /> Celular / WhatsApp
                             </FormLabel>
                             <FormControl>
@@ -89,7 +89,7 @@ export function TabContact({ form }: TabContactProps) {
                     name="contato_nome"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-1">
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase flex items-center gap-1">
                                 <User className="w-3 h-3" /> Nome do Contato
                             </FormLabel>
                             <FormControl>
@@ -104,7 +104,7 @@ export function TabContact({ form }: TabContactProps) {
                     name="website"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Website</FormLabel>
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Website</FormLabel>
                             <FormControl>
                                 <Input
                                     className="h-9 border-[#EAECF0]"

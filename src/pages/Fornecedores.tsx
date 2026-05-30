@@ -100,7 +100,7 @@ const emptyForm = {
 };
 
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 const REQ = <span className="text-[#E53E3E]">*</span>;
 
 export default function Fornecedores() {
@@ -355,7 +355,7 @@ export default function Fornecedores() {
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
                   <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Fornecedores</h1>
+                      <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Fornecedores</h1>
                       <p className="text-[11px] text-white/80 mt-0.5">Cadastro de fornecedores e dados de pagamento</p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -397,8 +397,8 @@ export default function Fornecedores() {
                                             <p className="text-[11px] text-[#555] truncate" title={atividade}>{atividade}</p>
                                         </div>
                                         <div className="text-right shrink-0">
-                                            {doc && <p className="text-[10px] text-[#777] tabular-nums">{doc}</p>}
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                            {doc && <p className="text-[11px] text-[#777] tabular-nums">{doc}</p>}
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                                                 s.is_active ? "bg-[#ECFDF3] text-[#039855]" : "bg-[#EAECF0] text-[#555]"
                                             }`}>{s.is_active ? "Ativo" : "Inativo"}</span>
                                         </div>
@@ -422,15 +422,15 @@ export default function Fornecedores() {
                                     { id: "interacoes" as const, label: "Interações" },
                                 ].map(t => (
                                     <button key={t.id} onClick={() => setTab(t.id)} disabled={isCreating && t.id === "historico"}
-                                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
+                                        className={`text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all ${
                                             tab === t.id ? "bg-white text-[#064E3B]" :
                                             isCreating && t.id === "historico" ? "text-[#064E3B]/40 cursor-not-allowed" :
                                             "text-[#064E3B] hover:bg-white/30"
                                         }`}>{t.label}</button>
                                 ))}
                                 {selected && <div className="ml-auto" />}
-                                {selected && (selected.celular || selected.telefone) && <button onClick={() => setWhatsOpen(true)} title="Enviar mensagem no WhatsApp" className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-white hover:bg-emerald-50 rounded px-2.5 py-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill="#25D366" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/><path fill="#fff" d="M9.36 7.32c-.18-.4-.36-.41-.53-.42h-.45c-.16 0-.41.06-.63.3-.22.24-.83.81-.83 1.98 0 1.17.85 2.3.97 2.46.12.16 1.65 2.64 4.08 3.6 2.02.8 2.43.64 2.87.6.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.64-1.19-1.42-1.33-1.66-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.53-1.31-.74-1.79z"/></svg>WhatsApp</button>}
-                                {selected && <button onClick={() => handleDelete(selected)} className="text-[10px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
+                                {selected && (selected.celular || selected.telefone) && <button onClick={() => setWhatsOpen(true)} title="Enviar mensagem no WhatsApp" className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white hover:bg-emerald-50 rounded px-2.5 py-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill="#25D366" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/><path fill="#fff" d="M9.36 7.32c-.18-.4-.36-.41-.53-.42h-.45c-.16 0-.41.06-.63.3-.22.24-.83.81-.83 1.98 0 1.17.85 2.3.97 2.46.12.16 1.65 2.64 4.08 3.6 2.02.8 2.43.64 2.87.6.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.64-1.19-1.42-1.33-1.66-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.53-1.31-.74-1.79z"/></svg>WhatsApp</button>}
+                                {selected && <button onClick={() => handleDelete(selected)} className="text-[11px] font-bold text-[#991B1B] hover:bg-white/30 rounded px-2 py-1">Excluir</button>}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-5">
@@ -456,7 +456,7 @@ export default function Fornecedores() {
                                                     <label className={LB}>CPF / CNPJ</label>
                                                     {formData.tipo_pessoa === "PJ" && (
                                                         <button type="button" onClick={lookupCNPJ} disabled={lookingUp}
-                                                            className="text-[10px] font-bold text-[#059669] flex items-center gap-1 hover:underline disabled:opacity-50">
+                                                            className="text-[11px] font-bold text-[#059669] flex items-center gap-1 hover:underline disabled:opacity-50">
                                                             <Globe className="w-3 h-3" /> {lookingUp ? "Buscando..." : "Buscar CNPJ"}
                                                         </button>
                                                     )}

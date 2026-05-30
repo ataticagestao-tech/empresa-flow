@@ -47,7 +47,7 @@ export function PagePanel({
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white">
           <div className="bg-[#2A2724] px-4 py-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-[14px] font-bold uppercase tracking-wider text-white truncate">{title}</h1>
+              <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white truncate">{title}</h1>
               {subtitle && <p className="text-[11px] text-white/80 mt-0.5">{subtitle}</p>}
             </div>
             {headerActions && (

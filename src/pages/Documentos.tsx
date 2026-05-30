@@ -364,7 +364,7 @@ export default function Documentos() {
             <Clock className="h-4 w-4 inline mr-1.5" />
             Vencimentos
             {vencidoCount > 0 && (
-              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5">{vencidoCount}</Badge>
+              <Badge variant="destructive" className="ml-1.5 text-[11px] px-1.5">{vencidoCount}</Badge>
             )}
           </button>
         </div>

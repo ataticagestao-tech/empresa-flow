@@ -711,7 +711,7 @@ ${empresaNome}`;
         {/* Filtros */}
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939] mb-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939] mb-1">
               Mês
             </label>
             <select
@@ -728,7 +728,7 @@ ${empresaNome}`;
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939] mb-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939] mb-1">
               Conta Bancária
             </label>
             <select
@@ -750,7 +750,7 @@ ${empresaNome}`;
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="border-[#E5E7EB]">
             <CardContent className="p-4">
-              <div className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+              <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">
                 Movimentações conciliadas
               </div>
               <div className="text-2xl font-semibold text-[#1D2939] mt-1">
@@ -760,7 +760,7 @@ ${empresaNome}`;
           </Card>
           <Card className="border-[#E5E7EB]">
             <CardContent className="p-4">
-              <div className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+              <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">
                 Entradas
               </div>
               <div className="text-2xl font-semibold text-[#059669] mt-1">
@@ -770,7 +770,7 @@ ${empresaNome}`;
           </Card>
           <Card className="border-[#E5E7EB]">
             <CardContent className="p-4">
-              <div className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+              <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">
                 Saídas
               </div>
               <div className="text-2xl font-semibold text-[#DC2626] mt-1">
@@ -970,7 +970,7 @@ ${empresaNome}`;
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setColMenuOpen(false)} />
                         <div className="absolute right-0 mt-1 z-50 bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px]">
-                          <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                          <p className="px-3 py-1.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
                           {Object.entries(COL_LABELS).map(([k, label]) => (
                             <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
                               <input

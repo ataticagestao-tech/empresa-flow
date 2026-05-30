@@ -420,7 +420,7 @@ function Hero() {
           </ul>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:mt-8">
-            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#1E5A8C] px-7 text-[14px] font-bold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-[#1f5d96] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
+            <Button asChild size="lg" className="h-12 w-full rounded-md bg-[#1E5A8C] px-7 text-[16px] font-bold uppercase tracking-[0.5px] text-white transition hover:-translate-y-0.5 hover:bg-[#1f5d96] hover:shadow-[0_8px_24px_rgba(44,123,196,0.35)] sm:w-auto">
               <a href={whatsappUrl} target="_blank" rel="noreferrer">
                 Quero contratar
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -501,7 +501,7 @@ function Sobre() {
               {stats.map((s) => (
                 <div key={s.l} className="rounded-2xl border-t-[3px] border-[#3D7068] bg-[#F4F1EA] p-6 text-center shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
                   <p className={`font-black tracking-tight text-[#0D2847] ${s.small ? "text-[16px] leading-tight" : "text-[32px]"}`}>{s.n}</p>
-                  <p className="mt-1 text-[12.5px] text-[#666]">{s.l}</p>
+                  <p className="mt-1 text-[12px] text-[#666]">{s.l}</p>
                 </div>
               ))}
             </div>
@@ -652,7 +652,7 @@ function GaleriaSistema() {
             <div key={g.titulo}>
               <div className="mb-6 flex flex-col items-start gap-1 border-l-4 border-[#3D7068] pl-4 md:mb-8">
                 <h3 className="text-[16px] font-black tracking-tight text-[#0D2847] md:text-[18px]">{g.titulo}</h3>
-                <p className="text-[12.5px] leading-relaxed text-[#666] md:text-[13.5px]">{g.sub}</p>
+                <p className="text-[12px] leading-relaxed text-[#666] md:text-[13.5px]">{g.sub}</p>
               </div>
               <div className="grid gap-5 md:grid-cols-3">
                 {g.thumbs.map((t) => (
@@ -665,7 +665,7 @@ function GaleriaSistema() {
                     </div>
                     <div className="border-t border-black/5 p-4 md:p-5">
                       <p className="text-[13.5px] font-bold tracking-tight text-[#0D2847]">{t.label}</p>
-                      <p className="mt-1 text-[12.5px] leading-relaxed text-[#666]">{t.desc}</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-[#666]">{t.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -714,7 +714,7 @@ function Servicos() {
         </div>
 
         <div className="mt-12 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-[#1E5A8C] px-7 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]">
+          <Button asChild size="lg" className="h-12 rounded-md bg-[#1E5A8C] px-7 text-[16px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#1f5d96]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Quero contratar
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -832,7 +832,7 @@ function Consultoria() {
         </div>
 
         <div className="mt-14 text-center">
-          <Button asChild size="lg" className="h-12 rounded-md bg-[#1E5A8C] px-7 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]">
+          <Button asChild size="lg" className="h-12 rounded-md bg-[#1E5A8C] px-7 text-[16px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#1f5d96]">
             <a href={whatsappUrl} target="_blank" rel="noreferrer">
               Quero contratar
               <ArrowRight className="ml-2 h-4 w-4" />

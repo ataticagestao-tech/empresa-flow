@@ -346,7 +346,7 @@ export default function Checkout() {
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1E5A8C]">Etapa 3</p>
                   <p className="mt-1 text-[16px] font-black tracking-tight text-[#0D2847]">Forma de pagamento</p>
-                  <p className="mt-1 text-[12.5px] text-[#666]">
+                  <p className="mt-1 text-[12px] text-[#666]">
                     Sua preferência. O link de pagamento será enviado pelo nosso time após o contrato.
                   </p>
                 </div>
@@ -439,7 +439,7 @@ export default function Checkout() {
                 </div>
 
                 <div className="rounded-xl bg-[#F4F1EA] p-5">
-                  <p className="text-[12.5px] leading-relaxed text-[#666]">{plano.resumo}</p>
+                  <p className="text-[12px] leading-relaxed text-[#666]">{plano.resumo}</p>
                 </div>
 
                 <ul className="space-y-2 border-t border-black/8 pt-4">
@@ -471,7 +471,7 @@ export default function Checkout() {
 
                 <Button
                   onClick={handleConfirmar}
-                  className="w-full rounded-md bg-[#1E5A8C] py-6 text-[14px] font-bold uppercase tracking-wider text-white hover:bg-[#1f5d96]"
+                  className="w-full rounded-md bg-[#1E5A8C] py-6 text-[16px] font-bold uppercase tracking-[0.5px] text-white hover:bg-[#1f5d96]"
                 >
                   Confirmar contratação
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -589,7 +589,7 @@ function PassoSucesso({ n, t, d }: { n: string; t: string; d: string }) {
       </div>
       <div>
         <p className="text-[13.5px] font-bold text-[#0D2847]">{t}</p>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-[#666]">{d}</p>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-[#666]">{d}</p>
       </div>
     </div>
   );

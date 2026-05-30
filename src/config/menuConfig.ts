@@ -49,6 +49,8 @@ export interface MenuItem {
   hidden?: boolean;
   adminOnly?: boolean;
   ownerOnly?: boolean;
+  /** Sub-itens em cascata. Se preenchido, o item vira um submenu (abre outro menu ao lado). */
+  children?: MenuItem[];
 }
 
 export interface MenuGroup {
@@ -58,6 +60,8 @@ export interface MenuGroup {
   items: MenuItem[];
   isHardcodedLabel?: boolean;
   ownerOnly?: boolean;
+  /** Título da seção sob a qual o grupo aparece. Grupos sem section ficam soltos no topo. */
+  section?: string;
 }
 
 export const menuGroups: MenuGroup[] = [
@@ -72,32 +76,43 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'Cadastros',
     icon: ClipboardList,
     isHardcodedLabel: true,
+    section: 'Gestão',
     items: [
       { titleKey: 'menu.companies', icon: Building2, url: '/empresas' },
-      { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
-      { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
-      { titleKey: 'Clientes', icon: Users, url: '/clientes', isHardcoded: true },
-      { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
-      { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
+      { titleKey: 'Pessoas', icon: Users, isHardcoded: true, children: [
+        { titleKey: 'Clientes', icon: Users, url: '/clientes', isHardcoded: true },
+        { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
+        { titleKey: 'Funcionários', icon: Users, url: '/funcionarios', isHardcoded: true },
+      ] },
+      { titleKey: 'Contábil', icon: Book, isHardcoded: true, children: [
+        { titleKey: 'Plano de Contas', icon: Book, url: '/plano-contas', isHardcoded: true },
+        { titleKey: 'Centros de Custo', icon: Network, url: '/centros-custo', isHardcoded: true },
+        { titleKey: 'menu.bank_accounts', icon: Wallet, url: '/contas-bancarias' },
+      ] },
       { titleKey: 'Operacional', icon: Package, url: '/operacional', isHardcoded: true },
-      { titleKey: 'Fornecedores', icon: Truck, url: '/fornecedores', isHardcoded: true },
     ]
   },
   {
     id: 'financeiro',
     labelKey: 'menu.finance',
     icon: DollarSign,
+    section: 'Gestão',
     items: [
       { titleKey: 'Vendas', icon: ShoppingCart, url: '/vendas', isHardcoded: true },
       { titleKey: 'menu.receivables', icon: ArrowUpCircle, url: '/contas-receber' },
       { titleKey: 'menu.payables', icon: ArrowDownCircle, url: '/contas-pagar' },
       { titleKey: 'menu.receipts', icon: FileText, url: '/recibos' },
       { titleKey: 'Movimentações', icon: ArrowLeftRight, url: '/movimentacoes', isHardcoded: true, ownerOnly: true },
-      { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
-      { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
-      { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
-      { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
-      { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
+      // Exemplo de submenu em cascata:
+      { titleKey: 'Demonstrativos', icon: FileText, isHardcoded: true, children: [
+        { titleKey: 'DRE', icon: FileText, url: '/dre', isHardcoded: true },
+        { titleKey: 'Fluxo de Caixa', icon: Banknote, url: '/demonstrativos/dfc', isHardcoded: true },
+        { titleKey: 'Relatórios', icon: FileText, url: '/relatorios', isHardcoded: true },
+      ] },
+      { titleKey: 'Cobrança', icon: Bell, isHardcoded: true, children: [
+        { titleKey: 'Régua de Cobrança', icon: Bell, url: '/regua-cobranca', isHardcoded: true },
+        { titleKey: 'Conciliação Bancária', icon: CheckSquare, url: '/conciliacao', isHardcoded: true },
+      ] },
     ]
   },
   {
@@ -106,10 +121,13 @@ export const menuGroups: MenuGroup[] = [
     icon: Receipt,
     isHardcodedLabel: true,
     ownerOnly: true,
+    section: 'Gestão',
     items: [
       { titleKey: 'Area do Contador', icon: Briefcase, url: '/area-contador', isHardcoded: true },
-      { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
-      { titleKey: 'Config NFSe', icon: Settings, url: '/configuracoes/nfse', isHardcoded: true },
+      { titleKey: 'NFSe', icon: Receipt, isHardcoded: true, children: [
+        { titleKey: 'Emissao NFSe', icon: Receipt, url: '/nfse', isHardcoded: true },
+        { titleKey: 'Config NFSe', icon: Settings, url: '/configuracoes/nfse', isHardcoded: true },
+      ] },
       { titleKey: 'Previsao de Impostos', icon: Calculator, url: '/previsao-impostos', isHardcoded: true },
       { titleKey: 'Importacao XML', icon: Upload, url: '/importacao-xml', isHardcoded: true },
     ]
@@ -119,6 +137,7 @@ export const menuGroups: MenuGroup[] = [
     labelKey: 'RH & Folha',
     icon: Briefcase,
     isHardcodedLabel: true,
+    section: 'Gestão',
     // Ordem segue o fluxo de lançamento: vínculos → ponto → ausências → folha → encargos
     items: [
       { titleKey: 'Admissoes e Demissoes', icon: UserPlus, url: '/admissoes-demissoes', isHardcoded: true },
@@ -129,23 +148,11 @@ export const menuGroups: MenuGroup[] = [
     ]
   },
   {
-    id: 'projecao',
-    labelKey: 'Projeção Financeira',
-    icon: TrendingUp,
-    isHardcodedLabel: true,
-    ownerOnly: true,
-    items: [
-      { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
-      { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
-      { titleKey: 'Previsão de Receitas', icon: DollarSign, url: '/previsao-receitas', isHardcoded: true },
-      { titleKey: 'Cenários', icon: GitBranch, url: '/cenarios', isHardcoded: true },
-    ]
-  },
-  {
     id: 'estoque',
-    labelKey: 'Estoque & Compras',
+    labelKey: 'Estoque',
     icon: Package,
     isHardcodedLabel: true,
+    section: 'Operações',
     items: [
       { titleKey: 'Estoque', icon: Package, url: '/estoque', isHardcoded: true },
       { titleKey: 'Ordens de Compra', icon: ShoppingCart, url: '/ordens-compra', isHardcoded: true },
@@ -153,21 +160,11 @@ export const menuGroups: MenuGroup[] = [
     ]
   },
   {
-    id: 'documentos',
-    labelKey: 'Documentos',
-    icon: FolderOpen,
-    isHardcodedLabel: true,
-    items: [
-      { titleKey: 'Explorador', icon: FolderOpen, url: '/documentos', isHardcoded: true },
-      { titleKey: 'Upload', icon: Upload, url: '/documentos/upload', isHardcoded: true },
-      { titleKey: 'Vencimentos', icon: Clock, url: '/documentos/vencimentos', isHardcoded: true },
-    ]
-  },
-  {
     id: 'precificacao',
     labelKey: 'Precificação',
     icon: Target,
     isHardcodedLabel: true,
+    section: 'Operações',
     items: [
       { titleKey: 'Ficha Técnica', icon: ClipboardList, url: '/ficha-tecnica', isHardcoded: true },
       { titleKey: 'Composição de Custo', icon: Layers, url: '/composicao-custo', isHardcoded: true },
@@ -177,11 +174,38 @@ export const menuGroups: MenuGroup[] = [
     ]
   },
   {
+    id: 'documentos',
+    labelKey: 'Documentos',
+    icon: FolderOpen,
+    isHardcodedLabel: true,
+    section: 'Operações',
+    items: [
+      { titleKey: 'Explorador', icon: FolderOpen, url: '/documentos', isHardcoded: true },
+      { titleKey: 'Upload', icon: Upload, url: '/documentos/upload', isHardcoded: true },
+      { titleKey: 'Vencimentos', icon: Clock, url: '/documentos/vencimentos', isHardcoded: true },
+    ]
+  },
+  {
+    id: 'projecao',
+    labelKey: 'Projeção',
+    icon: TrendingUp,
+    isHardcodedLabel: true,
+    ownerOnly: true,
+    section: 'Análise & Grupo',
+    items: [
+      { titleKey: 'Fluxo de Caixa Projetado', icon: TrendingUp, url: '/fluxo-caixa-projetado', isHardcoded: true },
+      { titleKey: 'Orçamento', icon: Calculator, url: '/orcamento', isHardcoded: true },
+      { titleKey: 'Previsão de Receitas', icon: DollarSign, url: '/previsao-receitas', isHardcoded: true },
+      { titleKey: 'Cenários', icon: GitBranch, url: '/cenarios', isHardcoded: true },
+    ]
+  },
+  {
     id: 'multiempresa',
     labelKey: 'Multi-empresa',
     icon: GitMerge,
     isHardcodedLabel: true,
     ownerOnly: true,
+    section: 'Análise & Grupo',
     items: [
       { titleKey: 'Consolidado', icon: GitMerge, url: '/multiempresa', isHardcoded: true },
       { titleKey: 'Transferências', icon: ArrowLeftRight, url: '/multiempresa/transferencias', isHardcoded: true },
@@ -194,6 +218,7 @@ export const menuGroups: MenuGroup[] = [
     icon: Shield,
     isHardcodedLabel: true,
     ownerOnly: true,
+    section: 'Sistema',
     items: [
       { titleKey: 'Equipe', icon: UserPlus, url: '/equipe', isHardcoded: true },
       { titleKey: 'Usuários', icon: Shield, url: '/admin/usuarios', isHardcoded: true, adminOnly: true },

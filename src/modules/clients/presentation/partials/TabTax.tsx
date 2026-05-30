@@ -25,7 +25,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                     name="inscricao_estadual"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição Estadual</FormLabel>
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Inscrição Estadual</FormLabel>
                             <FormControl>
                                 <Input className="h-9 border-[#EAECF0]" placeholder="Isento se vazio" {...field} />
                             </FormControl>
@@ -38,7 +38,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                     name="inscricao_municipal"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Inscrição Municipal</FormLabel>
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Inscrição Municipal</FormLabel>
                             <FormControl>
                                 <Input className="h-9 border-[#EAECF0]" {...field} />
                             </FormControl>
@@ -53,7 +53,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                         name="cnae"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase flex items-center gap-2">
+                                <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase flex items-center gap-2">
                                     <Landmark className="w-3 h-3" /> Atividade Principal (CNAE)
                                 </FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value || undefined}>
@@ -70,7 +70,7 @@ export function TabTax({ form, cnaeOptions }: TabTaxProps) {
                                             <SelectItem key={cnae.codigo} value={cnae.codigo}>
                                                 <span className="font-mono text-xs text-muted-foreground mr-2">{cnae.codigo}</span>
                                                 {cnae.descricao}
-                                                {cnae.origem === 'principal' && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1 rounded">Principal</span>}
+                                                {cnae.origem === 'principal' && <span className="ml-2 text-[11px] bg-green-100 text-green-700 px-1 rounded">Principal</span>}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

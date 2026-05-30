@@ -16,7 +16,7 @@ interface CentroCusto {
 }
 
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 export default function CentrosCusto() {
   const { activeClient } = useAuth();
@@ -194,7 +194,7 @@ export default function CentrosCusto() {
                   <div className={`px-4 py-2.5 flex items-center justify-between ${isPadrao ? "bg-[#059669]" : "bg-[#555]"}`}>
                     <div>
                       <h3 className="text-xs font-bold text-white uppercase tracking-widest">{c.descricao}</h3>
-                      {c.codigo && <p className="text-[10px] text-white/70">{c.codigo}</p>}
+                      {c.codigo && <p className="text-[11px] text-white/70">{c.codigo}</p>}
                     </div>
                     <div className="flex gap-1">
                       <button onClick={e => { e.stopPropagation(); handleEdit(c); }} className="text-white/70 hover:text-white text-xs px-1">✎</button>
@@ -213,9 +213,9 @@ export default function CentrosCusto() {
                     )}
                     <div className="flex items-center gap-2">
                       {isPadrao
-                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">Padrão Tática</span>
-                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Personalizado</span>}
-                      {!c.ativo && <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]">Inativo</span>}
+                        ? <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">Padrão Tática</span>
+                        : <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#555]">Personalizado</span>}
+                      {!c.ativo && <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#E53E3E] bg-[#FEE2E2] text-[#E53E3E]">Inativo</span>}
                     </div>
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export default function CentrosCusto() {
             <div className="p-5 bg-white">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#555] mb-3">Funcionários do Setor</h4>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#555] mb-3">Funcionários do Setor</h4>
                   {(empCounts[selected.id] || 0) === 0 ? (
                     <p className="text-sm text-[#555]">Nenhum funcionário vinculado a este setor.</p>
                   ) : (
@@ -252,7 +252,7 @@ export default function CentrosCusto() {
                   )}
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#555] mb-3">Despesas do Mês</h4>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#555] mb-3">Despesas do Mês</h4>
                   <p className="text-sm text-[#555]">Dados de despesas serão exibidos quando os lançamentos estiverem vinculados a centros de custo.</p>
                 </div>
               </div>

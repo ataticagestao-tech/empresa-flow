@@ -338,10 +338,10 @@ function PerfisDeAcesso() {
                                     const modCount = Object.keys(p.permissoes || {}).length;
                                     return (
                                         <TableRow key={p.id}>
-                                            <TableCell className="font-semibold text-[12.5px]">{p.nome}</TableCell>
+                                            <TableCell className="font-semibold text-[12px]">{p.nome}</TableCell>
                                             <TableCell className="text-[12px] text-muted-foreground">{p.descricao || "-"}</TableCell>
                                             <TableCell>
-                                                <Badge variant={p.sistema ? "secondary" : "outline"} className="text-[10px]">
+                                                <Badge variant={p.sistema ? "secondary" : "outline"} className="text-[11px]">
                                                     {p.sistema ? "Sistema" : "Customizado"}
                                                 </Badge>
                                             </TableCell>
@@ -426,13 +426,13 @@ function PerfilEditor({ perfil, onChange, readOnly }: { perfil: any; onChange: (
                     <Label className="text-[12px]">Nome</Label>
                     <Input value={perfil.nome} disabled={readOnly}
                         onChange={(e) => onChange({ ...perfil, nome: e.target.value })}
-                        className="h-8 text-[12.5px]" />
+                        className="h-8 text-[12px]" />
                 </div>
                 <div className="space-y-1.5">
                     <Label className="text-[12px]">Descrição</Label>
                     <Input value={perfil.descricao || ""} disabled={readOnly}
                         onChange={(e) => onChange({ ...perfil, descricao: e.target.value })}
-                        className="h-8 text-[12.5px]" />
+                        className="h-8 text-[12px]" />
                 </div>
             </div>
 
@@ -560,7 +560,7 @@ function LogAtividades() {
             logout: "bg-gray-100 text-gray-700",
         };
         return (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${colors[acao] || "bg-gray-100 text-gray-600"}`}>
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${colors[acao] || "bg-gray-100 text-gray-600"}`}>
                 {acao}
             </span>
         );
@@ -599,18 +599,18 @@ function LogAtividades() {
                 <div className="flex flex-wrap gap-3 mt-4">
                     <div className="relative w-64">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input placeholder="Buscar..." className="pl-8 h-8 text-[12.5px]"
+                        <Input placeholder="Buscar..." className="pl-8 h-8 text-[12px]"
                             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
                     <Select value={filterModulo} onValueChange={setFilterModulo}>
-                        <SelectTrigger className="w-40 h-8 text-[12.5px]"><SelectValue placeholder="Módulo" /></SelectTrigger>
+                        <SelectTrigger className="w-40 h-8 text-[12px]"><SelectValue placeholder="Módulo" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="todos">Todos os módulos</SelectItem>
                             {MODULOS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <Select value={filterAcao} onValueChange={setFilterAcao}>
-                        <SelectTrigger className="w-36 h-8 text-[12.5px]"><SelectValue placeholder="Ação" /></SelectTrigger>
+                        <SelectTrigger className="w-36 h-8 text-[12px]"><SelectValue placeholder="Ação" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="todos">Todas as ações</SelectItem>
                             {["criou", "editou", "deletou", "exportou", "importou", "aprovou", "rejeitou"].map((a) => (
@@ -670,16 +670,16 @@ function LogAtividades() {
                                                 <div className="grid grid-cols-2 gap-4">
                                                     {log.dados_antes && (
                                                         <div>
-                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Antes</p>
-                                                            <pre className="text-[10px] font-mono bg-white p-2 rounded border overflow-x-auto max-h-40">
+                                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase mb-1">Antes</p>
+                                                            <pre className="text-[11px] font-mono bg-white p-2 rounded border overflow-x-auto max-h-40">
                                                                 {JSON.stringify(log.dados_antes, null, 2)}
                                                             </pre>
                                                         </div>
                                                     )}
                                                     {log.dados_depois && (
                                                         <div>
-                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Depois</p>
-                                                            <pre className="text-[10px] font-mono bg-white p-2 rounded border overflow-x-auto max-h-40">
+                                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase mb-1">Depois</p>
+                                                            <pre className="text-[11px] font-mono bg-white p-2 rounded border overflow-x-auto max-h-40">
                                                                 {JSON.stringify(log.dados_depois, null, 2)}
                                                             </pre>
                                                         </div>
@@ -736,7 +736,7 @@ function IntegracoesPanel() {
             configurando: { label: "Configurando", variant: "secondary" },
         };
         const info = map[status] || { label: status, variant: "outline" as const };
-        return <Badge variant={info.variant} className="text-[10px]">{info.label}</Badge>;
+        return <Badge variant={info.variant} className="text-[11px]">{info.label}</Badge>;
     };
 
     // Build list with all known integrations
@@ -775,19 +775,19 @@ function IntegracoesPanel() {
                                 <div className="mt-3 flex items-center gap-2">
                                     {statusLabel(integ.data.status)}
                                     {integ.data.ultimo_teste && (
-                                        <span className="text-[10px] text-muted-foreground">
+                                        <span className="text-[11px] text-muted-foreground">
                                             Teste: {format(new Date(integ.data.ultimo_teste), "dd/MM HH:mm")}
                                         </span>
                                     )}
                                 </div>
                             )}
                             {integ.configured && integ.data?.ultimo_erro && (
-                                <p className="text-[10px] text-red-500 mt-1 truncate" title={integ.data.ultimo_erro}>
+                                <p className="text-[11px] text-red-500 mt-1 truncate" title={integ.data.ultimo_erro}>
                                     {integ.data.ultimo_erro}
                                 </p>
                             )}
                             {!integ.configured && (
-                                <p className="text-[10px] text-muted-foreground mt-2">Não configurado</p>
+                                <p className="text-[11px] text-muted-foreground mt-2">Não configurado</p>
                             )}
                         </div>
                     ))}
@@ -990,10 +990,10 @@ function OvernightPanel() {
                             rows={3}
                             maxLength={200}
                             disabled={isLoading}
-                            className="resize-none text-[12.5px]"
+                            className="resize-none text-[12px]"
                         />
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-muted-foreground">{frase.length} / 200 caracteres</span>
+                            <span className="text-[11px] text-muted-foreground">{frase.length} / 200 caracteres</span>
                             <Button
                                 size="sm"
                                 onClick={handleSalvar}
@@ -1066,7 +1066,7 @@ function OvernightPanel() {
                                     disabled={!whatsAtivo}
                                     className="h-9 mt-1"
                                 />
-                                <p className="text-[10px] text-muted-foreground mt-1">Fuso: America/São_Paulo</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">Fuso: America/São_Paulo</p>
                             </div>
 
                             <div className="md:col-span-2">
@@ -1122,9 +1122,9 @@ function OvernightPanel() {
                                 placeholder="Ex.: Segue o Overnight financeiro de hoje."
                                 rows={2}
                                 disabled={!whatsAtivo}
-                                className="resize-none text-[12.5px] mt-1"
+                                className="resize-none text-[12px] mt-1"
                             />
-                            <p className="text-[10px] text-muted-foreground mt-1">{mensagem.length} / 500</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">{mensagem.length} / 500</p>
                         </div>
 
                         {config?.whatsapp_ultimo_envio_em && (
@@ -1144,7 +1144,7 @@ function OvernightPanel() {
                                     <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50">Erro</Badge>
                                 )}
                                 {config.whatsapp_ultimo_envio_erro && (
-                                    <span className="text-red-600 text-[10px] truncate" title={config.whatsapp_ultimo_envio_erro}>
+                                    <span className="text-red-600 text-[11px] truncate" title={config.whatsapp_ultimo_envio_erro}>
                                         {config.whatsapp_ultimo_envio_erro}
                                     </span>
                                 )}

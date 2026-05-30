@@ -200,7 +200,7 @@ function ContratoCard({
                         <h4 className="text-sm font-bold text-[#059669]">
                             {contrato.procedimento || contrato.descricao}
                         </h4>
-                        <Badge variant="outline" className={`text-[10px] ${statusInfo.className}`}>
+                        <Badge variant="outline" className={`text-[11px] ${statusInfo.className}`}>
                             {statusInfo.label}
                         </Badge>
                         {contrato.contrato_url && (
@@ -208,7 +208,7 @@ function ContratoCard({
                                 href={contrato.contrato_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-[#059669] inline-flex items-center gap-1 hover:underline"
+                                className="text-[11px] text-[#059669] inline-flex items-center gap-1 hover:underline"
                             >
                                 <Paperclip className="h-3 w-3" /> PDF
                                 <ExternalLink className="h-2.5 w-2.5" />
@@ -316,7 +316,7 @@ function ContratoCard({
 
             <div className="mt-3">
                 <Progress value={progresso} className="h-1.5" />
-                <p className="text-[10px] text-[#888] mt-1 text-right">{progresso.toFixed(1)}% quitado</p>
+                <p className="text-[11px] text-[#888] mt-1 text-right">{progresso.toFixed(1)}% quitado</p>
             </div>
         </div>
     );
@@ -325,7 +325,7 @@ function ContratoCard({
 function Metric({ label, value, color }: { label: string; value: string; color?: string }) {
     return (
         <div>
-            <p className="text-[9px] text-[#888] uppercase font-bold tracking-wide">{label}</p>
+            <p className="text-[10px] text-[#888] uppercase font-bold tracking-wide">{label}</p>
             <p className="text-xs font-bold mt-0.5" style={{ color: color || "#059669" }}>{value}</p>
         </div>
     );
@@ -528,14 +528,14 @@ function ContratoDialog({ open, onOpenChange, clientName, contrato, onSubmit, sa
                             </DialogDescription>
                         </div>
                         <div className="text-right pl-6 border-l border-[#EAECF0]">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#98A2B3]">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#98A2B3]">
                                 Saldo a alocar
                             </p>
                             <p className="text-[20px] font-bold tabular-nums mt-0.5 text-[#059669]">
                                 {calc.saldo > 0 ? formatBRL(calc.saldo) : "—"}
                             </p>
                             <p
-                                className={`text-[10px] font-medium mt-0.5 ${
+                                className={`text-[11px] font-medium mt-0.5 ${
                                     statusTone === "ok"
                                         ? "text-[#039855]"
                                         : statusTone === "warn"
@@ -852,7 +852,7 @@ function SectionHeader({
     return (
         <div className={inline ? "" : "mb-4"}>
             <div className="flex items-baseline gap-3">
-                <span className="text-[10px] font-bold tracking-[0.12em] text-[#059669]/60 tabular-nums">
+                <span className="text-[11px] font-bold tracking-[0.12em] text-[#059669]/60 tabular-nums">
                     {number}
                 </span>
                 <h3 className="text-[13px] font-bold text-[#059669] tracking-tight">
@@ -871,7 +871,7 @@ function SectionHeader({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
-            <Label className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#667085] mb-1.5 block">
+            <Label className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#667085] mb-1.5 block">
                 {label}
             </Label>
             {children}
@@ -881,7 +881,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function MiniLabel({ children }: { children: React.ReactNode }) {
     return (
-        <Label className="text-[9px] font-bold uppercase tracking-[0.05em] text-[#98A2B3] mb-1 block">
+        <Label className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#98A2B3] mb-1 block">
             {children}
         </Label>
     );
@@ -905,7 +905,7 @@ function SummaryCell({
         : "#667085";
     return (
         <div className="px-4 py-3 border-r last:border-r-0 border-[#EAECF0]">
-            <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#98A2B3]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#98A2B3]">
                 {label}
             </p>
             <p className="text-[14px] font-bold tabular-nums mt-0.5" style={{ color }}>

@@ -130,7 +130,7 @@ export function NotificationBell() {
         >
           <Bell className="h-4 w-4" />
           {badgeCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
               {badgeCount > 9 ? "9+" : badgeCount}
             </span>
           )}
@@ -237,7 +237,7 @@ export function NotificationBell() {
                           <span className={`text-[12px] truncate ${naoLida ? "font-bold text-[#1D2939]" : "font-semibold text-[#1D2939]"}`}>
                             {n.titulo}
                           </span>
-                          <span className="text-[10px] text-[#98A2B3] flex-shrink-0">{tempoRelativo(n.created_at)}</span>
+                          <span className="text-[11px] text-[#98A2B3] flex-shrink-0">{tempoRelativo(n.created_at)}</span>
                         </div>
                         <div className="text-[11.5px] text-[#667085] line-clamp-2 mt-0.5">{n.descricao}</div>
                       </div>
@@ -258,7 +258,7 @@ export function NotificationBell() {
                 >
                   <ChevronLeft className="h-3 w-3" />
                 </button>
-                <span className="text-[10px] text-[#98A2B3] tabular-nums">
+                <span className="text-[11px] text-[#98A2B3] tabular-nums">
                   {paginaAtual + 1}/{totalPaginas}
                 </span>
                 <button

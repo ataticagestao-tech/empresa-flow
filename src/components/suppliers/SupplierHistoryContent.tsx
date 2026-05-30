@@ -181,12 +181,12 @@ export function SupplierHistoryContent({ supplier, showPDFButton = true }: Props
         <div className="space-y-3">
             <div className="border border-[#ccc] rounded-lg overflow-hidden">
                 <div className="bg-[#059669] px-3 py-1.5 flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-white">Histórico de pagamentos</span>
-                    <div className="flex items-center gap-3 text-[9px] font-bold text-white/90">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white">Histórico de pagamentos</span>
+                    <div className="flex items-center gap-3 text-[10px] font-bold text-white/90">
                         <span>Pago: {formatBRL(totalPago)}</span>
                         <span>Em aberto: {formatBRL(totalAberto)}</span>
                         {showPDFButton && (
-                            <Button size="sm" onClick={gerarPDF} disabled={gerandoPDF} className="h-6 px-2 py-0 bg-white text-[#059669] hover:bg-white/90 text-[10px]">
+                            <Button size="sm" onClick={gerarPDF} disabled={gerandoPDF} className="h-6 px-2 py-0 bg-white text-[#059669] hover:bg-white/90 text-[11px]">
                                 <FileText className="mr-1 h-3 w-3" />
                                 {gerandoPDF ? "Gerando..." : "PDF"}
                             </Button>
@@ -198,7 +198,7 @@ export function SupplierHistoryContent({ supplier, showPDFButton = true }: Props
                 ) : pagamentos.length === 0 ? (
                     <div className="p-6 text-center text-[#555] text-xs">
                         Nenhum pagamento encontrado para este fornecedor.
-                        {!supplier.cpf_cnpj && <div className="mt-1 text-[10px]">Cadastre o CPF/CNPJ para identificar CPs lançadas manualmente.</div>}
+                        {!supplier.cpf_cnpj && <div className="mt-1 text-[11px]">Cadastre o CPF/CNPJ para identificar CPs lançadas manualmente.</div>}
                     </div>
                 ) : (
                     <div className="divide-y divide-[#eee]">
@@ -226,20 +226,20 @@ export function SupplierHistoryContent({ supplier, showPDFButton = true }: Props
                                 <div key={p.id} className="px-3 py-2 hover:bg-[#FAFAF7]">
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <span className="text-[10px] font-bold text-[#555] tabular-nums shrink-0">{competencia}</span>
+                                            <span className="text-[11px] font-bold text-[#555] tabular-nums shrink-0">{competencia}</span>
                                             <span className="text-[12px] text-[#1D2939] truncate" title={desc}>{desc}</span>
                                         </div>
                                         <span className="text-[12px] font-bold text-[#1D2939] tabular-nums whitespace-nowrap shrink-0">{formatBRL(valor)}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2 mt-1">
-                                        <div className="flex items-center gap-2 text-[10px] text-[#777] min-w-0">
+                                        <div className="flex items-center gap-2 text-[11px] text-[#777] min-w-0">
                                             <span className={`font-bold px-1.5 py-0.5 rounded ${statusBadge}`}>{statusLabel}</span>
                                             {dataPagoLabel && <span className="whitespace-nowrap">Pago {dataPagoLabel}</span>}
                                             {p.categoria?.name && <span className="truncate">· {p.categoria.name}</span>}
                                             {p.bank?.name && <span className="truncate">· {p.bank.name}</span>}
                                         </div>
                                         {podeVincular && supplier.cpf_cnpj ? (
-                                            <button onClick={() => vincularCP(p.id)} title="Gravar CPF/CNPJ na conta a pagar" className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
+                                            <button onClick={() => vincularCP(p.id)} title="Gravar CPF/CNPJ na conta a pagar" className="text-[11px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-2 py-0.5 shrink-0">Vincular</button>
                                         ) : null}
                                     </div>
                                 </div>

@@ -21,7 +21,7 @@ interface ChartAccount {
     account_type?: string;
 }
 
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 export function CategoriaContabilContent() {
     const { activeClient } = useAuth();
@@ -171,11 +171,11 @@ export function CategoriaContabilContent() {
         <div className="border border-[#D0D5DD] rounded-lg overflow-hidden bg-white">
             <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                    <h2 className="text-[14px] font-bold uppercase tracking-wider text-white">Categoria contábil dos produtos</h2>
+                    <h2 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Categoria contábil dos produtos</h2>
                     <p className="text-[11px] text-white/80 mt-0.5">Vincule a conta de receita correta a cada produto. Sem isso, as vendas vão para a conta padrão (geralmente a primeira do plano).</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-white/90 px-2 py-1 bg-white/10 rounded">{semCategoria} sem categoria</span>
+                    <span className="text-[11px] font-bold text-white/90 px-2 py-1 bg-white/10 rounded">{semCategoria} sem categoria</span>
                     <button onClick={aplicarBackfillCR} disabled={saving}
                         className="text-[11px] font-bold text-white border border-white/40 hover:bg-white/20 rounded px-3 py-1.5 disabled:opacity-50">
                         Sincronizar CRs antigas
@@ -229,9 +229,9 @@ export function CategoriaContabilContent() {
                     <table className="w-full text-sm">
                         <thead className="bg-[#F6F2EB]">
                             <tr>
-                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-[#555]">Código</th>
-                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-[#555]">Produto</th>
-                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase text-[#555]">Conta contábil de receita</th>
+                                <th className="text-left px-3 py-2 text-[11px] font-bold uppercase text-[#555]">Código</th>
+                                <th className="text-left px-3 py-2 text-[11px] font-bold uppercase text-[#555]">Produto</th>
+                                <th className="text-left px-3 py-2 text-[11px] font-bold uppercase text-[#555]">Conta contábil de receita</th>
                             </tr>
                         </thead>
                         <tbody>

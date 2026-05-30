@@ -336,7 +336,7 @@ export default function PrevisaoImpostos() {
           {/* Resumo do mix configurado */}
           {podeMix && mix.length > 0 && !mixOpen && (
             <div className="bg-[#F8FAF9] border border-[#D1FADF] rounded-xl p-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-              <span className="font-semibold text-[#059669] uppercase tracking-wide text-[10px]">Mix aplicado</span>
+              <span className="font-semibold text-[#059669] uppercase tracking-wide text-[11px]">Mix aplicado</span>
               {mix.map(m => (
                 <span key={m.id} className="text-gray-600">
                   {m.nome}: <strong>{Number(m.pct_receita).toFixed(0)}%</strong>
@@ -362,7 +362,7 @@ export default function PrevisaoImpostos() {
               </p>
 
               {/* Cabeçalho */}
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 px-1">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-gray-400 px-1">
                 <span className="flex-1">Atividade</span>
                 <span style={{ width: 150 }}>CNAE</span>
                 <span style={{ width: 70 }} className="text-right">% rec.</span>
@@ -542,11 +542,11 @@ export default function PrevisaoImpostos() {
                         <td className="px-4 py-2 border-r border-[#F1F3F5] whitespace-nowrap">{formatData(a.data_vencimento)}</td>
                         <td className="px-4 py-2">
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ color: st.color, backgroundColor: st.bg }}>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ color: st.color, backgroundColor: st.bg }}>
                               {a.status === 'recolhido' && <Check size={10} />}{st.label}
                             </span>
                             {a.status !== 'recolhido' && (
-                              <button onClick={() => marcarRecolhido(a.id)} className="text-[10px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-1.5 py-0.5">
+                              <button onClick={() => marcarRecolhido(a.id)} className="text-[11px] font-bold text-[#059669] hover:bg-[#ECFDF4] rounded px-1.5 py-0.5">
                                 Marcar recolhido
                               </button>
                             )}
@@ -578,19 +578,19 @@ export default function PrevisaoImpostos() {
 
             {/* Form novo */}
             <div className="p-4 border-b border-gray-100 grid grid-cols-[120px_1fr_70px_90px_90px_70px_auto] gap-2 items-end">
-              <div><label className="text-[10px] text-gray-400 uppercase">Código</label><input value={novoCnae.codigo} onChange={e => setNovoCnae(v => ({ ...v, codigo: e.target.value }))} placeholder="0000-0/00" className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm" /></div>
-              <div><label className="text-[10px] text-gray-400 uppercase">Descrição</label><input value={novoCnae.descricao} onChange={e => setNovoCnae(v => ({ ...v, descricao: e.target.value }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm" /></div>
-              <div><label className="text-[10px] text-gray-400 uppercase">Anexo</label><select value={novoCnae.anexo} onChange={e => setNovoCnae(v => ({ ...v, anexo: e.target.value }))} className="w-full border border-gray-200 rounded-md px-1 py-1.5 text-sm bg-white">{ANEXOS.map(a => <option key={a} value={a}>{a}</option>)}</select></div>
-              <div><label className="text-[10px] text-gray-400 uppercase">Pres. IRPJ</label><input type="number" value={novoCnae.presIrpj} onChange={e => setNovoCnae(v => ({ ...v, presIrpj: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
-              <div><label className="text-[10px] text-gray-400 uppercase">Pres. CSLL</label><input type="number" value={novoCnae.presCsll} onChange={e => setNovoCnae(v => ({ ...v, presCsll: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
-              <div><label className="text-[10px] text-gray-400 uppercase">ISS %</label><input type="number" value={novoCnae.iss} onChange={e => setNovoCnae(v => ({ ...v, iss: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">Código</label><input value={novoCnae.codigo} onChange={e => setNovoCnae(v => ({ ...v, codigo: e.target.value }))} placeholder="0000-0/00" className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm" /></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">Descrição</label><input value={novoCnae.descricao} onChange={e => setNovoCnae(v => ({ ...v, descricao: e.target.value }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm" /></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">Anexo</label><select value={novoCnae.anexo} onChange={e => setNovoCnae(v => ({ ...v, anexo: e.target.value }))} className="w-full border border-gray-200 rounded-md px-1 py-1.5 text-sm bg-white">{ANEXOS.map(a => <option key={a} value={a}>{a}</option>)}</select></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">Pres. IRPJ</label><input type="number" value={novoCnae.presIrpj} onChange={e => setNovoCnae(v => ({ ...v, presIrpj: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">Pres. CSLL</label><input type="number" value={novoCnae.presCsll} onChange={e => setNovoCnae(v => ({ ...v, presCsll: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
+              <div><label className="text-[11px] text-gray-400 uppercase">ISS %</label><input type="number" value={novoCnae.iss} onChange={e => setNovoCnae(v => ({ ...v, iss: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-sm text-right" /></div>
               <button onClick={addCnaeLib} disabled={savingCnae} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: '#059669' }}>{savingCnae ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add</button>
             </div>
 
             {/* Lista */}
             <div className="overflow-y-auto p-2">
               <table className="w-full text-xs">
-                <thead><tr className="text-left text-[10px] font-bold uppercase text-gray-400">
+                <thead><tr className="text-left text-[11px] font-bold uppercase text-gray-400">
                   <th className="px-2 py-1">Código</th><th className="px-2 py-1">Descrição</th><th className="px-2 py-1 text-center">Anexo</th><th className="px-2 py-1 text-right">IRPJ</th><th className="px-2 py-1 text-right">CSLL</th><th className="px-2 py-1 text-right">ISS</th><th className="px-2 py-1"></th>
                 </tr></thead>
                 <tbody>

@@ -376,7 +376,7 @@ export default function ExtratoReconciliado() {
         {/* Account + Month selectors */}
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[200px]">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939] block mb-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939] block mb-1">
               Conta Bancaria
             </label>
             <select
@@ -396,7 +396,7 @@ export default function ExtratoReconciliado() {
           </div>
 
           <div className="min-w-[180px]">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[#1D2939] block mb-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-[#1D2939] block mb-1">
               Periodo
             </label>
             <select
@@ -447,7 +447,7 @@ export default function ExtratoReconciliado() {
                 }`}
               >
                 {tab.label}{" "}
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[11px] text-gray-400">
                   ({tab.count})
                 </span>
               </button>
@@ -481,22 +481,22 @@ export default function ExtratoReconciliado() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#059669]">
-                    <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-widest">
                       Data
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-widest">
                       Descricao
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest text-right">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-widest text-right">
                       Valor
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest text-center">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-widest text-center">
                       Status
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-widest">
                       Vinculo
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold text-white uppercase tracking-widest text-right">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-widest text-right">
                       Saldo Acum.
                     </TableHead>
                   </TableRow>

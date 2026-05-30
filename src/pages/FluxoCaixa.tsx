@@ -1094,7 +1094,7 @@ export default function FluxoCaixa() {
                                   <td className="py-2 px-4 text-muted-foreground text-[11px]">{r.data}</td>
                                   <td className="py-2 px-4">{r.descricao_banco}</td>
                                   <td className="py-2 px-4">
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
                                       r.vinculo === "CR" ? "bg-emerald-100 text-emerald-700" :
                                       r.vinculo === "CP" ? "bg-red-100 text-red-700" :
                                       "bg-gray-100 text-gray-600"
@@ -1140,12 +1140,12 @@ export default function FluxoCaixa() {
                                 <td className="py-2 px-4 text-muted-foreground text-[11px]">{r.data}</td>
                                 <td className="py-2 px-4">{r.descricao_banco}</td>
                                 <td className="py-2 px-4">
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                  <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
                                     r.tipo === "RECEITA" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                                   }`}>{r.tipo}</span>
                                 </td>
                                 <td className="py-2 px-4">
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                  <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
                                     r.vinculo === "CR" ? "bg-emerald-100 text-emerald-700" :
                                     r.vinculo === "CP" ? "bg-red-100 text-red-700" :
                                     "bg-gray-100 text-gray-600"
@@ -1159,7 +1159,7 @@ export default function FluxoCaixa() {
                                       {" — "}{r.nome_categoria}
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">SEM CATEGORIA</span>
+                                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">SEM CATEGORIA</span>
                                   )}
                                 </td>
                                 <td className="text-right py-2 px-4 font-semibold tabular-nums" style={{ color: Number(r.valor) >= 0 ? "#059669" : "#E53E3E" }}>

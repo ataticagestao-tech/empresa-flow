@@ -18,7 +18,7 @@ export function CategorySuggestions({ suggestions, onSelect, currentValue }: Cat
 
     return (
         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 uppercase tracking-wide">
+            <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600 uppercase tracking-wide">
                 <Sparkles className="h-3 w-3" />
                 IA sugere:
             </span>

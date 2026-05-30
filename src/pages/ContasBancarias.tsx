@@ -68,7 +68,7 @@ const MEIO_LABEL: Record<string, string> = {
 };
 
 const IC = "border border-[#ccc] rounded-md px-3 py-2 text-sm text-[#1D2939] bg-white focus:border-[#059669] focus:outline-none w-full";
-const LB = "text-[10px] font-bold uppercase tracking-wider text-[#1D2939]";
+const LB = "text-[11px] font-bold uppercase tracking-wider text-[#1D2939]";
 
 export default function ContasBancarias() {
   const { activeClient } = useAuth();
@@ -423,7 +423,7 @@ export default function ContasBancarias() {
         {/* Consolidated Balance */}
         <div className="bg-[#ECFDF4] border border-[#059669] rounded-lg p-5 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#059669]">Saldo Total Consolidado</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#059669]">Saldo Total Consolidado</p>
             <p className="text-xs text-[#555] mt-0.5">{activeAccounts.length} conta(s) ativa(s)</p>
           </div>
           <p className="text-2xl font-bold text-[#059669]">{formatBRL(totalBalance)}</p>
@@ -580,7 +580,7 @@ export default function ContasBancarias() {
                 <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-white uppercase tracking-widest">{acc.banco || "Sem banco"}</h3>
-                    <p className="text-[10px] text-white/70">{tipoLabels[acc.type] || acc.type}</p>
+                    <p className="text-[11px] text-white/70">{tipoLabels[acc.type] || acc.type}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => handleEdit(acc)} className="text-white/70 hover:text-white text-xs px-1">✎</button>
@@ -593,21 +593,21 @@ export default function ContasBancarias() {
                   {acc.agencia && <p className="text-xs text-[#555] mb-2">Ag: {acc.agencia} · Cc: {acc.conta}{acc.digito ? `-${acc.digito}` : ""}</p>}
                   <div className="flex flex-wrap gap-1.5">
                     {(acc.status === "ativa" || acc.status === "active") && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Ativa</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#039855] bg-[#ECFDF3] text-[#039855]">Ativa</span>
                     )}
                     {acc.ofx_ativo && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">OFX</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#059669] bg-[#ECFDF4] text-[#059669]">OFX</span>
                     )}
                     {acc.ofx_acctid && acc.auto_conciliacao_policy === "rule_only" && (
                       <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#1D4ED8] bg-[#DBEAFE] text-[#1D4ED8]"
+                        className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#1D4ED8] bg-[#DBEAFE] text-[#1D4ED8]"
                         title={`Import automático via email ativo (ACCTID: ${acc.ofx_acctid})`}
                       >
                         AUTO
                       </span>
                     )}
                     {acc.chave_pix && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">PIX</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#EA580C] bg-[#FFF0EB] text-[#EA580C]">PIX</span>
                     )}
                   </div>
                 </div>
@@ -680,7 +680,7 @@ export default function ContasBancarias() {
                           <div className={`h-2 rounded-full transition-all ${pct > 80 ? "bg-[#ff6b6b]" : "bg-white"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
                       </div>
-                      <div className="flex gap-4 text-[10px] text-white/70">
+                      <div className="flex gap-4 text-[11px] text-white/70">
                         <span>Fecha dia {c.dia_fechamento}</span>
                         <span>Vence dia {c.dia_vencimento}</span>
                       </div>
@@ -741,26 +741,26 @@ export default function ContasBancarias() {
                           <div className="p-4 bg-white space-y-2">
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div>
-                                <span className="text-[10px] font-bold text-[#777] uppercase">Taxa</span>
+                                <span className="text-[11px] font-bold text-[#777] uppercase">Taxa</span>
                                 <p className="font-semibold text-[#1D2939]">{t.taxa_percentual}%</p>
                               </div>
                               <div>
-                                <span className="text-[10px] font-bold text-[#777] uppercase">Max Parcelas</span>
+                                <span className="text-[11px] font-bold text-[#777] uppercase">Max Parcelas</span>
                                 <p className="font-semibold text-[#1D2939]">{t.max_parcelas}x</p>
                               </div>
                               <div>
-                                <span className="text-[10px] font-bold text-[#777] uppercase">Prazo Recebimento</span>
+                                <span className="text-[11px] font-bold text-[#777] uppercase">Prazo Recebimento</span>
                                 <p className="font-semibold text-[#1D2939]">D+{t.dias_recebimento}</p>
                               </div>
                               <div>
-                                <span className="text-[10px] font-bold text-[#777] uppercase">Antecipacao</span>
+                                <span className="text-[11px] font-bold text-[#777] uppercase">Antecipacao</span>
                                 <p className={`font-semibold ${t.antecipacao_ativa ? "text-[#039855]" : "text-[#777]"}`}>
                                   {t.antecipacao_ativa ? `Sim (${t.taxa_antecipacao}% a.m.)` : "Nao"}
                                 </p>
                               </div>
                             </div>
                             {!t.ativo && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#777]">Inativo</span>
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-[#ccc] bg-[#F6F2EB] text-[#777]">Inativo</span>
                             )}
                           </div>
                         </div>

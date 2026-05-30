@@ -1796,7 +1796,7 @@ export default function ContasPagar() {
           <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
             <div className="flex items-center justify-between px-4 py-3 bg-[#2A2724]">
               <div>
-                <div className="text-[14px] font-bold uppercase tracking-wider text-white">
+                <div className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">
                   {selectedAgendaDate && selectedAgendaDate === format(new Date(), 'yyyy-MM-dd')
                     ? 'Contas a pagar hoje'
                     : selectedAgendaDate
@@ -1941,7 +1941,7 @@ export default function ContasPagar() {
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest">T&iacute;tulos</h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-white/15">{filteredContas.length}</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-white bg-white/15">{filteredContas.length}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -2102,7 +2102,7 @@ export default function ContasPagar() {
                       className="fixed z-[1001] bg-white border border-[#EAECF0] rounded-lg shadow-xl py-1 min-w-[190px] max-h-[70vh] overflow-y-auto"
                       style={{ top: colMenuPos.top, right: colMenuPos.right }}
                     >
-                      <p className="px-3 py-1.5 text-[10px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
+                      <p className="px-3 py-1.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wider">Exibir colunas</p>
                       {Object.entries(CP_COL_LABELS).map(([k, label]) => (
                         <label key={k} className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#1D2939] hover:bg-[#F6F2EB] cursor-pointer">
                           <input

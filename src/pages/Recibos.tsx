@@ -160,7 +160,7 @@ function StatusBadge({ status }: { status: string }) {
   }
   const c = config[status] || config.pendente
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full border ${c.bg} ${c.border} ${c.color}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider rounded-full border ${c.bg} ${c.border} ${c.color}`}>
       {c.text}
     </span>
   )
@@ -182,7 +182,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#4B5563]">Recibo</div>
+          <div className="text-[11px] font-bold uppercase tracking-widest text-[#4B5563]">Recibo</div>
           <div className="text-lg font-bold text-[#1E3A8A]">#{recibo.numero}</div>
           <div className="text-xs text-[#4B5563]">{formatData(recibo.data_pagamento)}</div>
         </div>
@@ -190,7 +190,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
 
       {/* Pagador */}
       <div className="mb-4 p-3 bg-[#F9FAFB] rounded border border-[#E5E7EB]">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Pagador / Favorecido</div>
+        <div className="text-[11px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Pagador / Favorecido</div>
         <div className="text-sm font-semibold text-[#0F172A]">{recibo.favorecido}</div>
         {recibo.pagador_cpf_cnpj && (
           <div className="text-xs text-[#4B5563] mt-0.5">CPF/CNPJ: {recibo.pagador_cpf_cnpj}</div>
@@ -200,20 +200,20 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       {/* Descricao */}
       {recibo.descricao && (
         <div className="mb-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Descricao</div>
+          <div className="text-[11px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Descricao</div>
           <div className="text-sm text-[#0F172A] leading-relaxed">{recibo.descricao}</div>
         </div>
       )}
 
       {/* Valor total */}
       <div className="mb-4 p-4 bg-[#059669] rounded">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-white/70 mb-1">Valor Total</div>
+        <div className="text-[11px] font-bold uppercase tracking-widest text-white/70 mb-1">Valor Total</div>
         <div className="text-2xl font-bold text-white">{formatBRL(recibo.valor)}</div>
       </div>
 
       {/* Valor por extenso */}
       <div className="mb-4">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Valor por Extenso</div>
+        <div className="text-[11px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Valor por Extenso</div>
         <div className="text-xs text-[#0F172A] italic">
           {valorPorExtenso(recibo.valor)}
         </div>
@@ -222,7 +222,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
       {/* Forma de pagamento */}
       {recibo.forma_pagamento && (
         <div className="mb-6">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Forma de Pagamento</div>
+          <div className="text-[11px] font-bold uppercase tracking-widest text-[#4B5563] mb-1">Forma de Pagamento</div>
           <div className="text-sm text-[#0F172A]">{recibo.forma_pagamento}</div>
         </div>
       )}
@@ -243,7 +243,7 @@ function PreviewRecibo({ recibo, empresa }: { recibo: Recibo; empresa: Empresa |
 
       {/* Footer */}
       <div className="border-t border-[#D1D5DB] pt-3 mt-6">
-        <div className="text-[9px] text-[#9CA3AF] text-center leading-relaxed">
+        <div className="text-[10px] text-[#9CA3AF] text-center leading-relaxed">
           Documento gerado eletronicamente. Este recibo comprova o pagamento referente aos servicos descritos acima.
         </div>
       </div>
@@ -1007,11 +1007,11 @@ export default function Recibos() {
         <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white shrink-0 mb-3">
           <div className="bg-[#2A2724] px-4 py-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-[14px] font-bold uppercase tracking-wider text-white">Recibos</h1>
+              <h1 className="text-[16px] font-bold uppercase tracking-[0.5px] text-white">Recibos</h1>
               <p className="text-[11px] text-white/80 mt-0.5">Emissão e envio de recibos de pagamento</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[10px] text-white/60 font-medium">
+              <span className="text-[11px] text-white/60 font-medium">
                 {filtrados.length} registro{filtrados.length !== 1 ? 's' : ''}
               </span>
               <ExportMenu
@@ -1029,7 +1029,7 @@ export default function Recibos() {
               />
               <button
                 onClick={() => setShowGerar(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 Gerar Recibo
@@ -1088,18 +1088,18 @@ export default function Recibos() {
                   {filtroDataAberto && (
                     <div className="absolute right-0 top-full mt-1 z-30 w-[240px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">Filtrar por data</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">Filtrar por data</span>
                         {(dataDe || dataAte) && (
                           <button
                             onClick={() => { setDataDe(''); setDataAte('') }}
-                            className="text-[10px] font-semibold text-[#E53E3E] hover:underline"
+                            className="text-[11px] font-semibold text-[#E53E3E] hover:underline"
                           >
                             Limpar
                           </button>
                         )}
                       </div>
                       <div>
-                        <label className="text-[10px] font-semibold text-[#4B5563] block mb-1">De</label>
+                        <label className="text-[11px] font-semibold text-[#4B5563] block mb-1">De</label>
                         <input
                           type="date"
                           value={dataDe}
@@ -1109,7 +1109,7 @@ export default function Recibos() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-semibold text-[#4B5563] block mb-1">Até</label>
+                        <label className="text-[11px] font-semibold text-[#4B5563] block mb-1">Até</label>
                         <input
                           type="date"
                           value={dataAte}
@@ -1134,7 +1134,7 @@ export default function Recibos() {
                   <button
                     key={f.key}
                     onClick={() => setFiltroStatus(f.key)}
-                    className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded border transition-colors ${
+                    className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider rounded border transition-colors ${
                       filtroStatus === f.key
                         ? 'bg-[#2A2724] text-white border-[#2A2724]'
                         : 'bg-white text-[#4B5563] border-[#D1D5DB] hover:bg-[#F3F4F6]'
@@ -1195,7 +1195,7 @@ export default function Recibos() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[10px] font-mono text-[#1E3A8A] font-bold">#{r.numero}</span>
+                          <span className="text-[11px] font-mono text-[#1E3A8A] font-bold">#{r.numero}</span>
                           <StatusBadge status={r.status_email} />
                         </div>
                         <div className="text-xs font-semibold text-[#0F172A] truncate">{r.favorecido}</div>
@@ -1204,7 +1204,7 @@ export default function Recibos() {
                             {r.descricao.length > 60 ? r.descricao.slice(0, 60) + '...' : r.descricao}
                           </div>
                         )}
-                        <div className="text-[10px] text-[#9CA3AF] mt-1">{formatData(r.data_pagamento)}</div>
+                        <div className="text-[11px] text-[#9CA3AF] mt-1">{formatData(r.data_pagamento)}</div>
                       </div>
                       <div className="flex flex-col items-end shrink-0">
                         <div className="text-sm font-bold text-[#0F172A]">{formatBRL(r.valor)}</div>
@@ -1225,27 +1225,27 @@ export default function Recibos() {
               <>
                 {/* Preview header */}
                 <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between shrink-0">
-                  <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+                  <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
                     Recibo #{selecionado.numero}
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleAbrirWhatsApp(selecionado)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                     >
                       <MessageCircle className="w-3 h-3" />
                       Enviar WhatsApp
                     </button>
                     <button
                       onClick={() => handleReenviarEmail(selecionado)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/20"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/20"
                     >
                       <Mail className="w-3 h-3" />
                       Reenviar e-mail
                     </button>
                     <button
                       onClick={() => handleDownloadPDF(selecionado)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-white text-[#2A2724] hover:bg-white/90 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider rounded bg-white text-[#2A2724] hover:bg-white/90 transition-colors"
                     >
                       <Download className="w-3 h-3" />
                       Download PDF
@@ -1350,7 +1350,7 @@ export default function Recibos() {
                         <span className="text-xs font-semibold text-[#0F172A] truncate">{item.titulo}</span>
                         {item.match && (
                           <span
-                            className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                            className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
                               item.match.tipo === 'funcionario'
                                 ? 'bg-[#ECFDF3] border-[#039855] text-[#039855]'
                                 : item.match.tipo === 'fornecedor'
@@ -1365,7 +1365,7 @@ export default function Recibos() {
                       {item.subtitulo && (
                         <div className="text-[11px] text-[#4B5563] truncate mt-0.5">{item.subtitulo}</div>
                       )}
-                      <div className="text-[10px] text-[#9CA3AF] mt-0.5">
+                      <div className="text-[11px] text-[#9CA3AF] mt-0.5">
                         {item.data ? formatData(item.data) : '—'}
                       </div>
                     </div>
@@ -1379,7 +1379,7 @@ export default function Recibos() {
           {/* Envio: nenhum / email / whatsapp */}
           {gerarSelecionado && (
             <div className="space-y-2">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+              <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                 Como enviar o recibo?
               </Label>
               <div className="flex gap-1.5">
@@ -1411,7 +1411,7 @@ export default function Recibos() {
               {/* Campo dinâmico conforme modo */}
               {gerarEnvio === 'email' && (
                 <div className="space-y-1 pt-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                     E-mail destinatário <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1425,7 +1425,7 @@ export default function Recibos() {
               )}
               {gerarEnvio === 'whatsapp' && (
                 <div className="space-y-1 pt-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                  <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                     Telefone (WhatsApp) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1434,13 +1434,13 @@ export default function Recibos() {
                     placeholder="11999999999 (com DDD)"
                     className="h-9"
                   />
-                  <p className="text-[10px] text-[#999]">Aceita com ou sem DDI/parênteses/traços.</p>
+                  <p className="text-[11px] text-[#999]">Aceita com ou sem DDI/parênteses/traços.</p>
                 </div>
               )}
 
               {/* Feedback do match cadastro */}
               {gerarSelecionado.match ? (
-                <div className="text-[10px] text-[#039855] flex items-start gap-1 pt-1">
+                <div className="text-[11px] text-[#039855] flex items-start gap-1 pt-1">
                   <span>✓</span>
                   <span>
                     Cadastro <strong>{gerarSelecionado.match.tipo === 'funcionario' ? 'Funcionário' : gerarSelecionado.match.tipo === 'fornecedor' ? 'Fornecedor' : 'Cliente'}</strong>: {gerarSelecionado.match.nome}
@@ -1450,7 +1450,7 @@ export default function Recibos() {
                   </span>
                 </div>
               ) : (
-                <div className="text-[10px] text-[#9CA3AF] pt-1">
+                <div className="text-[11px] text-[#9CA3AF] pt-1">
                   Nenhum cadastro encontrado para "<strong>{gerarSelecionado.titulo}</strong>". Preencha manualmente o {gerarEnvio === 'whatsapp' ? 'telefone' : gerarEnvio === 'email' ? 'e-mail' : 'campo'} acima ou só baixe o PDF.
                 </div>
               )}
@@ -1503,7 +1503,7 @@ export default function Recibos() {
                 </div>
               )}
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                   E-mail destinatário <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -1515,7 +1515,7 @@ export default function Recibos() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Assunto</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">Assunto</Label>
                 <Input
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
@@ -1523,7 +1523,7 @@ export default function Recibos() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
                 <textarea
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
@@ -1563,7 +1563,7 @@ export default function Recibos() {
                 <p className="text-[#667085] mt-0.5">{whatsDialog.favorecido} — {formatBRL(whatsDialog.valor)}</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">
                   Telefone do destinatário <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -1572,10 +1572,10 @@ export default function Recibos() {
                   placeholder="11999999999 (com DDD)"
                   className="h-9"
                 />
-                <p className="text-[10px] text-[#999]">Aceita formatos com ou sem DDI/parênteses/traços.</p>
+                <p className="text-[11px] text-[#999]">Aceita formatos com ou sem DDI/parênteses/traços.</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-wider text-[#555]">Mensagem</Label>
                 <textarea
                   value={whatsText}
                   onChange={(e) => setWhatsText(e.target.value)}

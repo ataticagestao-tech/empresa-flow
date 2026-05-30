@@ -26,7 +26,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                         name="endereco_logradouro"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Endereço</FormLabel>
+                                <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Endereço</FormLabel>
                                 <FormControl>
                                     <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
@@ -42,7 +42,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                     name="endereco_numero"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Número</FormLabel>
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Número</FormLabel>
                             <FormControl>
                                 <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                             </FormControl>
@@ -57,7 +57,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                         name="endereco_bairro"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Bairro</FormLabel>
+                                <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Bairro</FormLabel>
                                 <FormControl>
                                     <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
@@ -72,7 +72,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                     name="endereco_estado"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Estado</FormLabel>
+                            <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Estado</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value ?? ""}>
                                 <FormControl>
                                     <SelectTrigger className="h-9 border-[#EAECF0]">
@@ -96,7 +96,7 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                         name="endereco_cidade"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">Cidade</FormLabel>
+                                <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">Cidade</FormLabel>
                                 <FormControl>
                                     <Input className="h-9 border-[#EAECF0]" {...field} value={field.value ?? ""} />
                                 </FormControl>
@@ -112,8 +112,8 @@ export function TabAddress({ form, onCepBlur, isLoadingAddress }: TabAddressProp
                     render={({ field }) => (
                         <FormItem>
                             <div className="flex justify-between">
-                                <FormLabel className="text-muted-foreground text-[10px] font-bold uppercase">CEP</FormLabel>
-                                {isLoadingAddress && <span className="text-[10px] text-blue-500 animate-pulse">Buscando...</span>}
+                                <FormLabel className="text-muted-foreground text-[11px] font-bold uppercase">CEP</FormLabel>
+                                {isLoadingAddress && <span className="text-[11px] text-blue-500 animate-pulse">Buscando...</span>}
                             </div>
                             <FormControl>
                                 <Input

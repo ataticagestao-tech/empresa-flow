@@ -461,7 +461,7 @@ export default function ContratosRecorrentes() {
         {/* FILTERS */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Filtros</h3>
+            <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">Filtros</h3>
             <button
               onClick={() => { setSearch(''); setStatusFilter('todos'); setPeriodicidadeFilter('todos') }}
               className="text-[11px] font-semibold text-white/70 hover:text-white transition-colors"
@@ -514,7 +514,7 @@ export default function ContratosRecorrentes() {
         {/* TABLE */}
         <div className="border border-[#ccc] rounded-lg overflow-hidden">
           <div className="bg-[#2A2724] px-4 py-2.5 flex items-center justify-between">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">
+            <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">
               Contratos ({filtered.length})
             </h3>
             <button
@@ -658,7 +658,7 @@ function KPICard({ title, value, color, bgColor }: { title: string; value: strin
   return (
     <div className="border border-[#ccc] rounded-lg overflow-hidden">
       <div className="px-4 py-3" style={{ background: bgColor }}>
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color }}>{title}</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color }}>{title}</p>
         <p className="text-lg font-bold" style={{ color }}>{value}</p>
       </div>
     </div>

@@ -82,7 +82,7 @@ export function PeriodFilter({ from, to, onApply, helperText, className = '' }: 
         <button
           type="button"
           onClick={() => setOpen(o => !o)}
-          className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#EAECF0] bg-white text-[12.5px] font-semibold text-[#1D2939] hover:bg-[#F9FAFB]"
+          className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#EAECF0] bg-white text-[12px] font-semibold text-[#1D2939] hover:bg-[#F9FAFB]"
         >
           <Calendar size={14} className="text-[#98A2B3]" />
           {label}
@@ -102,7 +102,7 @@ export function PeriodFilter({ from, to, onApply, helperText, className = '' }: 
                 key={opt.key}
                 type="button"
                 onClick={() => apply(opt.key)}
-                className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12.5px] ${period === opt.key ? 'bg-[#ECFDF5] text-[#039855] font-semibold' : 'text-[#1D2939] hover:bg-[#F9FAFB]'}`}
+                className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12px] ${period === opt.key ? 'bg-[#ECFDF5] text-[#039855] font-semibold' : 'text-[#1D2939] hover:bg-[#F9FAFB]'}`}
               >
                 {opt.key === 'custom' && <Calendar size={12} />}
                 {opt.label}
@@ -112,7 +112,7 @@ export function PeriodFilter({ from, to, onApply, helperText, className = '' }: 
               <div className="mt-1.5 border-t border-[#EAECF0] pt-2">
                 <div className="mb-1.5 flex items-center justify-between px-1">
                   <button type="button" onClick={() => setSpecYear(y => y - 1)} className="rounded px-2 py-0.5 text-[#475467] hover:bg-[#F9FAFB]">‹</button>
-                  <span className="text-[12.5px] font-bold text-[#1D2939]">{specYear}</span>
+                  <span className="text-[12px] font-bold text-[#1D2939]">{specYear}</span>
                   <button type="button" onClick={() => setSpecYear(y => y + 1)} className="rounded px-2 py-0.5 text-[#475467] hover:bg-[#F9FAFB]">›</button>
                 </div>
                 <div className="grid grid-cols-3 gap-1">
@@ -133,7 +133,7 @@ export function PeriodFilter({ from, to, onApply, helperText, className = '' }: 
               <div className="mt-1.5 border-t border-[#EAECF0] pt-2 px-1.5 pb-1">
                 <div className="flex flex-col gap-2">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#98A2B3]">De</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#98A2B3]">De</label>
                     <input
                       type="date"
                       value={customFrom}
@@ -142,7 +142,7 @@ export function PeriodFilter({ from, to, onApply, helperText, className = '' }: 
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#98A2B3]">Até</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#98A2B3]">Até</label>
                     <input
                       type="date"
                       value={customTo}

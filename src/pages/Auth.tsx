@@ -112,6 +112,27 @@ export default function Auth() {
     return () => subscription.unsubscribe();
   }, [activeClient]);
 
+  // Libera o overflow:hidden / altura fixa global (index.css) que clipa páginas
+  // standalone — sem isso o botão de login e a borda do painel verde ficam cortados.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById("root");
+    const prev = {
+      htmlOverflow: html.style.overflow, htmlHeight: html.style.height,
+      bodyOverflow: body.style.overflow, bodyHeight: body.style.height,
+      rootOverflow: root?.style.overflow ?? "", rootHeight: root?.style.height ?? "",
+    };
+    html.style.overflow = "auto"; html.style.height = "auto";
+    body.style.overflow = "auto"; body.style.height = "auto";
+    if (root) { root.style.overflow = "visible"; root.style.height = "auto"; }
+    return () => {
+      html.style.overflow = prev.htmlOverflow; html.style.height = prev.htmlHeight;
+      body.style.overflow = prev.bodyOverflow; body.style.height = prev.bodyHeight;
+      if (root) { root.style.overflow = prev.rootOverflow; root.style.height = prev.rootHeight; }
+    };
+  }, []);
+
   useEffect(() => { if (user && !loading && !isRecoveryFlow) navigate(redirectTo); }, [user, loading, navigate, redirectTo, isRecoveryFlow]);
 
   const validateField = useCallback((field: string, value: string) => {
@@ -179,9 +200,9 @@ export default function Auth() {
   const errClass = (field: string) => errors[field] ? "border-destructive" : "";
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-[100dvh] w-full flex bg-background overflow-x-hidden">
       {/* Left: Form */}
-      <div className="flex-1 flex items-center justify-center p-8 md:p-12">
+      <div className="flex-1 min-w-0 flex items-center justify-center p-6 sm:p-8 md:p-12">
         <div className="w-full max-w-[420px]">
           <div className="flex flex-col mb-8">
             <div className="flex items-center gap-2.5 mb-9">
@@ -203,8 +224,8 @@ export default function Auth() {
           ) : (
             <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setErrors({}); }} className="space-y-6">
               <TabsList className="grid w-full grid-cols-2 p-1 bg-muted rounded-lg h-10">
-                <TabsTrigger value="login" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12.5px] transition-all">Entrar</TabsTrigger>
-                <TabsTrigger value="signup" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12.5px] transition-all">Criar conta</TabsTrigger>
+                <TabsTrigger value="login" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12px] transition-all">Entrar</TabsTrigger>
+                <TabsTrigger value="signup" className="rounded-md h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground font-medium text-[12px] transition-all">Criar conta</TabsTrigger>
               </TabsList>
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">

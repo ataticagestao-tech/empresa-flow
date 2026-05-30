@@ -23,7 +23,7 @@ export function PageToolbar({ title, subtitle, children, className }: PageToolba
     >
       <div className="min-w-0">
         <h1 className="truncate text-[20px] font-bold tracking-tight text-[#1D2939]">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-[12.5px] text-[#667085]">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-[12px] text-[#667085]">{subtitle}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{children}</div>}
     </div>
