@@ -4,7 +4,7 @@ import { PagePanel } from "@/components/layout/PagePanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { maskCNPJ } from "@/utils/masks";
-import { Building2, MapPin, FileText, User, BarChart3, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud } from "lucide-react";
+import { Building2, MapPin, FileText, User, BarChart3, Pencil, UserCheck, Camera, Check, X, Trash2, FileDown, Banknote, FileSignature, Download, UploadCloud, Search } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { gerarFichaEmpresaPDF, carregarLogoEmpresa } from "@/lib/ficha-empresa/gerar-pdf";
@@ -39,7 +39,11 @@ export default function EmpresaResumo() {
   const [contratoUploading, setContratoUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
+  // Quando a busca de CNPJ entra em modo edição, evita que o efeito de
+  // populate sobrescreva os dados vindos da API com os dados antigos do banco.
+  const skipNextPopulate = useRef(false);
   const { forceDeleteCompany } = useCompanies(user?.id);
   const { selectedCompany, setSelectedCompany } = useCompany();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -241,44 +245,113 @@ export default function EmpresaResumo() {
     enabled: !!id,
   });
 
+  // Monta o objeto do formulário a partir dos dados da empresa.
+  const companyToForm = (c: any): Record<string, string> => ({
+    razao_social: c.razao_social || "",
+    nome_fantasia: c.nome_fantasia || "",
+    cnpj: c.cnpj || "",
+    data_abertura: c.data_abertura || "",
+    natureza_juridica: c.natureza_juridica || "",
+    cnae: c.cnae || "",
+    inscricao_municipal: c.inscricao_municipal || "",
+    inscricao_estadual: c.inscricao_estadual || "",
+    endereco_logradouro: c.endereco_logradouro || "",
+    endereco_numero: c.endereco_numero || "",
+    endereco_complemento: c.endereco_complemento || "",
+    endereco_bairro: c.endereco_bairro || "",
+    endereco_cidade: c.endereco_cidade || "",
+    endereco_estado: c.endereco_estado || "",
+    endereco_cep: c.endereco_cep || "",
+    email: c.email || "",
+    telefone: c.telefone || "",
+    celular: c.celular || "",
+    site: c.site || "",
+    contato_nome: c.contato_nome || "",
+    regime_tributario: c.regime_tributario || "",
+    dados_bancarios_banco: c.dados_bancarios_banco || "",
+    dados_bancarios_agencia: c.dados_bancarios_agencia || "",
+    dados_bancarios_conta: c.dados_bancarios_conta || "",
+    dados_bancarios_pix: c.dados_bancarios_pix || "",
+    dados_bancarios_titular_nome: c.dados_bancarios_titular_nome || "",
+    dados_bancarios_titular_cpf_cnpj: c.dados_bancarios_titular_cpf_cnpj || "",
+    responsavel_nome: c.responsavel_nome || "",
+    responsavel_cpf: c.responsavel_cpf || "",
+    responsavel_email: c.responsavel_email || "",
+    responsavel_telefone: c.responsavel_telefone || "",
+  });
+
   // Populate form when entering edit mode
   useEffect(() => {
     if (editing && company) {
-      setForm({
-        razao_social: company.razao_social || "",
-        nome_fantasia: company.nome_fantasia || "",
-        cnpj: company.cnpj || "",
-        data_abertura: company.data_abertura || "",
-        natureza_juridica: company.natureza_juridica || "",
-        cnae: company.cnae || "",
-        inscricao_municipal: company.inscricao_municipal || "",
-        inscricao_estadual: company.inscricao_estadual || "",
-        endereco_logradouro: company.endereco_logradouro || "",
-        endereco_numero: company.endereco_numero || "",
-        endereco_complemento: company.endereco_complemento || "",
-        endereco_bairro: company.endereco_bairro || "",
-        endereco_cidade: company.endereco_cidade || "",
-        endereco_estado: company.endereco_estado || "",
-        endereco_cep: company.endereco_cep || "",
-        email: company.email || "",
-        telefone: company.telefone || "",
-        celular: company.celular || "",
-        site: company.site || "",
-        contato_nome: company.contato_nome || "",
-        regime_tributario: company.regime_tributario || "",
-        dados_bancarios_banco: company.dados_bancarios_banco || "",
-        dados_bancarios_agencia: company.dados_bancarios_agencia || "",
-        dados_bancarios_conta: company.dados_bancarios_conta || "",
-        dados_bancarios_pix: company.dados_bancarios_pix || "",
-        dados_bancarios_titular_nome: company.dados_bancarios_titular_nome || "",
-        dados_bancarios_titular_cpf_cnpj: company.dados_bancarios_titular_cpf_cnpj || "",
-        responsavel_nome: company.responsavel_nome || "",
-        responsavel_cpf: company.responsavel_cpf || "",
-        responsavel_email: company.responsavel_email || "",
-        responsavel_telefone: company.responsavel_telefone || "",
-      });
+      // Busca de CNPJ já preencheu o form — não sobrescrever.
+      if (skipNextPopulate.current) {
+        skipNextPopulate.current = false;
+        return;
+      }
+      setForm(companyToForm(company));
     }
   }, [editing, company]);
+
+  // ─── Buscar dados na Receita Federal (BrasilAPI) pelo CNPJ ────────
+  const buscarDadosCnpj = async () => {
+    const rawCnpj = (editing ? form.cnpj : company?.cnpj) || "";
+    const cnpj = rawCnpj.replace(/\D/g, "");
+    if (cnpj.length !== 14) {
+      toast.error("CNPJ inválido. Cadastre/preencha um CNPJ com 14 dígitos antes de buscar.");
+      return;
+    }
+    setBuscandoCnpj(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!res.ok) throw new Error("CNPJ não encontrado na base da Receita Federal.");
+      const d = await res.json();
+
+      const cnaeStr = d.cnae_fiscal
+        ? `${d.cnae_fiscal}${d.cnae_fiscal_descricao ? " - " + d.cnae_fiscal_descricao : ""}`
+        : "";
+      const regime = d.opcao_pelo_mei ? "mei" : d.opcao_pelo_simples ? "simples_nacional" : "";
+      const logradouro = [d.descricao_tipo_de_logradouro, d.logradouro].filter(Boolean).join(" ").trim();
+
+      const apiData: Record<string, string> = {
+        razao_social: d.razao_social || "",
+        nome_fantasia: d.nome_fantasia || "",
+        cnpj: maskCNPJ(cnpj),
+        data_abertura: d.data_inicio_atividade || "",
+        natureza_juridica: d.natureza_juridica || "",
+        cnae: cnaeStr,
+        endereco_logradouro: logradouro,
+        endereco_numero: d.numero || "",
+        endereco_complemento: d.complemento || "",
+        endereco_bairro: d.bairro || "",
+        endereco_cidade: d.municipio || "",
+        endereco_estado: d.uf || "",
+        endereco_cep: d.cep ? String(d.cep).replace(/\D/g, "") : "",
+        email: d.email || "",
+        telefone: d.ddd_telefone_1 || "",
+        celular: d.ddd_telefone_2 || "",
+      };
+      if (regime) apiData.regime_tributario = regime;
+
+      // Não apaga dados manuais: só aplica o que veio preenchido da API.
+      const clean = Object.fromEntries(
+        Object.entries(apiData).filter(([, v]) => v != null && String(v).trim() !== "")
+      ) as Record<string, string>;
+
+      if (editing) {
+        setForm(f => ({ ...f, ...clean }));
+      } else {
+        // Entra em modo edição já com os dados da API mesclados sobre os atuais.
+        skipNextPopulate.current = true;
+        setForm({ ...companyToForm(company), ...clean });
+        setEditing(true);
+      }
+      toast.success("Dados do CNPJ carregados! Revise os campos e clique em Salvar.");
+    } catch (err: any) {
+      toast.error("Erro ao buscar CNPJ: " + (err.message || "tente novamente."));
+    } finally {
+      setBuscandoCnpj(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!id) return;
@@ -402,6 +475,11 @@ export default function EmpresaResumo() {
             </button>
             {editing ? (
               <>
+                <button onClick={buscarDadosCnpj} disabled={saving || buscandoCnpj}
+                  className="flex items-center gap-1.5 bg-white text-[#1D2939] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  title="Preencher os campos automaticamente com os dados da Receita Federal (BrasilAPI)">
+                  <Search size={14} /> {buscandoCnpj ? "Buscando..." : "Buscar dados do CNPJ"}
+                </button>
                 <button onClick={() => setEditing(false)} disabled={saving}
                   className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
                   <X size={14} /> Cancelar
@@ -413,6 +491,11 @@ export default function EmpresaResumo() {
               </>
             ) : (
               <>
+                <button onClick={buscarDadosCnpj} disabled={buscandoCnpj}
+                  className="flex items-center gap-1.5 bg-white text-[#1D2939] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  title="Preencher os campos automaticamente com os dados da Receita Federal (BrasilAPI)">
+                  <Search size={14} /> {buscandoCnpj ? "Buscando..." : "Buscar dados do CNPJ"}
+                </button>
                 <button onClick={exportarFichaPDF}
                   className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
                   title="Exportar ficha cadastral em PDF (ABNT)">
@@ -758,7 +841,7 @@ function Section({ icon: Icon, title, subtitle, children }: {
     <section className="px-6 py-3.5">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={15} className="text-black" />
-        <h3 className="text-[13px] font-semibold text-[#667085] uppercase tracking-[0.06em]">{title}</h3>
+        <h3 className="text-[14px] font-bold text-black uppercase tracking-[0.06em]">{title}</h3>
         {subtitle && <span className="text-[12px] text-[#98A2B3]">· {subtitle}</span>}
       </div>
       {children}
