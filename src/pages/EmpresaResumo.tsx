@@ -475,11 +475,6 @@ export default function EmpresaResumo() {
             </button>
             {editing ? (
               <>
-                <button onClick={buscarDadosCnpj} disabled={saving || buscandoCnpj}
-                  className="flex items-center gap-1.5 bg-white text-[#1D2939] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  title="Preencher os campos automaticamente com os dados da Receita Federal (BrasilAPI)">
-                  <Search size={14} /> {buscandoCnpj ? "Buscando..." : "Buscar dados do CNPJ"}
-                </button>
                 <button onClick={() => setEditing(false)} disabled={saving}
                   className="flex items-center gap-1.5 bg-white text-[#667085] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors">
                   <X size={14} /> Cancelar
@@ -491,11 +486,6 @@ export default function EmpresaResumo() {
               </>
             ) : (
               <>
-                <button onClick={buscarDadosCnpj} disabled={buscandoCnpj}
-                  className="flex items-center gap-1.5 bg-white text-[#1D2939] border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  title="Preencher os campos automaticamente com os dados da Receita Federal (BrasilAPI)">
-                  <Search size={14} /> {buscandoCnpj ? "Buscando..." : "Buscar dados do CNPJ"}
-                </button>
                 <button onClick={exportarFichaPDF}
                   className="flex items-center gap-1.5 bg-white text-black border border-[#D0D5DD] text-xs font-semibold px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
                   title="Exportar ficha cadastral em PDF (ABNT)">
@@ -620,6 +610,11 @@ export default function EmpresaResumo() {
                 </button>
               </div>
             </div>
+            <button onClick={buscarDadosCnpj} disabled={buscandoCnpj}
+              className="flex items-center gap-1.5 self-start shrink-0 bg-[#1D2939] text-white text-xs font-semibold px-3 py-2 rounded-md hover:bg-[#101828] transition-colors disabled:opacity-50"
+              title="Preencher os campos automaticamente com os dados da Receita Federal (BrasilAPI)">
+              <Search size={14} /> {buscandoCnpj ? "Buscando..." : "Buscar dados do CNPJ"}
+            </button>
           </div>
 
           {/* Stats inline (sem cards, só números + label) */}
