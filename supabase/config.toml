@@ -1,5 +1,9 @@
 project_id = "onobornmnzemgsduscug"
 
+# Indicadores econômicos + notícias (BCB/IBGE) — dados públicos, sem auth.
+[functions.indicadores-economicos]
+verify_jwt = false
+
 [functions.import-omie-data]
 verify_jwt = false
 

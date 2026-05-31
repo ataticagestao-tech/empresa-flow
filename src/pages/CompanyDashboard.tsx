@@ -1303,21 +1303,21 @@ export default function CompanyDashboard() {
                           </div>
                           <div style={{ flex: 1, display: "flex", padding: 12, minHeight: 0 }}>
                             {/* Moldura branca sobreposta (igual ao gráfico de pizza) */}
-                            <div style={{ flex: 1, display: "flex", gap: 6, justifyContent: "center", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF", padding: 14, overflowX: "auto" }}>
+                            <div style={{ flex: 1, display: "flex", gap: 6, justifyContent: "center", alignItems: "center", border: "var(--border-hairline)", borderRadius: 8, background: "#FFFFFF", padding: 14, overflow: "hidden" }}>
                             {/* Day-of-week labels */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: C.textMuted, paddingTop: 22 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: C.textMuted, paddingTop: 20 }}>
                                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                                    <div key={d} style={{ height: 36, display: "flex", alignItems: "center" }}>{d}</div>
+                                    <div key={d} style={{ height: 32, display: "flex", alignItems: "center" }}>{d}</div>
                                 ))}
                             </div>
                             {/* Weeks */}
                             <div style={{ display: "flex", flexDirection: "column" }}>
                                 {/* Month labels row */}
-                                <div style={{ display: "flex", gap: 4, height: 18, marginBottom: 4, position: "relative" }}>
+                                <div style={{ display: "flex", gap: 4, height: 16, marginBottom: 4, position: "relative" }}>
                                     {heatmap.weeks.map((_, wi) => {
                                         const monthAtThisCol = heatmap.monthLabels.find(m => m.weekIndex === wi);
                                         return (
-                                            <div key={wi} style={{ width: 36, fontSize: 10, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 8 : 0 }}>
+                                            <div key={wi} style={{ width: 32, fontSize: 10, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
                                                 {monthAtThisCol?.label || ""}
                                             </div>
                                         );
@@ -1325,13 +1325,13 @@ export default function CompanyDashboard() {
                                 </div>
                                 <div style={{ display: "flex", gap: 4 }}>
                                 {heatmap.weeks.map((week, wi) => (
-                                    <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 4, marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 8 : 0 }}>
+                                    <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 4, marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 6 : 0 }}>
                                         {week.map((day, di) => day ? (
                                             <div
                                                 key={di}
                                                 title={`${format(day.date, "dd/MM")} · ${fmt(day.value)}`}
                                                 style={{
-                                                    width: 36, height: 36, borderRadius: 7,
+                                                    width: 32, height: 32, borderRadius: 7,
                                                     background: heatmapColor(day.value, heatmap.max),
                                                     border: "1px solid var(--hairline-soft)",
                                                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -1342,7 +1342,7 @@ export default function CompanyDashboard() {
                                                 {format(day.date, "d")}
                                             </div>
                                         ) : (
-                                            <div key={di} style={{ width: 36, height: 36 }} />
+                                            <div key={di} style={{ width: 32, height: 32 }} />
                                         ))}
                                     </div>
                                 ))}
