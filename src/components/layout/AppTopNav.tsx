@@ -79,10 +79,10 @@ export function AppTopNav() {
   };
 
   const baseBtn =
-    "flex items-center gap-1 px-2.5 h-8 rounded-md text-[13px] whitespace-nowrap transition-colors outline-none";
+    "flex items-center gap-1 px-2.5 h-9 rounded-md text-[14.5px] whitespace-nowrap transition-colors outline-none";
 
   return (
-    <nav className="bg-sidebar border-b border-sidebar-border h-12 shrink-0">
+    <nav className="relative z-10 bg-sidebar border-b border-sidebar-border h-12 shrink-0 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.22)]">
       <div className="h-full flex items-center gap-0 mx-auto w-full max-w-[1280px] px-2 sm:px-6 lg:px-8 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {visibleGroups.map((group) => {
         const items = group.items.filter(isItemVisible);
