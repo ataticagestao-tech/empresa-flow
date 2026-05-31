@@ -43,7 +43,7 @@ function renderConteudo(texto: string) {
   });
 }
 
-export function AssistenteChat() {
+export function AssistenteChat({ fill = false }: { fill?: boolean }) {
   const { activeClient, user } = useAuth();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id;
@@ -148,7 +148,7 @@ export function AssistenteChat() {
   const vazio = messages.length === 0 && !carregandoHistorico;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-260px)] min-h-[420px]">
+    <div className={cn("flex flex-col", fill ? "h-full min-h-0" : "h-[calc(100vh-260px)] min-h-[420px]")}>
       {/* Área de mensagens */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-1 py-3 space-y-3">
         {carregandoHistorico && (

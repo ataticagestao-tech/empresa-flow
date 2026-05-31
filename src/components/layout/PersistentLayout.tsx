@@ -7,6 +7,7 @@ import { AgenteBanner } from "@/components/AgenteBanner";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { StartHereButton } from "@/components/onboarding/StartHereButton";
 import { NovaVendaFab } from "@/components/NovaVendaFab";
+import { AssistenteFab } from "@/components/assistente/AssistenteFab";
 import { PageTitleProvider, usePageTitle } from "@/contexts/PageTitleContext";
 import { menuGroups } from "@/config/menuConfig";
 import { Home, ChevronRight } from "lucide-react";
@@ -96,6 +97,7 @@ export function PersistentLayout() {
       <WelcomeModal />
       <StartHereButton />
       <NovaVendaFab />
+      <AssistenteFab />
     </PageTitleProvider>
   );
 }
