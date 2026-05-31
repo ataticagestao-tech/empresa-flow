@@ -35,6 +35,7 @@ import {
   Palmtree,
   UserPlus,
   Banknote,
+  Bot,
   LucideIcon
 } from "lucide-react";
 
@@ -68,7 +69,8 @@ export const menuGroups: MenuGroup[] = [
   {
     id: 'dashboard',
     items: [
-      { titleKey: 'menu.dashboard', icon: LayoutDashboard, url: '/dashboard' }
+      { titleKey: 'menu.dashboard', icon: LayoutDashboard, url: '/dashboard' },
+      { titleKey: 'Assistente', icon: Bot, url: '/assistente', isHardcoded: true }
     ]
   },
   {

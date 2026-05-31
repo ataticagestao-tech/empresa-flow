@@ -16,6 +16,13 @@ verify_jwt = false
 [functions.agente-orquestrador]
 verify_jwt = false
 
+# Chat interno do assistente (dentro do sistema). Recebe o JWT do usuário
+# logado no Authorization, mas validamos o token manualmente via auth.getUser
+# (verify_jwt=false pra alinhar com o resto da cadeia do agente, que usa a
+# service key sb_secret_* nas chamadas internas pras tools).
+[functions.agente-chat-web]
+verify_jwt = false
+
 [functions.agente-tool-enviar_overnight]
 verify_jwt = false
 

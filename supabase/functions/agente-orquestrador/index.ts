@@ -676,6 +676,8 @@ async function carregarHistorico(
     let q = service
         .from("agente_conversas")
         .select("role, content, created_at")
+        // Só o histórico do WhatsApp — o chat web (canal='web') tem histórico próprio.
+        .or("canal.is.null,canal.eq.whatsapp")
         .order("created_at", { ascending: false })
         .limit(HISTORICO_LIMITE * 2);
     // Filtra por profile_id OU acesso_id (quem identifica esse usuário)
@@ -712,6 +714,7 @@ async function salvarMensagem(
         user_id: userId,
         acesso_id: acessoId,
         company_id: companyId,
+        canal: "whatsapp",
         role,
         content,
         tokens_input: tokens?.input ?? null,
