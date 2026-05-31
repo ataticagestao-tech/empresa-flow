@@ -59,8 +59,10 @@ export function AssistenteFab() {
             animation: "fadeIn 0.18s ease-out",
           }}
         >
-          {/* Header */}
+          {/* Header — clicar em qualquer parte verde minimiza */}
           <div
+            onClick={() => setOpen(false)}
+            title="Minimizar"
             style={{
               display: "flex",
               alignItems: "center",
@@ -69,6 +71,7 @@ export function AssistenteFab() {
               padding: "12px 14px",
               background: "#25D366",
               color: "#FFFFFF",
+              cursor: "pointer",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
