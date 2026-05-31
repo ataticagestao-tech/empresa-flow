@@ -28,8 +28,8 @@ export function AssistenteFab() {
             position: "fixed",
             bottom: 24,
             right: 24,
-            width: "min(390px, calc(100vw - 32px))",
-            height: "min(640px, calc(100vh - 96px))",
+            width: "min(340px, calc(100vw - 32px))",
+            height: "min(460px, calc(100vh - 120px))",
             background: "#FFFFFF",
             border: "1px solid #EAECF0",
             borderRadius: 16,
@@ -90,7 +90,7 @@ export function AssistenteFab() {
           </div>
 
           {/* Conteúdo do chat */}
-          <div style={{ flex: 1, minHeight: 0, padding: "0 14px 12px" }}>
+          <div style={{ flex: 1, minHeight: 0, padding: 10 }}>
             <AssistenteChat fill />
           </div>
         </div>

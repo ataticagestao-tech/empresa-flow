@@ -149,8 +149,11 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
 
   return (
     <div className={cn("flex flex-col", fill ? "h-full min-h-0" : "h-[calc(100vh-260px)] min-h-[420px]")}>
-      {/* Área de mensagens */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-1 py-3 space-y-3">
+      {/* Área de mensagens — quadro bege */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto rounded-xl border border-[#E7DCC6] bg-[#F6F2EB] px-3 py-3 space-y-3"
+      >
         {carregandoHistorico && (
           <div className="flex items-center justify-center h-full text-sm text-gray-400 gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando conversa…
@@ -198,7 +201,7 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
                 "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words",
                 m.role === "user"
                   ? "bg-[#071D41] text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-800 rounded-bl-sm",
+                  : "bg-white text-gray-800 border border-[#EAECF0] rounded-bl-sm shadow-sm",
               )}
             >
               {m.role === "assistant" ? renderConteudo(m.content) : m.content}
@@ -216,7 +219,7 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
             <div className="h-7 w-7 rounded-full bg-[#071D41] flex items-center justify-center shrink-0">
               <Bot className="h-4 w-4 text-white" />
             </div>
-            <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-1">
+            <div className="bg-white border border-[#EAECF0] shadow-sm rounded-2xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-1">
               <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
               <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
               <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce" />
