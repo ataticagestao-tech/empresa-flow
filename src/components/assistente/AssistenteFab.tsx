@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { AssistenteChat } from "./AssistenteChat";
 
@@ -18,12 +18,30 @@ function WhatsappIcon({ size = 24 }: { size?: number }) {
  */
 export function AssistenteFab() {
   const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Clicar fora do painel (na margem da tela) minimiza o chat.
+  useEffect(() => {
+    if (!open) return;
+    function onClickFora(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    // mousedown no próximo tick pra não capturar o clique que abriu o painel
+    const id = window.setTimeout(() => document.addEventListener("mousedown", onClickFora), 0);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener("mousedown", onClickFora);
+    };
+  }, [open]);
 
   return (
     <>
       {/* Painel do chat */}
       {open && (
         <div
+          ref={panelRef}
           style={{
             position: "fixed",
             bottom: 24,

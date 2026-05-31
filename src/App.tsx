@@ -17,7 +17,6 @@ import { useUserStatus } from "@/hooks/useUserStatus";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import CompanyDashboard from "./pages/CompanyDashboard";
-import Assistente from "./pages/Assistente";
 import Financeiro from "./pages/Financeiro";
 import Empresas from "./pages/Empresas";
 import Clientes from "./pages/Clientes";
@@ -178,7 +177,6 @@ const App = () => (
                     <Route element={<PersistentLayout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/dashboard/:id" element={<CompanyDashboard />} />
-                    <Route path="/assistente" element={<Assistente />} />
                     <Route path="/financeiro" element={<Financeiro />} />
                     <Route path="/empresas" element={<Empresas />} />
                     <Route path="/empresas/:id" element={<EmpresaResumo />} />
