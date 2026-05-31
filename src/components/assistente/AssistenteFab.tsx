@@ -49,7 +49,7 @@ export function AssistenteFab() {
               justifyContent: "space-between",
               gap: 10,
               padding: "12px 14px",
-              background: "#075E54",
+              background: "#25D366",
               color: "#FFFFFF",
             }}
           >
