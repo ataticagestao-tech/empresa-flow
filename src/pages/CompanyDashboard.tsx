@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, ComposedChart, Area, Cell, LabelList,
-    AreaChart, PieChart, Pie,
+    AreaChart, PieChart, Pie, Line, ReferenceLine,
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -17,9 +17,10 @@ import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/Spreadshe
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
     startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek,
-    subMonths, subWeeks, subDays, addDays, format, differenceInDays, differenceInCalendarDays,
+    subMonths, subWeeks, subDays, addDays, addMonths, format, differenceInDays, differenceInCalendarDays,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useHistoricoIndicador } from "@/hooks/useIndicadores";
 
 /* ── Design Tokens — alinhado ao Design System v1 ──────────── */
 const C = {
@@ -47,6 +48,48 @@ const billoraCard: React.CSSProperties = {
     border: "var(--border-hairline)",
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.06)",
 };
+
+/* ── Padrão "header escuro + fundo creme + painel branco sobreposto" ──
+   (mesmo visual do card de Distribuição). O gráfico fica num painel
+   branco flutuando sobre o fundo creme. */
+const CREME = "#F6F2EB";
+const NAVY = "#071D41";
+const whitePanel: React.CSSProperties = {
+    background: "#FFFFFF",
+    border: "var(--border-hairline)",
+    borderRadius: 8,
+    padding: 14,
+    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.10)",
+};
+
+function ChartCard({
+    title, subtitle, info, children, style,
+}: {
+    title: string;
+    subtitle?: string;
+    info?: string;
+    children: React.ReactNode;
+    style?: React.CSSProperties;
+}) {
+    return (
+        <div style={{ background: CREME, borderRadius: 10, border: "var(--border-hairline)", overflow: "hidden", display: "flex", flexDirection: "column", ...style }}>
+            <div style={{ padding: "14px 16px", background: NAVY }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>{title}</span>
+                    {info && (
+                        <span title={info} style={{ display: "inline-flex", cursor: "help" }}>
+                            <Info size={13} style={{ color: "rgba(255,255,255,0.6)" }} />
+                        </span>
+                    )}
+                </div>
+                {subtitle && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{subtitle}</div>}
+            </div>
+            <div style={{ padding: 14, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+                {children}
+            </div>
+        </div>
+    );
+}
 
 const fmt = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
@@ -335,6 +378,129 @@ export default function CompanyDashboard() {
 
     const resultadoPeriodo = receitaPeriodo - despesaPeriodo;
     const margemPeriodo = receitaPeriodo > 0 ? (resultadoPeriodo / receitaPeriodo) * 100 : 0;
+
+    // ════════════════════════════════════════════════════════════
+    //  Série de 12 meses (regime de competência) — alimenta os
+    //  gráficos Margem Líquida, Forecast e Faturamento Corrigido.
+    //  Janela fixa: últimos 12 meses até o mês corrente.
+    // ════════════════════════════════════════════════════════════
+    const serie12mWindow = useMemo(() => {
+        const fim = endOfMonth(today);
+        const meses: { ym: string; label: string }[] = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = subMonths(fim, i);
+            meses.push({ ym: format(d, "yyyy-MM"), label: format(d, "MMM/yy", { locale: ptBR }) });
+        }
+        return {
+            start: format(startOfMonth(subMonths(fim, 11)), "yyyy-MM-dd"),
+            end: format(fim, "yyyy-MM-dd"),
+            meses,
+        };
+    }, [today]);
+
+    const { data: serie12m = [] } = useQuery({
+        queryKey: ["dash_serie_12m", cId, serie12mWindow.start, serie12mWindow.end, transferAccountIds],
+        queryFn: async () => {
+            const [vendasRes, cpsRes] = await Promise.all([
+                db.from("vendas")
+                    .select("valor_liquido, data_venda")
+                    .eq("company_id", cId).eq("status", "confirmado")
+                    .is("deleted_at", null)
+                    .gte("data_venda", serie12mWindow.start).lte("data_venda", serie12mWindow.end)
+                    .limit(50000),
+                db.from("contas_pagar")
+                    .select("valor, conta_contabil_id, data_vencimento")
+                    .eq("company_id", cId)
+                    .in("status", ["aberto", "parcial", "vencido", "pago"])
+                    .is("deleted_at", null)
+                    .gte("data_vencimento", serie12mWindow.start).lte("data_vencimento", serie12mWindow.end)
+                    .limit(50000),
+            ]);
+            const fatMap: Record<string, number> = {};
+            (vendasRes.data || []).forEach((v: any) => {
+                const ym = (v.data_venda || "").slice(0, 7);
+                fatMap[ym] = (fatMap[ym] || 0) + Number(v.valor_liquido || 0);
+            });
+            const despMap: Record<string, number> = {};
+            (cpsRes.data || []).forEach((r: any) => {
+                if (isTransfer(r)) return;
+                const ym = (r.data_vencimento || "").slice(0, 7);
+                despMap[ym] = (despMap[ym] || 0) + Number(r.valor || 0);
+            });
+            return serie12mWindow.meses.map((m) => ({
+                ym: m.ym,
+                label: m.label,
+                faturamento: fatMap[m.ym] || 0,
+                despesa: despMap[m.ym] || 0,
+                resultado: (fatMap[m.ym] || 0) - (despMap[m.ym] || 0),
+            }));
+        },
+        enabled: !!cId,
+    });
+
+    // Janela de 6 meses a partir do primeiro mês COM lançamento
+    // (faturamento ou despesa > 0). Usada no gráfico de barras.
+    const serie6m = useMemo(() => {
+        const arr = serie12m as any[];
+        const firstIdx = arr.findIndex((m) => (m.faturamento || 0) > 0 || (m.despesa || 0) > 0);
+        if (firstIdx < 0) return arr.slice(-6);
+        return arr.slice(firstIdx, firstIdx + 6);
+    }, [serie12m]);
+
+    // Receita vs. Despesas — janela fixa: mês atual + 2 meses anteriores (3 meses).
+    // Não acompanha o filtro; a linha de referência é a média desses 3 meses.
+    const serie3m = useMemo(() => (serie12m as any[]).slice(-3), [serie12m]);
+    const mediaFat3m = useMemo(
+        () => (serie3m.length ? serie3m.reduce((s: number, m: any) => s + (m.faturamento || 0), 0) / serie3m.length : 0),
+        [serie3m]
+    );
+
+    // Médias dos últimos 6 meses (mês atual + 5 anteriores) — base das
+    // linhas de referência aplicadas a todos os gráficos do dashboard.
+    const ref6m = useMemo(() => {
+        const last6 = (serie12m as any[]).slice(-6);
+        const n = last6.length || 1;
+        const fat = last6.reduce((s, m) => s + (m.faturamento || 0), 0) / n;
+        const desp = last6.reduce((s, m) => s + (m.despesa || 0), 0) / n;
+        const res = last6.reduce((s, m) => s + (m.resultado || 0), 0) / n;
+        const margem = last6.reduce((s, m) => s + (m.faturamento > 0 ? (m.resultado / m.faturamento) * 100 : 0), 0) / n;
+        return { fat, desp, res, margem };
+    }, [serie12m]);
+
+    // Estilo padrão da linha de referência (bem clara/sutil)
+    const refLineProps = {
+        stroke: "#CBD5E1",
+        strokeWidth: 1,
+        strokeDasharray: "5 5",
+    } as const;
+    const refLabel = (txt: string) => ({ value: txt, position: "right" as const, fill: "#A8B0BC", fontSize: 10, fontWeight: 600 });
+
+    // ─── Fator de correção pela inflação (IPCA) ────────────────
+    // Traz o faturamento de cada mês para R$ do mês mais recente do
+    // histórico, multiplicando pelos IPCA mensais subsequentes.
+    const { data: ipcaHist } = useHistoricoIndicador("ipca");
+    const fatorCorrecao = useMemo(() => {
+        const out: Record<string, number> = {};
+        const hist = ipcaHist?.historico || [];
+        if (hist.length === 0) return out;
+        const pts = hist.map((p) => {
+            let ym = p.data;
+            const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(p.data);
+            if (m) ym = `${m[3]}-${m[2]}`;
+            else ym = p.data.slice(0, 7);
+            return { ym, pct: Number(p.valor) || 0 };
+        });
+        for (let i = 0; i < pts.length; i++) {
+            let f = 1;
+            for (let k = i + 1; k < pts.length; k++) f *= 1 + pts[k].pct / 100;
+            out[pts[i].ym] = f;
+        }
+        return out;
+    }, [ipcaHist]);
+
+    // Margem, Forecast e Corrigido agora derivam de `seriePeriodo` (definidos
+    // mais abaixo, após os mapas diários) para ACOMPANHAR O FILTRO de período.
+    const temIpca = Object.keys(fatorCorrecao).length > 0;
 
     // ─── Previous period (comparação alinhada por dia) ──────
     // Espelha o período atual deslocado 1 mês pra trás, capando o fim no dia
@@ -902,6 +1068,106 @@ export default function CompanyDashboard() {
             };
         });
     }, [dailyRevenue, prevByDay, periodStart, periodEnd, prevMonthStart, periodDays, chartGranularity]);
+
+    // ════════════════════════════════════════════════════════════
+    //  Séries que SEGUEM O FILTRO de período — mesmos buckets do
+    //  gráfico de acumulado (dia/semana/mês conforme chartGranularity).
+    //  Alimentam Receita×Despesas, Margem, Forecast e Corrigido.
+    // ════════════════════════════════════════════════════════════
+    const seriePeriodo = useMemo(() => {
+        const ps = new Date(periodStart + "T00:00:00");
+        const pe = new Date(periodEnd + "T00:00:00");
+        const rev = (dailyRevenue || {}) as Record<string, number>;
+        const desp = (despesaDailyMaps?.byDay || {}) as Record<string, number>;
+        const sumRange = (map: Record<string, number>, from: Date, to: Date) => {
+            let s = 0; let d = from;
+            while (d <= to) { s += map[format(d, "yyyy-MM-dd")] || 0; d = addDays(d, 1); }
+            return s;
+        };
+        const buckets: { start: Date; end: Date; label: string }[] = [];
+        if (chartGranularity === "day") {
+            for (let i = 0; i < periodDays; i++) {
+                const d = addDays(ps, i);
+                buckets.push({ start: d, end: d, label: format(d, "dd") });
+            }
+        } else if (chartGranularity === "week") {
+            let d = startOfWeek(ps, { weekStartsOn: 1 });
+            while (d <= pe) {
+                const weekEnd = endOfWeek(d, { weekStartsOn: 1 });
+                buckets.push({ start: d < ps ? ps : d, end: weekEnd > pe ? pe : weekEnd, label: format(d, "dd/MM") });
+                d = addDays(weekEnd, 1);
+            }
+        } else {
+            let d = startOfMonth(ps);
+            while (d <= pe) {
+                const mEnd = endOfMonth(d);
+                buckets.push({ start: d < ps ? ps : d, end: mEnd > pe ? pe : mEnd, label: format(d, "MMM/yy", { locale: ptBR }).replace(".", "") });
+                d = addDays(mEnd, 1);
+            }
+        }
+        return buckets.map((b) => {
+            const faturamento = sumRange(rev, b.start, b.end);
+            const despesa = sumRange(desp, b.start, b.end);
+            return { label: b.label, ym: format(b.start, "yyyy-MM"), faturamento, despesa, resultado: faturamento - despesa };
+        });
+    }, [dailyRevenue, despesaDailyMaps, periodStart, periodEnd, periodDays, chartGranularity]);
+
+    // Médias do período exibido — linhas de referência (seguem o filtro)
+    const refPeriodo = useMemo(() => {
+        const arr = seriePeriodo;
+        const n = arr.length || 1;
+        const fat = arr.reduce((s, m) => s + m.faturamento, 0) / n;
+        const desp = arr.reduce((s, m) => s + m.despesa, 0) / n;
+        const res = arr.reduce((s, m) => s + m.resultado, 0) / n;
+        const margem = arr.reduce((s, m) => s + (m.faturamento > 0 ? (m.resultado / m.faturamento) * 100 : 0), 0) / n;
+        return { fat, desp, res, margem };
+    }, [seriePeriodo]);
+
+    // Margem líquida por bucket do período (%)
+    const serieMargem = useMemo(
+        () => seriePeriodo.map((m) => ({ label: m.label, margem: m.faturamento > 0 ? (m.resultado / m.faturamento) * 100 : 0 })),
+        [seriePeriodo]
+    );
+
+    // Forecast — geração de caixa por bucket + projeção linear (3 buckets à frente)
+    const serieForecast = useMemo(() => {
+        const pts = seriePeriodo.map((m, i) => ({ x: i, y: m.resultado }));
+        if (pts.length < 2) return { rows: [] as any[], r2: 0, slope: 0 };
+        const n = pts.length;
+        const sx = pts.reduce((s, p) => s + p.x, 0);
+        const sy = pts.reduce((s, p) => s + p.y, 0);
+        const sxx = pts.reduce((s, p) => s + p.x * p.x, 0);
+        const sxy = pts.reduce((s, p) => s + p.x * p.y, 0);
+        const denom = n * sxx - sx * sx || 1;
+        const slope = (n * sxy - sx * sy) / denom;
+        const intercept = (sy - slope * sx) / n;
+        const meanY = sy / n;
+        const ssTot = pts.reduce((s, p) => s + (p.y - meanY) ** 2, 0);
+        const ssRes = pts.reduce((s, p) => s + (p.y - (slope * p.x + intercept)) ** 2, 0);
+        const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+        const rows: any[] = seriePeriodo.map((m) => ({ label: m.label, real: m.resultado, previsto: null }));
+        if (rows.length) rows[rows.length - 1].previsto = pts[pts.length - 1].y;
+        const peDate = new Date(periodEnd + "T00:00:00");
+        const futLabel = (h: number) => {
+            if (chartGranularity === "day") return format(addDays(peDate, h), "dd");
+            if (chartGranularity === "week") return format(addDays(peDate, h * 7), "dd/MM");
+            return format(addMonths(peDate, h), "MMM/yy", { locale: ptBR }).replace(".", "");
+        };
+        for (let h = 1; h <= 3; h++) {
+            const x = n - 1 + h;
+            rows.push({ label: futLabel(h), real: null, previsto: slope * x + intercept });
+        }
+        return { rows, r2, slope };
+    }, [seriePeriodo, chartGranularity, periodEnd]);
+
+    // Faturamento nominal × corrigido pela inflação (correção pelo mês do bucket)
+    const serieCorrigido = useMemo(
+        () => seriePeriodo.map((m) => {
+            const f = fatorCorrecao[m.ym] ?? 1;
+            return { label: m.label, nominal: m.faturamento, corrigido: m.faturamento * f };
+        }),
+        [seriePeriodo, fatorCorrecao]
+    );
 
     const heatmap = useMemo(() => {
         const rangeStart = new Date(periodStart + "T00:00:00");
@@ -1516,94 +1782,194 @@ export default function CompanyDashboard() {
                     </div>
                 </div>
 
-                {/* ── Unified Chart Row: Receita × Despesa ── */}
-                <div style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, marginBottom: 16 }}>
+                {/* ── Receita vs. Despesas (12 meses, barras agrupadas) ── */}
+                <ChartCard
+                    title="Receita vs. Despesas"
+                    subtitle="Mês atual + 2 anteriores · R$ mil · competência"
+                    info="Faturamento (vendas por data de venda) e Despesas (contas a pagar por vencimento) do mês atual e dos 2 meses anteriores. Janela fixa — NÃO acompanha o filtro de período. Eixo em R$ mil. Exclui transferências."
+                    style={{ marginBottom: 16 }}
+                >
+                    <div style={whitePanel}>
+                        <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 8, fontSize: 13, color: C.text2, fontWeight: 600 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 18, height: 12, background: "#039855", borderRadius: 4 }} />Faturamento</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 18, height: 12, background: "#E53E3E", borderRadius: 4 }} />Despesas</span>
+                        </div>
+                        <ResponsiveContainer width="100%" height={360}>
+                            <BarChart data={serie3m} margin={{ top: 12, right: 16, left: 8, bottom: 4 }} barCategoryGap="34%" barGap={1}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                                <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} interval={0} tickMargin={8} />
+                                <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.25) / 1000) * 1000]} tickFormatter={(v) => (v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} width={48} />
+                                <Tooltip
+                                    contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                    formatter={(v: number, name: string) => [fmtFull(v), name === "faturamento" ? "Faturamento" : "Despesas"]}
+                                    cursor={{ fill: "rgba(3, 152, 85, 0.08)" }}
+                                />
+                                <ReferenceLine y={mediaFat3m} {...refLineProps} label={refLabel("Média")} />
+                                <Bar dataKey="faturamento" name="faturamento" fill="#039855" radius={[4, 4, 0, 0]} maxBarSize={46} />
+                                <Bar dataKey="despesa" name="despesa" fill="#E53E3E" radius={[4, 4, 0, 0]} maxBarSize={46} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartCard>
+
+                {/* ── Faturamento Acumulado × Despesa Acumulada ── */}
+                <ChartCard
+                    title="Faturamento Acumulado × Despesa Acumulada"
+                    subtitle={`${periodLabel} · soma corrida no período`}
+                    info="Soma acumulada (running total) do faturamento e da despesa ao longo do período selecionado, no mesmo regime do dashboard. Útil para ver em que ponto do mês a receita ultrapassa (ou não) a despesa."
+                    style={{ marginBottom: 16 }}
+                >
                     {(() => {
-                        const seriesRev = chartRevExp || [];
-                        const seriesDesp = chartDespDiarias || [];
-                        const merged = seriesRev.map((r: any, i: number) => {
-                            const receita = r.Receita || 0;
-                            const despesa = (seriesDesp[i] && seriesDesp[i].despesa) || 0;
-                            return {
-                                label: r.label,
-                                Receita: receita,
-                                Despesa: despesa,
-                            };
+                        const rev = chartRevExp || [];
+                        const desp = chartDespDiarias || [];
+                        let af = 0, ad = 0;
+                        const rows = rev.map((r: any, i: number) => {
+                            af += r.Receita || 0;
+                            ad += (desp[i] && desp[i].despesa) || 0;
+                            return { label: r.label, fat: af, desp: ad };
                         });
-                        const totalReceita = merged.reduce((s: number, r: any) => s + (r.Receita || 0), 0);
-                        const totalDespesa = merged.reduce((s: number, r: any) => s + (r.Despesa || 0), 0);
-                        const saldo = totalReceita - totalDespesa;
-                        const receitaLabel = regime === "competencia" ? "Faturamento" : "Recebimentos";
-                        const despesaLabel = regime === "competencia" ? "Despesas" : "Pagamentos";
-                        const granularityLabel = chartGranularity === "day" ? "Diário" : chartGranularity === "week" ? "Semanal" : "Mensal";
+                        const fatFinal = af, despFinal = ad, saldoFinal = af - ad;
                         return (
                             <>
-                                <div style={{ marginBottom: 8 }}>
-                                    <SectionTitle
-                                        title={`${receitaLabel} × ${despesaLabel} — ${granularityLabel}`}
-                                        subtitle={`${periodLabel} · ${merged.length} ${chartGranularity === "day" ? "dias" : chartGranularity === "week" ? "semanas" : "meses"}`}
-                                        info={regime === "competencia"
-                                            ? "Receita (vendas confirmadas por data_venda) e Despesa (contas_pagar pelo valor cheio com data_vencimento no período). Regime de competência. Exclui transferências."
-                                            : "Receita (contas_receber pagas + cartão de crédito pela data da venda) e Despesa (contas_pagar pagas por data_pagamento). Regime de caixa. Exclui transferências."}
-                                    />
-                                </div>
-                                <div style={{ display: "flex", gap: 16, marginBottom: 14, paddingTop: 6 }}>
+                                <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
                                     {[
-                                        { label: receitaLabel, value: totalReceita, color: "#039855" },
-                                        { label: despesaLabel, value: totalDespesa, color: "#EF9F27" },
-                                        { label: "Resultado", value: saldo, color: saldo >= 0 ? "#039855" : "#E53E3E" },
+                                        { label: "Faturamento acum.", value: fatFinal, color: "#039855" },
+                                        { label: "Despesa acum.", value: despFinal, color: "#EF9F27" },
+                                        { label: "Resultado", value: saldoFinal, color: saldoFinal >= 0 ? "#039855" : "#E53E3E" },
                                     ].map((s) => (
                                         <div key={s.label} style={{ flex: 1 }}>
                                             <div style={{ fontSize: 10.5, color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600, marginBottom: 3 }}>{s.label}</div>
-                                            <div style={{ fontSize: 19, fontWeight: 700, color: s.color, letterSpacing: "-0.015em", fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(s.value)}</div>
+                                            <div style={{ fontSize: 19, fontWeight: 700, color: s.color, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(s.value)}</div>
                                         </div>
                                     ))}
                                 </div>
-
-                                <ResponsiveContainer width="100%" height={400}>
-                                    <ComposedChart data={merged} margin={{ top: 28, right: 16, left: 8, bottom: 4 }} barCategoryGap={chartGranularity === "day" ? "14%" : "22%"} barGap={3}>
+                                <div style={whitePanel}>
+                                <ResponsiveContainer width="100%" height={320}>
+                                    <ComposedChart data={rows} margin={{ top: 12, right: 16, left: 8, bottom: 4 }}>
+                                        <defs>
+                                            <linearGradient id="accFat" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#039855" stopOpacity={0.18} />
+                                                <stop offset="100%" stopColor="#039855" stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="accDesp" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#EF9F27" stopOpacity={0.16} />
+                                                <stop offset="100%" stopColor="#EF9F27" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
-                                        <XAxis
-                                            dataKey="label"
-                                            tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }}
-                                            axisLine={{ stroke: C.border, strokeWidth: 1 }}
-                                            tickLine={false}
-                                            interval={chartGranularity === "day" ? (merged.length > 20 ? 2 : 0) : 0}
-                                            tickMargin={8}
-                                        />
-                                        <YAxis
-                                            tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }}
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)}
-                                            width={48}
-                                        />
+                                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} interval={rows.length > 20 ? 2 : 0} tickMargin={8} />
+                                        <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={48} />
                                         <Tooltip
                                             contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
-                                            itemStyle={{ color: C.text1, padding: "2px 0" }}
-                                            labelStyle={{ color: C.text2, fontSize: 12, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}
-                                            formatter={(v: number, name: string) => [fmtFull(v), name]}
-                                            labelFormatter={(label) => chartGranularity === "day" ? `Dia ${label}` : chartGranularity === "week" ? `Semana de ${label}` : `${label}`}
-                                            cursor={{ fill: "rgba(15, 23, 42, 0.03)" }}
+                                            formatter={(v: number, name: string) => [fmtFull(v), name === "fat" ? "Faturamento acum." : "Despesa acum."]}
+                                            cursor={{ stroke: "rgba(3, 152, 85, 0.12)", strokeWidth: 36 }}
                                         />
-                                        <Bar dataKey="Receita" name={receitaLabel} fill="#039855" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 52} />
-                                        <Bar dataKey="Despesa" name={despesaLabel} fill="#EF9F27" radius={3} maxBarSize={chartGranularity === "day" ? 18 : 52} />
+                                        <ReferenceLine y={refPeriodo.fat} {...refLineProps} label={refLabel("Média período")} />
+                                        <Area type="monotone" dataKey="fat" stroke="#039855" strokeWidth={2.2} fill="url(#accFat)" dot={false} name="fat" />
+                                        <Area type="monotone" dataKey="desp" stroke="#EF9F27" strokeWidth={2.2} fill="url(#accDesp)" dot={false} name="desp" />
                                     </ComposedChart>
                                 </ResponsiveContainer>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                        <span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />
-                                        {receitaLabel}
-                                    </span>
-                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                        <span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />
-                                        {despesaLabel}
-                                    </span>
+                                <div style={{ display: "flex", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#039855", borderRadius: 2 }} />Faturamento acumulado</span>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#EF9F27", borderRadius: 2 }} />Despesa acumulada</span>
+                                </div>
                                 </div>
                             </>
                         );
                     })()}
+                </ChartCard>
+
+                {/* ── Row: Margem Líquida + Forecast (lado a lado) ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16, alignItems: "start" }}>
+                    {/* Evolução da Margem Líquida mês a mês */}
+                    <ChartCard
+                        title="Evolução da Margem Líquida"
+                        subtitle={`${periodLabel} · % · acompanha o filtro`}
+                        info="Margem líquida por bucket = (Faturamento − Despesa) ÷ Faturamento, na granularidade do período selecionado (dia/semana/mês). Exclui transferências."
+                    >
+                        <div style={whitePanel}>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <AreaChart data={serieMargem} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+                                <defs>
+                                    <linearGradient id="gMargem" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#059669" stopOpacity={0.2} />
+                                        <stop offset="100%" stopColor="#059669" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                                <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} tickMargin={8} interval={0} />
+                                <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)}%`} width={42} />
+                                <Tooltip
+                                    contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                    formatter={(v: number) => [`${v.toFixed(1)}%`, "Margem líquida"]}
+                                    cursor={{ stroke: "rgba(3, 152, 85, 0.12)", strokeWidth: 44 }}
+                                />
+                                <ReferenceLine y={refPeriodo.margem} {...refLineProps} label={refLabel("Média período")} />
+                                <Area type="monotone" dataKey="margem" stroke="#059669" strokeWidth={2.4} fill="url(#gMargem)" dot={{ r: 3, fill: "#059669" }} activeDot={{ r: 5 }} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                        </div>
+                    </ChartCard>
+
+                    {/* Forecast — Geração de Caixa */}
+                    <ChartCard
+                        title="Forecast — Geração de Caixa"
+                        subtitle={`${periodLabel} · projeção 3 buckets${serieForecast.rows.length ? ` · R² ${(serieForecast.r2 * 100).toFixed(0)}%` : ""}`}
+                        info="Geração de caixa por bucket = Faturamento − Despesa, na granularidade do período (dia/semana/mês). A linha tracejada projeta 3 buckets à frente por regressão linear sobre o período; R² indica o quanto a tendência explica a série."
+                    >
+                        <div style={whitePanel}>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <ComposedChart data={serieForecast.rows} margin={{ top: 12, right: 16, left: 8, bottom: 4 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                                <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} tickMargin={8} interval={0} />
+                                <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={(v) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={48} />
+                                <Tooltip
+                                    contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                    formatter={(v: number, name: string) => [fmtFull(v), name === "real" ? "Realizado" : "Previsto"]}
+                                    cursor={{ stroke: "rgba(3, 152, 85, 0.12)", strokeWidth: 44 }}
+                                />
+                                <ReferenceLine y={refPeriodo.res} {...refLineProps} label={refLabel("Média período")} />
+                                <Line type="monotone" dataKey="real" stroke="#2563EB" strokeWidth={2.4} dot={{ r: 3, fill: "#2563EB" }} connectNulls name="real" />
+                                <Line type="monotone" dataKey="previsto" stroke="#2563EB" strokeWidth={2.2} strokeDasharray="6 5" dot={{ r: 3, fill: "#93C5FD" }} connectNulls name="previsto" />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                        <div style={{ display: "flex", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 2, background: "#2563EB", display: "inline-block" }} />Realizado</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 2, background: "#2563EB", display: "inline-block", borderTop: "2px dashed #2563EB" }} />Projeção</span>
+                        </div>
+                        </div>
+                    </ChartCard>
                 </div>
+
+                {/* ── Faturamento Mensal × Corrigido pela Inflação (IPCA) ── */}
+                <ChartCard
+                    title="Faturamento Mensal × Corrigido pela Inflação"
+                    subtitle={temIpca ? `${periodLabel} · valores em R$ de hoje (IPCA)` : `${periodLabel} · IPCA indisponível no momento`}
+                    info="Faturamento nominal por bucket do período e o mesmo valor corrigido pelo IPCA do mês correspondente — em poder de compra de hoje. A correção pela inflação só é perceptível quando o período abrange vários meses (granularidade mensal); em períodos curtos as linhas praticamente coincidem."
+                    style={{ marginBottom: 16 }}
+                >
+                    <div style={whitePanel}>
+                    <ResponsiveContainer width="100%" height={320}>
+                        <ComposedChart data={serieCorrigido} margin={{ top: 12, right: 16, left: 8, bottom: 4 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                            <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={{ stroke: C.border }} tickLine={false} tickMargin={8} interval={0} />
+                            <YAxis tick={{ fontSize: 11, fill: C.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} width={48} />
+                            <Tooltip
+                                contentStyle={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 12px", boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)", fontSize: 12 }}
+                                formatter={(v: number, name: string) => [fmtFull(v), name === "nominal" ? "Nominal" : "Corrigido (R$ de hoje)"]}
+                                cursor={{ fill: "rgba(3, 152, 85, 0.08)" }}
+                            />
+                            <ReferenceLine y={refPeriodo.fat} {...refLineProps} label={refLabel("Média período")} />
+                            <Bar dataKey="nominal" name="nominal" fill="#E5B567" radius={3} maxBarSize={42} />
+                            <Line type="monotone" dataKey="corrigido" name="corrigido" stroke="#059669" strokeWidth={2.4} dot={{ r: 3, fill: "#059669" }} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 24, fontSize: 12, color: C.text2, marginTop: 8 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, background: "#E5B567", borderRadius: 2 }} />Faturamento nominal</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 14, height: 2, background: "#059669", display: "inline-block" }} />Corrigido pela inflação</span>
+                    </div>
+                    </div>
+                </ChartCard>
 
                 {/* ── Row: Contas a Receber + A Pagar (lado a lado) ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
