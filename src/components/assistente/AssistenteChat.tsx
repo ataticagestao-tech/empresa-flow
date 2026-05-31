@@ -155,19 +155,19 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
         className="flex-1 overflow-y-auto rounded-xl border border-[#E7DCC6] bg-[#F6F2EB] px-3 py-3 space-y-3"
       >
         {carregandoHistorico && (
-          <div className="flex items-center justify-center h-full text-sm text-gray-400 gap-2">
+          <div className="flex items-center justify-center h-full text-[12px] text-gray-400 gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando conversa…
           </div>
         )}
 
         {vazio && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-4 px-4">
-            <div className="h-12 w-12 rounded-full bg-[#071D41] flex items-center justify-center">
+            <div className="h-12 w-12 rounded-full bg-[#25D366] flex items-center justify-center">
               <Bot className="h-6 w-6 text-white" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Assistente Tatica</p>
-              <p className="text-xs text-gray-500 mt-1 max-w-sm">
+              <p className="text-[13px] font-semibold text-gray-800">Assistente Tatica</p>
+              <p className="text-[11px] text-gray-500 mt-1 max-w-sm">
                 Peça pra consultar, lançar e dar baixa em contas, gerar DRE, cadastrar
                 fornecedor — em português, do seu jeito.
               </p>
@@ -177,7 +177,7 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
                 <button
                   key={s}
                   onClick={() => enviar(s)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-[#EAECF0] bg-white text-gray-600 hover:border-[#071D41] hover:text-[#071D41] transition-colors"
+                  className="text-[11px] px-3 py-1.5 rounded-full border border-[#EAECF0] bg-white text-gray-600 hover:border-[#25D366] hover:text-[#1B8C4E] transition-colors"
                 >
                   {s}
                 </button>
@@ -192,15 +192,15 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
             className={cn("flex gap-2.5", m.role === "user" ? "justify-end" : "justify-start")}
           >
             {m.role === "assistant" && (
-              <div className="h-7 w-7 rounded-full bg-[#071D41] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="h-7 w-7 rounded-full bg-[#25D366] flex items-center justify-center shrink-0 mt-0.5">
                 <Bot className="h-4 w-4 text-white" />
               </div>
             )}
             <div
               className={cn(
-                "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words",
+                "max-w-[80%] rounded-2xl px-3 py-1.5 text-[12px] leading-relaxed whitespace-pre-wrap break-words",
                 m.role === "user"
-                  ? "bg-[#071D41] text-white rounded-br-sm"
+                  ? "bg-[#DCF8C6] text-[#1D2939] rounded-br-sm"
                   : "bg-white text-gray-800 border border-[#EAECF0] rounded-bl-sm shadow-sm",
               )}
             >
@@ -216,7 +216,7 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
 
         {enviando && (
           <div className="flex gap-2.5 justify-start">
-            <div className="h-7 w-7 rounded-full bg-[#071D41] flex items-center justify-center shrink-0">
+            <div className="h-7 w-7 rounded-full bg-[#25D366] flex items-center justify-center shrink-0">
               <Bot className="h-4 w-4 text-white" />
             </div>
             <div className="bg-white border border-[#EAECF0] shadow-sm rounded-2xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-1">
@@ -242,12 +242,12 @@ export function AssistenteChat({ fill = false }: { fill?: boolean }) {
             disabled={!companyId || enviando}
             rows={1}
             placeholder="Escreva uma mensagem… (ex: paguei a conta da Equatorial)"
-            className="flex-1 resize-none rounded-xl border border-[#EAECF0] px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#071D41] max-h-32 disabled:bg-gray-50"
+            className="flex-1 resize-none rounded-xl border border-[#EAECF0] px-3 py-2 text-[12px] focus:outline-none focus:border-[#25D366] max-h-32 disabled:bg-gray-50"
           />
           <button
             onClick={() => enviar(input)}
             disabled={!companyId || enviando || !input.trim()}
-            className="h-10 w-10 shrink-0 rounded-xl bg-[#071D41] text-white flex items-center justify-center disabled:opacity-40 hover:bg-[#0a2a5e] transition-colors"
+            className="h-10 w-10 shrink-0 rounded-xl bg-[#25D366] text-white flex items-center justify-center disabled:opacity-40 hover:bg-[#1FB955] transition-colors"
             aria-label="Enviar"
           >
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
