@@ -240,6 +240,9 @@ export default function NfseEmissao() {
   const [apuracao, setApuracao] = useState<any | null>(null)
   const [regimeEmpresa, setRegimeEmpresa] = useState<RegimeNorm>(null)
   const [apurando, setApurando] = useState(false)
+  // Previsão "ao vivo" exibida no card, recalculada por aba (vendas vs NF emitidas) sem salvar
+  const [previewAp, setPreviewAp] = useState<any | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   // Tabs
   const [activeTab, setActiveTab] = useState<'vendas' | 'emissoes'>('vendas')
@@ -387,6 +390,7 @@ export default function NfseEmissao() {
   // Paginacao
   const PAGE_SIZE = 10
   const [page, setPage] = useState(1)
+  const [emitidasPage, setEmitidasPage] = useState(1)
   useEffect(() => {
     if (!menuCol) return
     const handler = () => setMenuCol(null)
@@ -480,14 +484,16 @@ export default function NfseEmissao() {
     if (!selectedCompany) return
     setApurando(true)
     try {
-      const res = await apurarImpostoCompetencia({ client: activeClient as any, companyId: selectedCompany.id, competencia: mesAno })
+      const base = activeTab === 'emissoes' ? 'emitidas' : 'vendas'
+      const res = await apurarImpostoCompetencia({ client: activeClient as any, companyId: selectedCompany.id, competencia: mesAno, baseReceita: base })
       if (res.sucesso) {
-        toast.success(`Previsão de imposto de ${mesAno} calculada: ${formatBRL(res.resultado?.totalImpostos ?? 0)}`)
+        const sobre = base === 'emitidas' ? 'NF emitidas' : 'vendas'
+        toast.success(`Previsão de imposto de ${mesAno} (sobre ${sobre}): ${formatBRL(res.resultado?.totalImpostos ?? 0)}`)
         loadData()
       } else if (res.semRegime) {
         toast.error('Defina o regime tributário no cadastro da empresa (aba Fiscal) antes de apurar.')
       } else if (res.semReceita) {
-        toast.error('Nenhuma venda nesta competência para apurar.')
+        toast.error(base === 'emitidas' ? 'Nenhuma venda marcada como NF emitida nesta competência. Marque as vendas em "Vendas a faturar" e recalcule.' : 'Nenhuma venda nesta competência para apurar.')
       } else {
         toast.error(res.erro || 'Erro ao calcular previsão de imposto')
       }
@@ -557,6 +563,37 @@ export default function NfseEmissao() {
   useEffect(() => { loadVendas() }, [loadVendas])
   useEffect(() => { loadClients() }, [loadClients])
 
+  // Previsão "ao vivo": recalcula a cada troca de aba/mês (sem salvar nem gerar guias).
+  // Aba "Vendas a faturar" → imposto sobre TODAS as vendas. Aba "NFSe emitidas" → sobre as NF emitidas.
+  useEffect(() => {
+    if (!selectedCompany || regimeEmpresa === 'mei') { setPreviewAp(null); return }
+    let cancel = false
+    setPreviewLoading(true)
+    const base = activeTab === 'emissoes' ? 'emitidas' : 'vendas'
+    apurarImpostoCompetencia({ client: activeClient as any, companyId: selectedCompany.id, competencia: mesAno, baseReceita: base, persistir: false })
+      .then(res => {
+        if (cancel) return
+        if (res.sucesso && res.resultado) {
+          const r = res.resultado
+          setPreviewAp({
+            receita_bruta: r.receitaBruta,
+            fator_r: r.fatorR == null ? null : r.fatorR * 100,
+            faixa_simples: r.faixaSimples,
+            aliquota_efetiva: r.aliquotaEfetiva == null ? null : r.aliquotaEfetiva * 100,
+            valor_das: r.valorDas,
+            valor_irpj: r.valorIrpj, valor_csll: r.valorCsll,
+            valor_pis: r.valorPis, valor_cofins: r.valorCofins, valor_iss: r.valorIss,
+            total_impostos: r.totalImpostos,
+          })
+        } else {
+          setPreviewAp(null)
+        }
+      })
+      .finally(() => { if (!cancel) setPreviewLoading(false) })
+    return () => { cancel = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedCompany?.id, activeClient, mesAno, regimeEmpresa, vendas])
+
   // ─── KPIs ─────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const autorizadas = emissoes.filter(e => e.status === 'autorizada')
@@ -576,8 +613,33 @@ export default function NfseEmissao() {
     const emitidas = vendas.filter(v => v.nf_emitida).length
     const pendentes = total - emitidas
     const valorPendente = vendas.filter(v => !v.nf_emitida).reduce((s, v) => s + (v.valor_total || 0), 0)
-    return { total, emitidas, pendentes, valorPendente }
+    const valorEmitido = vendas.filter(v => v.nf_emitida).reduce((s, v) => s + (v.valor_total || 0), 0)
+    return { total, emitidas, pendentes, valorPendente, valorEmitido }
   }, [vendas])
+
+  // Vendas marcadas como NF emitida — alimentam a lista da aba "NFSe emitidas"
+  // quando a empresa não usa emissão por integração (tabela nfse_emissoes vazia).
+  const vendasEmitidas = useMemo(() => {
+    let list = vendas.filter(v => v.nf_emitida)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      list = list.filter(v =>
+        v.cliente_nome?.toLowerCase().includes(term) ||
+        v.cliente_cpf_cnpj?.includes(term) ||
+        v.itens.some(it => it.descricao?.toLowerCase().includes(term))
+      )
+    }
+    return [...list].sort((a, b) => (a.data_venda < b.data_venda ? 1 : -1))
+  }, [vendas, searchTerm])
+
+  // Paginação da lista de NF emitidas (10 por página)
+  const totalEmitidasPaginas = Math.max(1, Math.ceil(vendasEmitidas.length / PAGE_SIZE))
+  const vendasEmitidasPaginadas = useMemo(
+    () => vendasEmitidas.slice((emitidasPage - 1) * PAGE_SIZE, emitidasPage * PAGE_SIZE),
+    [vendasEmitidas, emitidasPage]
+  )
+  useEffect(() => { setEmitidasPage(1) }, [searchTerm, mesAno])
+  useEffect(() => { if (emitidasPage > totalEmitidasPaginas) setEmitidasPage(totalEmitidasPaginas) }, [emitidasPage, totalEmitidasPaginas])
 
   const vendaSortValue = useCallback((v: VendaRow, key: SortKey): string | number => {
     switch (key) {
@@ -1191,9 +1253,9 @@ export default function NfseEmissao() {
             { label: 'NF emitidas', value: vendasKpis.emitidas, icon: Check, color: '#059669' },
             { label: 'Valor pendente', value: formatBRL(vendasKpis.valorPendente), icon: DollarSign, color: '#EA580C' },
           ] : [
-            { label: 'Total NFSe', value: kpis.total, icon: FileText, color: '#059669' },
-            { label: 'Autorizadas', value: kpis.autorizadas, icon: Check, color: '#059669' },
-            { label: 'Valor emitido', value: formatBRL(kpis.totalEmitido), icon: DollarSign, color: '#059669' },
+            { label: 'Total NFSe', value: vendasKpis.emitidas, icon: FileText, color: '#059669' },
+            { label: 'Autorizadas', value: vendasKpis.emitidas, icon: Check, color: '#059669' },
+            { label: 'Valor emitido', value: formatBRL(vendasKpis.valorEmitido), icon: DollarSign, color: '#059669' },
             { label: 'Processando', value: kpis.processando, icon: Activity, color: '#EA580C' },
           ]).map((kpi, i) => (
             <KpiCard
@@ -1206,7 +1268,7 @@ export default function NfseEmissao() {
         </KpiCardGrid>
 
         {/* ── Previsão de imposto do mês ── */}
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -1214,7 +1276,7 @@ export default function NfseEmissao() {
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
                 Regime: <span className="font-medium text-gray-700">{REGIME_LABEL[regimeEmpresa || ''] || 'Não definido'}</span>
-                <span className="text-gray-400"> · estimativa sobre as vendas do mês · vence dia 20</span>
+                <span className="text-gray-400"> · estimativa sobre {activeTab === 'emissoes' ? 'as vendas marcadas como NF emitida' : 'as vendas do mês'} · vence dia 20</span>
               </p>
             </div>
             <button
@@ -1228,31 +1290,33 @@ export default function NfseEmissao() {
             </button>
           </div>
 
-          {apuracao ? (
+          {(() => { const apv = previewAp || apuracao; return apv ? (
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-              <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Receita (vendas)</p><p className="font-semibold">{formatBRL(apuracao.receita_bruta)}</p></div>
+              <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">{activeTab === 'emissoes' ? 'Valor emitido (NF)' : 'Receita (vendas)'}</p><p className="font-semibold">{formatBRL(apv.receita_bruta)}</p></div>
               {regimeEmpresa === 'simples' || regimeEmpresa === 'mei' ? (
                 <>
-                  {apuracao.fator_r != null && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Fator R</p><p className="font-semibold">{Number(apuracao.fator_r).toFixed(1)}%</p></div>}
-                  {apuracao.faixa_simples && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Anexo / Faixa</p><p className="font-semibold">{Number(apuracao.fator_r) >= 28 ? 'III' : 'V'} · {apuracao.faixa_simples}</p></div>}
-                  {apuracao.aliquota_efetiva != null && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Alíq. efetiva</p><p className="font-semibold">{Number(apuracao.aliquota_efetiva).toFixed(2)}%</p></div>}
-                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">DAS</p><p className="font-semibold">{formatBRL(apuracao.valor_das)}</p></div>
+                  {apv.fator_r != null && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Fator R</p><p className="font-semibold">{Number(apv.fator_r).toFixed(1)}%</p></div>}
+                  {apv.faixa_simples && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Anexo / Faixa</p><p className="font-semibold">{Number(apv.fator_r) >= 28 ? 'III' : 'V'} · {apv.faixa_simples}</p></div>}
+                  {apv.aliquota_efetiva != null && <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Alíq. efetiva</p><p className="font-semibold">{Number(apv.aliquota_efetiva).toFixed(2)}%</p></div>}
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">DAS</p><p className="font-semibold">{formatBRL(apv.valor_das)}</p></div>
                 </>
               ) : (
                 <>
-                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">IRPJ</p><p className="font-semibold">{formatBRL(apuracao.valor_irpj)}</p></div>
-                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">CSLL</p><p className="font-semibold">{formatBRL(apuracao.valor_csll)}</p></div>
-                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">PIS/COFINS</p><p className="font-semibold">{formatBRL(Number(apuracao.valor_pis) + Number(apuracao.valor_cofins))}</p></div>
-                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">ISS</p><p className="font-semibold">{formatBRL(apuracao.valor_iss)}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">IRPJ</p><p className="font-semibold">{formatBRL(apv.valor_irpj)}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">CSLL</p><p className="font-semibold">{formatBRL(apv.valor_csll)}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">PIS/COFINS</p><p className="font-semibold">{formatBRL(Number(apv.valor_pis) + Number(apv.valor_cofins))}</p></div>
+                  <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">ISS</p><p className="font-semibold">{formatBRL(apv.valor_iss)}</p></div>
                 </>
               )}
-              <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Total previsto</p><p className="font-bold text-[#E53E3E]">{formatBRL(apuracao.total_impostos)}</p></div>
+              <div><p className="text-[11px] text-gray-400 uppercase tracking-wide">Total previsto</p><p className="font-bold text-[#E53E3E]">{formatBRL(apv.total_impostos)}</p></div>
             </div>
           ) : (
             <p className="mt-3 text-xs text-gray-400">
-              Sem previsão calculada para este mês. Clique em <span className="font-medium text-gray-600">Calcular previsão</span> — vamos estimar o imposto (DAS ou DARF+ISS) e lançar como conta a pagar prevista no dia 20.
+              {previewLoading ? 'Calculando previsão…' : activeTab === 'emissoes'
+                ? 'Nenhuma venda marcada como NF emitida neste mês para estimar o imposto.'
+                : 'Sem vendas neste mês para estimar o imposto.'}
             </p>
-          )}
+          ) })()}
         </div>
 
         {/* ── Tabs ── */}
@@ -1571,15 +1635,93 @@ export default function NfseEmissao() {
 
         {/* ── Table: NFSe emitidas ── */}
         {activeTab === 'emissoes' && (
+        <div className="bg-gray-400 rounded-xl p-px">
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="animate-spin text-gray-400" size={24} />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-20 text-gray-400 text-sm">
-              Nenhuma NFSe encontrada neste periodo
-            </div>
+            vendasEmitidas.length === 0 ? (
+              <div className="text-center py-20 text-gray-400 text-sm">
+                Nenhuma venda marcada como NF emitida neste período. Marque as vendas na aba "Vendas a faturar".
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="px-4 py-2 bg-emerald-50/60 border-b border-emerald-100 text-xs text-emerald-800">
+                  Mostrando as <strong>vendas marcadas como NF emitida</strong> ({vendasEmitidas.length}) — esta empresa controla a emissão manualmente (sem integração de NFSe).
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ backgroundColor: '#1A2434' }} className="text-left text-sm text-white uppercase tracking-wider">
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap border-r border-white/10">Data</th>
+                      <th className="px-4 py-3 font-semibold border-r border-white/10">Nome</th>
+                      <th className="px-4 py-3 font-semibold border-r border-white/10">CPF/CNPJ</th>
+                      <th className="px-4 py-3 font-semibold border-r border-white/10">Item/s</th>
+                      <th className="px-4 py-3 font-semibold border-r border-white/10">Forma de pagamento</th>
+                      <th className="px-4 py-3 font-semibold text-right border-r border-white/10">Valor</th>
+                      <th className="px-4 py-3 font-semibold text-center">NF emitida</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendasEmitidasPaginadas.map(v => {
+                      const itensTxt = v.itens.length > 0 ? v.itens.map(it => `${it.quantidade}x ${it.descricao || 'Item'}`).join(', ') : '—'
+                      return (
+                        <tr key={v.id} className="border-b border-gray-200 hover:bg-gray-50/60 transition-colors">
+                          <td className="px-4 py-0.5 text-gray-600 truncate border-r border-gray-100 whitespace-nowrap">{formatData(v.data_venda)}</td>
+                          <td className="px-4 py-0.5 font-medium truncate border-r border-gray-100" title={v.cliente_nome || ''}>{v.cliente_nome || '—'}</td>
+                          <td className="px-4 py-0.5 text-gray-500 truncate border-r border-gray-100 whitespace-nowrap">{formatDoc(v.cliente_cpf_cnpj) || '—'}</td>
+                          <td className="px-4 py-0.5 text-gray-600 border-r border-gray-100"><div className="truncate max-w-[280px]" title={itensTxt}>{itensTxt}</div></td>
+                          <td className="px-4 py-0.5 text-gray-600 truncate border-r border-gray-100 whitespace-nowrap">{formatFormaPagamento(v.forma_pagamento)}</td>
+                          <td className="px-4 py-0.5 text-right font-medium truncate border-r border-gray-100 whitespace-nowrap">{formatBRL(v.valor_total)}</td>
+                          <td className="px-4 py-0.5 text-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border bg-emerald-50 border-emerald-200 text-emerald-700">
+                              <Check size={12} /> Sim
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-200 bg-gray-50 font-semibold text-gray-800">
+                      <td className="px-4 py-2" colSpan={5}>Total ({vendasEmitidas.length})</td>
+                      <td className="px-4 py-2 text-right whitespace-nowrap">{formatBRL(vendasEmitidas.reduce((s, v) => s + (v.valor_total || 0), 0))}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {/* Paginação da lista de NF emitidas */}
+                {vendasEmitidas.length > PAGE_SIZE && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-600">
+                    <span>
+                      Mostrando {Math.min((emitidasPage - 1) * PAGE_SIZE + 1, vendasEmitidas.length)}–
+                      {Math.min(emitidasPage * PAGE_SIZE, vendasEmitidas.length)} de {vendasEmitidas.length}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEmitidasPage(p => Math.max(1, p - 1))}
+                        disabled={emitidasPage <= 1}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft size={14} /> Anterior
+                      </button>
+                      <span className="px-3 py-1.5 font-medium text-gray-700">
+                        Página {emitidasPage} de {totalEmitidasPaginas}
+                      </span>
+                      <button
+                        onClick={() => setEmitidasPage(p => Math.min(totalEmitidasPaginas, p + 1))}
+                        disabled={emitidasPage >= totalEmitidasPaginas}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Próxima <ChevronRightIcon size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
           ) : (
             <div className="overflow-x-auto">
               <table className="text-sm" style={{ tableLayout: 'fixed', width: visibleEmitidasCols.reduce((a, k) => a + (emitidasColWidths[k] ?? EMITIDAS_COL_WIDTHS_DEFAULT[k]), 0), minWidth: '100%' }}>
@@ -1733,6 +1875,7 @@ export default function NfseEmissao() {
               </table>
             </div>
           )}
+        </div>
         </div>
         )}
 

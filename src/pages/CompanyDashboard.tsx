@@ -11,6 +11,8 @@ import {
 } from "recharts";
 import { AlertTriangle, ArrowRight, ChevronDown, Calendar, Info, Building2, CalendarClock, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
+import IndicadoresEconomicos from "@/components/dashboard/IndicadoresEconomicos";
+import BolsaTicker from "@/components/dashboard/BolsaTicker";
 import { SpreadsheetTable, type SpreadsheetColumn } from "@/components/SpreadsheetTable";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -983,11 +985,15 @@ export default function CompanyDashboard() {
 
     return (
         <AppLayout title="Dashboard">
-            <div className="pt-0 pb-3">
-            <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ width: "100%", fontFamily: "var(--font-base)" }}>
+            {/* ── Faixa rolante de cotações da bolsa (B3) ── */}
+            <div style={{ marginBottom: 12 }}>
+                <BolsaTicker />
+            </div>
+            <div className="pt-0 pb-3 dash-row" style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div className="bg-white rounded-xl border border-[#EAECF0] shadow-sm p-6 pb-8 min-h-[calc(100vh-190px)]" style={{ flex: 1, minWidth: 320, fontFamily: "var(--font-base)" }}>
                 {/* ── Header: Company Name + Period Filter (mesmo nivel) ── */}
                 <div className="border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ marginBottom: 14 }}>
-                <div className="bg-[#2A2724]" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, padding: "12px 16px" }}>
+                <div className="bg-[#071D41]" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, padding: "12px 16px" }}>
                     <div>
                         <button
                             onClick={() => navigate("/dashboard")}
@@ -1156,14 +1162,14 @@ export default function CompanyDashboard() {
                 )}
 
                 {/* ── 3 KPI Cards (mockup v1) ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
                     {/* 1. Faturamento */}
-                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
+                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 16, display: "flex", flexDirection: "column", gap: 7}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ECFDF5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingUp size={16} strokeWidth={2.25} />
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Faturamento" : "Recebimentos"}
                                 <span title={regime === "competencia"
                                     ? "Vendas confirmadas no período (regime de competência). Fonte: 'vendas.valor_liquido' por 'data_venda', status='confirmado'."
@@ -1173,7 +1179,7 @@ export default function CompanyDashboard() {
                                 </span>
                             </div>
                         </div>
-                        <div style={{ fontSize: "clamp(30px, 2.8vw, 40px)", fontWeight: 800, color: C.text1, lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(receitaPeriodo)}</div>
+                        <div style={{ fontSize: "clamp(18px, 1.8vw, 28px)", fontWeight: 800, color: C.text1, lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(receitaPeriodo)}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                             {receitaPeriodoAnterior > 0 ? (
                                 <>
@@ -1189,12 +1195,12 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 2. Despesas */}
-                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
+                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 16, display: "flex", flexDirection: "column", gap: 7}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <TrendingDown size={16} strokeWidth={2.25} />
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Despesas" : "Pagamentos"}
                                 <span title={regime === "competencia"
                                     ? "Despesas do período por regime de competência: soma do valor cheio de TODAS as contas a pagar (aberto, parcial, vencido, pago) com 'data_vencimento' no período. Exclui transferências."
@@ -1204,7 +1210,7 @@ export default function CompanyDashboard() {
                                 </span>
                             </div>
                         </div>
-                        <div style={{ fontSize: "clamp(30px, 2.8vw, 40px)", fontWeight: 800, color: C.text1, lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(despesaPeriodo)}</div>
+                        <div style={{ fontSize: "clamp(18px, 1.8vw, 28px)", fontWeight: 800, color: C.text1, lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(despesaPeriodo)}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                             {despesaPeriodoAnterior > 0 ? (
                                 <>
@@ -1220,12 +1226,12 @@ export default function CompanyDashboard() {
                     </div>
 
                     {/* 3. Resultado Líquido */}
-                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 20, display: "flex", flexDirection: "column", gap: 10}}>
+                    <div className="kpi-card" style={{ ...billoraCard, border: "var(--border-hairline)", padding: 16, display: "flex", flexDirection: "column", gap: 7}}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: resultadoPeriodo >= 0 ? "#ECFDF5" : "#FEF2F2", color: resultadoPeriodo >= 0 ? "#059669" : "#B91C1C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <Wallet size={16} strokeWidth={2.25} />
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: C.text1, letterSpacing: "-0.015em", lineHeight: 1.15, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
                                 {regime === "competencia" ? "Resultado Líquido" : "Resultado de Caixa"}
                                 <span title={regime === "competencia"
                                     ? "Resultado contábil do período (DRE): Faturamento − Despesas, ambos em regime de competência. Reflete o lucro do período independente do que entrou ou saiu de caixa."
@@ -1235,7 +1241,7 @@ export default function CompanyDashboard() {
                                 </span>
                             </div>
                         </div>
-                        <div style={{ fontSize: "clamp(30px, 2.8vw, 40px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(resultadoPeriodo)}</div>
+                        <div style={{ fontSize: "clamp(18px, 1.8vw, 28px)", fontWeight: 800, color: resultadoPeriodo >= 0 ? "#039855" : "#E53E3E", lineHeight: 1, letterSpacing: "-0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{fmt(resultadoPeriodo)}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.textMuted, marginTop: 2 }}>
                             {resultadoPeriodoAnterior !== 0 ? (
                                 <>
@@ -1278,28 +1284,28 @@ export default function CompanyDashboard() {
                                 { label: "Total", value: fmt(heatmap.total) },
                                 { label: "Ticket médio", value: (monthlySales?.totalVendas ?? 0) > 0 ? fmt((monthlySales?.totalFaturamento ?? 0) / (monthlySales?.totalVendas ?? 1)) : "—" },
                                 { label: "Média diária", value: fmt(heatmap.avg) },
-                                { label: "Melhor dia", value: heatmap.bestDay && heatmap.bestDay.value > 0 ? `${format(heatmap.bestDay.date, "dd/MM")} · ${fmt(heatmap.bestDay.value)}` : "—" },
+                                { label: "Melhor dia", value: heatmap.bestDay && heatmap.bestDay.value > 0 ? `${format(heatmap.bestDay.date, "dd/MM")} · ${fmtInt(heatmap.bestDay.value)}` : "—" },
                                 { label: "Dias com vendas", value: `${heatmap.daysWithSales} / ${heatmap.days.length}` },
                             ].map((s, i, arr) => (
-                                <div key={s.label} style={{ flex: 1, padding: "8px 20px", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
-                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 500, marginBottom: 3 }}>{s.label}</div>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+                                <div key={s.label} style={{ flex: 1, minWidth: 0, padding: "8px 12px", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
+                                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 500, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.value}</div>
                                 </div>
                             ))}
                         </div>
                     )}
-                    <div style={{ display: "flex", gap: 32, padding: 20, alignItems: "flex-start" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, padding: 20, alignItems: "stretch" }}>
                         {/* Heatmap grid */}
-                        <div style={{ display: "flex", flexDirection: "column", background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", overflow: "hidden" }}>
-                          <div style={{ padding: "14px 16px", background: "#000000" }}>
+                        <div style={{ display: "flex", flexDirection: "column", background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", overflow: "hidden", minWidth: 0 }}>
+                          <div style={{ padding: "14px 16px", background: "#071D41" }}>
                             <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendário</div>
                             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{regime === "competencia" ? "Faturamento por dia" : "Recebimentos por dia"}</div>
                           </div>
-                          <div style={{ display: "flex", gap: 8, padding: 16 }}>
+                          <div style={{ display: "flex", gap: 6, padding: 14, justifyContent: "center" }}>
                             {/* Day-of-week labels */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.textMuted, paddingTop: 22 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, color: C.textMuted, paddingTop: 22 }}>
                                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                                    <div key={d} style={{ height: 44, display: "flex", alignItems: "center" }}>{d}</div>
+                                    <div key={d} style={{ height: 36, display: "flex", alignItems: "center" }}>{d}</div>
                                 ))}
                             </div>
                             {/* Weeks */}
@@ -1309,7 +1315,7 @@ export default function CompanyDashboard() {
                                     {heatmap.weeks.map((_, wi) => {
                                         const monthAtThisCol = heatmap.monthLabels.find(m => m.weekIndex === wi);
                                         return (
-                                            <div key={wi} style={{ width: 44, fontSize: 11, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 8 : 0 }}>
+                                            <div key={wi} style={{ width: 36, fontSize: 10, fontWeight: 600, color: C.text2, textAlign: "left", marginLeft: wi > 0 && heatmap.monthLabels.some(m => m.weekIndex === wi) ? 8 : 0 }}>
                                                 {monthAtThisCol?.label || ""}
                                             </div>
                                         );
@@ -1323,18 +1329,18 @@ export default function CompanyDashboard() {
                                                 key={di}
                                                 title={`${format(day.date, "dd/MM")} · ${fmt(day.value)}`}
                                                 style={{
-                                                    width: 44, height: 44, borderRadius: 8,
+                                                    width: 36, height: 36, borderRadius: 7,
                                                     background: heatmapColor(day.value, heatmap.max),
                                                     border: "1px solid var(--hairline-soft)",
                                                     display: "flex", alignItems: "center", justifyContent: "center",
-                                                    fontSize: 14, fontWeight: 600,
+                                                    fontSize: 12, fontWeight: 600,
                                                     color: day.value === 0 ? C.textMuted : (day.value / (heatmap.max || 1)) >= 0.5 ? "#fff" : C.text1,
                                                 }}
                                             >
                                                 {format(day.date, "d")}
                                             </div>
                                         ) : (
-                                            <div key={di} style={{ width: 44, height: 44 }} />
+                                            <div key={di} style={{ width: 36, height: 36 }} />
                                         ))}
                                     </div>
                                 ))}
@@ -1343,10 +1349,10 @@ export default function CompanyDashboard() {
                           </div>
                         </div>
                         {/* Stats */}
-                        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignSelf: "stretch" }}>
+                        <div style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignSelf: "stretch", minWidth: 0 }}>
                             {/* Produtos vendidos - ranking */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "14px 16px", background: "#000000" }}>
+                                <div style={{ padding: "14px 16px", background: "#071D41" }}>
                                     <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Produtos e serviços</div>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>{monthlySales?.productBreakdown?.length ?? 0} {(monthlySales?.productBreakdown?.length ?? 0) === 1 ? "item" : "itens"}</div>
                                 </div>
@@ -1385,9 +1391,10 @@ export default function CompanyDashboard() {
                                                     rows={pageItems}
                                                     rowKey={(p, i) => p.descricao + (startIdx + i)}
                                                     resetKey={page}
-                                                    className="text-xs"
-                                                    headerClassName="bg-[#F9FAFB] text-[#1D2939] font-bold uppercase tracking-wide px-3 py-2"
-                                                    cellClassName="text-[#1D2939] px-3 py-[7px]"
+                                                    minColPx={32}
+                                                    className="text-[11px]"
+                                                    headerClassName="bg-[#F9FAFB] text-[#1D2939] font-bold uppercase tracking-wide px-2 py-1.5"
+                                                    cellClassName="text-[#1D2939] px-2 py-[5px]"
                                                     rowClassName={(p) => p.semProduto ? "bg-[#FFF0EB] text-muted-foreground italic" : "bg-white"}
                                                 />
                                               </div>
@@ -1425,7 +1432,7 @@ export default function CompanyDashboard() {
                             </div>
                             {/* Distribuição de produtos e serviços (pizza) */}
                             <div style={{ background: "#F6F2EB", borderRadius: 8, border: "var(--border-hairline)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "14px 16px", background: "#000000" }}>
+                                <div style={{ padding: "14px 16px", background: "#071D41" }}>
                                     <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Distribuição</div>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginTop: 2 }}>Participação no faturamento</div>
                                 </div>
@@ -1768,6 +1775,9 @@ export default function CompanyDashboard() {
                 </div>
 
             </div>
+
+            {/* ── Painel lateral: Indicadores Econômicos (BCB) ── */}
+            <IndicadoresEconomicos />
             </div>
         </AppLayout>
     );

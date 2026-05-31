@@ -249,10 +249,18 @@ export async function apurarImpostoCompetencia({
   client,
   companyId,
   competencia,
+  baseReceita = 'vendas',
+  persistir = true,
 }: {
   client: SupabaseClient
   companyId: string
   competencia: string
+  // Base de faturamento do MÊS: 'vendas' (todas as vendas) ou 'emitidas' (somente as vendas marcadas como NF emitida).
+  // O faturamento 12m (Fator R do Simples) continua sempre vindo das vendas.
+  baseReceita?: 'vendas' | 'emitidas'
+  // Quando false, apenas calcula e retorna o resultado (NÃO salva apuracao_impostos nem gera CPs).
+  // Usado para a previsão "ao vivo" exibida no card ao trocar de aba.
+  persistir?: boolean
 }): Promise<ApurarResult> {
   const db = client as any
   try {
@@ -268,7 +276,7 @@ export async function apurarImpostoCompetencia({
     const inicio12m = format(addMonths(new Date(ano, mes - 1, 1), -12), 'yyyy-MM') + '-01'
     const fim12m = format(addMonths(new Date(ano, mes - 1, 1), -1), 'yyyy-MM') + '-31'
 
-    const [mesRes, ano12Res, folhaRes, cfgRes, mixRes] = await Promise.all([
+    const [mesRes, ano12Res, folhaRes, cfgRes, mixRes, emitRes] = await Promise.all([
       db.from('vendas').select('valor_total').eq('company_id', companyId).is('deleted_at', null)
         .gte('data_venda', inicioMes).lte('data_venda', fimMes),
       db.from('vendas').select('valor_total').eq('company_id', companyId).is('deleted_at', null)
@@ -280,10 +288,17 @@ export async function apurarImpostoCompetencia({
       db.from('config_mix_tributario')
         .select('pct_receita, anexo_simples, presuncao_irpj, presuncao_csll, aliquota_iss')
         .eq('company_id', companyId).order('ordem'),
+      // Soma das vendas marcadas como NF emitida (vendas.nf_emitida = true) — base alternativa.
+      // É assim que o usuário controla o que foi faturado (a tabela nfse_emissoes só recebe
+      // emissões pela integração/API, que pode não estar em uso).
+      db.from('vendas').select('valor_total').eq('company_id', companyId).is('deleted_at', null).eq('nf_emitida', true)
+        .gte('data_venda', inicioMes).lte('data_venda', fimMes),
     ])
 
     const somaVendas = (rows: any[]) => (rows || []).reduce((s: number, n: any) => s + (Number(n.valor_total) || 0), 0)
-    const receitaBruta = somaVendas(mesRes.data)
+    const receitaVendas = somaVendas(mesRes.data)
+    const receitaEmitidas = somaVendas(emitRes.data)
+    const receitaBruta = baseReceita === 'emitidas' ? receitaEmitidas : receitaVendas
     const faturamento12m = somaVendas(ano12Res.data)
     const folha12m = (folhaRes.data || []).reduce((s: number, f: any) => s + (Number(f.total_proventos) || 0), 0)
     const aliquotaIss = cfgRes.data?.aliquota_padrao ? Number(cfgRes.data.aliquota_padrao) / 100 : 0.03
@@ -296,7 +311,9 @@ export async function apurarImpostoCompetencia({
     })).filter((m: MixFaixa) => m.pct > 0)
 
     if (receitaBruta <= 0 && regime !== 'mei') {
-      return { sucesso: false, semReceita: true, erro: 'Nenhuma venda nesta competência para apurar.' }
+      return { sucesso: false, semReceita: true, erro: baseReceita === 'emitidas'
+        ? 'Nenhuma venda marcada como NF emitida nesta competência para apurar.'
+        : 'Nenhuma venda nesta competência para apurar.' }
     }
 
     // Despesas do mês (Lucro Real) — contas a pagar da competência, exceto as próprias guias.
@@ -311,6 +328,9 @@ export async function apurarImpostoCompetencia({
     }
 
     const res = calcularImposto({ regime, receitaBruta, faturamento12m, folha12m, despesas, aliquotaIss, mix })
+
+    // Modo somente-cálculo (previsão "ao vivo" do card): não salva nem gera CPs.
+    if (!persistir) return { sucesso: true, resultado: res }
 
     const dataVenc = format(new Date(ano, mes, 20), 'yyyy-MM-dd') // dia 20 do mês seguinte
     const pct = (frac: number | null) => (frac == null ? null : Math.round(frac * 10000) / 100)
