@@ -32,6 +32,15 @@ export const FAIXAS_IRRF_2025: FaixaIRRF[] = [
 
 export const DEDUCAO_DEPENDENTE = 189.59
 
+// Tipos de contrato que entram na folha SÓ com o salário informado no cadastro:
+// estagiário (bolsa-auxílio, Lei 11.788), PJ (NF) e autônomo (RPA). Não incidem
+// descontos (INSS/IRRF/VT) nem encargos patronais (FGTS/INSS patronal) — o líquido
+// é o próprio salário base. CLT e temporário seguem o cálculo CLT completo.
+export const TIPOS_CONTRATO_SALARIO_PURO = ['estagio', 'pj', 'autonomo']
+
+export const isSalarioPuro = (tipoContrato?: string | null) =>
+  TIPOS_CONTRATO_SALARIO_PURO.includes((tipoContrato || 'clt').toLowerCase())
+
 // INSS progressivo sobre o salário bruto.
 export function calcularINSS(salarioBruto: number, faixas: FaixaINSS[] = []): number {
   if (faixas.length === 0) faixas = FAIXAS_INSS_2025

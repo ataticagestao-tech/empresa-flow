@@ -16,7 +16,7 @@ import { ExportMenu, type ExportColumn } from "@/components/ExportMenu";
 import { WhatsappValidatorButton } from "@/components/whatsapp/WhatsappValidatorButton";
 import { SolicitarCadastroDialog } from "@/components/cadastros/SolicitarCadastroDialog";
 import { SendWhatsAppDialog } from "@/components/whatsapp/SendWhatsAppDialog";
-import { calcularINSS, calcularIRRF, DEDUCAO_DEPENDENTE, FAIXAS_INSS_2025, type FaixaINSS, type FaixaIRRF } from "@/lib/folha/calculo";
+import { calcularINSS, calcularIRRF, isSalarioPuro, DEDUCAO_DEPENDENTE, FAIXAS_INSS_2025, type FaixaINSS, type FaixaIRRF } from "@/lib/folha/calculo";
 
 interface Employee {
   id: string; company_id: string;
@@ -661,12 +661,14 @@ export default function Funcionarios() {
     } catch (err: any) { toast.error("Erro: " + err.message); }
   };
 
-  const inssCalc = useMemo(() => calcularINSS(calcSalario, faixasINSS), [calcSalario, faixasINSS]);
+  // Estágio/PJ/autônomo: só o salário informado, sem descontos nem encargos.
+  const salarioPuro = isSalarioPuro(selected?.tipo_contrato);
+  const inssCalc = useMemo(() => salarioPuro ? 0 : calcularINSS(calcSalario, faixasINSS), [calcSalario, faixasINSS, salarioPuro]);
   const baseIRRF = Math.max(0, calcSalario - inssCalc - calcDependentes * DEDUCAO_DEPENDENTE);
-  const irrfCalc = useMemo(() => calcularIRRF(baseIRRF, faixasIRRF), [baseIRRF, faixasIRRF]);
-  const fgts = Math.round(calcSalario * 0.08 * 100) / 100;
+  const irrfCalc = useMemo(() => salarioPuro ? 0 : calcularIRRF(baseIRRF, faixasIRRF), [baseIRRF, faixasIRRF, salarioPuro]);
+  const fgts = salarioPuro ? 0 : Math.round(calcSalario * 0.08 * 100) / 100;
   const liquido = Math.round((calcSalario - inssCalc - irrfCalc) * 100) / 100;
-  const inssPatronal = Math.round(calcSalario * 0.20 * 100) / 100;
+  const inssPatronal = salarioPuro ? 0 : Math.round(calcSalario * 0.20 * 100) / 100;
   const custoTotal = Math.round((calcSalario + fgts + inssPatronal) * 100) / 100;
 
   // Faixas usadas na exibição do detalhamento (DB ou fallback 2025)
@@ -1129,6 +1131,11 @@ export default function Funcionarios() {
 
                 {tab === "calculadora" && (
                   <div className="space-y-6">
+                    {salarioPuro && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+                        Contrato <strong>{tipoContratoLabels[selected?.tipo_contrato || ""] || selected?.tipo_contrato}</strong>: lançado na folha apenas com o salário informado — sem INSS, IRRF, VT, FGTS ou INSS patronal.
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1"><label className={LB}>Salário Base (R$)</label><input type="number" value={calcSalario || ""} onChange={e => setCalcSalario(Number(e.target.value))} className={IC} placeholder="0,00" /></div>
                       <div className="flex flex-col gap-1"><label className={LB}>Dependentes</label>
